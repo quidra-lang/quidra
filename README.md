@@ -720,7 +720,7 @@ Run `quidra` with no arguments from a terminal to start the native REPL:
 
 ```text
 $ quidra
-Quidra 0.1.0
+Quidra 0.2.0
 >>> 1 + 2
 3
 >>> int x = 5

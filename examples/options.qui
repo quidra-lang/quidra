@@ -1,0 +1,10 @@
+int | none maybe_value(bool present)
+    if present
+        return 7
+    return none
+
+match maybe_value(false)
+    int value
+        print(value)
+    none
+        print("none")

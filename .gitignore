@@ -1,0 +1,12 @@
+/build*/
+/dist/
+/stage/
+/package-root/
+/.cache/
+*.ll
+*.o
+*.obj
+*.exe
+.DS_Store
+__pycache__/
+*.pyc

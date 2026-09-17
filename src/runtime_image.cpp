@@ -135,7 +135,7 @@ Image tensor_to_image(void* raw) {
     unsigned long long width = 0;
     if (!quidra_tensor_u8_chw_info(raw, &channels, &height, &width)) {
         throw std::invalid_argument(
-            "vision.write requires tensor<uint8> with CHW shape [1|3|4, H, W]");
+            "image.write requires tensor<uint8> with CHW shape [1|3|4, H, W]");
     }
     if (channels > std::numeric_limits<std::size_t>::max() ||
         height > std::numeric_limits<std::size_t>::max() ||
@@ -151,7 +151,7 @@ Image tensor_to_image(void* raw) {
             raw, image.chw.data(),
             static_cast<unsigned long long>(image.chw.size()))) {
         throw std::invalid_argument(
-            "vision.write requires every image tensor element to be initialized");
+            "image.write requires every image tensor element to be initialized");
     }
     return image;
 }
@@ -687,7 +687,7 @@ void write_image(const std::string& path, const Image& image, int quality) {
 
 } // namespace
 
-extern "C" void* quidra_vision_read_u8(const char* path) {
+extern "C" void* quidra_image_read_u8(const char* path) {
     vision_last_error.clear();
     try {
         if (!path || !*path) throw std::invalid_argument("image path is empty");
@@ -704,7 +704,7 @@ extern "C" void* quidra_vision_read_u8(const char* path) {
     }
 }
 
-extern "C" bool quidra_vision_write_u8(const char* path, void* tensor, long long quality) {
+extern "C" bool quidra_image_write_u8(const char* path, void* tensor, long long quality) {
     vision_last_error.clear();
     try {
         if (!path || !*path) throw std::invalid_argument("image path is empty");
@@ -723,7 +723,7 @@ extern "C" bool quidra_vision_write_u8(const char* path, void* tensor, long long
     }
 }
 
-extern "C" char* quidra_vision_last_error_copy() {
+extern "C" char* quidra_image_last_error_copy() {
     return vision_copy_string(
         vision_last_error.empty() ? "vision operation failed" : vision_last_error);
 }

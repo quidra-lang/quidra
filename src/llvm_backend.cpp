@@ -1818,40 +1818,40 @@ struct FunctionEmitter {
             out<<"  "<<value(n.out)<<" = call i1 @quidra_json_equal(ptr "<<value(n.left)
                <<", ptr "<<value(n.right)<<")\n";
         }
-        if constexpr(std::is_same_v<T,ir::VisionRead>){
+        if constexpr(std::is_same_v<T,ir::ImageRead>){
             values[n.out]=n.result_type;
-            const auto raw=temp("vision.read.raw"),ok=temp("vision.read.ok"),result=value(n.out);
-            out<<"  "<<raw<<" = call ptr @quidra_vision_read_u8(ptr "<<value(n.path)<<")\n";
+            const auto raw=temp("image.read.raw"),ok=temp("image.read.ok"),result=value(n.out);
+            out<<"  "<<raw<<" = call ptr @quidra_image_read_u8(ptr "<<value(n.path)<<")\n";
             out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
             out<<"  "<<ok<<" = icmp ne ptr "<<raw<<", null\n";
-            const auto yes=unique_label("vision.read.ok"),bad=unique_label("vision.read.error"),done=unique_label("vision.read.done");
+            const auto yes=unique_label("image.read.ok"),bad=unique_label("image.read.error"),done=unique_label("image.read.done");
             out<<"  br i1 "<<ok<<", label %"<<yes<<", label %"<<bad<<"\n";
             const auto image_type=Type::tensor(Type::simple(TypeKind::UInt8));
             out<<yes<<":\n  store i64 "<<case_index(n.result_type,image_type)<<", ptr "<<result<<"\n";
-            const auto good_payload=temp("vision.read.tensor");
+            const auto good_payload=temp("image.read.tensor");
             out<<"  "<<good_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
                <<"  store ptr "<<raw<<", ptr "<<good_payload<<"\n  br label %"<<done<<"\n";
             out<<bad<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
-            const auto message=temp("vision.read.message"),error_payload=temp("vision.read.error.payload");
-            out<<"  "<<message<<" = call ptr @quidra_vision_last_error_copy()\n";
+            const auto message=temp("image.read.message"),error_payload=temp("image.read.error.payload");
+            out<<"  "<<message<<" = call ptr @quidra_image_last_error_copy()\n";
             out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
                <<"  store ptr "<<message<<", ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
             out<<done<<":\n";
         }
-        if constexpr(std::is_same_v<T,ir::VisionWrite>){
+        if constexpr(std::is_same_v<T,ir::ImageWrite>){
             values[n.out]=n.result_type;
-            const auto ok=temp("vision.write.ok"),result=value(n.out);
-            out<<"  "<<ok<<" = call i1 @quidra_vision_write_u8(ptr "<<value(n.path)
+            const auto ok=temp("image.write.ok"),result=value(n.out);
+            out<<"  "<<ok<<" = call i1 @quidra_image_write_u8(ptr "<<value(n.path)
                <<", ptr "<<value(n.image)<<", i64 "<<value(n.quality)<<")\n";
             out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
-            const auto yes=unique_label("vision.write.ok"),bad=unique_label("vision.write.error"),done=unique_label("vision.write.done");
+            const auto yes=unique_label("image.write.ok"),bad=unique_label("image.write.error"),done=unique_label("image.write.done");
             out<<"  br i1 "<<ok<<", label %"<<yes<<", label %"<<bad<<"\n";
             out<<yes<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Void))
                <<", ptr "<<result<<"\n  br label %"<<done<<"\n";
             out<<bad<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))
                <<", ptr "<<result<<"\n";
-            const auto message=temp("vision.write.message"),error_payload=temp("vision.write.error.payload");
-            out<<"  "<<message<<" = call ptr @quidra_vision_last_error_copy()\n";
+            const auto message=temp("image.write.message"),error_payload=temp("image.write.error.payload");
+            out<<"  "<<message<<" = call ptr @quidra_image_last_error_copy()\n";
             out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
                <<"  store ptr "<<message<<", ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
             out<<done<<":\n";
@@ -2801,9 +2801,9 @@ declare ptr @quidra_http_last_error_copy()
 declare ptr @quidra_http_header(ptr, ptr)
 declare ptr @quidra_http_response_clone(ptr)
 declare void @quidra_http_response_drop(ptr)
-declare ptr @quidra_vision_read_u8(ptr)
-declare i1 @quidra_vision_write_u8(ptr, ptr, i64)
-declare ptr @quidra_vision_last_error_copy()
+declare ptr @quidra_image_read_u8(ptr)
+declare i1 @quidra_image_write_u8(ptr, ptr, i64)
+declare ptr @quidra_image_last_error_copy()
 declare i32 @printf(ptr, ...)
 declare i32 @puts(ptr nocapture nonnull readonly)
 declare i64 @strlen(ptr nocapture nonnull readonly)

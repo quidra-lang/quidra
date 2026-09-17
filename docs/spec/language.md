@@ -471,7 +471,7 @@ Tensor `+`, `-`, `*`, `/`, and integer `%` are elementwise. Tensor-to-tensor imp
 
 ## Implementation scope
 
-The native core supports fixed-width numeric types, lossless-only implicit conversion and practical explicit casts, numeric parsing and scalar text conversion, compact mutable bytes, initialized/uninitialized arrays, first-class dense tensors, tensor statistics and rank-2 matrix multiplication, PNG/JPEG/BMP/TIFF/WebP image I/O through `vision`, console I/O, automatic standard namespaces, explicit package/local-module resolution, monomorphized generics with unambiguous function/method inference, user-defined classes, single inheritance, and the mechanisms described here. Concurrency, WASM, self-hosting, broader signal-processing APIs, and broader package distribution remain development areas.
+The native core supports fixed-width numeric types, lossless-only implicit conversion and practical explicit casts, numeric parsing and scalar text conversion, compact mutable bytes, initialized/uninitialized arrays, first-class dense tensors, tensor statistics and rank-2 matrix multiplication, PNG/JPEG/BMP/TIFF/WebP image I/O through `image`, console I/O, automatic standard namespaces, explicit package/local-module resolution, monomorphized generics with unambiguous function/method inference, user-defined classes, single inheritance, and the mechanisms described here. Concurrency, WASM, self-hosting, broader signal-processing APIs, and broader package distribution remain development areas.
 
 
 ## Standard namespaces and imports
@@ -667,9 +667,9 @@ The v0.1 implementation uses libcurl directly in the native runtime. It permits 
 
 ### vision
 
-`vision.read<uint8>(path)` returns `tensor<uint8> | error`. The decoded tensor uses CHW layout: grayscale is `[1, H, W]`, RGB is `[3, H, W]`, and RGBA is `[4, H, W]`. Decoding does not normalize values, change RGB to BGR, or silently convert dtype. PNG, JPEG, BMP, TIFF, and WebP are supported by the native runtime.
+`image.read<uint8>(path)` returns `tensor<uint8> | error`. The decoded tensor uses CHW layout: grayscale is `[1, H, W]`, RGB is `[3, H, W]`, and RGBA is `[4, H, W]`. Decoding does not normalize values, change RGB to BGR, or silently convert dtype. PNG, JPEG, BMP, TIFF, and WebP are supported by the native runtime.
 
-`vision.write(path, image, quality = 95)` accepts a fully initialized CHW `tensor<uint8>` and returns `void | error`. The codec is selected from the filename extension. JPEG and WebP quality is an integer from 1 through 100. JPEG rejects RGBA input rather than silently discarding alpha. Callers must make intentional layout, dtype, range, and channel changes before the write call.
+`image.write(path, pixels, quality = 95)` accepts a fully initialized CHW `tensor<uint8>` and returns `void | error`. The codec is selected from the filename extension. JPEG and WebP quality is an integer from 1 through 100. JPEG rejects RGBA input rather than silently discarding alpha. Callers must make intentional layout, dtype, range, and channel changes before the write call.
 
 `signal` is reserved as a standard namespace so its future qualified API cannot be captured by a user bare declaration, but language version 0.1 does not define public signal-processing callables.
 

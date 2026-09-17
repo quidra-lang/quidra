@@ -121,7 +121,7 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
     } else if (module == "linear") {
         exports.functions.emplace("dot", std::string(*standard_function_target(module, "dot")));
         exports.functions.emplace("matmul", std::string(*standard_function_target(module, "matmul")));
-    } else if (module == "vision") {
+    } else if (module == "image") {
         exports.functions.emplace("read", std::string(*standard_function_target(module, "read")));
         exports.functions.emplace("write", std::string(*standard_function_target(module, "write")));
     } else if (module == "neural") {
@@ -2157,7 +2157,7 @@ private:
 
             if (!type_arguments.empty() && !deferred_call) {
                 if (copy.callee == "tensor" || copy.callee == "$std.tensor.zeros" ||
-                    copy.callee == "$std.tensor.ones" || copy.callee == "$std.vision.read") {
+                    copy.callee == "$std.tensor.ones" || copy.callee == "$std.image.read") {
                     copy.type_arguments = std::move(type_arguments);
                 } else if (class_templates_.contains(copy.callee)) {
                     copy.callee = instantiate_class(copy.callee, type_arguments);

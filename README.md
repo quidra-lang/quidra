@@ -545,9 +545,9 @@ int[] ordered = values.sorted()
 Dense numeric tensors use the dedicated `tensor<T>` type:
 
 ```quidra
-tensor<float32> image = tensor.zeros<float32>([3, 224, 224])
+tensor<float32> pixels = tensor.zeros<float32>([3, 224, 224])
 tensor<float32> bias = tensor.ones<float32>([1, 224, 224])
-tensor<float32> result = image + bias
+tensor<float32> result = pixels + bias
 
 tensor<float32> manual = tensor<float32>([2, 2])
 manual[0, 0] = 1.0
@@ -673,7 +673,7 @@ The current implementation includes:
 - monotonic bare-name resolution and always-visible standard namespaces,
 - local modules, installed-package resolution, explicit generics, and monomorphization,
 - dense tensors with views, copy-on-write, strict broadcasting, explicit numeric casting, statistics, and rank-2 matrix multiplication,
-- PNG/JPEG/BMP/TIFF/WebP image I/O through `vision`,
+- PNG/JPEG/BMP/TIFF/WebP image I/O through `image`,
 - typed Quidra IR followed by direct LLVM IR/native lowering,
 - Linux, macOS, and Windows native execution/packaging,
 - structured diagnostics, source inspection, and revision/hash-validated node-level patching.
@@ -964,10 +964,10 @@ match result
 Image I/O is explicit and tensor-native:
 
 ```quidra
-auto loaded = vision.read<uint8>("input.png")
+auto loaded = image.read<uint8>("input.png")
 match loaded
-    tensor<uint8> image
-        auto written = vision.write("output.webp", image, quality = 95)
+    tensor<uint8> pixels
+        auto written = image.write("output.webp", pixels, quality = 95)
         match written
             void
                 print("saved")

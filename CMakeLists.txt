@@ -76,7 +76,7 @@ add_library(quidra_runtime STATIC
     src/runtime_process.cpp
     src/runtime_json.cpp
     src/runtime_http.cpp
-    src/runtime_vision.cpp
+    src/runtime_image.cpp
 )
 target_include_directories(quidra_runtime PRIVATE ${CURL_INCLUDE_DIRS} ${WEBP_INCLUDE_DIR})
 target_link_libraries(quidra_runtime PRIVATE PNG::PNG JPEG::JPEG TIFF::TIFF ${WEBP_LIBRARY})

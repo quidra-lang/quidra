@@ -126,8 +126,8 @@ enum class BuiltinCallable {
     StatsMean,
     LinearMatmul,
     LinearDot,
-    VisionRead,
-    VisionWrite,
+    ImageRead,
+    ImageWrite,
     NeuralTrack,
     NeuralParameterTrack,
     NeuralLinearForward,
@@ -228,8 +228,8 @@ inline constexpr std::array<BuiltinCallableInfo, 76> intrinsic_callables{{
     {"$std.stats.mean", BuiltinCallable::StatsMean},
     {"$std.linear.matmul", BuiltinCallable::LinearMatmul},
     {"$std.linear.dot", BuiltinCallable::LinearDot},
-    {"$std.vision.read", BuiltinCallable::VisionRead},
-    {"$std.vision.write", BuiltinCallable::VisionWrite},
+    {"$std.image.read", BuiltinCallable::ImageRead},
+    {"$std.image.write", BuiltinCallable::ImageWrite},
     {"$std.neural.track", BuiltinCallable::NeuralTrack},
     {"$std.neural.parameter_track", BuiltinCallable::NeuralParameterTrack},
     {"$std.neural.linear_forward", BuiltinCallable::NeuralLinearForward},
@@ -261,7 +261,7 @@ inline constexpr std::optional<BuiltinCallable> builtin_callable(std::string_vie
 
 inline constexpr std::array<std::string_view, 18> standard_modules{{
     "math", "cli", "file", "environment", "test", "time", "random", "process",
-    "map", "set", "json", "http", "stats", "linear", "signal", "vision", "tensor",
+    "map", "set", "json", "http", "stats", "linear", "signal", "image", "tensor",
     "neural"
 }};
 
@@ -332,9 +332,9 @@ inline constexpr std::optional<std::string_view> standard_function_target(
         if (member == "dot") return "$std.linear.dot";
         return std::nullopt;
     }
-    if (module == "vision") {
-        if (member == "read") return "$std.vision.read";
-        if (member == "write") return "$std.vision.write";
+    if (module == "image") {
+        if (member == "read") return "$std.image.read";
+        if (member == "write") return "$std.image.write";
         return std::nullopt;
     }
     if (module == "neural") {

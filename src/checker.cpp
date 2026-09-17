@@ -3013,10 +3013,10 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         : *left.first;
                     break;
                 }
-                case BuiltinCallable::VisionRead: {
+                case BuiltinCallable::ImageRead: {
                     if (node->type_arguments.size() != 1) {
                         error("GENERIC_ARITY",
-                              "vision.read requires exactly one requested element type.",
+                              "image.read requires exactly one requested element type.",
                               expression.span);
                         type = simple(TypeKind::Invalid);
                         break;
@@ -3024,12 +3024,12 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     auto element = resolve_type(node->type_arguments.front());
                     if (element.kind != TypeKind::UInt8) {
                         error("INVALID_TYPE",
-                              "vision.read currently supports only explicit uint8 decoding.",
+                              "image.read currently supports only explicit uint8 decoding.",
                               node->type_arguments.front().span);
                     }
                     if (node->args.size() != 1) {
                         error("ARGUMENT_MISMATCH",
-                              "vision.read<uint8> requires one path string.", expression.span);
+                              "image.read<uint8> requires one path string.", expression.span);
                         type = simple(TypeKind::Invalid);
                         break;
                     }
@@ -3041,14 +3041,14 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                                           simple(TypeKind::Error)});
                     break;
                 }
-                case BuiltinCallable::VisionWrite: {
+                case BuiltinCallable::ImageWrite: {
                     if (!node->type_arguments.empty()) {
                         error("GENERIC_TARGET",
-                              "vision.write does not take type arguments.", expression.span);
+                              "image.write does not take type arguments.", expression.span);
                     }
                     if (node->args.size() < 2 || node->args.size() > 3) {
                         error("ARGUMENT_MISMATCH",
-                              "vision.write requires path, image, and optional quality = int.",
+                              "image.write requires path, image, and optional quality = int.",
                               expression.span);
                         type = simple(TypeKind::Invalid);
                         break;
@@ -3063,14 +3063,14 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         (node->args[0].name && *node->args[0].name != "path") ||
                         (node->args[1].name && *node->args[1].name != "image")) {
                         error("ARGUMENT_MISMATCH",
-                              "vision.write path/image arguments have invalid labels or write capability.",
+                              "image.write path/image arguments have invalid labels or write capability.",
                               expression.span);
                     }
                     if (node->args.size() == 3) {
                         if (node->args[2].writable || !node->args[2].name ||
                             *node->args[2].name != "quality") {
                             error("ARGUMENT_MISMATCH",
-                                  "vision.write third argument must be quality = value.",
+                                  "image.write third argument must be quality = value.",
                                   node->args[2].span);
                         }
                         bad |= poisoned(check_expr(*node->args[2].value, &int_type));
@@ -3119,7 +3119,7 @@ Type Checker::check_call_expr(const Expr& expression,
         const auto& name = node->callee;
         const bool tensor_generic_call =
             name == "tensor" || name == "$std.tensor.zeros" ||
-            name == "$std.tensor.ones" || name == "$std.vision.read";
+            name == "$std.tensor.ones" || name == "$std.image.read";
         if (!node->type_arguments.empty() && !tensor_generic_call) {
             throw std::logic_error("ConcreteProgram contains unresolved generic call arguments.");
         }

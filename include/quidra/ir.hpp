@@ -87,8 +87,8 @@ struct NeuralLoad { ValueId path; std::string schema; std::vector<NeuralStateTar
 struct StatsMean { ValueId out; ValueId tensor; Type tensor_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct LinearMatmul { ValueId out; ValueId left; ValueId right; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct LinearDot { ValueId out; ValueId left; ValueId right; Type element_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct VisionRead { ValueId out; ValueId path; Type result_type; };
-struct VisionWrite { ValueId out; ValueId path; ValueId image; ValueId quality; Type result_type; };
+struct ImageRead { ValueId out; ValueId path; Type result_type; };
+struct ImageWrite { ValueId out; ValueId path; ValueId image; ValueId quality; Type result_type; };
 struct TensorBinary {
     ValueId out;
     std::string op;
@@ -232,7 +232,7 @@ using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantBool, Const
                                  NeuralLinearCreate, NeuralLinearForward, NeuralConv2DCreate, NeuralConv2DForward, NeuralBatchNormCreate, NeuralBatchNormForward,
                                  NeuralDropoutCreate, NeuralDropoutForward, NeuralSGDCreate, NeuralAdamCreate, NeuralStep,
                                  NeuralSave, NeuralLoad,
-                                 StatsMean, LinearMatmul, LinearDot, VisionRead, VisionWrite, TensorBinary, TensorIndex, TensorSet, ParseNumber, NumericAbs, Sqrt, MathUnary, MathRoundInt, MathPow,
+                                 StatsMean, LinearMatmul, LinearDot, ImageRead, ImageWrite, TensorBinary, TensorIndex, TensorSet, ParseNumber, NumericAbs, Sqrt, MathUnary, MathRoundInt, MathPow,
                                  CliArgument, CliOption, CliFlag, CliFinish,
                                  FileRead, FileReadBytes, FileWrite, FileWriteBytes, FileExists, FileIsDirectory, FileRemove, FileCopy, FileMove, FileMkdir, FileList,
                                  EnvironmentGet, EnvironmentHas, TestAssert,

@@ -377,7 +377,7 @@ bool llvm_uses_http(const fs::path& llvm) {
 }
 
 bool llvm_uses_vision(const fs::path& llvm) {
-    return llvm_calls_symbol_prefix(llvm, "@quidra_vision_");
+    return llvm_calls_symbol_prefix(llvm, "@quidra_image_");
 }
 
 int system_status(int status) {

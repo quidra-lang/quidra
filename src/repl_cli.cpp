@@ -247,8 +247,8 @@ bool replay_barrier_instruction(const ir::Instruction& instruction) {
             std::is_same_v<T, ir::RandomBool> ||
             std::is_same_v<T, ir::ProcessRun> ||
             std::is_same_v<T, ir::HttpGet> ||
-            std::is_same_v<T, ir::VisionRead> ||
-            std::is_same_v<T, ir::VisionWrite> ||
+            std::is_same_v<T, ir::ImageRead> ||
+            std::is_same_v<T, ir::ImageWrite> ||
             std::is_same_v<T, ir::NeuralSave> ||
             std::is_same_v<T, ir::NeuralLoad>;
     }, instruction);

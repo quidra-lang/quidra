@@ -883,28 +883,28 @@ QUI
 [[ "$("$QUIDRA" "$TMP/neural-dtype-precision.qui")" == "$(printf 'true\ntrue')" ]]
 
 cat > "$TMP/vision.qui" <<QUI
-tensor<uint8> image = tensor<uint8>([3, 2, 2])
-image[0, 0, 0] = 10
-image[0, 0, 1] = 20
-image[0, 1, 0] = 30
-image[0, 1, 1] = 40
-image[1, 0, 0] = 50
-image[1, 0, 1] = 60
-image[1, 1, 0] = 70
-image[1, 1, 1] = 80
-image[2, 0, 0] = 90
-image[2, 0, 1] = 100
-image[2, 1, 0] = 110
-image[2, 1, 1] = 120
+tensor<uint8> pixels = tensor<uint8>([3, 2, 2])
+pixels[0, 0, 0] = 10
+pixels[0, 0, 1] = 20
+pixels[0, 1, 0] = 30
+pixels[0, 1, 1] = 40
+pixels[1, 0, 0] = 50
+pixels[1, 0, 1] = 60
+pixels[1, 1, 0] = 70
+pixels[1, 1, 1] = 80
+pixels[2, 0, 0] = 90
+pixels[2, 0, 1] = 100
+pixels[2, 1, 0] = 110
+pixels[2, 1, 1] = 120
 
-auto png_written = vision.write("$TMP/vision.png", image)
+auto png_written = image.write("$TMP/vision.png", pixels)
 match png_written
     void
         print("png-write")
     error problem
         print(problem)
 
-auto png_read = vision.read<uint8>("$TMP/vision.png")
+auto png_read = image.read<uint8>("$TMP/vision.png")
 match png_read
     tensor<uint8> decoded
         int[] shape = decoded.shape()
@@ -916,28 +916,28 @@ match png_read
     error problem
         print(problem)
 
-auto bmp_written = vision.write("$TMP/vision.bmp", image)
+auto bmp_written = image.write("$TMP/vision.bmp", pixels)
 match bmp_written
     void
         print("bmp-write")
     error problem
         print(problem)
 
-auto bmp_read = vision.read<uint8>("$TMP/vision.bmp")
+auto bmp_read = image.read<uint8>("$TMP/vision.bmp")
 match bmp_read
     tensor<uint8> decoded
         print(decoded[1, 1, 0].item())
     error problem
         print(problem)
 
-auto tiff_written = vision.write("$TMP/vision.tiff", image)
+auto tiff_written = image.write("$TMP/vision.tiff", pixels)
 match tiff_written
     void
         print("tiff-write")
     error problem
         print(problem)
 
-auto tiff_read = vision.read<uint8>("$TMP/vision.tiff")
+auto tiff_read = image.read<uint8>("$TMP/vision.tiff")
 match tiff_read
     tensor<uint8> decoded
         int[] shape = decoded.shape()
@@ -946,14 +946,14 @@ match tiff_read
     error problem
         print(problem)
 
-auto jpeg_written = vision.write("$TMP/vision.jpg", image, quality = 100)
+auto jpeg_written = image.write("$TMP/vision.jpg", pixels, quality = 100)
 match jpeg_written
     void
         print("jpeg-write")
     error problem
         print(problem)
 
-auto jpeg_read = vision.read<uint8>("$TMP/vision.jpg")
+auto jpeg_read = image.read<uint8>("$TMP/vision.jpg")
 match jpeg_read
     tensor<uint8> decoded
         int[] shape = decoded.shape()
@@ -963,14 +963,14 @@ match jpeg_read
     error problem
         print(problem)
 
-auto webp_written = vision.write("$TMP/vision.webp", image, quality = 100)
+auto webp_written = image.write("$TMP/vision.webp", pixels, quality = 100)
 match webp_written
     void
         print("webp-write")
     error problem
         print(problem)
 
-auto webp_read = vision.read<uint8>("$TMP/vision.webp")
+auto webp_read = image.read<uint8>("$TMP/vision.webp")
 match webp_read
     tensor<uint8> decoded
         int[] shape = decoded.shape()
@@ -981,7 +981,7 @@ match webp_read
         print(problem)
 
 tensor<uint8> rgba = tensor.zeros<uint8>([4, 1, 1])
-auto rgba_jpeg = vision.write("$TMP/rgba.jpg", rgba)
+auto rgba_jpeg = image.write("$TMP/rgba.jpg", rgba)
 match rgba_jpeg
     void
         print("unexpected-jpeg-alpha")
@@ -1429,15 +1429,15 @@ QUI
 
 cat > "$TMP/neural-conv2d.qui" <<'QUI'
 neural.Conv2D conv = neural.Conv2D(input = 1, output = 2, kernel = 3, stride = 1, padding = 1, seed = 5)
-tensor<float32> image = tensor.ones<float32>([1, 1, 4, 4])
-tensor<float32> inference = conv.forward(image)
+tensor<float32> pixels = tensor.ones<float32>([1, 1, 4, 4])
+tensor<float32> inference = conv.forward(pixels)
 print(inference.shape()[0])
 print(inference.shape()[1])
 print(inference.shape()[2])
 print(inference.shape()[3])
 
 tensor<float32> weight_before = conv.weight.raw()
-neural training = conv.forward(neural.track(image))
+neural training = conv.forward(neural.track(pixels))
 neural loss = neural.mse(training, tensor.zeros<float32>([1, 2, 4, 4]))
 neural.Gradients gradients = neural.grad(loss)
 neural.SGD conv_optimizer = neural.SGD(rate = 0.01)
@@ -1456,10 +1456,10 @@ neural.Conv2D conv = neural.Conv2D(
     padding = 0,
     seed = 23
 )
-tensor<float32> image = tensor.ones<float32>([1, 1, 1, 1])
+tensor<float32> pixels = tensor.ones<float32>([1, 1, 1, 1])
 float32 weight_before = conv.weight.raw()[0, 0, 0, 0].item()
 float32 bias_before = conv.bias.raw()[0].item()
-neural prediction = conv.forward(neural.track(image))
+neural prediction = conv.forward(neural.track(pixels))
 float32 prediction_before = prediction.untrack()[0, 0, 0, 0].item()
 neural loss = neural.mse(prediction, tensor.zeros<float32>([1, 1, 1, 1]))
 neural.Gradients gradients = neural.grad(loss)
@@ -1543,8 +1543,8 @@ void exercise()
     neural.step(&stress_model, &optimizer, gradients)
 
     neural.Conv2D conv = neural.Conv2D(input = 1, output = 1, kernel = 1, seed = 2)
-    tensor<float32> image = tensor.ones<float32>([1, 1, 2, 2])
-    neural convolved = conv.forward(neural.track(image))
+    tensor<float32> pixels = tensor.ones<float32>([1, 1, 2, 2])
+    neural convolved = conv.forward(neural.track(pixels))
     neural conv_loss = neural.mse(convolved, tensor.zeros<float32>([1, 1, 2, 2]))
     neural.Gradients conv_gradients = neural.grad(conv_loss)
     neural.SGD conv_optimizer = neural.SGD(rate = 0.01)
@@ -2049,15 +2049,15 @@ neural.Conv2D conv = neural.Conv2D(
     padding = 1,
     seed = 41
 )
-tensor<float32> image = tensor.ones<float32>([2, 2, 5, 7])
-tensor<float32> inference = conv.forward(image)
+tensor<float32> pixels = tensor.ones<float32>([2, 2, 5, 7])
+tensor<float32> inference = conv.forward(pixels)
 print(inference.shape()[0])
 print(inference.shape()[1])
 print(inference.shape()[2])
 print(inference.shape()[3])
 
 float32 before = conv.weight.raw()[0, 0, 0, 0].item()
-neural prediction = conv.forward(neural.track(image))
+neural prediction = conv.forward(neural.track(pixels))
 neural loss = neural.mse(prediction, tensor.zeros<float32>([2, 3, 3, 4]))
 neural.Gradients gradients = neural.grad(loss)
 neural.SGD optimizer = neural.SGD(rate = 0.01)
@@ -2068,8 +2068,8 @@ QUI
 
 cat > "$TMP/neural-conv2d-kernel-too-large.qui" <<'QUI'
 neural.Conv2D conv = neural.Conv2D(input = 1, output = 1, kernel = 5)
-tensor<float32> image = tensor.ones<float32>([1, 1, 3, 3])
-tensor<float32> output = conv.forward(image)
+tensor<float32> pixels = tensor.ones<float32>([1, 1, 3, 3])
+tensor<float32> output = conv.forward(pixels)
 print(output.shape()[0])
 QUI
 set +e
@@ -2081,8 +2081,8 @@ grep -q 'kernel is larger than padded input' "$TMP/neural-conv2d-kernel-too-larg
 
 cat > "$TMP/neural-conv2d-dtype-mismatch.qui" <<'QUI'
 neural.Conv2D conv = neural.Conv2D(input = 1, output = 1, kernel = 1)
-tensor<float> image = tensor.ones<float>([1, 1, 1, 1])
-tensor<float> output = conv.forward(image)
+tensor<float> pixels = tensor.ones<float>([1, 1, 1, 1])
+tensor<float> output = conv.forward(pixels)
 print(output.shape()[0])
 QUI
 set +e
@@ -2192,8 +2192,8 @@ neural.Conv2D<float> conv = neural.Conv2D<float>(
     padding = 1,
     seed = 103
 )
-tensor<float> image = tensor.ones<float>([1, 1, 3, 5])
-tensor<float> conv_output = conv.forward(image)
+tensor<float> pixels = tensor.ones<float>([1, 1, 3, 5])
+tensor<float> conv_output = conv.forward(pixels)
 print(conv_output.shape()[0])
 print(conv_output.shape()[1])
 print(conv_output.shape()[2])

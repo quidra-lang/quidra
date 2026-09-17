@@ -2002,13 +2002,13 @@ struct Lowerer {
                     release_arg(0,right);
                     return out;
                 }
-                case BuiltinCallable::VisionRead: {
+                case BuiltinCallable::ImageRead: {
                     auto path=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(VisionRead{out,path,checked.raw_types.at(&e)});
+                    block->instructions.push_back(ImageRead{out,path,checked.raw_types.at(&e)});
                     release_arg(0,path);
                     return out;
                 }
-                case BuiltinCallable::VisionWrite: {
+                case BuiltinCallable::ImageWrite: {
                     auto path=expr(*n.args[0].value);
                     auto image=expr(*n.args[1].value);
                     ValueId quality;
@@ -2021,7 +2021,7 @@ struct Lowerer {
                     }
                     auto out=fresh();
                     block->instructions.push_back(
-                        VisionWrite{out,path,image,quality,checked.raw_types.at(&e)});
+                        ImageWrite{out,path,image,quality,checked.raw_types.at(&e)});
                     release_arg(0,path);
                     release_arg(1,image);
                     if(n.args.size()==3) release_arg(2,quality);
@@ -2753,8 +2753,8 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,StatsMean>)out<<"%"<<n.out<<" = stats.mean %"<<n.tensor;
     if constexpr(std::is_same_v<T,LinearMatmul>)out<<"%"<<n.out<<" = linear.matmul %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,LinearDot>)out<<"%"<<n.out<<" = linear.dot %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.element_type);
-    if constexpr(std::is_same_v<T,VisionRead>)out<<"%"<<n.out<<" = vision.read %"<<n.path<<" : "<<type_name(n.result_type);
-    if constexpr(std::is_same_v<T,VisionWrite>)out<<"%"<<n.out<<" = vision.write %"<<n.path<<", %"<<n.image<<", quality %"<<n.quality<<" : "<<type_name(n.result_type);
+    if constexpr(std::is_same_v<T,ImageRead>)out<<"%"<<n.out<<" = image.read %"<<n.path<<" : "<<type_name(n.result_type);
+    if constexpr(std::is_same_v<T,ImageWrite>)out<<"%"<<n.out<<" = image.write %"<<n.path<<", %"<<n.image<<", quality %"<<n.quality<<" : "<<type_name(n.result_type);
     if constexpr(std::is_same_v<T,TensorBinary>)out<<"%"<<n.out<<" = tensor.binary "<<n.op<<" %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.result_type);
     if constexpr(std::is_same_v<T,TensorIndex>){
         out<<"%"<<n.out<<" = tensor.index %"<<n.tensor<<" [";

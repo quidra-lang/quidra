@@ -138,7 +138,7 @@
     "stats",
     "linear",
     "signal",
-    "vision",
+    "image",
     "tensor",
     "neural"
   ],
@@ -214,7 +214,7 @@
   "package_model": "unquoted non-standard imports resolve installed packages from configured package paths and never fall back to the current source directory",
   "stats_model": "stats.mean(tensor) returns a float mean and rejects empty or uninitialized tensor input",
   "linear_model": "linear.dot(a,b) performs checked rank-1 dot product and returns the preserved scalar element type; linear.matmul(a,b) performs checked rank-2 matrix multiplication for tensors with identical element types; dimensions must be compatible and integer multiplication/accumulation overflow remains checked",
-  "vision_model": "vision.read<uint8>(path) decodes PNG/JPEG/BMP/TIFF/WebP into CHW tensor<uint8> with grayscale/RGB/RGBA channel counts and no implicit normalization; vision.write(path,image,quality = 95) writes tensor<uint8> CHW by extension and returns void | error; JPEG rejects alpha rather than dropping it implicitly",
+  "image_model": "image.read<uint8>(path) decodes PNG/JPEG/BMP/TIFF/WebP into CHW tensor<uint8> with grayscale/RGB/RGBA channel counts and no implicit normalization; image.write(path,image,quality = 95) writes tensor<uint8> CHW by extension and returns void | error; JPEG rejects alpha rather than dropping it implicitly",
   "named_writable_argument_model": "for read/write T & parameters, positional arguments use &value and named arguments use &name = &value",
   "named_reference_argument_model": "positional reference arguments use &value; named reference arguments use &name = &value; the callee parameter T & versus const T & determines read/write versus read-only authority",
   "neural_model": "neural is neural<float32> by default; neural<T> is an immutable differentiable tensor value on a Define-by-Run graph; tensor<T> remains ordinary numeric storage; track copies value semantics into a graph root, untrack returns an ordinary tensor, and grad(loss) returns an independent neural.Gradients value without hidden .grad accumulation",

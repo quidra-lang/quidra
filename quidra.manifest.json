@@ -87,7 +87,7 @@
     "bell"
   ],
   "binding_model": "typed optional initializer with definite initialization; const T requires an initializer and removes write authority through that binding; fixed arrays allocate storage immediately with per-element initialization tracking; class fields may be partially initialized; auto requires initializer",
-  "call_style": "positional then named name = value; typed default parameters; reference parameters use & at the call site whether read/write or const-readonly",
+  "call_style": "positional arguments must precede named name = value arguments; each parameter may be supplied exactly once; unknown names, excess positional arguments, and missing required parameters are rejected with parameter-specific diagnostics; typed default parameters; reference parameters use & at the call site whether read/write or const-readonly",
   "write_capability": "&storage forms a safe abstract storage address; T & is read/write access; const T & is live read-only access; const removes write authority only through that access path and does not freeze the underlying storage",
   "error_model": "union containing error; try propagates error; exhaustive typed match",
   "union_class_payload_model": "class values must be fully definitely initialized before conversion into a union; matching a class alternative restores that complete initialization fact",

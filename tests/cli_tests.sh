@@ -2536,6 +2536,10 @@ rank=x["inspection"]["type_contracts"]["tensor_rank"]
 assert tensor == "tensor<T> | tensor<T, N>"
 assert "compile-time rank" in rank
 assert "runtime-ABI-erased" in rank
+calls=x["calls"]
+assert calls["argument_order"] == "positional_then_named"
+assert calls["named_syntax"] == "name = value"
+assert "duplicate_parameter" in calls["rejected"]
 PY
 
 cat > "$TMP/inspect-tensor-rank.qui" <<'QUI'

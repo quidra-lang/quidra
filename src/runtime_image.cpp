@@ -348,6 +348,10 @@ void write_png(const std::string& path, const Image& image) {
         throw std::bad_alloc();
     }
     png_bytep* rows = nullptr;
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4611)
+#endif
     if (setjmp(error.jump) != 0) {
         std::free(rows);
         png_destroy_write_struct(&png, &info);
@@ -356,6 +360,9 @@ void write_png(const std::string& path, const Image& image) {
             std::string("PNG encode failed: ") +
             (error.message[0] ? error.message : path));
     }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
     png_init_io(png, file);
     const int color = image.channels == 1 ? PNG_COLOR_TYPE_GRAY :

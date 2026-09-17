@@ -162,6 +162,11 @@ if(BUILD_TESTING)
   endif()
   add_test(NAME quidra_documentation_examples COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/documentation_examples.py $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
   add_test(NAME quidra_manifest_registry COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/manifest_registry_tests.py $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
+  add_test(
+    NAME quidra_generic_specialization_benchmark_smoke
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/benchmark/generic_specialization_scaling.py
+            $<TARGET_FILE:quidra> --sizes 2,4 --repeats 1
+  )
 
   # A parser/compiler/runtime regression must fail rather than leave a CI host
   # waiting indefinitely. Sanitizer builds intentionally instrument both the
@@ -178,6 +183,7 @@ if(BUILD_TESTING)
     quidra_type_policy_tests
     quidra_documentation_examples
     quidra_manifest_registry
+    quidra_generic_specialization_benchmark_smoke
     PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
   )
   if(UNIX)

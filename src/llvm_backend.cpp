@@ -1797,40 +1797,84 @@ struct FunctionEmitter {
         }
         if constexpr(std::is_same_v<T,ir::ImageRead>){
             values[n.out]=n.result_type;
+            const std::vector<Type> image_elements{
+                Type::simple(TypeKind::Int8), Type::simple(TypeKind::Int16),
+                Type::simple(TypeKind::Int32), Type::simple(TypeKind::Int),
+                Type::simple(TypeKind::UInt8), Type::simple(TypeKind::UInt16),
+                Type::simple(TypeKind::UInt32), Type::simple(TypeKind::UInt64),
+                Type::simple(TypeKind::Float32), Type::simple(TypeKind::Float)};
+            std::vector<std::pair<int,Type>> image_cases;
+            for(const auto& element:image_elements){
+                auto image_type=Type::tensor(element);
+                if(case_index(n.result_type,image_type)>=0)
+                    image_cases.push_back({tensor_dtype_code(element),image_type});
+            }
+            if(image_cases.empty()) throw std::logic_error("image.read result has no tensor case");
+            const int expected_dtype=image_cases.size()==1?image_cases.front().first:0;
+            const auto dtype_slot=temp("image.read.dtype.slot");
             const auto raw=temp("image.read.raw"),ok=temp("image.read.ok"),result=value(n.out);
-            out<<"  "<<raw<<" = call ptr @quidra_image_read_u8(ptr "<<value(n.path)<<")\n";
+            out<<"  "<<dtype_slot<<" = alloca i32\n";
+            out<<"  store i32 0, ptr "<<dtype_slot<<"\n";
+            out<<"  "<<raw<<" = call ptr @quidra_image_read(ptr "<<value(n.path)
+               <<", i32 "<<expected_dtype<<", ptr "<<dtype_slot<<")\n";
             out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
             out<<"  "<<ok<<" = icmp ne ptr "<<raw<<", null\n";
             const auto yes=unique_label("image.read.ok"),bad=unique_label("image.read.error"),done=unique_label("image.read.done");
             out<<"  br i1 "<<ok<<", label %"<<yes<<", label %"<<bad<<"\n";
-            const auto image_type=Type::tensor(Type::simple(TypeKind::UInt8));
-            out<<yes<<":\n  store i64 "<<case_index(n.result_type,image_type)<<", ptr "<<result<<"\n";
-            const auto good_payload=temp("image.read.tensor");
-            out<<"  "<<good_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
-               <<"  store ptr "<<raw<<", ptr "<<good_payload<<"\n  br label %"<<done<<"\n";
-            out<<bad<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
+            out<<yes<<":\n";
+            const auto actual_dtype=temp("image.read.dtype");
+            out<<"  "<<actual_dtype<<" = load i32, ptr "<<dtype_slot<<"\n";
+            std::vector<std::string> case_labels;
+            case_labels.reserve(image_cases.size());
+            for(const auto& item:image_cases)
+                case_labels.push_back(unique_label("image.read.dtype"));
+            out<<"  switch i32 "<<actual_dtype<<", label %"<<bad<<" [\n";
+            for(std::size_t i=0;i<image_cases.size();++i)
+                out<<"    i32 "<<image_cases[i].first<<", label %"<<case_labels[i]<<"\n";
+            out<<"  ]\n";
+            for(std::size_t i=0;i<image_cases.size();++i){
+                out<<case_labels[i]<<":\n";
+                out<<"  store i64 "<<case_index(n.result_type,image_cases[i].second)
+                   <<", ptr "<<result<<"\n";
+                const auto payload=temp("image.read.payload");
+                out<<"  "<<payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n";
+                out<<"  store ptr "<<raw<<", ptr "<<payload<<"\n";
+                out<<"  br label %"<<done<<"\n";
+            }
+            out<<bad<<":\n";
+            out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))
+               <<", ptr "<<result<<"\n";
             const auto message=temp("image.read.message"),error_payload=temp("image.read.error.payload");
             out<<"  "<<message<<" = call ptr @quidra_image_last_error_copy()\n";
-            out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
-               <<"  store ptr "<<message<<", ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
+            out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n";
+            out<<"  store ptr "<<message<<", ptr "<<error_payload<<"\n";
+            out<<"  br label %"<<done<<"\n";
             out<<done<<":\n";
         }
         if constexpr(std::is_same_v<T,ir::ImageWrite>){
             values[n.out]=n.result_type;
+            const auto image_type=values.at(n.image);
+            if(image_type.kind!=TypeKind::Tensor || !image_type.first || !is_numeric(*image_type.first))
+                throw std::logic_error("image.write IR requires numeric tensor input");
             const auto ok=temp("image.write.ok"),result=value(n.out);
-            out<<"  "<<ok<<" = call i1 @quidra_image_write_u8(ptr "<<value(n.path)
-               <<", ptr "<<value(n.image)<<", i64 "<<value(n.quality)<<")\n";
+            out<<"  "<<ok<<" = call i1 @quidra_image_write(ptr "<<value(n.path)
+               <<", ptr "<<value(n.image)<<", i32 "<<tensor_dtype_code(*image_type.first)
+               <<", i64 "<<value(n.quality)<<")\n";
             out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
             const auto yes=unique_label("image.write.ok"),bad=unique_label("image.write.error"),done=unique_label("image.write.done");
             out<<"  br i1 "<<ok<<", label %"<<yes<<", label %"<<bad<<"\n";
-            out<<yes<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Void))
-               <<", ptr "<<result<<"\n  br label %"<<done<<"\n";
-            out<<bad<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))
+            out<<yes<<":\n";
+            out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Void))
+               <<", ptr "<<result<<"\n";
+            out<<"  br label %"<<done<<"\n";
+            out<<bad<<":\n";
+            out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))
                <<", ptr "<<result<<"\n";
             const auto message=temp("image.write.message"),error_payload=temp("image.write.error.payload");
             out<<"  "<<message<<" = call ptr @quidra_image_last_error_copy()\n";
-            out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
-               <<"  store ptr "<<message<<", ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
+            out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n";
+            out<<"  store ptr "<<message<<", ptr "<<error_payload<<"\n";
+            out<<"  br label %"<<done<<"\n";
             out<<done<<":\n";
         }
         if constexpr(std::is_same_v<T,ir::HttpGet>){
@@ -2778,8 +2822,8 @@ declare ptr @quidra_http_last_error_copy()
 declare ptr @quidra_http_header(ptr, ptr)
 declare ptr @quidra_http_response_clone(ptr)
 declare void @quidra_http_response_drop(ptr)
-declare ptr @quidra_image_read_u8(ptr)
-declare i1 @quidra_image_write_u8(ptr, ptr, i64)
+declare ptr @quidra_image_read(ptr, i32, ptr)
+declare i1 @quidra_image_write(ptr, ptr, i32, i64)
 declare ptr @quidra_image_last_error_copy()
 declare i32 @printf(ptr, ...)
 declare i32 @puts(ptr nocapture nonnull readonly)

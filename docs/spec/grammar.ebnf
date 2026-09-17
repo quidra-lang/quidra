@@ -1,6 +1,8 @@
 (* Quidra 0.1. INDENT/DEDENT use four spaces per level.
    Bracketed newlines are insignificant. String backslashes are literal;
-   control characters use enter, tab, home, quote, backspace, page, vtab, and bell. *)
+   physical CRLF inside a string literal is normalized to LF, so checkout
+   line-ending style does not change string data. Control characters use
+   enter, tab, home, quote, backspace, page, vtab, and bell. *)
 
 program          = { NEWLINE | import_decl | extern_decl | cli_decl | class_decl | function | statement }, EOF ;
 

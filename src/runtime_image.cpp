@@ -319,6 +319,10 @@ void write_png(const std::string& path, const Image& image) {
     if (image.dtype != dtype_uint8 && image.dtype != dtype_uint16) {
         throw std::invalid_argument("PNG can represent only uint8 or uint16 image tensors");
     }
+    if (image.width > std::numeric_limits<png_uint_32>::max() ||
+        image.height > std::numeric_limits<png_uint_32>::max()) {
+        throw std::overflow_error("PNG dimensions exceed codec limits");
+    }
     FILE* file = image_open_file(path, "wb");
     if (!file) throw std::runtime_error("cannot open PNG for writing: " + path);
     auto raw = chw_to_hwc(image);
@@ -420,7 +424,12 @@ Image read_jpeg(const std::string& path) {
     const auto channels = static_cast<std::size_t>(info.output_components);
     const auto count = sample_count(channels, height, width);
     raw = static_cast<unsigned char*>(std::malloc(count == 0 ? 1 : count));
-    if (!raw) throw std::bad_alloc();
+    if (!raw) {
+        jpeg_destroy_decompress(&info);
+        created = false;
+        std::fclose(file);
+        throw std::bad_alloc();
+    }
     while (info.output_scanline < info.output_height) {
         JSAMPROW row = raw + static_cast<std::size_t>(info.output_scanline) * width * channels;
         jpeg_read_scanlines(&info, &row, 1);
@@ -444,6 +453,10 @@ void write_jpeg(const std::string& path, const Image& image, int quality) {
     }
     if (quality < 1 || quality > 100) {
         throw std::invalid_argument("JPEG quality must be between 1 and 100");
+    }
+    if (image.width > std::numeric_limits<JDIMENSION>::max() ||
+        image.height > std::numeric_limits<JDIMENSION>::max()) {
+        throw std::overflow_error("JPEG dimensions exceed codec limits");
     }
     auto raw = chw_to_hwc(image);
     FILE* file = image_open_file(path, "wb");
@@ -529,6 +542,9 @@ Image read_bmp(const std::string& path) {
     const auto height = static_cast<std::size_t>(signed_height > 0 ? signed_height : -signed_height);
     const auto channels = static_cast<std::size_t>(info.bits / 8);
     const auto row_raw = checked_product(width, channels, "BMP row size overflow");
+    if (row_raw > std::numeric_limits<std::size_t>::max() - 3) {
+        throw std::overflow_error("BMP row size overflow");
+    }
     const auto row = ((row_raw + 3) / 4) * 4;
     std::vector<std::uint8_t> encoded(checked_product(row, height, "BMP image size overflow"));
     input.seekg(file_header.offset);
@@ -558,7 +574,14 @@ void write_bmp(const std::string& path, const Image& image) {
     if (image.channels != 3 && image.channels != 4) {
         throw std::invalid_argument("BMP writer requires RGB or RGBA");
     }
+    if (image.width > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max()) ||
+        image.height > static_cast<std::size_t>(std::numeric_limits<std::int32_t>::max())) {
+        throw std::overflow_error("BMP dimensions exceed codec limits");
+    }
     const auto row_raw = checked_product(image.width, image.channels, "BMP row size overflow");
+    if (row_raw > std::numeric_limits<std::size_t>::max() - 3) {
+        throw std::overflow_error("BMP row size overflow");
+    }
     const auto row = ((row_raw + 3) / 4) * 4;
     const auto bytes = checked_product(row, image.height, "BMP image size overflow");
     const auto header_bytes = sizeof(BmpFileHeader) + sizeof(BmpInfoHeader);
@@ -629,6 +652,12 @@ void write_webp(const std::string& path, const Image& image, int quality) {
     }
     if (quality < 1 || quality > 100) {
         throw std::invalid_argument("WebP quality must be between 1 and 100");
+    }
+    if (image.width > static_cast<std::size_t>(std::numeric_limits<int>::max()) ||
+        image.height > static_cast<std::size_t>(std::numeric_limits<int>::max()) ||
+        image.width > static_cast<std::size_t>(std::numeric_limits<int>::max()) /
+                          image.channels) {
+        throw std::overflow_error("WebP dimensions exceed codec limits");
     }
     auto raw = chw_to_hwc(image);
     std::uint8_t* encoded = nullptr;

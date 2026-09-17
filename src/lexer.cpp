@@ -189,6 +189,13 @@ Token Lexer::string() {
         const char c = peek();
         if (c == '\0') error("LEX_ERROR", "NUL is not allowed in source strings.", start);
 
+        if (c == '\r' && peek(1) == '\n') {
+            advance();
+            advance();
+            value.push_back('\n');
+            continue;
+        }
+
         if (interpolation_depth == 0 && c == '"') {
             advance();
             return Token{TokenKind::String, std::move(value), SourceSpan{start, pos_}};

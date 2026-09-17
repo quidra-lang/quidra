@@ -1,0 +1,52 @@
+name: tmp-readme-dnn-contract-fix
+
+on:
+  push:
+    branches:
+      - docs-image-dtype-20260917
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs-image-dtype-20260917
+          fetch-depth: 0
+      - name: Update DNN factory result types
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("README.md")
+          text = path.read_text(encoding="utf-8")
+          replacements = {
+              "dnn.LinearLayer layer = dnn.Linear(features_in = 2, features_out = 1)":
+                  "dnn.LinearLayer | error layer = dnn.Linear(features_in = 2, features_out = 1)",
+              "dnn.AdamOptimizer optimizer = dnn.Adam()":
+                  "dnn.AdamOptimizer | error optimizer = dnn.Adam()",
+          }
+          changed = False
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count == 1:
+                  text = text.replace(old, new)
+                  changed = True
+              elif count == 0 and new in text:
+                  pass
+              else:
+                  raise SystemExit(f"unexpected count for {old!r}: {count}")
+          if changed:
+              path.write_text(text, encoding="utf-8")
+          PY
+          if git diff --quiet -- README.md; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: reflect DNN factory error results"
+          git push origin HEAD:docs-image-dtype-20260917

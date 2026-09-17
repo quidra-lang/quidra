@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# One-shot CI helper; removed after applying the source patch.
 path = Path("src/runtime_image.cpp")
 text = path.read_text()
 old = '''    png_bytep* rows = nullptr;\n    if (setjmp(error.jump) != 0) {\n        std::free(rows);\n        png_destroy_write_struct(&png, &info);\n        std::fclose(file);\n        throw std::runtime_error(\n            std::string("PNG encode failed: ") +\n            (error.message[0] ? error.message : path));\n    }\n'''

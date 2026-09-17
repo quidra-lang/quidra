@@ -904,7 +904,7 @@ match png_written
     error problem
         print(problem)
 
-auto png_read = image.read("$TMP/image.png")
+tensor<uint8> | error png_read = image.read("$TMP/image.png")
 match png_read
     tensor<uint8> decoded
         int[] shape = decoded.shape()
@@ -923,7 +923,7 @@ match bmp_written
     error problem
         print(problem)
 
-auto bmp_read = image.read("$TMP/image.bmp")
+tensor<uint8> | error bmp_read = image.read("$TMP/image.bmp")
 match bmp_read
     tensor<uint8> decoded
         print(decoded[1, 1, 0].item())
@@ -937,7 +937,7 @@ match tiff_written
     error problem
         print(problem)
 
-auto tiff_read = image.read("$TMP/image.tiff")
+tensor<uint8> | error tiff_read = image.read("$TMP/image.tiff")
 match tiff_read
     tensor<uint8> decoded
         int[] shape = decoded.shape()
@@ -953,7 +953,7 @@ match jpeg_written
     error problem
         print(problem)
 
-auto jpeg_read = image.read("$TMP/image.jpg")
+tensor<uint8> | error jpeg_read = image.read("$TMP/image.jpg")
 match jpeg_read
     tensor<uint8> decoded
         int[] shape = decoded.shape()
@@ -970,7 +970,7 @@ match webp_written
     error problem
         print(problem)
 
-auto webp_read = image.read("$TMP/image.webp")
+tensor<uint8> | error webp_read = image.read("$TMP/image.webp")
 match webp_read
     tensor<uint8> decoded
         int[] shape = decoded.shape()

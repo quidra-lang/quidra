@@ -1342,6 +1342,21 @@ tensor<float32, 2> source = tensor.ones<float32>([2, 2])
 tensor<float32> erased = erase_rank(source)
 tensor<float32, 2> kept = keep_rank(source)
 )");
+ good(R"(tensor<float32, 3> | error loaded = tensor.ones<float32>([1, 2, 3])
+match loaded
+    tensor<float32> pixels
+        tensor<float32, 2> plane = pixels[0]
+        print(plane.shape()[0])
+    error problem
+        print(problem)
+)");
+ bad_code(R"(tensor<float32, 2> | tensor<float32, 3> value = tensor.ones<float32>([2, 2])
+match value
+    tensor<float32> pixels
+        print(pixels.shape()[0])
+    tensor<float32, 3> cube
+        print(cube.shape()[0])
+)", "MATCH_CASE");
  bad_code("tensor<float32, 3> wrong = tensor.zeros<float32>([2, 2])\n", "TYPE_MISMATCH");
  bad_code(R"(tensor<float32> erase(tensor<float32> value)
     return value

@@ -2547,7 +2547,7 @@ PY
 cat > "$TMP/inspect-tensor-rank.qui" <<'QUI'
 tensor<float32, 2> matrix = tensor.zeros<float32>([2, 3])
 auto row = matrix[0]
-auto dimensions = matrix.shape()
+int[2] dimensions = matrix.shape()
 QUI
 "$QUIDRA" inspect "$TMP/inspect-tensor-rank.qui" --no-source --no-effects > "$TMP/inspect-tensor-rank.json"
 python3 - "$TMP/inspect-tensor-rank.json" <<'PY'

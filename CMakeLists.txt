@@ -1,14 +1,17 @@
 cmake_minimum_required(VERSION 3.20)
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/quidra.manifest.json" QUIDRA_MANIFEST_JSON)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/docs/spec/grammar.ebnf" QUIDRA_GRAMMAR_EBNF)
 string(JSON QUIDRA_PROJECT_VERSION GET "${QUIDRA_MANIFEST_JSON}" compiler_version)
 project(quidra VERSION ${QUIDRA_PROJECT_VERSION} LANGUAGES CXX)
 
 # The manifest supplies both the project version and the text `quidra describe`
 # prints, but file(READ) creates no dependency on its own: editing the manifest
 # would otherwise leave a stale copy compiled in until the next reconfigure.
+# The machine-readable grammar is embedded for the same reason.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/quidra.manifest.json")
+    "${CMAKE_CURRENT_SOURCE_DIR}/quidra.manifest.json"
+    "${CMAKE_CURRENT_SOURCE_DIR}/docs/spec/grammar.ebnf")
 
 include(GNUInstallDirs)
 
@@ -41,6 +44,12 @@ configure_file(
 configure_file(
     include/quidra/manifest.hpp.in
     ${CMAKE_CURRENT_BINARY_DIR}/generated/quidra/manifest.hpp
+    @ONLY
+)
+
+configure_file(
+    include/quidra/tooling.hpp.in
+    ${CMAKE_CURRENT_BINARY_DIR}/generated/quidra/tooling.hpp
     @ONLY
 )
 

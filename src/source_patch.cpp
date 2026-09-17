@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cstdint>
 #include <map>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -15,6 +16,85 @@
 
 namespace quidra {
 namespace {
+
+constexpr std::string_view kPatchSchema = R"QUIDRA_SCHEMA({
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Quidra source patch",
+  "description": "Revision-safe structural source edits for quidra patch.",
+  "x-quidra-supported-versions": [1, 2],
+  "x-quidra-preferred-version": 2,
+  "$defs": {
+    "v1_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "node_id", "expected_hash", "replacement"],
+      "properties": {
+        "op": {"const": "replace_node"},
+        "node_id": {"type": "string", "minLength": 1},
+        "expected_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "replacement": {"type": "string"}
+      }
+    },
+    "v2_edit_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "node_id", "expected_hash", "expected_kind", "replacement"],
+      "properties": {
+        "op": {"enum": ["replace_node", "insert_before", "insert_after"]},
+        "node_id": {"type": "string", "minLength": 1},
+        "expected_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "expected_kind": {"type": "string", "minLength": 1},
+        "replacement": {"type": "string"}
+      }
+    },
+    "v2_delete_operation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["op", "node_id", "expected_hash", "expected_kind"],
+      "properties": {
+        "op": {"const": "delete_node"},
+        "node_id": {"type": "string", "minLength": 1},
+        "expected_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "expected_kind": {"type": "string", "minLength": 1}
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "base_revision", "operations"],
+      "properties": {
+        "schema_version": {"const": 1},
+        "base_revision": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/v1_operation"}
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "base_revision", "operations"],
+      "properties": {
+        "schema_version": {"const": 2},
+        "base_revision": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "oneOf": [
+              {"$ref": "#/$defs/v2_edit_operation"},
+              {"$ref": "#/$defs/v2_delete_operation"}
+            ]
+          }
+        }
+      }
+    }
+  ]
+})QUIDRA_SCHEMA";
 
 struct Json {
     using Array = std::vector<Json>;
@@ -234,44 +314,115 @@ void require_exact_keys(const Json::Object& object, const std::vector<std::strin
     }
 }
 
+enum class OperationKind {
+    ReplaceNode,
+    InsertBefore,
+    InsertAfter,
+    DeleteNode,
+};
+
 struct Operation {
+    OperationKind kind{OperationKind::ReplaceNode};
     std::string node_id;
     std::string expected_hash;
+    std::optional<std::string> expected_kind;
     std::string replacement;
 };
 
 struct Patch {
+    std::int64_t schema_version{};
     std::string base_revision;
     std::vector<Operation> operations;
 };
+
+OperationKind operation_kind(std::string_view name) {
+    if (name == "replace_node") return OperationKind::ReplaceNode;
+    if (name == "insert_before") return OperationKind::InsertBefore;
+    if (name == "insert_after") return OperationKind::InsertAfter;
+    if (name == "delete_node") return OperationKind::DeleteNode;
+    throw PatchError("INVALID_PATCH", "Unsupported patch operation '" + std::string(name) + "'.");
+}
 
 Patch parse_patch(std::string_view text) {
     const auto root = JsonParser(text).parse();
     const auto& object = as_object(root, "Patch");
     require_exact_keys(object, {"schema_version", "base_revision", "operations"}, "Patch");
-    if (as_integer(require(object, "schema_version"), "schema_version") != 1) {
-        throw PatchError("INVALID_PATCH", "Patch schema_version must be 1.");
-    }
+
     Patch patch;
+    patch.schema_version = as_integer(require(object, "schema_version"), "schema_version");
+    if (patch.schema_version != 1 && patch.schema_version != 2) {
+        throw PatchError("INVALID_PATCH", "Patch schema_version must be 1 or 2.");
+    }
     patch.base_revision = as_string(require(object, "base_revision"), "base_revision");
-    const Json& operations_value = require(object, "operations");
-    const auto& operations = as_array(operations_value, "operations");
+
+    const auto& operations = as_array(require(object, "operations"), "operations");
     if (operations.empty()) throw PatchError("INVALID_PATCH", "Patch operations must be nonempty.");
+
     for (const auto& value : operations) {
         const auto& op = as_object(value, "Patch operation");
-        require_exact_keys(op, {"op", "node_id", "expected_hash", "replacement"}, "Patch operation");
-        if (as_string(require(op, "op"), "op") != "replace_node") {
-            throw PatchError("INVALID_PATCH", "Only replace_node operations are supported.");
+        const auto& op_name = as_string(require(op, "op"), "op");
+
+        if (patch.schema_version == 1) {
+            require_exact_keys(op, {"op", "node_id", "expected_hash", "replacement"}, "Patch operation");
+            if (op_name != "replace_node") {
+                throw PatchError("INVALID_PATCH", "Patch schema version 1 supports only replace_node.");
+            }
+            patch.operations.push_back(Operation{
+                OperationKind::ReplaceNode,
+                as_string(require(op, "node_id"), "node_id"),
+                as_string(require(op, "expected_hash"), "expected_hash"),
+                std::nullopt,
+                as_string(require(op, "replacement"), "replacement")});
+            continue;
+        }
+
+        const auto kind = operation_kind(op_name);
+        if (kind == OperationKind::DeleteNode) {
+            require_exact_keys(
+                op, {"op", "node_id", "expected_hash", "expected_kind"}, "Patch operation");
+        } else {
+            require_exact_keys(
+                op, {"op", "node_id", "expected_hash", "expected_kind", "replacement"},
+                "Patch operation");
+        }
+        const auto& expected_kind = as_string(require(op, "expected_kind"), "expected_kind");
+        if (expected_kind.empty()) {
+            throw PatchError("INVALID_PATCH", "expected_kind must be nonempty in patch schema version 2.");
         }
         patch.operations.push_back(Operation{
+            kind,
             as_string(require(op, "node_id"), "node_id"),
             as_string(require(op, "expected_hash"), "expected_hash"),
-            as_string(require(op, "replacement"), "replacement")});
+            expected_kind,
+            kind == OperationKind::DeleteNode
+                ? std::string{}
+                : as_string(require(op, "replacement"), "replacement")});
     }
     return patch;
 }
 
+struct Edit {
+    std::size_t start{};
+    std::size_t end{};
+    std::string replacement;
+    SourceSpan span{};
+    std::string node_id;
+};
+
+bool edits_conflict(const Edit& left, const Edit& right) {
+    const bool left_insert = left.start == left.end;
+    const bool right_insert = right.start == right.end;
+    if (left_insert && right_insert) return left.start == right.start;
+    if (left_insert) return left.start >= right.start && left.start <= right.end;
+    if (right_insert) return right.start >= left.start && right.start <= left.end;
+    return left.start < right.end && right.start < left.end;
+}
+
 } // namespace
+
+std::string_view patch_schema_json() noexcept {
+    return kPatchSchema;
+}
 
 PatchResult apply_source_patch(
     std::string_view source,
@@ -287,13 +438,6 @@ PatchResult apply_source_patch(
     std::unordered_map<std::string, const SourceNode*> nodes;
     for (const auto& node : inspection.nodes) nodes.emplace(node.node_id, &node);
 
-    struct Edit {
-        std::size_t start{};
-        std::size_t end{};
-        std::string replacement;
-        SourceSpan span{};
-        std::string node_id;
-    };
     std::vector<Edit> edits;
     edits.reserve(patch.operations.size());
 
@@ -304,17 +448,47 @@ PatchResult apply_source_patch(
         }
         const auto& node = *it->second;
         if (operation.expected_hash != node.source_hash) {
-            throw PatchError("PATCH_HASH_MISMATCH", "Node source hash does not match expected_hash.", node.span, node.node_id);
+            throw PatchError(
+                "PATCH_HASH_MISMATCH", "Node source hash does not match expected_hash.",
+                node.span, node.node_id);
         }
-        edits.push_back(Edit{node.span.start.offset, node.span.end.offset, operation.replacement, node.span, node.node_id});
+        if (operation.expected_kind && *operation.expected_kind != node.kind) {
+            throw PatchError(
+                "PATCH_KIND_MISMATCH",
+                "Node kind '" + node.kind + "' does not match expected_kind '" +
+                    *operation.expected_kind + "'.",
+                node.span, node.node_id);
+        }
+
+        std::size_t start = node.span.start.offset;
+        std::size_t end = node.span.end.offset;
+        std::string replacement = operation.replacement;
+        switch (operation.kind) {
+            case OperationKind::ReplaceNode:
+                break;
+            case OperationKind::InsertBefore:
+                end = start;
+                break;
+            case OperationKind::InsertAfter:
+                start = end;
+                break;
+            case OperationKind::DeleteNode:
+                replacement.clear();
+                break;
+        }
+        edits.push_back(Edit{start, end, std::move(replacement), node.span, node.node_id});
     }
 
     std::sort(edits.begin(), edits.end(), [](const Edit& a, const Edit& b) {
         return std::pair{a.start, a.end} < std::pair{b.start, b.end};
     });
-    for (std::size_t i = 1; i < edits.size(); ++i) {
-        if (edits[i].start < edits[i - 1].end) {
-            throw PatchError("PATCH_OVERLAP", "Patch operations have overlapping node spans.", edits[i].span, edits[i].node_id);
+    for (std::size_t i = 0; i < edits.size(); ++i) {
+        for (std::size_t j = i + 1; j < edits.size(); ++j) {
+            if (edits_conflict(edits[i], edits[j])) {
+                throw PatchError(
+                    "PATCH_OVERLAP", "Patch operations have overlapping or ambiguous edit spans.",
+                    edits[j].span, edits[j].node_id);
+            }
         }
     }
 

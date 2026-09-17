@@ -68,9 +68,10 @@ struct Type {
         return type;
     }
 
-    static Type tensor(Type element) {
+    static Type tensor(Type element, long long rank = -1) {
         auto type = simple(TypeKind::Tensor);
         type.first = std::make_shared<Type>(std::move(element));
+        type.length = rank;
         return type;
     }
 
@@ -115,7 +116,8 @@ inline std::string type_name(const Type& type) {
         case TypeKind::Invalid: return "<invalid>";
         case TypeKind::Class: return type.class_name;
         case TypeKind::Tensor:
-            return "tensor<" + type_name(*type.first) + ">";
+            return "tensor<" + type_name(*type.first) +
+                   (type.length < 0 ? ">" : ", " + std::to_string(type.length) + ">");
         case TypeKind::Neural:
             return *type.first == Type::simple(TypeKind::Float32)
                 ? "neural"
@@ -497,7 +499,8 @@ inline bool assignable(const Type& from, const Type& to) {
                assignable(*from.first, *to.first);
     }
     if (from.kind == TypeKind::Tensor && to.kind == TypeKind::Tensor) {
-        return *from.first == *to.first;
+        return *from.first == *to.first &&
+               (to.length < 0 || (from.length >= 0 && from.length == to.length));
     }
     if (from.kind == TypeKind::Neural && to.kind == TypeKind::Neural) {
         return *from.first == *to.first;

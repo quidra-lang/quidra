@@ -1805,9 +1805,13 @@ struct FunctionEmitter {
                 Type::simple(TypeKind::Float32), Type::simple(TypeKind::Float)};
             std::vector<std::pair<int,Type>> image_cases;
             for(const auto& element:image_elements){
-                auto image_type=Type::tensor(element);
-                if(case_index(n.result_type,image_type)>=0)
-                    image_cases.push_back({tensor_dtype_code(element),image_type});
+                for(const auto& image_type:n.result_type.cases){
+                    if(image_type.kind==TypeKind::Tensor && image_type.first &&
+                       *image_type.first==element){
+                        image_cases.push_back({tensor_dtype_code(element),image_type});
+                        break;
+                    }
+                }
             }
             if(image_cases.empty()) throw std::logic_error("image.read result has no tensor case");
             const int expected_dtype=image_cases.size()==1?image_cases.front().first:0;

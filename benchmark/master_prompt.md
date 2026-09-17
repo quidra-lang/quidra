@@ -693,6 +693,21 @@ If generated code fails, provide the actual diagnostics, errors, or test results
 
 Preserve the entire repair history.
 
+### Task Completion Tokens
+
+For every scored LLM trial, record **Task Completion Tokens (TCT)** as the total model-visible token cost from the start of the task until the first verified success or until the fixed trial budget is exhausted. Count, using the selected model/provider's recorded tokenizer accounting wherever available:
+
+- original task, specification, examples, and other model-visible input context;
+- the initial generated answer/code;
+- compiler, parser, test, and verifier diagnostics that are fed back to the model;
+- every repair prompt and repeated model-visible context;
+- every repair output; and
+- model-visible tool results required to complete the task.
+
+Do not count hidden provider/system implementation tokens that cannot be measured consistently across all languages. Document the exact accounting source and tokenizer. Apply the identical accounting rule, prompt budget, repair budget, and success stopping rule to all 10 languages.
+
+**Total Token Efficiency** is the normalized inverse of raw Task Completion Tokens: lower TCT is better. Preserve raw TCT for every trial, including budget-exhausted failures. **Source Token Efficiency** remains a separate metric based on the resulting source and must never be substituted for Task Completion Tokens. This distinction prevents a short final program from receiving credit when reaching it required a long prompt, many diagnostics, or repeated repairs.
+
 Use the real language name, real syntax, real standard-library names, and real toolchain.
 
 Existing pretraining exposure is deliberately included. Python, C++, Rust, and other widely represented languages are allowed to benefit from what the selected model already knows. Quidra is likewise evaluated with whatever prior knowledge the selected model actually has.

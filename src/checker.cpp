@@ -766,6 +766,12 @@ Type Checker::check_address_target(const Expr& expression, bool allow_tensor_ele
             if (index->items.empty()) {
                 error("INDEX_ARITY", "Tensor index list cannot be empty.", expression.span);
             }
+            if (base.length >= 0 &&
+                index->items.size() != static_cast<std::size_t>(base.length)) {
+                error("INDEX_ARITY",
+                      "Writable tensor element assignment requires one integer index per static rank dimension.",
+                      expression.span);
+            }
             for (const auto& item : index->items) {
                 if (item.slice || !item.index) {
                     error("WRITE_CAPABILITY",
@@ -1339,7 +1345,7 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
         if (!is_numeric(element)) {
             error("INVALID_TYPE", "tensor element type must be numeric.", source.arguments.front().span);
         }
-        type = Type::tensor(element);
+        type = Type::tensor(element, source.tensor_rank.value_or(-1));
     } else if (source.name == "neural") {
         Type element = simple(TypeKind::Float32);
         if (source.arguments.size() > 1) {
@@ -1497,10 +1503,16 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
         if (node->items.empty()) {
             error("INDEX_ARITY", "Tensor index list cannot be empty.", expression.span);
         }
+        if (base.length >= 0 &&
+            node->items.size() > static_cast<std::size_t>(base.length)) {
+            error("INDEX_ARITY", "Tensor index list exceeds the statically known rank.", expression.span);
+        }
+        long long result_rank = base.length;
         for (const auto& item : node->items) {
             if (!item.slice) {
                 if (!item.index) error("INDEX_SYNTAX", "Tensor index is missing.", item.span);
                 check_expr(*item.index, &index_type);
+                if (result_rank >= 0) --result_rank;
                 continue;
             }
             if (item.start) check_expr(*item.start, &index_type);
@@ -1514,7 +1526,7 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
                 }
             }
         }
-        return base;
+        return Type::tensor(*base.first, result_rank);
     }
 
     if (node->items.size() != 1 || node->items.front().slice ||
@@ -1609,7 +1621,23 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                   "tensor.reshape requires one shape array.", expression.span);
                         }
                         auto shape = check_expr(*node->args[0].value, &shape_type);
-                        type = poisoned(shape) ? simple(TypeKind::Invalid) : receiver;
+                        long long rank = -1;
+                        if (!poisoned(shape)) {
+                            if (const auto* literal =
+                                    std::get_if<ArrayExpr>(&node->args[0].value->data)) {
+                                rank = static_cast<long long>(literal->elements.size());
+                            } else {
+                                const auto raw = raw_types_.find(node->args[0].value.get());
+                                if (raw != raw_types_.end() &&
+                                    raw->second.kind == TypeKind::Array &&
+                                    raw->second.length >= 0) {
+                                    rank = raw->second.length;
+                                }
+                            }
+                        }
+                        type = poisoned(shape)
+                            ? simple(TypeKind::Invalid)
+                            : Type::tensor(*receiver.first, rank);
                     } else if (node->method == "contiguous") {
                         if (!node->type_arguments.empty() || !node->args.empty()) {
                             error("ARGUMENT_MISMATCH",
@@ -1633,6 +1661,11 @@ Type Checker::check_method_call_expr(const Expr& expression,
                             error("ARGUMENT_MISMATCH",
                                   "tensor.item() takes no arguments.", expression.span);
                         }
+                        if (receiver.length > 0) {
+                            error("TYPE_MISMATCH",
+                                  "tensor.item() requires a rank-0 tensor; index or reshape the tensor explicitly.",
+                                  expression.span);
+                        }
                         type = *receiver.first;
                     } else if (node->method == "cast") {
                         if (node->type_arguments.size() != 1 || !node->args.empty()) {
@@ -1646,7 +1679,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         } else if (!explicit_numeric_cast_supported(*receiver.first, target)) {
                             error("TYPE_MISMATCH", "tensor.cast cannot convert " + type_name(*receiver.first) + " to " + type_name(target) + "; floating-point to integer conversion requires an explicit rounding operation.", expression.span);
                         }
-                        type = Type::tensor(target);
+                        type = Type::tensor(target, receiver.length);
                     } else {
                         error("UNKNOWN_MEMBER",
                               "Type '" + type_name(receiver) + "' has no method '" +
@@ -3024,13 +3057,20 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                               node->args[1].span);
                     }
                     if (!poisoned(left) && !poisoned(right) &&
-                        left.kind == TypeKind::Tensor && right.kind == TypeKind::Tensor &&
-                        *left.first != *right.first) {
-                        error("TYPE_MISMATCH",
-                              "linear.matmul requires identical tensor element types.",
-                              expression.span);
+                        left.kind == TypeKind::Tensor && right.kind == TypeKind::Tensor) {
+                        if (*left.first != *right.first) {
+                            error("TYPE_MISMATCH",
+                                  "linear.matmul requires identical tensor element types.",
+                                  expression.span);
+                        }
+                        if ((left.length >= 0 && left.length != 2) ||
+                            (right.length >= 0 && right.length != 2)) {
+                            error("TYPE_MISMATCH", "linear.matmul requires rank-2 tensors.", expression.span);
+                        }
                     }
-                    type = poisoned(left) || poisoned(right) ? simple(TypeKind::Invalid) : left;
+                    type = poisoned(left) || poisoned(right)
+                        ? simple(TypeKind::Invalid)
+                        : Type::tensor(*left.first, 2);
                     break;
                 }
                 case BuiltinCallable::LinearDot: {
@@ -3057,11 +3097,16 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                               node->args[1].span);
                     }
                     if (!poisoned(left) && !poisoned(right) &&
-                        left.kind == TypeKind::Tensor && right.kind == TypeKind::Tensor &&
-                        *left.first != *right.first) {
-                        error("TYPE_MISMATCH",
-                              "linear.dot requires identical tensor element types.",
-                              expression.span);
+                        left.kind == TypeKind::Tensor && right.kind == TypeKind::Tensor) {
+                        if (*left.first != *right.first) {
+                            error("TYPE_MISMATCH",
+                                  "linear.dot requires identical tensor element types.",
+                                  expression.span);
+                        }
+                        if ((left.length >= 0 && left.length != 1) ||
+                            (right.length >= 0 && right.length != 1)) {
+                            error("TYPE_MISMATCH", "linear.dot requires rank-1 tensors.", expression.span);
+                        }
                     }
                     type = poisoned(left) || poisoned(right)
                         ? simple(TypeKind::Invalid)
@@ -3094,16 +3139,16 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
 
                     const auto error_type = simple(TypeKind::Error);
                     const auto full_result = Type::union_of({
-                        Type::tensor(simple(TypeKind::Int8)),
-                        Type::tensor(simple(TypeKind::Int16)),
-                        Type::tensor(simple(TypeKind::Int32)),
-                        Type::tensor(simple(TypeKind::Int)),
-                        Type::tensor(simple(TypeKind::UInt8)),
-                        Type::tensor(simple(TypeKind::UInt16)),
-                        Type::tensor(simple(TypeKind::UInt32)),
-                        Type::tensor(simple(TypeKind::UInt64)),
-                        Type::tensor(simple(TypeKind::Float32)),
-                        Type::tensor(simple(TypeKind::Float)),
+                        Type::tensor(simple(TypeKind::Int8), 3),
+                        Type::tensor(simple(TypeKind::Int16), 3),
+                        Type::tensor(simple(TypeKind::Int32), 3),
+                        Type::tensor(simple(TypeKind::Int), 3),
+                        Type::tensor(simple(TypeKind::UInt8), 3),
+                        Type::tensor(simple(TypeKind::UInt16), 3),
+                        Type::tensor(simple(TypeKind::UInt32), 3),
+                        Type::tensor(simple(TypeKind::UInt64), 3),
+                        Type::tensor(simple(TypeKind::Float32), 3),
+                        Type::tensor(simple(TypeKind::Float), 3),
                         error_type});
                     type = full_result;
 
@@ -3118,7 +3163,8 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         }
                         if (non_error.size() == 1 &&
                             non_error.front().kind == TypeKind::Tensor &&
-                            non_error.front().first && is_numeric(*non_error.front().first)) {
+                            non_error.front().first && is_numeric(*non_error.front().first) &&
+                            (non_error.front().length < 0 || non_error.front().length == 3)) {
                             type = *expected;
                         }
                     }
@@ -3146,6 +3192,12 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                          !is_numeric(*value_type.first))) {
                         error("TYPE_MISMATCH",
                               "image.write requires a numeric CHW tensor.",
+                              node->args[1].span);
+                    }
+                    if (!poisoned(value_type) && value_type.kind == TypeKind::Tensor &&
+                        value_type.length >= 0 && value_type.length != 3) {
+                        error("TYPE_MISMATCH",
+                              "image.write requires a rank-3 CHW tensor.",
                               node->args[1].span);
                     }
                     if (node->args[0].writable || node->args[1].writable ||
@@ -3191,7 +3243,23 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     }
                     const auto shape_type = Type::array(simple(TypeKind::Int));
                     auto shape = check_expr(*node->args[0].value, &shape_type);
-                    type = poisoned(shape) ? simple(TypeKind::Invalid) : Type::tensor(element);
+                    long long rank = -1;
+                    if (!poisoned(shape)) {
+                        if (const auto* literal =
+                                std::get_if<ArrayExpr>(&node->args[0].value->data)) {
+                            rank = static_cast<long long>(literal->elements.size());
+                        } else {
+                            const auto raw = raw_types_.find(node->args[0].value.get());
+                            if (raw != raw_types_.end() &&
+                                raw->second.kind == TypeKind::Array &&
+                                raw->second.length >= 0) {
+                                rank = raw->second.length;
+                            }
+                        }
+                    }
+                    type = poisoned(shape)
+                        ? simple(TypeKind::Invalid)
+                        : Type::tensor(element, rank);
                     break;
                 }
             }
@@ -3703,10 +3771,19 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 }
                 return false;
             };
+            Type tensor_result = tensor_type;
             if (left_tensor && right_tensor) {
-                if (left != right) {
+                if (*left.first != *right.first) {
                     error("TYPE_MISMATCH",
                           "Tensor arithmetic requires identical element types.", expression.span);
+                }
+                if (left.length >= 0 && right.length >= 0 && left.length != right.length) {
+                    error("TYPE_MISMATCH",
+                          "Tensor arithmetic requires identical rank when both ranks are statically known.",
+                          expression.span);
+                }
+                if (tensor_result.length < 0) {
+                    tensor_result.length = left.length >= 0 ? left.length : right.length;
                 }
             } else {
                 const auto& scalar_type = left_tensor ? right : left;
@@ -3726,7 +3803,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 error("TYPE_MISMATCH", "Tensor remainder requires an integer element type.",
                       expression.span);
             }
-            type = tensor_type;
+            type = tensor_result;
         } else {
             if (left != right) {
                 error("TYPE_MISMATCH", "Operands must have identical types.", expression.span);

@@ -29,6 +29,17 @@ int main() {
     require(type_name(Type::neural(t(TypeKind::Float))) == "neural<float>", "explicit neural float64 name");
     require(is_pointer_runtime_type(t(TypeKind::Bytes)), "bytes uses managed runtime storage");
 
+    const auto tensor_unknown = Type::tensor(t(TypeKind::Float32));
+    const auto tensor_rank2 = Type::tensor(t(TypeKind::Float32), 2);
+    const auto tensor_rank3 = Type::tensor(t(TypeKind::Float32), 3);
+    require(type_name(tensor_unknown) == "tensor<float32>", "unknown-rank tensor name");
+    require(type_name(tensor_rank2) == "tensor<float32, 2>", "static-rank tensor name");
+    require(assignable(tensor_rank2, tensor_unknown), "known tensor rank may erase to unknown rank");
+    require(!assignable(tensor_unknown, tensor_rank2), "unknown tensor rank cannot assert a known rank");
+    require(!assignable(tensor_rank2, tensor_rank3), "different known tensor ranks are incompatible");
+    require(runtime_storage_bytes(tensor_rank2) == runtime_storage_bytes(tensor_unknown),
+            "tensor rank metadata must not change runtime ABI size");
+
     require(lossless_implicit_numeric_conversion(t(TypeKind::Int8), t(TypeKind::Int16)),
             "int8 -> int16");
     require(lossless_implicit_numeric_conversion(t(TypeKind::UInt8), t(TypeKind::Int16)),

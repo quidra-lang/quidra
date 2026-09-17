@@ -1317,6 +1317,42 @@ A value = A()
 print(value.missing<int>(1))
 )", "UNKNOWN_GENERIC_METHOD");
  bad_code("int[] values = [1]\nvalues.missing<int>()\n", "GENERIC_RECEIVER");
+
+ // Static tensor rank is an optional compile-time contract. Runtime tensor ABI is unchanged.
+ good(R"(tensor<float32, 2> matrix = tensor.zeros<float32>([2, 3])
+tensor<float32> erased = matrix
+tensor<float32, 1> row = matrix[0]
+tensor<float32, 1> column = matrix[:, 0]
+tensor<float32, 0> cell = matrix[0, 0]
+float32 value = cell.item()
+tensor<float32, 1> reshaped = matrix.reshape([6])
+tensor<float32, 2> contiguous = matrix.contiguous()
+tensor<float, 2> converted = matrix.cast<float>()
+tensor<float32, 2> product = linear.matmul(matrix, tensor.ones<float32>([3, 2]))
+float32 dot = linear.dot(reshaped, tensor.ones<float32>([6]))
+void consume(tensor<float32> value)
+    auto shape = value.shape()
+consume(matrix)
+)");
+ good(R"(tensor<T> erase_rank<T>(tensor<T> value)
+    return value
+tensor<T, 2> keep_rank<T>(tensor<T, 2> value)
+    return value
+tensor<float32, 2> source = tensor.ones<float32>([2, 2])
+tensor<float32> erased = erase_rank(source)
+tensor<float32, 2> kept = keep_rank(source)
+)");
+ bad_code("tensor<float32, 3> wrong = tensor.zeros<float32>([2, 2])\n", "TYPE_MISMATCH");
+ bad_code(R"(tensor<float32> erase(tensor<float32> value)
+    return value
+tensor<float32, 2> known = erase(tensor.zeros<float32>([2, 2]))
+)", "TYPE_MISMATCH");
+ bad_code("tensor<float32, 1> value = tensor.ones<float32>([1])\nfloat32 scalar = value.item()\n", "TYPE_MISMATCH");
+ bad_code("tensor<float32, 2> value = tensor.ones<float32>([2, 2])\nauto bad = value[0, 0, 0]\n", "INDEX_ARITY");
+ bad_code("tensor<float32, 2> value = tensor.ones<float32>([2, 2])\nfloat32 bad = linear.dot(value, value)\n", "TYPE_MISMATCH");
+ bad_code("tensor<float32, 1> value = tensor.ones<float32>([2])\nauto bad = linear.matmul(value, value)\n", "TYPE_MISMATCH");
+ bad_code("tensor<uint8, 2> value = tensor.zeros<uint8>([2, 2])\nauto result = image.write(home, value)\n", "TYPE_MISMATCH");
+
  std::string deep = "print(";
  deep.append(5000, '(');
  deep += "1";

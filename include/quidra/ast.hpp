@@ -16,6 +16,7 @@ struct TypeName {
     std::size_t array_depth{};
     std::vector<long long> dimensions;
     SourceSpan span{};
+    std::optional<long long> tensor_rank;
 };
 
 struct Expr;

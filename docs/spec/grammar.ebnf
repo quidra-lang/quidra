@@ -33,7 +33,8 @@ parameter        = [ "const" ], type, [ "&" ], identifier, [ "=", expression ] ;
 
 type             = array_type, { "|", array_type } ;
 array_type       = type_atom, { "[", [ integer ], "]" } ;
-type_atom        = qualified_identifier, [ type_arguments ] ;
+type_atom        = tensor_type | qualified_identifier, [ type_arguments ] ;
+tensor_type      = "tensor", "<", type, [ ",", integer ], ">" ;
 type_arguments   = "<", type, { ",", type }, ">" ;
 qualified_identifier = identifier, { ".", identifier } ;
 
@@ -90,6 +91,8 @@ statement_end    = NEWLINE | EOF ;
    - import cycles and alias collisions are invalid;
    - cli_decl is root-only, occurs at most once, and its
      fields use argument(), option(default = value), or flag();
+   - `tensor<T, N>` may add a nonnegative integer-literal static-rank contract `N`;
+     the rank literal is tensor-specific syntax, not a general non-type generic argument;
    - generic class uses require explicit type arguments; generic function/method
      type arguments may be omitted when every generic parameter is uniquely inferred
      from call arguments; all concrete uses are monomorphized before ordinary static checking;

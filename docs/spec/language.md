@@ -440,7 +440,9 @@ A rejected compile-time submission does not become part of the session. EOF exit
 
 ## Tensor
 
-`tensor<T>` is a first-class dense numeric N-dimensional value type. `T` must be numeric. Rank and shape are runtime properties, while dtype remains static.
+`tensor<T>` is a first-class dense numeric N-dimensional value type. `T` must be numeric. Dtype is always static. Rank may be left runtime-known as `tensor<T>` or strengthened with an exact compile-time contract as `tensor<T, N>`, where `N` is a nonnegative integer literal. Shape extents remain runtime values in both forms. Static rank is erased before runtime representation, so `tensor<T>` and `tensor<T, N>` use the same TensorStorage/LLVM ABI.
+
+A statically known rank may be forgotten (`tensor<T, 2>` to `tensor<T>`), but an unknown rank is never implicitly asserted to be known. Tensor construction infers rank when its shape expression has a statically known array length; a dynamic `int[]` shape produces unknown rank. The rank annotation is a type refinement, not a second runtime tensor kind.
 
 ```quidra
 tensor<float32> a = tensor<float32>([3, 224, 224])
@@ -452,7 +454,7 @@ tensor<float32> o = tensor.ones<float32>([1, 224, 224])
 
 The direct `tensor<T>(shape)` form creates uninitialized tensor storage. Scalar indexed assignment such as `a[0, 0, 0] = 1.0` initializes that element. `tensor.zeros<T>` and `tensor.ones<T>` create fully initialized tensors. Initialization is tracked independently from numeric contents; reading an element before it is initialized is a deterministic safety failure.
 
-Tensor storage is row-major, with the last dimension contiguous. Indexing is comma-based. Integer indices remove dimensions; slices retain dimensions; omitted trailing dimensions mean full slices. Because `tensor<T>` deliberately does not encode rank in the static type, indexing always returns `tensor<T>`, including a 0-D tensor. Use `.item()` to extract a scalar from a 0-D tensor.
+Tensor storage is row-major, with the last dimension contiguous. Indexing is comma-based. Integer indices remove dimensions; slices retain dimensions; omitted trailing dimensions mean full slices. Indexing preserves and refines static rank when available. Each integer index removes one dimension, each slice retains one dimension, and omitted trailing dimensions are retained. Fully indexing a rank-`N` tensor with `N` integer indices yields `tensor<T, 0>`, not a scalar. `.item()` is the explicit scalar extraction operation; it is rejected statically for a tensor whose known rank is nonzero and remains runtime-checked when rank is unknown.
 
 ```quidra
 tensor<float32> z = tensor.zeros<float32>([3, 224, 224])
@@ -463,7 +465,7 @@ float32 value = z[0, 10, 20].item()
 
 Slices may share internal storage, but source semantics remain value-oriented. Mutating a copied tensor or slice triggers copy-on-write when needed, so another value cannot observe the write. Slice assignment and writable `&` references to tensor elements are intentionally not exposed.
 
-`.reshape(shape)` requires contiguous storage and never performs a hidden copy. Use `.contiguous()` explicitly before reshaping a non-contiguous view. `.shape()` returns `int[]`; `.is_contiguous()` reports layout state.
+`.reshape(shape)` requires contiguous storage and never performs a hidden copy. Use `.contiguous()` explicitly before reshaping a non-contiguous view. When the shape array has a statically known length, the result rank is known to that length; otherwise the result rank is unknown. `.shape()` continues to return runtime `int[]` shape data; static rank is compile-time metadata and does not change its runtime representation. `.is_contiguous()` reports layout state. `linear.dot` requires rank 1 and `linear.matmul` requires rank 2 when rank is statically known; unknown-rank inputs retain the existing runtime validation. Image values decoded by `image.read` carry rank 3, and `image.write` rejects a statically known non-3 rank.
 
 Tensor `+`, `-`, `*`, `/`, and integer `%` are elementwise. Tensor-to-tensor implicit broadcasting requires identical rank; each axis must either match or have size 1 on one side. Rank-changing broadcasting is not implicit. Scalars are the one exception and broadcast to any tensor rank.
 

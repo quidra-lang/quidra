@@ -1211,6 +1211,7 @@ TypeName clone_type(const TypeName& source) {
     out.array_depth = source.array_depth;
     out.dimensions = source.dimensions;
     out.span = source.span;
+    out.tensor_rank = source.tensor_rank;
     for (const auto& argument : source.arguments) out.arguments.push_back(clone_type(argument));
     return out;
 }
@@ -1222,6 +1223,9 @@ std::string canonical_type(const TypeName& type) {
         for (std::size_t i = 0; i < type.arguments.size(); ++i) {
             if (i) out += ",";
             out += canonical_type(type.arguments[i]);
+        }
+        if (type.name == "tensor" && type.tensor_rank) {
+            out += "," + std::to_string(*type.tensor_rank);
         }
         out += ">";
     }
@@ -1614,6 +1618,20 @@ private:
         }
 
         if (const auto* call = std::get_if<CallExpr>(&expression.data)) {
+            if ((call->callee == "tensor" || call->callee == "$std.tensor.zeros" ||
+                 call->callee == "$std.tensor.ones") &&
+                call->type_arguments.size() == 1 && call->args.size() == 1) {
+                TypeName result;
+                result.name = "tensor";
+                result.arguments.push_back(clone_type(call->type_arguments.front()));
+                const auto shape = infer_expression_type(*call->args[0].value, current_class);
+                if (shape && shape->name == "int" && shape->dimensions.size() == 1 &&
+                    shape->dimensions.front() >= 0) {
+                    result.tensor_rank = shape->dimensions.front();
+                }
+                result.span = expression.span;
+                return result;
+            }
             if (call->callee == "$std.neural.track" && call->args.size() == 1) {
                 const auto source = infer_expression_type(*call->args[0].value, current_class);
                 if (source && source->name == "tensor" && source->arguments.size() == 1) {
@@ -1669,7 +1687,19 @@ private:
         if (const auto* index = std::get_if<IndexExpr>(&expression.data)) {
             auto base = infer_expression_type(*index->base, current_class);
             if (!base) return std::nullopt;
-            if (base->name == "tensor") return base;
+            if (base->name == "tensor") {
+                if (base->tensor_rank) {
+                    if (index->items.size() > static_cast<std::size_t>(*base->tensor_rank)) {
+                        return std::nullopt;
+                    }
+                    long long rank = *base->tensor_rank;
+                    for (const auto& item : index->items) {
+                        if (!item.slice) --rank;
+                    }
+                    base->tensor_rank = rank;
+                }
+                return base;
+            }
             if (base->dimensions.empty() || index->items.size() != 1 ||
                 index->items.front().slice) {
                 return std::nullopt;
@@ -1682,6 +1712,33 @@ private:
         if (const auto* call = std::get_if<MethodCallExpr>(&expression.data)) {
             const auto receiver = infer_expression_type(*call->receiver, current_class);
             if (!receiver || !receiver->dimensions.empty()) return std::nullopt;
+            if (receiver->name == "tensor") {
+                if (call->method == "contiguous" && call->args.empty()) return receiver;
+                if (call->method == "reshape" && call->args.size() == 1) {
+                    auto result = clone_type(*receiver);
+                    result.tensor_rank.reset();
+                    const auto shape = infer_expression_type(*call->args[0].value, current_class);
+                    if (shape && shape->name == "int" && shape->dimensions.size() == 1 &&
+                        shape->dimensions.front() >= 0) {
+                        result.tensor_rank = shape->dimensions.front();
+                    }
+                    result.span = expression.span;
+                    return result;
+                }
+                if (call->method == "item" && call->args.empty() &&
+                    receiver->arguments.size() == 1) {
+                    return clone_type(receiver->arguments.front());
+                }
+                if (call->method == "cast" && call->args.empty() &&
+                    call->type_arguments.size() == 1) {
+                    TypeName result;
+                    result.name = "tensor";
+                    result.arguments.push_back(clone_type(call->type_arguments.front()));
+                    result.tensor_rank = receiver->tensor_rank;
+                    result.span = expression.span;
+                    return result;
+                }
+            }
             if (receiver->name == "neural" && call->method == "untrack" &&
                 receiver->arguments.size() == 1) {
                 TypeName result;
@@ -1732,6 +1789,10 @@ private:
         if (pattern.name != actual.name ||
             pattern.arguments.size() != actual.arguments.size() ||
             pattern.dimensions.size() != actual.dimensions.size()) {
+            return false;
+        }
+        if (pattern.name == "tensor" && pattern.tensor_rank &&
+            (!actual.tensor_rank || *pattern.tensor_rank != *actual.tensor_rank)) {
             return false;
         }
         for (std::size_t i = 0; i < pattern.dimensions.size(); ++i) {

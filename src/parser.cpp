@@ -49,10 +49,13 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
             "Type nesting exceeds the parser limit.",
             token.span});
     }
-    if (index >= tokens.size() || tokens[index++].kind != TokenKind::Identifier) {
+    if (index >= tokens.size() || tokens[index].kind != TokenKind::Identifier) {
         return false;
     }
+    const auto root_name = tokens[index++].text;
+    bool qualified = false;
     while (index < tokens.size() && tokens[index].kind == TokenKind::Dot) {
+        qualified = true;
         ++index;
         if (index >= tokens.size() || tokens[index++].kind != TokenKind::Identifier) {
             return false;
@@ -61,9 +64,17 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
     if (index < tokens.size() && tokens[index].kind == TokenKind::Less) {
         ++index;
         if (!scan_type_lookahead(tokens, index, depth + 1, limit)) return false;
-        while (index < tokens.size() && tokens[index].kind == TokenKind::Comma) {
+        if (!qualified && root_name == "tensor" &&
+            index < tokens.size() && tokens[index].kind == TokenKind::Comma) {
             ++index;
-            if (!scan_type_lookahead(tokens, index, depth + 1, limit)) return false;
+            if (index >= tokens.size() || tokens[index++].kind != TokenKind::Integer) {
+                return false;
+            }
+        } else {
+            while (index < tokens.size() && tokens[index].kind == TokenKind::Comma) {
+                ++index;
+                if (!scan_type_lookahead(tokens, index, depth + 1, limit)) return false;
+            }
         }
         if (index >= tokens.size() || tokens[index++].kind != TokenKind::Greater) {
             return false;
@@ -260,7 +271,27 @@ TypeName Parser::type_name() {
     }
 
     if (at(TokenKind::Less)) {
-        t.arguments = type_argument_list();
+        if (t.name == "tensor") {
+            consume(TokenKind::Less, "Expected '<' before tensor element type.");
+            if (at(TokenKind::Greater)) error(peek(), "tensor requires an element type.");
+            t.arguments.push_back(type_name());
+            if (match(TokenKind::Comma)) {
+                const auto rank = consume(
+                    TokenKind::Integer,
+                    "tensor static rank must be a nonnegative integer literal.");
+                long long value{};
+                const auto parsed = std::from_chars(
+                    rank.text.data(), rank.text.data() + rank.text.size(), value);
+                if (parsed.ec != std::errc{} ||
+                    parsed.ptr != rank.text.data() + rank.text.size()) {
+                    error(rank, "tensor static rank is too large.");
+                }
+                t.tensor_rank = value;
+            }
+            consume(TokenKind::Greater, "Expected '>' after tensor type.");
+        } else {
+            t.arguments = type_argument_list();
+        }
         t.span.end = previous().span.end;
     }
 

@@ -242,7 +242,7 @@ match f64_written
     error problem
         print(problem)
 
-# uint16 PNG writing must preserve the exact 16-bit sample.
+// uint16 PNG writing must preserve the exact 16-bit sample.
 tensor<uint16> png16 = tensor.zeros<uint16>([1, 1, 1])
 png16[0, 0, 0] = uint16(4660)
 auto png16_written = image.write("$TMP/written-u16.png", png16)
@@ -257,7 +257,7 @@ match png16_written
     error problem
         print(problem)
 
-# A target format must reject a dtype it cannot represent instead of narrowing.
+// A target format must reject a dtype it cannot represent instead of narrowing.
 auto bad_jpeg = image.write("$TMP/u16.jpg", png16)
 match bad_jpeg
     void
@@ -267,7 +267,7 @@ match bad_jpeg
 QUI
 
 tiff_output="$("$QUIDRA" "$TMP/tiff-dtypes.qui")"
-tiff_expected="$(printf '%s\n' -8 -1600 -320000 -640000 8 1600 320000 640000 1.5 2.5 4660 rejected | sed '$d')"
+tiff_expected="$(printf '%s\n' -8 -1600 -320000 -640000 8 1600 320000 640000 1.5 2.5 4660 rejected)"
 if [[ "$tiff_output" != "$tiff_expected" ]]; then
     echo "unexpected image dtype round-trip output:" >&2
     printf '%s\n' "$tiff_output" >&2

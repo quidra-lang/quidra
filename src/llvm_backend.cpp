@@ -1826,7 +1826,7 @@ struct FunctionEmitter {
             out<<"  "<<actual_dtype<<" = load i32, ptr "<<dtype_slot<<"\n";
             std::vector<std::string> case_labels;
             case_labels.reserve(image_cases.size());
-            for(const auto& item:image_cases)
+            for(std::size_t i=0;i<image_cases.size();++i)
                 case_labels.push_back(unique_label("image.read.dtype"));
             out<<"  switch i32 "<<actual_dtype<<", label %"<<bad<<" [\n";
             for(std::size_t i=0;i<image_cases.size();++i)

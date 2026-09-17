@@ -4513,11 +4513,30 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
     auto matched_reference_effects = reference_before;
 
     for (auto& match_case : node.cases) {
-        auto case_type = resolve_type(match_case.type);
-        const int tag = case_index(type, case_type);
+        const auto requested_case_type = resolve_type(match_case.type);
+        int tag = case_index(type, requested_case_type);
+        if (tag < 0 && requested_case_type.kind == TypeKind::Tensor &&
+            requested_case_type.length < 0 && requested_case_type.first) {
+            int compatible_tag = -1;
+            for (std::size_t i = 0; i < type.cases.size(); ++i) {
+                const auto& candidate = type.cases[i];
+                if (candidate.kind != TypeKind::Tensor || !candidate.first ||
+                    *candidate.first != *requested_case_type.first) {
+                    continue;
+                }
+                if (compatible_tag >= 0) {
+                    compatible_tag = -2;
+                    break;
+                }
+                compatible_tag = static_cast<int>(i);
+            }
+            if (compatible_tag >= 0) tag = compatible_tag;
+        }
         if (tag < 0 || !seen.insert(tag).second) {
             error("MATCH_CASE", "Unreachable or duplicate typed case.", match_case.span);
         }
+        const auto case_type = tag >= 0 ? type.cases[static_cast<std::size_t>(tag)]
+                                        : requested_case_type;
         if (case_type.kind == TypeKind::None && match_case.binder) {
             error("MATCH_CASE", "none has no payload binder.", match_case.span);
         }

@@ -1313,60 +1313,6 @@ grep -q 'Equality is not defined for this type' "$TMP/http-equality.json"
 echo "stdlib integration: ok"
 
 
-# Additive namespace extensions.
-mkdir -p "$TMP/packages/math_extra"
-cat > "$TMP/packages/math_extra/main.qui" <<'QUI'
-int twice(int value)
-    return value * 2
-QUI
-cat > "$TMP/packages/math_extra/quidra.package.json" <<'JSON'
-{"extends":["math"]}
-JSON
-cat > "$TMP/namespace-extension.qui" <<'QUI'
-import math += math_extra
-print(math.twice(21))
-QUI
-[[ "$(QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" "$TMP/namespace-extension.qui")" == "42" ]]
-
-mkdir -p "$TMP/packages/math_collision"
-cat > "$TMP/packages/math_collision/main.qui" <<'QUI'
-int twice(int value)
-    return value + value
-QUI
-cat > "$TMP/packages/math_collision/quidra.package.json" <<'JSON'
-{"extends":["math"]}
-JSON
-cat > "$TMP/namespace-extension-collision.qui" <<'QUI'
-import math += math_extra
-import math += math_collision
-print(math.twice(4))
-QUI
-set +e
-QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" check "$TMP/namespace-extension-collision.qui" --json >"$TMP/namespace-extension-collision.json" 2>&1
-namespace_collision_rc=$?
-set -e
-[[ "$namespace_collision_rc" -eq 1 ]]
-grep -q 'NAMESPACE_EXTENSION_COLLISION' "$TMP/namespace-extension-collision.json"
-
-mkdir -p "$TMP/packages/not_math"
-cat > "$TMP/packages/not_math/main.qui" <<'QUI'
-int extra(int value)
-    return value
-QUI
-cat > "$TMP/packages/not_math/quidra.package.json" <<'JSON'
-{"extends":["vision"]}
-JSON
-cat > "$TMP/namespace-extension-undeclared.qui" <<'QUI'
-import math += not_math
-print(math.extra(1))
-QUI
-set +e
-QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" check "$TMP/namespace-extension-undeclared.qui" --json >"$TMP/namespace-extension-undeclared.json" 2>&1
-namespace_undeclared_rc=$?
-set -e
-[[ "$namespace_undeclared_rc" -eq 1 ]]
-grep -q 'PACKAGE_EXTENSION_NOT_DECLARED' "$TMP/namespace-extension-undeclared.json"
-
 # Named writable arguments.
 cat > "$TMP/named-writable.qui" <<'QUI'
 void set_value(int &value)
@@ -2261,51 +2207,6 @@ print(training.untrack().shape()[1])
 QUI
 [[ "$("$QUIDRA" "$TMP/neural-float64-layers.qui")" == "$(printf '2\n2\n1\n2\n3\n5\n2\n2')" ]]
 
-
-# Neural namespace extension uses the same additive mechanism as every standard namespace.
-mkdir -p "$TMP/packages/neural_extra"
-cat > "$TMP/packages/neural_extra/main.qui" <<'QUI'
-int twice(int value)
-    return value * 2
-QUI
-cat > "$TMP/packages/neural_extra/quidra.package.json" <<'JSON'
-{"extends":["neural"]}
-JSON
-cat > "$TMP/neural-namespace-extension.qui" <<'QUI'
-import neural += neural_extra
-print(neural.twice(21))
-QUI
-[[ "$(QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" "$TMP/neural-namespace-extension.qui")" == "42" ]]
-
-mkdir -p "$TMP/packages/neural_collision"
-cat > "$TMP/packages/neural_collision/main.qui" <<'QUI'
-int relu(int value)
-    return value
-QUI
-cat > "$TMP/packages/neural_collision/quidra.package.json" <<'JSON'
-{"extends":["neural"]}
-JSON
-cat > "$TMP/neural-namespace-standard-collision.qui" <<'QUI'
-import neural += neural_collision
-print(1)
-QUI
-set +e
-QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" check "$TMP/neural-namespace-standard-collision.qui" --json >"$TMP/neural-namespace-standard-collision.json" 2>&1
-neural_namespace_collision_rc=$?
-set -e
-[[ "$neural_namespace_collision_rc" -eq 1 ]]
-grep -q 'NAMESPACE_EXTENSION_COLLISION' "$TMP/neural-namespace-standard-collision.json"
-
-cat > "$TMP/neural-extension-no-package-binding.qui" <<'QUI'
-import neural += neural_extra
-print(neural_extra.twice(1))
-QUI
-set +e
-QUIDRA_PACKAGE_PATH="$TMP/packages" "$QUIDRA" check "$TMP/neural-extension-no-package-binding.qui" --json >"$TMP/neural-extension-no-package-binding.json" 2>&1
-neural_extension_binding_rc=$?
-set -e
-[[ "$neural_extension_binding_rc" -eq 1 ]]
-grep -q 'neural_extra' "$TMP/neural-extension-no-package-binding.json"
 
 # Floating neural model classes reject unsupported generic element types before runtime.
 for neural_type in Parameter Linear Conv2D BatchNorm; do

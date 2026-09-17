@@ -42,52 +42,6 @@ std::string read_text(const fs::path& path) {
     return out.str();
 }
 
-std::unordered_set<std::string> package_extension_targets(const fs::path& package_main) {
-    const auto manifest = package_main.parent_path() / "quidra.package.json";
-    std::error_code error;
-    if (!fs::is_regular_file(manifest, error) || error) return {};
-    const auto text = read_text(manifest);
-    const auto key = text.find("\"extends\"");
-    if (key == std::string::npos) return {};
-    const auto colon = text.find(':', key + 9);
-    const auto open = colon == std::string::npos ? std::string::npos : text.find('[', colon + 1);
-    const auto close = open == std::string::npos ? std::string::npos : text.find(']', open + 1);
-    if (colon == std::string::npos || open == std::string::npos || close == std::string::npos)
-        throw std::runtime_error("package metadata field 'extends' must be a JSON string array");
-    std::unordered_set<std::string> result;
-    std::size_t current = open + 1;
-    while (current < close) {
-        while (current < close && (std::isspace(static_cast<unsigned char>(text[current])) || text[current] == ',')) ++current;
-        if (current >= close) break;
-        if (text[current] != '"') throw std::runtime_error("package metadata field 'extends' must contain only strings");
-        ++current;
-        std::string value;
-        bool closed = false;
-        while (current < close) {
-            const char ch = text[current++];
-            if (ch == '"') { closed = true; break; }
-            if (ch == '\\') {
-                if (current >= close) break;
-                const char escaped = text[current++];
-                if (escaped != '"' && escaped != '\\')
-                    throw std::runtime_error("package metadata 'extends' supports only simple namespace strings");
-                value.push_back(escaped);
-            } else value.push_back(ch);
-        }
-        if (!closed || value.empty()) throw std::runtime_error("package metadata 'extends' contains an invalid namespace");
-        result.insert(std::move(value));
-    }
-    return result;
-}
-
-std::string extension_private_namespace(std::string_view target, std::string_view package) {
-    std::string result = "__quidra_extension_";
-    for (const char ch : target) result.push_back(std::isalnum(static_cast<unsigned char>(ch)) || ch == '_' ? ch : '_');
-    result.push_back('_');
-    for (const char ch : package) result.push_back(std::isalnum(static_cast<unsigned char>(ch)) || ch == '_' ? ch : '_');
-    return result;
-}
-
 std::string qualify(const std::string& ns, const std::string& name) {
     return ns.empty() ? name : ns + "." + name;
 }
@@ -1151,7 +1105,6 @@ private:
     std::map<std::string, fs::path> loaded_packages_;
     std::vector<fs::path> stack_;
     std::unordered_set<std::string> loaded_standard_declarations_;
-    std::unordered_set<std::string> loaded_extensions_;
 
     void record_package(
         const std::string& name, const fs::path& package_main, SourceSpan span) {
@@ -1306,57 +1259,6 @@ private:
 
         stack_.push_back(absolute);
         for (const auto& import_decl : program.imports) {
-            if (import_decl.extension_target) {
-                const auto& target = *import_decl.extension_target;
-                const auto target_binding = imports.find(target);
-                if (target_binding == imports.end()) {
-                    stack_.pop_back();
-                    frontend_error("NAMESPACE_EXTENSION_TARGET", "Namespace extension target '" + target + "' is not visible at this import site.", import_decl.span);
-                }
-                if (import_decl.local_path) {
-                    stack_.pop_back();
-                    frontend_error("NAMESPACE_EXTENSION_PACKAGE", "Namespace extensions require an installed package name, not a local path.", import_decl.span);
-                }
-                std::optional<fs::path> package_path;
-                try { package_path = resolve_installed_package_path(import_decl.target); }
-                catch (const std::invalid_argument& error) {
-                    stack_.pop_back(); frontend_error("PACKAGE_IMPORT", error.what(), import_decl.span);
-                }
-                if (!package_path) {
-                    stack_.pop_back(); frontend_error("PACKAGE_NOT_INSTALLED", "Package '" + import_decl.target + "' is not installed.", import_decl.span);
-                }
-                record_package(import_decl.target, *package_path, import_decl.span);
-                std::unordered_set<std::string> declared_targets;
-                try { declared_targets = package_extension_targets(*package_path); }
-                catch (const std::exception& error) {
-                    stack_.pop_back(); frontend_error("PACKAGE_METADATA", error.what(), import_decl.span);
-                }
-                if (!declared_targets.contains(target)) {
-                    stack_.pop_back();
-                    frontend_error("PACKAGE_EXTENSION_NOT_DECLARED", "Package '" + import_decl.target + "' does not declare that it extends namespace '" + target + "'.", import_decl.span);
-                }
-                const auto extension_key = target + "=" + package_path->lexically_normal().string();
-                if (!loaded_extensions_.insert(extension_key).second) {
-                    stack_.pop_back();
-                    frontend_error("DUPLICATE_NAMESPACE_EXTENSION", "Package '" + import_decl.target + "' is already applied to namespace '" + target + "'.", import_decl.span);
-                }
-                const auto private_ns = qualify(ns, extension_private_namespace(target, import_decl.target));
-                auto extension_exports = load_file(*package_path, private_ns, false, merged);
-                auto& destination = target_binding->second.exports;
-                const auto occupied = [&](const std::string& name) {
-                    return destination.classes.contains(name) || destination.functions.contains(name) || destination.values.contains(name);
-                };
-                const auto merge = [&](auto& into, auto& from) {
-                    for (auto& [name, resolved] : from) {
-                        if (occupied(name)) frontend_error("NAMESPACE_EXTENSION_COLLISION", "Namespace '" + target + "' already contains member '" + name + "'; extensions are additive and cannot replace APIs.", import_decl.span);
-                        into.emplace(name, std::move(resolved));
-                    }
-                };
-                merge(destination.classes, extension_exports.classes);
-                merge(destination.functions, extension_exports.functions);
-                merge(destination.values, extension_exports.values);
-                continue;
-            }
             if (!import_decl.local_path && is_standard_module(import_decl.target)) {
                 stack_.pop_back();
                 frontend_error(

@@ -107,6 +107,10 @@ int main() {
     }
 
     {
+        reject("import neural += package\n");
+    }
+
+    {
         auto p = parse(
             "class Box<T>\n"
             "    T value\n"

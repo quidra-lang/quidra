@@ -138,7 +138,6 @@ struct ImportDecl {
     std::string alias;
     std::string target;
     bool local_path{};
-    std::optional<std::string> extension_target;
     SourceSpan span{};
 };
 

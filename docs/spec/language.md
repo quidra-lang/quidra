@@ -690,16 +690,6 @@ Because all current language calls are statically resolved, the backend identifi
 Managed ownership bookkeeping is local to the executing thread in the current runtime. The language does not currently expose cross-thread sharing of managed values, so retain/release does not require a process-wide mutex. If a future concurrency model introduces shared managed values, that ownership contract must be revisited explicitly rather than silently changing this assumption.
 
 
-## Additive namespace extensions
-
-Installed packages may explicitly add new members to an already-visible namespace:
-
-```text
-import neural += accelerator_package
-```
-
-The package must contain `quidra.package.json` with an `extends` string array naming the target namespace. Extension imports are additive only: they cannot replace an existing class, function, or value; two extensions cannot provide the same member; and import order never selects a winner. An extension import does not automatically bind the package under its package name. Standard namespaces remain always visible, so `import neural` is still invalid even though `import neural += package` is valid.
-
 Writable named arguments expose both sides of the reference contract:
 
 ```text

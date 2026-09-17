@@ -614,7 +614,7 @@ neural.Gradients gradients = neural.grad(loss)
 neural.step(&model, &optimizer, gradients)
 ```
 
-`neural.training` and `neural.inference` are distinct marker types rather than a hidden mutable model flag. BatchNorm updates running State only in training; Dropout owns local RNG State and does not consume it during inference. `neural.step` validates the complete Gradients/model relation and existing Adam moment structure before mutating Parameters or optimizer State, so contract failures do not leave partial updates. The stable CPU core includes `Linear`, NCHW `Conv2D`, `BatchNorm`, `Dropout`, core activations/losses, SGD, and Adam. Larger model libraries and accelerators belong in additive namespace extensions such as `import neural += package`.
+`neural.training` and `neural.inference` are distinct marker types rather than a hidden mutable model flag. BatchNorm updates running State only in training; Dropout owns local RNG State and does not consume it during inference. `neural.step` validates the complete Gradients/model relation and existing Adam moment structure before mutating Parameters or optimizer State, so contract failures do not leave partial updates.
 
 Model and optimizer state use one typed, non-executable `.quistate` format. `neural.save(model, ...)` saves the complete supported model state; adding the optimizer saves its persistent optimizer State as well. Saving uses a process-unique temporary file and atomic replacement. Loading requires exact nominal root types, structural schema, tensor dtype/shape, version, and checksum, validates the complete payload before replaying writes, and rejects mismatches without partially restoring earlier fields.
 

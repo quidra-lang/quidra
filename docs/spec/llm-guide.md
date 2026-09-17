@@ -100,9 +100,7 @@ The current core includes fixed-width numeric types, strict implicit conversions
 - `tensor<T>(shape)` creates uninitialized elements; initialize scalar elements with indexed assignment, or use `tensor.zeros<T>(shape)` / `tensor.ones<T>(shape)` when a fully initialized tensor is intended.
 
 
-### Additive namespace extension and explicit conversion
-
-Use `import target += package` only for an installed package whose `quidra.package.json` explicitly names `target` in `extends`. Extensions add names but never replace names. Do not write `import target` for a standard namespace.
+### Writable arguments and explicit conversion
 
 For writable named arguments write `&name = &value`; positional writable arguments remain `&value`.
 

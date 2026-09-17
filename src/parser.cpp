@@ -321,13 +321,7 @@ ImportDecl Parser::import_decl() {
     result.span.start = start;
     result.span.end = first.span.end;
 
-    if (match(TokenKind::PlusAssign)) {
-        result.extension_target = first.text;
-        const auto target = consume(TokenKind::Identifier, "Expected installed package name after '+='.");
-        result.target = target.text;
-        result.alias.clear();
-        result.span.end = target.span.end;
-    } else if (match(TokenKind::Assign)) {
+    if (match(TokenKind::Assign)) {
         if (match(TokenKind::String)) {
             const auto target = previous();
             result.target = target.text;

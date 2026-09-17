@@ -30,8 +30,8 @@ ResolvedProgram resolve_source(std::string_view source, CompileOptions options) 
     // Standard namespaces are wired up by the module loader, so string input must
     // go through it too; otherwise `math.sqrt(...)` and friends never resolve here.
     return load_program_with_root_source(
-        std::filesystem::path("<memory>.qui"), source, std::filesystem::path(),
-        options.max_errors);
+        std::filesystem::path("<memory>.qui"), source,
+        std::filesystem::current_path(), options.max_errors);
 }
 
 CheckedProgram finish_check(ResolvedProgram program, CompileOptions options) {

@@ -61,6 +61,8 @@ for name in ["print","write","input","range","array","len","abs","sqrt","min","m
 assert x["standard_modules"] == ["math","cli","file","environment","test","time","random","process","map","set","json","http","stats","linear","signal","image","tensor","neural"]
 assert x["array_growth_model"].startswith("append(value)")
 assert "Unicode code-point" in x["string_operation_model"]
+assert "tensor<T, N>" in x["current_types"]
+assert "compile-time rank contract" in x["tensor_model"]
 PY
 $QUIDRA check "$ROOT/examples/hello.qui" --json > "$TMP/check-version.json"
 python3 - "$TMP/check-version.json" "$ROOT/quidra.manifest.json" <<'PY'
@@ -2524,6 +2526,30 @@ assert set(describe["current_builtins"]) == set(manifest["current_builtins"])
 assert describe["repl"] is True
 PY
 
+
+"$QUIDRA" describe llm > "$TMP/describe-llm.json"
+python3 - "$TMP/describe-llm.json" <<'PY'
+import json,sys
+x=json.load(open(sys.argv[1]))
+tensor=x["inspection"]["type_contracts"]["tensor"]
+rank=x["inspection"]["type_contracts"]["tensor_rank"]
+assert tensor == "tensor<T> | tensor<T, N>"
+assert "compile-time rank" in rank
+assert "runtime-ABI-erased" in rank
+PY
+
+cat > "$TMP/inspect-tensor-rank.qui" <<'QUI'
+tensor<float32, 2> matrix = tensor.zeros<float32>([2, 3])
+auto row = matrix[0]
+QUI
+"$QUIDRA" inspect "$TMP/inspect-tensor-rank.qui" --no-source --no-effects > "$TMP/inspect-tensor-rank.json"
+python3 - "$TMP/inspect-tensor-rank.json" <<'PY'
+import json,sys
+x=json.load(open(sys.argv[1]))
+types={n["inferred_type"] for n in x["nodes"] if n["inferred_type"]}
+assert "tensor<float32, 2>" in types, types
+assert "tensor<float32, 1>" in types, types
+PY
 
 "$QUIDRA" inspect "$ROOT/examples/classes.qui" --no-source --no-effects --kind integer > "$TMP/inspect-compact.json"
 python3 - "$TMP/inspect-compact.json" <<'PY'

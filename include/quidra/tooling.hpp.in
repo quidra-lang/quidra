@@ -23,7 +23,11 @@ inline constexpr std::string_view llm_interface_json = R"QUIDRA_JSON({
   },
   "inspection": {
     "command": "quidra inspect FILE.qui --no-source",
-    "fields": ["revision", "node_id", "kind", "source_hash", "parent_id", "depth", "inferred_type", "authority", "effects"]
+    "fields": ["revision", "node_id", "kind", "source_hash", "parent_id", "depth", "inferred_type", "authority", "effects"],
+    "type_contracts": {
+      "tensor": "tensor<T> | tensor<T, N>",
+      "tensor_rank": "N is exact compile-time rank; omitted means unknown; rank metadata is runtime-ABI-erased"
+    }
   },
   "repair": {
     "schema_command": "quidra describe patch-schema",

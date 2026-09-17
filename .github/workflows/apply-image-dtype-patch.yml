@@ -5,7 +5,7 @@ on:
     branches:
       - chatgpt/image-dtypes-20260917
     paths:
-      - tools/apply_image_dtype_checker.py
+      - tools/apply_image_dtype_runtime.py
       - .github/workflows/apply-image-dtype-patch.yml
 
 permissions:
@@ -18,18 +18,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Apply checker patch
-        run: python3 tools/apply_image_dtype_checker.py
+      - name: Apply runtime patch
+        run: python3 tools/apply_image_dtype_runtime.py
       - name: Check patch
         run: git diff --check
       - name: Commit generated edits
         run: |
           git config user.name "quidra-ci"
           git config user.email "actions@users.noreply.github.com"
-          git add src/checker.cpp tests/stdlib_tests.sh
+          git add src/runtime.cpp src/runtime_image.cpp src/llvm_backend.cpp
           if git diff --cached --quiet; then
             echo "No generated changes"
           else
-            git commit -m "feat: add image dtype-aware static typing"
+            git commit -m "feat: preserve image sample dtypes"
             git push origin HEAD:${GITHUB_REF_NAME}
           fi

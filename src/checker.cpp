@@ -1817,22 +1817,41 @@ Type Checker::check_method_call_expr(const Expr& expression,
                     if (argument.name) {
                         named = true;
                         if (!labels.insert(*argument.name).second) {
-                            error("ARGUMENT_MISMATCH", "Duplicate named argument.", argument.span);
+                            error("ARGUMENT_MISMATCH",
+                                  "Argument '" + *argument.name + "' is supplied more than once.",
+                                  argument.span);
                         }
                     } else if (named) {
-                        error("ARGUMENT_MISMATCH", "Positional arguments must precede named arguments.", argument.span);
+                        error("ARGUMENT_MISMATCH",
+                              "Positional argument cannot follow named arguments; name it explicitly.",
+                              argument.span);
                     }
 
-                    std::size_t target = positional++;
+                    std::size_t target = 0;
                     if (argument.name) {
-                        auto it = std::find_if(function.parameters.begin() + static_cast<std::ptrdiff_t>(offset),
-                                               function.parameters.end(),
-                                               [&](const auto& parameter) { return parameter.name == *argument.name; });
-                        target = static_cast<std::size_t>(
-                            it - (function.parameters.begin() + static_cast<std::ptrdiff_t>(offset)));
+                        const auto begin =
+                            function.parameters.begin() + static_cast<std::ptrdiff_t>(offset);
+                        const auto it = std::find_if(
+                            begin, function.parameters.end(),
+                            [&](const auto& parameter) { return parameter.name == *argument.name; });
+                        if (it == function.parameters.end()) {
+                            error("ARGUMENT_MISMATCH",
+                                  "Unknown method argument '" + *argument.name + "'.",
+                                  argument.span);
+                        }
+                        target = static_cast<std::size_t>(it - begin);
+                    } else {
+                        if (positional >= count) {
+                            error("ARGUMENT_MISMATCH",
+                                  "Too many positional method arguments.", argument.span);
+                        }
+                        target = positional++;
                     }
-                    if (target >= count || filled[target]) {
-                        error("ARGUMENT_MISMATCH", "Unknown or duplicate method argument.", argument.span);
+                    if (filled[target]) {
+                        error("ARGUMENT_MISMATCH",
+                              "Argument '" + function.parameters[target + offset].name +
+                                  "' is supplied more than once.",
+                              argument.span);
                     }
                     filled[target] = true;
                     const auto& parameter = function.parameters[target + offset];
@@ -1875,7 +1894,10 @@ Type Checker::check_method_call_expr(const Expr& expression,
                 }
                 for (std::size_t i = 0; i < count; ++i) {
                     if (!filled[i] && !function.parameters[i + offset].default_value) {
-                        error("ARGUMENT_MISMATCH", "Missing required method argument.", expression.span);
+                        error("ARGUMENT_MISMATCH",
+                              "Missing required argument '" +
+                                  function.parameters[i + offset].name + "'.",
+                              expression.span);
                     }
                 }
 
@@ -3294,10 +3316,14 @@ Type Checker::check_call_expr(const Expr& expression,
             if (argument.name) {
                 named = true;
                 if (!labels.insert(*argument.name).second) {
-                    error("ARGUMENT_MISMATCH", "Duplicate named argument.", argument.span);
+                    error("ARGUMENT_MISMATCH",
+                          "Argument '" + *argument.name + "' is supplied more than once.",
+                          argument.span);
                 }
             } else if (named) {
-                error("ARGUMENT_MISMATCH", "Positional arguments must precede named arguments.", argument.span);
+                error("ARGUMENT_MISMATCH",
+                      "Positional argument cannot follow named arguments; name it explicitly.",
+                      argument.span);
             }
         }
 
@@ -3315,16 +3341,31 @@ Type Checker::check_call_expr(const Expr& expression,
             std::vector<PendingReferenceEffect> pending_reference_effects;
 
             for (const auto& argument : node->args) {
-                std::size_t target = positional++;
+                std::size_t target = 0;
                 if (argument.name) {
-                    auto it = std::find_if(function.parameters.begin() + static_cast<std::ptrdiff_t>(offset),
-                                           function.parameters.end(),
-                                           [&](const auto& parameter) { return parameter.name == *argument.name; });
-                    target = static_cast<std::size_t>(
-                        it - (function.parameters.begin() + static_cast<std::ptrdiff_t>(offset)));
+                    const auto begin =
+                        function.parameters.begin() + static_cast<std::ptrdiff_t>(offset);
+                    const auto it = std::find_if(
+                        begin, function.parameters.end(),
+                        [&](const auto& parameter) { return parameter.name == *argument.name; });
+                    if (it == function.parameters.end()) {
+                        error("ARGUMENT_MISMATCH",
+                              "Unknown method argument '" + *argument.name + "'.",
+                              argument.span);
+                    }
+                    target = static_cast<std::size_t>(it - begin);
+                } else {
+                    if (positional >= count) {
+                        error("ARGUMENT_MISMATCH",
+                              "Too many positional method arguments.", argument.span);
+                    }
+                    target = positional++;
                 }
-                if (target >= count || filled[target]) {
-                    error("ARGUMENT_MISMATCH", "Unknown or duplicate method argument.", argument.span);
+                if (filled[target]) {
+                    error("ARGUMENT_MISMATCH",
+                          "Argument '" + function.parameters[target + offset].name +
+                              "' is supplied more than once.",
+                          argument.span);
                 }
                 filled[target] = true;
                 const auto& parameter = function.parameters[target + offset];
@@ -3375,7 +3416,10 @@ Type Checker::check_call_expr(const Expr& expression,
 
             for (std::size_t i = 0; i < count; ++i) {
                 if (!filled[i] && !function.parameters[i + offset].default_value) {
-                    error("ARGUMENT_MISMATCH", "Missing required method argument.", expression.span);
+                    error("ARGUMENT_MISMATCH",
+                          "Missing required argument '" +
+                              function.parameters[i + offset].name + "'.",
+                          expression.span);
                 }
             }
             if (!any_poison) {
@@ -3512,14 +3556,28 @@ Type Checker::check_call_expr(const Expr& expression,
             std::vector<PendingReferenceEffect> pending_reference_effects;
 
             for (const auto& argument : node->args) {
-                std::size_t target = positional++;
+                std::size_t target = 0;
                 if (argument.name) {
-                    auto it = std::find_if(function.parameters.begin(), function.parameters.end(),
-                                           [&](const auto& parameter) { return parameter.name == *argument.name; });
+                    const auto it = std::find_if(
+                        function.parameters.begin(), function.parameters.end(),
+                        [&](const auto& parameter) { return parameter.name == *argument.name; });
+                    if (it == function.parameters.end()) {
+                        error("ARGUMENT_MISMATCH",
+                              "Unknown argument '" + *argument.name + "'.",
+                              argument.span);
+                    }
                     target = static_cast<std::size_t>(it - function.parameters.begin());
+                } else {
+                    if (positional >= filled.size()) {
+                        error("ARGUMENT_MISMATCH", "Too many positional arguments.", argument.span);
+                    }
+                    target = positional++;
                 }
-                if (target >= filled.size() || filled[target]) {
-                    error("ARGUMENT_MISMATCH", "Unknown or duplicate argument.", argument.span);
+                if (filled[target]) {
+                    error("ARGUMENT_MISMATCH",
+                          "Argument '" + function.parameters[target].name +
+                              "' is supplied more than once.",
+                          argument.span);
                 }
                 filled[target] = true;
                 const auto& parameter = function.parameters[target];
@@ -3570,7 +3628,9 @@ Type Checker::check_call_expr(const Expr& expression,
 
             for (std::size_t i = 0; i < filled.size(); ++i) {
                 if (!filled[i] && !function.parameters[i].default_value) {
-                    error("ARGUMENT_MISMATCH", "Missing required argument.", expression.span);
+                    error("ARGUMENT_MISMATCH",
+                          "Missing required argument '" + function.parameters[i].name + "'.",
+                          expression.span);
                 }
             }
             if (!any_poison) {

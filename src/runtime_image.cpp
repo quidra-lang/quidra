@@ -256,6 +256,10 @@ Image read_png(const std::string& path) {
     std::uint8_t* raw = nullptr;
     png_bytep* rows = nullptr;
 
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4611)
+#endif
     if (setjmp(error.jump) != 0) {
         std::free(rows);
         std::free(raw);
@@ -265,6 +269,9 @@ Image read_png(const std::string& path) {
             std::string("PNG decode failed: ") +
             (error.message[0] ? error.message : path));
     }
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
     png_init_io(png, file);
     png_read_info(png, info);

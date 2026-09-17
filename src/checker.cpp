@@ -4038,7 +4038,10 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
         if (type.kind == TypeKind::Auto) {
             if (!node.value) error("INVALID_AUTO", "auto requires an initializer.", statement.span);
             type = check_expr(*node.value);
-            if (type.kind == TypeKind::Array) {
+            if (type.kind == TypeKind::Array &&
+                std::holds_alternative<ArrayExpr>(node.value->data)) {
+                // Array literals infer a runtime-sized array so common auto bindings remain
+                // appendable. Other expressions preserve their declared static shape contract.
                 type.length = -1;
                 expr_types_[node.value.get()] = type;
             }

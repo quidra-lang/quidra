@@ -965,10 +965,10 @@ match result
 Image I/O is explicit and tensor-native:
 
 ```quidra
-auto loaded = image.read("input.png")
+tensor<uint16> | error loaded = image.read("input.png")
 match loaded
-    tensor<uint8> pixels
-        auto written = image.write("output.webp", pixels, quality = 95)
+    tensor<uint16> pixels
+        auto written = image.write("output.png", pixels)
         match written
             void
                 print("saved")
@@ -978,7 +978,7 @@ match loaded
         print(problem)
 ```
 
-Decoded images use CHW layout: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. PNG, JPEG, BMP, TIFF, and WebP are supported. There is no implicit normalization, BGR conversion, dtype conversion, or alpha discard; JPEG rejects RGBA input. The `signal` namespace is reserved in 0.1 but intentionally has no public callable API yet.
+Decoded images use CHW layout: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample dtype that Quidra and the codec can represent: PNG yields `uint8` or `uint16`, TIFF can yield any built-in numeric tensor dtype, and JPEG/BMP/WebP yield `uint8`. With no expected type, `auto loaded = image.read(path)` therefore has the union of all numeric tensor alternatives plus `error`; use exhaustive `match` when the dtype is genuinely unknown. When the expected union names one tensor dtype, such as `tensor<uint16> | error`, a file with a different dtype produces `error` rather than an implicit conversion. `image.write` likewise writes only when the target format can represent the tensor dtype exactly. There is no implicit normalization, BGR conversion, dtype conversion, or alpha discard; JPEG rejects RGBA input.
 
 The library boundary is intentionally small:
 

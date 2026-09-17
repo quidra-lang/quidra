@@ -667,9 +667,11 @@ The v0.1 implementation uses libcurl directly in the native runtime. It permits 
 
 ### image
 
-`image.read(path)` returns `tensor<uint8> | error`. The decoded tensor uses CHW layout: grayscale is `[1, H, W]`, RGB is `[3, H, W]`, and RGBA is `[4, H, W]`. Decoding does not normalize values, change RGB to BGR, or silently convert dtype. PNG, JPEG, BMP, TIFF, and WebP are supported by the native runtime.
+`image.read(path)` preserves the decoded sample dtype whenever that dtype is representable by Quidra and the source codec. With no expected type its result is `tensor<int8> | tensor<int16> | tensor<int32> | tensor<int> | tensor<uint8> | tensor<uint16> | tensor<uint32> | tensor<uint64> | tensor<float32> | tensor<float> | error`. The decoded tensor uses CHW layout: grayscale is `[1, H, W]`, RGB is `[3, H, W]`, and RGBA is `[4, H, W]`. PNG decodes to `uint8` or `uint16`; TIFF supports all built-in numeric tensor dtypes; JPEG, BMP, and WebP decode to `uint8`. Decoding does not normalize values, change RGB to BGR, silently convert dtype, or discard alpha.
 
-`image.write(path, image, quality = 95)` accepts a fully initialized CHW `tensor<uint8>` and returns `void | error`. The codec is selected from the filename extension. JPEG and WebP quality is an integer from 1 through 100. JPEG rejects RGBA input rather than silently discarding alpha. Callers must make intentional layout, dtype, range, and channel changes before the write call.
+An expected result type may intentionally narrow the accepted dtype. For example, `tensor<uint16> | error loaded = image.read(path)` accepts a matching 16-bit image and returns `error` for a different decoded dtype. The mismatch never converts the pixels. `try image.read(path)` uses the surrounding expected tensor type in the same way.
+
+`image.write(path, image, quality = 95)` accepts a fully initialized CHW numeric tensor and returns `void | error`. The codec is selected from the filename extension and the write succeeds only when that codec can represent the tensor dtype without conversion: PNG supports `uint8` and `uint16`, TIFF supports every built-in numeric tensor dtype, and JPEG/BMP/WebP require `uint8`. JPEG and WebP quality is an integer from 1 through 100. JPEG rejects RGBA input rather than silently discarding alpha. Callers must make intentional layout, dtype, range, and channel changes before the write call.
 
 Higher-level tensor image processing is provided by the official `vision`
 source package through `import vision`. It is resolved by the ordinary package

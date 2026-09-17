@@ -4167,6 +4167,84 @@ extern "C" void quidra_tensor_set(void* raw, const long long* indices,
 }
 
 
+extern "C" void* quidra_tensor_from_chw(const void* data,
+                                          int dtype,
+                                          unsigned long long channels,
+                                          unsigned long long height,
+                                          unsigned long long width) {
+    if (dtype < 1 || dtype > 10 ||
+        (channels != 1 && channels != 3 && channels != 4) ||
+        channels > static_cast<unsigned long long>(std::numeric_limits<long long>::max()) ||
+        height > static_cast<unsigned long long>(std::numeric_limits<long long>::max()) ||
+        width > static_cast<unsigned long long>(std::numeric_limits<long long>::max())) {
+        return nullptr;
+    }
+    std::vector<long long> shape{
+        static_cast<long long>(channels),
+        static_cast<long long>(height),
+        static_cast<long long>(width)};
+    std::size_t count = 0;
+    try {
+        count = tensor_element_count(shape, 0, 0);
+    } catch (...) {
+        return nullptr;
+    }
+    if (count != 0 && !data) return nullptr;
+    auto* storage = tensor_storage_create(dtype, count, 1);
+    const auto sample_bytes = tensor_dtype_bytes(dtype);
+    if (count != 0) {
+        std::memcpy(storage->data.data(), data, count * sample_bytes);
+    }
+    auto strides = tensor_contiguous_strides(shape);
+    return tensor_descriptor(storage, std::move(shape), std::move(strides), 0);
+}
+
+extern "C" int quidra_tensor_chw_info(void* raw,
+                                        unsigned long long* channels,
+                                        unsigned long long* height,
+                                        unsigned long long* width) {
+    if (!raw || !channels || !height || !width) return 0;
+    const auto& tensor = *static_cast<TensorValue*>(raw);
+    if (!tensor.storage || tensor.storage->dtype < 1 || tensor.storage->dtype > 10 ||
+        tensor.shape.size() != 3 ||
+        (tensor.shape[0] != 1 && tensor.shape[0] != 3 && tensor.shape[0] != 4) ||
+        tensor.shape[1] < 0 || tensor.shape[2] < 0) {
+        return 0;
+    }
+    *channels = static_cast<unsigned long long>(tensor.shape[0]);
+    *height = static_cast<unsigned long long>(tensor.shape[1]);
+    *width = static_cast<unsigned long long>(tensor.shape[2]);
+    return tensor.storage->dtype;
+}
+
+extern "C" bool quidra_tensor_chw_copy(void* raw,
+                                        void* output,
+                                        unsigned long long count) {
+    if (!raw) return false;
+    const auto& tensor = *static_cast<TensorValue*>(raw);
+    if (!tensor.storage || tensor.storage->dtype < 1 || tensor.storage->dtype > 10 ||
+        tensor.shape.size() != 3) {
+        return false;
+    }
+    const auto logical = tensor_logical_count(tensor);
+    if (logical != static_cast<std::size_t>(count) || (logical != 0 && !output)) {
+        return false;
+    }
+    const auto sample_bytes = tensor_dtype_bytes(tensor.storage->dtype);
+    auto* destination = static_cast<unsigned char*>(output);
+    for (std::size_t i = 0; i < logical; ++i) {
+        const auto storage_index = tensor_storage_index(tensor, i);
+        if (storage_index >= tensor.storage->count ||
+            !tracker_bit(tensor.storage->initialization, storage_index)) {
+            return false;
+        }
+        std::memcpy(destination + i * sample_bytes,
+                    tensor.storage->data.data() + storage_index * sample_bytes,
+                    sample_bytes);
+    }
+    return true;
+}
+
 extern "C" void* quidra_tensor_from_u8_chw(const unsigned char* data,
                                              unsigned long long channels,
                                              unsigned long long height,

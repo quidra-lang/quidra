@@ -1,0 +1,28 @@
+name: patch-png-write-msvc
+
+on:
+  push:
+    branches:
+      - chatgpt/image-dtypes-20260917
+    paths:
+      - tools/patch_png_write_msvc.py
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: chatgpt/image-dtypes-20260917
+      - name: Apply patch
+        run: python3 tools/patch_png_write_msvc.py
+      - name: Commit patch
+        run: |
+          git config user.name quidra-ci
+          git config user.email actions@users.noreply.github.com
+          git add src/runtime_image.cpp
+          git commit -m "fix: suppress MSVC setjmp warning for PNG write"
+          git push origin HEAD:chatgpt/image-dtypes-20260917

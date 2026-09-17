@@ -1739,7 +1739,7 @@ Document the reason for every `N/A`.
 
 ---
 
-# 27. Primary Comparison Tables: Semantic Compression and Standard
+# 27. Primary Evaluation Final Comparison Tables — 1–2
 
 ## 27.1 Semantic Compression Final Comparison Table
 
@@ -1766,7 +1766,33 @@ Create an independent:
 
 based only on Semantic Compression Overall Score.
 
-## 27.2 Primary Evaluation 3 — Standard Final Comparison Table
+## 27.2 Primary Evaluation 2 — LLM Intrinsic / Unknown-Language Learnability
+
+Produce the **LLM Intrinsic Learnability** table:
+
+| Metric | Quidra | Python | C++ | Rust | Go | Java | TypeScript | Kotlin | Swift | Zig |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| I1 Keyword Anonymization | | | | | | | | | | |
+| I2 Vocabulary Anonymization | | | | | | | | | | |
+| I3 Structural Surface Perturbation | | | | | | | | | | |
+| I4 Novel-rule Generalization | | | | | | | | | | |
+| I5 Held-out Rule Composition | | | | | | | | | | |
+| I6 Prior-conflict Resistance | | | | | | | | | | |
+| I1 Familiarity Drop, raw diagnostic | | | | | | | | | | |
+| I2 Familiarity Drop, raw diagnostic | | | | | | | | | | |
+| **LLM Intrinsic Learnability Score** | | | | | | | | | | |
+
+For I1-I6, preserve separate seed-level tables including seed identifiers, transformation manifests, means, standard deviations, minima, and maxima.
+
+Every normalized score must follow **higher = better.**
+
+Create an independent **LLM Intrinsic Learnability Ranking** based on LLM Intrinsic Learnability Score.
+
+---
+
+# 28. Primary Evaluation Final Comparison Tables — 3–4
+
+## 28.1 Primary Evaluation 3 — Standard Final Comparison Table
 
 Produce a Standard table with the following fixed columns:
 
@@ -1820,34 +1846,6 @@ Create an independent:
 **Standard Ranking**
 
 based on Standard Overall Score.
-
----
-
-# 28. LLM Final Comparison Tables
-
-Present the two LLM evaluations in primary-priority order: Intrinsic first, Knowledge-Dependent second.
-
-## 28.1 Primary Evaluation 2 — LLM Intrinsic / Unknown-Language Learnability
-
-Produce the **LLM Intrinsic Learnability** table:
-
-| Metric | Quidra | Python | C++ | Rust | Go | Java | TypeScript | Kotlin | Swift | Zig |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| I1 Keyword Anonymization | | | | | | | | | | |
-| I2 Vocabulary Anonymization | | | | | | | | | | |
-| I3 Structural Surface Perturbation | | | | | | | | | | |
-| I4 Novel-rule Generalization | | | | | | | | | | |
-| I5 Held-out Rule Composition | | | | | | | | | | |
-| I6 Prior-conflict Resistance | | | | | | | | | | |
-| I1 Familiarity Drop, raw diagnostic | | | | | | | | | | |
-| I2 Familiarity Drop, raw diagnostic | | | | | | | | | | |
-| **LLM Intrinsic Learnability Score** | | | | | | | | | | |
-
-For I1-I6, preserve separate seed-level tables including seed identifiers, transformation manifests, means, standard deviations, minima, and maxima.
-
-Every normalized score must follow **higher = better.**
-
-Create an independent **LLM Intrinsic Learnability Ranking** based on LLM Intrinsic Learnability Score.
 
 ## 28.2 Primary Evaluation 4 — LLM Standard / Knowledge-Dependent Performance
 

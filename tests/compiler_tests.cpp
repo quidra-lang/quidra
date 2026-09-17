@@ -1366,6 +1366,8 @@ print(value.missing<int>(1))
  good(R"(tensor<float32, 2> matrix = tensor.zeros<float32>([2, 3])
 tensor<float32> erased = matrix
 int[2] dimensions = matrix.shape()
+auto inferred_dimensions = matrix.shape()
+int[2] preserved_dimensions = inferred_dimensions
 int[] dynamic_dimensions = erased.shape()
 tensor<float32, 1> row = matrix[0]
 tensor<float32, 1> column = matrix[:, 0]

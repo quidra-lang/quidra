@@ -58,7 +58,7 @@ struct NumericConvert { ValueId out; ValueId value; Type source_type; Type targe
 struct TensorCreate { ValueId out; ValueId shape; Type type; int fill_mode{}; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorReshape { ValueId out; ValueId tensor; ValueId shape; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorContiguous { ValueId out; ValueId tensor; Type type; };
-struct TensorShape { ValueId out; ValueId tensor; };
+struct TensorShape { ValueId out; ValueId tensor; Type type; };
 struct TensorIsContiguous { ValueId out; ValueId tensor; };
 struct TensorItem { ValueId out; ValueId tensor; Type element_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorCast { ValueId out; ValueId tensor; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };

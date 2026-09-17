@@ -1649,7 +1649,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                             error("ARGUMENT_MISMATCH",
                                   "tensor.shape() takes no arguments.", expression.span);
                         }
-                        type = shape_type;
+                        type = Type::array(simple(TypeKind::Int), receiver.length);
                     } else if (node->method == "is_contiguous") {
                         if (!node->type_arguments.empty() || !node->args.empty()) {
                             error("ARGUMENT_MISMATCH",

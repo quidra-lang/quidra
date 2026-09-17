@@ -833,7 +833,7 @@ struct FunctionEmitter {
             out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_contiguous(ptr "<<value(n.tensor)<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::TensorShape>){
-            values[n.out]=Type::array(Type::simple(TypeKind::Int));
+            values[n.out]=n.type;
             out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_shape(ptr "<<value(n.tensor)<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::TensorIsContiguous>){

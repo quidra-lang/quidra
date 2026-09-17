@@ -1365,6 +1365,8 @@ print(value.missing<int>(1))
  // Static tensor rank is an optional compile-time contract. Runtime tensor ABI is unchanged.
  good(R"(tensor<float32, 2> matrix = tensor.zeros<float32>([2, 3])
 tensor<float32> erased = matrix
+int[2] dimensions = matrix.shape()
+int[] dynamic_dimensions = erased.shape()
 tensor<float32, 1> row = matrix[0]
 tensor<float32, 1> column = matrix[:, 0]
 tensor<float32, 0> cell = matrix[0, 0]
@@ -1402,6 +1404,7 @@ match value
         print(cube.shape()[0])
 )", "MATCH_CASE");
  bad_code("tensor<float32, 3> wrong = tensor.zeros<float32>([2, 2])\n", "TYPE_MISMATCH");
+ bad_code("tensor<float32, 2> value = tensor.zeros<float32>([2, 2])\nint[3] wrong_shape = value.shape()\n", "TYPE_MISMATCH");
  bad_code(R"(tensor<float32> erase(tensor<float32> value)
     return value
 tensor<float32, 2> known = erase(tensor.zeros<float32>([2, 2]))

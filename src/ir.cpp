@@ -1124,7 +1124,7 @@ struct Lowerer {
                 }
                 if(n->method=="shape"){
                     auto out=fresh();
-                    block->instructions.push_back(TensorShape{out,receiver});
+                    block->instructions.push_back(TensorShape{out,receiver,type_of(e)});
                     return finish(out);
                 }
                 if(n->method=="is_contiguous"){
@@ -2632,7 +2632,7 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,TensorCreate>)out<<"%"<<n.out<<" = tensor.create %"<<n.shape<<" : "<<type_name(n.type)<<" init="<<(n.fill_mode==0?"uninitialized":n.fill_mode==1?"zeros":"ones");
     if constexpr(std::is_same_v<T,TensorReshape>)out<<"%"<<n.out<<" = tensor.reshape %"<<n.tensor<<", %"<<n.shape<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorContiguous>)out<<"%"<<n.out<<" = tensor.contiguous %"<<n.tensor<<" : "<<type_name(n.type);
-    if constexpr(std::is_same_v<T,TensorShape>)out<<"%"<<n.out<<" = tensor.shape %"<<n.tensor;
+    if constexpr(std::is_same_v<T,TensorShape>)out<<"%"<<n.out<<" = tensor.shape %"<<n.tensor<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorIsContiguous>)out<<"%"<<n.out<<" = tensor.is_contiguous %"<<n.tensor;
     if constexpr(std::is_same_v<T,TensorItem>)out<<"%"<<n.out<<" = tensor.item %"<<n.tensor<<" : "<<type_name(n.element_type);
     if constexpr(std::is_same_v<T,NeuralTrack>)out<<"%"<<n.out<<" = neural.track %"<<n.tensor;

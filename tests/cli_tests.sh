@@ -63,6 +63,7 @@ assert x["array_growth_model"].startswith("append(value)")
 assert "Unicode code-point" in x["string_operation_model"]
 assert "tensor<T, N>" in x["current_types"]
 assert "compile-time rank contract" in x["tensor_model"]
+assert "shape() has static type int[N]" in x["tensor_model"]
 PY
 $QUIDRA check "$ROOT/examples/hello.qui" --json > "$TMP/check-version.json"
 python3 - "$TMP/check-version.json" "$ROOT/quidra.manifest.json" <<'PY'
@@ -2536,6 +2537,7 @@ rank=x["inspection"]["type_contracts"]["tensor_rank"]
 assert tensor == "tensor<T> | tensor<T, N>"
 assert "compile-time rank" in rank
 assert "runtime-ABI-erased" in rank
+assert x["inspection"]["type_contracts"]["tensor_shape"] == "tensor<T, N>.shape() -> int[N]; tensor<T>.shape() -> int[]"
 calls=x["calls"]
 assert calls["argument_order"] == "positional_then_named"
 assert calls["named_syntax"] == "name = value"
@@ -2545,6 +2547,7 @@ PY
 cat > "$TMP/inspect-tensor-rank.qui" <<'QUI'
 tensor<float32, 2> matrix = tensor.zeros<float32>([2, 3])
 auto row = matrix[0]
+auto dimensions = matrix.shape()
 QUI
 "$QUIDRA" inspect "$TMP/inspect-tensor-rank.qui" --no-source --no-effects > "$TMP/inspect-tensor-rank.json"
 python3 - "$TMP/inspect-tensor-rank.json" <<'PY'
@@ -2553,6 +2556,7 @@ x=json.load(open(sys.argv[1]))
 types={n["inferred_type"] for n in x["nodes"] if n["inferred_type"]}
 assert "tensor<float32, 2>" in types, types
 assert "tensor<float32, 1>" in types, types
+assert "int[2]" in types, types
 PY
 
 "$QUIDRA" inspect "$ROOT/examples/classes.qui" --no-source --no-effects --kind integer > "$TMP/inspect-compact.json"

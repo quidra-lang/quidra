@@ -1714,6 +1714,14 @@ private:
             if (!receiver || !receiver->dimensions.empty()) return std::nullopt;
             if (receiver->name == "tensor") {
                 if (call->method == "contiguous" && call->args.empty()) return receiver;
+                if (call->method == "shape" && call->args.empty()) {
+                    TypeName result;
+                    result.name = "int";
+                    result.dimensions.push_back(receiver->tensor_rank.value_or(-1));
+                    result.array_depth = 1;
+                    result.span = expression.span;
+                    return result;
+                }
                 if (call->method == "reshape" && call->args.size() == 1) {
                     auto result = clone_type(*receiver);
                     result.tensor_rank.reset();

@@ -24,12 +24,7 @@ namespace quidra::cli {
 namespace {
 
 bool valid_package_name(std::string_view name) {
-    if(name.empty()) return false;
-    for(const char c:name) {
-        if(!((c>='a'&&c<='z')||(c>='A'&&c<='Z')||(c>='0'&&c<='9')||c=='_'||c=='-'))
-            return false;
-    }
-    return true;
+    return is_importable_package_name(name);
 }
 
 fs::path package_root() {
@@ -73,7 +68,8 @@ void copy_package_tree(const fs::path& source,const fs::path& destination) {
 
 void install_package(const fs::path& source,std::string name,bool force) {
     if(!valid_package_name(name))
-        throw std::runtime_error("package name may contain only ASCII letters, digits, '_' and '-'");
+        throw std::runtime_error(
+            "package name must be an importable Quidra identifier and must not be a standard namespace");
     const auto absolute=fs::absolute(source).lexically_normal();
     require_package_source(absolute);
 

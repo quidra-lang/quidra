@@ -228,11 +228,9 @@ Their numbering reflects **Quidra's design priorities**, not scoring weights and
 The priority order is:
 
 1. **Semantic Compression**
-2. **Standard**
-3. **LLM Intrinsic / Unknown-Language Learnability**
+2. **LLM Intrinsic / Unknown-Language Learnability**
+3. **Standard**
 4. **LLM Standard / Knowledge-Dependent Performance**
-
-Standard and LLM Intrinsic / Unknown-Language Learnability are both secondary priorities. Standard is listed first only to keep the general-purpose language evaluation before the LLM-specific evaluations.
 
 ## Primary Evaluation 1 — Semantic Compression
 
@@ -240,17 +238,17 @@ Measures how much reliable, statically or locally recoverable meaning a language
 
 Semantic Compression is not a short-code contest. A shorter program is not better when it hides more behavior or supports fewer capabilities.
 
-## Primary Evaluation 2 — Standard
-
-Measures how strong each language is as a practical general-purpose programming language when used appropriately by a competent developer using normal best practices.
-
-This evaluation intentionally includes ecosystem, tooling, production maturity, interoperability, and other real-world factors even when they disadvantage a young language such as Quidra.
-
-## Primary Evaluation 3 — LLM Intrinsic / Unknown-Language Learnability
+## Primary Evaluation 2 — LLM Intrinsic / Unknown-Language Learnability
 
 This is implemented by the **LLM Intrinsic Learnability Evaluation** in Section 10.
 
 It measures how effectively the selected LLM can learn, apply, compose, and resist misremembering the language's rules when direct lexical and structural familiarity is deliberately reduced through controlled, reversible transformations.
+
+## Primary Evaluation 3 — Standard
+
+Measures how strong each language is as a practical general-purpose programming language when used appropriately by a competent developer using normal best practices.
+
+This evaluation intentionally includes ecosystem, tooling, production maturity, interoperability, and other real-world factors even when they disadvantage a young language such as Quidra.
 
 ## Primary Evaluation 4 — LLM Standard / Knowledge-Dependent Performance
 
@@ -261,8 +259,8 @@ It measures how effectively the selected LLM can use the language as it actually
 Calculate exactly these four independent primary scores:
 
 - **Semantic Compression Overall Score**
-- **Standard Overall Score**
 - **LLM Intrinsic Learnability Score**
+- **Standard Overall Score**
 - **LLM Practical Effectiveness Score**
 
 Create a separate ranking for each score.
@@ -1768,7 +1766,7 @@ Create an independent:
 
 based only on Semantic Compression Overall Score.
 
-## 27.2 Standard Final Comparison Table
+## 27.2 Primary Evaluation 3 — Standard Final Comparison Table
 
 Produce a Standard table with the following fixed columns:
 
@@ -1829,7 +1827,7 @@ based on Standard Overall Score.
 
 Present the two LLM evaluations in primary-priority order: Intrinsic first, Knowledge-Dependent second.
 
-## 28.1 Primary Evaluation 3 — LLM Intrinsic / Unknown-Language Learnability
+## 28.1 Primary Evaluation 2 — LLM Intrinsic / Unknown-Language Learnability
 
 Produce the **LLM Intrinsic Learnability** table:
 
@@ -1919,10 +1917,10 @@ At completion, preserve at least the following inside the run directory.
 - Semantic Compression Ranking
 - Semantic Compression Raw Probe Results
 - Capability Coverage Matrix
-- Standard Score Table
-- Standard Ranking
 - LLM Intrinsic Learnability Score Table
 - LLM Intrinsic Learnability Ranking
+- Standard Score Table
+- Standard Ranking
 - LLM Practical Effectiveness Score Table
 - LLM Practical Effectiveness Ranking
 - Raw Results
@@ -2114,10 +2112,10 @@ Report at least, in this order:
 - Semantic Compression Overall Score
 - Semantic Compression Ranking
 - Raw Semantic Compression Quality `Q` and Capability Coverage `C`
-- Standard Overall Score
-- Standard Ranking
-- LLM Intrinsic Learnability Score, identified as Primary Evaluation 3 / Unknown-Language Learnability
+- LLM Intrinsic Learnability Score, identified as Primary Evaluation 2 / Unknown-Language Learnability
 - LLM Intrinsic Learnability Ranking
+- Standard Overall Score, identified as Primary Evaluation 3
+- Standard Ranking
 - LLM Practical Effectiveness Score, identified as Primary Evaluation 4 / Knowledge-Dependent Performance
 - LLM Practical Effectiveness Ranking
 - major Quidra strengths
@@ -2142,8 +2140,8 @@ Compare it against the fixed set of Python, C++, Rust, Go, Java, TypeScript, Kot
 Measure four independent primary evaluations in this priority order:
 
 1. **Semantic Compression** — how much reliable meaning is communicated per unit of syntax, adjusted for capability coverage.
-2. **Standard** — present-day general-purpose language strength, including real ecosystem, tooling, interoperability, and production-maturity advantages.
-3. **LLM Intrinsic / Unknown-Language Learnability** — specification-grounded learnability under controlled unfamiliarization.
+2. **LLM Intrinsic / Unknown-Language Learnability** — specification-grounded learnability under controlled unfamiliarization.
+3. **Standard** — present-day general-purpose language strength, including real ecosystem, tooling, interoperability, and production-maturity advantages.
 4. **LLM Standard / Knowledge-Dependent Performance** — present-day LLM effectiveness with real pretraining familiarity included.
 
 The Intrinsic evaluation must include keyword anonymization, vocabulary anonymization, structural surface perturbation, novel-rule generalization, held-out rule composition, and prior-conflict resistance.
@@ -2152,9 +2150,9 @@ Calculate exactly four independent primary scores:
 
 **Semantic Compression Overall Score**
 
-**Standard Overall Score**
-
 **LLM Intrinsic Learnability Score**
+
+**Standard Overall Score**
 
 **LLM Practical Effectiveness Score**
 

@@ -609,8 +609,8 @@ through a normal package import:
 ```text
 import dnn
 
-dnn.LinearLayer layer = dnn.Linear(features_in = 2, features_out = 1)
-dnn.AdamOptimizer optimizer = dnn.Adam()
+dnn.LinearLayer | error layer = dnn.Linear(features_in = 2, features_out = 1)
+dnn.AdamOptimizer | error optimizer = dnn.Adam()
 ```
 
 Model and training state use one typed, non-executable `.quistate` format.

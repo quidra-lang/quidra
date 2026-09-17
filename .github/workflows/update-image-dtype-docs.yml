@@ -1,0 +1,73 @@
+name: update-image-dtype-docs
+
+on:
+  push:
+    branches:
+      - chatgpt/image-dtypes-20260917
+    paths:
+      - .github/workflows/update-image-dtype-docs.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Align public image dtype documentation
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          import json
+          import re
+
+          def replace(path, pattern, replacement):
+              p = Path(path)
+              text = p.read_text()
+              updated, count = re.subn(pattern, replacement, text, flags=re.S)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one replacement, got {count}")
+              p.write_text(updated)
+
+          replace(
+              "README.md",
+              r'Image I/O is explicit and tensor-native:\n\n```quidra\n.*?\n```\n\nDecoded images use CHW layout:.*?\n\nThe library boundary is intentionally small:',
+              '''Image I/O is explicit and tensor-native:\n\n```quidra\ntensor<uint16> | error loaded = image.read("input.png")\nmatch loaded\n    tensor<uint16> pixels\n        auto written = image.write("output.png", pixels)\n        match written\n            void\n                print("saved")\n            error problem\n                print(problem)\n    error problem\n        print(problem)\n```\n\nDecoded images use CHW layout: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample dtype that Quidra and the codec can represent: PNG yields `uint8` or `uint16`, TIFF can yield any built-in numeric tensor dtype, and JPEG/BMP/WebP yield `uint8`. With no expected type, `auto loaded = image.read(path)` therefore has the union of all numeric tensor alternatives plus `error`; use exhaustive `match` when the dtype is genuinely unknown. When the expected union names one tensor dtype, such as `tensor<uint16> | error`, a file with a different dtype produces `error` rather than an implicit conversion. `image.write` likewise writes only when the target format can represent the tensor dtype exactly. There is no implicit normalization, BGR conversion, dtype conversion, or alpha discard; JPEG rejects RGBA input.\n\nThe library boundary is intentionally small:'''
+          )
+
+          replace(
+              "docs/spec/language.md",
+              r'### image\n\n.*?\n\nHigher-level tensor image processing is provided by the official `vision`',
+              '''### image\n\n`image.read(path)` preserves the decoded sample dtype whenever that dtype is representable by Quidra and the source codec. With no expected type its result is `tensor<int8> | tensor<int16> | tensor<int32> | tensor<int> | tensor<uint8> | tensor<uint16> | tensor<uint32> | tensor<uint64> | tensor<float32> | tensor<float> | error`. The decoded tensor uses CHW layout: grayscale is `[1, H, W]`, RGB is `[3, H, W]`, and RGBA is `[4, H, W]`. PNG decodes to `uint8` or `uint16`; TIFF supports all built-in numeric tensor dtypes; JPEG, BMP, and WebP decode to `uint8`. Decoding does not normalize values, change RGB to BGR, silently convert dtype, or discard alpha.\n\nAn expected result type may intentionally narrow the accepted dtype. For example, `tensor<uint16> | error loaded = image.read(path)` accepts a matching 16-bit image and returns `error` for a different decoded dtype. The mismatch never converts the pixels. `try image.read(path)` uses the surrounding expected tensor type in the same way.\n\n`image.write(path, image, quality = 95)` accepts a fully initialized CHW numeric tensor and returns `void | error`. The codec is selected from the filename extension and the write succeeds only when that codec can represent the tensor dtype without conversion: PNG supports `uint8` and `uint16`, TIFF supports every built-in numeric tensor dtype, and JPEG/BMP/WebP require `uint8`. JPEG and WebP quality is an integer from 1 through 100. JPEG rejects RGBA input rather than silently discarding alpha. Callers must make intentional layout, dtype, range, and channel changes before the write call.\n\nHigher-level tensor image processing is provided by the official `vision`'''
+          )
+
+          replace(
+              "docs/spec/llm-guide.md",
+              r'52\. Read images with `image\.read\(path\)`.*?JPEG rejects RGBA\.',
+              '52. Read images with `image.read(path)` and write them with `image.write(path, image, quality = 95)`. Image tensors use CHW layout: grayscale `[1,H,W]`, RGB `[3,H,W]`, RGBA `[4,H,W]`. Preserve dtype intentionally: PNG uses `uint8` or `uint16`, TIFF can use any built-in numeric tensor dtype, and JPEG/BMP/WebP use `uint8`. If the required dtype is known, give `image.read` an expected union such as `tensor<uint16> | error`; a mismatch returns `error` and never converts pixels. Use `auto` only when the dtype is genuinely unknown, then exhaustively match every numeric tensor alternative plus `error`. `image.write` returns `error` when the target codec cannot represent the tensor dtype exactly. Do not invent BGR ordering, automatic normalization, implicit dtype conversion, or silent alpha removal; JPEG rejects RGBA.'
+          )
+
+          manifest = Path("quidra.manifest.json")
+          data = json.loads(manifest.read_text())
+          data["image_model"] = (
+              "image.read(path) preserves representable decoded sample dtype in CHW layout: PNG yields uint8/uint16, TIFF supports all built-in numeric tensor dtypes, and JPEG/BMP/WebP yield uint8; without an expected type the result is the union of all numeric tensor alternatives plus error, while an expected tensor dtype turns mismatch into error without conversion; image.write(path,image,quality = 95) accepts fully initialized CHW numeric tensors and returns void | error only when the target codec can represent the dtype exactly; no implicit normalization, dtype conversion, BGR conversion, or alpha discard, and JPEG rejects RGBA"
+          )
+          manifest.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+          PY
+      - name: Verify replacements
+        run: |
+          grep -q 'PNG yields `uint8` or `uint16`' README.md
+          grep -q 'tensor<int8> | tensor<int16>' docs/spec/language.md
+          grep -q 'Use `auto` only when the dtype is genuinely unknown' docs/spec/llm-guide.md
+          grep -q 'PNG yields uint8/uint16' quidra.manifest.json
+      - name: Commit documentation
+        run: |
+          git config user.name "quidra-ci"
+          git config user.email "actions@users.noreply.github.com"
+          git add README.md docs/spec/language.md docs/spec/llm-guide.md quidra.manifest.json
+          git diff --cached --check
+          git commit -m "docs: align image dtype contract"
+          git push origin HEAD:${GITHUB_REF_NAME}

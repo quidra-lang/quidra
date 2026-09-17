@@ -985,7 +985,7 @@ The library boundary is intentionally small:
 ```text
 standard foundations
 tensor
-├── image       file I/O using tensor<uint8>
+├── image       dtype-preserving tensor image I/O
 └── neural      autodiff, gradients, parameters, and training state
 
 official source packages

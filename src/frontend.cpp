@@ -2531,10 +2531,12 @@ ResolvedProgram load_program_with_root_source(
     const std::filesystem::path& root_file,
     std::string_view root_source,
     const std::filesystem::path& command_working_directory,
-    std::size_t max_errors) {
+    std::size_t max_errors,
+    bool enforce_package_lock) {
     return ResolvedProgram{
         ModuleLoader(
-            command_working_directory, max_errors, std::string(root_source))
+            command_working_directory, max_errors, std::string(root_source),
+            nullptr, enforce_package_lock)
             .load(root_file)};
 }
 

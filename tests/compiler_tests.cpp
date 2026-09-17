@@ -163,6 +163,33 @@ static void root_source_override_with_import() {
     }
 }
 
+
+static void string_input_ignores_package_lock() {
+    const auto root = std::filesystem::temp_directory_path() / "quidra-string-package-lock";
+    const auto original = std::filesystem::current_path();
+    try {
+        std::filesystem::remove_all(root);
+        std::filesystem::create_directories(root);
+        {
+            std::ofstream out(root / "quidra.lock", std::ios::binary);
+            if (!out) throw std::runtime_error("cannot create temporary package lock");
+            out << "quidra-lock-v1\n"
+                << "dnn 0000000000000000000000000000000000000000000000000000000000000000\n";
+        }
+        std::filesystem::current_path(root);
+        (void)quidra::check("print(1)\n");
+        (void)quidra::compile("print(1)\n");
+        std::filesystem::current_path(original);
+        std::filesystem::remove_all(root);
+    } catch (const std::exception& e) {
+        std::error_code ignored;
+        std::filesystem::current_path(original, ignored);
+        std::filesystem::remove_all(root, ignored);
+        std::cerr << "string input package lock isolation failed: " << e.what() << "\n";
+        std::exit(1);
+    }
+}
+
 int main(){
  good("extern void scalar_abi(int8 a, int16 b, int32 c, int d, uint8 e, uint16 f, uint32 g, uint64 h, float32 i, float j, bool k) = \"scalar_abi\"\n");
  llvm_contains("extern bool c_bool(bool value) = \"c_bool\"\n", "declare zeroext i1 @c_bool(i1 zeroext)");
@@ -200,6 +227,7 @@ int main(){
  bad_code("extern int unsafe(int value = 1) = \"unsafe_symbol\"\n", "FFI_DEFAULT");
  bad_code("extern int unsafe(int value) = \"bad-symbol\"\n", "FFI_SYMBOL");
  root_source_override_with_import();
+ string_input_ignores_package_lock();
  {
   const auto compile_chain=[](std::string source,const std::string& term){
    for(int index=1;index<64;++index) source+=" + "+term;

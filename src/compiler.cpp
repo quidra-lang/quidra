@@ -27,7 +27,11 @@ ResolvedProgram resolve_source(std::string_view source, CompileOptions options) 
             "Imports require file-aware compilation so paths and module roots are well-defined.",
             first.span});
     }
-    return ResolvedProgram{std::move(program)};
+    // Standard namespaces are wired up by the module loader, so string input must
+    // go through it too; otherwise `math.sqrt(...)` and friends never resolve here.
+    return load_program_with_root_source(
+        std::filesystem::path("<memory>.qui"), source, std::filesystem::path(),
+        options.max_errors);
 }
 
 CheckedProgram finish_check(ResolvedProgram program, CompileOptions options) {

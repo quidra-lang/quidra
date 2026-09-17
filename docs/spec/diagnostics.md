@@ -15,10 +15,16 @@ Codes are contracts for the category of failure. Message wording may become more
 | `DIVIDE_BY_ZERO` | Integer division or remainder has a divisor proven to be zero. | Make the divisor nonzero; dynamic zero remains a checked runtime failure. |
 | `DUPLICATE_IMPORT_ALIAS` | Two imports expose the same alias. | Give imports distinct aliases. |
 | `DUPLICATE_NAME` | A declaration duplicates an existing name or uses a name reserved for that declaration kind. | Rename or remove the declaration; reserved names cannot be reused. |
+| `FFI_DEFAULT` | An external C parameter declares a default argument. | Remove the default; external C parameters are supplied at every call site. |
+| `FFI_REFERENCE` | An external C parameter uses a reference/const form its type does not admit. | Pass numeric/bool scalars by value; declare `string`/`bytes` inputs as `const T &`. |
+| `FFI_SYMBOL` | An external C symbol is not an ASCII C identifier. | Bind an ordinary C identifier symbol. |
+| `FFI_SYMBOL_CONFLICT` | An external C symbol is reserved by the compiler/runtime implementation, or is already bound by another `extern` declaration. | Use a distinct C wrapper symbol; bind each C symbol once per compilation. |
+| `FFI_TYPE` | An external C result or parameter type is not admitted at the C ABI boundary. | Use `void` or an explicit numeric/bool scalar result, and scalar values or `const string &` / `const bytes &` parameters. |
 | `FLOAT_RANGE` | A floating literal is not a finite representable source literal. | Use a finite literal in range. |
 | `FUNCTION_NOT_VALUE` | A function or method name is used where a first-class value is required. | Call it directly; declarations are not first-class values. |
 | `GENERIC_ARGUMENTS_REQUIRED` | A generic class was used where explicit type arguments are required. | Supply the class type arguments with `<...>`; generic functions and methods may omit them when inference is unambiguous. |
 | `GENERIC_ARITY` | The number of generic arguments is wrong. | Supply exactly the declared number. |
+| `GENERIC_INFERENCE` | A generic function or method call does not determine every type argument. | Supply explicit type arguments with `<...>`. |
 | `GENERIC_RECEIVER` | A generic method receiver is invalid for specialization. | Use the declared generic class/method receiver. |
 | `GENERIC_TARGET` | Type arguments were supplied to a non-generic or invalid target. | Remove them or call the intended generic declaration. |
 | `IMPORT_CONTEXT` | Imports were compiled through an API without file/module context. | Use file-aware compilation. |
@@ -41,6 +47,7 @@ Codes are contracts for the category of failure. Message wording may become more
 | `INVALID_OVERRIDE` | An override declaration is not valid in its context. | Override only an inherited method with the required form. |
 | `INVALID_PATCH` | Patch JSON or schema is invalid. | Follow `patch-schema.md`; the message identifies the field/schema error. |
 | `INVALID_TYPE` | A type is not legal in the current storage/declaration position. | Use a storable/supported type for that position. |
+| `INVALID_UTF8` | Source bytes are not valid UTF-8. | Save the source as UTF-8. |
 | `LEX_ERROR` | Source text cannot be tokenized. | Correct invalid characters, malformed numbers, strings, or delimiters. |
 | `LOOP_CONTROL_CONTEXT` | `break` or `continue` appears without an enclosing loop. | Use loop control only inside `while` or `for`. |
 | `MATCH_CASE` | A match case is duplicate or incompatible with the subject union. | Use each actual alternative exactly once. |
@@ -75,7 +82,12 @@ Codes are contracts for the category of failure. Message wording may become more
 | `UNKNOWN_MODULE_MEMBER` | Imported-module member lookup failed. | Use an exported declaration from that module. |
 | `UNKNOWN_STANDARD_MODULE` | Standard-namespace lookup requested a name absent from the language registry. | Use one of the standard namespaces defined by the current language version. |
 | `PACKAGE_IMPORT` | An unquoted package name is structurally invalid. | Use a package name containing only ASCII letters, digits, `_`, and `-`. |
+| `PACKAGE_LOCK` | `quidra.lock` cannot be read or parsed, or an installed package tree cannot be hashed. | Correct the lockfile or regenerate it with `quidra package lock FILE.qui`. |
+| `PACKAGE_LOCK_MISMATCH` | An installed package does not match the SHA-256 recorded in `quidra.lock`. | Reinstall the locked package, or intentionally regenerate the lockfile. |
+| `PACKAGE_LOCK_MISSING` | An imported package is not recorded in `quidra.lock`. | Regenerate the lockfile with `quidra package lock FILE.qui`. |
+| `PACKAGE_LOCK_UNUSED` | `quidra.lock` records a package the current import graph never reaches. | Regenerate the lockfile with `quidra package lock FILE.qui`. |
 | `PACKAGE_NOT_INSTALLED` | An unquoted non-standard package cannot be resolved from configured package paths. | Install/configure the package, correct its name, or use a quoted source-module path for local code. |
+| `PACKAGE_RESOLUTION_CONFLICT` | One package name resolved to more than one installed location within a single compilation. | Ensure the package name has exactly one installation across the configured package roots. |
 | `UNKNOWN_NAME` | Value/function name lookup failed. | Declare/import the name or correct the spelling. |
 | `UNKNOWN_NODE` | A source patch references a node absent from the inspected revision. | Re-inspect and use a current node id. |
 | `UNKNOWN_TYPE` | Type name lookup failed. | Use a built-in, generic parameter, imported type, or declared class. |
@@ -97,7 +109,10 @@ Deterministic runtime safety failures terminate with status `101`. They include:
 - reads from runtime-tracked array or tensor storage that has not been initialized;
 - invalid allocation sizes;
 - integer casts whose runtime value is outside the destination range;
+- `math.trunc`, `math.round`, `math.floor`, and `math.ceil` results to `int` that are not finite or fall outside `int` range;
 - tensor shape, broadcasting, indexing, contiguity, and elementwise cast range violations;
+- neural operand shape and dtype mismatches, layer rank and dimension preconditions, autograd and gradient/Parameter correspondence, and optimizer moment-state validity;
+- `.quistate` save and load failures, including an invalid path, file I/O failure, and a schema, field path/type, tensor dtype/shape, version, bounds, or checksum disagreement;
 - invalid runtime text operations such as malformed UTF-8 or out-of-range string slices;
 - a zero `range` step;
 - call depth exceeding the native safety limit before host stack exhaustion.
@@ -114,8 +129,9 @@ Coded runtime safety failures use status 101 and the stable text shape:
 `Quidra runtime error[CODE] at LINE:COLUMN: message`
 
 Current coded runtime failure codes include `INDEX_BOUNDS`, `UNINITIALIZED`, `TENSOR`,
-`INTEGER_OVERFLOW`, `DIVISION_BY_ZERO`, `RANGE_STEP_ZERO`, `CALL_DEPTH_LIMIT`,
-`NUMERIC_CAST_RANGE`, `INVALID_SLEEP_DURATION`, and `INVALID_RANDOM_RANGE`.
+`NEURAL`, `NEURAL_STATE`, `INTEGER_OVERFLOW`, `DIVISION_BY_ZERO`, `RANGE_STEP_ZERO`,
+`CALL_DEPTH_LIMIT`, `NUMERIC_CAST_RANGE`, `NUMERIC_CONVERSION`, `INVALID_SLEEP_DURATION`,
+and `INVALID_RANDOM_RANGE`.
 Source-bearing coded operations report their source location.
 
 Runtime-library failures that currently do not carry a source span, such as host allocation

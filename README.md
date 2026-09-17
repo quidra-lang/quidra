@@ -1,6 +1,6 @@
 # Quidra
 
-**Quidra — Programming with maximum meaning per token.**
+**Quidra — Maximum Meaning Per Token**
 
 Quidra is a statically typed, native general-purpose programming language designed for both humans and language models.
 

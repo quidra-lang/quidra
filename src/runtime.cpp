@@ -1449,8 +1449,8 @@ namespace {
 void tensor_detach_for_write(TensorValue& tensor);
 
 enum class NeuralOp {
-    Leaf, Add, Sub, Mul, Div, Linear, Conv2D, BatchNorm, Dropout, Relu, Sigmoid, Tanh, Softmax,
-    Mse, CrossEntropy, BinaryCrossEntropy
+    Leaf, Add, Sub, Mul, Div, Affine, Convolution, Normalize, RandomMask,
+    Absolute, Exponential, Logarithm, Mean, SumLast, MaxLast
 };
 
 class NeuralBuffer {
@@ -1641,12 +1641,6 @@ TensorValue* neural_parameter_tensor(void* parameter_raw) {
     return static_cast<TensorValue*>(tensor_raw);
 }
 
-void* neural_parameter_object(TensorValue* tensor) {
-    auto* object=managed_allocate(sizeof(void*));
-    std::memcpy(object,&tensor,sizeof(tensor));
-    return object;
-}
-
 double neural_tensor_value(const TensorValue& tensor,std::size_t logical,
                            unsigned long long line,unsigned long long column) {
     const auto index=tensor_storage_index(tensor,logical);
@@ -1675,12 +1669,6 @@ std::uint64_t neural_splitmix64(std::uint64_t& state) {
     return z^(z>>31U);
 }
 
-double neural_uniform_signed(std::uint64_t& state,double limit) {
-    const auto bits=neural_splitmix64(state)>>11U;
-    const double unit=static_cast<double>(bits)*(1.0/9007199254740992.0);
-    return (unit*2.0-1.0)*limit;
-}
-
 unsigned long long neural_parameter_identity(
     void* tensor_raw,unsigned long long line,unsigned long long column) {
     const auto identity=managed_identity(tensor_raw);
@@ -1698,17 +1686,17 @@ std::shared_ptr<NeuralNode> neural_parameter_node(
 }
 
 template <typename T>
-std::vector<T> neural_linear_values_t(
+std::vector<T> neural_affine_values_t(
     const std::vector<T>& input,const std::vector<long long>& input_shape,
     const std::vector<T>& weight,const std::vector<long long>& weight_shape,
     const std::vector<T>& bias,
     unsigned long long line,unsigned long long column) {
     if(input_shape.empty()||weight_shape.size()!=2)
-        neural_fail("Linear requires input rank >= 1 and rank-2 weight",line,column);
+        neural_fail("affine requires input rank >= 1 and rank-2 weight",line,column);
     const auto in=static_cast<std::size_t>(weight_shape[1]);
     const auto out=static_cast<std::size_t>(weight_shape[0]);
     if(static_cast<std::size_t>(input_shape.back())!=in||bias.size()!=out)
-        neural_fail("Linear dimensions do not match",line,column);
+        neural_fail("affine dimensions do not match",line,column);
     const auto batches=in==0?0:input.size()/in;
     std::vector<T> result(batches*out,T{0});
     for(std::size_t batch=0;batch<batches;++batch){
@@ -1723,34 +1711,24 @@ std::vector<T> neural_linear_values_t(
     return result;
 }
 
-NeuralBuffer neural_linear_values(
+NeuralBuffer neural_affine_values(
     const NeuralBuffer& input,const std::vector<long long>& input_shape,
     const NeuralBuffer& weight,const std::vector<long long>& weight_shape,
     const NeuralBuffer& bias,
     unsigned long long line,unsigned long long column) {
     if(input.dtype()!=weight.dtype()||input.dtype()!=bias.dtype())
-        neural_fail("Linear input and Parameter dtypes must match",line,column);
+        neural_fail("affine input and Parameter dtypes must match",line,column);
     if(input.dtype()==10)
-        return NeuralBuffer(neural_linear_values_t<float>(
+        return NeuralBuffer(neural_affine_values_t<float>(
             input.typed<float>(),input_shape,weight.typed<float>(),weight_shape,
             bias.typed<float>(),line,column));
     if(input.dtype()==9)
-        return NeuralBuffer(neural_linear_values_t<double>(
+        return NeuralBuffer(neural_affine_values_t<double>(
             input.typed<double>(),input_shape,weight.typed<double>(),weight_shape,
             bias.typed<double>(),line,column));
-    neural_fail("invalid Linear dtype",line,column);
+    neural_fail("invalid affine dtype",line,column);
 }
 
-void* neural_state_object_pointer(void* value) {
-    auto* object=managed_allocate(sizeof(void*));
-    std::memcpy(object,&value,sizeof(value));
-    return object;
-}
-void* neural_state_object_u64(std::uint64_t value) {
-    auto* object=managed_allocate(sizeof(std::uint64_t));
-    std::memcpy(object,&value,sizeof(value));
-    return object;
-}
 void* neural_object_pointer_field(void* object,std::size_t offset) {
     void* value=nullptr;
     std::memcpy(&value,static_cast<unsigned char*>(object)+offset,sizeof(value));
@@ -1779,20 +1757,34 @@ void neural_require_same_shape(const NeuralNode& a,const NeuralNode& b,
 template <typename T>
 void neural_apply_unary_t(std::vector<T>& values,int op,const std::vector<long long>& shape,
                           unsigned long long line,unsigned long long column) {
-    if(op==1){for(auto&v:values)v=std::max(T{0},v);return;}
-    if(op==2){for(auto&v:values)v=T{1}/(T{1}+std::exp(-v));return;}
-    if(op==3){for(auto&v:values)v=std::tanh(v);return;}
+    if(op==1){for(auto&v:values)v=std::abs(v);return;}
+    if(op==2){for(auto&v:values)v=std::exp(v);return;}
+    if(op==3){
+        for(auto&v:values){
+            if(!(v>T{0})||!std::isfinite(v))
+                neural_fail("logarithm requires finite positive values",line,column);
+            v=std::log(v);
+        }
+        return;
+    }
     if(op==4){
-        if(shape.empty()) neural_fail("softmax requires rank >= 1",line,column);
-        if(shape.back()<=0)
-            neural_fail("softmax requires a non-empty last axis",line,column);
+        if(values.empty()) neural_fail("mean requires at least one element",line,column);
+        T total=T{0};
+        for(const auto value:values) total=static_cast<T>(total+value);
+        values={static_cast<T>(total/static_cast<T>(values.size()))};
+        return;
+    }
+    if(op==5||op==6){
+        if(shape.empty()) neural_fail("last-axis reduction requires rank >= 1",line,column);
+        if(shape.back()<=0) neural_fail("last-axis reduction requires a non-empty last axis",line,column);
         const auto width=static_cast<std::size_t>(shape.back());
         for(std::size_t base=0;base<values.size();base+=width){
-            T maximum=values[base];
-            for(std::size_t j=1;j<width;++j)maximum=std::max(maximum,values[base+j]);
-            T total=T{0};
-            for(std::size_t j=0;j<width;++j){values[base+j]=std::exp(values[base+j]-maximum);total+=values[base+j];}
-            for(std::size_t j=0;j<width;++j)values[base+j]/=total;
+            T reduced=op==5?T{0}:values[base];
+            for(std::size_t j=0;j<width;++j){
+                if(op==5) reduced=static_cast<T>(reduced+values[base+j]);
+                else reduced=std::max(reduced,values[base+j]);
+            }
+            for(std::size_t j=0;j<width;++j) values[base+j]=reduced;
         }
         return;
     }
@@ -1811,8 +1803,13 @@ std::shared_ptr<NeuralNode> neural_unary_node(const std::shared_ptr<NeuralNode>&
                                               unsigned long long line,unsigned long long column) {
     auto node=std::make_shared<NeuralNode>(input->dtype);
     node->dtype=input->dtype;node->shape=input->shape;node->data=input->data;node->parents={input};
-    node->op=op==1?NeuralOp::Relu:op==2?NeuralOp::Sigmoid:op==3?NeuralOp::Tanh:NeuralOp::Softmax;
+    node->op=op==1?NeuralOp::Absolute:
+        op==2?NeuralOp::Exponential:
+        op==3?NeuralOp::Logarithm:
+        op==4?NeuralOp::Mean:
+        op==5?NeuralOp::SumLast:NeuralOp::MaxLast;
     neural_apply_unary(node->data,node->dtype,op,node->shape,line,column);
+    if(op==4) node->shape={};
     return node;
 }
 
@@ -1851,7 +1848,7 @@ void neural_topological(const std::shared_ptr<NeuralNode>& node,
     }
 }
 
-struct NeuralAdamMoment {
+struct NeuralMomentRecord {
     std::string path;
     int dtype{10};
     std::uint64_t step{};
@@ -1860,47 +1857,40 @@ struct NeuralAdamMoment {
     std::vector<double> second;
 };
 
-constexpr std::uint64_t neural_adam_moment_magic = 0x4e4f554144414d33ULL;
-
-void* neural_empty_bytes() {
-    auto* raw=static_cast<unsigned char*>(managed_allocate(8));
-    const std::int64_t length=0;
-    std::memcpy(raw,&length,sizeof(length));
-    return raw;
-}
+constexpr std::uint64_t neural_moment_state_magic = 0x4e4f554144414d33ULL;
 
 std::size_t neural_checked_add(std::size_t a,std::size_t b,
                                unsigned long long line,unsigned long long column) {
     if(b>std::numeric_limits<std::size_t>::max()-a)
-        neural_fail("optimizer state size overflow",line,column);
+        neural_fail("moment state size overflow",line,column);
     return a+b;
 }
 
 std::size_t neural_checked_mul(std::size_t a,std::size_t b,
                                unsigned long long line,unsigned long long column) {
     if(a!=0&&b>std::numeric_limits<std::size_t>::max()/a)
-        neural_fail("optimizer state size overflow",line,column);
+        neural_fail("moment state size overflow",line,column);
     return a*b;
 }
 
-std::vector<NeuralAdamMoment> neural_decode_adam_moments(
+std::vector<NeuralMomentRecord> neural_decode_moments(
     void* raw,unsigned long long line,unsigned long long column) {
-    if(!raw) neural_fail("null Adam moment state",line,column);
+    if(!raw) neural_fail("null moment state",line,column);
     const auto allocation=managed_allocations.find(reinterpret_cast<std::uintptr_t>(raw));
     if(allocation==managed_allocations.end()||allocation->second.size<8)
-        neural_fail("invalid Adam moment state",line,column);
+        neural_fail("invalid moment state",line,column);
     std::int64_t signed_length{};
     std::memcpy(&signed_length,raw,sizeof(signed_length));
-    if(signed_length<0) neural_fail("invalid Adam moment state",line,column);
+    if(signed_length<0) neural_fail("invalid moment state",line,column);
     const auto length=static_cast<std::size_t>(signed_length);
     if(length>allocation->second.size-8)
-        neural_fail("corrupt Adam moment state",line,column);
+        neural_fail("corrupt moment state",line,column);
     if(length==0) return {};
 
     const auto* bytes=static_cast<const unsigned char*>(raw)+8;
     std::size_t cursor=0;
     const auto need=[&](std::size_t count) {
-        if(count>length-cursor) neural_fail("corrupt Adam moment state",line,column);
+        if(count>length-cursor) neural_fail("corrupt moment state",line,column);
     };
     auto read_u64=[&]() {
         need(8); std::uint64_t value{}; std::memcpy(&value,bytes+cursor,8); cursor+=8; return value;
@@ -1911,18 +1901,18 @@ std::vector<NeuralAdamMoment> neural_decode_adam_moments(
     auto read_u32=[&]() {
         need(4); std::uint32_t value{}; std::memcpy(&value,bytes+cursor,4); cursor+=4; return value;
     };
-    if(read_u64()!=neural_adam_moment_magic)
-        neural_fail("unsupported Adam moment state version",line,column);
+    if(read_u64()!=neural_moment_state_magic)
+        neural_fail("unsupported moment state version",line,column);
     const auto record_count=read_u64();
     if(record_count>static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()))
-        neural_fail("Adam moment record count overflow",line,column);
+        neural_fail("moment record count overflow",line,column);
     constexpr std::size_t minimum_record_bytes=29;
     if(record_count>static_cast<std::uint64_t>((length-cursor)/minimum_record_bytes))
-        neural_fail("corrupt Adam moment record count",line,column);
-    std::vector<NeuralAdamMoment> records;
+        neural_fail("corrupt moment record count",line,column);
+    std::vector<NeuralMomentRecord> records;
     records.reserve(static_cast<std::size_t>(record_count));
     for(std::size_t record_index=0;record_index<static_cast<std::size_t>(record_count);++record_index) {
-        NeuralAdamMoment record;
+        NeuralMomentRecord record;
         record.dtype=read_i32();
         const auto rank=read_u32();
         const auto count_u64=read_u64();
@@ -1933,10 +1923,10 @@ std::vector<NeuralAdamMoment> neural_decode_adam_moments(
             reinterpret_cast<const char*>(bytes+cursor),
             static_cast<std::size_t>(path_length));
         cursor+=path_length;
-        if(record.path.empty()) neural_fail("corrupt Adam Parameter path",line,column);
-        if(rank>1024) neural_fail("corrupt Adam moment rank",line,column);
+        if(record.path.empty()) neural_fail("corrupt moment update Parameter path",line,column);
+        if(rank>1024) neural_fail("corrupt moment rank",line,column);
         if(count_u64>static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max()))
-            neural_fail("Adam moment element count overflow",line,column);
+            neural_fail("moment element count overflow",line,column);
         const auto count=static_cast<std::size_t>(count_u64);
         record.shape.resize(rank);
         std::size_t shape_count=1;
@@ -1944,11 +1934,11 @@ std::vector<NeuralAdamMoment> neural_decode_adam_moments(
             need(8);
             std::int64_t dimension{};
             std::memcpy(&dimension,bytes+cursor,8); cursor+=8;
-            if(dimension<0) neural_fail("corrupt Adam moment shape",line,column);
+            if(dimension<0) neural_fail("corrupt moment shape",line,column);
             record.shape[axis]=dimension;
             shape_count=neural_checked_mul(shape_count,static_cast<std::size_t>(dimension),line,column);
         }
-        if(shape_count!=count) neural_fail("corrupt Adam moment shape/count",line,column);
+        if(shape_count!=count) neural_fail("corrupt moment shape/count",line,column);
         const auto vector_bytes=neural_checked_mul(count,sizeof(double),line,column);
         need(neural_checked_mul(vector_bytes,2,line,column));
         record.first.resize(count);
@@ -1959,18 +1949,18 @@ std::vector<NeuralAdamMoment> neural_decode_adam_moments(
         }
         records.push_back(std::move(record));
     }
-    if(cursor!=length) neural_fail("trailing bytes in Adam moment state",line,column);
+    if(cursor!=length) neural_fail("trailing bytes in moment state",line,column);
     return records;
 }
 
-void* neural_encode_adam_moments(
-    const std::vector<NeuralAdamMoment>& records,
+void* neural_encode_moments(
+    const std::vector<NeuralMomentRecord>& records,
     unsigned long long line,unsigned long long column) {
     std::size_t payload=16;
     for(const auto& record:records){
         if(record.path.empty() ||
            record.path.size()>std::numeric_limits<std::uint32_t>::max())
-            neural_fail("invalid Adam Parameter path",line,column);
+            neural_fail("invalid moment update Parameter path",line,column);
         payload=neural_checked_add(payload,28,line,column);
         payload=neural_checked_add(payload,record.path.size(),line,column);
         payload=neural_checked_add(
@@ -1981,10 +1971,10 @@ void* neural_encode_adam_moments(
                 neural_checked_mul(record.first.size(),sizeof(double),line,column),2,line,column),
             line,column);
         if(record.first.size()!=record.second.size())
-            neural_fail("invalid Adam moment vectors",line,column);
+            neural_fail("invalid moment vectors",line,column);
     }
     if(payload>static_cast<std::size_t>(std::numeric_limits<std::int64_t>::max()))
-        neural_fail("Adam moment state too large",line,column);
+        neural_fail("moment state too large",line,column);
     auto* raw=static_cast<unsigned char*>(managed_allocate(neural_checked_add(8,payload,line,column)));
     const auto signed_length=static_cast<std::int64_t>(payload);
     std::memcpy(raw,&signed_length,8);
@@ -1993,7 +1983,7 @@ void* neural_encode_adam_moments(
     auto write=[&](const void* source,std::size_t count) {
         if(count){std::memcpy(bytes+cursor,source,count); cursor+=count;}
     };
-    write(&neural_adam_moment_magic,8);
+    write(&neural_moment_state_magic,8);
     const auto record_count=static_cast<std::uint64_t>(records.size());
     write(&record_count,8);
     for(const auto& record:records){
@@ -2010,9 +2000,9 @@ void* neural_encode_adam_moments(
     return raw;
 }
 
-void neural_adam_replace_moments(void* optimizer,void* encoded) {
+void neural_replace_moments(void* optimizer,void* encoded) {
     auto* state=neural_object_pointer_field(optimizer,40);
-    if(!state) runtime_text_failure("null Adam moments State");
+    if(!state) runtime_text_failure("null moment State");
     auto* old=neural_object_pointer_field(state,0);
     std::memcpy(state,&encoded,sizeof(encoded));
     quidra_managed_release(old,nullptr);
@@ -2021,7 +2011,7 @@ void neural_adam_replace_moments(void* optimizer,void* encoded) {
 const NeuralGradient* neural_gradient_for_parameter(
     void* parameter_raw,void* gradients_raw,
     unsigned long long line,unsigned long long column) {
-    if(!parameter_raw||!gradients_raw) neural_fail("null neural.step operand",line,column);
+    if(!parameter_raw||!gradients_raw) neural_fail("null neural update operand",line,column);
     auto* tensor=neural_parameter_tensor(parameter_raw);
     if(!tensor) neural_fail("invalid neural Parameter",line,column);
     auto* gradients=static_cast<NeuralGradients*>(gradients_raw);
@@ -2065,83 +2055,56 @@ extern "C" void* quidra_neural_parameter_track(
     return neural_descriptor(std::move(node));
 }
 
-extern "C" void* quidra_neural_batch_norm_create(
-    long long features,double momentum,double epsilon,int dtype,
-    unsigned long long line,unsigned long long column) {
-    if(features<=0) neural_fail("BatchNorm features must be positive",line,column);
-    if(!(momentum>=0.0&&momentum<=1.0))
-        neural_fail("BatchNorm momentum must be in [0,1]",line,column);
-    if(!(epsilon>0.0)) neural_fail("BatchNorm epsilon must be positive",line,column);
-    if(dtype!=9&&dtype!=10) neural_fail("BatchNorm supports float32 or float",line,column);
-    const auto count=static_cast<std::size_t>(features);
-    auto make_tensor=[&](int fill){
-        auto* storage=tensor_storage_create(dtype,count,fill);
-        return tensor_descriptor(storage,{features},tensor_contiguous_strides({features}),0);
-    };
-    void* scale=neural_parameter_object(make_tensor(2));
-    void* bias=neural_parameter_object(make_tensor(1));
-    void* running_mean=neural_state_object_pointer(make_tensor(1));
-    void* running_variance=neural_state_object_pointer(make_tensor(2));
-    auto* object=managed_allocate(sizeof(void*)*4+sizeof(double)*2);
-    std::memcpy(static_cast<unsigned char*>(object)+0,&scale,sizeof(scale));
-    std::memcpy(static_cast<unsigned char*>(object)+8,&bias,sizeof(bias));
-    std::memcpy(static_cast<unsigned char*>(object)+16,&running_mean,sizeof(running_mean));
-    std::memcpy(static_cast<unsigned char*>(object)+24,&running_variance,sizeof(running_variance));
-    std::memcpy(static_cast<unsigned char*>(object)+32,&momentum,sizeof(momentum));
-    std::memcpy(static_cast<unsigned char*>(object)+40,&epsilon,sizeof(epsilon));
-    return object;
-}
-
-struct NeuralBatchNormLayout {
+struct NeuralnormalizationLayout {
     std::size_t features{};
     std::size_t inner{};
     std::size_t samples{};
 };
 
-NeuralBatchNormLayout neural_batch_norm_layout(
+NeuralnormalizationLayout neural_normalize_layout(
     const std::vector<long long>& shape,std::size_t count,
     unsigned long long line,unsigned long long column) {
-    if(shape.size()<2) neural_fail("BatchNorm requires rank >= 2 with feature/channel axis 1",line,column);
-    if(shape[1]<=0) neural_fail("BatchNorm feature/channel dimension must be positive",line,column);
+    if(shape.size()<2) neural_fail("normalization requires rank >= 2 with feature/channel axis 1",line,column);
+    if(shape[1]<=0) neural_fail("normalization feature/channel dimension must be positive",line,column);
     std::size_t inner=1;
     for(std::size_t axis=2;axis<shape.size();++axis){
-        if(shape[axis]<0) neural_fail("BatchNorm shape contains a negative dimension",line,column);
+        if(shape[axis]<0) neural_fail("normalization shape contains a negative dimension",line,column);
         const auto dim=static_cast<std::size_t>(shape[axis]);
         if(inner!=0 && dim>std::numeric_limits<std::size_t>::max()/inner)
-            neural_fail("BatchNorm shape overflow",line,column);
+            neural_fail("normalization shape overflow",line,column);
         inner*=dim;
     }
     const auto features=static_cast<std::size_t>(shape[1]);
     if(features!=0 && inner>std::numeric_limits<std::size_t>::max()/features)
-        neural_fail("BatchNorm shape overflow",line,column);
+        neural_fail("normalization shape overflow",line,column);
     const auto block=features*inner;
     if(block==0 || count%block!=0)
-        neural_fail("BatchNorm tensor storage does not match shape",line,column);
+        neural_fail("normalization tensor storage does not match shape",line,column);
     const auto outer=count/block;
     if(outer!=0 && inner>std::numeric_limits<std::size_t>::max()/outer)
-        neural_fail("BatchNorm sample count overflow",line,column);
-    return NeuralBatchNormLayout{features,inner,outer*inner};
+        neural_fail("normalization sample count overflow",line,column);
+    return NeuralnormalizationLayout{features,inner,outer*inner};
 }
 
-std::size_t neural_batch_norm_feature(
-    std::size_t linear,const NeuralBatchNormLayout& layout) {
+std::size_t neural_normalize_feature(
+    std::size_t linear,const NeuralnormalizationLayout& layout) {
     return (linear/layout.inner)%layout.features;
 }
 
 template <typename T>
-std::vector<T> neural_batch_norm_values_t(
+std::vector<T> neural_normalize_values_t(
     const std::vector<T>& input,const std::vector<long long>& shape,
     const std::vector<T>& scale,const std::vector<T>& bias,
     const std::vector<T>& mean,const std::vector<T>& variance,double epsilon_raw,
     unsigned long long line,unsigned long long column) {
-    const auto layout=neural_batch_norm_layout(shape,input.size(),line,column);
+    const auto layout=neural_normalize_layout(shape,input.size(),line,column);
     if(scale.size()!=layout.features||bias.size()!=layout.features||
        mean.size()!=layout.features||variance.size()!=layout.features)
-        neural_fail("BatchNorm feature dimensions do not match",line,column);
+        neural_fail("normalization feature dimensions do not match",line,column);
     const T epsilon=static_cast<T>(epsilon_raw);
     std::vector<T> output(input.size());
     for(std::size_t i=0;i<input.size();++i){
-        const auto feature=neural_batch_norm_feature(i,layout);
+        const auto feature=neural_normalize_feature(i,layout);
         output[i]=static_cast<T>(
             static_cast<T>((input[i]-mean[feature])/
                            std::sqrt(static_cast<T>(variance[feature]+epsilon)))*
@@ -2150,28 +2113,28 @@ std::vector<T> neural_batch_norm_values_t(
     return output;
 }
 
-NeuralBuffer neural_batch_norm_values(
+NeuralBuffer neural_normalize_values(
     const NeuralBuffer& input,const std::vector<long long>& shape,
     const NeuralBuffer& scale,const NeuralBuffer& bias,
     const NeuralBuffer& mean,const NeuralBuffer& variance,double epsilon,
     unsigned long long line,unsigned long long column) {
     const auto dtype=input.dtype();
     if(scale.dtype()!=dtype||bias.dtype()!=dtype||mean.dtype()!=dtype||variance.dtype()!=dtype)
-        neural_fail("BatchNorm input and state dtypes must match",line,column);
+        neural_fail("normalization input and state dtypes must match",line,column);
     if(dtype==10)
-        return NeuralBuffer(neural_batch_norm_values_t<float>(
+        return NeuralBuffer(neural_normalize_values_t<float>(
             input.typed<float>(),shape,scale.typed<float>(),bias.typed<float>(),
             mean.typed<float>(),variance.typed<float>(),epsilon,line,column));
     if(dtype==9)
-        return NeuralBuffer(neural_batch_norm_values_t<double>(
+        return NeuralBuffer(neural_normalize_values_t<double>(
             input.typed<double>(),shape,scale.typed<double>(),bias.typed<double>(),
             mean.typed<double>(),variance.typed<double>(),epsilon,line,column));
-    neural_fail("invalid BatchNorm dtype",line,column);
+    neural_fail("invalid normalization dtype",line,column);
 }
 
-extern "C" void* quidra_neural_batch_norm_tensor_forward(
+void* neural_normalize_inference(
     void* receiver,void* input_raw,unsigned long long line,unsigned long long column) {
-    if(!receiver||!input_raw) neural_fail("null BatchNorm input",line,column);
+    if(!receiver||!input_raw) neural_fail("null normalization input",line,column);
     auto& input=*static_cast<TensorValue*>(input_raw);
     tensor_require_initialized(input,line,column);
     auto* scale=neural_parameter_tensor(neural_object_pointer_field(receiver,0));
@@ -2181,13 +2144,13 @@ extern "C" void* quidra_neural_batch_norm_tensor_forward(
     auto* mean=static_cast<TensorValue*>(neural_object_pointer_field(mean_state,0));
     auto* variance=static_cast<TensorValue*>(neural_object_pointer_field(variance_state,0));
     const double epsilon=neural_object_double_field(receiver,40);
-    if(!scale||!bias||!mean||!variance) neural_fail("invalid BatchNorm state",line,column);
+    if(!scale||!bias||!mean||!variance) neural_fail("invalid normalization state",line,column);
     if(input.storage->dtype!=scale->storage->dtype||
        input.storage->dtype!=bias->storage->dtype||
        input.storage->dtype!=mean->storage->dtype||
        input.storage->dtype!=variance->storage->dtype)
-        neural_fail("BatchNorm input and state dtypes must match",line,column);
-    const auto values=neural_batch_norm_values(
+        neural_fail("normalization input and state dtypes must match",line,column);
+    const auto values=neural_normalize_values(
         tensor_float_values(input,line,column),input.shape,
         tensor_float_values(*scale,line,column),tensor_float_values(*bias,line,column),
         tensor_float_values(*mean,line,column),tensor_float_values(*variance,line,column),
@@ -2196,28 +2159,28 @@ extern "C" void* quidra_neural_batch_norm_tensor_forward(
 }
 
 template <typename T>
-void* neural_batch_norm_forward_t(
+void* neural_normalize_forward_t(
     void* receiver,const std::shared_ptr<NeuralNode>& input,
     const std::shared_ptr<NeuralNode>& scale,const std::shared_ptr<NeuralNode>& bias,
     unsigned long long line,unsigned long long column) {
     const auto& input_values=input->data.typed<T>();
     const auto& scale_values=scale->data.typed<T>();
     const auto& bias_values=bias->data.typed<T>();
-    const auto layout=neural_batch_norm_layout(input->shape,input_values.size(),line,column);
+    const auto layout=neural_normalize_layout(input->shape,input_values.size(),line,column);
     const auto features=layout.features;
     const auto samples=layout.samples;
     if(scale_values.size()!=features||bias_values.size()!=features)
-        neural_fail("BatchNorm feature dimensions do not match",line,column);
-    if(samples==0) neural_fail("BatchNorm training requires at least one sample per feature",line,column);
+        neural_fail("normalization feature dimensions do not match",line,column);
+    if(samples==0) neural_fail("normalization training requires at least one sample per feature",line,column);
 
     std::vector<T> mean(features,T{0}),variance(features,T{0});
     for(std::size_t i=0;i<input_values.size();++i)
-        mean[neural_batch_norm_feature(i,layout)]=static_cast<T>(
-            mean[neural_batch_norm_feature(i,layout)]+input_values[i]);
+        mean[neural_normalize_feature(i,layout)]=static_cast<T>(
+            mean[neural_normalize_feature(i,layout)]+input_values[i]);
     const T sample_count=static_cast<T>(samples);
     for(auto& value:mean) value=static_cast<T>(value/sample_count);
     for(std::size_t i=0;i<input_values.size();++i){
-        const auto feature=neural_batch_norm_feature(i,layout);
+        const auto feature=neural_normalize_feature(i,layout);
         const T difference=static_cast<T>(input_values[i]-mean[feature]);
         variance[feature]=static_cast<T>(
             variance[feature]+static_cast<T>(difference*difference));
@@ -2228,7 +2191,7 @@ void* neural_batch_norm_forward_t(
     auto* variance_state=neural_object_pointer_field(receiver,24);
     auto* running_mean=static_cast<TensorValue*>(neural_object_pointer_field(mean_state,0));
     auto* running_variance=static_cast<TensorValue*>(neural_object_pointer_field(variance_state,0));
-    if(!running_mean||!running_variance) neural_fail("invalid BatchNorm state",line,column);
+    if(!running_mean||!running_variance) neural_fail("invalid normalization state",line,column);
     const T momentum=static_cast<T>(neural_object_double_field(receiver,32));
     const T epsilon=static_cast<T>(neural_object_double_field(receiver,40));
     tensor_detach_for_write(*running_mean);
@@ -2249,10 +2212,10 @@ void* neural_batch_norm_forward_t(
 
     auto node=std::make_shared<NeuralNode>(input->dtype);
     node->shape=input->shape;
-    node->data=NeuralBuffer(neural_batch_norm_values_t<T>(
+    node->data=NeuralBuffer(neural_normalize_values_t<T>(
         input_values,input->shape,scale_values,bias_values,mean,variance,
         static_cast<double>(epsilon),line,column));
-    node->op=NeuralOp::BatchNorm;
+    node->op=NeuralOp::Normalize;
     node->parents={input,scale,bias};
     node->aux_index={samples};
     node->aux.resize(features*2);
@@ -2265,9 +2228,9 @@ void* neural_batch_norm_forward_t(
     return neural_descriptor(std::move(node));
 }
 
-extern "C" void* quidra_neural_batch_norm_forward(
+void* neural_normalize_training(
     void* receiver,void* input_raw,unsigned long long line,unsigned long long column) {
-    if(!receiver||!input_raw) neural_fail("null BatchNorm input",line,column);
+    if(!receiver||!input_raw) neural_fail("null normalization input",line,column);
     const auto input=static_cast<NeuralValue*>(input_raw)->node;
     auto scale=neural_parameter_node(neural_object_pointer_field(receiver,0),line,column);
     auto bias=neural_parameter_node(neural_object_pointer_field(receiver,8),line,column);
@@ -2275,37 +2238,41 @@ extern "C" void* quidra_neural_batch_norm_forward(
     auto* variance_state=neural_object_pointer_field(receiver,24);
     auto* running_mean=static_cast<TensorValue*>(neural_object_pointer_field(mean_state,0));
     auto* running_variance=static_cast<TensorValue*>(neural_object_pointer_field(variance_state,0));
-    if(!running_mean||!running_variance) neural_fail("invalid BatchNorm state",line,column);
+    if(!running_mean||!running_variance) neural_fail("invalid normalization state",line,column);
     if(input->dtype!=scale->dtype||input->dtype!=bias->dtype||
        input->dtype!=running_mean->storage->dtype||
        input->dtype!=running_variance->storage->dtype)
-        neural_fail("BatchNorm input and state dtypes must match",line,column);
+        neural_fail("normalization input and state dtypes must match",line,column);
     if(input->dtype==10)
-        return neural_batch_norm_forward_t<float>(receiver,input,scale,bias,line,column);
+        return neural_normalize_forward_t<float>(receiver,input,scale,bias,line,column);
     if(input->dtype==9)
-        return neural_batch_norm_forward_t<double>(receiver,input,scale,bias,line,column);
-    neural_fail("invalid BatchNorm dtype",line,column);
+        return neural_normalize_forward_t<double>(receiver,input,scale,bias,line,column);
+    neural_fail("invalid normalization dtype",line,column);
 }
 
-extern "C" void* quidra_neural_dropout_create(
-    double rate,long long seed,unsigned long long line,unsigned long long column) {
-    if(!(rate>=0.0&&rate<1.0)) neural_fail("Dropout rate must be in [0,1)",line,column);
-    auto* rng=neural_state_object_u64(static_cast<std::uint64_t>(seed));
-    auto* object=managed_allocate(sizeof(double)+sizeof(void*));
-    std::memcpy(static_cast<unsigned char*>(object),&rate,sizeof(rate));
-    std::memcpy(static_cast<unsigned char*>(object)+8,&rng,sizeof(rng));
-    return object;
+extern "C" void* quidra_neural_normalize(
+    void* input,void* scale,void* bias,void* running_mean,void* running_variance,
+    double momentum,double epsilon,bool training,
+    unsigned long long line,unsigned long long column) {
+    if(!(epsilon>0.0))
+        neural_fail("neural.normalize epsilon must be positive",line,column);
+    if(training&&!(momentum>=0.0&&momentum<=1.0))
+        neural_fail("neural.normalize momentum must be in [0,1]",line,column);
+    alignas(void*) unsigned char receiver[48]{};
+    std::memcpy(receiver+0,&scale,sizeof(scale));
+    std::memcpy(receiver+8,&bias,sizeof(bias));
+    std::memcpy(receiver+16,&running_mean,sizeof(running_mean));
+    std::memcpy(receiver+24,&running_variance,sizeof(running_variance));
+    std::memcpy(receiver+32,&momentum,sizeof(momentum));
+    std::memcpy(receiver+40,&epsilon,sizeof(epsilon));
+    return training
+        ? neural_normalize_training(receiver,input,line,column)
+        : neural_normalize_inference(receiver,input,line,column);
 }
 
-extern "C" void* quidra_neural_dropout_tensor_forward(
+void* neural_random_mask_apply(
     void* receiver,void* input_raw,unsigned long long line,unsigned long long column) {
-    if(!receiver||!input_raw) neural_fail("null Dropout input",line,column);
-    return quidra_tensor_clone(input_raw);
-}
-
-extern "C" void* quidra_neural_dropout_forward(
-    void* receiver,void* input_raw,unsigned long long line,unsigned long long column) {
-    if(!receiver||!input_raw) neural_fail("null Dropout input",line,column);
+    if(!receiver||!input_raw) neural_fail("null random mask input",line,column);
     const auto input=static_cast<NeuralValue*>(input_raw)->node;
     const double rate=neural_object_double_field(receiver,0);
     auto* rng_state=neural_object_pointer_field(receiver,8);
@@ -2313,7 +2280,7 @@ extern "C" void* quidra_neural_dropout_forward(
     auto node=std::make_shared<NeuralNode>(input->dtype);
     node->shape=input->shape;
     node->parents={input};
-    node->op=NeuralOp::Dropout;
+    node->op=NeuralOp::RandomMask;
     node->data.resize(input->data.size());
     node->aux.resize(input->data.size());
     if(input->dtype==10){
@@ -2347,10 +2314,21 @@ extern "C" void* quidra_neural_dropout_forward(
             destination[i]=source[i]*multiplier;
         }
     }else{
-        neural_fail("invalid Dropout dtype",line,column);
+        neural_fail("invalid random mask dtype",line,column);
     }
     neural_set_state_u64(rng_state,state);
     return neural_descriptor(std::move(node));
+}
+
+extern "C" void* quidra_neural_random_mask(
+    void* input,void* state,double rate,
+    unsigned long long line,unsigned long long column) {
+    if(!(rate>=0.0&&rate<1.0))
+        neural_fail("neural.random_mask rate must be in [0,1)",line,column);
+    alignas(void*) unsigned char receiver[16]{};
+    std::memcpy(receiver+0,&rate,sizeof(rate));
+    std::memcpy(receiver+8,&state,sizeof(state));
+    return neural_random_mask_apply(receiver,input,line,column);
 }
 
 template <typename T>
@@ -2361,26 +2339,26 @@ std::vector<T> neural_conv2d_values_t(
     std::vector<long long>& output_shape,
     unsigned long long line,unsigned long long column) {
     if(input_shape.size()!=4||weight_shape.size()!=4)
-        neural_fail("Conv2D requires NCHW rank-4 input and OIHW rank-4 weight",line,column);
+        neural_fail("convolution requires NCHW rank-4 input and OIHW rank-4 weight",line,column);
     if(stride<=0||padding<0)
-        neural_fail("Conv2D requires stride > 0 and padding >= 0",line,column);
+        neural_fail("convolution requires stride > 0 and padding >= 0",line,column);
     const auto n=input_shape[0],in_c=input_shape[1],h=input_shape[2],w=input_shape[3];
     const auto out_c=weight_shape[0],weight_in=weight_shape[1],kh=weight_shape[2],kw=weight_shape[3];
     if(n<0||in_c<=0||h<0||w<0||out_c<=0||weight_in!=in_c||kh<=0||kw<=0||kh!=kw||
        static_cast<long long>(bias.size())!=out_c)
-        neural_fail("Conv2D dimensions do not match",line,column);
+        neural_fail("convolution dimensions do not match",line,column);
     if(padding>(std::numeric_limits<long long>::max()-h)/2||
        padding>(std::numeric_limits<long long>::max()-w)/2)
-        neural_fail("Conv2D padded shape overflow",line,column);
+        neural_fail("convolution padded shape overflow",line,column);
     const auto padded_h=h+2*padding,padded_w=w+2*padding;
     if(padded_h<kh||padded_w<kw)
-        neural_fail("Conv2D kernel is larger than padded input",line,column);
+        neural_fail("convolution kernel is larger than padded input",line,column);
     const auto out_h=(padded_h-kh)/stride+1;
     const auto out_w=(padded_w-kw)/stride+1;
     output_shape={n,out_c,out_h,out_w};
     const auto safe_mul=[&](std::size_t a,std::size_t b){
         if(a!=0&&b>std::numeric_limits<std::size_t>::max()/a)
-            neural_fail("Conv2D output size overflow",line,column);
+            neural_fail("convolution output size overflow",line,column);
         return a*b;
     };
     auto count=safe_mul(static_cast<std::size_t>(n),static_cast<std::size_t>(out_c));
@@ -2420,7 +2398,7 @@ NeuralBuffer neural_conv2d_values(
     std::vector<long long>& output_shape,
     unsigned long long line,unsigned long long column) {
     if(input.dtype()!=weight.dtype()||input.dtype()!=bias.dtype())
-        neural_fail("Conv2D input and Parameter dtypes must match",line,column);
+        neural_fail("convolution input and Parameter dtypes must match",line,column);
     if(input.dtype()==10)
         return NeuralBuffer(neural_conv2d_values_t<float>(
             input.typed<float>(),input_shape,weight.typed<float>(),weight_shape,
@@ -2429,57 +2407,20 @@ NeuralBuffer neural_conv2d_values(
         return NeuralBuffer(neural_conv2d_values_t<double>(
             input.typed<double>(),input_shape,weight.typed<double>(),weight_shape,
             bias.typed<double>(),stride,padding,output_shape,line,column));
-    neural_fail("invalid Conv2D dtype",line,column);
+    neural_fail("invalid convolution dtype",line,column);
 }
 
-extern "C" void* quidra_neural_conv2d_create(
-    long long input,long long output,long long kernel,long long stride,long long padding,long long seed,
-    int dtype,unsigned long long line,unsigned long long column) {
-    if(input<=0||output<=0||kernel<=0||stride<=0||padding<0)
-        neural_fail("Conv2D input/output/kernel/stride/padding are invalid",line,column);
-    if(dtype!=9&&dtype!=10) neural_fail("Conv2D supports float32 or float",line,column);
-    const auto safe_mul=[&](std::size_t a,std::size_t b){
-        if(a!=0 && b>std::numeric_limits<std::size_t>::max()/a)
-            neural_fail("Conv2D parameter size overflow",line,column);
-        return a*b;
-    };
-    auto count=safe_mul(static_cast<std::size_t>(output),static_cast<std::size_t>(input));
-    count=safe_mul(count,static_cast<std::size_t>(kernel));
-    count=safe_mul(count,static_cast<std::size_t>(kernel));
-    auto* weight_storage=tensor_storage_create(dtype,count,1);
-    auto* bias_storage=tensor_storage_create(dtype,static_cast<std::size_t>(output),1);
-    std::uint64_t state=static_cast<std::uint64_t>(seed);
-    const double fan_in=static_cast<double>(input)*static_cast<double>(kernel)*static_cast<double>(kernel);
-    const double fan_out=static_cast<double>(output)*static_cast<double>(kernel)*static_cast<double>(kernel);
-    const double limit=std::sqrt(6.0/(fan_in+fan_out));
-    for(std::size_t i=0;i<count;++i) neural_store_float(*weight_storage,i,neural_uniform_signed(state,limit));
-    for(std::size_t i=0;i<static_cast<std::size_t>(output);++i) neural_store_float(*bias_storage,i,0.0);
-    auto* weight_tensor=tensor_descriptor(
-        weight_storage,{output,input,kernel,kernel},
-        tensor_contiguous_strides({output,input,kernel,kernel}),0);
-    auto* bias_tensor=tensor_descriptor(
-        bias_storage,{output},tensor_contiguous_strides({output}),0);
-    void* weight=neural_parameter_object(weight_tensor);
-    void* bias=neural_parameter_object(bias_tensor);
-    auto* conv=managed_allocate(sizeof(void*)*2+sizeof(long long)*2);
-    std::memcpy(static_cast<unsigned char*>(conv),&weight,sizeof(weight));
-    std::memcpy(static_cast<unsigned char*>(conv)+8,&bias,sizeof(bias));
-    std::memcpy(static_cast<unsigned char*>(conv)+16,&stride,sizeof(stride));
-    std::memcpy(static_cast<unsigned char*>(conv)+24,&padding,sizeof(padding));
-    return conv;
-}
-
-extern "C" void* quidra_neural_conv2d_tensor_forward(
+extern "C" void* quidra_neural_tensor_convolve2d(
     void* input_raw,void* weight_raw,void* bias_raw,long long stride,long long padding,
     unsigned long long line,unsigned long long column) {
-    if(!input_raw) neural_fail("null Conv2D input",line,column);
+    if(!input_raw) neural_fail("null convolution input",line,column);
     auto& input=*static_cast<TensorValue*>(input_raw);
     tensor_require_initialized(input,line,column);
     auto* weight=neural_parameter_tensor(weight_raw);
     auto* bias=neural_parameter_tensor(bias_raw);
-    if(!weight||!bias) neural_fail("null Conv2D Parameter",line,column);
+    if(!weight||!bias) neural_fail("null convolution Parameter",line,column);
     if(input.storage->dtype!=weight->storage->dtype||input.storage->dtype!=bias->storage->dtype)
-        neural_fail("Conv2D input and Parameter dtypes must match",line,column);
+        neural_fail("convolution input and Parameter dtypes must match",line,column);
     std::vector<long long> output_shape;
     const auto values=neural_conv2d_values(
         tensor_float_values(input,line,column),input.shape,
@@ -2488,21 +2429,21 @@ extern "C" void* quidra_neural_conv2d_tensor_forward(
     return neural_tensor_from_values(input.storage->dtype,output_shape,values);
 }
 
-extern "C" void* quidra_neural_conv2d_forward(
+extern "C" void* quidra_neural_convolve2d(
     void* input_raw,void* weight_raw,void* bias_raw,long long stride,long long padding,
     unsigned long long line,unsigned long long column) {
-    if(!input_raw) neural_fail("null Conv2D input",line,column);
+    if(!input_raw) neural_fail("null convolution input",line,column);
     const auto input=static_cast<NeuralValue*>(input_raw)->node;
     auto weight=neural_parameter_node(weight_raw,line,column);
     auto bias=neural_parameter_node(bias_raw,line,column);
     if(input->dtype!=weight->dtype||input->dtype!=bias->dtype)
-        neural_fail("Conv2D input and Parameter dtypes must match",line,column);
+        neural_fail("convolution input and Parameter dtypes must match",line,column);
     auto node=std::make_shared<NeuralNode>(input->dtype);
     node->dtype=input->dtype;
     node->data=neural_conv2d_values(
         input->data,input->shape,weight->data,weight->shape,bias->data,
         stride,padding,node->shape,line,column);
-    node->op=NeuralOp::Conv2D;
+    node->op=NeuralOp::Convolution;
     node->parents={input,weight,bias};
     node->aux_index={
         static_cast<std::size_t>(stride),
@@ -2510,114 +2451,50 @@ extern "C" void* quidra_neural_conv2d_forward(
     return neural_descriptor(std::move(node));
 }
 
-extern "C" void* quidra_neural_linear_create(
-    long long input,long long output,long long seed,int dtype,
-    unsigned long long line,unsigned long long column) {
-    if(input<=0||output<=0) {
-        neural_fail("Linear input and output must be positive",line,column);
-    }
-    if(dtype!=9&&dtype!=10) {
-        neural_fail("Linear supports float32 or float",line,column);
-    }
-    const auto in=static_cast<std::size_t>(input);
-    const auto out=static_cast<std::size_t>(output);
-    if(in>std::numeric_limits<std::size_t>::max()/out) {
-        neural_fail("Linear parameter size overflow",line,column);
-    }
-    auto* weight_storage=tensor_storage_create(dtype,in*out,1);
-    auto* bias_storage=tensor_storage_create(dtype,out,1);
-    std::uint64_t state=static_cast<std::uint64_t>(seed);
-    const double limit=std::sqrt(6.0/static_cast<double>(in+out));
-    for(std::size_t i=0;i<in*out;++i) {
-        neural_store_float(*weight_storage,i,neural_uniform_signed(state,limit));
-    }
-    for(std::size_t i=0;i<out;++i) neural_store_float(*bias_storage,i,0.0);
-    auto* weight_tensor=tensor_descriptor(
-        weight_storage,{output,input},tensor_contiguous_strides({output,input}),0);
-    auto* bias_tensor=tensor_descriptor(
-        bias_storage,{output},tensor_contiguous_strides({output}),0);
-    void* weight=neural_parameter_object(weight_tensor);
-    void* bias=neural_parameter_object(bias_tensor);
-    auto* linear=managed_allocate(sizeof(void*)*2);
-    std::memcpy(static_cast<unsigned char*>(linear),&weight,sizeof(weight));
-    std::memcpy(static_cast<unsigned char*>(linear)+sizeof(void*),&bias,sizeof(bias));
-    return linear;
-}
-
-extern "C" void* quidra_neural_linear_tensor_forward(
+extern "C" void* quidra_neural_tensor_affine(
     void* input_raw,void* weight_raw,void* bias_raw,
     unsigned long long line,unsigned long long column) {
-    if(!input_raw)neural_fail("null Linear input",line,column);
+    if(!input_raw)neural_fail("null affine input",line,column);
     auto& input=*static_cast<TensorValue*>(input_raw);
     tensor_require_initialized(input,line,column);
     auto* weight=neural_parameter_tensor(weight_raw);
     auto* bias=neural_parameter_tensor(bias_raw);
-    if(!weight||!bias)neural_fail("null Linear Parameter",line,column);
+    if(!weight||!bias)neural_fail("null affine Parameter",line,column);
     if(input.storage->dtype!=weight->storage->dtype ||
        input.storage->dtype!=bias->storage->dtype) {
-        neural_fail("Linear input and Parameter dtypes must match",line,column);
+        neural_fail("affine input and Parameter dtypes must match",line,column);
     }
     const auto input_values=tensor_float_values(input,line,column);
     const auto weight_values=tensor_float_values(*weight,line,column);
     const auto bias_values=tensor_float_values(*bias,line,column);
-    auto output_values=neural_linear_values(
+    auto output_values=neural_affine_values(
         input_values,input.shape,weight_values,weight->shape,bias_values,line,column);
     auto shape=input.shape;
     shape.back()=weight->shape[0];
     return neural_tensor_from_values(input.storage->dtype,shape,output_values);
 }
 
-extern "C" void* quidra_neural_linear_forward(
+extern "C" void* quidra_neural_affine(
     void* input_raw,void* weight_raw,void* bias_raw,
     unsigned long long line,unsigned long long column) {
-    if(!input_raw)neural_fail("null Linear input",line,column);
+    if(!input_raw)neural_fail("null affine input",line,column);
     const auto input=static_cast<NeuralValue*>(input_raw)->node;
     auto weight=neural_parameter_node(weight_raw,line,column);
     auto bias=neural_parameter_node(bias_raw,line,column);
     if(input->dtype!=weight->dtype||input->dtype!=bias->dtype) {
-        neural_fail("Linear input and Parameter dtypes must match",line,column);
+        neural_fail("affine input and Parameter dtypes must match",line,column);
     }
     auto node=std::make_shared<NeuralNode>(input->dtype);
     node->dtype=input->dtype;
     node->shape=input->shape;
-    if(node->shape.empty())neural_fail("Linear requires input rank >= 1",line,column);
+    if(node->shape.empty())neural_fail("affine requires input rank >= 1",line,column);
     node->shape.back()=weight->shape[0];
-    node->data=neural_linear_values(
+    node->data=neural_affine_values(
         input->data,input->shape,weight->data,weight->shape,bias->data,line,column);
-    node->op=NeuralOp::Linear;
+    node->op=NeuralOp::Affine;
     node->parents={input,weight,bias};
     return neural_descriptor(std::move(node));
 }
-extern "C" void* quidra_neural_sgd_create(
-    double rate,unsigned long long line,unsigned long long column) {
-    if(!std::isfinite(rate)||rate<=0.0) neural_fail("SGD rate must be finite and positive",line,column);
-    auto* optimizer=managed_allocate(sizeof(double));
-    std::memcpy(optimizer,&rate,sizeof(rate));
-    return optimizer;
-}
-
-extern "C" void* quidra_neural_adam_create(
-    double rate,double beta1,double beta2,double epsilon,
-    unsigned long long line,unsigned long long column) {
-    if(!std::isfinite(rate)||rate<=0.0) neural_fail("Adam rate must be finite and positive",line,column);
-    if(!std::isfinite(beta1)||beta1<0.0||beta1>=1.0)
-        neural_fail("Adam beta1 must be in [0,1)",line,column);
-    if(!std::isfinite(beta2)||beta2<0.0||beta2>=1.0)
-        neural_fail("Adam beta2 must be in [0,1)",line,column);
-    if(!std::isfinite(epsilon)||epsilon<=0.0)
-        neural_fail("Adam epsilon must be finite and positive",line,column);
-    auto* step_state=neural_state_object_u64(0);
-    auto* moments_state=neural_state_object_pointer(neural_empty_bytes());
-    auto* optimizer=managed_allocate(48);
-    std::memcpy(static_cast<unsigned char*>(optimizer)+0,&rate,8);
-    std::memcpy(static_cast<unsigned char*>(optimizer)+8,&beta1,8);
-    std::memcpy(static_cast<unsigned char*>(optimizer)+16,&beta2,8);
-    std::memcpy(static_cast<unsigned char*>(optimizer)+24,&epsilon,8);
-    std::memcpy(static_cast<unsigned char*>(optimizer)+32,&step_state,8);
-    std::memcpy(static_cast<unsigned char*>(optimizer)+40,&moments_state,8);
-    return optimizer;
-}
-
 extern "C" bool quidra_neural_parameter_has_gradient(
     void* parameter,void* gradients_raw,
     unsigned long long line,unsigned long long column) {
@@ -2625,7 +2502,7 @@ extern "C" bool quidra_neural_parameter_has_gradient(
 }
 
 template <typename T>
-bool neural_sgd_step_parameter_t(
+bool neural_update_parameter_t(
     void* parameter,const NeuralGradient& gradient,double rate_raw,
     unsigned long long line,unsigned long long column) {
     auto* tensor=neural_parameter_tensor(parameter);
@@ -2648,26 +2525,25 @@ bool neural_sgd_step_parameter_t(
     return true;
 }
 
-extern "C" bool quidra_neural_sgd_step_parameter(
-    void* parameter,void* gradients_raw,void* optimizer,
+extern "C" bool quidra_neural_update_parameter(
+    void* parameter,void* gradients_raw,double rate,
     unsigned long long line,unsigned long long column) {
-    if(!optimizer) neural_fail("null SGD optimizer",line,column);
-    const auto* gradient=neural_gradient_for_parameter(parameter,gradients_raw,line,column);
-    if(!gradient) return false;
-    const double rate=neural_object_double_field(optimizer,0);
     if(!std::isfinite(rate)||rate<=0.0)
-        neural_fail("invalid SGD rate state",line,column);
+        neural_fail("neural.update rate must be finite and positive",line,column);
+    const auto* gradient=neural_gradient_for_parameter(
+        parameter,gradients_raw,line,column);
+    if(!gradient) return false;
     if(gradient->dtype==10)
-        return neural_sgd_step_parameter_t<float>(parameter,*gradient,rate,line,column);
+        return neural_update_parameter_t<float>(parameter,*gradient,rate,line,column);
     if(gradient->dtype==9)
-        return neural_sgd_step_parameter_t<double>(parameter,*gradient,rate,line,column);
-    neural_fail("invalid SGD gradient dtype",line,column);
+        return neural_update_parameter_t<double>(parameter,*gradient,rate,line,column);
+    neural_fail("invalid neural gradient dtype",line,column);
 }
 
-extern "C" long long quidra_neural_adam_begin(
+extern "C" long long quidra_neural_moment_begin(
     void* optimizer,unsigned long long parameter_count,
     unsigned long long line,unsigned long long column) {
-    if(!optimizer) neural_fail("null Adam optimizer",line,column);
+    if(!optimizer) neural_fail("null moment update optimizer",line,column);
     const double rate=neural_object_double_field(optimizer,0);
     const double beta1=neural_object_double_field(optimizer,8);
     const double beta2=neural_object_double_field(optimizer,16);
@@ -2675,82 +2551,82 @@ extern "C" long long quidra_neural_adam_begin(
     if(!std::isfinite(rate)||rate<=0.0||!std::isfinite(beta1)||beta1<0.0||beta1>=1.0||
        !std::isfinite(beta2)||beta2<0.0||beta2>=1.0||
        !std::isfinite(epsilon)||epsilon<=0.0)
-        neural_fail("invalid Adam optimizer state",line,column);
+        neural_fail("invalid moment update optimizer state",line,column);
     auto* step_state=neural_object_pointer_field(optimizer,32);
     auto* moments_state=neural_object_pointer_field(optimizer,40);
-    if(!step_state||!moments_state) neural_fail("invalid Adam State fields",line,column);
+    if(!step_state||!moments_state) neural_fail("invalid moment update State fields",line,column);
     const auto step=neural_state_u64(step_state);
     if(step>=static_cast<std::uint64_t>(std::numeric_limits<long long>::max()))
-        neural_fail("Adam step counter overflow",line,column);
-    const auto records=neural_decode_adam_moments(
+        neural_fail("moment update step counter overflow",line,column);
+    const auto records=neural_decode_moments(
         neural_object_pointer_field(moments_state,0),line,column);
     if((step==0&&!records.empty())||
        (step>0&&records.size()!=parameter_count))
-        neural_fail("Adam state does not match model Parameter structure",line,column);
+        neural_fail("moment update state does not match model Parameter structure",line,column);
     return static_cast<long long>(step+1);
 }
 
-extern "C" void quidra_neural_adam_validate_parameter(
+extern "C" void quidra_neural_moment_validate_parameter(
     void* parameter,void* gradients_raw,void* optimizer,void* path_raw,
     unsigned long long index,
     unsigned long long line,unsigned long long column) {
-    if(!optimizer) neural_fail("null Adam optimizer",line,column);
+    if(!optimizer) neural_fail("null moment update optimizer",line,column);
     const auto* parameter_path=static_cast<const char*>(path_raw);
     if(!parameter_path||!*parameter_path)
-        neural_fail("invalid Adam Parameter path",line,column);
+        neural_fail("invalid moment update Parameter path",line,column);
     auto* tensor=neural_parameter_tensor(parameter);
     if(!tensor) neural_fail("invalid neural Parameter",line,column);
     auto* moments_state=neural_object_pointer_field(optimizer,40);
-    if(!moments_state) neural_fail("invalid Adam moments State",line,column);
-    const auto records=neural_decode_adam_moments(
+    if(!moments_state) neural_fail("invalid moment update moments State",line,column);
+    const auto records=neural_decode_moments(
         neural_object_pointer_field(moments_state,0),line,column);
     if(records.empty()) return;
     if(index>=records.size())
-        neural_fail("Adam Parameter traversal changed",line,column);
+        neural_fail("moment update Parameter traversal changed",line,column);
     const auto& record=records[static_cast<std::size_t>(index)];
     const auto logical_count=tensor_logical_count(*tensor);
     if(record.path!=parameter_path)
-        neural_fail("Adam state does not match Parameter structural path",line,column);
+        neural_fail("moment update state does not match Parameter structural path",line,column);
     if(record.dtype!=tensor->storage->dtype||record.shape!=tensor->shape||
        record.first.size()!=logical_count||record.second.size()!=logical_count)
-        neural_fail("Adam state does not match Parameter dtype/shape",line,column);
+        neural_fail("moment update state does not match Parameter dtype/shape",line,column);
     const auto* gradient=neural_gradient_for_parameter(
         parameter,gradients_raw,line,column);
     if(gradient&&record.step==std::numeric_limits<std::uint64_t>::max())
-        neural_fail("Adam Parameter step counter overflow",line,column);
+        neural_fail("moment update Parameter step counter overflow",line,column);
 }
 
-extern "C" void quidra_neural_adam_finish(
+extern "C" void quidra_neural_moment_finish(
     void* optimizer,long long next_step,
     unsigned long long line,unsigned long long column) {
-    if(!optimizer||next_step<=0) neural_fail("invalid Adam step",line,column);
+    if(!optimizer||next_step<=0) neural_fail("invalid moment update step",line,column);
     auto* step_state=neural_object_pointer_field(optimizer,32);
-    if(!step_state) neural_fail("invalid Adam step State",line,column);
+    if(!step_state) neural_fail("invalid moment update step State",line,column);
     const auto current=neural_state_u64(step_state);
     const auto expected=static_cast<std::uint64_t>(next_step);
     if(current==std::numeric_limits<std::uint64_t>::max()||current+1!=expected)
-        neural_fail("Adam step State changed during update",line,column);
+        neural_fail("moment update step State changed during update",line,column);
     neural_set_state_u64(step_state,expected);
 }
 
-extern "C" bool quidra_neural_adam_step_parameter(
+extern "C" bool quidra_neural_moment_update_parameter(
     void* parameter,void* gradients_raw,void* optimizer,void* path_raw,
     unsigned long long index,long long step,
     unsigned long long line,unsigned long long column) {
-    if(!optimizer||step<=0) neural_fail("invalid Adam step",line,column);
+    if(!optimizer||step<=0) neural_fail("invalid moment update step",line,column);
     const auto* parameter_path=static_cast<const char*>(path_raw);
     if(!parameter_path||!*parameter_path)
-        neural_fail("invalid Adam Parameter path",line,column);
+        neural_fail("invalid moment update Parameter path",line,column);
     auto* tensor=neural_parameter_tensor(parameter);
     if(!tensor) neural_fail("invalid neural Parameter",line,column);
     auto* moments_state=neural_object_pointer_field(optimizer,40);
-    if(!moments_state) neural_fail("invalid Adam moments State",line,column);
-    auto records=neural_decode_adam_moments(
+    if(!moments_state) neural_fail("invalid moment update moments State",line,column);
+    auto records=neural_decode_moments(
         neural_object_pointer_field(moments_state,0),line,column);
-    if(index>records.size()) neural_fail("Adam Parameter traversal changed",line,column);
+    if(index>records.size()) neural_fail("moment update Parameter traversal changed",line,column);
     const auto logical_count=tensor_logical_count(*tensor);
     if(index==records.size()){
-        NeuralAdamMoment record;
+        NeuralMomentRecord record;
         record.path=parameter_path;
         record.dtype=tensor->storage->dtype;
         record.shape=tensor->shape;
@@ -2760,16 +2636,16 @@ extern "C" bool quidra_neural_adam_step_parameter(
     }
     auto& record=records[static_cast<std::size_t>(index)];
     if(record.path!=parameter_path)
-        neural_fail("Adam state does not match Parameter structural path",line,column);
+        neural_fail("moment update state does not match Parameter structural path",line,column);
     if(record.dtype!=tensor->storage->dtype||record.shape!=tensor->shape||
        record.first.size()!=logical_count||record.second.size()!=logical_count)
-        neural_fail("Adam state does not match Parameter dtype/shape",line,column);
+        neural_fail("moment update state does not match Parameter dtype/shape",line,column);
 
     const auto* gradient=neural_gradient_for_parameter(parameter,gradients_raw,line,column);
     bool matched=gradient!=nullptr;
     if(matched){
         if(record.step==std::numeric_limits<std::uint64_t>::max())
-            neural_fail("Adam Parameter step counter overflow",line,column);
+            neural_fail("moment update Parameter step counter overflow",line,column);
         ++record.step;
         const double rate=neural_object_double_field(optimizer,0);
         const double beta1=neural_object_double_field(optimizer,8);
@@ -2778,7 +2654,7 @@ extern "C" bool quidra_neural_adam_step_parameter(
         const double correction1=1.0-std::pow(beta1,static_cast<double>(record.step));
         const double correction2=1.0-std::pow(beta2,static_cast<double>(record.step));
         if(correction1<=0.0||correction2<=0.0)
-            neural_fail("invalid Adam bias correction",line,column);
+            neural_fail("invalid moment update bias correction",line,column);
         std::vector<double> delta(logical_count);
         for(std::size_t i=0;i<logical_count;++i){
             const double g=gradient->data.scalar_as_double(i);
@@ -2790,8 +2666,8 @@ extern "C" bool quidra_neural_adam_step_parameter(
         }
         neural_apply_parameter_delta(parameter,delta,line,column);
     }
-    auto* encoded=neural_encode_adam_moments(records,line,column);
-    neural_adam_replace_moments(optimizer,encoded);
+    auto* encoded=neural_encode_moments(records,line,column);
+    neural_replace_moments(optimizer,encoded);
     return matched;
 }
 
@@ -3314,8 +3190,8 @@ extern "C" void* quidra_neural_unary(void* raw,int op,unsigned long long line,un
 extern "C" void* quidra_neural_tensor_unary(void* raw,int op,unsigned long long line,unsigned long long column) {
     if(!raw)neural_fail("null tensor",line,column);
     auto node=neural_constant_node(*static_cast<TensorValue*>(raw),line,column);
-    node->data=neural_unary_node(node,op,line,column)->data;
-    return neural_tensor_from_node(*node);
+    auto transformed=neural_unary_node(node,op,line,column);
+    return neural_tensor_from_node(*transformed);
 }
 template <typename T>
 void* neural_binary_t(
@@ -3362,106 +3238,6 @@ extern "C" void* quidra_neural_binary_scalar(
     constant->data.assign(input->data.size(),scalar);
     NeuralValue a{scalar_left?constant:input},b{scalar_left?input:constant};
     return quidra_neural_binary(&a,&b,op,line,column);
-}
-
-template <typename T>
-void* neural_loss_t(
-    const std::shared_ptr<NeuralNode>& prediction,
-    const std::shared_ptr<NeuralNode>& target,
-    void* target_raw,int op,
-    unsigned long long line,unsigned long long column) {
-    auto result=std::make_shared<NeuralNode>(prediction->dtype);
-    result->shape={};
-    result->data.resize(1);
-    auto& result_values=result->data.typed<T>();
-
-    if(op==1||op==3){
-        neural_require_same_shape(*prediction,*target,line,column);
-        const auto& predicted=prediction->data.typed<T>();
-        const auto& expected=target->data.typed<T>();
-        if(predicted.empty())
-            neural_fail("mean neural losses require at least one element",line,column);
-        result->parents={prediction,target};
-        result->op=op==1?NeuralOp::Mse:NeuralOp::BinaryCrossEntropy;
-        T loss=T{0};
-        for(std::size_t i=0;i<predicted.size();++i){
-            if(op==1){
-                const T difference=static_cast<T>(predicted[i]-expected[i]);
-                loss=static_cast<T>(loss+static_cast<T>(difference*difference));
-            }else{
-                const T raw_p=predicted[i],y=expected[i];
-                if(!std::isfinite(raw_p)||!std::isfinite(y)||
-                   raw_p<T{0}||raw_p>T{1}||y<T{0}||y>T{1})
-                    neural_fail(
-                        "binary_cross_entropy requires finite prediction and target values in [0,1]",
-                        line,column);
-                const T lower=static_cast<T>(1e-12);
-                T upper=static_cast<T>(T{1}-lower);
-                if(upper==T{1}) upper=std::nextafter(T{1},T{0});
-                const T p=std::clamp(raw_p,lower,upper);
-                const T term=static_cast<T>(
-                    -(static_cast<T>(y*std::log(p))+
-                      static_cast<T>((T{1}-y)*std::log(static_cast<T>(T{1}-p)))));
-                loss=static_cast<T>(loss+term);
-            }
-        }
-        result_values[0]=static_cast<T>(loss/static_cast<T>(predicted.size()));
-    }else{
-        auto* labels=static_cast<TensorValue*>(target_raw);
-        tensor_require_initialized(*labels,line,column);
-        if(labels->storage->dtype!=1)
-            neural_fail("cross_entropy target must be tensor<int>",line,column);
-        if(prediction->shape.size()!=2)
-            neural_fail("cross_entropy logits must be rank 2 [N,C]",line,column);
-        if(prediction->shape[0]<=0||prediction->shape[1]<=0)
-            neural_fail("cross_entropy logits require N > 0 and C > 0",line,column);
-        const auto batch=static_cast<std::size_t>(prediction->shape[0]);
-        const auto classes=static_cast<std::size_t>(prediction->shape[1]);
-        if(labels->shape.size()!=1||labels->shape[0]!=prediction->shape[0])
-            neural_fail("cross_entropy target must have shape [N] matching logits [N,C]",line,column);
-        const auto& logits=prediction->data.typed<T>();
-        result->parents={prediction};
-        result->op=NeuralOp::CrossEntropy;
-        result->aux_index.resize(batch);
-        T loss=T{0};
-        for(std::size_t i=0;i<batch;++i){
-            const auto label_index=tensor_storage_index(*labels,i);
-            std::int64_t label{};
-            std::memcpy(&label,labels->storage->data.data()+label_index*sizeof(std::int64_t),sizeof(label));
-            if(label<0||static_cast<std::size_t>(label)>=classes)
-                neural_fail("cross_entropy target is outside class range",line,column);
-            result->aux_index[i]=static_cast<std::size_t>(label);
-            T maximum=logits[i*classes];
-            for(std::size_t j=1;j<classes;++j)
-                maximum=std::max(maximum,logits[i*classes+j]);
-            T total=T{0};
-            for(std::size_t j=0;j<classes;++j)
-                total=static_cast<T>(
-                    total+static_cast<T>(std::exp(static_cast<T>(logits[i*classes+j]-maximum))));
-            const T log_probability=static_cast<T>(
-                logits[i*classes+static_cast<std::size_t>(label)]-maximum-std::log(total));
-            loss=static_cast<T>(loss-log_probability);
-        }
-        result_values[0]=static_cast<T>(loss/static_cast<T>(batch));
-    }
-    return neural_descriptor(std::move(result));
-}
-
-extern "C" void* quidra_neural_loss(
-    void* prediction_raw,void* target_raw,int target_kind,int op,
-    unsigned long long line,unsigned long long column) {
-    if(!prediction_raw||!target_raw) neural_fail("null loss operand",line,column);
-    auto prediction=static_cast<NeuralValue*>(prediction_raw)->node;
-    std::shared_ptr<NeuralNode> target;
-    if(target_kind==1) target=static_cast<NeuralValue*>(target_raw)->node;
-    else if(op!=2) target=neural_constant_node(*static_cast<TensorValue*>(target_raw),line,column);
-    if(target&&target->dtype!=prediction->dtype)
-        neural_fail("loss operands must use the same neural dtype",line,column);
-    if(prediction->dtype==10)
-        return neural_loss_t<float>(prediction,target,target_raw,op,line,column);
-    if(prediction->dtype==9)
-        return neural_loss_t<double>(prediction,target,target_raw,op,line,column);
-    neural_fail("invalid neural loss dtype",line,column);
 }
 
 template <typename T>
@@ -3524,81 +3300,63 @@ void* neural_grad_t(
             }
             neural_add_gradient(gradients,node->parents[0],std::move(left_gradient));
             neural_add_gradient(gradients,node->parents[1],std::move(right_gradient));
-        }else if(node->op==NeuralOp::Relu||
-                 node->op==NeuralOp::Sigmoid||
-                 node->op==NeuralOp::Tanh){
+        }else if(node->op==NeuralOp::Absolute||
+                 node->op==NeuralOp::Exponential||
+                 node->op==NeuralOp::Logarithm){
             const auto& input=node->parents[0]->data.typed<T>();
             std::vector<T> input_gradient(g.size());
             for(std::size_t i=0;i<g.size();++i){
-                if(node->op==NeuralOp::Relu)
-                    input_gradient[i]=input[i]>T{0}?g[i]:T{0};
-                else if(node->op==NeuralOp::Sigmoid)
-                    input_gradient[i]=static_cast<T>(
-                        static_cast<T>(g[i]*node_values[i])*
-                        static_cast<T>(T{1}-node_values[i]));
+                if(node->op==NeuralOp::Absolute)
+                    input_gradient[i]=input[i]>T{0}?g[i]:input[i]<T{0}?static_cast<T>(-g[i]):T{0};
+                else if(node->op==NeuralOp::Exponential)
+                    input_gradient[i]=static_cast<T>(g[i]*node_values[i]);
                 else
-                    input_gradient[i]=static_cast<T>(
-                        g[i]*static_cast<T>(T{1}-static_cast<T>(node_values[i]*node_values[i])));
+                    input_gradient[i]=static_cast<T>(g[i]/input[i]);
             }
             neural_add_gradient(gradients,node->parents[0],std::move(input_gradient));
-        }else if(node->op==NeuralOp::Softmax){
+        }else if(node->op==NeuralOp::Mean){
+            const auto count=node->parents[0]->data.size();
+            if(count==0) neural_fail("mean gradient requires at least one element",line,column);
+            std::vector<T> input_gradient(count,static_cast<T>(g[0]/static_cast<T>(count)));
+            neural_add_gradient(gradients,node->parents[0],std::move(input_gradient));
+        }else if(node->op==NeuralOp::SumLast||node->op==NeuralOp::MaxLast){
+            const auto& input=node->parents[0]->data.typed<T>();
             const auto width=static_cast<std::size_t>(node->shape.back());
-            std::vector<T> input_gradient(g.size());
+            std::vector<T> input_gradient(g.size(),T{0});
             for(std::size_t base=0;base<g.size();base+=width){
-                T dot=T{0};
+                T total=T{0};
                 for(std::size_t j=0;j<width;++j)
-                    dot=static_cast<T>(dot+static_cast<T>(g[base+j]*node_values[base+j]));
-                for(std::size_t j=0;j<width;++j)
-                    input_gradient[base+j]=static_cast<T>(
-                        node_values[base+j]*static_cast<T>(g[base+j]-dot));
-            }
-            neural_add_gradient(gradients,node->parents[0],std::move(input_gradient));
-        }else if(node->op==NeuralOp::Mse||node->op==NeuralOp::BinaryCrossEntropy){
-            const auto& a=node->parents[0]->data.typed<T>();
-            const auto& b=node->parents[1]->data.typed<T>();
-            const T scale=a.empty()?T{0}:static_cast<T>(g[0]/static_cast<T>(a.size()));
-            std::vector<T> a_gradient(a.size()),b_gradient(a.size());
-            for(std::size_t i=0;i<a.size();++i){
-                if(node->op==NeuralOp::Mse){
-                    a_gradient[i]=static_cast<T>(
-                        static_cast<T>(T{2}*static_cast<T>(a[i]-b[i]))*scale);
-                    b_gradient[i]=static_cast<T>(-a_gradient[i]);
+                    total=static_cast<T>(total+g[base+j]);
+                if(node->op==NeuralOp::SumLast){
+                    for(std::size_t j=0;j<width;++j) input_gradient[base+j]=total;
                 }else{
-                    const T lower=static_cast<T>(1e-12);
-                    T upper=static_cast<T>(T{1}-lower);
-                    if(upper==T{1}) upper=std::nextafter(T{1},T{0});
-                    const T p=std::clamp(a[i],lower,upper);
-                    a_gradient[i]=static_cast<T>(
-                        static_cast<T>(
-                            static_cast<T>(-b[i]/p)+
-                            static_cast<T>((T{1}-b[i])/(T{1}-p)))*
-                        scale);
-                    b_gradient[i]=static_cast<T>(
-                        static_cast<T>(std::log(static_cast<T>(T{1}-p))-std::log(p))*scale);
+                    std::size_t selected=0;
+                    for(std::size_t j=1;j<width;++j)
+                        if(input[base+j]>input[base+selected]) selected=j;
+                    input_gradient[base+selected]=total;
                 }
             }
-            neural_add_gradient(gradients,node->parents[0],std::move(a_gradient));
-            neural_add_gradient(gradients,node->parents[1],std::move(b_gradient));
-        }else if(node->op==NeuralOp::Dropout){
+            neural_add_gradient(gradients,node->parents[0],std::move(input_gradient));
+        }else if(node->op==NeuralOp::RandomMask){
             if(node->aux.size()!=g.size())
-                neural_fail("Dropout backward mask size mismatch",0,0);
+                neural_fail("random mask backward mask size mismatch",0,0);
             const auto& mask=node->aux.typed<T>();
             std::vector<T> input_gradient(g.size());
             for(std::size_t i=0;i<g.size();++i)
                 input_gradient[i]=static_cast<T>(g[i]*mask[i]);
             neural_add_gradient(gradients,node->parents[0],std::move(input_gradient));
-        }else if(node->op==NeuralOp::BatchNorm){
+        }else if(node->op==NeuralOp::Normalize){
             const auto& input=node->parents[0];
             const auto& scale=node->parents[1];
             const auto& bias=node->parents[2];
             const auto& input_values=input->data.typed<T>();
             const auto& scale_values=scale->data.typed<T>();
-            const auto layout=neural_batch_norm_layout(input->shape,input_values.size(),0,0);
+            const auto layout=neural_normalize_layout(input->shape,input_values.size(),0,0);
             const auto features=layout.features;
             const auto samples=layout.samples;
             if(node->aux_index.size()!=1 || node->aux_index[0]!=samples ||
                node->aux.size()!=features*2)
-                neural_fail("BatchNorm backward cache layout mismatch",0,0);
+                neural_fail("normalization backward cache layout mismatch",0,0);
             const auto& backward_cache=node->aux.typed<T>();
             std::vector<T> input_gradient(input_values.size(),T{0});
             std::vector<T> scale_gradient(features,T{0}),bias_gradient(features,T{0});
@@ -3607,7 +3365,7 @@ void* neural_grad_t(
                 const T inverse=backward_cache[features+feature];
                 T sum_gradient=T{0},sum_gradient_x=T{0};
                 for(std::size_t i=0;i<input_values.size();++i){
-                    if(neural_batch_norm_feature(i,layout)!=feature) continue;
+                    if(neural_normalize_feature(i,layout)!=feature) continue;
                     const T xhat=static_cast<T>(
                         static_cast<T>(input_values[i]-mean)*inverse);
                     sum_gradient=static_cast<T>(sum_gradient+g[i]);
@@ -3619,7 +3377,7 @@ void* neural_grad_t(
                 }
                 const T sample_count=static_cast<T>(samples);
                 for(std::size_t i=0;i<input_values.size();++i){
-                    if(neural_batch_norm_feature(i,layout)!=feature) continue;
+                    if(neural_normalize_feature(i,layout)!=feature) continue;
                     const T xhat=static_cast<T>(
                         static_cast<T>(input_values[i]-mean)*inverse);
                     input_gradient[i]=static_cast<T>(
@@ -3633,14 +3391,14 @@ void* neural_grad_t(
             neural_add_gradient(gradients,input,std::move(input_gradient));
             neural_add_gradient(gradients,scale,std::move(scale_gradient));
             neural_add_gradient(gradients,bias,std::move(bias_gradient));
-        }else if(node->op==NeuralOp::Conv2D){
+        }else if(node->op==NeuralOp::Convolution){
             const auto& input=node->parents[0];
             const auto& weight=node->parents[1];
             const auto& bias=node->parents[2];
             const auto& input_values=input->data.typed<T>();
             const auto& weight_values=weight->data.typed<T>();
             if(node->aux_index.size()!=2)
-                neural_fail("Conv2D backward metadata mismatch",0,0);
+                neural_fail("convolution backward metadata mismatch",0,0);
             const auto stride=static_cast<long long>(node->aux_index[0]);
             const auto padding=static_cast<long long>(node->aux_index[1]);
             const auto n=input->shape[0],in_c=input->shape[1],height=input->shape[2],width=input->shape[3];
@@ -3684,7 +3442,7 @@ void* neural_grad_t(
             neural_add_gradient(gradients,input,std::move(input_gradient));
             neural_add_gradient(gradients,weight,std::move(weight_gradient));
             neural_add_gradient(gradients,bias,std::move(bias_gradient));
-        }else if(node->op==NeuralOp::Linear){
+        }else if(node->op==NeuralOp::Affine){
             const auto& input=node->parents[0];
             const auto& weight=node->parents[1];
             const auto& bias=node->parents[2];
@@ -3714,33 +3472,6 @@ void* neural_grad_t(
             neural_add_gradient(gradients,input,std::move(input_gradient));
             neural_add_gradient(gradients,weight,std::move(weight_gradient));
             neural_add_gradient(gradients,bias,std::move(bias_gradient));
-        }else if(node->op==NeuralOp::CrossEntropy){
-            const auto& logits=node->parents[0];
-            const auto& logit_values=logits->data.typed<T>();
-            const auto batch=static_cast<std::size_t>(logits->shape[0]);
-            const auto classes=static_cast<std::size_t>(logits->shape[1]);
-            if(node->aux_index.size()!=batch)
-                neural_fail("cross_entropy backward label cache mismatch",0,0);
-            std::vector<T> input_gradient(logit_values.size(),T{0});
-            const T scale=batch?static_cast<T>(g[0]/static_cast<T>(batch)):T{0};
-            for(std::size_t i=0;i<batch;++i){
-                T maximum=logit_values[i*classes];
-                for(std::size_t j=1;j<classes;++j)
-                    maximum=std::max(maximum,logit_values[i*classes+j]);
-                T total=T{0};
-                for(std::size_t j=0;j<classes;++j)
-                    total=static_cast<T>(
-                        total+static_cast<T>(std::exp(static_cast<T>(logit_values[i*classes+j]-maximum))));
-                for(std::size_t j=0;j<classes;++j)
-                    input_gradient[i*classes+j]=static_cast<T>(
-                        static_cast<T>(
-                            std::exp(static_cast<T>(logit_values[i*classes+j]-maximum))/total)*
-                        scale);
-                const auto label=node->aux_index[i];
-                input_gradient[i*classes+label]=static_cast<T>(
-                    input_gradient[i*classes+label]-scale);
-            }
-            neural_add_gradient(gradients,logits,std::move(input_gradient));
         }
     }
     return neural_gradients_descriptor(std::move(output));

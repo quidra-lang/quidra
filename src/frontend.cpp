@@ -126,20 +126,11 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
         exports.functions.emplace("write", std::string(*standard_function_target(module, "write")));
     } else if (module == "neural") {
         exports.classes.emplace("Gradients", "$std.neural.Gradients");
-        exports.classes.emplace("Training", "$std.neural.Training");
-        exports.classes.emplace("Inference", "$std.neural.Inference");
         exports.classes.emplace("Parameter", "$std.neural.Parameter");
         exports.classes.emplace("State", "$std.neural.State");
-        exports.classes.emplace("Linear", "$std.neural.Linear");
-        exports.classes.emplace("Conv2D", "$std.neural.Conv2D");
-        exports.classes.emplace("BatchNorm", "$std.neural.BatchNorm");
-        exports.classes.emplace("Dropout", "$std.neural.Dropout");
-        exports.classes.emplace("SGD", "$std.neural.SGD");
-        exports.classes.emplace("Adam", "$std.neural.Adam");
-        exports.values.emplace("training", "$std.neural.training");
-        exports.values.emplace("inference", "$std.neural.inference");
-        for (const char* name : {"track", "relu", "sigmoid", "tanh", "softmax", "mse",
-                                 "cross_entropy", "binary_cross_entropy", "grad", "step", "save", "load"}) {
+        for (const char* name : {"track", "affine", "convolve2d", "absolute", "exponential",
+                                 "logarithm", "mean", "sum_last", "max_last", "update", "normalize",
+                                 "normalize_inference", "random_mask", "moment_update", "grad", "save", "load"}) {
             exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
         }
     }
@@ -265,18 +256,6 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
             "bool", std::vector<Parameter>{}, "bool", standard_call("$std.random.bool")));
         declarations.push_back(std::move(generator));
     } else if (module == "neural") {
-        ClassDecl training;
-        training.name = "$std.neural.Training";
-        training.span = standard_span();
-        training.fields.push_back(standard_field("$marker", "bool"));
-        declarations.push_back(std::move(training));
-
-        ClassDecl inference;
-        inference.name = "$std.neural.Inference";
-        inference.span = standard_span();
-        inference.fields.push_back(standard_field("$marker", "bool"));
-        declarations.push_back(std::move(inference));
-
         TypeName generic_t = standard_type("T");
         TypeName tensor_t = standard_type("tensor");
         tensor_t.arguments.push_back(generic_t);
@@ -314,165 +293,6 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         state.fields.push_back(std::move(state_value));
         declarations.push_back(std::move(state));
 
-        TypeName parameter_t = standard_type("$std.neural.Parameter");
-        parameter_t.arguments.push_back(generic_t);
-
-        ClassDecl linear;
-        linear.name = "$std.neural.Linear";
-        linear.span = standard_span();
-        linear.type_parameters.push_back("T");
-        FieldDecl weight;
-        weight.name = "weight";
-        weight.type = parameter_t;
-        weight.span = standard_span();
-        linear.fields.push_back(std::move(weight));
-        FieldDecl bias;
-        bias.name = "bias";
-        bias.type = parameter_t;
-        bias.span = standard_span();
-        linear.fields.push_back(std::move(bias));
-
-        FunctionDecl linear_forward;
-        linear_forward.name = "forward";
-        linear_forward.span = standard_span();
-        linear_forward.type_parameters.push_back("X");
-        linear_forward.return_type = standard_type("X");
-        linear_forward.parameters.push_back(standard_parameter("value", "X"));
-        std::vector<CallArg> linear_args;
-        linear_args.push_back(standard_arg(standard_name("value")));
-        linear_args.push_back(standard_arg(standard_name("weight")));
-        linear_args.push_back(standard_arg(standard_name("bias")));
-        linear_forward.body.push_back(standard_return(
-            standard_call("$std.neural.linear_forward", std::move(linear_args))));
-        linear.methods.push_back(std::move(linear_forward));
-        declarations.push_back(std::move(linear));
-
-        ClassDecl conv2d;
-        conv2d.name = "$std.neural.Conv2D";
-        conv2d.span = standard_span();
-        conv2d.type_parameters.push_back("T");
-        FieldDecl conv_weight;
-        conv_weight.name = "weight";
-        conv_weight.type = parameter_t;
-        conv_weight.span = standard_span();
-        conv2d.fields.push_back(std::move(conv_weight));
-        FieldDecl conv_bias;
-        conv_bias.name = "bias";
-        conv_bias.type = parameter_t;
-        conv_bias.span = standard_span();
-        conv2d.fields.push_back(std::move(conv_bias));
-        conv2d.fields.push_back(standard_field("stride", "int"));
-        conv2d.fields.push_back(standard_field("padding", "int"));
-        FunctionDecl conv_forward;
-        conv_forward.name = "forward";
-        conv_forward.span = standard_span();
-        conv_forward.type_parameters.push_back("X");
-        conv_forward.return_type = standard_type("X");
-        conv_forward.parameters.push_back(standard_parameter("value", "X"));
-        std::vector<CallArg> conv_args;
-        conv_args.push_back(standard_arg(standard_name("value")));
-        conv_args.push_back(standard_arg(standard_name("weight")));
-        conv_args.push_back(standard_arg(standard_name("bias")));
-        conv_args.push_back(standard_arg(standard_name("stride")));
-        conv_args.push_back(standard_arg(standard_name("padding")));
-        conv_forward.body.push_back(standard_return(
-            standard_call("$std.neural.conv2d_forward", std::move(conv_args))));
-        conv2d.methods.push_back(std::move(conv_forward));
-        declarations.push_back(std::move(conv2d));
-
-        TypeName state_tensor_t = standard_type("$std.neural.State");
-        state_tensor_t.arguments.push_back(tensor_t);
-
-        ClassDecl batch_norm;
-        batch_norm.name = "$std.neural.BatchNorm";
-        batch_norm.span = standard_span();
-        batch_norm.type_parameters.push_back("T");
-        for (const auto& name : {"scale", "bias"}) {
-            FieldDecl field;
-            field.name = name;
-            field.type = parameter_t;
-            field.span = standard_span();
-            batch_norm.fields.push_back(std::move(field));
-        }
-        for (const auto& name : {"running_mean", "running_variance"}) {
-            FieldDecl field;
-            field.name = name;
-            field.type = state_tensor_t;
-            field.span = standard_span();
-            batch_norm.fields.push_back(std::move(field));
-        }
-        batch_norm.fields.push_back(standard_field("momentum", "float"));
-        batch_norm.fields.push_back(standard_field("epsilon", "float"));
-
-        FunctionDecl batch_norm_forward;
-        batch_norm_forward.name = "forward";
-        batch_norm_forward.span = standard_span();
-        batch_norm_forward.type_parameters = {"X", "M"};
-        batch_norm_forward.return_type = standard_type("X");
-        batch_norm_forward.parameters.push_back(standard_parameter("value", "X"));
-        batch_norm_forward.parameters.push_back(standard_parameter("mode", "M"));
-        std::vector<CallArg> batch_norm_args;
-        batch_norm_args.push_back(standard_arg(standard_name("value")));
-        batch_norm_args.push_back(standard_arg(standard_name("mode")));
-        batch_norm_forward.body.push_back(standard_return(
-            standard_call("$std.neural.batch_norm_forward", std::move(batch_norm_args))));
-        batch_norm.methods.push_back(std::move(batch_norm_forward));
-        declarations.push_back(std::move(batch_norm));
-
-        ClassDecl dropout;
-        dropout.name = "$std.neural.Dropout";
-        dropout.span = standard_span();
-        dropout.fields.push_back(standard_field("rate", "float"));
-        TypeName state_uint64_t = standard_type("$std.neural.State");
-        state_uint64_t.arguments.push_back(standard_type("uint64"));
-        FieldDecl dropout_rng;
-        dropout_rng.name = "$rng";
-        dropout_rng.type = std::move(state_uint64_t);
-        dropout_rng.span = standard_span();
-        dropout.fields.push_back(std::move(dropout_rng));
-        FunctionDecl dropout_forward;
-        dropout_forward.name = "forward";
-        dropout_forward.span = standard_span();
-        dropout_forward.type_parameters = {"X", "M"};
-        dropout_forward.return_type = standard_type("X");
-        dropout_forward.parameters.push_back(standard_parameter("value", "X"));
-        dropout_forward.parameters.push_back(standard_parameter("mode", "M"));
-        std::vector<CallArg> dropout_args;
-        dropout_args.push_back(standard_arg(standard_name("value")));
-        dropout_args.push_back(standard_arg(standard_name("mode")));
-        dropout_forward.body.push_back(standard_return(
-            standard_call("$std.neural.dropout_forward", std::move(dropout_args))));
-        dropout.methods.push_back(std::move(dropout_forward));
-        declarations.push_back(std::move(dropout));
-
-        ClassDecl sgd;
-        sgd.name = "$std.neural.SGD";
-        sgd.span = standard_span();
-        sgd.fields.push_back(standard_field("rate", "float"));
-        declarations.push_back(std::move(sgd));
-
-        ClassDecl adam;
-        adam.name = "$std.neural.Adam";
-        adam.span = standard_span();
-        adam.fields.push_back(standard_field("rate", "float"));
-        adam.fields.push_back(standard_field("beta1", "float"));
-        adam.fields.push_back(standard_field("beta2", "float"));
-        adam.fields.push_back(standard_field("epsilon", "float"));
-        TypeName state_int_t = standard_type("$std.neural.State");
-        state_int_t.arguments.push_back(standard_type("int"));
-        FieldDecl adam_step;
-        adam_step.name = "$step";
-        adam_step.type = std::move(state_int_t);
-        adam_step.span = standard_span();
-        adam.fields.push_back(std::move(adam_step));
-        TypeName state_bytes_t = standard_type("$std.neural.State");
-        state_bytes_t.arguments.push_back(standard_type("bytes"));
-        FieldDecl adam_moments;
-        adam_moments.name = "$moments";
-        adam_moments.type = std::move(state_bytes_t);
-        adam_moments.span = standard_span();
-        adam.fields.push_back(std::move(adam_moments));
-        declarations.push_back(std::move(adam));
     } else if (module == "process") {
         ClassDecl result;
         result.name = "$std.process.Result";
@@ -1751,8 +1571,6 @@ private:
         if (std::holds_alternative<BoolExpr>(expression.data)) return simple_type("bool");
 
         if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
-            if (name->name == "$std.neural.training") return simple_type("$std.neural.Training");
-            if (name->name == "$std.neural.inference") return simple_type("$std.neural.Inference");
             if (name->name == "super") {
                 const auto parent = class_parent_.find(current_class);
                 if (parent != class_parent_.end() && parent->second) {
@@ -1806,26 +1624,19 @@ private:
                     return result;
                 }
             }
-            if ((call->callee == "$std.neural.relu" ||
-                 call->callee == "$std.neural.sigmoid" ||
-                 call->callee == "$std.neural.tanh" ||
-                 call->callee == "$std.neural.softmax") &&
-                call->args.size() == 1) {
-                const auto source = infer_expression_type(*call->args[0].value, current_class);
-                if (source && source->name == "neural") return source;
-            }
-            if ((call->callee == "$std.neural.mse" ||
-                 call->callee == "$std.neural.cross_entropy" ||
-                 call->callee == "$std.neural.binary_cross_entropy") &&
+            if ((call->callee == "$std.neural.absolute" ||
+                 call->callee == "$std.neural.exponential" ||
+                 call->callee == "$std.neural.logarithm" ||
+                 call->callee == "$std.neural.mean" ||
+                 call->callee == "$std.neural.sum_last" ||
+                 call->callee == "$std.neural.max_last" ||
+                 call->callee == "$std.neural.affine" ||
+                 call->callee == "$std.neural.convolve2d" ||
+                 call->callee == "$std.neural.normalize" ||
+                 call->callee == "$std.neural.random_mask") &&
                 !call->args.empty()) {
                 const auto source = infer_expression_type(*call->args[0].value, current_class);
-                if (source && source->name == "neural" && source->arguments.size() == 1) {
-                    TypeName result;
-                    result.name = "neural";
-                    result.arguments.push_back(clone_type(source->arguments.front()));
-                    result.span = expression.span;
-                    return result;
-                }
+                if (source && source->name == "neural") return source;
             }
             if (call->callee == "$std.neural.grad") {
                 return simple_type("$std.neural.Gradients");
@@ -1847,11 +1658,6 @@ private:
         }
 
         if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
-            if (const auto* namespace_name = std::get_if<NameExpr>(&member->base->data);
-                namespace_name && namespace_name->name == "neural") {
-                if (member->name == "training") return simple_type("$std.neural.Training");
-                if (member->name == "inference") return simple_type("$std.neural.Inference");
-            }
             const auto base = infer_expression_type(*member->base, current_class);
             if (!base || !base->dimensions.empty()) return std::nullopt;
             if (const auto* field = output_field(base->name, member->name)) {
@@ -2038,10 +1844,7 @@ private:
         }
 
         if (class_templates_.contains(type.name)) {
-            if (type.name == "$std.neural.Parameter" ||
-                type.name == "$std.neural.Linear" ||
-                type.name == "$std.neural.Conv2D" ||
-                type.name == "$std.neural.BatchNorm") {
+            if (type.name == "$std.neural.Parameter") {
                 TypeName float32 = standard_type("float32");
                 const auto dimensions = type.dimensions;
                 const auto span = type.span;
@@ -2157,7 +1960,7 @@ private:
 
             if (!type_arguments.empty() && !deferred_call) {
                 if (copy.callee == "tensor" || copy.callee == "$std.tensor.zeros" ||
-                    copy.callee == "$std.tensor.ones" || copy.callee == "$std.image.read") {
+                    copy.callee == "$std.tensor.ones") {
                     copy.type_arguments = std::move(type_arguments);
                 } else if (class_templates_.contains(copy.callee)) {
                     copy.callee = instantiate_class(copy.callee, type_arguments);
@@ -2217,10 +2020,7 @@ private:
                         copy.callee = method_name(copy.callee, *inferred);
                     }
                 } else if (class_templates_.contains(copy.callee)) {
-                    if (copy.callee == "$std.neural.Parameter" ||
-                        copy.callee == "$std.neural.Linear" ||
-                        copy.callee == "$std.neural.Conv2D" ||
-                        copy.callee == "$std.neural.BatchNorm") {
+                    if (copy.callee == "$std.neural.Parameter") {
                         TypeName float32 = standard_type("float32");
                         copy.callee = instantiate_class(copy.callee, {float32});
                     } else {
@@ -2484,11 +2284,7 @@ private:
                            templ->second->span);
         }
 
-        const bool neural_float_class =
-            name == "$std.neural.Parameter" ||
-            name == "$std.neural.Linear" ||
-            name == "$std.neural.Conv2D" ||
-            name == "$std.neural.BatchNorm";
+        const bool neural_float_class = name == "$std.neural.Parameter";
         if (neural_float_class && !arguments.empty()) {
             const auto& element = arguments.front();
             const bool supported =
@@ -2499,8 +2295,7 @@ private:
             if (!supported) {
                 frontend_error(
                     "INVALID_TYPE",
-                    "neural.Parameter, neural.Linear, neural.Conv2D, and neural.BatchNorm "
-                    "support only float32 or float element types.",
+                    "neural.Parameter supports only float32 or float element types.",
                     source_arguments.front().span);
             }
         }

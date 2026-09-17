@@ -812,7 +812,7 @@ tensor<float32> c = a + b
 auto row = c[0, :]
 float mean = stats.mean(row)
 tensor<float32> product = linear.matmul(a, b)
-auto decoded_image = image.read<uint8>("input.png")
+auto decoded_image = image.read("input.png")
 )";
  for (const auto& fragment : std::vector<std::string>{
           "reference ", "reference.bind", "reference.store",
@@ -820,6 +820,7 @@ auto decoded_image = image.read<uint8>("input.png")
           "stats.mean", "linear.matmul", "image.read"}) {
      ir_contains(ir_surface, fragment);
  }
+ bad_code("auto loaded = image.read<uint8>(\"input.png\")\n", "GENERIC_RECEIVER");
  for(const auto& s:std::vector<std::string>{
  "break\n", "continue\n",
  "int x\nprint(x)\n",
@@ -1260,6 +1261,7 @@ bool same = a == b
  bad_code("float value = 1e9999\n", "FLOAT_RANGE");
  bad_code("import math\n", "STANDARD_NAMESPACE_IMPORT");
  bad_code("auto loaded = vision.read<uint8>(\"input.png\")\n", "GENERIC_RECEIVER");
+ bad_code("auto loaded = vision.read(\"input.png\")\n", "UNKNOWN_NAME");
  bad_code("1 = 2\n", "INVALID_ASSIGNMENT");
  bad_code(R"(class Broken : Missing
     int x

@@ -579,44 +579,45 @@ else
 
 ## Neural computation
 
-The `neural` namespace provides a small native Define-by-Run/autograd core without introducing a separate model object system. A model remains an ordinary Quidra class.
+The `neural` namespace is the Define-by-Run/autograd foundation. A model is an
+ordinary Quidra class containing `neural.Parameter<T>` and `neural.State<T>`
+fields.
 
 ```quidra
-class Classifier
-    neural.Linear first
-    neural.BatchNorm norm
-    neural.Dropout dropout
-    neural.Linear last
+class Scale
+    neural.Parameter<float32> value
 
-Classifier model = Classifier(
-    first = neural.Linear(input = 784, output = 128),
-    norm = neural.BatchNorm(features = 128),
-    dropout = neural.Dropout(rate = 0.5, seed = 7),
-    last = neural.Linear(input = 128, output = 10)
+Scale model = Scale(
+    value = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
 )
-
-neural.Adam optimizer = neural.Adam(rate = 0.001)
-```
-
-`neural` means `neural<float32>`. `tensor<T>` remains ordinary numeric storage; `neural.track(tensor)` enters the dynamic graph and `.untrack()` returns to ordinary tensor storage. `neural.Parameter` represents learnable state and `neural.State<T>` persistent non-gradient state. `neural.grad(loss)` returns an explicit `neural.Gradients` value; there is no hidden `.grad` accumulation or `zero_grad()`.
-
-Training updates are explicit:
-
-```quidra
-neural.Linear model = neural.Linear(input = 2, output = 1, seed = 7)
-neural.Adam optimizer = neural.Adam(rate = 0.001)
-tensor<float32> sample_values = tensor.ones<float32>([1, 2])
-tensor<float32> target = tensor.zeros<float32>([1, 1])
-
-neural prediction = model.forward(neural.track(sample_values))
-neural loss = neural.mse(prediction, target)
+neural<float32> prediction = model.value.track() * float32(2)
+neural<float32> loss = neural.mean(prediction * prediction)
 neural.Gradients gradients = neural.grad(loss)
-neural.step(&model, &optimizer, gradients)
+neural.update(&model, gradients, rate = 0.01)
 ```
 
-`neural.training` and `neural.inference` are distinct marker types rather than a hidden mutable model flag. BatchNorm updates running State only in training; Dropout owns local RNG State and does not consume it during inference. `neural.step` validates the complete Gradients/model relation and existing Adam moment structure before mutating Parameters or optimizer State, so contract failures do not leave partial updates.
+`neural` means `neural<float32>`. `neural.track(tensor)` enters the dynamic
+graph, `.untrack()` returns ordinary tensor storage, and `neural.grad(loss)`
+returns an explicit `neural.Gradients` value. There is no hidden gradient
+accumulation or parameter registry. Operand-level primitives such as `affine`,
+`convolve2d`, `normalize`, reductions, and safe update operations allow ordinary
+packages to build differentiable libraries.
 
-Model and optimizer state use one typed, non-executable `.quistate` format. `neural.save(model, ...)` saves the complete supported model state; adding the optimizer saves its persistent optimizer State as well. Saving uses a process-unique temporary file and atomic replacement. Loading requires exact nominal root types, structural schema, tensor dtype/shape, version, and checksum, validates the complete payload before replaying writes, and rejects mismatches without partially restoring earlier fields.
+The official `dnn` package provides layers, activations, losses, and optimizers
+through a normal package import:
+
+```text
+import dnn
+
+dnn.LinearLayer layer = dnn.Linear(features_in = 2, features_out = 1)
+dnn.AdamOptimizer optimizer = dnn.Adam()
+```
+
+Model and training state use one typed, non-executable `.quistate` format.
+Saving uses atomic replacement. Loading requires exact nominal root types,
+structural schema, tensor dtype/shape, version, and checksum, validates the
+complete payload before replaying writes, and rejects mismatches without
+partially restoring earlier fields.
 
 ## Safety model
 
@@ -688,11 +689,11 @@ Requirements:
 - C++20 compiler
 - Clang 15+ for native code generation (Quidra emits LLVM IR and invokes Clang; the current distribution intentionally does not bundle a backend toolchain)
 - libcurl development files (for the `http` standard module and native linking)
-- libpng, libjpeg, libtiff, and libwebp development files (for `vision`)
+- libpng, libjpeg, libtiff, and libwebp development files (for `image`)
 - Python 3 for documentation verification
 - Bash for the full Unix test suite
 
-The runtime archive is built with these native dependencies, while generated programs link HTTP or vision libraries only when their generated LLVM IR actually calls those runtimes.
+The runtime archive is built with these native dependencies, while generated programs link HTTP or image libraries only when their generated LLVM IR actually calls those runtimes.
 
 Linux and macOS:
 
@@ -741,7 +742,7 @@ Quidra 0.2.0
 
 Accepted declarations, bindings, functions, classes, generic declarations, and imports remain available for later submissions. Each candidate submission is parsed, specialized, checked, lowered to typed Quidra IR and LLVM IR, compiled natively, and executed. A compile error rejects only that candidate; the previously accepted session remains intact. A standalone expression uses a dedicated typed REPL-display IR operation rather than a source rewrite to `print(...)`.
 
-The current REPL still recompiles accumulated accepted source, but it does not silently replay observable effects. During reconstruction, prior `print` / `write` operations are suppressed, including output reached through user-function calls. If a submission may execute external or nondeterministic operations such as file/environment access, input, time, random, process, HTTP/vision I/O, CLI reads, or neural state save/load, the session arms a conservative replay barrier before native execution. Further submissions are rejected with `REPL_REPLAY_UNSAFE` until `:reset`, even when the effectful submission later fails at runtime, because the external effect may already have happened.
+The current REPL still recompiles accumulated accepted source, but it does not silently replay observable effects. During reconstruction, prior `print` / `write` operations are suppressed, including output reached through user-function calls. If a submission may execute external or nondeterministic operations such as file/environment access, input, time, random, process, HTTP/image I/O, CLI reads, or neural state save/load, the session arms a conservative replay barrier before native execution. Further submissions are rejected with `REPL_REPLAY_UNSAFE` until `:reset`, even when the effectful submission later fails at runtime, because the external effect may already have happened.
 
 `:help` lists REPL commands, `:type expression` prints the statically checked type, `:reset` clears accepted session state and the replay barrier, and `:quit` or `:exit` exits. Ctrl-D exits normally; Ctrl-C cancels the current input and keeps the session.
 
@@ -813,7 +814,7 @@ import shared = "@/shared.qui"
 import plot = plotting
 ```
 
-The reserved standard namespaces are `math`, `cli`, `file`, `environment`, `test`, `time`, `random`, `process`, `map`, `set`, `json`, `http`, `tensor`, `stats`, `linear`, `signal`, `vision`, and `neural`. Only referenced standard implementations are linked into a program. Boolean logic is spelled `and`, `or`, and `not`.
+The reserved standard namespaces are `math`, `cli`, `file`, `environment`, `test`, `time`, `random`, `process`, `map`, `set`, `json`, `http`, `tensor`, `stats`, `linear`, `signal`, `image`, and `neural`. Only referenced standard implementations are linked into a program. Boolean logic is spelled `and`, `or`, and `not`.
 
 `math` provides `pi`, `e`, `sin`, `cos`, `tan`, `log`, `exp`, `pow`, and namespaced access to `abs`, `sqrt`, `min`, and `max`.
 
@@ -900,9 +901,9 @@ for key in keys
     print(key)
 
 set.Set<string> tags = set.Set<string>()
-tags.add("vision")
+tags.add("compiler")
 tags.add("ai")
-print(tags.has("vision"))
+print(tags.has("compiler"))
 ```
 
 Keys/elements are currently integer, `bool`, or `string` values. Insertion order is stable. Ordinary assignment copies container state independently, following the same value semantics as arrays and classes.
@@ -955,7 +956,7 @@ match result
 
 `http.Response.body` is `bytes`, not `string`, because an HTTP body is not necessarily text. Header lookup is ASCII case-insensitive and a missing header is `none`. HTTP status codes such as 404 and 500 still produce a `Response`; DNS, TLS, connection, redirect, timeout, and protocol failures produce `error`. The v0.1 runtime supports only `http://` and `https://`, follows at most 10 redirects, keeps TLS certificate verification enabled, and captures the complete response body in memory.
 
-### Tensor numerics and vision
+### Tensor numerics and image I/O
 
 `stats.mean(value)` computes the arithmetic mean of a numeric tensor and returns `float`. Empty or partially uninitialized tensors fail deterministically rather than inventing missing values.
 
@@ -964,7 +965,7 @@ match result
 Image I/O is explicit and tensor-native:
 
 ```quidra
-auto loaded = image.read<uint8>("input.png")
+auto loaded = image.read("input.png")
 match loaded
     tensor<uint8> pixels
         auto written = image.write("output.webp", pixels, quality = 95)
@@ -978,6 +979,22 @@ match loaded
 ```
 
 Decoded images use CHW layout: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. PNG, JPEG, BMP, TIFF, and WebP are supported. There is no implicit normalization, BGR conversion, dtype conversion, or alpha discard; JPEG rejects RGBA input. The `signal` namespace is reserved in 0.1 but intentionally has no public callable API yet.
+
+The library boundary is intentionally small:
+
+```text
+standard foundations
+tensor
+├── image       file I/O using tensor<uint8>
+└── neural      autodiff, gradients, parameters, and training state
+
+official source packages
+├── dnn         layers, activations, losses, and optimizers
+└── vision      tensor image processing and computer vision
+```
+
+`dnn` and `vision` are installed and imported through the ordinary package
+system; neither package receives compiler-specific name handling.
 
 ## License
 

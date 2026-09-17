@@ -443,9 +443,6 @@ std::unordered_set<std::string> Checker::initialized_paths_for_expr(const Expr& 
         }
     }
     if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
-        if (name->name == "$std.neural.training" || name->name == "$std.neural.inference") {
-            return {"$marker"};
-        }
         if (current_reference_parameters_.contains(name->name)) {
             std::unordered_set<std::string> paths;
             if (const auto it = current_reference_effects_.find(name->name);
@@ -743,7 +740,7 @@ Type Checker::check_address_target(const Expr& expression, bool allow_tensor_ele
             base.class_name.rfind("__quidra_gc__std_neural_Parameter_", 0) == 0 &&
             member->name == "value") {
             error("WRITE_CAPABILITY",
-                  "neural.Parameter value storage is persistent identity; update it only through neural.step or neural.load.",
+                  "neural.Parameter value storage is persistent identity; update it only through neural.update, neural.moment_update, or neural.load.",
                   expression.span);
         }
         const auto* field = find_field(base.class_name, member->name);
@@ -1395,12 +1392,6 @@ Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value
             type = simple(TypeKind::String);
         } else if (standard_float_constant(node->name)) {
             type = simple(TypeKind::Float);
-        } else if (node->name == "$std.neural.training") {
-            type = Type::class_type("$std.neural.Training");
-            class_expr_initialized_paths_[&expression] = {"$marker"};
-        } else if (node->name == "$std.neural.inference") {
-            type = Type::class_type("$std.neural.Inference");
-            class_expr_initialized_paths_[&expression] = {"$marker"};
         } else if (variables_.contains(node->name)) {
             if (current_reference_parameters_.contains(node->name)) {
                 auto& effect = current_reference_effects_[node->name];
@@ -2556,90 +2547,10 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     type = poisoned(input) ? simple(TypeKind::Invalid) : Type::neural(*input.first);
                     break;
                 }
-                case BuiltinCallable::NeuralBatchNormForward:
-                case BuiltinCallable::NeuralDropoutForward: {
-                    if (node->args.size() != 2) {
-                        error("ARGUMENT_MISMATCH",
-                              builtin == BuiltinCallable::NeuralBatchNormForward
-                                  ? "BatchNorm.forward requires value and mode."
-                                  : "Dropout.forward requires value and mode.",
-                              expression.span);
-                    }
-                    auto input = builtin_arg(0, "value");
-                    auto mode = builtin_arg(1, "mode");
-                    const bool training_mode =
-                        !poisoned(mode) && mode.kind == TypeKind::Class &&
-                        mode.class_name == "$std.neural.Training";
-                    const bool inference_mode =
-                        !poisoned(mode) && mode.kind == TypeKind::Class &&
-                        mode.class_name == "$std.neural.Inference";
-                    if (!poisoned(mode) && !training_mode && !inference_mode) {
-                        error("TYPE_MISMATCH",
-                              "neural layer mode must be neural.training or neural.inference.",
-                              expression.span);
-                    }
-                    const bool training_input =
-                        !poisoned(input) && input.kind == TypeKind::Neural;
-                    const bool inference_input =
-                        !poisoned(input) && input.kind == TypeKind::Tensor &&
-                        (input.first->kind == TypeKind::Float32 ||
-                         input.first->kind == TypeKind::Float);
-                    if (!poisoned(input) &&
-                        !((training_input && training_mode) ||
-                          (inference_input && inference_mode))) {
-                        error("TYPE_MISMATCH",
-                              "Training requires neural<T>; inference requires tensor<T>.",
-                              expression.span);
-                    }
-                    if (builtin == BuiltinCallable::NeuralBatchNormForward &&
-                        (training_input || inference_input)) {
-                        const auto* scale_field = find_field(current_class_, "scale");
-                        const auto* scale_value =
-                            scale_field && scale_field->type.kind == TypeKind::Class
-                                ? find_field(scale_field->type.class_name, "value")
-                                : nullptr;
-                        if (!scale_value || scale_value->type.kind != TypeKind::Tensor ||
-                            !scale_value->type.first) {
-                            error("TYPE_MISMATCH",
-                                  "BatchNorm scale must be neural.Parameter<T>.",
-                                  expression.span);
-                        } else if (!input.first || *input.first != *scale_value->type.first) {
-                            error("TYPE_MISMATCH",
-                                  "BatchNorm input and state element types must match.",
-                                  expression.span);
-                        }
-                    }
-                    if (training_mode) {
-                        if (builtin == BuiltinCallable::NeuralBatchNormForward) {
-                            for (const auto& path : {"scale.value", "bias.value",
-                                                    "running_mean.value",
-                                                    "running_variance.value",
-                                                    "momentum", "epsilon"}) {
-                                current_receiver_effect_.required.insert(path);
-                            }
-                            current_receiver_effect_.writes.insert("running_mean.value");
-                            current_receiver_effect_.writes.insert("running_variance.value");
-                        } else {
-                            current_receiver_effect_.required.insert("rate");
-                            current_receiver_effect_.required.insert("$rng.value");
-                            current_receiver_effect_.writes.insert("$rng.value");
-                        }
-                    } else if (inference_mode &&
-                               builtin == BuiltinCallable::NeuralBatchNormForward) {
-                        for (const auto& path : {"scale.value", "bias.value",
-                                                "running_mean.value",
-                                                "running_variance.value",
-                                                "epsilon"}) {
-                            current_receiver_effect_.required.insert(path);
-                        }
-                    }
-                    type = poisoned(input) ? simple(TypeKind::Invalid) : input;
-                    break;
-                }
-                case BuiltinCallable::NeuralConv2DForward: {
+                case BuiltinCallable::NeuralConvolve2D: {
                     if (node->args.size() != 5) {
                         error("ARGUMENT_MISMATCH",
-                              "Conv2D.forward requires value, weight, bias, stride, and padding.",
+                              "neural.convolve2d requires value, weight, bias, stride, and padding.",
                               expression.span);
                     }
                     auto input = builtin_arg(0, "value");
@@ -2654,7 +2565,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                           (input.first->kind == TypeKind::Float32 ||
                            input.first->kind == TypeKind::Float)));
                     if (!poisoned(input) && !input_valid)
-                        error("TYPE_MISMATCH", "Conv2D.forward requires neural or a floating-point tensor.", expression.span);
+                        error("TYPE_MISMATCH", "neural.convolve2d requires neural or a floating-point tensor.", expression.span);
                     const auto parameter_element = [&](const Type& parameter) -> std::optional<Type> {
                         if (parameter.kind != TypeKind::Class ||
                             parameter.class_name.rfind("__quidra_gc__std_neural_Parameter_", 0) != 0) return std::nullopt;
@@ -2665,20 +2576,20 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     const auto weight_element = parameter_element(weight);
                     const auto bias_element = parameter_element(bias);
                     if (!poisoned(weight) && !weight_element)
-                        error("TYPE_MISMATCH", "Conv2D weight must be neural.Parameter<T>.", expression.span);
+                        error("TYPE_MISMATCH", "convolve2d weight must be neural.Parameter<T>.", expression.span);
                     if (!poisoned(bias) && !bias_element)
-                        error("TYPE_MISMATCH", "Conv2D bias must be neural.Parameter<T>.", expression.span);
+                        error("TYPE_MISMATCH", "convolve2d bias must be neural.Parameter<T>.", expression.span);
                     if (input_valid && weight_element && bias_element &&
                         (*input.first != *weight_element || *input.first != *bias_element))
-                        error("TYPE_MISMATCH", "Conv2D input, weight, and bias element types must match.", expression.span);
+                        error("TYPE_MISMATCH", "convolve2d input, weight, and bias element types must match.", expression.span);
                     type = (input_valid && !poisoned(stride) && !poisoned(padding))
                         ? input : simple(TypeKind::Invalid);
                     break;
                 }
-                case BuiltinCallable::NeuralLinearForward: {
+                case BuiltinCallable::NeuralAffine: {
                     if (node->args.size() != 3) {
                         error("ARGUMENT_MISMATCH",
-                              "Linear.forward requires value plus weight and bias parameters.",
+                              "neural.affine requires value plus weight and bias parameters.",
                               expression.span);
                     }
                     auto input = builtin_arg(0, "value");
@@ -2691,7 +2602,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                            input.first->kind == TypeKind::Float)));
                     if (!poisoned(input) && !input_valid) {
                         error("TYPE_MISMATCH",
-                              "Linear.forward requires neural or a floating-point tensor.",
+                              "neural.affine requires neural or a floating-point tensor.",
                               expression.span);
                     }
                     const auto parameter_element = [&](const Type& parameter) -> std::optional<Type> {
@@ -2708,15 +2619,15 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     const auto weight_element = parameter_element(weight);
                     const auto bias_element = parameter_element(bias);
                     if (!poisoned(weight) && !weight_element) {
-                        error("TYPE_MISMATCH", "Linear weight must be neural.Parameter<T>.", expression.span);
+                        error("TYPE_MISMATCH", "affine weight must be neural.Parameter<T>.", expression.span);
                     }
                     if (!poisoned(bias) && !bias_element) {
-                        error("TYPE_MISMATCH", "Linear bias must be neural.Parameter<T>.", expression.span);
+                        error("TYPE_MISMATCH", "affine bias must be neural.Parameter<T>.", expression.span);
                     }
                     if (input_valid && weight_element && bias_element &&
                         (*input.first != *weight_element || *input.first != *bias_element)) {
                         error("TYPE_MISMATCH",
-                              "Linear input, weight, and bias element types must match.",
+                              "affine input, weight, and bias element types must match.",
                               expression.span);
                     }
                     type = input_valid ? input : simple(TypeKind::Invalid);
@@ -2829,56 +2740,227 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     type=any_poison?simple(TypeKind::Invalid):simple(TypeKind::Void);
                     break;
                 }
-                case BuiltinCallable::NeuralStep: {
+                case BuiltinCallable::NeuralUpdate: {
                     if (node->args.size() != 3) {
                         error("ARGUMENT_MISMATCH",
-                              "neural.step requires &model, &optimizer, and gradients.",
+                              "neural.update requires &model, gradients, and rate.",
                               expression.span);
                         type = simple(TypeKind::Invalid);
                         break;
                     }
                     const auto& model_arg=node->args[0];
-                    const auto& optimizer_arg=node->args[1];
-                    const auto& gradients_arg=node->args[2];
-                    if (!model_arg.writable || !optimizer_arg.writable || gradients_arg.writable ||
+                    const auto& gradients_arg=node->args[1];
+                    const auto& rate_arg=node->args[2];
+                    if (!model_arg.writable || gradients_arg.writable || rate_arg.writable ||
                         (model_arg.name && *model_arg.name!="model") ||
-                        (optimizer_arg.name && *optimizer_arg.name!="optimizer") ||
-                        (gradients_arg.name && *gradients_arg.name!="gradients")) {
+                        (gradients_arg.name && *gradients_arg.name!="gradients") ||
+                        (rate_arg.name && *rate_arg.name!="rate")) {
                         error("WRITE_CAPABILITY",
-                              "neural.step requires writable model/optimizer and read-only gradients.",
+                              "neural.update requires a writable model and read-only gradients/rate.",
                               expression.span);
                     }
-                    if (!stable_writable_storage(*model_arg.value) ||
-                        !stable_writable_storage(*optimizer_arg.value)) {
+                    if (!stable_writable_storage(*model_arg.value)) {
                         error("WRITE_CAPABILITY",
-                              "neural.step writable arguments require existing stable storage.",
-                              expression.span);
+                              "neural.update model requires existing stable storage.",
+                              model_arg.span);
                     }
                     auto model=check_address_target(*model_arg.value);
-                    auto optimizer=check_address_target(*optimizer_arg.value);
                     auto gradients=check_expr(*gradients_arg.value);
+                    const auto float_type=simple(TypeKind::Float);
+                    auto rate=check_expr(*rate_arg.value,&float_type);
                     if (!poisoned(model) && model.kind!=TypeKind::Class)
-                        error("TYPE_MISMATCH","neural.step model must be a class value.",model_arg.span);
-                    const bool optimizer_ok=!poisoned(optimizer) && optimizer.kind==TypeKind::Class &&
-                        (optimizer.class_name=="$std.neural.SGD" || optimizer.class_name=="$std.neural.Adam");
-                    if (!poisoned(optimizer) && !optimizer_ok)
-                        error("TYPE_MISMATCH","neural.step optimizer must be neural.SGD or neural.Adam.",optimizer_arg.span);
+                        error("TYPE_MISMATCH","neural.update model must be a class value.",model_arg.span);
                     if (!poisoned(gradients) && gradients.kind!=TypeKind::Gradients)
-                        error("TYPE_MISMATCH","neural.step requires neural.Gradients.",gradients_arg.span);
-
+                        error("TYPE_MISMATCH","neural.update requires neural.Gradients.",gradients_arg.span);
                     StorageEffect write_effect;
                     write_effect.required.insert("");
                     write_effect.writes.insert("");
-                    if (!poisoned(model)) apply_storage_effect_to_target(*model_arg.value,write_effect,model_arg.span);
-                    if (optimizer_ok) apply_storage_effect_to_target(*optimizer_arg.value,write_effect,optimizer_arg.span);
-                    type=(poisoned(model)||poisoned(optimizer)||poisoned(gradients))
+                    if (!poisoned(model))
+                        apply_storage_effect_to_target(*model_arg.value,write_effect,model_arg.span);
+                    type=(poisoned(model)||poisoned(gradients)||poisoned(rate))
                         ? simple(TypeKind::Invalid) : simple(TypeKind::Void);
                     break;
                 }
-                case BuiltinCallable::NeuralRelu:
-                case BuiltinCallable::NeuralSigmoid:
-                case BuiltinCallable::NeuralTanh:
-                case BuiltinCallable::NeuralSoftmax: {
+                case BuiltinCallable::NeuralNormalize:
+                case BuiltinCallable::NeuralNormalizeInference: {
+                    const bool training=builtin==BuiltinCallable::NeuralNormalize;
+                    const std::size_t expected=training?7:6;
+                    if (node->args.size()!=expected) {
+                        error("ARGUMENT_MISMATCH",
+                              training
+                                ? "neural.normalize requires value, scale, bias, running mean, running variance, momentum, and epsilon."
+                                : "neural.normalize_inference requires value, scale, bias, running mean, running variance, and epsilon.",
+                              expression.span);
+                        type=simple(TypeKind::Invalid);
+                        break;
+                    }
+                    auto input=builtin_arg(0,"value");
+                    auto scale=builtin_arg(1,"scale");
+                    auto bias=builtin_arg(2,"bias");
+                    auto running_mean=builtin_arg(3,"running_mean");
+                    auto running_variance=builtin_arg(4,"running_variance");
+                    const auto float_type=simple(TypeKind::Float);
+                    auto momentum=training
+                        ? builtin_arg(5,"momentum",&float_type)
+                        : float_type;
+                    auto epsilon=builtin_arg(training?6:5,"epsilon",&float_type);
+                    const bool input_valid=!poisoned(input) &&
+                        ((training && input.kind==TypeKind::Neural) ||
+                         (!training && input.kind==TypeKind::Tensor && input.first &&
+                          (input.first->kind==TypeKind::Float32||input.first->kind==TypeKind::Float)));
+                    if(!poisoned(input)&&!input_valid)
+                        error("TYPE_MISMATCH", training
+                            ? "neural.normalize requires a neural value."
+                            : "neural.normalize_inference requires a floating-point tensor.", expression.span);
+                    const auto parameter_element=[&](const Type& value)->std::optional<Type>{
+                        if(value.kind!=TypeKind::Class) return std::nullopt;
+                        const auto* field=find_field(value.class_name,"value");
+                        if(!field||field->type.kind!=TypeKind::Tensor||!field->type.first)
+                            return std::nullopt;
+                        if(value.class_name.rfind("__quidra_gc__std_neural_Parameter_",0)!=0)
+                            return std::nullopt;
+                        return *field->type.first;
+                    };
+                    const auto state_element=[&](const Type& value)->std::optional<Type>{
+                        if(value.kind!=TypeKind::Class ||
+                           value.class_name.rfind("__quidra_gc__std_neural_State_",0)!=0)
+                            return std::nullopt;
+                        const auto* field=find_field(value.class_name,"value");
+                        if(!field||field->type.kind!=TypeKind::Tensor||!field->type.first)
+                            return std::nullopt;
+                        return *field->type.first;
+                    };
+                    const auto scale_element=parameter_element(scale);
+                    const auto bias_element=parameter_element(bias);
+                    const auto mean_element=state_element(running_mean);
+                    const auto variance_element=state_element(running_variance);
+                    if(!poisoned(scale)&&!scale_element)
+                        error("TYPE_MISMATCH","normalize scale must be neural.Parameter<T>.",node->args[1].span);
+                    if(!poisoned(bias)&&!bias_element)
+                        error("TYPE_MISMATCH","normalize bias must be neural.Parameter<T>.",node->args[2].span);
+                    if(!poisoned(running_mean)&&!mean_element)
+                        error("TYPE_MISMATCH","normalize running_mean must be neural.State<tensor<T>>.",node->args[3].span);
+                    if(!poisoned(running_variance)&&!variance_element)
+                        error("TYPE_MISMATCH","normalize running_variance must be neural.State<tensor<T>>.",node->args[4].span);
+                    if(input_valid&&scale_element&&bias_element&&mean_element&&variance_element &&
+                       (*input.first!=*scale_element||*input.first!=*bias_element||
+                        *input.first!=*mean_element||*input.first!=*variance_element))
+                        error("TYPE_MISMATCH","normalize operands must share an element type.",expression.span);
+                    if(training){
+                        StorageEffect running_effect;
+                        running_effect.required.insert("value");
+                        running_effect.writes.insert("value");
+                        if(mean_element)
+                            apply_storage_effect_to_target(*node->args[3].value,running_effect,node->args[3].span);
+                        if(variance_element)
+                            apply_storage_effect_to_target(*node->args[4].value,running_effect,node->args[4].span);
+                    }
+                    type=(input_valid&&!poisoned(momentum)&&!poisoned(epsilon))
+                        ? input : simple(TypeKind::Invalid);
+                    break;
+                }
+                case BuiltinCallable::NeuralRandomMask: {
+                    if(node->args.size()!=3){
+                        error("ARGUMENT_MISMATCH",
+                              "neural.random_mask requires value, state, and rate.",
+                              expression.span);
+                        type=simple(TypeKind::Invalid);
+                        break;
+                    }
+                    auto input=builtin_arg(0,"value");
+                    auto state=builtin_arg(1,"state");
+                    const auto float_type=simple(TypeKind::Float);
+                    auto rate=builtin_arg(2,"rate",&float_type);
+                    if(!poisoned(input)&&input.kind!=TypeKind::Neural)
+                        error("TYPE_MISMATCH","neural.random_mask requires a neural value.",node->args[0].span);
+                    bool state_valid=false;
+                    if(!poisoned(state)&&state.kind==TypeKind::Class&&
+                       state.class_name.rfind("__quidra_gc__std_neural_State_",0)==0){
+                        const auto* field=find_field(state.class_name,"value");
+                        state_valid=field&&field->type.kind==TypeKind::UInt64;
+                    }
+                    if(!poisoned(state)&&!state_valid)
+                        error("TYPE_MISMATCH","neural.random_mask state must be neural.State<uint64>.",node->args[1].span);
+                    if(state_valid){
+                        StorageEffect state_effect;
+                        state_effect.required.insert("value");
+                        state_effect.writes.insert("value");
+                        apply_storage_effect_to_target(*node->args[1].value,state_effect,node->args[1].span);
+                    }
+                    type=(!poisoned(input)&&input.kind==TypeKind::Neural&&state_valid&&!poisoned(rate))
+                        ? input : simple(TypeKind::Invalid);
+                    break;
+                }
+                case BuiltinCallable::NeuralMomentUpdate: {
+                    if(node->args.size()!=8){
+                        error("ARGUMENT_MISMATCH",
+                              "neural.moment_update requires &model, rate, beta1, beta2, epsilon, &step, &moments, and gradients.",
+                              expression.span);
+                        type=simple(TypeKind::Invalid);
+                        break;
+                    }
+                    const auto& model_arg=node->args[0];
+                    const auto& step_arg=node->args[5];
+                    const auto& moments_arg=node->args[6];
+                    const auto& gradients_arg=node->args[7];
+                    if(!model_arg.writable||!step_arg.writable||!moments_arg.writable||
+                       gradients_arg.writable||
+                       (model_arg.name&&*model_arg.name!="model")||
+                       (step_arg.name&&*step_arg.name!="step")||
+                       (moments_arg.name&&*moments_arg.name!="moments")||
+                       (gradients_arg.name&&*gradients_arg.name!="gradients"))
+                        error("WRITE_CAPABILITY",
+                              "neural.moment_update requires writable model/step/moments and read-only settings/gradients.",
+                              expression.span);
+                    if(!stable_writable_storage(*model_arg.value)||
+                       !stable_writable_storage(*step_arg.value)||
+                       !stable_writable_storage(*moments_arg.value))
+                        error("WRITE_CAPABILITY",
+                              "neural.moment_update writable arguments require existing stable storage.",
+                              expression.span);
+                    auto model=check_address_target(*model_arg.value);
+                    const auto float_type=simple(TypeKind::Float);
+                    auto rate=builtin_arg(1,"rate",&float_type);
+                    auto beta1=builtin_arg(2,"beta1",&float_type);
+                    auto beta2=builtin_arg(3,"beta2",&float_type);
+                    auto epsilon=builtin_arg(4,"epsilon",&float_type);
+                    auto step=check_address_target(*step_arg.value);
+                    auto moments=check_address_target(*moments_arg.value);
+                    auto gradients=check_expr(*gradients_arg.value);
+                    if(!poisoned(model)&&model.kind!=TypeKind::Class)
+                        error("TYPE_MISMATCH","moment_update model must be a class value.",model_arg.span);
+                    const auto state_value_kind=[&](const Type& state,TypeKind kind){
+                        if(state.kind!=TypeKind::Class||
+                           state.class_name.rfind("__quidra_gc__std_neural_State_",0)!=0)
+                            return false;
+                        const auto* value=find_field(state.class_name,"value");
+                        return value&&value->type.kind==kind;
+                    };
+                    const bool step_valid=!poisoned(step)&&state_value_kind(step,TypeKind::Int);
+                    const bool moments_valid=!poisoned(moments)&&state_value_kind(moments,TypeKind::Bytes);
+                    if(!poisoned(step)&&!step_valid)
+                        error("TYPE_MISMATCH","moment_update step must be neural.State<int>.",step_arg.span);
+                    if(!poisoned(moments)&&!moments_valid)
+                        error("TYPE_MISMATCH","moment_update moments must be neural.State<bytes>.",moments_arg.span);
+                    if(!poisoned(gradients)&&gradients.kind!=TypeKind::Gradients)
+                        error("TYPE_MISMATCH","moment_update requires neural.Gradients.",gradients_arg.span);
+                    StorageEffect write_effect;
+                    write_effect.required.insert("");
+                    write_effect.writes.insert("");
+                    if(!poisoned(model)) apply_storage_effect_to_target(*model_arg.value,write_effect,model_arg.span);
+                    if(step_valid) apply_storage_effect_to_target(*step_arg.value,write_effect,step_arg.span);
+                    if(moments_valid) apply_storage_effect_to_target(*moments_arg.value,write_effect,moments_arg.span);
+                    type=(poisoned(model)||poisoned(rate)||poisoned(beta1)||poisoned(beta2)||
+                          poisoned(epsilon)||!step_valid||!moments_valid||poisoned(gradients))
+                        ? simple(TypeKind::Invalid):simple(TypeKind::Void);
+                    break;
+                }
+                case BuiltinCallable::NeuralAbsolute:
+                case BuiltinCallable::NeuralExponential:
+                case BuiltinCallable::NeuralLogarithm:
+                case BuiltinCallable::NeuralMean:
+                case BuiltinCallable::NeuralSumLast:
+                case BuiltinCallable::NeuralMaxLast: {
                     if (node->args.size() != 1) error("ARGUMENT_MISMATCH", name + " requires one value.", expression.span);
                     auto input = builtin_arg(0, "value");
                     const bool valid = !poisoned(input) &&
@@ -2888,33 +2970,6 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if (!poisoned(input) && !valid)
                         error("TYPE_MISMATCH", name + " requires neural or a floating-point tensor.", expression.span);
                     type = valid ? input : simple(TypeKind::Invalid);
-                    break;
-                }
-                case BuiltinCallable::NeuralMse:
-                case BuiltinCallable::NeuralBinaryCrossEntropy: {
-                    if (node->args.size() != 2) error("ARGUMENT_MISMATCH", name + " requires prediction and target.", expression.span);
-                    auto prediction = builtin_arg(0, "prediction");
-                    auto target = builtin_arg(1, "target");
-                    if (!poisoned(prediction) && prediction.kind != TypeKind::Neural)
-                        error("TYPE_MISMATCH", name + " prediction must be neural.", expression.span);
-                    if (!poisoned(prediction) && !poisoned(target)) {
-                        const bool compatible =
-                            (target.kind == TypeKind::Neural && *target.first == *prediction.first) ||
-                            (target.kind == TypeKind::Tensor && *target.first == *prediction.first);
-                        if (!compatible) error("TYPE_MISMATCH", name + " target must have the same floating element type.", expression.span);
-                    }
-                    type = poisoned(prediction) ? simple(TypeKind::Invalid) : prediction;
-                    break;
-                }
-                case BuiltinCallable::NeuralCrossEntropy: {
-                    if (node->args.size() != 2) error("ARGUMENT_MISMATCH", "neural.cross_entropy requires logits and target.", expression.span);
-                    auto logits = builtin_arg(0, "logits");
-                    auto target = builtin_arg(1, "target");
-                    if (!poisoned(logits) && logits.kind != TypeKind::Neural)
-                        error("TYPE_MISMATCH", "cross_entropy logits must be neural.", expression.span);
-                    if (!poisoned(target) && (target.kind != TypeKind::Tensor || target.first->kind != TypeKind::Int))
-                        error("TYPE_MISMATCH", "cross_entropy target must be tensor<int>.", expression.span);
-                    type = poisoned(logits) ? simple(TypeKind::Invalid) : logits;
                     break;
                 }
                 case BuiltinCallable::NeuralGrad: {
@@ -3014,22 +3069,9 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     break;
                 }
                 case BuiltinCallable::ImageRead: {
-                    if (node->type_arguments.size() != 1) {
-                        error("GENERIC_ARITY",
-                              "image.read requires exactly one requested element type.",
-                              expression.span);
-                        type = simple(TypeKind::Invalid);
-                        break;
-                    }
-                    auto element = resolve_type(node->type_arguments.front());
-                    if (element.kind != TypeKind::UInt8) {
-                        error("INVALID_TYPE",
-                              "image.read currently supports only explicit uint8 decoding.",
-                              node->type_arguments.front().span);
-                    }
                     if (node->args.size() != 1) {
                         error("ARGUMENT_MISMATCH",
-                              "image.read<uint8> requires one path string.", expression.span);
+                              "image.read requires one path string.", expression.span);
                         type = simple(TypeKind::Invalid);
                         break;
                     }
@@ -3119,7 +3161,7 @@ Type Checker::check_call_expr(const Expr& expression,
         const auto& name = node->callee;
         const bool tensor_generic_call =
             name == "tensor" || name == "$std.tensor.zeros" ||
-            name == "$std.tensor.ones" || name == "$std.image.read";
+            name == "$std.tensor.ones";
         if (!node->type_arguments.empty() && !tensor_generic_call) {
             throw std::logic_error("ConcreteProgram contains unresolved generic call arguments.");
         }
@@ -3287,176 +3329,9 @@ Type Checker::check_call_expr(const Expr& expression,
             }
             type = any_poison ? simple(TypeKind::Invalid) : simple(TypeKind::Bytes);
         } else if (classes_.contains(name)) {
-            const bool neural_linear =
-                name.rfind("__quidra_gc__std_neural_Linear_", 0) == 0;
-            const bool neural_conv2d =
-                name.rfind("__quidra_gc__std_neural_Conv2D_", 0) == 0;
-            const bool neural_batch_norm =
-                name.rfind("__quidra_gc__std_neural_BatchNorm_", 0) == 0;
-            const bool neural_dropout = name == "$std.neural.Dropout";
-            const bool neural_sgd = name == "$std.neural.SGD";
-            const bool neural_adam = name == "$std.neural.Adam";
             call_resolutions_[&expression] =
                 CallResolution{CallKind::Constructor, name, std::nullopt, Type::class_type(name)};
-            if (neural_batch_norm) {
-                if (node->args.empty() || node->args.size() > 3) {
-                    error("ARGUMENT_MISMATCH",
-                          "neural.BatchNorm requires features = ... and optional momentum/epsilon.",
-                          expression.span);
-                }
-                std::unordered_set<std::string> supplied;
-                bool any_poison = false;
-                const auto int_type = simple(TypeKind::Int);
-                const auto float_type = simple(TypeKind::Float);
-                for (const auto& argument : node->args) {
-                    if (!argument.name || argument.writable ||
-                        (*argument.name != "features" &&
-                         *argument.name != "momentum" &&
-                         *argument.name != "epsilon") ||
-                        !supplied.insert(*argument.name).second) {
-                        error("ARGUMENT_MISMATCH",
-                              "BatchNorm arguments are unique named features, momentum, epsilon.",
-                              argument.span);
-                    }
-                    const Type* required =
-                        *argument.name == "features" ? &int_type : &float_type;
-                    any_poison |= poisoned(check_expr(*argument.value, required));
-                }
-                if (!supplied.contains("features")) {
-                    error("ARGUMENT_MISMATCH", "neural.BatchNorm requires features.", expression.span);
-                }
-                type = any_poison ? simple(TypeKind::Invalid) : Type::class_type(name);
-                if (!any_poison) {
-                    class_expr_initialized_paths_[&expression] = {
-                        "scale", "scale.value", "bias", "bias.value",
-                        "running_mean", "running_mean.value",
-                        "running_variance", "running_variance.value",
-                        "momentum", "epsilon"
-                    };
-                }
-            } else if (neural_dropout) {
-                if (node->args.empty() || node->args.size() > 2) {
-                    error("ARGUMENT_MISMATCH",
-                          "neural.Dropout requires rate = ... and optional seed = ....",
-                          expression.span);
-                }
-                std::unordered_set<std::string> supplied;
-                bool any_poison = false;
-                const auto float_type = simple(TypeKind::Float);
-                const auto int_type = simple(TypeKind::Int);
-                for (const auto& argument : node->args) {
-                    if (!argument.name || argument.writable ||
-                        (*argument.name != "rate" && *argument.name != "seed") ||
-                        !supplied.insert(*argument.name).second) {
-                        error("ARGUMENT_MISMATCH",
-                              "Dropout arguments are unique named rate and optional seed.",
-                              argument.span);
-                    }
-                    const Type* required =
-                        *argument.name == "rate" ? &float_type : &int_type;
-                    any_poison |= poisoned(check_expr(*argument.value, required));
-                }
-                if (!supplied.contains("rate")) {
-                    error("ARGUMENT_MISMATCH", "neural.Dropout requires rate.", expression.span);
-                }
-                type = any_poison ? simple(TypeKind::Invalid) : Type::class_type(name);
-                if (!any_poison) {
-                    class_expr_initialized_paths_[&expression] = {"rate", "$rng", "$rng.value"};
-                }
-            } else if (neural_conv2d) {
-                if (node->args.size() < 3 || node->args.size() > 6) {
-                    error("ARGUMENT_MISMATCH",
-                          "neural.Conv2D requires input, output, kernel and optional stride, padding, seed.",
-                          expression.span);
-                }
-                std::unordered_set<std::string> supplied;
-                bool any_poison = false;
-                const auto int_type = simple(TypeKind::Int);
-                for (const auto& argument : node->args) {
-                    if (!argument.name || argument.writable ||
-                        (*argument.name != "input" && *argument.name != "output" &&
-                         *argument.name != "kernel" && *argument.name != "stride" &&
-                         *argument.name != "padding" && *argument.name != "seed") ||
-                        !supplied.insert(*argument.name).second) {
-                        error("ARGUMENT_MISMATCH",
-                              "Conv2D arguments are unique named input, output, kernel, stride, padding, seed.",
-                              argument.span);
-                    }
-                    any_poison |= poisoned(check_expr(*argument.value, &int_type));
-                }
-                if (!supplied.contains("input") || !supplied.contains("output") ||
-                    !supplied.contains("kernel")) {
-                    error("ARGUMENT_MISMATCH", "neural.Conv2D requires input, output, and kernel.", expression.span);
-                }
-                type = any_poison ? simple(TypeKind::Invalid) : Type::class_type(name);
-                if (!any_poison) class_expr_initialized_paths_[&expression] = {
-                    "weight", "weight.value", "bias", "bias.value", "stride", "padding"
-                };
-            } else if (neural_sgd) {
-                if (node->args.size() > 1) {
-                    error("ARGUMENT_MISMATCH","neural.SGD accepts optional rate = value.",expression.span);
-                }
-                bool any_poison=false;
-                const auto float_type=simple(TypeKind::Float);
-                if(!node->args.empty()){
-                    const auto& argument=node->args[0];
-                    if(!argument.name || *argument.name!="rate" || argument.writable)
-                        error("ARGUMENT_MISMATCH","neural.SGD argument must be rate = value.",argument.span);
-                    any_poison|=poisoned(check_expr(*argument.value,&float_type));
-                }
-                type=any_poison?simple(TypeKind::Invalid):Type::class_type(name);
-                if(!any_poison) class_expr_initialized_paths_[&expression]={"rate"};
-            } else if (neural_adam) {
-                if (node->args.size() > 4)
-                    error("ARGUMENT_MISMATCH","neural.Adam accepts rate, beta1, beta2, epsilon.",expression.span);
-                std::unordered_set<std::string> supplied;
-                bool any_poison=false;
-                const auto float_type=simple(TypeKind::Float);
-                for(const auto& argument:node->args){
-                    if(!argument.name || argument.writable ||
-                       (*argument.name!="rate" && *argument.name!="beta1" &&
-                        *argument.name!="beta2" && *argument.name!="epsilon") ||
-                       !supplied.insert(*argument.name).second)
-                        error("ARGUMENT_MISMATCH","Adam arguments are unique named rate, beta1, beta2, epsilon.",argument.span);
-                    any_poison|=poisoned(check_expr(*argument.value,&float_type));
-                }
-                type=any_poison?simple(TypeKind::Invalid):Type::class_type(name);
-                if(!any_poison) class_expr_initialized_paths_[&expression]={
-                    "rate","beta1","beta2","epsilon","$step","$step.value","$moments","$moments.value"
-                };
-            } else if (neural_linear) {
-                if (node->args.size() < 2 || node->args.size() > 3) {
-                    error("ARGUMENT_MISMATCH",
-                          "neural.Linear requires input = ..., output = ..., and optional seed = ....",
-                          expression.span);
-                }
-                std::unordered_set<std::string> supplied;
-                bool any_poison = false;
-                const auto int_type = simple(TypeKind::Int);
-                for (const auto& argument : node->args) {
-                    if (!argument.name || argument.writable ||
-                        (*argument.name != "input" && *argument.name != "output" &&
-                         *argument.name != "seed") ||
-                        !supplied.insert(*argument.name).second) {
-                        error("ARGUMENT_MISMATCH",
-                              "neural.Linear arguments are unique named input, output, and optional seed.",
-                              argument.span);
-                    }
-                    any_poison |= poisoned(check_expr(*argument.value, &int_type));
-                }
-                if (!supplied.contains("input") || !supplied.contains("output")) {
-                    error("ARGUMENT_MISMATCH",
-                          "neural.Linear requires both input and output.",
-                          expression.span);
-                }
-                type = any_poison ? simple(TypeKind::Invalid) : Type::class_type(name);
-                if (!any_poison) {
-                    class_expr_initialized_paths_[&expression] = {
-                        "weight", "weight.value", "bias", "bias.value"
-                    };
-                }
-            } else {
-                if (name.rfind("$std.", 0) == 0) {
+            if (name.rfind("$std.", 0) == 0) {
                     error("ARGUMENT_MISMATCH",
                           "Standard library value types cannot be constructed directly.",
                           expression.span);
@@ -3498,7 +3373,6 @@ Type Checker::check_call_expr(const Expr& expression,
                 }
                 type = any_poison ? simple(TypeKind::Invalid) : Type::class_type(name);
                 if (!any_poison) class_expr_initialized_paths_[&expression] = std::move(initialized_paths);
-            }
         } else if (name == "error") {
             call_resolutions_[&expression] =
                 CallResolution{CallKind::Constructor, "error", std::nullopt, simple(TypeKind::Error)};

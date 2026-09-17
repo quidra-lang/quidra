@@ -92,44 +92,56 @@ StepModel model = StepModel(
     value = neural.Parameter(value = tensor.ones<float32>([1]))
 )
 neural prediction = model.value.track()
-neural loss = neural.mse(prediction, tensor.zeros<float32>([1]))
+neural loss = neural.mean(prediction * prediction)
 neural.Gradients gradients = neural.grad(loss)
-neural.SGD optimizer = neural.SGD(rate = 0.1)
-neural.step(&model, &optimizer, gradients)
+neural.update(&model, gradients, rate = 0.1)
 print(model.value.raw()[0].item())
 QUI
 "$QUIDRA" llvm "$TMP/step-prevalidation.qui" > "$TMP/step-prevalidation.ll"
 "$OPT" -passes=verify -disable-output "$TMP/step-prevalidation.ll"
 probe_line="$(grep -n 'call i1 @quidra_neural_parameter_has_gradient' "$TMP/step-prevalidation.ll" | head -n1 | cut -d: -f1)"
 validate_line="$(grep -n 'call void @quidra_neural_validate_step' "$TMP/step-prevalidation.ll" | head -n1 | cut -d: -f1)"
-update_line="$(grep -n 'call i1 @quidra_neural_sgd_step_parameter' "$TMP/step-prevalidation.ll" | head -n1 | cut -d: -f1)"
+update_line="$(grep -n 'call i1 @quidra_neural_update_parameter' "$TMP/step-prevalidation.ll" | head -n1 | cut -d: -f1)"
 [[ -n "$probe_line" && -n "$validate_line" && -n "$update_line" ]]
 [[ "$probe_line" -lt "$validate_line" && "$validate_line" -lt "$update_line" ]]
 [[ "$("$QUIDRA" run "$TMP/step-prevalidation.qui")" == "0.800000011920929" ]]
 
 
-cat > "$TMP/adam-step-prevalidation.qui" <<'QUI'
-class AdamStepModel
-    neural.Linear first
-    neural.Linear second
+cat > "$TMP/moment-update-prevalidation.qui" <<'QUI'
+class MomentUpdateModel
+    neural.Parameter<float32> first_weight
+    neural.Parameter<float32> first_bias
+    neural.Parameter<float32> second_weight
+    neural.Parameter<float32> second_bias
 
-AdamStepModel model = AdamStepModel(
-    first = neural.Linear(input = 2, output = 2, seed = 11),
-    second = neural.Linear(input = 2, output = 1, seed = 13)
+MomentUpdateModel model = MomentUpdateModel(
+    first_weight = neural.Parameter<float32>(value = tensor.ones<float32>([2, 2])),
+    first_bias = neural.Parameter<float32>(value = tensor.zeros<float32>([2])),
+    second_weight = neural.Parameter<float32>(value = tensor.ones<float32>([1, 2])),
+    second_bias = neural.Parameter<float32>(value = tensor.zeros<float32>([1]))
 )
 tensor<float32> values = tensor.ones<float32>([1, 2])
-neural prediction = model.second.forward(model.first.forward(neural.track(values)))
-neural loss = neural.mse(prediction, tensor.zeros<float32>([1, 1]))
+neural first = neural.affine(
+    neural.track(values), model.first_weight, model.first_bias
+)
+neural prediction = neural.affine(
+    first, model.second_weight, model.second_bias
+)
+neural loss = neural.mean(prediction * prediction)
 neural.Gradients gradients = neural.grad(loss)
-neural.Adam optimizer = neural.Adam(rate = 0.01)
-neural.step(&model, &optimizer, gradients)
+neural.State<int> iteration = neural.State<int>(value = 0)
+neural.State<bytes> moments = neural.State<bytes>(value = bytes())
+neural.moment_update(
+    &model, 0.01, 0.9, 0.999, 0.00000001,
+    &iteration, &moments, gradients
+)
 QUI
-"$QUIDRA" llvm "$TMP/adam-step-prevalidation.qui" > "$TMP/adam-step-prevalidation.ll"
-"$OPT" -passes=verify -disable-output "$TMP/adam-step-prevalidation.ll"
-adam_begin_line="$(grep -n 'call i64 @quidra_neural_adam_begin' "$TMP/adam-step-prevalidation.ll" | head -n1 | cut -d: -f1)"
-adam_first_validate_line="$(grep -n 'call void @quidra_neural_adam_validate_parameter' "$TMP/adam-step-prevalidation.ll" | head -n1 | cut -d: -f1)"
-adam_last_validate_line="$(grep -n 'call void @quidra_neural_adam_validate_parameter' "$TMP/adam-step-prevalidation.ll" | tail -n1 | cut -d: -f1)"
-adam_first_update_line="$(grep -n 'call i1 @quidra_neural_adam_step_parameter' "$TMP/adam-step-prevalidation.ll" | head -n1 | cut -d: -f1)"
-adam_finish_line="$(grep -n 'call void @quidra_neural_adam_finish' "$TMP/adam-step-prevalidation.ll" | head -n1 | cut -d: -f1)"
-[[ -n "$adam_begin_line" && -n "$adam_first_validate_line" && -n "$adam_last_validate_line" && -n "$adam_first_update_line" && -n "$adam_finish_line" ]]
-[[ "$adam_begin_line" -lt "$adam_first_validate_line" && "$adam_last_validate_line" -lt "$adam_first_update_line" && "$adam_first_update_line" -lt "$adam_finish_line" ]]
+"$QUIDRA" llvm "$TMP/moment-update-prevalidation.qui" > "$TMP/moment-update-prevalidation.ll"
+"$OPT" -passes=verify -disable-output "$TMP/moment-update-prevalidation.ll"
+moment_begin_line="$(grep -n 'call i64 @quidra_neural_moment_begin' "$TMP/moment-update-prevalidation.ll" | head -n1 | cut -d: -f1)"
+moment_first_validate_line="$(grep -n 'call void @quidra_neural_moment_validate_parameter' "$TMP/moment-update-prevalidation.ll" | head -n1 | cut -d: -f1)"
+moment_last_validate_line="$(grep -n 'call void @quidra_neural_moment_validate_parameter' "$TMP/moment-update-prevalidation.ll" | tail -n1 | cut -d: -f1)"
+moment_first_update_line="$(grep -n 'call i1 @quidra_neural_moment_update_parameter' "$TMP/moment-update-prevalidation.ll" | head -n1 | cut -d: -f1)"
+moment_finish_line="$(grep -n 'call void @quidra_neural_moment_finish' "$TMP/moment-update-prevalidation.ll" | head -n1 | cut -d: -f1)"
+[[ -n "$moment_begin_line" && -n "$moment_first_validate_line" && -n "$moment_last_validate_line" && -n "$moment_first_update_line" && -n "$moment_finish_line" ]]
+[[ "$moment_begin_line" -lt "$moment_first_validate_line" && "$moment_last_validate_line" -lt "$moment_first_update_line" && "$moment_first_update_line" -lt "$moment_finish_line" ]]

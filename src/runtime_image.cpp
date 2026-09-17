@@ -52,13 +52,13 @@ struct Image {
     std::vector<std::uint8_t> chw;
 };
 
-thread_local std::string vision_last_error;
+thread_local std::string image_last_error;
 
-void vision_set_error(const std::string& message) {
-    vision_last_error = message.empty() ? "vision operation failed" : message;
+void image_set_error(const std::string& message) {
+    image_last_error = message.empty() ? "image operation failed" : message;
 }
 
-char* vision_copy_string(const std::string& value) {
+char* image_copy_string(const std::string& value) {
     return quidra_runtime_copy_text(
         value.data(), static_cast<unsigned long long>(value.size()));
 }
@@ -77,10 +77,10 @@ std::size_t image_count(std::size_t channels, std::size_t height, std::size_t wi
 
 void validate_image_shape(const Image& image) {
     if (image.channels != 1 && image.channels != 3 && image.channels != 4) {
-        throw std::invalid_argument("vision image channels must be 1, 3, or 4");
+        throw std::invalid_argument("image channels must be 1, 3, or 4");
     }
     if (image.chw.size() != image_count(image.channels, image.height, image.width)) {
-        throw std::invalid_argument("vision image storage does not match its CHW shape");
+        throw std::invalid_argument("image storage does not match its CHW shape");
     }
 }
 
@@ -688,7 +688,7 @@ void write_image(const std::string& path, const Image& image, int quality) {
 } // namespace
 
 extern "C" void* quidra_image_read_u8(const char* path) {
-    vision_last_error.clear();
+    image_last_error.clear();
     try {
         if (!path || !*path) throw std::invalid_argument("image path is empty");
         auto image = read_image(path);
@@ -696,16 +696,16 @@ extern "C" void* quidra_image_read_u8(const char* path) {
         if (!tensor) throw std::runtime_error("cannot allocate image tensor");
         return tensor;
     } catch (const std::exception& error) {
-        vision_set_error(error.what());
+        image_set_error(error.what());
         return nullptr;
     } catch (...) {
-        vision_set_error("unknown vision read failure");
+        image_set_error("unknown image read failure");
         return nullptr;
     }
 }
 
 extern "C" bool quidra_image_write_u8(const char* path, void* tensor, long long quality) {
-    vision_last_error.clear();
+    image_last_error.clear();
     try {
         if (!path || !*path) throw std::invalid_argument("image path is empty");
         if (quality < 1 || quality > 100) {
@@ -715,15 +715,15 @@ extern "C" bool quidra_image_write_u8(const char* path, void* tensor, long long 
         write_image(path, image, static_cast<int>(quality));
         return true;
     } catch (const std::exception& error) {
-        vision_set_error(error.what());
+        image_set_error(error.what());
         return false;
     } catch (...) {
-        vision_set_error("unknown vision write failure");
+        image_set_error("unknown image write failure");
         return false;
     }
 }
 
 extern "C" char* quidra_image_last_error_copy() {
-    return vision_copy_string(
-        vision_last_error.empty() ? "vision operation failed" : vision_last_error);
+    return image_copy_string(
+        image_last_error.empty() ? "image operation failed" : image_last_error);
 }

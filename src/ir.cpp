@@ -449,13 +449,7 @@ struct Lowerer {
         if (std::holds_alternative<StringExpr>(expression.data)) {
             return false;
         }
-        if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
-            // Most names borrow existing storage, but neural execution markers are
-            // synthesized as fresh ClassMake values by expr() and therefore own
-            // a managed allocation that must be released after the call.
-            return name->name == "$std.neural.training" ||
-                   name->name == "$std.neural.inference";
-        }
+        if (std::holds_alternative<NameExpr>(expression.data)) return false;
         if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
             return expression_owns_result(*member->base);
         }
@@ -772,13 +766,6 @@ struct Lowerer {
         if (const auto* n=std::get_if<NameExpr>(&e.data)) {
             if(is_builtin_text_constant(n->name)){auto out=fresh();block->instructions.push_back(ConstantString{out,std::string(builtin_text_constant(n->name))});return out;}
             if(const auto constant=standard_float_constant(n->name)){auto out=fresh();block->instructions.push_back(ConstantFloat{out,*constant,Type::simple(TypeKind::Float)});return out;}
-            if(n->name=="$std.neural.training"||n->name=="$std.neural.inference"){
-                auto marker=const_bool(true),out=fresh();
-                const auto type=Type::class_type(
-                    n->name=="$std.neural.training"?"$std.neural.Training":"$std.neural.Inference");
-                block->instructions.push_back(ClassMake{out,type,{marker}});
-                return out;
-            }
             if(const auto it=checked.field_accesses.find(&e);it!=checked.field_accesses.end()){
                 auto object=receiver_value(),out=fresh();block->instructions.push_back(FieldGet{out,object,it->second.index,it->second.type});return out;
             }
@@ -1314,110 +1301,6 @@ struct Lowerer {
             }
             if(resolution.type.kind==TypeKind::Class){
                 const auto& info=checked.classes.at(resolution.target);
-                if(resolution.target=="$std.neural.SGD"){
-                    ValueId rate=0;
-                    for(const auto& arg:n.args) if(*arg.name=="rate") rate=expr(*arg.value);
-                    if(rate==0) rate=const_float(0.01);
-                    auto out=fresh();
-                    block->instructions.push_back(NeuralSGDCreate{
-                        out,rate,Type::class_type(resolution.target),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    return out;
-                }
-                if(resolution.target=="$std.neural.Adam"){
-                    ValueId rate=0,beta1=0,beta2=0,epsilon=0;
-                    for(const auto& arg:n.args){
-                        if(*arg.name=="rate") rate=expr(*arg.value);
-                        else if(*arg.name=="beta1") beta1=expr(*arg.value);
-                        else if(*arg.name=="beta2") beta2=expr(*arg.value);
-                        else if(*arg.name=="epsilon") epsilon=expr(*arg.value);
-                    }
-                    if(rate==0) rate=const_float(0.001);
-                    if(beta1==0) beta1=const_float(0.9);
-                    if(beta2==0) beta2=const_float(0.999);
-                    if(epsilon==0) epsilon=const_float(1.0e-8);
-                    auto out=fresh();
-                    block->instructions.push_back(NeuralAdamCreate{
-                        out,rate,beta1,beta2,epsilon,Type::class_type(resolution.target),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    return out;
-                }
-                if(resolution.target.rfind("__quidra_gc__std_neural_BatchNorm_",0)==0){
-                    ValueId features=0,momentum=0,epsilon=0;
-                    for(const auto& arg:n.args){
-                        if(*arg.name=="features") features=expr(*arg.value);
-                        else if(*arg.name=="momentum") momentum=expr(*arg.value);
-                        else if(*arg.name=="epsilon") epsilon=expr(*arg.value);
-                    }
-                    if(momentum==0) momentum=const_float(0.1);
-                    if(epsilon==0) epsilon=const_float(1.0e-5);
-                    const auto& scale_type=checked.classes.at(resolution.target).fields[0].type;
-                    const auto& parameter_info=checked.classes.at(scale_type.class_name);
-                    const auto element_type=*parameter_info.fields.front().type.first;
-                    auto out=fresh();
-                    block->instructions.push_back(NeuralBatchNormCreate{
-                        out,features,momentum,epsilon,Type::class_type(resolution.target),element_type,
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    return out;
-                }
-                if(resolution.target=="$std.neural.Dropout"){
-                    ValueId rate=0,seed=0;
-                    for(const auto& arg:n.args){
-                        if(*arg.name=="rate") rate=expr(*arg.value);
-                        else if(*arg.name=="seed") seed=expr(*arg.value);
-                    }
-                    if(seed==0) seed=const_int(0);
-                    auto out=fresh();
-                    block->instructions.push_back(NeuralDropoutCreate{
-                        out,rate,seed,Type::class_type(resolution.target),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    return out;
-                }
-                if(resolution.target.rfind("__quidra_gc__std_neural_Conv2D_",0)==0){
-                    ValueId input=0,output=0,kernel=0,stride=0,padding=0,seed=0;
-                    for(const auto& arg:n.args){
-                        if(*arg.name=="input") input=expr(*arg.value);
-                        else if(*arg.name=="output") output=expr(*arg.value);
-                        else if(*arg.name=="kernel") kernel=expr(*arg.value);
-                        else if(*arg.name=="stride") stride=expr(*arg.value);
-                        else if(*arg.name=="padding") padding=expr(*arg.value);
-                        else if(*arg.name=="seed") seed=expr(*arg.value);
-                    }
-                    if(stride==0) stride=const_int(1);
-                    if(padding==0) padding=const_int(0);
-                    if(seed==0) seed=const_int(0);
-                    const auto& parameter_type=info.fields.front().type;
-                    const auto& parameter_info=checked.classes.at(parameter_type.class_name);
-                    const auto element_type=*parameter_info.fields.front().type.first;
-                    auto out=fresh();
-                    block->instructions.push_back(NeuralConv2DCreate{
-                        out,input,output,kernel,stride,padding,seed,Type::class_type(resolution.target),element_type,
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    return out;
-                }
-                if(resolution.target.rfind("__quidra_gc__std_neural_Linear_",0)==0){
-                    ValueId input=0,output=0,seed=0;
-                    for(const auto& arg:n.args){
-                        if(*arg.name=="input") input=expr(*arg.value);
-                        else if(*arg.name=="output") output=expr(*arg.value);
-                        else if(*arg.name=="seed") seed=expr(*arg.value);
-                    }
-                    if(seed==0) seed=const_int(0);
-                    const auto& parameter_type=info.fields.front().type;
-                    const auto& parameter_info=checked.classes.at(parameter_type.class_name);
-                    const auto element_type=*parameter_info.fields.front().type.first;
-                    auto out=fresh();
-                    block->instructions.push_back(NeuralLinearCreate{
-                        out,input,output,seed,Type::class_type(resolution.target),element_type,
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    return out;
-                }
                 std::vector<std::optional<ValueId>> fields(info.fields.size());
                 std::unordered_set<std::string> supplied;
 
@@ -1483,41 +1366,94 @@ struct Lowerer {
                     release_arg(0,input);
                     return out;
                 }
-                case BuiltinCallable::NeuralRelu:
-                case BuiltinCallable::NeuralSigmoid:
-                case BuiltinCallable::NeuralTanh:
-                case BuiltinCallable::NeuralSoftmax: {
-                    auto input=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(NeuralUnary{out,input,checked.raw_types.at(&e),*resolution.builtin,
+                case BuiltinCallable::NeuralGrad: {
+                    auto loss=expr(*n.args[0].value),out=fresh();
+                    block->instructions.push_back(NeuralGrad{out,loss,type_of(*n.args[0].value),
                         static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+                    release_arg(0,loss);
+                    return out;
+                }
+                case BuiltinCallable::NeuralAbsolute:
+                case BuiltinCallable::NeuralExponential:
+                case BuiltinCallable::NeuralLogarithm:
+                case BuiltinCallable::NeuralMean:
+                case BuiltinCallable::NeuralSumLast:
+                case BuiltinCallable::NeuralMaxLast: {
+                    auto input=expr(*n.args[0].value),out=fresh();
+                    block->instructions.push_back(NeuralUnary{
+                        out,input,checked.raw_types.at(&e),*resolution.builtin,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
                     release_arg(0,input);
                     return out;
                 }
-                case BuiltinCallable::NeuralMse:
-                case BuiltinCallable::NeuralCrossEntropy:
-                case BuiltinCallable::NeuralBinaryCrossEntropy: {
-                    auto prediction=expr(*n.args[0].value);
-                    auto target=expr(*n.args[1].value);
-                    auto out=fresh();
-                    block->instructions.push_back(NeuralLoss{out,prediction,target,type_of(*n.args[1].value),
-                        checked.raw_types.at(&e),*resolution.builtin,
-                        static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,prediction); release_arg(1,target);
-                    return out;
-                }
-                case BuiltinCallable::NeuralStep: {
+                case BuiltinCallable::NeuralUpdate: {
                     auto model=expr(*n.args[0].value);
-                    auto optimizer=expr(*n.args[1].value);
-                    auto gradients=expr(*n.args[2].value);
+                    auto gradients=expr(*n.args[1].value);
+                    auto rate=expr(*n.args[2].value);
                     std::vector<NeuralParameterRef> parameters;
                     std::unordered_set<std::string> active;
                     collect_neural_parameters(
                         model,type_of(*n.args[0].value),"",parameters,active);
-                    block->instructions.push_back(NeuralStep{
-                        std::move(parameters),optimizer,gradients,type_of(*n.args[1].value),
+                    block->instructions.push_back(NeuralUpdate{
+                        std::move(parameters),gradients,rate,
                         static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(2,gradients);
+                    release_arg(1,gradients);
+                    return 0;
+                }
+                case BuiltinCallable::NeuralNormalize:
+                case BuiltinCallable::NeuralNormalizeInference: {
+                    const bool training=
+                        *resolution.builtin==BuiltinCallable::NeuralNormalize;
+                    auto input=expr(*n.args[0].value);
+                    auto scale=expr(*n.args[1].value);
+                    auto bias=expr(*n.args[2].value);
+                    auto running_mean=expr(*n.args[3].value);
+                    auto running_variance=expr(*n.args[4].value);
+                    auto momentum=training?expr(*n.args[5].value):const_float(0.0);
+                    auto epsilon=expr(*n.args[training?6:5].value);
+                    auto out=fresh();
+                    block->instructions.push_back(NeuralNormalize{
+                        out,input,scale,bias,running_mean,running_variance,
+                        momentum,epsilon,checked.raw_types.at(&e),training,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    for(std::size_t i=0;i<5;++i) release_arg(i,
+                        i==0?input:i==1?scale:i==2?bias:i==3?running_mean:running_variance);
+                    return out;
+                }
+                case BuiltinCallable::NeuralRandomMask: {
+                    auto input=expr(*n.args[0].value);
+                    auto state=expr(*n.args[1].value);
+                    auto rate=expr(*n.args[2].value);
+                    auto out=fresh();
+                    block->instructions.push_back(NeuralRandomMask{
+                        out,input,state,rate,checked.raw_types.at(&e),
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    release_arg(0,input);
+                    release_arg(1,state);
+                    return out;
+                }
+                case BuiltinCallable::NeuralMomentUpdate: {
+                    auto model=expr(*n.args[0].value);
+                    auto rate=expr(*n.args[1].value);
+                    auto beta1=expr(*n.args[2].value);
+                    auto beta2=expr(*n.args[3].value);
+                    auto epsilon=expr(*n.args[4].value);
+                    auto step=expr(*n.args[5].value);
+                    auto moments=expr(*n.args[6].value);
+                    auto gradients=expr(*n.args[7].value);
+                    std::vector<NeuralParameterRef> parameters;
+                    std::unordered_set<std::string> active;
+                    collect_neural_parameters(
+                        model,type_of(*n.args[0].value),"",parameters,active);
+                    block->instructions.push_back(NeuralMomentUpdate{
+                        std::move(parameters),rate,beta1,beta2,epsilon,step,moments,gradients,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    release_arg(7,gradients);
                     return 0;
                 }
                 case BuiltinCallable::NeuralSave: {
@@ -1566,45 +1502,14 @@ struct Lowerer {
                     release_arg(n.args.size()-1,path);
                     return 0;
                 }
-                case BuiltinCallable::NeuralGrad: {
-                    auto loss=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(NeuralGrad{out,loss,type_of(*n.args[0].value),
-                        static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,loss);
-                    return out;
-                }
-                case BuiltinCallable::NeuralBatchNormForward:
-                case BuiltinCallable::NeuralDropoutForward: {
-                    auto input=expr(*n.args[0].value);
-                    const auto mode_type=type_of(*n.args[1].value);
-                    const bool training=mode_type.kind==TypeKind::Class &&
-                        mode_type.class_name=="$std.neural.Training";
-                    auto receiver=receiver_value();
-                    auto out=fresh();
-                    if(*resolution.builtin==BuiltinCallable::NeuralBatchNormForward){
-                        block->instructions.push_back(NeuralBatchNormForward{
-                            out,receiver,input,Type::class_type(current_class),
-                            type_of(*n.args[0].value),checked.raw_types.at(&e),training,
-                            static_cast<std::uint32_t>(e.span.start.line),
-                            static_cast<std::uint32_t>(e.span.start.column)});
-                    }else{
-                        block->instructions.push_back(NeuralDropoutForward{
-                            out,receiver,input,Type::class_type(current_class),
-                            type_of(*n.args[0].value),checked.raw_types.at(&e),training,
-                            static_cast<std::uint32_t>(e.span.start.line),
-                            static_cast<std::uint32_t>(e.span.start.column)});
-                    }
-                    release_arg(0,input);
-                    return out;
-                }
-                case BuiltinCallable::NeuralConv2DForward: {
+                case BuiltinCallable::NeuralConvolve2D: {
                     auto input=expr(*n.args[0].value);
                     auto weight=expr(*n.args[1].value);
                     auto bias=expr(*n.args[2].value);
                     auto stride=expr(*n.args[3].value);
                     auto padding=expr(*n.args[4].value);
                     auto out=fresh();
-                    block->instructions.push_back(NeuralConv2DForward{
+                    block->instructions.push_back(NeuralConvolve2D{
                         out,input,weight,bias,stride,padding,type_of(*n.args[0].value),
                         checked.raw_types.at(&e),
                         static_cast<std::uint32_t>(e.span.start.line),
@@ -1612,12 +1517,12 @@ struct Lowerer {
                     release_arg(0,input); release_arg(1,weight); release_arg(2,bias);
                     return out;
                 }
-                case BuiltinCallable::NeuralLinearForward: {
+                case BuiltinCallable::NeuralAffine: {
                     auto input=expr(*n.args[0].value);
                     auto weight=expr(*n.args[1].value);
                     auto bias=expr(*n.args[2].value);
                     auto out=fresh();
-                    block->instructions.push_back(NeuralLinearForward{
+                    block->instructions.push_back(NeuralAffine{
                         out,input,weight,bias,type_of(*n.args[0].value),
                         checked.raw_types.at(&e),
                         static_cast<std::uint32_t>(e.span.start.line),
@@ -2734,19 +2639,13 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,NeuralUntrack>)out<<"%"<<n.out<<" = neural.untrack %"<<n.value;
     if constexpr(std::is_same_v<T,NeuralUnary>)out<<"%"<<n.out<<" = neural.unary %"<<n.value;
     if constexpr(std::is_same_v<T,NeuralBinary>)out<<"%"<<n.out<<" = neural.binary "<<n.op<<" %"<<n.left<<", %"<<n.right;
-    if constexpr(std::is_same_v<T,NeuralLoss>)out<<"%"<<n.out<<" = neural.loss %"<<n.prediction<<", %"<<n.target;
     if constexpr(std::is_same_v<T,NeuralGrad>)out<<"%"<<n.out<<" = neural.grad %"<<n.loss;
-if constexpr(std::is_same_v<T,NeuralLinearCreate>)out<<"%"<<n.out<<" = neural.linear.create %"<<n.input<<", %"<<n.output;
-if constexpr(std::is_same_v<T,NeuralLinearForward>)out<<"%"<<n.out<<" = neural.linear.forward %"<<n.input;
-if constexpr(std::is_same_v<T,NeuralConv2DCreate>)out<<"%"<<n.out<<" = neural.conv2d.create %"<<n.input;
-if constexpr(std::is_same_v<T,NeuralConv2DForward>)out<<"%"<<n.out<<" = neural.conv2d.forward %"<<n.input;
-if constexpr(std::is_same_v<T,NeuralBatchNormCreate>)out<<"%"<<n.out<<" = neural.batchnorm.create %"<<n.features;
-if constexpr(std::is_same_v<T,NeuralBatchNormForward>)out<<"%"<<n.out<<" = neural.batchnorm.forward %"<<n.input;
-if constexpr(std::is_same_v<T,NeuralDropoutCreate>)out<<"%"<<n.out<<" = neural.dropout.create %"<<n.rate;
-if constexpr(std::is_same_v<T,NeuralDropoutForward>)out<<"%"<<n.out<<" = neural.dropout.forward %"<<n.input;
-if constexpr(std::is_same_v<T,NeuralSGDCreate>)out<<"%"<<n.out<<" = neural.SGD %"<<n.rate;
-if constexpr(std::is_same_v<T,NeuralAdamCreate>)out<<"%"<<n.out<<" = neural.Adam %"<<n.rate;
-if constexpr(std::is_same_v<T,NeuralStep>)out<<"neural.step params="<<n.parameters.size();
+if constexpr(std::is_same_v<T,NeuralAffine>)out<<"%"<<n.out<<" = neural.affine %"<<n.input;
+if constexpr(std::is_same_v<T,NeuralConvolve2D>)out<<"%"<<n.out<<" = neural.convolve2d %"<<n.input;
+if constexpr(std::is_same_v<T,NeuralUpdate>)out<<"neural.update params="<<n.parameters.size();
+if constexpr(std::is_same_v<T,NeuralNormalize>)out<<"%"<<n.out<<" = neural.normalize %"<<n.input;
+if constexpr(std::is_same_v<T,NeuralRandomMask>)out<<"%"<<n.out<<" = neural.random_mask %"<<n.input;
+if constexpr(std::is_same_v<T,NeuralMomentUpdate>)out<<"neural.moment_update params="<<n.parameters.size();
 if constexpr(std::is_same_v<T,NeuralSave>)out<<"neural.save leaves="<<n.values.size();
 if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.size();
     if constexpr(std::is_same_v<T,TensorCast>)out<<"%"<<n.out<<" = tensor.cast %"<<n.tensor<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);

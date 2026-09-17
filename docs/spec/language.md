@@ -476,7 +476,7 @@ The native core supports fixed-width numeric types, lossless-only implicit conve
 
 ## Standard namespaces and imports
 
-Standard namespaces are always visible; importing them is an error. Current reserved namespaces are `math`, `cli`, `file`, `environment`, `test`, `time`, `random`, `process`, `map`, `set`, `json`, `http`, `tensor`, `stats`, `linear`, `signal`, `vision`, and `neural`.
+Standard namespaces are always visible; importing them is an error. Current reserved namespaces are `math`, `cli`, `file`, `environment`, `test`, `time`, `random`, `process`, `map`, `set`, `json`, `http`, `tensor`, `stats`, `linear`, `signal`, `image`, and `neural`.
 
 A source-file import always uses a quoted path:
 
@@ -611,9 +611,9 @@ string[] keys = counts.keys()
 
 ```quidra
 set.Set<string> tags = set.Set<string>()
-tags.add("vision")
+tags.add("compiler")
 tags.add("ai")
-tags.add("vision")
+tags.add("compiler")
 print(tags.size())
 print(tags.has("ai"))
 ```
@@ -665,11 +665,15 @@ The v0.1 implementation uses libcurl directly in the native runtime. It permits 
 
 `linear.dot(a, b)` computes the scalar dot product of two rank-1 numeric tensors with the same element type and length. The scalar result preserves that element type. `linear.matmul(a, b)` implements rank-2 matrix multiplication for operands with the same tensor element type and shapes `[m, k]` and `[k, n]`; the result has shape `[m, n]` and preserves that element type. Integer multiplication and accumulation remain overflow-checked in both operations. Higher-rank batched matmul is not implicit in language version 0.1.
 
-### vision
+### image
 
-`image.read<uint8>(path)` returns `tensor<uint8> | error`. The decoded tensor uses CHW layout: grayscale is `[1, H, W]`, RGB is `[3, H, W]`, and RGBA is `[4, H, W]`. Decoding does not normalize values, change RGB to BGR, or silently convert dtype. PNG, JPEG, BMP, TIFF, and WebP are supported by the native runtime.
+`image.read(path)` returns `tensor<uint8> | error`. The decoded tensor uses CHW layout: grayscale is `[1, H, W]`, RGB is `[3, H, W]`, and RGBA is `[4, H, W]`. Decoding does not normalize values, change RGB to BGR, or silently convert dtype. PNG, JPEG, BMP, TIFF, and WebP are supported by the native runtime.
 
-`image.write(path, pixels, quality = 95)` accepts a fully initialized CHW `tensor<uint8>` and returns `void | error`. The codec is selected from the filename extension. JPEG and WebP quality is an integer from 1 through 100. JPEG rejects RGBA input rather than silently discarding alpha. Callers must make intentional layout, dtype, range, and channel changes before the write call.
+`image.write(path, image, quality = 95)` accepts a fully initialized CHW `tensor<uint8>` and returns `void | error`. The codec is selected from the filename extension. JPEG and WebP quality is an integer from 1 through 100. JPEG rejects RGBA input rather than silently discarding alpha. Callers must make intentional layout, dtype, range, and channel changes before the write call.
+
+Higher-level tensor image processing is provided by the official `vision`
+source package through `import vision`. It is resolved by the ordinary package
+system and has no compiler-specific name handling.
 
 `signal` is reserved as a standard namespace so its future qualified API cannot be captured by a user bare declaration, but language version 0.1 does not define public signal-processing callables.
 
@@ -714,87 +718,17 @@ Use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` for floating-point 
 
 ## Neural values and training state
 
-`neural` is shorthand for `neural<float32>`; another floating dtype is written explicitly, such as `neural<float>`. Ordinary numeric storage remains `tensor<T>` with an explicit element type.
+`neural` is shorthand for `neural<float32>`; another floating dtype is written explicitly. `neural.track(tensor)` creates an immutable value in a dynamic graph and `.untrack()` returns an ordinary tensor. `neural.grad(loss)` traverses the executed graph and returns an independent `neural.Gradients` value without hidden accumulation.
 
-`neural.track(tensor)` takes a value-semantic snapshot and creates a root in the dynamic Define-by-Run graph. Later mutation of the source tensor cannot change that graph value. The implementation may share immutable storage internally until mutation because that sharing is unobservable. `value.untrack()` returns an ordinary tensor and cuts gradient lineage.
+Learnable storage is represented by `neural.Parameter<T>` and persistent non-gradient storage by `neural.State<T>`. A model is an ordinary class containing these values. Parameters have opaque persistent identities used to match gradients; user code cannot replace or index-write `Parameter.value`.
 
-`neural.Parameter<T>`, `neural.Linear<T>`, `neural.Conv2D<T>`, and `neural.BatchNorm<T>` accept only `float32` or `float` (`float64`) element types; unsupported numeric types are rejected during generic expansion rather than deferred to runtime. `neural.State<T>` remains general-purpose persistent state and is not restricted to floating types.
+The namespace exposes operand-level differentiable primitives: affine transformation, NCHW convolution, elementwise absolute/exponential/logarithm operations, mean and last-axis reductions, explicit normalization state, random masking, and safe first- and second-moment parameter updates. These are infrastructure for ordinary source packages rather than layer or optimizer types.
 
-`neural<T>` is immutable at source level: indexing may read values, but graph values cannot be updated in place. Ordinary `=` still has Quidra value semantics; immutable graph provenance may be shared internally.
+High-level deep-learning APIs are provided by the official `dnn` package through `import dnn`. It defines layers, activations, losses, and optimizers without compiler recognition of the package name.
 
-Learnable state is `neural.Parameter<T>`; persistent non-gradient state is `neural.State<T>`. `neural.Parameter` defaults to float32. A model is an ordinary Quidra class containing Parameters and States—there is no Module base class and no hidden Parameter registry. Copying a model by value creates independent Parameter and State storage.
+### Neural state persistence
 
-`neural.grad(loss)` traverses the graph produced by the executed control-flow path and returns an immutable `neural.Gradients` value. It does not write hidden `.grad` fields and gradients do not accumulate implicitly, so there is no `zero_grad()` operation. Graph values and gradients use their declared floating dtype for both storage and arithmetic: `neural<float32>` executes float32 forward/backward kernels and `neural<float>` executes float64 kernels. Scalar numeric literals in neural arithmetic are context-checked against that element dtype and are accepted only when the literal value is exactly representable. Adam is the deliberate optimizer-boundary exception: its first/second moments and bias-correction arithmetic are retained in float64, then each update is rounded into the Parameter dtype. That optimizer-internal mixed precision never changes the declared dtype of graph values, gradients, Parameters, or `untrack()` results.
-
-### BatchNorm and Dropout
-
-`neural.BatchNorm(features = F, momentum = 0.1, epsilon = 1e-5)` uses axis 1 as the feature/channel axis. This covers both `[N,F]` values and NCHW `[N,C,H,W]` feature maps. Training computes population variance over every element belonging to each feature/channel, updates `running_mean` and `running_variance` States with `running = (1 - momentum) * running + momentum * batch`, and differentiates input, scale, and bias. Scale starts at one, bias at zero, running mean at zero, and running variance at one. Inference reads the running States without changing them. The input element type must match the BatchNorm parameter/state element type; dtype mixing is rejected rather than converted implicitly.
-
-`neural.Dropout(rate = ..., seed = ...)` owns its RNG as `State<uint64>`. Training advances only that local State and records the mask in the dynamic graph for backward; inference is an identity value operation and does not consume RNG.
-
-## Neural execution markers
-
-`neural.training` has static type `neural.Training` and `neural.inference` has static type `neural.Inference`. They are deliberately distinct marker types rather than booleans. Generic functions and methods may infer a mode type from these values and are monomorphized separately, so one source body can produce distinct training and inference specializations without hidden `model.train()` / `model.eval()` state.
-
-### Conv2D
-
-`neural.Conv2D(input = C_in, output = C_out, kernel = K, stride = 1, padding = 0, seed = 0)`
-is the stable CPU 2D convolution primitive. Input layout is NCHW `[N,C,H,W]` and
-parameter layout is OIHW `[C_out,C_in,K,K]`. The core primitive deliberately uses a
-square kernel, one stride value, symmetric padding, no groups, and no dilation. Tensor
-input performs native inference; neural input creates a dynamic autograd node. Backward
-computes gradients for the input, weight, and bias.
-
-### Activations and losses
-
-Core differentiable activations are `neural.relu`, `neural.sigmoid`, `neural.tanh`, and `neural.softmax`. Softmax operates along a non-empty last axis and uses a numerically stable maximum subtraction; an empty normalization axis is rejected. ReLU defines its derivative at exactly zero as `0`.
-
-Core losses are mean squared error, cross entropy, and binary cross entropy. Mean reductions require at least one element rather than defining an empty mean as zero. Cross entropy accepts rank-2 logits `[N,C]` with `N > 0` and `C > 0` and an integer class-index target of exact shape `[N]`. Binary cross entropy accepts probabilities rather than logits: every prediction and target element must be finite and in `[0,1]`. Exact 0/1 predictions are stabilized only for logarithm evaluation; out-of-range values are rejected rather than silently clamped into the valid probability domain.
-
-### Optimizers and step
-
-`neural.SGD(rate = 0.01)` and `neural.Adam(rate = 0.001, beta1 = 0.9, beta2 = 0.999, epsilon = 1e-8)`
-do not retain references to model Parameters. Updates are explicit:
-
-```text
-neural.Gradients gradients = neural.grad(loss)
-neural.step(&model, &optimizer, gradients)
-```
-
-The compiler statically enumerates nested Parameter fields in the model. A model with no Parameters is valid: if the Gradients value is also empty, `neural.step` is a no-op and does not advance optimizer State. Dynamic branches may
-leave some model Parameters without a gradient; those Parameters are not updated. A Gradients
-value containing any Parameter that is not part of the supplied model is a runtime mismatch error. The complete Gradients-to-model relation, including shape and dtype, and Adam's existing structural moment state are validated before any Parameter or optimizer State is mutated, so a rejected step cannot partially update the model or optimizer. Adam's global optimizer call counter is committed only after all Parameter updates succeed.
-Adam's optimizer call counter and first/second moments are persistent State owned by the optimizer. Each
-moment record is keyed by the model's deterministic structural Parameter path as well as dtype and shape,
-so equal-shaped Parameters in a different model structure cannot silently inherit each other's optimizer
-history. Optimizer value copies are independent and optimizer State is serializable with the rest of the
-training state. Each Parameter moment record also stores its own update count for bias correction:
-a Parameter absent from the executed dynamic graph does not advance that count.
-
-## Neural state persistence
-
-Neural state persistence uses the single `.quistate` format:
-
-```text
-neural.save(model, path = "model.quistate")
-neural.save(model, optimizer, path = "training.quistate")
-
-neural.load(&model = &model, path = "model.quistate")
-neural.load(&model = &model, &optimizer = &optimizer, path = "training.quistate")
-```
-
-There is no separate checkpoint API. The supplied object graph determines what is saved. Ordinary scalar configuration, `neural.Parameter` tensors, `neural.State` values, and optimizer State are traversed structurally in declaration order. The v1 binary format contains a magic/version header, exact nominal root types plus a structural schema, field paths and types, tensor dtype/shape metadata, and a checksum. Saving writes a process-unique temporary file in the target directory and then atomically replaces the target; loading requires the complete schema to match, validates the full payload before replaying writes, and never silently skips or partially matches fields.
-
-Loading mutates the existing object graph instead of constructing executable objects from the file. Parameter tensors are restored in place, preserving Parameter identity used by autograd and optimizer matching. The format never contains executable code and is not pickle-like. Paths must end in `.quistate`. Every load target must already be fully initialized; load never materializes missing nested storage or partially constructed objects.
-
-### Parameter identity and mutation
-
-A `neural.Parameter<T>` has persistent identity for gradient matching. Its stored tensor may be read (prefer `.raw()` for an ordinary value snapshot), but user code cannot replace or mutate `Parameter.value` directly. Parameter storage is updated only by explicit neural state operations such as `neural.step` and `neural.load`. This keeps identity stable across optimization and in-place state restoration while ordinary model value copies still receive independent Parameter storage and identity.
-
-Writable references to `Parameter.value` are also rejected, so write authority cannot be used to bypass this identity rule.
-
-
-Parameter gradient identity is an opaque runtime generation attached to managed storage, not a raw memory address. Reusing a freed address therefore cannot make stale Gradients match a newly created Parameter. Loading state in place preserves the existing generation; value-copying a Parameter creates new managed storage and therefore a distinct generation.
+`neural.save` and `neural.load` use the typed `.quistate` format. The supplied class object graph determines what is serialized. The format records exact nominal roots, structural field paths and types, tensor dtype and shape, version, and checksum. Loading validates the complete payload before mutating existing storage and preserves Parameter identity.
 
 ### Local package management
 

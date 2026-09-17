@@ -376,7 +376,7 @@ bool llvm_uses_http(const fs::path& llvm) {
     return llvm_calls_symbol_prefix(llvm, "@quidra_http_");
 }
 
-bool llvm_uses_vision(const fs::path& llvm) {
+bool llvm_uses_image(const fs::path& llvm) {
     return llvm_calls_symbol_prefix(llvm, "@quidra_image_");
 }
 
@@ -437,8 +437,8 @@ int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options)
     arguments.emplace_back(L"-fno-omit-frame-pointer");
 #endif
     if (llvm_uses_http(llvm)) arguments.emplace_back(L"-lcurl");
-    if (llvm_uses_vision(llvm)) {
-        if (const auto configured = environment_value("QUIDRA_VISION_LIBRARY_PATH");
+    if (llvm_uses_image(llvm)) {
+        if (const auto configured = environment_value("QUIDRA_IMAGE_LIBRARY_PATH");
             configured && !configured->empty()) {
             arguments.emplace_back(L"-L" + utf8_to_wide(*configured));
         } else if (const auto vcpkg = environment_value("VCPKG_INSTALLATION_ROOT");
@@ -483,8 +483,8 @@ int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options)
     arguments.emplace_back("-fno-omit-frame-pointer");
 #endif
     if (llvm_uses_http(llvm)) arguments.emplace_back("-lcurl");
-    if (llvm_uses_vision(llvm)) {
-        if (const char* configured = std::getenv("QUIDRA_VISION_LIBRARY_PATH");
+    if (llvm_uses_image(llvm)) {
+        if (const char* configured = std::getenv("QUIDRA_IMAGE_LIBRARY_PATH");
             configured && *configured) {
             arguments.emplace_back(std::string("-L") + configured);
         } else {

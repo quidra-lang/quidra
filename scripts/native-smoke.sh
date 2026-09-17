@@ -7,7 +7,7 @@ ROOT="$(realpath "$2")"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 "$QUIDRA" llvm "$ROOT/examples/hello.qui" > "$TMP/hello.ll"
-if grep -Eq 'call .*@quidra_(vision|http)_' "$TMP/hello.ll"; then
+if grep -Eq 'call .*@quidra_(image|http)_' "$TMP/hello.ll"; then
     echo "unused optional runtime call leaked into Hello World" >&2
     exit 1
 fi

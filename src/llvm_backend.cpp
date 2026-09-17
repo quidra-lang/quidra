@@ -866,7 +866,11 @@ struct FunctionEmitter {
         }
         if constexpr(std::is_same_v<T,ir::NeuralUnary>){
             values[n.out]=n.type;
-            int op=n.operation==BuiltinCallable::NeuralRelu?1:n.operation==BuiltinCallable::NeuralSigmoid?2:n.operation==BuiltinCallable::NeuralTanh?3:4;
+            int op=n.operation==BuiltinCallable::NeuralAbsolute?1:
+                n.operation==BuiltinCallable::NeuralExponential?2:
+                n.operation==BuiltinCallable::NeuralLogarithm?3:
+                n.operation==BuiltinCallable::NeuralMean?4:
+                n.operation==BuiltinCallable::NeuralSumLast?5:6;
             if(n.type.kind==TypeKind::Neural)
                 out<<"  "<<value(n.out)<<" = call ptr @quidra_neural_unary(ptr "<<value(n.value)<<", i32 "<<op<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
             else
@@ -885,100 +889,35 @@ struct FunctionEmitter {
                 out<<"  "<<value(n.out)<<" = call ptr @quidra_neural_binary_scalar(ptr "<<value(ln?n.left:n.right)<<", double "<<sv<<", i32 "<<op<<", i1 "<<(ln?"false":"true")<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
             }
         }
-        if constexpr(std::is_same_v<T,ir::NeuralLoss>){
-            values[n.out]=n.result_type;
-            const int op=n.operation==BuiltinCallable::NeuralMse?1:n.operation==BuiltinCallable::NeuralCrossEntropy?2:3;
-            const int target_kind=n.target_type.kind==TypeKind::Neural?1:2;
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_neural_loss(ptr "<<value(n.prediction)<<", ptr "<<value(n.target)
-               <<", i32 "<<target_kind<<", i32 "<<op<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-        }
         if constexpr(std::is_same_v<T,ir::NeuralGrad>){
             values[n.out]=Type::simple(TypeKind::Gradients);
             out<<"  "<<value(n.out)<<" = call ptr @quidra_neural_grad(ptr "<<value(n.loss)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
         }
-        if constexpr(std::is_same_v<T,ir::NeuralConv2DCreate>){
-            values[n.out]=n.type;
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_neural_conv2d_create(i64 "
-               <<value(n.input)<<", i64 "<<value(n.output)<<", i64 "<<value(n.kernel)
-               <<", i64 "<<value(n.stride)<<", i64 "<<value(n.padding)<<", i64 "<<value(n.seed)
-               <<", i32 "<<tensor_dtype_code(n.element_type)
-               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::NeuralConv2DForward>){
+        if constexpr(std::is_same_v<T,ir::NeuralConvolve2D>){
             values[n.out]=n.result_type;
             const char* fn=n.input_type.kind==TypeKind::Neural
-                ?"quidra_neural_conv2d_forward"
-                :"quidra_neural_conv2d_tensor_forward";
+                ?"quidra_neural_convolve2d"
+                :"quidra_neural_tensor_convolve2d";
             out<<"  "<<value(n.out)<<" = call ptr @"<<fn<<"(ptr "<<value(n.input)
                <<", ptr "<<value(n.weight)<<", ptr "<<value(n.bias)
                <<", i64 "<<value(n.stride)<<", i64 "<<value(n.padding)
                <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
         }
-        if constexpr(std::is_same_v<T,ir::NeuralLinearCreate>){
-            values[n.out]=n.type;
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_neural_linear_create(i64 "
-               <<value(n.input)<<", i64 "<<value(n.output)<<", i64 "<<value(n.seed)
-               <<", i32 "<<tensor_dtype_code(n.element_type)
-               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::NeuralLinearForward>){
+        if constexpr(std::is_same_v<T,ir::NeuralAffine>){
             values[n.out]=n.result_type;
             const char* fn=n.input_type.kind==TypeKind::Neural
-                ?"quidra_neural_linear_forward"
-                :"quidra_neural_linear_tensor_forward";
+                ?"quidra_neural_affine"
+                :"quidra_neural_tensor_affine";
             out<<"  "<<value(n.out)<<" = call ptr @"<<fn<<"(ptr "<<value(n.input)
                <<", ptr "<<value(n.weight)<<", ptr "<<value(n.bias)
                <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
         }
-        if constexpr(std::is_same_v<T,ir::NeuralBatchNormCreate>){
-            values[n.out]=n.type;
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_neural_batch_norm_create(i64 "
-               <<value(n.features)<<", double "<<value(n.momentum)<<", double "<<value(n.epsilon)
-               <<", i32 "<<tensor_dtype_code(n.element_type)
-               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::NeuralBatchNormForward>){
-            values[n.out]=n.result_type;
-            const char* fn=n.training
-                ?"quidra_neural_batch_norm_forward"
-                :"quidra_neural_batch_norm_tensor_forward";
-            out<<"  "<<value(n.out)<<" = call ptr @"<<fn<<"(ptr "<<value(n.receiver)
-               <<", ptr "<<value(n.input)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::NeuralDropoutCreate>){
-            values[n.out]=n.type;
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_neural_dropout_create(double "
-               <<value(n.rate)<<", i64 "<<value(n.seed)
-               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::NeuralDropoutForward>){
-            values[n.out]=n.result_type;
-            const char* fn=n.training
-                ?"quidra_neural_dropout_forward"
-                :"quidra_neural_dropout_tensor_forward";
-            out<<"  "<<value(n.out)<<" = call ptr @"<<fn<<"(ptr "<<value(n.receiver)
-               <<", ptr "<<value(n.input)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::NeuralSGDCreate>){
-            values[n.out]=n.type;
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_neural_sgd_create(double "<<value(n.rate)
-               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::NeuralAdamCreate>){
-            values[n.out]=n.type;
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_neural_adam_create(double "<<value(n.rate)
-               <<", double "<<value(n.beta1)<<", double "<<value(n.beta2)
-               <<", double "<<value(n.epsilon)
-               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-        }
-        if constexpr(std::is_same_v<T,ir::NeuralStep>){
-            // Validate the complete gradient/model relation before any Parameter or
-            // optimizer State is mutated. This keeps a failed step atomic.
+        if constexpr(std::is_same_v<T,ir::NeuralUpdate>){
             std::string matched="0";
             for(std::size_t i=0;i<n.parameters.size();++i){
-                const auto has=temp("neural.step.has_gradient");
-                const auto widened=temp("neural.step.matched.bit");
-                const auto next=temp("neural.step.matched");
+                const auto has=temp("neural.update.has_gradient");
+                const auto widened=temp("neural.update.matched.bit");
+                const auto next=temp("neural.update.matched");
                 out<<"  "<<has<<" = call i1 @quidra_neural_parameter_has_gradient(ptr "
                    <<value(n.parameters[i].value)<<", ptr "<<value(n.gradients)
                    <<", i64 "<<n.line<<", i64 "<<n.column<<")\n"
@@ -988,49 +927,87 @@ struct FunctionEmitter {
             }
             out<<"  call void @quidra_neural_validate_step(ptr "<<value(n.gradients)
                <<", i64 "<<matched<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-
-            std::string step_value="0";
-            const bool adam=n.optimizer_type.kind==TypeKind::Class &&
-                n.optimizer_type.class_name=="$std.neural.Adam";
-            std::vector<std::string> adam_path_ptrs;
-            if(adam && !n.parameters.empty()){
-                const auto step=temp("neural.adam.step");
-                out<<"  "<<step<<" = call i64 @quidra_neural_adam_begin(ptr "<<value(n.optimizer)
+            for(const auto& parameter:n.parameters){
+                const auto did=temp("neural.update.did");
+                out<<"  "<<did<<" = call i1 @quidra_neural_update_parameter(ptr "
+                   <<value(parameter.value)<<", ptr "<<value(n.gradients)
+                   <<", double "<<value(n.rate)
+                   <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }
+        }
+        if constexpr(std::is_same_v<T,ir::NeuralMomentUpdate>){
+            const auto state=temp("neural.moment_update.state");
+            out<<"  "<<state<<" = alloca [48 x i8], align 8\n";
+            const auto store_state_field=[&](std::size_t offset,const char* type,ir::ValueId field){
+                const auto address=temp("neural.moment_update.field");
+                out<<"  "<<address<<" = getelementptr inbounds i8, ptr "<<state
+                   <<", i64 "<<offset<<"\n"
+                   <<"  store "<<type<<" "<<value(field)<<", ptr "<<address<<", align 8\n";
+            };
+            store_state_field(0,"double",n.rate);
+            store_state_field(8,"double",n.beta1);
+            store_state_field(16,"double",n.beta2);
+            store_state_field(24,"double",n.epsilon);
+            store_state_field(32,"ptr",n.step);
+            store_state_field(40,"ptr",n.moments);
+            std::string matched="0";
+            for(std::size_t i=0;i<n.parameters.size();++i){
+                const auto has=temp("neural.moment_update.has_gradient");
+                const auto widened=temp("neural.moment_update.matched.bit");
+                const auto next=temp("neural.moment_update.matched");
+                out<<"  "<<has<<" = call i1 @quidra_neural_parameter_has_gradient(ptr "
+                   <<value(n.parameters[i].value)<<", ptr "<<value(n.gradients)
+                   <<", i64 "<<n.line<<", i64 "<<n.column<<")\n"
+                   <<"  "<<widened<<" = zext i1 "<<has<<" to i64\n"
+                   <<"  "<<next<<" = add i64 "<<matched<<", "<<widened<<"\n";
+                matched=next;
+            }
+            out<<"  call void @quidra_neural_validate_step(ptr "<<value(n.gradients)
+               <<", i64 "<<matched<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            if(!n.parameters.empty()){
+                const auto step=temp("neural.moment_update.step");
+                out<<"  "<<step<<" = call i64 @quidra_neural_moment_begin(ptr "<<state
                    <<", i64 "<<n.parameters.size()<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-                step_value=step;
-                adam_path_ptrs.reserve(n.parameters.size());
+                std::vector<std::string> paths;
+                paths.reserve(n.parameters.size());
                 for(std::size_t i=0;i<n.parameters.size();++i){
                     const auto path_name=pool.intern(n.parameters[i].path);
                     const auto path_ptr=temp("neural.parameter.path");
                     out<<"  "<<path_ptr<<" = getelementptr inbounds ["
                        <<(n.parameters[i].path.size()+1)<<" x i8], ptr @"<<path_name
                        <<", i64 0, i64 0\n"
-                       <<"  call void @quidra_neural_adam_validate_parameter(ptr "
+                       <<"  call void @quidra_neural_moment_validate_parameter(ptr "
                        <<value(n.parameters[i].value)<<", ptr "<<value(n.gradients)
-                       <<", ptr "<<value(n.optimizer)<<", ptr "<<path_ptr
+                       <<", ptr "<<state<<", ptr "<<path_ptr
                        <<", i64 "<<i<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-                    adam_path_ptrs.push_back(path_ptr);
+                    paths.push_back(path_ptr);
                 }
-            }
-            for(std::size_t i=0;i<n.parameters.size();++i){
-                const auto did=temp("neural.step.did");
-                if(adam){
-                    out<<"  "<<did<<" = call i1 @quidra_neural_adam_step_parameter(ptr "
+                for(std::size_t i=0;i<n.parameters.size();++i){
+                    const auto did=temp("neural.moment_update.did");
+                    out<<"  "<<did<<" = call i1 @quidra_neural_moment_update_parameter(ptr "
                        <<value(n.parameters[i].value)<<", ptr "<<value(n.gradients)
-                       <<", ptr "<<value(n.optimizer)<<", ptr "<<adam_path_ptrs[i]
-                       <<", i64 "<<i<<", i64 "<<step_value
-                       <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-                }else{
-                    out<<"  "<<did<<" = call i1 @quidra_neural_sgd_step_parameter(ptr "
-                       <<value(n.parameters[i].value)<<", ptr "<<value(n.gradients)
-                       <<", ptr "<<value(n.optimizer)
+                       <<", ptr "<<state<<", ptr "<<paths[i]
+                       <<", i64 "<<i<<", i64 "<<step
                        <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
                 }
+                out<<"  call void @quidra_neural_moment_finish(ptr "<<state
+                   <<", i64 "<<step<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
             }
-            if(adam && !n.parameters.empty()){
-                out<<"  call void @quidra_neural_adam_finish(ptr "<<value(n.optimizer)
-                   <<", i64 "<<step_value<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
-            }
+        }
+        if constexpr(std::is_same_v<T,ir::NeuralNormalize>){
+            values[n.out]=n.result_type;
+            out<<"  "<<value(n.out)<<" = call ptr @quidra_neural_normalize(ptr "
+               <<value(n.input)<<", ptr "<<value(n.scale)<<", ptr "<<value(n.bias)
+               <<", ptr "<<value(n.running_mean)<<", ptr "<<value(n.running_variance)
+               <<", double "<<value(n.momentum)<<", double "<<value(n.epsilon)
+               <<", i1 "<<(n.training?"true":"false")
+               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+        }
+        if constexpr(std::is_same_v<T,ir::NeuralRandomMask>){
+            values[n.out]=n.result_type;
+            out<<"  "<<value(n.out)<<" = call ptr @quidra_neural_random_mask(ptr "
+               <<value(n.input)<<", ptr "<<value(n.state)<<", double "<<value(n.rate)
+               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::NeuralSave>){
             const auto schema_name=pool.intern(n.schema);
@@ -2843,28 +2820,19 @@ declare ptr @quidra_neural_unary(ptr, i32, i64, i64)
 declare ptr @quidra_neural_tensor_unary(ptr, i32, i64, i64)
 declare ptr @quidra_neural_binary(ptr, ptr, i32, i64, i64)
 declare ptr @quidra_neural_binary_scalar(ptr, double, i32, i1, i64, i64)
-declare ptr @quidra_neural_loss(ptr, ptr, i32, i32, i64, i64)
 declare ptr @quidra_neural_grad(ptr, i64, i64)
-declare ptr @quidra_neural_conv2d_create(i64, i64, i64, i64, i64, i64, i32, i64, i64)
-declare ptr @quidra_neural_conv2d_forward(ptr, ptr, ptr, i64, i64, i64, i64)
-declare ptr @quidra_neural_conv2d_tensor_forward(ptr, ptr, ptr, i64, i64, i64, i64)
-declare ptr @quidra_neural_linear_create(i64, i64, i64, i32, i64, i64)
-declare ptr @quidra_neural_linear_forward(ptr, ptr, ptr, i64, i64)
-declare ptr @quidra_neural_linear_tensor_forward(ptr, ptr, ptr, i64, i64)
-declare ptr @quidra_neural_batch_norm_create(i64, double, double, i32, i64, i64)
-declare ptr @quidra_neural_batch_norm_forward(ptr, ptr, i64, i64)
-declare ptr @quidra_neural_batch_norm_tensor_forward(ptr, ptr, i64, i64)
-declare ptr @quidra_neural_dropout_create(double, i64, i64, i64)
-declare ptr @quidra_neural_dropout_forward(ptr, ptr, i64, i64)
-declare ptr @quidra_neural_dropout_tensor_forward(ptr, ptr, i64, i64)
-declare ptr @quidra_neural_sgd_create(double, i64, i64)
-declare ptr @quidra_neural_adam_create(double, double, double, double, i64, i64)
+declare i1 @quidra_neural_update_parameter(ptr, ptr, double, i64, i64)
+declare ptr @quidra_neural_normalize(ptr, ptr, ptr, ptr, ptr, double, double, i1, i64, i64)
+declare ptr @quidra_neural_random_mask(ptr, ptr, double, i64, i64)
+declare ptr @quidra_neural_convolve2d(ptr, ptr, ptr, i64, i64, i64, i64)
+declare ptr @quidra_neural_tensor_convolve2d(ptr, ptr, ptr, i64, i64, i64, i64)
+declare ptr @quidra_neural_affine(ptr, ptr, ptr, i64, i64)
+declare ptr @quidra_neural_tensor_affine(ptr, ptr, ptr, i64, i64)
 declare i1 @quidra_neural_parameter_has_gradient(ptr, ptr, i64, i64)
-declare i1 @quidra_neural_sgd_step_parameter(ptr, ptr, ptr, i64, i64)
-declare i64 @quidra_neural_adam_begin(ptr, i64, i64, i64)
-declare void @quidra_neural_adam_validate_parameter(ptr, ptr, ptr, ptr, i64, i64, i64)
-declare i1 @quidra_neural_adam_step_parameter(ptr, ptr, ptr, ptr, i64, i64, i64, i64)
-declare void @quidra_neural_adam_finish(ptr, i64, i64, i64)
+declare i64 @quidra_neural_moment_begin(ptr, i64, i64, i64)
+declare void @quidra_neural_moment_validate_parameter(ptr, ptr, ptr, ptr, i64, i64, i64)
+declare i1 @quidra_neural_moment_update_parameter(ptr, ptr, ptr, ptr, i64, i64, i64, i64)
+declare void @quidra_neural_moment_finish(ptr, i64, i64, i64)
 declare void @quidra_neural_validate_step(ptr, i64, i64, i64)
 declare ptr @quidra_neural_state_save_begin(ptr, ptr, i64, i64)
 declare void @quidra_neural_state_write(ptr, ptr, i32, ptr, i64, i64)

@@ -130,19 +130,20 @@ enum class BuiltinCallable {
     ImageWrite,
     NeuralTrack,
     NeuralParameterTrack,
-    NeuralLinearForward,
-    NeuralConv2DForward,
-    NeuralBatchNormForward,
-    NeuralDropoutForward,
-    NeuralRelu,
-    NeuralSigmoid,
-    NeuralTanh,
-    NeuralSoftmax,
-    NeuralMse,
-    NeuralCrossEntropy,
-    NeuralBinaryCrossEntropy,
+    NeuralAffine,
+    NeuralConvolve2D,
+    NeuralAbsolute,
+    NeuralExponential,
+    NeuralLogarithm,
+    NeuralMean,
+    NeuralSumLast,
+    NeuralMaxLast,
+    NeuralUpdate,
+    NeuralNormalize,
+    NeuralNormalizeInference,
+    NeuralRandomMask,
+    NeuralMomentUpdate,
     NeuralGrad,
-    NeuralStep,
     NeuralSave,
     NeuralLoad
 };
@@ -170,7 +171,7 @@ inline constexpr std::array<BuiltinCallableInfo, 11> builtin_callables{{
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 76> intrinsic_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 77> intrinsic_callables{{
     {"$std.math.sin", BuiltinCallable::MathSin},
     {"$std.math.cos", BuiltinCallable::MathCos},
     {"$std.math.tan", BuiltinCallable::MathTan},
@@ -232,19 +233,20 @@ inline constexpr std::array<BuiltinCallableInfo, 76> intrinsic_callables{{
     {"$std.image.write", BuiltinCallable::ImageWrite},
     {"$std.neural.track", BuiltinCallable::NeuralTrack},
     {"$std.neural.parameter_track", BuiltinCallable::NeuralParameterTrack},
-    {"$std.neural.linear_forward", BuiltinCallable::NeuralLinearForward},
-    {"$std.neural.conv2d_forward", BuiltinCallable::NeuralConv2DForward},
-    {"$std.neural.batch_norm_forward", BuiltinCallable::NeuralBatchNormForward},
-    {"$std.neural.dropout_forward", BuiltinCallable::NeuralDropoutForward},
-    {"$std.neural.relu", BuiltinCallable::NeuralRelu},
-    {"$std.neural.sigmoid", BuiltinCallable::NeuralSigmoid},
-    {"$std.neural.tanh", BuiltinCallable::NeuralTanh},
-    {"$std.neural.softmax", BuiltinCallable::NeuralSoftmax},
-    {"$std.neural.mse", BuiltinCallable::NeuralMse},
-    {"$std.neural.cross_entropy", BuiltinCallable::NeuralCrossEntropy},
-    {"$std.neural.binary_cross_entropy", BuiltinCallable::NeuralBinaryCrossEntropy},
+    {"$std.neural.affine", BuiltinCallable::NeuralAffine},
+    {"$std.neural.convolve2d", BuiltinCallable::NeuralConvolve2D},
+    {"$std.neural.absolute", BuiltinCallable::NeuralAbsolute},
+    {"$std.neural.exponential", BuiltinCallable::NeuralExponential},
+    {"$std.neural.logarithm", BuiltinCallable::NeuralLogarithm},
+    {"$std.neural.mean", BuiltinCallable::NeuralMean},
+    {"$std.neural.sum_last", BuiltinCallable::NeuralSumLast},
+    {"$std.neural.max_last", BuiltinCallable::NeuralMaxLast},
+    {"$std.neural.update", BuiltinCallable::NeuralUpdate},
+    {"$std.neural.normalize", BuiltinCallable::NeuralNormalize},
+    {"$std.neural.normalize_inference", BuiltinCallable::NeuralNormalizeInference},
+    {"$std.neural.random_mask", BuiltinCallable::NeuralRandomMask},
+    {"$std.neural.moment_update", BuiltinCallable::NeuralMomentUpdate},
     {"$std.neural.grad", BuiltinCallable::NeuralGrad},
-    {"$std.neural.step", BuiltinCallable::NeuralStep},
     {"$std.neural.save", BuiltinCallable::NeuralSave},
     {"$std.neural.load", BuiltinCallable::NeuralLoad},
 }};
@@ -339,15 +341,20 @@ inline constexpr std::optional<std::string_view> standard_function_target(
     }
     if (module == "neural") {
         if (member == "track") return "$std.neural.track";
-        if (member == "relu") return "$std.neural.relu";
-        if (member == "sigmoid") return "$std.neural.sigmoid";
-        if (member == "tanh") return "$std.neural.tanh";
-        if (member == "softmax") return "$std.neural.softmax";
-        if (member == "mse") return "$std.neural.mse";
-        if (member == "cross_entropy") return "$std.neural.cross_entropy";
-        if (member == "binary_cross_entropy") return "$std.neural.binary_cross_entropy";
+        if (member == "affine") return "$std.neural.affine";
+        if (member == "convolve2d") return "$std.neural.convolve2d";
+        if (member == "absolute") return "$std.neural.absolute";
+        if (member == "exponential") return "$std.neural.exponential";
+        if (member == "logarithm") return "$std.neural.logarithm";
+        if (member == "mean") return "$std.neural.mean";
+        if (member == "sum_last") return "$std.neural.sum_last";
+        if (member == "max_last") return "$std.neural.max_last";
+        if (member == "update") return "$std.neural.update";
+        if (member == "normalize") return "$std.neural.normalize";
+        if (member == "normalize_inference") return "$std.neural.normalize_inference";
+        if (member == "random_mask") return "$std.neural.random_mask";
+        if (member == "moment_update") return "$std.neural.moment_update";
         if (member == "grad") return "$std.neural.grad";
-        if (member == "step") return "$std.neural.step";
         if (member == "save") return "$std.neural.save";
         if (member == "load") return "$std.neural.load";
         return std::nullopt;
@@ -383,11 +390,6 @@ inline constexpr std::optional<std::string_view> standard_function_target(
 
 inline constexpr std::optional<std::string_view> standard_value_target(
     std::string_view module, std::string_view member) {
-    if (module == "neural") {
-        if (member == "training") return "$std.neural.training";
-        if (member == "inference") return "$std.neural.inference";
-        return std::nullopt;
-    }
     if (module != "math") return std::nullopt;
     if (member == "pi") return "$std.math.pi";
     if (member == "e") return "$std.math.e";

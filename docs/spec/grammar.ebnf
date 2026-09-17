@@ -5,8 +5,7 @@
 program          = { NEWLINE | import_decl | extern_decl | cli_decl | class_decl | function | statement }, EOF ;
 
 import_decl      = "import", identifier,
-                   [ "=", ( string | identifier )
-                   | "+=", identifier ], statement_end ;
+                   [ "=", ( string | identifier ) ], statement_end ;
 
 extern_decl      = "extern", type, identifier, "(", [ parameters ], ")",
                    "=", string, statement_end ;

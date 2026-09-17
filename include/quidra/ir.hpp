@@ -66,20 +66,14 @@ struct NeuralTrack { ValueId out; ValueId tensor; Type type; bool parameter{}; s
 struct NeuralUntrack { ValueId out; ValueId value; Type type; };
 struct NeuralUnary { ValueId out; ValueId value; Type type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
 struct NeuralBinary { ValueId out; std::string op; ValueId left; ValueId right; Type left_type; Type right_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralLoss { ValueId out; ValueId prediction; ValueId target; Type target_type; Type result_type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
 struct NeuralGrad { ValueId out; ValueId loss; Type loss_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralLinearCreate { ValueId out; ValueId input; ValueId output; ValueId seed; Type type; Type element_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralLinearForward { ValueId out; ValueId input; ValueId weight; ValueId bias; Type input_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralConv2DCreate { ValueId out; ValueId input; ValueId output; ValueId kernel; ValueId stride; ValueId padding; ValueId seed; Type type; Type element_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralConv2DForward { ValueId out; ValueId input; ValueId weight; ValueId bias; ValueId stride; ValueId padding; Type input_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralBatchNormCreate { ValueId out; ValueId features; ValueId momentum; ValueId epsilon; Type type; Type element_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralBatchNormForward { ValueId out; ValueId receiver; ValueId input; Type receiver_type; Type input_type; Type result_type; bool training{}; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralDropoutCreate { ValueId out; ValueId rate; ValueId seed; Type type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralDropoutForward { ValueId out; ValueId receiver; ValueId input; Type receiver_type; Type input_type; Type result_type; bool training{}; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralSGDCreate { ValueId out; ValueId rate; Type type; std::uint32_t line{}; std::uint32_t column{}; };
-struct NeuralAdamCreate { ValueId out; ValueId rate; ValueId beta1; ValueId beta2; ValueId epsilon; Type type; std::uint32_t line{}; std::uint32_t column{}; };
+struct NeuralAffine { ValueId out; ValueId input; ValueId weight; ValueId bias; Type input_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
+struct NeuralConvolve2D { ValueId out; ValueId input; ValueId weight; ValueId bias; ValueId stride; ValueId padding; Type input_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct NeuralParameterRef { std::string path; ValueId value; };
-struct NeuralStep { std::vector<NeuralParameterRef> parameters; ValueId optimizer; ValueId gradients; Type optimizer_type; std::uint32_t line{}; std::uint32_t column{}; };
+struct NeuralUpdate { std::vector<NeuralParameterRef> parameters; ValueId gradients; ValueId rate; std::uint32_t line{}; std::uint32_t column{}; };
+struct NeuralNormalize { ValueId out; ValueId input; ValueId scale; ValueId bias; ValueId running_mean; ValueId running_variance; ValueId momentum; ValueId epsilon; Type result_type; bool training{}; std::uint32_t line{}; std::uint32_t column{}; };
+struct NeuralRandomMask { ValueId out; ValueId input; ValueId state; ValueId rate; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
+struct NeuralMomentUpdate { std::vector<NeuralParameterRef> parameters; ValueId rate; ValueId beta1; ValueId beta2; ValueId epsilon; ValueId step; ValueId moments; ValueId gradients; std::uint32_t line{}; std::uint32_t column{}; };
 struct NeuralStateValue { std::string path; ValueId value; Type type; };
 struct NeuralStateTarget { std::string path; ValueId address; Type type; };
 struct NeuralSave { ValueId path; std::string schema; std::vector<NeuralStateValue> values; std::uint32_t line{}; std::uint32_t column{}; };
@@ -228,9 +222,9 @@ using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantBool, Const
                                  BytesAlloc, BytesLength, BytesGet, BytesSet,
                                  NumericConvert, TensorCreate, TensorReshape, TensorContiguous,
                                  TensorShape, TensorIsContiguous, TensorItem, TensorCast,
-                                 NeuralTrack, NeuralUntrack, NeuralUnary, NeuralBinary, NeuralLoss, NeuralGrad,
-                                 NeuralLinearCreate, NeuralLinearForward, NeuralConv2DCreate, NeuralConv2DForward, NeuralBatchNormCreate, NeuralBatchNormForward,
-                                 NeuralDropoutCreate, NeuralDropoutForward, NeuralSGDCreate, NeuralAdamCreate, NeuralStep,
+                                 NeuralTrack, NeuralUntrack, NeuralUnary, NeuralBinary, NeuralGrad,
+                                 NeuralAffine, NeuralConvolve2D, NeuralUpdate, NeuralNormalize,
+                                 NeuralRandomMask, NeuralMomentUpdate,
                                  NeuralSave, NeuralLoad,
                                  StatsMean, LinearMatmul, LinearDot, ImageRead, ImageWrite, TensorBinary, TensorIndex, TensorSet, ParseNumber, NumericAbs, Sqrt, MathUnary, MathRoundInt, MathPow,
                                  CliArgument, CliOption, CliFlag, CliFinish,

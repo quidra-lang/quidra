@@ -89,6 +89,18 @@ int main() {
         require(rejected, "invalid UTF-8 source rejection");
     }
     {
+        auto lf = parse("string text = \"left\nright\"\n");
+        auto crlf = parse("string text = \"left\r\nright\"\r\n");
+        const auto& lf_binding = std::get<BindingStmt>(lf.statements[0]->data);
+        const auto& crlf_binding = std::get<BindingStmt>(crlf.statements[0]->data);
+        const auto& lf_text = std::get<StringExpr>(lf_binding.value->data).value;
+        const auto& crlf_text = std::get<StringExpr>(crlf_binding.value->data).value;
+        require(lf_text == "left\nright", "LF multiline string value");
+        require(crlf_text == lf_text, "CRLF multiline string normalization");
+        require(crlf_text.find('\r') == std::string::npos,
+                "CRLF multiline string contains no carriage return");
+    }
+    {
         auto p = parse(
             "import geometry = \"./geometry.qui\"\n"
             "import root = \"@/shared/root.qui\"\n"

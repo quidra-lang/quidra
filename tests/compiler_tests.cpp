@@ -134,6 +134,26 @@ static void bad_code(const std::string& s, const std::string& expected) {
     }
     std::cerr<<"unexpected acceptance, expected "<<expected<<":\n"<<s; std::exit(1);
 }
+static void bad_message(const std::string& s, const std::string& code,
+                        const std::string& fragment) {
+    try { (void)quidra::compile(s); }
+    catch (const quidra::CompileErrors& errors) {
+        for (const auto& d : errors.diagnostics()) {
+            if (d.code == code && d.message.find(fragment) != std::string::npos) return;
+        }
+        std::cerr << "missing diagnostic " << code << " containing '" << fragment << "'\n" << s;
+        std::exit(1);
+    }
+    catch (const quidra::CompileError& error) {
+        const auto& d = error.diagnostic();
+        if (d.code == code && d.message.find(fragment) != std::string::npos) return;
+        std::cerr << "missing diagnostic " << code << " containing '" << fragment << "'\n" << s;
+        std::exit(1);
+    }
+    std::cerr << "unexpected acceptance, expected " << code << " containing '" << fragment
+              << "':\n" << s;
+    std::exit(1);
+}
 static void root_source_override_with_import() {
     const auto root = std::filesystem::temp_directory_path() / "quidra-root-source-override";
     const auto main_path = root / "main.qui";
@@ -1206,6 +1226,30 @@ auto f = square
  bad_code("int | none x = 1\nmatch x\n    int\n        print(x)\n", "MATCH_EXHAUSTIVE");
  bad_code("auto values = []\n", "AMBIGUOUS_TYPE");
  bad_code("int f(int x)\n    return x\nprint(f())\n", "ARGUMENT_MISMATCH");
+ bad_message(R"(int combine(int first, int second = 2)
+    return first + second
+print(combine(first = 1, 2))
+)", "ARGUMENT_MISMATCH", "Positional argument cannot follow named arguments");
+ bad_message(R"(int combine(int first, int second = 2)
+    return first + second
+print(combine(first = 1, first = 2))
+)", "ARGUMENT_MISMATCH", "Argument 'first' is supplied more than once");
+ bad_message(R"(int combine(int first, int second = 2)
+    return first + second
+print(combine(third = 1))
+)", "ARGUMENT_MISMATCH", "Unknown argument 'third'");
+ bad_message(R"(int combine(int first, int second = 2)
+    return first + second
+print(combine())
+)", "ARGUMENT_MISMATCH", "Missing required argument 'first'");
+ bad_message(R"(int combine(int first, int second = 2)
+    return first + second
+print(combine(1, 2, 3))
+)", "ARGUMENT_MISMATCH", "Too many positional arguments");
+ bad_message(R"(int combine(int first, int second = 2)
+    return first + second
+print(combine(1, first = 2))
+)", "ARGUMENT_MISMATCH", "Argument 'first' is supplied more than once");
  bad_code("int[2] values = [1]\n", "ARRAY_SHAPE");
  bad_code("class A\n    int x\nclass A\n    int y\n", "DUPLICATE_NAME");
  good(R"(T identity<T>(T value)

@@ -815,7 +815,7 @@ Do not alter these weights after any scored LLM output has been observed.
 
 # 10. LLM Intrinsic Learnability Evaluation
 
-This section implements **Primary Evaluation 3 — LLM Intrinsic / Unknown-Language Learnability**.
+This section implements **Primary Evaluation 2 — LLM Intrinsic / Unknown-Language Learnability**.
 
 ## 10.1 Objective
 
@@ -2055,14 +2055,14 @@ The benchmark is complete only when all applicable items below are satisfied:
 20. Semantic Compression Ranking was created.
 21. Unseen-case Generalization was evaluated.
 22. Prompt Robustness was evaluated.
-23. Standard metric scores were calculated without Semantic Compression-specific double counting.
-24. Standard Overall Score was calculated.
-25. Standard Ranking was created.
-26. LLM Practical metric scores were calculated.
-27. LLM Intrinsic subtest scores were calculated.
-28. LLM Practical Effectiveness Score was calculated.
-29. LLM Intrinsic Learnability Score was calculated.
-30. LLM Intrinsic Learnability Ranking was created.
+23. LLM Intrinsic subtest scores were calculated.
+24. LLM Intrinsic Learnability Score was calculated.
+25. LLM Intrinsic Learnability Ranking was created.
+26. Standard metric scores were calculated without Semantic Compression-specific double counting.
+27. Standard Overall Score was calculated.
+28. Standard Ranking was created.
+29. LLM Practical metric scores were calculated.
+30. LLM Practical Effectiveness Score was calculated.
 31. LLM Practical Effectiveness Ranking was created.
 32. No cross-evaluation weighted overall score or ranking was created.
 33. Raw Data was preserved.

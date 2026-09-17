@@ -1771,7 +1771,9 @@ void neural_apply_unary_t(std::vector<T>& values,int op,const std::vector<long l
         if(values.empty()) neural_fail("mean requires at least one element",line,column);
         T total=T{0};
         for(const auto value:values) total=static_cast<T>(total+value);
-        values={static_cast<T>(total/static_cast<T>(values.size()))};
+        const T average=static_cast<T>(total/static_cast<T>(values.size()));
+        values.clear();
+        values.push_back(average);
         return;
     }
     if(op==5||op==6){

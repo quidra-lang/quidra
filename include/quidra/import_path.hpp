@@ -1,5 +1,7 @@
 #pragma once
 
+#include "quidra/language.hpp"
+
 #include <cstdlib>
 #include <filesystem>
 #include <optional>
@@ -21,6 +23,34 @@ inline std::optional<std::string> import_environment_value(const char* name) {
     if (const char* raw = std::getenv(name)) return std::string(raw);
     return std::nullopt;
 #endif
+}
+
+inline constexpr bool is_importable_package_name(std::string_view name) {
+    if (name.empty()) return false;
+    const auto ascii_alpha = [](char c) {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+    };
+    const auto ascii_digit = [](char c) { return c >= '0' && c <= '9'; };
+    if (!ascii_alpha(name.front()) && name.front() != '_') return false;
+    for (const char c : name.substr(1)) {
+        if (!ascii_alpha(c) && !ascii_digit(c) && c != '_') return false;
+    }
+
+    // These spellings are tokenized as language keywords and therefore cannot
+    // appear as the unquoted installed-package target in an import declaration.
+    if (name == "class" || name == "override" || name == "import" ||
+        name == "super" || name == "const" || name == "return" ||
+        name == "if" || name == "elif" || name == "else" ||
+        name == "while" || name == "for" || name == "in" ||
+        name == "match" || name == "try" || name == "break" ||
+        name == "continue" || name == "true" || name == "false" ||
+        name == "not" || name == "and" || name == "or") {
+        return false;
+    }
+
+    // Standard namespaces are always visible and are deliberately not package
+    // imports, so accepting one here would install an unreachable package.
+    return !is_standard_module(name);
 }
 
 enum class ImportPathBase {
@@ -98,16 +128,9 @@ inline ImportPathResolution resolve_local_import_path(
 
 inline std::optional<std::filesystem::path> resolve_installed_package_path(
     std::string_view package_name) {
-    if (package_name.empty() || package_name.find('\0') != std::string_view::npos) {
-        throw std::invalid_argument("Package name is invalid.");
-    }
-    for (const char c : package_name) {
-        const auto ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-                        (c >= '0' && c <= '9') || c == '_' || c == '-';
-        if (!ok) {
-            throw std::invalid_argument(
-                "Package names may contain only ASCII letters, digits, '_' and '-'.");
-        }
+    if (!is_importable_package_name(package_name)) {
+        throw std::invalid_argument(
+            "Package name must be an importable Quidra identifier and must not be a standard namespace.");
     }
 
     const auto candidate_from_root = [&](const std::filesystem::path& root)

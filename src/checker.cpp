@@ -2784,8 +2784,8 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                 case BuiltinCallable::NeuralNormalize:
                 case BuiltinCallable::NeuralNormalizeInference: {
                     const bool training=builtin==BuiltinCallable::NeuralNormalize;
-                    const std::size_t expected=training?7:6;
-                    if (node->args.size()!=expected) {
+                    const std::size_t expected_arguments=training?7:6;
+                    if (node->args.size()!=expected_arguments) {
                         error("ARGUMENT_MISMATCH",
                               training
                                 ? "neural.normalize requires value, scale, bias, running mean, running variance, momentum, and epsilon."

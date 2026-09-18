@@ -292,6 +292,160 @@ bool launch_ptx_1d(Buffer* output, const std::string& key,
                   LaunchDimensions{block,1,1}, arguments, error);
 }
 
+Module* cached_hip_module(int device, const std::string& key,
+                          const std::string& source, std::string& error) {
+    static std::mutex cache_mutex;
+    static std::unordered_map<std::string, Module*> cache;
+    const auto cache_key = std::to_string(device) + ":" + key;
+    std::lock_guard lock(cache_mutex);
+    const auto found = cache.find(cache_key);
+    if (found != cache.end()) return found->second;
+    auto* module = load_hip_source(device, source, error);
+    if (!module) return nullptr;
+    cache.emplace(cache_key, module);
+    return module;
+}
+
+bool launch_hip_1d(Buffer* output, const std::string& key,
+                   const std::string& source, std::size_t count,
+                   void** arguments, std::string& error) {
+    if (count == 0) return true;
+    constexpr unsigned block = 256;
+    const auto blocks64 = (count + block - 1) / block;
+    if (blocks64 > std::numeric_limits<unsigned>::max()) {
+        error = "GPU tensor compute launch is too large";
+        return false;
+    }
+    auto* module = cached_hip_module(output->global_index, key, source, error);
+    if (!module) return false;
+    return launch(module, "q_kernel",
+                  LaunchDimensions{static_cast<unsigned>(blocks64),1,1},
+                  LaunchDimensions{block,1,1}, arguments, error);
+}
+
+std::string hip_raw_type(std::size_t width) {
+    switch (width) {
+        case 1: return "unsigned char";
+        case 2: return "unsigned short";
+        case 4: return "unsigned int";
+        case 8: return "unsigned long long";
+        default: return {};
+    }
+}
+
+std::string hip_dtype_type(int dtype) {
+    switch (dtype) {
+        case 1: return "long long";
+        case 2: return "signed char";
+        case 3: return "short";
+        case 4: return "int";
+        case 5: return "unsigned char";
+        case 6: return "unsigned short";
+        case 7: return "unsigned int";
+        case 8: return "unsigned long long";
+        case 9: return "double";
+        case 10:return "float";
+        default:return {};
+    }
+}
+
+std::string hip_fill_source(std::size_t width, std::uint64_t bits) {
+    const auto type=hip_raw_type(width);
+    std::ostringstream out;
+    out<<"extern \"C\" __global__ void q_kernel("<<type<<"* out,unsigned long long count){"
+          "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+          "if(i<count)out[i]=("<<type<<")"<<bits<<"ull;}";
+    return out.str();
+}
+
+std::string hip_gather_source(std::size_t width) {
+    const auto type=hip_raw_type(width);
+    return "extern \"C\" __global__ void q_kernel("+type+"* out,const "+type+
+           "* src,const unsigned long long* indices,unsigned long long count){"
+           "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+           "if(i<count)out[i]=src[indices[i]];}";
+}
+
+std::string hip_float_binary_source(int dtype,int operation,int scalar_side) {
+    const auto type=dtype==10?"float":"double";
+    const char* op=operation==1?"+":operation==2?"-":operation==3?"*":"/";
+    std::ostringstream out;
+    out<<"extern \"C\" __global__ void q_kernel("<<type<<"* out,const "<<type
+       <<"* left,const "<<type<<"* right,"<<type<<" scalar,unsigned long long count){"
+         "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+         "if(i>=count)return;"<<type<<" a=left[i];";
+    if(scalar_side==0) out<<type<<" b=right[i];out[i]=a"<<op<<"b;";
+    else if(scalar_side==1) out<<"out[i]=scalar"<<op<<"a;";
+    else out<<"out[i]=a"<<op<<"scalar;";
+    out<<"}";
+    return out.str();
+}
+
+std::string hip_float_unary_source(int dtype,int operation) {
+    const auto type=dtype==10?"float":"double";
+    std::string expr;
+    if(operation==1) expr="-v";
+    else if(operation==2) expr=dtype==10?"__builtin_fabsf(v)":"__builtin_fabs(v)";
+    else if(operation==3) expr=dtype==10?"__builtin_expf(v)":"__builtin_exp(v)";
+    else expr=dtype==10?"__builtin_logf(v)":"__builtin_log(v)";
+    return "extern \"C\" __global__ void q_kernel("+std::string(type)+
+        "* out,const "+type+"* in,unsigned long long count){"
+        "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+        "if(i<count){"+type+" v=in[i];out[i]="+expr+";}}";
+}
+
+std::string hip_float_cast_source(int source_dtype,int target_dtype) {
+    const auto src=source_dtype==10?"float":"double";
+    const auto dst=target_dtype==10?"float":"double";
+    return "extern \"C\" __global__ void q_kernel("+std::string(dst)+
+        "* out,const "+src+"* in,unsigned long long count){"
+        "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+        "if(i<count)out[i]=("+dst+")in[i];}";
+}
+
+std::string hip_float_matmul_source(int dtype) {
+    const auto type=dtype==10?"float":"double";
+    return "extern \"C\" __global__ void q_kernel("+std::string(type)+
+        "* out,const "+type+"* left,const "+type+"* right,"
+        "unsigned long long m,unsigned long long k,unsigned long long n){"
+        "unsigned long long g=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+        "if(g>=m*n)return;unsigned long long row=g/n,col=g%n;"+type+" total=("+type+")0;"
+        "for(unsigned long long i=0;i<k;++i)total+=left[row*k+i]*right[i*n+col];"
+        "out[g]=total;}";
+}
+
+std::string hip_float_dot_source(int dtype) {
+    const auto type=dtype==10?"float":"double";
+    return "extern \"C\" __global__ void q_kernel("+std::string(type)+
+        "* out,const "+type+"* left,const "+type+"* right,unsigned long long count){"
+        "if(blockIdx.x||threadIdx.x)return;"+type+" total=("+type+")0;"
+        "for(unsigned long long i=0;i<count;++i)total+=left[i]*right[i];out[0]=total;}";
+}
+
+std::string hip_float_reduce_source(int dtype,int operation) {
+    const auto type=dtype==10?"float":"double";
+    std::ostringstream out;
+    out<<"extern \"C\" __global__ void q_kernel("<<type
+       <<"* out,const "<<type<<"* in,unsigned long long count){"
+         "if(blockIdx.x||threadIdx.x)return;"<<type<<" result=";
+    if(operation==1) out<<"("<<type<<")0;unsigned long long start=0;";
+    else out<<"in[0];unsigned long long start=1;";
+    out<<"for(unsigned long long i=start;i<count;++i){"<<type<<" v=in[i];";
+    if(operation==1) out<<"result+=v;";
+    else if(operation==2) out<<"if(v<result)result=v;";
+    else out<<"if(v>result)result=v;";
+    out<<"}out[0]=result;}";
+    return out.str();
+}
+
+std::string hip_mean_source(int dtype) {
+    const auto type=hip_dtype_type(dtype);
+    return "extern \"C\" __global__ void q_kernel(double* out,const "+
+        type+"* in,unsigned long long count){if(blockIdx.x||threadIdx.x)return;"
+        "double total=0.0;for(unsigned long long i=0;i<count;++i)total+=(double)in[i];"
+        "out[0]=total/(double)count;}";
+}
+
 std::string ptx_fill_kernel(std::size_t width, std::uint64_t bits) {
     std::ostringstream out;
     out << ptx_thread_prologue(

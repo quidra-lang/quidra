@@ -6717,7 +6717,12 @@ extern "C" void* quidra_image_tensor_filter(
                         }
                     }
                 }
-                const auto divided=static_cast<std::int64_t>(total)/divisor;
+                const auto exact_total=static_cast<std::int64_t>(total);
+                if(exact_total==std::numeric_limits<std::int64_t>::min()&&divisor==-1){
+                    quidra_tensor_drop(result);
+                    tensor_fail("image filter integer arithmetic overflow",line,column);
+                }
+                const auto divided=exact_total/divisor;
                 const __int128 adjusted=static_cast<__int128>(divided)+offset;
                 if(adjusted<std::numeric_limits<std::int64_t>::min()||
                    adjusted>std::numeric_limits<std::int64_t>::max()){

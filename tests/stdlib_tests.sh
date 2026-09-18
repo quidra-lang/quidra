@@ -914,8 +914,8 @@ print(plus32_again.untrack()[0].item() == float32(16777216))
 tensor<float> source64 = tensor<float>([1])
 source64[0] = 16777216.0
 neural<float> value64 = neural.track(source64)
-neural<float> plus64 = value64 + 1
-neural<float> plus64_again = plus64 + 1
+neural<float> plus64 = value64 + 1.0
+neural<float> plus64_again = plus64 + 1.0
 print(plus64_again.untrack()[0].item() == float(16777218))
 QUI
 [[ "$("$QUIDRA" "$TMP/neural-dtype-precision.qui")" == "$(printf 'true\ntrue')" ]]
@@ -1385,8 +1385,8 @@ float32 narrowed = float32(value)
 print(narrowed)
 print(math.trunc(value))
 print(math.round(value))
-print(math.floor(-1.25))
-print(math.ceil(-1.25))
+print(math.floor(float(-1.25)))
+print(math.ceil(float(-1.25)))
 tensor<float> source = tensor.ones<float>([1]) * 1.25
 tensor<float32> converted = float32(source)
 print(converted[0].item())

@@ -31,6 +31,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(QUIDRA_WARNINGS_AS_ERRORS "Treat compiler warnings as errors for Quidra targets" OFF)
 option(QUIDRA_SANITIZE_RUNTIME "Instrument the generated-program runtime archive in sanitizer builds" OFF)
+option(QUIDRA_ENABLE_TEST_GPU_BACKEND "Compile the deterministic test-only fake GPU backend" OFF)
 
 if(QUIDRA_WARNINGS_AS_ERRORS)
   if(MSVC)
@@ -102,6 +103,9 @@ endif()
 if(APPLE)
   target_link_libraries(quidra_runtime PRIVATE "-framework Foundation" "-framework Metal")
 endif()
+if(QUIDRA_ENABLE_TEST_GPU_BACKEND)
+  target_compile_definitions(quidra_runtime PRIVATE QUIDRA_ENABLE_TEST_GPU_BACKEND=1)
+endif()
 set_target_properties(quidra_runtime PROPERTIES POSITION_INDEPENDENT_CODE ON)
 if(WIN32)
   target_compile_definitions(quidra_runtime PRIVATE NOMINMAX)
@@ -134,6 +138,9 @@ if(CMAKE_DL_LIBS)
 endif()
 if(APPLE)
   target_link_libraries(quidra PRIVATE "-framework Foundation" "-framework Metal")
+endif()
+if(QUIDRA_ENABLE_TEST_GPU_BACKEND)
+  target_compile_definitions(quidra PRIVATE QUIDRA_ENABLE_TEST_GPU_BACKEND=1)
 endif()
 add_dependencies(quidra quidra_runtime)
 
@@ -191,6 +198,9 @@ if(BUILD_TESTING)
     add_test(NAME quidra_stdlib COMMAND bash ${CMAKE_SOURCE_DIR}/tests/stdlib_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_neural_foundation COMMAND bash ${CMAKE_SOURCE_DIR}/tests/neural_foundation_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_image_dtype COMMAND bash ${CMAKE_SOURCE_DIR}/tests/image_dtype_tests.sh $<TARGET_FILE:quidra>)
+    if(QUIDRA_ENABLE_TEST_GPU_BACKEND)
+      add_test(NAME quidra_gpu_contracts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/gpu_contract_tests.sh $<TARGET_FILE:quidra>)
+    endif()
     add_test(NAME quidra_native_smoke COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/native-smoke.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_performance_regressions COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/performance_regressions.py $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     find_program(QUIDRA_LLVM_OPT NAMES opt opt-20 opt-19 opt-18 opt-17 opt-16 opt-15)
@@ -240,6 +250,12 @@ if(BUILD_TESTING)
       quidra_native_smoke
       PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
     )
+    if(TEST quidra_gpu_contracts)
+      set_tests_properties(
+        quidra_gpu_contracts
+        PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
+      )
+    endif()
     if(TEST quidra_backend_regressions)
       set_tests_properties(
         quidra_backend_regressions

@@ -1017,6 +1017,7 @@ struct Lowerer {
                         out,a,i,static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column)});
                 } else {
+                    auto i=expr(*n->items.front().index);
                     block->instructions.push_back(ArrayGet{
                         out,a,i,checked.raw_types.at(&e),
                         static_cast<std::uint32_t>(e.span.start.line),

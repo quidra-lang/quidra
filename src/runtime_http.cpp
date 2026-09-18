@@ -241,7 +241,7 @@ extern "C" void* quidra_http_get(const char* url) {
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 5000L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 30000L);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "Quidra/0.3.0");
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, "Quidra/0.3.1");
     curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
 #if LIBCURL_VERSION_NUM >= 0x075500
     curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR, "http,https");

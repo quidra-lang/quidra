@@ -50,10 +50,14 @@ struct StringJoin { ValueId out; ValueId values; ValueId separator; std::uint32_
 struct StringConcat { ValueId out; std::vector<ValueId> values; };
 struct StringCanAppendMove { ValueId out; ValueId text; };
 struct StringAppendMove { ValueId out; ValueId text; std::vector<ValueId> suffixes; };
+struct StringRepeat { ValueId out; ValueId count; ValueId fill; };
 struct BytesAlloc { ValueId out; ValueId length; ValueId fill; };
 struct BytesLength { ValueId out; ValueId bytes; };
 struct BytesGet { ValueId out; ValueId bytes; ValueId index; std::uint32_t line{}; std::uint32_t column{}; bool bounds_proven{}; };
 struct BytesSet { ValueId bytes; ValueId index; ValueId value; std::uint32_t line{}; std::uint32_t column{}; bool bounds_proven{}; };
+struct BytesSlice { ValueId out; ValueId bytes; ValueId start; ValueId end; };
+struct ParseBin { ValueId out; ValueId text; Type result_type; };
+struct BinConvert { ValueId out; ValueId value; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct NumericConvert { ValueId out; ValueId value; Type source_type; Type target_type; bool checked_range{}; std::uint32_t line{}; std::uint32_t column{}; };
 struct ArrayNumericCast { ValueId out; ValueId array; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorCreate { ValueId out; ValueId shape; std::optional<ValueId> gpu; Type type; int fill_mode{}; std::uint32_t line{}; std::uint32_t column{}; };
@@ -252,8 +256,9 @@ using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantBool, Const
                                  StringIndex, StringLength, StringContains, StringStartsWith,
                                  StringEndsWith, StringFind, StringSlice, StringTrim, StringSplit,
                                  StringUtf8, StringCodepoints, StringJoin, StringConcat,
-                                 StringCanAppendMove, StringAppendMove,
-                                 BytesAlloc, BytesLength, BytesGet, BytesSet,
+                                 StringCanAppendMove, StringAppendMove, StringRepeat,
+                                 BytesAlloc, BytesLength, BytesGet, BytesSet, BytesSlice,
+                                 ParseBin, BinConvert,
                                  NumericConvert, ArrayNumericCast, TensorCreate, TensorTransfer, TensorReshape, TensorTranspose, TensorContiguous,
                                  TensorShape, TensorIsContiguous, TensorItem, TensorCast,
                                  ShapedConstraintCheck, ExtentEqualCheck, NeuralNumericCast,

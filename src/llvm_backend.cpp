@@ -834,7 +834,11 @@ struct FunctionEmitter {
         }
         if constexpr(std::is_same_v<T,ir::TensorShape>){
             values[n.out]=n.type;
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_shape(ptr "<<value(n.tensor)<<")\n";
+            if(n.type.length>=0)
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_shape_fixed(ptr "<<value(n.tensor)
+                   <<", i64 "<<n.type.length<<")\n";
+            else
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_shape(ptr "<<value(n.tensor)<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::TensorIsContiguous>){
             values[n.out]=Type::simple(TypeKind::Bool);
@@ -2854,6 +2858,7 @@ declare void @quidra_tensor_drop(ptr)
 declare ptr @quidra_tensor_reshape(ptr, ptr, i64, i64)
 declare ptr @quidra_tensor_contiguous(ptr)
 declare ptr @quidra_tensor_shape(ptr)
+declare ptr @quidra_tensor_shape_fixed(ptr, i64)
 declare i1 @quidra_tensor_is_contiguous(ptr)
 declare ptr @quidra_tensor_item_ptr(ptr, i64, i64)
 declare ptr @quidra_tensor_cast(ptr, i32, i64, i64)

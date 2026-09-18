@@ -1359,6 +1359,31 @@ extern "C" void* quidra_tensor_shape(void* raw) {
     return result;
 }
 
+extern "C" void* quidra_tensor_shape_fixed(void* raw, unsigned long long expected_rank) {
+    if (!raw) runtime_text_failure("null tensor");
+    const auto& shape = static_cast<TensorValue*>(raw)->shape;
+    if (shape.size() != expected_rank) {
+        runtime_text_failure("tensor static rank does not match runtime shape");
+    }
+    if (shape.size() > std::numeric_limits<std::size_t>::max() / sizeof(long long)) {
+        runtime_allocation_failure();
+    }
+    const auto bytes = shape.size() * sizeof(long long);
+    auto* result = static_cast<unsigned char*>(managed_allocate(bytes));
+    for (std::size_t i = 0; i < shape.size(); ++i) {
+        std::memcpy(result + i * sizeof(long long), &shape[i], sizeof(long long));
+    }
+    const auto it = managed_allocations.find(reinterpret_cast<std::uintptr_t>(result));
+    auto tracker = std::make_unique<InitializationTracker>();
+    tracker->count = shape.size();
+    tracker->unit_bytes = sizeof(long long);
+    tracker->data_offset = 0;
+    tracker->initialized_count = shape.size();
+    tracker->fully_initialized = true;
+    it->second.initialization = std::move(tracker);
+    return result;
+}
+
 extern "C" void* quidra_tensor_reshape(void* raw, void* shape_array,
                                          unsigned long long line,
                                          unsigned long long column) {

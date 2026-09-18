@@ -1,5 +1,6 @@
 #include "quidra/ir.hpp"
 #include "quidra/language.hpp"
+#include "operator_policy.hpp"
 #include <algorithm>
 #include <cmath>
 #include <sstream>
@@ -1121,7 +1122,7 @@ struct Lowerer {
 
             const auto eager_binary = [](const Expr& expression) -> const BinaryExpr* {
                 const auto* binary=std::get_if<BinaryExpr>(&expression.data);
-                if(!binary || binary->op=="and" || binary->op=="or") return nullptr;
+                if(!binary || operator_policy::is_short_circuit(binary->op)) return nullptr;
                 return binary;
             };
 

@@ -1308,6 +1308,36 @@ bool compute_binary(Buffer* output, const Buffer* left, std::size_t left_offset,
         }
     }
 #endif
+    if (hip_integer_dtype(dtype) && output->backend==Backend::Amd) {
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(output->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto source_code=hip_integer_binary_source(dtype,operation,scalar_side);
+        auto out_ptr=output->pointer;
+        auto left_ptr=static_cast<unsigned char*>(left->pointer)+left_offset;
+        void* right_ptr=scalar_side==0
+            ? static_cast<void*>(static_cast<unsigned char*>(right->pointer)+right_offset)
+            : left_ptr;
+        auto status_ptr=status->pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* scalar_storage=const_cast<void*>(scalar);
+        std::uint64_t zero_scalar=0;
+        if(scalar_side==0)scalar_storage=&zero_scalar;
+        void* args[]={&out_ptr,&left_ptr,&right_ptr,scalar_storage,&n,&status_ptr};
+        if(!launch_hip_1d(output,
+            "binary-int-"+std::to_string(dtype)+"-"+std::to_string(operation)+"-"+std::to_string(scalar_side),
+            source_code,count,args,error))return false;
+        std::uint32_t failed=0;
+        if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){
+            error=operation==4||operation==5
+                ?"invalid tensor division/remainder or integer overflow"
+                :"tensor integer arithmetic overflow";
+            return false;
+        }
+        return true;
+    }
     if ((dtype == 9 || dtype == 10) && operation != 5 &&
         output->backend == Backend::Nvidia) {
         auto ptx = ptx_float_binary_kernel(dtype, operation, scalar_side);
@@ -1408,6 +1438,24 @@ bool compute_unary(Buffer* output, const Buffer* input, std::size_t input_offset
         return true;
     }
 #endif
+    if (hip_signed_dtype(dtype) && output->backend==Backend::Amd) {
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(output->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto source_code=hip_integer_unary_source(dtype);
+        auto out_ptr=output->pointer;
+        auto in_ptr=static_cast<unsigned char*>(input->pointer)+input_offset;
+        auto status_ptr=status->pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&in_ptr,&n,&status_ptr};
+        if(!launch_hip_1d(output,
+            "unary-int-"+std::to_string(dtype),source_code,count,args,error))return false;
+        std::uint32_t failed=0;
+        if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){error="tensor integer negation overflow";return false;}
+        return true;
+    }
     if ((dtype==9 || dtype==10) && (dtype==10 || operation<=2) &&
         output->backend==Backend::Nvidia) {
         auto ptx=ptx_float_unary_kernel(dtype,operation);
@@ -1487,6 +1535,36 @@ bool compute_cast(Buffer* output, const Buffer* input, std::size_t input_offset,
             output,"cast-"+std::to_string(source_dtype)+"-"+std::to_string(target_dtype),
             ptx,count,args,error);
     }
+    if (output->backend==Backend::Amd &&
+        (hip_integer_dtype(source_dtype)||source_dtype==9||source_dtype==10) &&
+        (hip_integer_dtype(target_dtype)||target_dtype==9||target_dtype==10) &&
+        !(source_dtype==9||source_dtype==10 ? hip_integer_dtype(target_dtype) : false)) {
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(output->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto source_code=hip_cast_source(source_dtype,target_dtype);
+        auto out_ptr=output->pointer;
+        auto in_ptr=static_cast<unsigned char*>(input->pointer)+input_offset;
+        auto status_ptr=status->pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&in_ptr,&n,&status_ptr};
+        if(!launch_hip_1d(output,
+            "cast-"+std::to_string(source_dtype)+"-"+std::to_string(target_dtype),
+            source_code,count,args,error))return false;
+        std::uint32_t failed=0;
+        if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){
+            error="tensor cast is unsupported or a value is outside the target range";
+            return false;
+        }
+        return true;
+    }
+    if (output->backend==Backend::Amd &&
+        (source_dtype==9||source_dtype==10) && hip_integer_dtype(target_dtype)) {
+        error="tensor cast is unsupported or a value is outside the target range";
+        return false;
+    }
     if ((source_dtype==9||source_dtype==10) &&
         (target_dtype==9||target_dtype==10) &&
         output->backend==Backend::Amd) {
@@ -1560,17 +1638,32 @@ bool compute_matmul(Buffer* output, const Buffer* left, const Buffer* right,
         return launch_ptx_1d(
             output,"matmul-"+std::to_string(dtype),ptx,out_count,args,error);
     }
-    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
-        auto source_code=hip_float_matmul_source(dtype);
-        auto out_ptr=output->pointer;
-        auto left_ptr=left->pointer;
-        auto right_ptr=right->pointer;
-        auto mm=static_cast<std::uint64_t>(m);
-        auto kk=static_cast<std::uint64_t>(k);
-        auto nn=static_cast<std::uint64_t>(n);
-        void* args[]={&out_ptr,&left_ptr,&right_ptr,&mm,&kk,&nn};
-        return launch_hip_1d(
-            output,"matmul-"+std::to_string(dtype),source_code,out_count,args,error);
+    if(output->backend==Backend::Amd){
+        const bool checked=hip_integer_dtype(dtype);
+        auto source_code=checked
+            ? hip_matmul_source(dtype,true)
+            : hip_float_matmul_source(dtype);
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(output->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto out_ptr=output->pointer,left_ptr=left->pointer,right_ptr=right->pointer,
+             status_ptr=status->pointer;
+        auto mm=static_cast<std::uint64_t>(m),kk=static_cast<std::uint64_t>(k),
+             nn=static_cast<std::uint64_t>(n);
+        if(checked){
+            void* args[]={&out_ptr,&left_ptr,&right_ptr,&mm,&kk,&nn,&status_ptr};
+            if(!launch_hip_1d(output,"matmul-"+std::to_string(dtype),
+                              source_code,out_count,args,error))return false;
+        }else{
+            void* args[]={&out_ptr,&left_ptr,&right_ptr,&mm,&kk,&nn};
+            if(!launch_hip_1d(output,"matmul-"+std::to_string(dtype),
+                              source_code,out_count,args,error))return false;
+        }
+        std::uint32_t failed=0;
+        if(checked&&!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){error="linear.matmul integer arithmetic overflow";return false;}
+        return true;
     }
 #ifdef __APPLE__
     if(dtype==10&&output->backend==Backend::Metal){
@@ -1656,22 +1749,34 @@ bool compute_dot(const Buffer* left, const Buffer* right, int dtype,
                    LaunchDimensions{1,1,1},args,error))return false;
         return copy_to_host(result.get(),0,host_result,width,error);
     }
-    if((dtype==9||dtype==10)&&left->backend==Backend::Amd){
+    if(left->backend==Backend::Amd){
+        const bool checked=hip_integer_dtype(dtype);
         std::unique_ptr<Buffer,void(*)(Buffer*)> result(
             allocate(left->global_index,width,error),
             [](Buffer* value){quidra::device::release(value);});
-        if(!result)return false;
-        auto source_code=hip_float_dot_source(dtype);
-        auto out_ptr=result->pointer;
-        auto left_ptr=left->pointer;
-        auto right_ptr=right->pointer;
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(left->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!result||!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto source_code=checked?hip_dot_source(dtype,true):hip_float_dot_source(dtype);
+        auto out_ptr=result->pointer,left_ptr=left->pointer,right_ptr=right->pointer,
+             status_ptr=status->pointer;
         auto n=static_cast<std::uint64_t>(count);
-        void* args[]={&out_ptr,&left_ptr,&right_ptr,&n};
         auto* module=cached_hip_module(
             left->global_index,"dot-"+std::to_string(dtype),source_code,error);
         if(!module)return false;
-        if(!launch(module,"q_kernel",LaunchDimensions{1,1,1},
-                   LaunchDimensions{1,1,1},args,error))return false;
+        if(checked){
+            void* args[]={&out_ptr,&left_ptr,&right_ptr,&n,&status_ptr};
+            if(!launch(module,"q_kernel",LaunchDimensions{1,1,1},
+                       LaunchDimensions{1,1,1},args,error))return false;
+        }else{
+            void* args[]={&out_ptr,&left_ptr,&right_ptr,&n};
+            if(!launch(module,"q_kernel",LaunchDimensions{1,1,1},
+                       LaunchDimensions{1,1,1},args,error))return false;
+        }
+        std::uint32_t failed=0;
+        if(checked&&!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){error="linear.dot integer arithmetic overflow";return false;}
         return copy_to_host(result.get(),0,host_result,width,error);
     }
     return real_compute_unavailable(left,"linear.dot",dtype,error);
@@ -1805,23 +1910,37 @@ bool compute_reduce(const Buffer* input, int dtype, int operation,
         return copy_to_host(output.get(), 0, host_result, width, error);
     }
 
-    if ((dtype==9||dtype==10) && input->backend==Backend::Amd) {
+    if (input->backend==Backend::Amd) {
+        const bool checked=hip_integer_dtype(dtype);
         std::unique_ptr<Buffer,void(*)(Buffer*)> output(
             allocate(input->global_index,width,error),
             [](Buffer* value){quidra::device::release(value);});
-        if(!output)return false;
-        auto source_code=hip_float_reduce_source(dtype,operation);
-        auto out_ptr=output->pointer;
-        auto in_ptr=input->pointer;
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(input->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!output||!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto source_code=checked
+            ?hip_reduce_source(dtype,operation,true)
+            :hip_float_reduce_source(dtype,operation);
+        auto out_ptr=output->pointer,in_ptr=input->pointer,status_ptr=status->pointer;
         auto n=static_cast<std::uint64_t>(count);
-        void* args[]={&out_ptr,&in_ptr,&n};
         auto* module=cached_hip_module(
             input->global_index,
             "reduce-"+std::to_string(dtype)+"-"+std::to_string(operation),
             source_code,error);
         if(!module)return false;
-        if(!launch(module,"q_kernel",LaunchDimensions{1,1,1},
-                   LaunchDimensions{1,1,1},args,error))return false;
+        if(checked){
+            void* args[]={&out_ptr,&in_ptr,&n,&status_ptr};
+            if(!launch(module,"q_kernel",LaunchDimensions{1,1,1},
+                       LaunchDimensions{1,1,1},args,error))return false;
+        }else{
+            void* args[]={&out_ptr,&in_ptr,&n};
+            if(!launch(module,"q_kernel",LaunchDimensions{1,1,1},
+                       LaunchDimensions{1,1,1},args,error))return false;
+        }
+        std::uint32_t failed=0;
+        if(checked&&!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){error="stats.sum integer arithmetic overflow";return false;}
         return copy_to_host(output.get(),0,host_result,width,error);
     }
 #ifdef __APPLE__

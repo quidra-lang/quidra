@@ -232,7 +232,9 @@ void weaken_loop_tensor_facts(
         const auto it = variables.find(name);
         if (it == variables.end() ||
             (it->second.kind != TypeKind::Tensor && it->second.kind != TypeKind::Neural)) continue;
-        it->second.length = -1;
+        it->second.length = it->second.tensor_shape_prefix.empty()
+            ? -1
+            : static_cast<long long>(it->second.tensor_shape_prefix.size());
         it->second.tensor_known_shape_prefix.clear();
     }
 }
@@ -1625,18 +1627,21 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
         }
         auto shape_prefix = base.tensor_shape_prefix;
         auto known_shape_prefix = base.tensor_known_shape_prefix;
-        const auto project_prefix = [&](std::vector<long long>& prefix) {
-            std::size_t axis = 0;
-            for (const auto& item : node->items) {
-                if (!item.slice) {
-                    if (axis < prefix.size()) prefix.erase(prefix.begin() + axis);
-                } else {
-                    ++axis;
-                }
+        std::size_t axis = 0;
+        for (const auto& item : node->items) {
+            if (!item.slice) {
+                if (axis < shape_prefix.size()) shape_prefix.erase(shape_prefix.begin() + axis);
+                if (axis < known_shape_prefix.size())
+                    known_shape_prefix.erase(known_shape_prefix.begin() + axis);
+                continue;
             }
-        };
-        project_prefix(shape_prefix);
-        project_prefix(known_shape_prefix);
+            const bool full_slice = !item.start && !item.stop && !item.step;
+            if (!full_slice) {
+                if (axis < shape_prefix.size()) shape_prefix[axis] = -1;
+                if (axis < known_shape_prefix.size()) known_shape_prefix.resize(axis);
+            }
+            ++axis;
+        }
         return Type::tensor(*base.first, result_rank,
                             std::move(shape_prefix), std::move(known_shape_prefix));
     }

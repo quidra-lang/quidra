@@ -198,6 +198,7 @@ cat > "$TMP/integer-dtypes.qui" <<'QUI'
 tensor<int8> i8 = tensor.ones<int8>([2], gpu = 0) + int8(2)
 tensor<int16> i16 = tensor.ones<int16>([2], gpu = 0) * int16(3)
 tensor<int32> i32 = tensor.ones<int32>([2], gpu = 0) - int32(4)
+tensor<int16> neg_i16 = -tensor.ones<int16>([2], gpu = 0)
 tensor<int> i64 = tensor.ones<int>([2], gpu = 0) + 5
 tensor<uint8> u8 = tensor.ones<uint8>([2], gpu = 0) + uint8(6)
 tensor<uint16> u16 = tensor.ones<uint16>([2], gpu = 0) * uint16(7)
@@ -207,6 +208,7 @@ tensor<uint64> u64 = tensor.ones<uint64>([2], gpu = 0) + uint64(9)
 print(i8.cpu()[0].item())
 print(i16.cpu()[0].item())
 print(i32.cpu()[0].item())
+print(neg_i16.cpu()[0].item())
 print(i64.cpu()[0].item())
 print(u8.cpu()[0].item())
 print(u16.cpu()[0].item())
@@ -233,7 +235,7 @@ print(stats.mean(i16))
 QUI
 
 integer_output="$("$QUIDRA" run "$TMP/integer-dtypes.qui")"
-integer_expected="$(printf '3\n3\n-3\n6\n7\n7\n9\n10\n1\n3\n2\n18\n-3\n10\n3.0')"
+integer_expected="$(printf '3\n3\n-3\n-1\n6\n7\n7\n9\n10\n1\n3\n2\n18\n-3\n10\n3.0')"
 if [[ "$integer_output" != "$integer_expected" ]]; then
     echo "unexpected fake-GPU integer dtype output:" >&2
     printf '%s\n' "$integer_output" >&2

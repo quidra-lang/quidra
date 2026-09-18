@@ -1792,6 +1792,10 @@ extern "C" void quidra_tensor_extent_check(
 namespace {
 
 void tensor_detach_for_write(TensorValue& tensor, unsigned long long line, unsigned long long column);
+TensorStorage* tensor_gpu_materialize_storage(
+    const TensorValue& source,
+    unsigned long long line,
+    unsigned long long column);
 
 enum class NeuralOp {
     Leaf, Add, Sub, Mul, Div, Affine, Convolution, Normalize, RandomMask,
@@ -1904,11 +1908,37 @@ struct NeuralValue {
 
 struct NeuralGradient {
     explicit NeuralGradient(int element_dtype=10) : dtype(element_dtype), data(element_dtype) {}
+    NeuralGradient(const NeuralGradient&)=delete;
+    NeuralGradient& operator=(const NeuralGradient&)=delete;
+    NeuralGradient(NeuralGradient&& other) noexcept
+        : dtype(other.dtype),
+          shape(std::move(other.shape)),
+          data(std::move(other.data)),
+          device_tensor(std::exchange(other.device_tensor,nullptr)) {}
+    NeuralGradient& operator=(NeuralGradient&& other) noexcept {
+        if(this==&other) return *this;
+        if(device_tensor) quidra_tensor_drop(device_tensor);
+        dtype=other.dtype;
+        shape=std::move(other.shape);
+        data=std::move(other.data);
+        device_tensor=std::exchange(other.device_tensor,nullptr);
+        return *this;
+    }
+    ~NeuralGradient() {
+        if(device_tensor) quidra_tensor_drop(device_tensor);
+    }
 
     int dtype{10};
     std::vector<long long> shape;
     NeuralBuffer data;
+    TensorValue* device_tensor{};
 };
+
+std::size_t neural_gradient_count(const NeuralGradient& gradient) {
+    return gradient.device_tensor
+        ? tensor_logical_count(*gradient.device_tensor)
+        : gradient.data.size();
+}
 
 struct NeuralGradientData {
     std::unordered_map<unsigned long long, NeuralGradient> values;
@@ -2494,8 +2524,13 @@ const NeuralGradient* neural_gradient_for_parameter(
     const auto& gradient=found->second;
     if((gradient.dtype!=9&&gradient.dtype!=10)||
        gradient.shape!=tensor->shape||
-       gradient.data.size()!=tensor_logical_count(*tensor))
+       neural_gradient_count(gradient)!=tensor_logical_count(*tensor))
         neural_fail("gradient and Parameter shape mismatch",line,column);
+    if((gradient.device_tensor!=nullptr)!=(!tensor_on_cpu(*tensor->storage)))
+        neural_fail("gradient and Parameter must be on the same device",line,column);
+    if(gradient.device_tensor &&
+       gradient.device_tensor->storage->device!=tensor->storage->device)
+        neural_fail("gradient and Parameter must use the same gpu(n)",line,column);
     return &gradient;
 }
 
@@ -3972,6 +4007,318 @@ extern "C" void* quidra_neural_binary_scalar(
     return quidra_neural_binary(&a,&b,op,line,column);
 }
 
+
+TensorValue* neural_device_dense_clone(
+    const TensorValue& value,unsigned long long line,unsigned long long column) {
+    if(tensor_on_cpu(*value.storage))
+        neural_fail("internal neural GPU path received a CPU tensor",line,column);
+    if(tensor_is_contiguous_value(value)&&value.offset==0)
+        return static_cast<TensorValue*>(
+            quidra_tensor_clone(const_cast<TensorValue*>(&value)));
+    auto* storage=tensor_gpu_materialize_storage(value,line,column);
+    auto strides=tensor_contiguous_strides(value.shape);
+    return tensor_descriptor(storage,value.shape,std::move(strides),0);
+}
+
+TensorValue* neural_device_binary_tensor(
+    TensorValue* left,TensorValue* right,int operation,
+    unsigned long long line,unsigned long long column) {
+    return static_cast<TensorValue*>(
+        quidra_tensor_binary(left,right,nullptr,0,operation,line,column));
+}
+
+TensorValue* neural_device_scalar_tensor(
+    TensorValue* input,double scalar,int operation,bool scalar_left,
+    unsigned long long line,unsigned long long column) {
+    if(!input) neural_fail("null GPU neural tensor",line,column);
+    if(input->storage->dtype==10){
+        float value=static_cast<float>(scalar);
+        return static_cast<TensorValue*>(
+            quidra_tensor_binary(
+                input,nullptr,&value,scalar_left?1:2,operation,line,column));
+    }
+    if(input->storage->dtype==9){
+        double value=scalar;
+        return static_cast<TensorValue*>(
+            quidra_tensor_binary(
+                input,nullptr,&value,scalar_left?1:2,operation,line,column));
+    }
+    neural_fail("invalid GPU neural tensor dtype",line,column);
+}
+
+TensorValue* neural_device_negate_tensor(
+    TensorValue* input,unsigned long long line,unsigned long long column) {
+    return static_cast<TensorValue*>(
+        quidra_tensor_unary(input,1,line,column));
+}
+
+void neural_add_device_gradient(
+    std::unordered_map<const NeuralNode*,TensorValue*>& gradients,
+    const std::shared_ptr<NeuralNode>& node,TensorValue* value,
+    unsigned long long line,unsigned long long column) {
+    if(!value) neural_fail("null GPU neural gradient",line,column);
+    const auto found=gradients.find(node.get());
+    if(found==gradients.end()){
+        gradients.emplace(node.get(),value);
+        return;
+    }
+    auto* combined=neural_device_binary_tensor(
+        found->second,value,1,line,column);
+    quidra_tensor_drop(found->second);
+    quidra_tensor_drop(value);
+    found->second=combined;
+}
+
+TensorValue* neural_device_filled_like(
+    const NeuralNode& node,bool ones,
+    unsigned long long line,unsigned long long column) {
+    if(!node.device_tensor)
+        neural_fail("internal neural GPU fill requires a device tensor",line,column);
+    const auto count=tensor_logical_count(*node.device_tensor);
+    auto* storage=tensor_storage_create(
+        node.dtype,count,ones?2:1,node.device_tensor->storage->device,line,column);
+    auto strides=tensor_contiguous_strides(node.shape);
+    return tensor_descriptor(storage,node.shape,std::move(strides),0);
+}
+
+void neural_store_device_parameter_gradient(
+    NeuralGradientData& output,const NeuralNode& node,TensorValue* gradient,
+    unsigned long long line,unsigned long long column) {
+    auto [it,inserted]=output.values.try_emplace(node.parameter_id,node.dtype);
+    auto& destination=it->second;
+    if(!inserted&&destination.dtype!=node.dtype)
+        neural_fail("gradient dtype mismatch",line,column);
+    destination.shape=node.shape;
+    if(!destination.device_tensor){
+        destination.device_tensor=static_cast<TensorValue*>(
+            quidra_tensor_clone(gradient));
+        return;
+    }
+    auto* combined=neural_device_binary_tensor(
+        destination.device_tensor,gradient,1,line,column);
+    quidra_tensor_drop(destination.device_tensor);
+    destination.device_tensor=combined;
+}
+
+void* neural_grad_device(
+    const std::shared_ptr<NeuralNode>& loss,
+    unsigned long long line,unsigned long long column) {
+    std::unordered_set<const NeuralNode*> seen;
+    std::vector<std::shared_ptr<NeuralNode>> order;
+    neural_topological(loss,seen,order);
+
+    if(!loss->device_tensor||tensor_logical_count(*loss->device_tensor)!=1)
+        neural_fail("grad requires a scalar GPU loss",line,column);
+
+    std::unordered_map<const NeuralNode*,TensorValue*> gradients;
+    auto* initial=neural_device_filled_like(*loss,true,line,column);
+    gradients.emplace(loss.get(),initial);
+    auto output=std::make_shared<NeuralGradientData>();
+
+    for(auto it=order.rbegin();it!=order.rend();++it){
+        const auto& node=*it;
+        if(node->dtype!=loss->dtype)
+            neural_fail("autograd graph contains mixed dtypes",line,column);
+        const auto found=gradients.find(node.get());
+        if(found==gradients.end()) continue;
+        auto* g=found->second;
+
+        if(node->parameter_id)
+            neural_store_device_parameter_gradient(
+                *output,*node,g,line,column);
+
+        if(node->parents.empty()) continue;
+
+        if(node->op==NeuralOp::Add||node->op==NeuralOp::Sub||
+           node->op==NeuralOp::Mul||node->op==NeuralOp::Div){
+            if(node->parents.size()!=2 ||
+               !node->parents[0]->device_tensor ||
+               !node->parents[1]->device_tensor)
+                neural_fail("invalid GPU neural binary graph",line,column);
+            auto* a=node->parents[0]->device_tensor;
+            auto* b=node->parents[1]->device_tensor;
+            TensorValue* left_gradient=nullptr;
+            TensorValue* right_gradient=nullptr;
+            if(node->op==NeuralOp::Add){
+                left_gradient=static_cast<TensorValue*>(quidra_tensor_clone(g));
+                right_gradient=static_cast<TensorValue*>(quidra_tensor_clone(g));
+            }else if(node->op==NeuralOp::Sub){
+                left_gradient=static_cast<TensorValue*>(quidra_tensor_clone(g));
+                right_gradient=neural_device_negate_tensor(g,line,column);
+            }else if(node->op==NeuralOp::Mul){
+                left_gradient=neural_device_binary_tensor(g,b,3,line,column);
+                right_gradient=neural_device_binary_tensor(g,a,3,line,column);
+            }else{
+                left_gradient=neural_device_binary_tensor(g,b,4,line,column);
+                auto* ga=neural_device_binary_tensor(g,a,3,line,column);
+                auto* bb=neural_device_binary_tensor(b,b,3,line,column);
+                auto* quotient=neural_device_binary_tensor(ga,bb,4,line,column);
+                right_gradient=neural_device_negate_tensor(quotient,line,column);
+                quidra_tensor_drop(ga);
+                quidra_tensor_drop(bb);
+                quidra_tensor_drop(quotient);
+            }
+            neural_add_device_gradient(
+                gradients,node->parents[0],left_gradient,line,column);
+            neural_add_device_gradient(
+                gradients,node->parents[1],right_gradient,line,column);
+        }else if(node->op==NeuralOp::Absolute){
+            const auto& input=node->parents[0];
+            auto* gd=neural_device_dense_clone(*g,line,column);
+            auto* xd=neural_device_dense_clone(*input->device_tensor,line,column);
+            const auto count=tensor_logical_count(*xd);
+            auto* storage=tensor_storage_create(
+                node->dtype,count,1,xd->storage->device,line,column);
+            auto strides=tensor_contiguous_strides(input->shape);
+            auto* result=tensor_descriptor(storage,input->shape,std::move(strides),0);
+            std::string backend_error;
+            const bool ok=quidra::device::compute_abs_backward(
+                storage->gpu_buffer,gd->storage->gpu_buffer,xd->storage->gpu_buffer,
+                node->dtype,count,backend_error);
+            quidra_tensor_drop(gd);quidra_tensor_drop(xd);
+            if(!ok){
+                quidra_tensor_drop(result);
+                neural_fail(backend_error.c_str(),line,column);
+            }
+            neural_add_device_gradient(
+                gradients,input,result,line,column);
+        }else if(node->op==NeuralOp::Exponential){
+            auto* result=neural_device_binary_tensor(
+                g,node->device_tensor,3,line,column);
+            neural_add_device_gradient(
+                gradients,node->parents[0],result,line,column);
+        }else if(node->op==NeuralOp::Logarithm){
+            auto* result=neural_device_binary_tensor(
+                g,node->parents[0]->device_tensor,4,line,column);
+            neural_add_device_gradient(
+                gradients,node->parents[0],result,line,column);
+        }else if(node->op==NeuralOp::Mean){
+            const auto& input=node->parents[0];
+            const auto count=neural_node_count(*input);
+            auto* gd=neural_device_dense_clone(*g,line,column);
+            auto* storage=tensor_storage_create(
+                node->dtype,count,1,input->device_tensor->storage->device,line,column);
+            auto strides=tensor_contiguous_strides(input->shape);
+            auto* result=tensor_descriptor(storage,input->shape,std::move(strides),0);
+            std::string backend_error;
+            const bool ok=quidra::device::compute_mean_backward(
+                storage->gpu_buffer,gd->storage->gpu_buffer,node->dtype,count,backend_error);
+            quidra_tensor_drop(gd);
+            if(!ok){
+                quidra_tensor_drop(result);
+                neural_fail(backend_error.c_str(),line,column);
+            }
+            neural_add_device_gradient(
+                gradients,input,result,line,column);
+        }else if(node->op==NeuralOp::SumLast){
+            const auto& input=node->parents[0];
+            const auto count=neural_node_count(*input);
+            const auto width=static_cast<std::size_t>(input->shape.back());
+            auto* gd=neural_device_dense_clone(*g,line,column);
+            auto* storage=tensor_storage_create(
+                node->dtype,count,1,input->device_tensor->storage->device,line,column);
+            auto strides=tensor_contiguous_strides(input->shape);
+            auto* result=tensor_descriptor(storage,input->shape,std::move(strides),0);
+            std::string backend_error;
+            const bool ok=quidra::device::compute_last_reduce_broadcast(
+                storage->gpu_buffer,gd->storage->gpu_buffer,node->dtype,
+                count,width,1,backend_error);
+            quidra_tensor_drop(gd);
+            if(!ok){
+                quidra_tensor_drop(result);
+                neural_fail(backend_error.c_str(),line,column);
+            }
+            neural_add_device_gradient(
+                gradients,input,result,line,column);
+        }else if(node->op==NeuralOp::MaxLast){
+            const auto& input=node->parents[0];
+            const auto count=neural_node_count(*input);
+            const auto width=static_cast<std::size_t>(input->shape.back());
+            auto* gd=neural_device_dense_clone(*g,line,column);
+            auto* xd=neural_device_dense_clone(*input->device_tensor,line,column);
+            auto* storage=tensor_storage_create(
+                node->dtype,count,1,input->device_tensor->storage->device,line,column);
+            auto strides=tensor_contiguous_strides(input->shape);
+            auto* result=tensor_descriptor(storage,input->shape,std::move(strides),0);
+            std::string backend_error;
+            const bool ok=quidra::device::compute_max_last_backward(
+                storage->gpu_buffer,gd->storage->gpu_buffer,xd->storage->gpu_buffer,
+                node->dtype,count,width,backend_error);
+            quidra_tensor_drop(gd);quidra_tensor_drop(xd);
+            if(!ok){
+                quidra_tensor_drop(result);
+                neural_fail(backend_error.c_str(),line,column);
+            }
+            neural_add_device_gradient(
+                gradients,input,result,line,column);
+        }else if(node->op==NeuralOp::Affine){
+            if(node->parents.size()!=3)
+                neural_fail("invalid GPU affine graph",line,column);
+            const auto& input=node->parents[0];
+            const auto& weight=node->parents[1];
+            const auto& bias=node->parents[2];
+            const auto features_in=static_cast<std::size_t>(weight->shape[1]);
+            const auto features_out=static_cast<std::size_t>(weight->shape[0]);
+            const auto batches=features_in==0?0:neural_node_count(*input)/features_in;
+            auto* gd=neural_device_dense_clone(*g,line,column);
+            auto* id=neural_device_dense_clone(*input->device_tensor,line,column);
+            auto* wd=neural_device_dense_clone(*weight->device_tensor,line,column);
+            auto* input_storage=tensor_storage_create(
+                node->dtype,neural_node_count(*input),1,
+                input->device_tensor->storage->device,line,column);
+            auto* weight_storage=tensor_storage_create(
+                node->dtype,neural_node_count(*weight),1,
+                weight->device_tensor->storage->device,line,column);
+            auto* bias_storage=tensor_storage_create(
+                node->dtype,neural_node_count(*bias),1,
+                bias->device_tensor->storage->device,line,column);
+            auto input_strides=tensor_contiguous_strides(input->shape);
+            auto weight_strides=tensor_contiguous_strides(weight->shape);
+            auto bias_strides=tensor_contiguous_strides(bias->shape);
+            auto* input_result=tensor_descriptor(
+                input_storage,input->shape,std::move(input_strides),0);
+            auto* weight_result=tensor_descriptor(
+                weight_storage,weight->shape,std::move(weight_strides),0);
+            auto* bias_result=tensor_descriptor(
+                bias_storage,bias->shape,std::move(bias_strides),0);
+            std::string backend_error;
+            const bool ok=quidra::device::compute_affine_backward(
+                input_storage->gpu_buffer,weight_storage->gpu_buffer,bias_storage->gpu_buffer,
+                gd->storage->gpu_buffer,id->storage->gpu_buffer,wd->storage->gpu_buffer,
+                node->dtype,batches,features_in,features_out,backend_error);
+            quidra_tensor_drop(gd);quidra_tensor_drop(id);quidra_tensor_drop(wd);
+            if(!ok){
+                quidra_tensor_drop(input_result);
+                quidra_tensor_drop(weight_result);
+                quidra_tensor_drop(bias_result);
+                neural_fail(backend_error.c_str(),line,column);
+            }
+            neural_add_device_gradient(
+                gradients,input,input_result,line,column);
+            neural_add_device_gradient(
+                gradients,weight,weight_result,line,column);
+            neural_add_device_gradient(
+                gradients,bias,bias_result,line,column);
+        }else if(node->op==NeuralOp::Convolution){
+            neural_fail(
+                "neural.convolve2d backward is not supported on GPU by the current DNN backend",
+                line,column);
+        }else if(node->op==NeuralOp::Normalize){
+            neural_fail(
+                "neural.normalize backward is not supported on GPU by the current DNN backend",
+                line,column);
+        }else if(node->op==NeuralOp::RandomMask){
+            neural_fail(
+                "neural.random_mask backward is not supported on GPU by the current DNN backend",
+                line,column);
+        }
+    }
+
+    for(auto& [_,value]:gradients)
+        quidra_tensor_drop(value);
+    return neural_gradients_descriptor(std::move(output));
+}
+
 template <typename T>
 void* neural_grad_t(
     const std::shared_ptr<NeuralNode>& loss,
@@ -4213,7 +4560,9 @@ extern "C" void* quidra_neural_grad(
     void* raw,unsigned long long line,unsigned long long column) {
     if(!raw) neural_fail("null loss",line,column);
     auto loss=static_cast<NeuralValue*>(raw)->node;
-    if(loss->data.size()!=1) neural_fail("grad requires a scalar loss",line,column);
+    if(neural_node_count(*loss)!=1) neural_fail("grad requires a scalar loss",line,column);
+    if(loss->device_tensor)
+        return neural_grad_device(loss,line,column);
     if(loss->dtype==10) return neural_grad_t<float>(loss,line,column);
     if(loss->dtype==9) return neural_grad_t<double>(loss,line,column);
     neural_fail("invalid neural gradient dtype",line,column);

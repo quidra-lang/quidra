@@ -1790,17 +1790,6 @@ private:
                     receiver->arguments.size() == 1) {
                     return clone_type(receiver->arguments.front());
                 }
-                if (call->method == "cast" && call->args.empty() &&
-                    call->type_arguments.size() == 1) {
-                    TypeName result;
-                    result.name = "tensor";
-                    result.arguments.push_back(clone_type(call->type_arguments.front()));
-                    result.tensor_shape_prefix = receiver->tensor_shape_prefix;
-                    result.tensor_rank = receiver->tensor_rank;
-                    result.tensor_known_shape_prefix = receiver->tensor_known_shape_prefix;
-                    result.span = expression.span;
-                    return result;
-                }
             }
             if (receiver->name == "neural" && call->method == "untrack" &&
                 receiver->arguments.size() == 1) {

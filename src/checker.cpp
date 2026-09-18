@@ -3555,15 +3555,19 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                                   "Contextual tensor allocation cannot infer '_' extents.",
                                   expression.span);
                         }
-                        type = expected ? Type::tensor(
-                            element, expected->length, {},
-                            expected->tensor_known_shape_prefix)
-                                        : simple(TypeKind::Invalid);
+                        type = expected
+                            ? Type::tensor(element, expected->length)
+                            : simple(TypeKind::Invalid);
                         if (expected) {
+                            bool prefix_known=true;
                             for (const auto extent : expected->tensor_shape_prefix) {
-                                if (extent >= 0) type.tensor_known_shape_prefix.push_back(extent);
-                                else if (extent == -2) type.tensor_known_shape_prefix.clear();
+                                if (extent < 0) {
+                                    prefix_known=false;
+                                    break;
+                                }
+                                type.tensor_known_shape_prefix.push_back(extent);
                             }
+                            if (!prefix_known) type.tensor_known_shape_prefix.clear();
                         }
                         break;
                     }
@@ -3610,7 +3614,8 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         ? simple(TypeKind::Invalid)
                         : Type::tensor(element, rank, {}, std::move(known_shape));
                     break;
-                }            }
+                }
+            }
             call_resolutions_[&expression].type = type;
 
     return type;
@@ -4497,9 +4502,14 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             if (!paths.empty()) {
                 class_initialized_paths_[node.name] = paths;
             }
-        } else if (type.kind == TypeKind::Array && type.length >= 0) {
-            // A fixed array declaration creates storage immediately. Its elements are tracked
-            // independently and may still be uninitialized.
+        } else if (type.kind == TypeKind::Array &&
+                   (type.length >= 0 ||
+                    (type.length == -2 &&
+                     !node.declared_type.dimension_expressions.empty() &&
+                     node.declared_type.dimension_expressions.front()))) {
+            // A fixed or captured-extent outer array declaration creates storage
+            // immediately. Its elements are tracked independently and may still
+            // be uninitialized.
             initialized_.insert(node.name);
         }
         return;

@@ -28,6 +28,94 @@ bool printable(const Type& type) {
            type.kind == TypeKind::Error;
 }
 
+enum class NumericLiteralFamily {
+    None,
+    Integer,
+    Floating,
+    Mixed
+};
+
+NumericLiteralFamily numeric_literal_family(const Expr& expression) {
+    if (std::holds_alternative<IntegerExpr>(expression.data)) {
+        return NumericLiteralFamily::Integer;
+    }
+    if (std::holds_alternative<FloatExpr>(expression.data)) {
+        return NumericLiteralFamily::Floating;
+    }
+    if (const auto* unary = std::get_if<UnaryExpr>(&expression.data);
+        unary && unary->op == "-") {
+        return numeric_literal_family(*unary->operand);
+    }
+    if (const auto* binary = std::get_if<BinaryExpr>(&expression.data);
+        binary && (binary->op == "+" || binary->op == "-" || binary->op == "*" ||
+                   binary->op == "/" || binary->op == "%")) {
+        const auto left = numeric_literal_family(*binary->left);
+        const auto right = numeric_literal_family(*binary->right);
+        if (left == NumericLiteralFamily::None || right == NumericLiteralFamily::None) {
+            return NumericLiteralFamily::None;
+        }
+        if (left == right) return left;
+        return NumericLiteralFamily::Mixed;
+    }
+    return NumericLiteralFamily::None;
+}
+
+NumericLiteralFamily direct_numeric_literal_family(const Expr& expression) {
+    if (std::holds_alternative<IntegerExpr>(expression.data)) {
+        return NumericLiteralFamily::Integer;
+    }
+    if (std::holds_alternative<FloatExpr>(expression.data)) {
+        return NumericLiteralFamily::Floating;
+    }
+    if (const auto* unary = std::get_if<UnaryExpr>(&expression.data);
+        unary && unary->op == "-") {
+        return direct_numeric_literal_family(*unary->operand);
+    }
+    return NumericLiteralFamily::None;
+}
+
+struct NumericLiteralContext {
+    std::optional<Type> type;
+    bool ambiguous{};
+    bool opposite_family{};
+};
+
+NumericLiteralContext numeric_literal_context(
+    const Type* expected, NumericLiteralFamily family) {
+    NumericLiteralContext result;
+    if (!expected ||
+        (family != NumericLiteralFamily::Integer &&
+         family != NumericLiteralFamily::Floating)) {
+        return result;
+    }
+
+    const auto matches = [&](const Type& candidate) {
+        return family == NumericLiteralFamily::Integer
+            ? is_integer(candidate)
+            : is_float(candidate);
+    };
+    const auto opposite = [&](const Type& candidate) {
+        return family == NumericLiteralFamily::Integer
+            ? is_float(candidate)
+            : is_integer(candidate);
+    };
+    const auto consider = [&](const Type& candidate) {
+        if (matches(candidate)) {
+            if (result.type) result.ambiguous = true;
+            else result.type = candidate;
+        } else if (opposite(candidate)) {
+            result.opposite_family = true;
+        }
+    };
+
+    if (expected->kind == TypeKind::Union) {
+        for (const auto& candidate : expected->cases) consider(candidate);
+    } else {
+        consider(*expected);
+    }
+    return result;
+}
+
 bool runtime_reserved_c_symbol(std::string_view symbol) {
     if (symbol == "main" || symbol.starts_with("n_") || symbol.starts_with("quidra_") || symbol.starts_with("__quidra_")) {
         return true;
@@ -4231,7 +4319,41 @@ Type Checker::check_call_expr(const Expr& expression,
                 (node->args[0].name && *node->args[0].name != "value")) {
                 error("ARGUMENT_MISMATCH", "Numeric cast requires one value argument.", expression.span);
             }
-            auto source = check_expr(*node->args[0].value);
+            Type source;
+            const auto family = numeric_literal_family(*node->args[0].value);
+            const auto direct_family =
+                direct_numeric_literal_family(*node->args[0].value);
+            const bool target_integer = is_integer(*target);
+            const bool target_floating = is_float(*target);
+            const bool same_family =
+                (family == NumericLiteralFamily::Integer && target_integer) ||
+                (family == NumericLiteralFamily::Floating && target_floating);
+            const bool direct_cross_family =
+                (direct_family == NumericLiteralFamily::Integer && target_floating) ||
+                (direct_family == NumericLiteralFamily::Floating && target_integer);
+
+            if (family == NumericLiteralFamily::Mixed) {
+                error("NUMERIC_FAMILY",
+                      "Explicit numeric cast source cannot implicitly mix integer and floating literal families.",
+                      node->args[0].span);
+            } else if (same_family || direct_cross_family) {
+                const bool previous = explicit_numeric_literal_context_;
+                explicit_numeric_literal_context_ = true;
+                try {
+                    source = check_expr(*node->args[0].value, &*target);
+                } catch (...) {
+                    explicit_numeric_literal_context_ = previous;
+                    throw;
+                }
+                explicit_numeric_literal_context_ = previous;
+            } else if (family == NumericLiteralFamily::Integer ||
+                       family == NumericLiteralFamily::Floating) {
+                error("NUMERIC_CAST",
+                      "Cross-family conversion of a numeric-family expression requires a concrete source type.",
+                      node->args[0].span);
+            } else {
+                source = check_expr(*node->args[0].value);
+            }
 
             std::function<std::optional<Type>(const Type&)> cast_result =
                 [&](const Type& current) -> std::optional<Type> {
@@ -4285,19 +4407,6 @@ Type Checker::check_call_expr(const Expr& expression,
                           expression.span);
                     type = simple(TypeKind::Invalid);
                 } else {
-                    if (is_numeric(source)) {
-                        if (const auto* literal =
-                                std::get_if<IntegerExpr>(&node->args[0].value->data)) {
-                            if (is_integer(*target) &&
-                                !integer_literal_value_fits(
-                                    static_cast<unsigned long long>(literal->value), *target)) {
-                                error("NUMERIC_CAST",
-                                      "Integer literal is outside the range of " +
-                                          type_name(*target) + ".",
-                                      expression.span);
-                            }
-                        }
-                    }
                     type = *result;
                 }
                 call_resolutions_[&expression] =
@@ -4520,28 +4629,74 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
     Type type = simple(TypeKind::Void);
 
     if (const auto* node = std::get_if<IntegerExpr>(&expression.data)) {
-        if (expected && is_integer(*expected) && integer_literal_value_fits(static_cast<unsigned long long>(node->value), *expected)) {
-            type = *expected;
-        } else if (expected && is_float(*expected) &&
-                   integer_literal_fits_exactly_in_float(static_cast<unsigned long long>(node->value), *expected)) {
-            type = *expected;
-        } else {
-            if (node->value >
-                static_cast<unsigned long long>(std::numeric_limits<std::int64_t>::max())) {
-                error("INTEGER_RANGE",
-                      "Integer literal exceeds int; use an explicit uint64 context for values up to uint64 maximum.",
+        const auto context =
+            numeric_literal_context(expected, NumericLiteralFamily::Integer);
+        if (context.ambiguous) {
+            error("AMBIGUOUS_NUMERIC_LITERAL",
+                  "Integer-family literal matches multiple concrete integer types.",
+                  expression.span);
+        }
+        if (context.type) {
+            if (!integer_literal_value_fits(
+                    static_cast<unsigned long long>(node->value), *context.type)) {
+                error(explicit_numeric_literal_context_ ? "NUMERIC_CAST" : "INTEGER_RANGE",
+                      "Integer-family literal is outside the range of " +
+                          type_name(*context.type) + ".",
                       expression.span);
             }
-            type = simple(TypeKind::Int);
+            type = *context.type;
+        } else if (explicit_numeric_literal_context_ && expected &&
+                   is_float(*expected)) {
+            type = *expected;
+        } else if (context.opposite_family) {
+            error("NUMERIC_FAMILY",
+                  "Integer-family literal cannot materialize as a floating-family type without an explicit cast.",
+                  expression.span);
+        } else if (expected) {
+            error("TYPE_MISMATCH",
+                  "Integer-family literal requires a concrete integer type context.",
+                  expression.span);
+        } else {
+            error("AMBIGUOUS_NUMERIC_LITERAL",
+                  "Integer-family literal requires a unique concrete integer type context.",
+                  expression.span);
         }
     } else if (const auto* node = std::get_if<FloatExpr>(&expression.data)) {
         if (!std::isfinite(node->value)) {
-            error("FLOAT_RANGE", "Float literal must be finite.", expression.span);
+            error("FLOAT_RANGE", "Floating-family literal must be finite.", expression.span);
         }
-        if (expected && is_float(*expected) && float_value_fits_exactly(node->value, *expected)) {
-            type = *expected;
+        const auto context =
+            numeric_literal_context(expected, NumericLiteralFamily::Floating);
+        if (context.ambiguous) {
+            error("AMBIGUOUS_NUMERIC_LITERAL",
+                  "Floating-family literal matches multiple concrete floating types.",
+                  expression.span);
+        }
+        if (context.type) {
+            if (!float_value_fits_range(node->value, *context.type)) {
+                error(explicit_numeric_literal_context_ ? "NUMERIC_CAST" : "FLOAT_RANGE",
+                      "Floating-family literal is outside the finite range of " +
+                          type_name(*context.type) + ".",
+                      expression.span);
+            }
+            type = *context.type;
+        } else if (explicit_numeric_literal_context_ && expected &&
+                   is_integer(*expected)) {
+            error("NUMERIC_CAST",
+                  "Floating-point to integer conversion requires math.trunc, math.round, math.floor, or math.ceil.",
+                  expression.span);
+        } else if (context.opposite_family) {
+            error("NUMERIC_FAMILY",
+                  "Floating-family literal cannot materialize as an integer-family type without an explicit conversion.",
+                  expression.span);
+        } else if (expected) {
+            error("TYPE_MISMATCH",
+                  "Floating-family literal requires a concrete floating type context.",
+                  expression.span);
         } else {
-            type = simple(TypeKind::Float);
+            error("AMBIGUOUS_NUMERIC_LITERAL",
+                  "Floating-family literal requires a unique concrete floating type context.",
+                  expression.span);
         }
     } else if (std::holds_alternative<StringExpr>(expression.data)) {
         type = simple(TypeKind::String);
@@ -4583,15 +4738,46 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             }
             type = Type::array(*context->first, 0);
         } else {
-            auto element = check_expr(*node->elements[0], context ? context->first.get() : nullptr);
+            Type element;
+            if (context) {
+                element = check_expr(*node->elements[0], context->first.get());
+                if (!poisoned(element)) {
+                    for (std::size_t i = 1; i < node->elements.size(); ++i) {
+                        check_expr(*node->elements[i], &element);
+                    }
+                }
+            } else {
+                std::optional<std::size_t> seed;
+                for (std::size_t i = 0; i < node->elements.size(); ++i) {
+                    const auto family = numeric_literal_family(*node->elements[i]);
+                    if (family == NumericLiteralFamily::Mixed) {
+                        error("NUMERIC_FAMILY",
+                              "Numeric-family expression cannot mix integer and floating literals implicitly.",
+                              node->elements[i]->span);
+                    }
+                    if (family == NumericLiteralFamily::None) {
+                        seed = i;
+                        break;
+                    }
+                }
+                if (!seed) {
+                    error("AMBIGUOUS_NUMERIC_LITERAL",
+                          "An array made only of numeric-family expressions needs an explicit element type.",
+                          expression.span);
+                }
+                element = check_expr(*node->elements[*seed]);
+                if (!poisoned(element)) {
+                    for (std::size_t i = 0; i < node->elements.size(); ++i) {
+                        if (i == *seed) continue;
+                        check_expr(*node->elements[i], &element);
+                    }
+                }
+            }
             if (poisoned(element)) {
                 type = element;
             } else {
                 if (!is_storable(element)) {
                     error("TYPE_MISMATCH", "Array elements must be storable.", expression.span);
-                }
-                for (std::size_t i = 1; i < node->elements.size(); ++i) {
-                    check_expr(*node->elements[i], &element);
                 }
                 type = Type::array(element, static_cast<long long>(node->elements.size()));
             }
@@ -4605,10 +4791,29 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
     } else if (const auto* node = std::get_if<IndexExpr>(&expression.data)) {
         type = check_index_expr(expression, *node);
     } else if (const auto* node = std::get_if<UnaryExpr>(&expression.data)) {
-        const Type* operand_expected =
-            node->op == "-" && expected &&
-                    (is_numeric(*expected) || expected->kind == TypeKind::Tensor)
-                ? expected : nullptr;
+        std::optional<Type> literal_expected;
+        const Type* operand_expected = nullptr;
+        if (node->op == "-" && expected &&
+            (is_numeric(*expected) || expected->kind == TypeKind::Tensor)) {
+            operand_expected = expected;
+        } else if (node->op == "-") {
+            const auto family = numeric_literal_family(*node->operand);
+            if (family == NumericLiteralFamily::Mixed) {
+                error("NUMERIC_FAMILY",
+                      "Numeric-family expression cannot mix integer and floating literals implicitly.",
+                      expression.span);
+            }
+            const auto context = numeric_literal_context(expected, family);
+            if (context.ambiguous) {
+                error("AMBIGUOUS_NUMERIC_LITERAL",
+                      "Numeric-family literal matches multiple concrete types.",
+                      expression.span);
+            }
+            if (context.type) {
+                literal_expected = *context.type;
+                operand_expected = &*literal_expected;
+            }
+        }
         type = check_expr(*node->operand, operand_expected);
         if (!poisoned(type)) {
             if (node->op == "not") {
@@ -4629,36 +4834,66 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             }
         }
     } else if (const auto* node = std::get_if<BinaryExpr>(&expression.data)) {
-        const auto literal_kind = [](const Expr& value) {
-            if (std::holds_alternative<IntegerExpr>(value.data)) return 1;
-            if (std::holds_alternative<FloatExpr>(value.data)) return 2;
-            if (const auto* unary = std::get_if<UnaryExpr>(&value.data);
-                unary && unary->op == "-") {
-                if (std::holds_alternative<IntegerExpr>(unary->operand->data)) return 1;
-                if (std::holds_alternative<FloatExpr>(unary->operand->data)) return 2;
-            }
-            return 0;
-        };
+        const auto left_family = numeric_literal_family(*node->left);
+        const auto right_family = numeric_literal_family(*node->right);
+        if (left_family == NumericLiteralFamily::Mixed ||
+            right_family == NumericLiteralFamily::Mixed) {
+            error("NUMERIC_FAMILY",
+                  "Numeric-family expression cannot mix integer and floating literals implicitly.",
+                  expression.span);
+        }
 
-        const int left_literal = literal_kind(*node->left);
-        const int right_literal = literal_kind(*node->right);
         Type left;
         Type right;
+        const auto scalar_context = [](const Type& other) -> const Type* {
+            if (is_numeric(other)) return &other;
+            if ((other.kind == TypeKind::Tensor || other.kind == TypeKind::Neural) &&
+                other.first && is_numeric(*other.first)) {
+                return other.first.get();
+            }
+            return nullptr;
+        };
+
+        const bool left_literal =
+            left_family == NumericLiteralFamily::Integer ||
+            left_family == NumericLiteralFamily::Floating;
+        const bool right_literal =
+            right_family == NumericLiteralFamily::Integer ||
+            right_family == NumericLiteralFamily::Floating;
 
         if (left_literal && right_literal) {
-            const auto context = simple(
-                left_literal == 2 || right_literal == 2 ? TypeKind::Float : TypeKind::Int);
-            left = check_expr(*node->left, &context);
-            right = check_expr(*node->right, &context);
+            if (left_family != right_family) {
+                error("NUMERIC_FAMILY",
+                      "Integer-family and floating-family expressions cannot mix implicitly.",
+                      expression.span);
+            }
+            const auto context = numeric_literal_context(expected, left_family);
+            if (context.ambiguous) {
+                error("AMBIGUOUS_NUMERIC_LITERAL",
+                      "Numeric-family expression matches multiple concrete numeric types.",
+                      expression.span);
+            }
+            if (!context.type) {
+                if (context.opposite_family) {
+                    error("NUMERIC_FAMILY",
+                          "Numeric-family expression cannot cross families without an explicit cast.",
+                          expression.span);
+                }
+                error("AMBIGUOUS_NUMERIC_LITERAL",
+                      "Numeric-family expression requires a unique concrete numeric type context.",
+                      expression.span);
+            }
+            left = check_expr(*node->left, &*context.type);
+            right = check_expr(*node->right, &*context.type);
         } else if (left_literal) {
             right = check_expr(*node->right);
-            left = is_numeric(right) ? check_expr(*node->left, &right)
-                                     : check_expr(*node->left);
+            left = check_expr(*node->left, scalar_context(right));
+        } else if (right_literal) {
+            left = check_expr(*node->left);
+            right = check_expr(*node->right, scalar_context(left));
         } else {
             left = check_expr(*node->left);
-            right = right_literal && is_numeric(left)
-                ? check_expr(*node->right, &left)
-                : check_expr(*node->right);
+            right = check_expr(*node->right);
         }
 
         if (poisoned(left) || poisoned(right)) {
@@ -4672,21 +4907,11 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 if (left != right) error("TYPE_MISMATCH", "neural arithmetic requires identical element types.", expression.span);
             } else {
                 const Type& scalar = left_neural ? right : left;
-                const Expr& scalar_expr = left_neural ? *node->right : *node->left;
-                bool compatible = is_numeric(scalar) && scalar == element;
-                if (!compatible) {
-                    if (const auto integer = constant_integer_value(scalar_expr)) {
-                        compatible = is_integer(element)
-                            ? integer_value_fits(*integer, element)
-                            : (is_float(element) &&
-                               integer_value_fits_exactly_in_float(*integer, element));
-                    } else if (const auto* value = std::get_if<FloatExpr>(&scalar_expr.data)) {
-                        compatible = is_float(element) &&
-                            float_value_fits_exactly(value->value, element);
-                    }
+                if (!is_numeric(scalar) || scalar != element) {
+                    error("TYPE_MISMATCH",
+                          "neural scalar arithmetic requires the exact element type.",
+                          expression.span);
                 }
-                if (!compatible)
-                    error("TYPE_MISMATCH", "neural scalar arithmetic requires an exactly representable scalar.", expression.span);
             }
             if (node->op != "+" && node->op != "-" && node->op != "*" && node->op != "/")
                 error("TYPE_MISMATCH", "neural operators are elementwise +, -, *, and /.", expression.span);
@@ -4696,18 +4921,6 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             const bool right_tensor = right.kind == TypeKind::Tensor;
             const Type& tensor_type = left_tensor ? left : right;
             const auto element = *tensor_type.first;
-            const auto scalar_compatible = [&](const Expr& source, const Type& actual) {
-                if (actual == element) return true;
-                if (const auto integer = constant_integer_value(source)) {
-                    if (is_integer(element)) return integer_value_fits(*integer, element);
-                    if (is_float(element)) return integer_value_fits_exactly_in_float(*integer, element);
-                }
-                if (const auto* value = std::get_if<FloatExpr>(&source.data)) {
-                    if (is_float(element)) return float_value_fits_exactly(value->value, element);
-                    if (is_integer(element)) return float_value_fits_exactly_in_integer(value->value, element);
-                }
-                return false;
-            };
             Type tensor_result = tensor_type;
             if (left_tensor && right_tensor) {
                 if (*left.first != *right.first) {
@@ -4724,10 +4937,9 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 }
             } else {
                 const auto& scalar_type = left_tensor ? right : left;
-                const auto& scalar_expr = left_tensor ? *node->right : *node->left;
-                if (!is_numeric(scalar_type) || !scalar_compatible(scalar_expr, scalar_type)) {
+                if (!is_numeric(scalar_type) || scalar_type != element) {
                     error("TYPE_MISMATCH",
-                          "Tensor scalar arithmetic requires an exactly representable scalar.",
+                          "Tensor scalar arithmetic requires the exact element type.",
                           expression.span);
                 }
             }
@@ -6007,6 +6219,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     diagnostics_.clear();
     current_class_.clear();
     loop_depth_ = 0;
+    explicit_numeric_literal_context_ = false;
 
     std::unordered_map<std::string, ClassDecl*> class_decls;
     for (auto& class_decl : program.classes) {

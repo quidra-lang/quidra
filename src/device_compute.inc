@@ -943,8 +943,18 @@ id<MTLComputePipelineState> cached_metal_pipeline(
         }
         id<MTLFunction> function = [library newFunctionWithName:@"q_kernel"];
         if (!function) {
+            error = "Metal compute kernel q_kernel was not found for ";
+            error += key;
+            NSArray<NSString*>* names = [library functionNames];
+            if (names && [names count] != 0) {
+                error += " (available:";
+                for (NSString* name in names) {
+                    error += " ";
+                    error += [name UTF8String];
+                }
+                error += ")";
+            }
             [library release];
-            error = "Metal compute kernel q_kernel was not found";
             return nil;
         }
         id<MTLComputePipelineState> pipeline =

@@ -3758,8 +3758,9 @@ extern "C" bool quidra_neural_moment_update_parameter(
 
     const auto moment_key=reinterpret_cast<std::uintptr_t>(moments_raw);
     const bool cached=neural_moment_device_caches.contains(moment_key);
-    if(cached && gradient &&
-       (neural_managed_owner_count(moments_raw)>1 || !gradient->device_tensor)){
+    if(cached &&
+       (neural_managed_owner_count(moments_raw)>1 ||
+        (gradient && !gradient->device_tensor))){
         neural_sync_moment_cache_to_host(moments_raw,line,column);
         neural_moment_device_caches.erase(moment_key);
     }

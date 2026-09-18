@@ -1049,7 +1049,7 @@ set -e
 grep -q 'REFERENCE_BINDING' "$TMP/temporary-reference.json"
 
 cat > "$TMP/temporary-write.qui" <<'QUI'
-array(1, fill = 1)[0] = 2
+array(1, fill = int(1))[0] = 2
 QUI
 set +e
 "$QUIDRA" check "$TMP/temporary-write.qui" --json > "$TMP/temporary-write.json"

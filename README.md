@@ -66,8 +66,8 @@ Quidra tries to give common forms one stable job:
 | `&x` | explicit observable access to storage |
 | `T &` | writable path to caller-visible storage |
 | `const T &` | live read-only path to storage |
-| `T | none` | normal absence is part of the type |
-| `T | error` | failure is part of the type |
+| `T \| none` | normal absence is part of the type |
+| `T \| error` | failure is part of the type |
 | `try` | propagate `error`, not every non-value state |
 | `T(value)` | explicit representation conversion |
 | `tensor<T><3, _, _>` | element type plus three axis slots: first extent is 3, the other extents are unrestricted, and three slots require rank 3 |

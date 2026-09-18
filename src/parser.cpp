@@ -1093,7 +1093,30 @@ ExprPtr Parser::bit_xor_expr() { auto e=bit_and_expr(); while(match(TokenKind::K
 ExprPtr Parser::bit_and_expr() { auto e=equality(); while(match(TokenKind::KwBitAnd)){auto op=previous(); e=make_binary(std::move(e),op,equality());} return e; }
 ExprPtr Parser::equality() { auto e=comparison(); while(match(TokenKind::EqEq)||match(TokenKind::NotEq)){auto op=previous(); e=make_binary(std::move(e),op,comparison());} return e; }
 ExprPtr Parser::comparison() { auto e=shift_expr(); while(match(TokenKind::Less)||match(TokenKind::LessEq)||match(TokenKind::Greater)||match(TokenKind::GreaterEq)){auto op=previous(); e=make_binary(std::move(e),op,shift_expr());} return e; }
-ExprPtr Parser::shift_expr() { auto e=term(); while(match(TokenKind::ShiftLeft)||match(TokenKind::ShiftRight)){auto op=previous(); e=make_binary(std::move(e),op,term());} return e; }
+ExprPtr Parser::shift_expr() {
+    auto e=term();
+    for (;;) {
+        if (at(TokenKind::Less) && peek(1).kind==TokenKind::Less) {
+            Token op=peek();
+            ++current_;
+            const auto& second=consume(TokenKind::Less,"Expected second '<' in shift operator.");
+            op.text="<<";
+            op.span.end=second.span.end;
+            e=make_binary(std::move(e),op,term());
+            continue;
+        }
+        if (at(TokenKind::Greater) && peek(1).kind==TokenKind::Greater) {
+            Token op=peek();
+            ++current_;
+            const auto& second=consume(TokenKind::Greater,"Expected second '>' in shift operator.");
+            op.text=">>";
+            op.span.end=second.span.end;
+            e=make_binary(std::move(e),op,term());
+            continue;
+        }
+        return e;
+    }
+}
 ExprPtr Parser::term() { auto e=factor(); while(match(TokenKind::Plus)||match(TokenKind::Minus)){auto op=previous(); e=make_binary(std::move(e),op,factor());} return e; }
 ExprPtr Parser::factor() { auto e=unary(); while(match(TokenKind::Star)||match(TokenKind::Slash)||match(TokenKind::Percent)){auto op=previous(); e=make_binary(std::move(e),op,unary());} return e; }
 

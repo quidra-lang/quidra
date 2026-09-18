@@ -273,10 +273,13 @@ print(reals[1])
      "call ptr @quidra_bigreal_literal");
  bad_code("tensor<bigint> x = tensor<bigint>([1])\n", "INVALID_TYPE");
  bad_code("neural<bigreal> x = neural.track(tensor<float>([1]))\n", "INVALID_TYPE");
+ bad_code("neural<bigint> x = neural.track(tensor<float>([1]))\n", "INVALID_TYPE");
  bad_code("auto x = math.sqrt(4.0)\n", "AMBIGUOUS_NUMERIC_LITERAL");
  bad_code("int x = int(math.sqrt(4.0))\n", "AMBIGUOUS_NUMERIC_LITERAL");
  good("bigreal x = math.sqrt(4.0)\nint y = int(x)\n");
  good("bigreal x = math.sqrt(2.0)\nprint(\"{x:sig=100}\")\n");
+ bad_code("map.Map<bigreal, int> values = map.Map<bigreal, int>()\n", "STANDARD_KEY_TYPE");
+ bad_code("set.Set<bigreal> values = set.Set<bigreal>()\n", "STANDARD_KEY_TYPE");
 
  good("extern void scalar_abi(int8 a, int16 b, int32 c, int d, uint8 e, uint16 f, uint32 g, uint64 h, float32 i, float j, bool k) = \"scalar_abi\"\n");
  llvm_contains("extern bool c_bool(bool value) = \"c_bool\"\n", "declare zeroext i1 @c_bool(i1 zeroext)");

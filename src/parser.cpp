@@ -144,6 +144,8 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
                      (tokens[index + 1].text == "_" ||
                       (tokens[index + 1].text != "float" &&
                        tokens[index + 1].text != "float32" &&
+                        tokens[index + 1].text != "bigint" &&
+                        tokens[index + 1].text != "bigreal" &&
                        (!tokens[index + 1].text.empty() &&
                         std::islower(static_cast<unsigned char>(
                             tokens[index + 1].text.front())))))))) {
@@ -404,6 +406,8 @@ TypeName Parser::type_name() {
                      (peek(1).text == "_" ||
                       (peek(1).text != "float" &&
                        peek(1).text != "float32" &&
+                        peek(1).text != "bigint" &&
+                        peek(1).text != "bigreal" &&
                        !peek(1).text.empty() &&
                        std::islower(static_cast<unsigned char>(
                            peek(1).text.front()))))))) {

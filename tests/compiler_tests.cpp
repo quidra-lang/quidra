@@ -246,8 +246,8 @@ int main(){
  llvm_contains("extern int32 c_bin(const bin &data) = \"c_bin\"\n", "declare i32 @c_bin(ptr nocapture nonnull readonly, i64)");
  llvm_contains("extern int32 c_text(const string &text) = \"c_text\"\nstring value = \"abc\"\nint32 result = c_text(&value)\n", "ffi.borrowed.value");
  llvm_contains("extern int32 c_text(const string &text) = \"c_text\"\nstring value = \"abc\"\nint32 result = c_text(&value)\n", "call i64 @strlen(ptr");
- llvm_contains("extern int32 c_bin(const bin &data) = \"c_bin\"\nbin value = bin(24, fill = 1)\nint32 result = c_bin(&value)\n", "ffi.bin.length");
- llvm_contains("extern int32 c_bin(const bin &data) = \"c_bin\"\nbin value = bin(24, fill = 1)\nint32 result = c_bin(&value)\n", "call i32 @c_bin(ptr nocapture nonnull readonly");
+ llvm_contains("extern int32 c_bin(const bin &data) = \"c_bin\"\nbin value = bin.fill(24, 1)\nint32 result = c_bin(&value)\n", "ffi.bin.length");
+ llvm_contains("extern int32 c_bin(const bin &data) = \"c_bin\"\nbin value = bin.fill(24, 1)\nint32 result = c_bin(&value)\n", "call i32 @c_bin(ptr nocapture nonnull readonly");
  llvm_file_contains("tensor<float> source = tensor.ones<float>([1])\nneural<float> value = neural.track(source)\nneural<float> next = value + 1\n", "@quidra_neural_binary_scalar");
  llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nuint8 scalar = 255\nneural<float32> next = value + float32(scalar)\n", "uitofp i8");
  llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nint8 scalar = -1\nneural<float32> next = value + float32(scalar)\n", "sitofp i8");
@@ -742,7 +742,7 @@ string small_text = small.string()
 string flag_text = true.string()
 int | error parsed = int.parse("123")
 float32 | error parsed_float = float32.parse("1.5")
-bin data = bin.parse("0000000111111110")
+bin allocated = bin.fill(8, 0)\nstring repeated = string.repeat("a", 3)\nbin data = bin.parse("0000000111111110")
 bin first = data[0]
 bin slice = data[0:8]
 uint8[] decoded = uint8[](data)
@@ -949,7 +949,7 @@ print(outer.inner.y)
  "auto x = 9223372036854775808\n", "auto x = []\n", "auto x = range(3)\n",
  "int8 x = 128\n", "uint8 x = -1\n", "int8 x = int8(300)\n",
  "float32 x = 0.1\n",
- "bin x = bin(-1, fill = 0)\n", "bin x = bin(2, fill = 2)\n",
+ "bin x = bin(2, fill = 0)\n", "bin x = bin.fill(-1, 0)\n", "bin x = bin.fill(2, 2)\n", "string x = string(2, fill = \"a\")\n", "string x = string.repeat(\"a\", -1)\n",
  "string tab = \"x\"\n", "void f(string enter)\n    return\n",
  "int x = 1\nif true\n    int x = 2\n", "int x = 1\nint x = 2\n",
  "class A\n    int x\n    int x\n",

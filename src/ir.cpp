@@ -1227,6 +1227,17 @@ struct Lowerer {
                     return out;
                 }
             }
+            if(receiver_name && receiver_name->name=="bin" && n->method=="fill"){
+                auto length=expr(*n->args[0].value),fill=expr(*n->args[1].value),out=fresh();
+                block->instructions.push_back(BytesAlloc{out,length,fill});
+                return out;
+            }
+            if(receiver_name && receiver_name->name=="string" && n->method=="repeat"){
+                auto fill=expr(*n->args[0].value),count=expr(*n->args[1].value),out=fresh();
+                block->instructions.push_back(StringRepeat{out,count,fill});
+                release_temporary(*n->args[0].value,fill);
+                return out;
+            }
             const auto receiver_type=type_of(*n->receiver);
             if(receiver_type.kind==TypeKind::String){
                 auto receiver=expr(*n->receiver);

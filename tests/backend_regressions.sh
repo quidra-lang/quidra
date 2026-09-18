@@ -130,7 +130,7 @@ neural prediction = neural.affine(
 neural loss = neural.mean(prediction * prediction)
 neural.Gradients gradients = neural.grad(loss)
 neural.State<int> iteration = neural.State<int>(value = 0)
-neural.State<bin> moments = neural.State<bin>(value = bin(0, fill = 0))
+neural.State<bin> moments = neural.State<bin>(value = bin.fill(0, 0))
 neural.moment_update(
     &model, 0.01, 0.9, 0.999, 0.00000001,
     &iteration, &moments, gradients

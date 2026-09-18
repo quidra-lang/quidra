@@ -1,4 +1,4 @@
-bin data = bin(8, fill = 0)
+bin data = bin.fill(8, 0)
 data[1] = bin.parse("1")
 print(len(data))
 print(data)

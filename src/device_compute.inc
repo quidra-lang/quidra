@@ -1308,6 +1308,68 @@ bool compute_binary(Buffer* output, const Buffer* left, std::size_t left_offset,
         }
     }
 #endif
+    if (gpu_integer_dtype(dtype) && output->backend==Backend::Nvidia) {
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(output->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto ptx=ptx_integer_binary_source(dtype,operation,scalar_side);
+        auto out_ptr=output->cuda_pointer;
+        auto left_ptr=left->cuda_pointer+left_offset;
+        auto right_ptr=scalar_side==0?right->cuda_pointer+right_offset:left_ptr;
+        auto status_ptr=status->cuda_pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        std::uint64_t zero_scalar=0;
+        void* scalar_storage=scalar_side==0?static_cast<void*>(&zero_scalar):const_cast<void*>(scalar);
+        void* args[]={&out_ptr,&left_ptr,&right_ptr,scalar_storage,&n,&status_ptr};
+        if(!launch_ptx_1d(output,
+            "binary-int-"+std::to_string(dtype)+"-"+std::to_string(operation)+"-"+std::to_string(scalar_side),
+            ptx,count,args,error))return false;
+        std::uint32_t failed=0;
+        if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){
+            error=operation==4||operation==5
+                ?"invalid tensor division/remainder or integer overflow"
+                :"tensor integer arithmetic overflow";
+            return false;
+        }
+        return true;
+    }
+#ifdef __APPLE__
+    if (gpu_integer_dtype(dtype) && output->backend==Backend::Metal) {
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(output->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto source_code=msl_integer_binary_source(dtype,operation,scalar_side);
+        auto pipeline=cached_metal_pipeline(
+            [output->metal_buffer device],
+            "binary-int-"+std::to_string(dtype)+"-"+std::to_string(operation)+"-"+std::to_string(scalar_side),
+            source_code,error);
+        if(!pipeline)return false;
+        const auto n=static_cast<std::uint64_t>(count);
+        std::uint64_t zero_scalar=0;
+        const void* scalar_storage=scalar_side==0?static_cast<const void*>(&zero_scalar):scalar;
+        if(!dispatch_metal_1d(output,pipeline,count,[&](id<MTLComputeCommandEncoder> e){
+            [e setBuffer:output->metal_buffer offset:0 atIndex:0];
+            [e setBuffer:left->metal_buffer offset:left_offset atIndex:1];
+            [e setBuffer:(right?right->metal_buffer:left->metal_buffer)
+                   offset:scalar_side==0?right_offset:left_offset atIndex:2];
+            [e setBytes:scalar_storage length:compute_dtype_width(dtype) atIndex:3];
+            [e setBytes:&n length:sizeof(n) atIndex:4];
+            [e setBuffer:status->metal_buffer offset:0 atIndex:5];
+        },error))return false;
+        std::uint32_t failed=0;
+        if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){
+            error=operation==4||operation==5
+                ?"invalid tensor division/remainder or integer overflow"
+                :"tensor integer arithmetic overflow";
+            return false;
+        }
+        return true;
+    }
+#endif
     if (hip_integer_dtype(dtype) && output->backend==Backend::Amd) {
         std::unique_ptr<Buffer,void(*)(Buffer*)> status(
             allocate(output->global_index,sizeof(std::uint32_t),error),
@@ -1438,6 +1500,46 @@ bool compute_unary(Buffer* output, const Buffer* input, std::size_t input_offset
         return true;
     }
 #endif
+    if (gpu_integer_signed(dtype) && output->backend==Backend::Nvidia) {
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(output->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto ptx=ptx_integer_unary_source(dtype);
+        auto out_ptr=output->cuda_pointer;
+        auto in_ptr=input->cuda_pointer+input_offset;
+        auto status_ptr=status->cuda_pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&in_ptr,&n,&status_ptr};
+        if(!launch_ptx_1d(output,"unary-int-"+std::to_string(dtype),ptx,count,args,error))return false;
+        std::uint32_t failed=0;
+        if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){error="tensor integer negation overflow";return false;}
+        return true;
+    }
+#ifdef __APPLE__
+    if (gpu_integer_signed(dtype) && output->backend==Backend::Metal) {
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(output->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto source_code=msl_integer_unary_source(dtype);
+        auto pipeline=cached_metal_pipeline(
+            [output->metal_buffer device],"unary-int-"+std::to_string(dtype),source_code,error);
+        if(!pipeline)return false;
+        const auto n=static_cast<std::uint64_t>(count);
+        if(!dispatch_metal_1d(output,pipeline,count,[&](id<MTLComputeCommandEncoder> e){
+            [e setBuffer:output->metal_buffer offset:0 atIndex:0];
+            [e setBuffer:input->metal_buffer offset:input_offset atIndex:1];
+            [e setBytes:&n length:sizeof(n) atIndex:2];
+            [e setBuffer:status->metal_buffer offset:0 atIndex:3];
+        },error))return false;
+        std::uint32_t failed=0;
+        if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){error="tensor integer negation overflow";return false;}
+        return true;
+    }
+#endif
     if (hip_signed_dtype(dtype) && output->backend==Backend::Amd) {
         std::unique_ptr<Buffer,void(*)(Buffer*)> status(
             allocate(output->global_index,sizeof(std::uint32_t),error),
@@ -1523,6 +1625,60 @@ bool compute_cast(Buffer* output, const Buffer* input, std::size_t input_offset,
 #endif
     if(source_dtype==target_dtype)
         return copy_device_to_device(output,0,input,input_offset,count*source_width,error);
+    if(gpu_integer_dtype(source_dtype) &&
+       (gpu_integer_dtype(target_dtype)||target_dtype==9||target_dtype==10) &&
+       output->backend==Backend::Nvidia){
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(output->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto ptx=ptx_integer_cast_source(source_dtype,target_dtype);
+        auto out_ptr=output->cuda_pointer;
+        auto in_ptr=input->cuda_pointer+input_offset;
+        auto status_ptr=status->cuda_pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&in_ptr,&n,&status_ptr};
+        if(!launch_ptx_1d(output,
+            "cast-"+std::to_string(source_dtype)+"-"+std::to_string(target_dtype),
+            ptx,count,args,error))return false;
+        std::uint32_t failed=0;
+        if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){
+            error="tensor cast is unsupported or a value is outside the target range";
+            return false;
+        }
+        return true;
+    }
+#ifdef __APPLE__
+    if(gpu_integer_dtype(source_dtype) &&
+       (gpu_integer_dtype(target_dtype)||target_dtype==10) &&
+       output->backend==Backend::Metal){
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(output->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto source_code=msl_integer_cast_source(source_dtype,target_dtype);
+        auto pipeline=cached_metal_pipeline(
+            [output->metal_buffer device],
+            "cast-"+std::to_string(source_dtype)+"-"+std::to_string(target_dtype),
+            source_code,error);
+        if(!pipeline)return false;
+        const auto n=static_cast<std::uint64_t>(count);
+        if(!dispatch_metal_1d(output,pipeline,count,[&](id<MTLComputeCommandEncoder> e){
+            [e setBuffer:output->metal_buffer offset:0 atIndex:0];
+            [e setBuffer:input->metal_buffer offset:input_offset atIndex:1];
+            [e setBytes:&n length:sizeof(n) atIndex:2];
+            [e setBuffer:status->metal_buffer offset:0 atIndex:3];
+        },error))return false;
+        std::uint32_t failed=0;
+        if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){
+            error="tensor cast is unsupported or a value is outside the target range";
+            return false;
+        }
+        return true;
+    }
+#endif
     if((source_dtype==9||source_dtype==10) &&
        (target_dtype==9||target_dtype==10) &&
        output->backend==Backend::Nvidia){
@@ -1624,6 +1780,48 @@ bool compute_matmul(Buffer* output, const Buffer* left, const Buffer* right,
             case 10:return run(float{});
             default:error="invalid tensor dtype";return false;
         }
+    }
+#endif
+    if(gpu_integer_dtype(dtype)&&output->backend==Backend::Nvidia){
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(output->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto ptx=ptx_integer_matmul_source(dtype);
+        auto out_ptr=output->cuda_pointer,left_ptr=left->cuda_pointer,right_ptr=right->cuda_pointer,
+             status_ptr=status->cuda_pointer;
+        auto mm=static_cast<std::uint64_t>(m),kk=static_cast<std::uint64_t>(k),
+             nn=static_cast<std::uint64_t>(n);
+        void* args[]={&out_ptr,&left_ptr,&right_ptr,&mm,&kk,&nn,&status_ptr};
+        if(!launch_ptx_1d(output,"matmul-int-"+std::to_string(dtype),ptx,out_count,args,error))return false;
+        std::uint32_t failed=0;
+        if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){error="linear.matmul integer arithmetic overflow";return false;}
+        return true;
+    }
+#ifdef __APPLE__
+    if(gpu_integer_dtype(dtype)&&output->backend==Backend::Metal){
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(output->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto source_code=msl_integer_matmul_source(dtype);
+        auto pipeline=cached_metal_pipeline(
+            [output->metal_buffer device],"matmul-int-"+std::to_string(dtype),source_code,error);
+        if(!pipeline)return false;
+        const auto mm=static_cast<std::uint64_t>(m),kk=static_cast<std::uint64_t>(k),
+                   nn=static_cast<std::uint64_t>(n);
+        if(!dispatch_metal_1d(output,pipeline,out_count,[&](id<MTLComputeCommandEncoder> e){
+            [e setBuffer:output->metal_buffer offset:0 atIndex:0];
+            [e setBuffer:left->metal_buffer offset:0 atIndex:1];
+            [e setBuffer:right->metal_buffer offset:0 atIndex:2];
+            [e setBytes:&mm length:8 atIndex:3];[e setBytes:&kk length:8 atIndex:4];
+            [e setBytes:&nn length:8 atIndex:5];[e setBuffer:status->metal_buffer offset:0 atIndex:6];
+        },error))return false;
+        std::uint32_t failed=0;
+        if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){error="linear.matmul integer arithmetic overflow";return false;}
+        return true;
     }
 #endif
     if((dtype==9||dtype==10)&&output->backend==Backend::Nvidia){
@@ -1729,6 +1927,53 @@ bool compute_dot(const Buffer* left, const Buffer* right, int dtype,
             case 10:return run(float{});
             default:error="invalid tensor dtype";return false;
         }
+    }
+#endif
+    if(gpu_integer_dtype(dtype)&&left->backend==Backend::Nvidia){
+        std::unique_ptr<Buffer,void(*)(Buffer*)> result(
+            allocate(left->global_index,width,error),
+            [](Buffer* value){quidra::device::release(value);});
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(left->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!result||!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto ptx=ptx_integer_dot_source(dtype);
+        auto out_ptr=result->cuda_pointer,left_ptr=left->cuda_pointer,right_ptr=right->cuda_pointer,
+             status_ptr=status->cuda_pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&left_ptr,&right_ptr,&n,&status_ptr};
+        auto* module=cached_ptx_module(left->global_index,"dot-int-"+std::to_string(dtype),ptx,error);
+        if(!module)return false;
+        if(!launch(module,"q_kernel",LaunchDimensions{1,1,1},LaunchDimensions{1,1,1},args,error))return false;
+        std::uint32_t failed=0;
+        if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){error="linear.dot integer arithmetic overflow";return false;}
+        return copy_to_host(result.get(),0,host_result,width,error);
+    }
+#ifdef __APPLE__
+    if(gpu_integer_dtype(dtype)&&left->backend==Backend::Metal){
+        std::unique_ptr<Buffer,void(*)(Buffer*)> result(
+            allocate(left->global_index,width,error),
+            [](Buffer* value){quidra::device::release(value);});
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(left->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!result||!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto source_code=msl_integer_dot_source(dtype);
+        auto pipeline=cached_metal_pipeline(
+            [result->metal_buffer device],"dot-int-"+std::to_string(dtype),source_code,error);
+        if(!pipeline)return false;
+        const auto n=static_cast<std::uint64_t>(count);
+        if(!dispatch_metal_1d(result.get(),pipeline,1,[&](id<MTLComputeCommandEncoder> e){
+            [e setBuffer:result->metal_buffer offset:0 atIndex:0];
+            [e setBuffer:left->metal_buffer offset:0 atIndex:1];
+            [e setBuffer:right->metal_buffer offset:0 atIndex:2];
+            [e setBytes:&n length:8 atIndex:3];[e setBuffer:status->metal_buffer offset:0 atIndex:4];
+        },error))return false;
+        std::uint32_t failed=0;
+        if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){error="linear.dot integer arithmetic overflow";return false;}
+        return copy_to_host(result.get(),0,host_result,width,error);
     }
 #endif
     if((dtype==9||dtype==10)&&left->backend==Backend::Nvidia){
@@ -1845,6 +2090,53 @@ bool compute_reduce(const Buffer* input, int dtype, int operation,
     }
 #endif
 
+    if (gpu_integer_dtype(dtype) && input->backend == Backend::Nvidia) {
+        std::unique_ptr<Buffer,void(*)(Buffer*)> output(
+            allocate(input->global_index,width,error),
+            [](Buffer* value){quidra::device::release(value);});
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(input->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!output||!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto ptx=ptx_integer_reduce_source(dtype,operation);
+        auto out_ptr=output->cuda_pointer,in_ptr=input->cuda_pointer,status_ptr=status->cuda_pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&in_ptr,&n,&status_ptr};
+        auto* module=cached_ptx_module(
+            input->global_index,"reduce-int-"+std::to_string(dtype)+"-"+std::to_string(operation),ptx,error);
+        if(!module)return false;
+        if(!launch(module,"q_kernel",LaunchDimensions{1,1,1},LaunchDimensions{1,1,1},args,error))return false;
+        std::uint32_t failed=0;
+        if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){error="stats.sum integer arithmetic overflow";return false;}
+        return copy_to_host(output.get(),0,host_result,width,error);
+    }
+#ifdef __APPLE__
+    if (gpu_integer_dtype(dtype) && input->backend == Backend::Metal) {
+        std::unique_ptr<Buffer,void(*)(Buffer*)> output(
+            allocate(input->global_index,width,error),
+            [](Buffer* value){quidra::device::release(value);});
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(input->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!output||!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        auto source=msl_integer_reduce_source(dtype,operation);
+        auto pipeline=cached_metal_pipeline(
+            [output->metal_buffer device],
+            "reduce-int-"+std::to_string(dtype)+"-"+std::to_string(operation),source,error);
+        if(!pipeline)return false;
+        const auto n=static_cast<std::uint64_t>(count);
+        if(!dispatch_metal_1d(output.get(),pipeline,1,[&](id<MTLComputeCommandEncoder> e){
+            [e setBuffer:output->metal_buffer offset:0 atIndex:0];
+            [e setBuffer:input->metal_buffer offset:0 atIndex:1];
+            [e setBytes:&n length:8 atIndex:2];[e setBuffer:status->metal_buffer offset:0 atIndex:3];
+        },error))return false;
+        std::uint32_t failed=0;
+        if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+        if(failed){error="stats.sum integer arithmetic overflow";return false;}
+        return copy_to_host(output.get(),0,host_result,width,error);
+    }
+#endif
     if ((dtype == 9 || dtype == 10) && input->backend == Backend::Nvidia) {
         const bool f32 = dtype == 10;
         const auto element_width = f32 ? 4U : 8U;
@@ -2021,6 +2313,21 @@ bool compute_mean(const Buffer* input, int dtype, std::size_t count,
         return true;
     }
 #endif
+    if(gpu_integer_dtype(dtype)&&input->backend==Backend::Nvidia){
+        std::unique_ptr<Buffer,void(*)(Buffer*)> output(
+            allocate(input->global_index,sizeof(double),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!output)return false;
+        auto ptx=ptx_integer_mean_source(dtype);
+        auto out_ptr=output->cuda_pointer,in_ptr=input->cuda_pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&in_ptr,&n};
+        auto* module=cached_ptx_module(
+            input->global_index,"mean-int-"+std::to_string(dtype),ptx,error);
+        if(!module)return false;
+        if(!launch(module,"q_kernel",LaunchDimensions{1,1,1},LaunchDimensions{1,1,1},args,error))return false;
+        return copy_to_host(output.get(),0,&result,sizeof(result),error);
+    }
     if((dtype==9||dtype==10)&&input->backend==Backend::Nvidia){
         std::unique_ptr<Buffer,void(*)(Buffer*)> output(
             allocate(input->global_index,sizeof(double),error),

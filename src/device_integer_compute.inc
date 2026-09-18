@@ -355,6 +355,25 @@ std::string ptx_integer_reduce_source(int dtype,int operation) {
     return o.str();
 }
 
+
+std::string ptx_integer_mean_source(int dtype) {
+    const auto bits=gpu_integer_bits(dtype);
+    const bool sign=gpu_integer_signed(dtype);
+    std::ostringstream o;
+    o<<".version 6.0\n.target sm_30\n.address_size 64\n.visible .entry q_kernel("
+      ".param .u64 p_out,.param .u64 p_in,.param .u64 p_count){"
+      ".reg .pred %p<4>;.reg .b32 %r<12>;.reg .b64 %rd<32>;.reg .f64 %fd<8>;"
+      "ld.param.u64 %rd1,[p_out];ld.param.u64 %rd2,[p_in];ld.param.u64 %rd5,[p_count];"
+      "mov.u64 %rd7,0;mov.f64 %fd1,0d0000000000000000;"
+      "LOOP:setp.ge.u64 %p1,%rd7,%rd5;@%p1 bra STORE;mul.lo.u64 %rd8,%rd7,"<<(bits/8)
+     <<";add.u64 %rd9,%rd2,%rd8;";
+    o<<ptx_load_integer_global(dtype,"%rd9","%rd20","%r5");
+    o<<"cvt.rn.f64."<<(sign?"s64":"u64")<<" %fd2,%rd20;add.f64 %fd1,%fd1,%fd2;"
+      "add.u64 %rd7,%rd7,1;bra LOOP;STORE:cvt.rn.f64.u64 %fd3,%rd5;"
+      "div.f64 %fd4,%fd1,%fd3;st.global.f64 [%rd1],%fd4;ret;}";
+    return o.str();
+}
+
 #ifdef __APPLE__
 std::string msl_integer_type(int dtype) {
     switch(dtype){

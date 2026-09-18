@@ -6946,8 +6946,6 @@ extern "C" char* quidra_string_append_move_many(
         }
         const auto new_bytes = new_capacity + 1;
         const auto old_bytes = allocation.size;
-        clear_managed_range_cache(&allocation);
-        managed_ranges.erase(old_key);
         result = static_cast<char*>(std::realloc(raw, new_bytes));
         if (!result) runtime_allocation_failure();
         if (new_bytes > old_bytes) {

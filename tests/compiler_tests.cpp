@@ -1444,6 +1444,18 @@ tensor<float><2, _> restored = value.untrack()
 neural<3, _> wrong = neural.track(source)
 )", "TYPE_MISMATCH");
 
+ // Dependent shape expressions in function signatures are checked at the boundary.
+ good(R"(tensor<float><n, 2> keep_shape(int n, tensor<float><n, 2> value)
+    return value
+tensor<float> unknown = tensor.ones<float>([3, 2])
+tensor<float><3, 2> checked = keep_shape(3, unknown)
+)");
+ good(R"(int[][n] keep_rows(int n, int[][n] rows)
+    return rows
+int[][] dynamic_rows = [[1, 2], [3, 4]]
+int[][2] checked_rows = keep_rows(2, dynamic_rows)
+)");
+
  // Runtime extent expressions are captured per binding; mutable sources remain legal.
  good(R"(int n = 3
 int m = 4

@@ -335,10 +335,6 @@ bool valid_runtime_text(std::string_view text) {
     return valid_utf8(text, nullptr, &contains_nul) && !contains_nul;
 }
 
-void validate_utf8(std::string_view text) {
-    if (!valid_utf8(text)) runtime_text_failure("invalid UTF-8 string");
-}
-
 void mark_managed_string(char* value, std::size_t byte_length,
                          std::optional<std::size_t> codepoints = std::nullopt) {
     const auto it =

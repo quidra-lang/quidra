@@ -4290,6 +4290,11 @@ Type Checker::check_call_expr(const Expr& expression,
                           "bin length must be positional or n = value.", node->args[0].span);
                 }
                 any_poison |= poisoned(check_expr(*node->args[0].value, &int_type));
+                if (const auto count = constant_integer_value(*node->args[0].value);
+                    count && *count < 0) {
+                    error("ARGUMENT_MISMATCH", "bin length cannot be negative.",
+                          node->args[0].span);
+                }
                 if (node->args[1].writable || !node->args[1].name ||
                     *node->args[1].name != "fill") {
                     error("ARGUMENT_MISMATCH",
@@ -4324,6 +4329,11 @@ Type Checker::check_call_expr(const Expr& expression,
                       "string length must be positional or n = value.", node->args[0].span);
             }
             any_poison |= poisoned(check_expr(*node->args[0].value, &int_type));
+            if (const auto count = constant_integer_value(*node->args[0].value);
+                count && *count < 0) {
+                error("ARGUMENT_MISMATCH", "string length cannot be negative.",
+                      node->args[0].span);
+            }
             if (node->args[1].writable || !node->args[1].name ||
                 *node->args[1].name != "fill") {
                 error("ARGUMENT_MISMATCH",

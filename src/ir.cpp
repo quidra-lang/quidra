@@ -1285,6 +1285,22 @@ struct Lowerer {
                     if(receiver_owned) block->instructions.push_back(Release{receiver,receiver_type});
                     return out;
                 };
+                if(n->method=="gpu"){
+                    auto gpu=expr(*n->args[0].value),out=fresh();
+                    block->instructions.push_back(TensorTransfer{
+                        out,receiver,gpu,receiver_type,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    return finish(out);
+                }
+                if(n->method=="cpu"){
+                    auto out=fresh();
+                    block->instructions.push_back(TensorTransfer{
+                        out,receiver,std::nullopt,receiver_type,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    return finish(out);
+                }
                 if(n->method=="reshape"){
                     const auto shape_type=Type::array(Type::simple(TypeKind::Int));
                     auto shape=destination_value(*n->args[0].value,shape_type),out=fresh();
@@ -1760,15 +1776,24 @@ struct Lowerer {
                 case BuiltinCallable::TensorOnes: {
                     const auto shape_type=Type::array(Type::simple(TypeKind::Int));
                     ValueId shape{};
+                    std::optional<ValueId> gpu;
+                    std::optional<std::size_t> shape_argument;
                     bool generated=false;
-                    if(n.args.empty()){
+                    for(std::size_t i=0;i<n.args.size();++i){
+                        const auto& argument=n.args[i];
+                        if(argument.name && *argument.name=="gpu"){
+                            gpu=expr(*argument.value);
+                        }else{
+                            shape=destination_value(*argument.value,shape_type);
+                            shape_argument=i;
+                        }
+                    }
+                    if(!shape_argument){
                         const auto found=contextual_tensor_shapes.find(&e);
                         if(found==contextual_tensor_shapes.end())
                             throw std::logic_error("missing contextual tensor shape capture");
                         shape=generated_shape_array(found->second,e.span);
                         generated=true;
-                    }else{
-                        shape=destination_value(*n.args[0].value,shape_type);
                     }
                     auto out=fresh();
                     const auto type=checked.raw_types.at(&e);
@@ -1776,11 +1801,11 @@ struct Lowerer {
                         *resolution.builtin==BuiltinCallable::TensorZeros ? 1 :
                         *resolution.builtin==BuiltinCallable::TensorOnes ? 2 : 0;
                     block->instructions.push_back(TensorCreate{
-                        out,shape,type,fill_mode,
+                        out,shape,gpu,type,fill_mode,
                         static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column)});
                     if(generated) block->instructions.push_back(Release{shape,shape_type});
-                    else release_arg(0,shape);
+                    else release_arg(*shape_argument,shape);
                     return out;
                 }
                 case BuiltinCallable::Array: {
@@ -2980,7 +3005,8 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,BytesSet>)out<<"bytes.set %"<<n.bytes<<", %"<<n.index<<", %"<<n.value;
     if constexpr(std::is_same_v<T,MathRoundInt>)out<<"%"<<n.out<<" = math.round-int %"<<n.value;
     if constexpr(std::is_same_v<T,NumericConvert>)out<<"%"<<n.out<<" = convert %"<<n.value<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type)<<(n.checked_range?" checked":"");
-    if constexpr(std::is_same_v<T,TensorCreate>)out<<"%"<<n.out<<" = tensor.create %"<<n.shape<<" : "<<type_name(n.type)<<" init="<<(n.fill_mode==0?"uninitialized":n.fill_mode==1?"zeros":"ones");
+    if constexpr(std::is_same_v<T,TensorCreate>)out<<"%"<<n.out<<" = tensor.create %"<<n.shape<<" : "<<type_name(n.type)<<" init="<<(n.fill_mode==0?"uninitialized":n.fill_mode==1?"zeros":"ones")<<(n.gpu?" gpu=%"+std::to_string(*n.gpu):" cpu");
+    if constexpr(std::is_same_v<T,TensorTransfer>)out<<"%"<<n.out<<" = tensor."<<(n.gpu?"gpu":"cpu")<<" %"<<n.tensor<<(n.gpu?", %"+std::to_string(*n.gpu):"")<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorReshape>)out<<"%"<<n.out<<" = tensor.reshape %"<<n.tensor<<", %"<<n.shape<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorContiguous>)out<<"%"<<n.out<<" = tensor.contiguous %"<<n.tensor<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorShape>)out<<"%"<<n.out<<" = tensor.shape %"<<n.tensor<<" : "<<type_name(n.type);

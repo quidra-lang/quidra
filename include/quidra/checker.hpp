@@ -111,6 +111,7 @@ private:
     std::unordered_map<const MatchCase*, Type> case_types_;
     std::unordered_set<const Expr*> bounds_proven_;
     std::unordered_set<std::string> initialized_, narrowed_, borrowed_, const_bindings_;
+    std::unordered_map<std::string, long long> const_integer_values_;
     std::unordered_map<std::string, std::unordered_set<std::string>> class_initialized_paths_;
     std::unordered_map<const Expr*, std::unordered_set<std::string>> class_expr_initialized_paths_;
     StorageEffect current_receiver_effect_;

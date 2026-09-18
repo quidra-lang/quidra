@@ -3975,6 +3975,42 @@ std::vector<long long> tensor_broadcast_shape(const TensorValue& left,
     return shape;
 }
 
+TensorStorage* tensor_gpu_expand_storage(
+    const TensorValue& source,
+    const std::vector<long long>& output_shape,
+    unsigned long long line,
+    unsigned long long column) {
+    tensor_require_initialized(source, line, column);
+    const auto count = tensor_element_count(output_shape, line, column);
+    auto* output = tensor_storage_create(
+        source.storage->dtype, count, 0, source.storage->device, line, column);
+    std::vector<std::uint64_t> indices;
+    try {
+        indices.resize(count);
+    } catch (...) {
+        tensor_storage_release(output);
+        runtime_allocation_failure();
+    }
+    for (std::size_t logical = 0; logical < count; ++logical) {
+        const auto storage_index =
+            tensor_broadcast_index(source, output_shape, logical);
+        if (storage_index >= source.storage->count) {
+            tensor_storage_release(output);
+            tensor_fail("tensor broadcast view exceeds storage", line, column);
+        }
+        indices[logical] = static_cast<std::uint64_t>(storage_index);
+        tracker_set(output->initialization, logical);
+    }
+    std::string backend_error;
+    if (!quidra::device::compute_gather(
+            output->gpu_buffer, source.storage->gpu_buffer,
+            source.storage->dtype, indices.data(), count, backend_error)) {
+        tensor_storage_release(output);
+        tensor_fail(backend_error.c_str(), line, column);
+    }
+    return output;
+}
+
 template <typename T>
 bool tensor_add_checked(T a, T b, T& out) {
     if constexpr (std::is_floating_point_v<T>) {
@@ -4148,13 +4184,61 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
         tensor_fail("tensor operands are on different devices; use an explicit .gpu(n) or .cpu() transfer",
                     line, column);
     }
-    if (!tensor_on_cpu(*primary->storage)) {
-        tensor_gpu_unsupported("tensor arithmetic", *primary->storage, line, column);
-    }
-
     const auto output_shape =
         other ? tensor_broadcast_shape(*primary, *other, line, column) : primary->shape;
     const auto count = tensor_element_count(output_shape, line, column);
+
+    if (!tensor_on_cpu(*primary->storage)) {
+        tensor_require_initialized(*primary, line, column);
+        if (other) tensor_require_initialized(*other, line, column);
+
+        TensorStorage* primary_expanded = nullptr;
+        TensorStorage* other_expanded = nullptr;
+        const auto width = tensor_dtype_bytes(primary->storage->dtype);
+
+        const quidra::device::Buffer* primary_buffer = primary->storage->gpu_buffer;
+        std::size_t primary_offset = primary->offset * width;
+        if (!tensor_is_contiguous_value(*primary) ||
+            primary->shape != output_shape) {
+            primary_expanded =
+                tensor_gpu_expand_storage(*primary, output_shape, line, column);
+            primary_buffer = primary_expanded->gpu_buffer;
+            primary_offset = 0;
+        }
+
+        const quidra::device::Buffer* other_buffer = nullptr;
+        std::size_t other_offset = 0;
+        if (other) {
+            other_buffer = other->storage->gpu_buffer;
+            other_offset = other->offset * width;
+            if (!tensor_is_contiguous_value(*other) ||
+                other->shape != output_shape) {
+                other_expanded =
+                    tensor_gpu_expand_storage(*other, output_shape, line, column);
+                other_buffer = other_expanded->gpu_buffer;
+                other_offset = 0;
+            }
+        }
+
+        auto* output = tensor_storage_create(
+            primary->storage->dtype, count, 1,
+            primary->storage->device, line, column);
+        std::string backend_error;
+        const bool ok = quidra::device::compute_binary(
+            output->gpu_buffer, primary_buffer, primary_offset,
+            other_buffer, other_offset, scalar, scalar_side,
+            primary->storage->dtype, operation, count, backend_error);
+
+        if (primary_expanded) tensor_storage_release(primary_expanded);
+        if (other_expanded) tensor_storage_release(other_expanded);
+        if (!ok) {
+            tensor_storage_release(output);
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+        return tensor_descriptor(
+            output, output_shape, tensor_contiguous_strides(output_shape), 0);
+    }
+
     auto* output = tensor_storage_create(primary->storage->dtype, count, 1);
 
     switch (primary->storage->dtype) {

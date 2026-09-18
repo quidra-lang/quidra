@@ -84,7 +84,7 @@ T load_symbol(const DynamicLibrary& library, const char* name) {
     return reinterpret_cast<T>(library.symbol(name));
 }
 
-std::string cuda_version_string(int value) {
+[[maybe_unused]] std::string cuda_version_string(int value) {
     if (value <= 0) return {};
     const int major = value / 1000;
     const int minor = (value % 1000) / 10;

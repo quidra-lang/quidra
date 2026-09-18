@@ -588,7 +588,7 @@ std::string msl_image_threshold_source(){
 std::string msl_image_filter_source(){
     return "#include <metal_stdlib>\nusing namespace metal;\n"
       "kernel void q_kernel(device uchar* out [[buffer(0)]],const device uchar* in [[buffer(1)]],"
-      "const device long* kernel [[buffer(2)]],device atomic_uint* status [[buffer(3)]],"
+      "const device long* coeffs [[buffer(2)]],device atomic_uint* status [[buffer(3)]],"
       "constant ulong& count [[buffer(4)]],constant ulong& h [[buffer(5)]],constant ulong& w [[buffer(6)]],"
       "constant ulong& kh [[buffer(7)]],constant ulong& kw [[buffer(8)]],"
       "constant long& divisor [[buffer(9)]],constant long& offset [[buffer(10)]],"
@@ -597,7 +597,7 @@ std::string msl_image_filter_source(){
       "long total=0;long cy=long(kh/2),cx=long(kw/2);"
       "for(ulong ky=0;ky<kh;++ky){long sy=long(y)+long(ky)-cy;if(sy<0||sy>=long(h))continue;"
       "for(ulong kx=0;kx<kw;++kx){long sx=long(x)+long(kx)-cx;if(sx<0||sx>=long(w))continue;"
-      "long p=long(in[(c*h+ulong(sy))*w+ulong(sx)]);long k=kernel[ky*kw+kx];"
+      "long p=long(in[(c*h+ulong(sy))*w+ulong(sx)]);long k=coeffs[ky*kw+kx];"
       "if(p!=0){long hi=0x7fffffffffffffffL/p;long lo=(-0x7fffffffffffffffL-1L)/p;"
       "if(k>hi||k<lo){atomic_store_explicit(status,1u,memory_order_relaxed);return;}}"
       "long product=p*k;if((product>0&&total>0x7fffffffffffffffL-product)||"

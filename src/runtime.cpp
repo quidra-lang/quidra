@@ -6724,7 +6724,7 @@ extern "C" void* quidra_image_tensor_filter(
                     tensor_fail("image filter integer arithmetic overflow",line,column);
                 }
                 const auto divided=total/divisor;
-                std::int64_t adjusted{};
+                long long adjusted{};
                 if(!tensor_add_checked(divided,offset,adjusted)){
                     quidra_tensor_drop(result);
                     tensor_fail("image filter integer arithmetic overflow",line,column);

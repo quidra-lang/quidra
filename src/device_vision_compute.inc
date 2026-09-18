@@ -26,7 +26,7 @@ void vision_store_test(Buffer* buffer, std::size_t index, T value) {
 #endif
 }
 
-bool fake_image_geometry(
+[[maybe_unused]] bool fake_image_geometry(
     Buffer* output,const Buffer* input,std::size_t width_bytes,
     std::size_t channels,std::size_t input_height,std::size_t input_width,
     std::size_t output_height,std::size_t output_width,
@@ -63,7 +63,7 @@ bool fake_image_geometry(
 #endif
 }
 
-bool fake_image_grayscale(
+[[maybe_unused]] bool fake_image_grayscale(
     Buffer* output,const Buffer* input,std::size_t channels,
     std::size_t height,std::size_t width) {
 #ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
@@ -89,7 +89,7 @@ bool fake_image_grayscale(
 #endif
 }
 
-bool fake_image_threshold(
+[[maybe_unused]] bool fake_image_threshold(
     Buffer* output,const Buffer* input,std::size_t count,
     std::uint8_t cutoff,std::uint8_t low,std::uint8_t high) {
 #ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
@@ -102,7 +102,7 @@ bool fake_image_threshold(
 #endif
 }
 
-bool fake_image_blur(
+[[maybe_unused]] bool fake_image_blur(
     Buffer* output,const Buffer* input,std::size_t channels,
     std::size_t height,std::size_t width,std::size_t radius) {
 #ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
@@ -129,7 +129,7 @@ bool fake_image_blur(
 #endif
 }
 
-bool fake_image_filter(
+[[maybe_unused]] bool fake_image_filter(
     Buffer* output,const Buffer* input,const Buffer* kernel,
     std::size_t channels,std::size_t height,std::size_t width,
     std::size_t kh,std::size_t kw,std::int64_t divisor,std::int64_t offset,

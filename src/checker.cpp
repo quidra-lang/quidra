@@ -24,7 +24,8 @@ bool poisoned(const Type& type) {
 
 bool printable(const Type& type) {
     return poisoned(type) || is_numeric(type) || type.kind == TypeKind::Bool ||
-           type.kind == TypeKind::String || type.kind == TypeKind::Error;
+           type.kind == TypeKind::String || type.kind == TypeKind::Bytes ||
+           type.kind == TypeKind::Error;
 }
 
 bool runtime_reserved_c_symbol(std::string_view symbol) {
@@ -727,7 +728,7 @@ bool Checker::const_access_path(const Expr& expression) const {
                 const auto base = storage_type(*index->base);
                 if (!base) return std::nullopt;
                 if (base->kind == TypeKind::Array) return *base->first;
-                if (base->kind == TypeKind::Bytes) return Type::simple(TypeKind::UInt8);
+                if (base->kind == TypeKind::Bytes) return Type::simple(TypeKind::Bytes);
                 if (base->kind == TypeKind::Tensor) return *base->first;
             }
             return std::nullopt;
@@ -884,7 +885,7 @@ Type Checker::check_address_target(const Expr& expression, bool allow_tensor_ele
         } else {
             if (index->items.size() != 1 || index->items.front().slice ||
                 !index->items.front().index) {
-                error("INDEX_ARITY", "Array and bytes indexing requires exactly one integer index.",
+                error("INDEX_ARITY", "Array and bin indexing requires exactly one integer index.",
                       expression.span);
             }
             check_expr(*index->items.front().index, &int_type);
@@ -892,10 +893,10 @@ Type Checker::check_address_target(const Expr& expression, bool allow_tensor_ele
             if (base.kind == TypeKind::Array) {
                 type = *base.first;
             } else if (base.kind == TypeKind::Bytes) {
-                type = simple(TypeKind::UInt8);
+                type = simple(TypeKind::Bytes);
             } else {
                 error("TYPE_MISMATCH",
-                      "Element address requires an array, bytes, or tensor.", expression.span);
+                      "Element address requires an array, bin, or tensor.", expression.span);
             }
         }
     } else {
@@ -1685,21 +1686,37 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
                             std::move(shape_prefix), std::move(known_shape_prefix));
     }
 
+    if (base.kind == TypeKind::Bytes) {
+        if (node->items.size() != 1) {
+            error("INDEX_ARITY", "bin indexing requires exactly one index or slice.", expression.span);
+        }
+        const auto& item = node->items.front();
+        if (item.slice) {
+            if (item.start) check_expr(*item.start, &index_type);
+            if (item.stop) check_expr(*item.stop, &index_type);
+            if (item.step) error("SLICE_STEP", "bin slices do not take a step.", item.step->span);
+            type = simple(TypeKind::Bytes);
+        } else {
+            if (!item.index) error("INDEX_SYNTAX", "bin index is missing.", item.span);
+            check_expr(*item.index, &index_type);
+            type = simple(TypeKind::Bytes);
+        }
+        return type;
+    }
+
     if (node->items.size() != 1 || node->items.front().slice ||
         !node->items.front().index) {
-        error("INDEX_ARITY", "Array, bytes, and string indexing requires exactly one integer index.",
+        error("INDEX_ARITY", "Array and string indexing requires exactly one integer index.",
               expression.span);
     }
     check_expr(*node->items.front().index, &index_type);
     check_static_index_bounds(base, *node->items.front().index);
     if (base.kind == TypeKind::Array) {
         type = *base.first;
-    } else if (base.kind == TypeKind::Bytes) {
-        type = simple(TypeKind::UInt8);
     } else if (base.kind == TypeKind::String) {
         type = simple(TypeKind::String);
     } else {
-        error("TYPE_MISMATCH", "Indexing requires an array, bytes, string, or tensor.", expression.span);
+        error("TYPE_MISMATCH", "Indexing requires an array, bin, string, or tensor.", expression.span);
     }
 
     return type;
@@ -1714,7 +1731,9 @@ Type Checker::check_method_call_expr(const Expr& expression,
         const auto type_receiver =
             receiver_name ? builtin_scalar_type(receiver_name->name) : std::optional<Type>{};
 
-        if (type_receiver && is_numeric(*type_receiver) && node->method == "parse") {
+        if (type_receiver &&
+            (is_numeric(*type_receiver) || type_receiver->kind == TypeKind::Bytes) &&
+            node->method == "parse") {
             if (!node->type_arguments.empty()) {
                 error("ARGUMENT_MISMATCH", "parse does not take type arguments.", expression.span);
             }
@@ -1725,9 +1744,27 @@ Type Checker::check_method_call_expr(const Expr& expression,
             auto string_type = simple(TypeKind::String);
             auto argument = check_expr(*node->args[0].value, &string_type);
             expr_types_[node->receiver.get()] = raw_types_[node->receiver.get()] = *type_receiver;
-            type = poisoned(argument)
-                       ? simple(TypeKind::Invalid)
-                       : Type::union_of({*type_receiver, simple(TypeKind::Error)});
+            if (poisoned(argument)) {
+                type = simple(TypeKind::Invalid);
+            } else if (type_receiver->kind == TypeKind::Bytes) {
+                bool static_literal = false;
+                if (const auto* literal =
+                        std::get_if<StringTemplateExpr>(&node->args[0].value->data);
+                    literal && literal->expressions.empty() && literal->literals.size() == 1) {
+                    static_literal = true;
+                    for (const char ch : literal->literals.front()) {
+                        if (ch != '0' && ch != '1') {
+                            error("BIN_PARSE", "bin.parse accepts only '0' and '1'.",
+                                  node->args[0].span);
+                        }
+                    }
+                }
+                type = static_literal
+                    ? simple(TypeKind::Bytes)
+                    : Type::union_of({simple(TypeKind::Bytes), simple(TypeKind::Error)});
+            } else {
+                type = Type::union_of({*type_receiver, simple(TypeKind::Error)});
+            }
         } else {
             Type receiver;
             const std::string* internal = nullptr;
@@ -2027,7 +2064,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         type=Type::array(*receiver.first);
                     }
                 } else {
-                    if (node->method != "string" || !printable(receiver) || receiver.kind == TypeKind::Bytes) {
+                    if (node->method != "string" || !printable(receiver)) {
                         error("UNKNOWN_MEMBER","Type '" + type_name(receiver) + "' has no method '" + node->method + "'.",expression.span);
                     }
                     require_count(0, "value.string() takes no arguments.");
@@ -2283,7 +2320,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                 }
                 case BuiltinCallable::Len: {
                     if (node->args.size() != 1) {
-                        error("ARGUMENT_MISMATCH", "len requires one string, array, or bytes argument.", expression.span);
+                        error("ARGUMENT_MISMATCH", "len requires one string, array, or bin argument.", expression.span);
                     }
                     auto argument = builtin_arg(0, "value");
                     if (poisoned(argument)) {
@@ -2292,7 +2329,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         if (argument.kind != TypeKind::String &&
                             argument.kind != TypeKind::Array &&
                             argument.kind != TypeKind::Bytes) {
-                            error("TYPE_MISMATCH", "len requires a string, array, or bytes.", expression.span);
+                            error("TYPE_MISMATCH", "len requires a string, array, or bin.", expression.span);
                         }
                         type = simple(TypeKind::Int);
                     }
@@ -2437,7 +2474,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     break;
                 }
                 case BuiltinCallable::FileReadBytes: {
-                    if (node->args.size() != 1) error("ARGUMENT_MISMATCH", "file.read_bytes requires one path.", expression.span);
+                    if (node->args.size() != 1) error("ARGUMENT_MISMATCH", "file.read_bin requires one path.", expression.span);
                     auto string_type = simple(TypeKind::String);
                     auto path = builtin_arg(0, "path", &string_type);
                     type = poisoned(path) ? simple(TypeKind::Invalid)
@@ -2454,11 +2491,11 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     break;
                 }
                 case BuiltinCallable::FileWriteBytes: {
-                    if (node->args.size() != 2) error("ARGUMENT_MISMATCH", "file.write_bytes requires path and bytes.", expression.span);
+                    if (node->args.size() != 2) error("ARGUMENT_MISMATCH", "file.write_bin requires path and bin.", expression.span);
                     auto string_type = simple(TypeKind::String);
                     auto bytes_type = simple(TypeKind::Bytes);
                     auto path = builtin_arg(0, "path", &string_type);
-                    auto bytes = builtin_arg(1, "bytes", &bytes_type);
+                    auto bytes = builtin_arg(1, "bin", &bytes_type);
                     type = poisoned(path) || poisoned(bytes) ? simple(TypeKind::Invalid)
                         : Type::union_of({simple(TypeKind::Void), simple(TypeKind::Error)});
                     break;
@@ -5352,7 +5389,7 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         auto type = check_expr(*node.iterable);
         if (type.kind == TypeKind::Invalid) return;
         if (type.kind != TypeKind::Array && type.kind != TypeKind::Bytes && type.kind != TypeKind::Range) {
-            error("TYPE_MISMATCH", "for requires an array, bytes, or range.", statement.span);
+            error("TYPE_MISMATCH", "for requires an array, bin, or range.", statement.span);
         }
         if (variables_.contains(node.name) || functions_.contains(node.name) ||
             class_names_.contains(node.name) || is_reserved_value_name(node.name) ||
@@ -5381,11 +5418,11 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
             auto* name = std::get_if<NameExpr>(&node.iterable->data);
             if ((type.kind != TypeKind::Array && type.kind != TypeKind::Bytes) ||
                 !name || !variables_.contains(name->name)) {
-                error("WRITE_CAPABILITY", "Writable iteration requires an array or bytes binding.", statement.span);
+                error("WRITE_CAPABILITY", "Writable iteration requires an array or bin binding.", statement.span);
             }
             const auto root = reference_root(name->name);
             if (borrowed_.contains(root) || narrowed_.contains(root)) {
-                error("WRITE_CAPABILITY", "Writable iteration requires an unaliased array or bytes binding.", statement.span);
+                error("WRITE_CAPABILITY", "Writable iteration requires an unaliased array or bin binding.", statement.span);
             }
             borrowed_.insert(root);
         }
@@ -5394,7 +5431,7 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         if (type.kind == TypeKind::Array) {
             item_type = *type.first;
         } else if (type.kind == TypeKind::Bytes) {
-            item_type = simple(TypeKind::UInt8);
+            item_type = simple(TypeKind::Bytes);
         }
         variables_[node.name] = item_type;
         initialized_.insert(node.name);

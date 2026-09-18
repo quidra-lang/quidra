@@ -58,19 +58,66 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
         if (index >= tokens.size() || tokens[index++].kind != TokenKind::Identifier) return false;
     }
 
+    const auto scan_integer_expr = [&](TokenKind end_a, TokenKind end_b) -> bool {
+        std::size_t parens = 0;
+        bool expect_operand = true;
+        bool any = false;
+        while (index < tokens.size()) {
+            const auto kind = tokens[index].kind;
+            if (parens == 0 && (kind == end_a || kind == end_b)) break;
+            if (expect_operand) {
+                if (kind == TokenKind::Plus || kind == TokenKind::Minus) {
+                    ++index;
+                    continue;
+                }
+                if (kind == TokenKind::Integer || kind == TokenKind::Identifier) {
+                    ++index;
+                    any = true;
+                    expect_operand = false;
+                    continue;
+                }
+                if (kind == TokenKind::LParen) {
+                    ++parens;
+                    ++index;
+                    continue;
+                }
+                return false;
+            }
+            if (kind == TokenKind::Plus || kind == TokenKind::Minus ||
+                kind == TokenKind::Star || kind == TokenKind::Slash ||
+                kind == TokenKind::Percent) {
+                ++index;
+                expect_operand = true;
+                continue;
+            }
+            if (kind == TokenKind::RParen && parens > 0) {
+                --parens;
+                ++index;
+                continue;
+            }
+            return false;
+        }
+        return any && !expect_operand && parens == 0;
+    };
+
     const auto scan_shape = [&]() -> bool {
         if (index >= tokens.size() || tokens[index].kind != TokenKind::Less) return false;
         ++index;
         bool any = false;
         while (true) {
             if (index >= tokens.size()) return false;
-            if (tokens[index].kind == TokenKind::Integer ||
-                (tokens[index].kind == TokenKind::Identifier && tokens[index].text == "_")) {
+            const bool wildcard =
+                tokens[index].kind == TokenKind::Identifier &&
+                tokens[index].text == "_" &&
+                index + 1 < tokens.size() &&
+                (tokens[index + 1].kind == TokenKind::Comma ||
+                 tokens[index + 1].kind == TokenKind::Greater);
+            if (wildcard) {
                 ++index;
-                any = true;
-            } else {
+            } else if (!scan_integer_expr(TokenKind::Comma, TokenKind::Greater)) {
                 return false;
             }
+            any = true;
             if (index < tokens.size() && tokens[index].kind == TokenKind::Comma) {
                 ++index;
                 continue;
@@ -107,7 +154,9 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
     }
     while (index < tokens.size() && tokens[index].kind == TokenKind::LBracket) {
         ++index;
-        if (index < tokens.size() && tokens[index].kind == TokenKind::Integer) ++index;
+        if (index < tokens.size() && tokens[index].kind != TokenKind::RBracket) {
+            if (!scan_integer_expr(TokenKind::RBracket, TokenKind::RBracket)) return false;
+        }
         if (index >= tokens.size() || tokens[index++].kind != TokenKind::RBracket) return false;
     }
     if (index < tokens.size() && tokens[index].kind == TokenKind::Pipe) {
@@ -117,12 +166,18 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
     return true;
 }
 
+void relocate_expr(Expr& expression, const SourcePos& base);
+
 void relocate_type(TypeName& type, const SourcePos& base) {
     relocate_span(type.span, base);
     for (auto& argument : type.arguments) relocate_type(argument, base);
+    for (auto& expression : type.dimension_expressions) {
+        if (expression) relocate_expr(*expression, base);
+    }
+    for (auto& expression : type.tensor_shape_expressions) {
+        if (expression) relocate_expr(*expression, base);
+    }
 }
-
-void relocate_expr(Expr& expression, const SourcePos& base);
 
 void relocate_arg(CallArg& argument, const SourcePos& base) {
     relocate_span(argument.span, base);
@@ -297,21 +352,23 @@ TypeName Parser::type_name() {
         consume(TokenKind::Less, "Expected '<' before shape pattern.");
         if (at(TokenKind::Greater)) error(peek(), "Shape pattern requires at least one axis.");
         while (true) {
-            if (at(TokenKind::Integer)) {
-                const auto extent = consume(TokenKind::Integer, "Expected shape extent.");
-                long long value{};
-                const auto parsed = std::from_chars(
-                    extent.text.data(), extent.text.data() + extent.text.size(), value);
-                if (parsed.ec != std::errc{} ||
-                    parsed.ptr != extent.text.data() + extent.text.size()) {
-                    error(extent, "Shape extent is too large.");
-                }
-                t.tensor_shape_prefix.push_back(value);
-            } else if (at(TokenKind::Identifier) && peek().text == "_") {
+            if (at(TokenKind::Identifier) && peek().text == "_" &&
+                (peek(1).kind == TokenKind::Comma || peek(1).kind == TokenKind::Greater)) {
                 consume(TokenKind::Identifier, "Expected '_'.");
                 t.tensor_shape_prefix.push_back(-1);
+                t.tensor_shape_expressions.push_back(nullptr);
             } else {
-                error(peek(), "Shape axes must be nonnegative integer literals or '_'.");
+                auto parsed = type_integer_expression();
+                long long static_extent = -2;
+                if (const auto* literal = std::get_if<IntegerExpr>(&parsed->data)) {
+                    if (literal->value >
+                        static_cast<unsigned long long>(std::numeric_limits<long long>::max())) {
+                        error(previous(), "Shape extent is too large.");
+                    }
+                    static_extent = static_cast<long long>(literal->value);
+                }
+                t.tensor_shape_prefix.push_back(static_extent);
+                t.tensor_shape_expressions.emplace_back(parsed.release());
             }
             if (!match(TokenKind::Comma)) break;
             if (at(TokenKind::Greater)) error(peek(), "Trailing comma is not allowed in a shape pattern.");
@@ -341,13 +398,22 @@ TypeName Parser::type_name() {
     }
     while (match(TokenKind::LBracket)) {
         long long length = -1;
-        if (at(TokenKind::Integer)) {
-            const auto n = consume(TokenKind::Integer, "Expected dimension.");
-            const auto result = std::from_chars(n.text.data(), n.text.data() + n.text.size(), length);
-            if (result.ec != std::errc{}) error(n, "Array dimension is too large.");
+        std::shared_ptr<Expr> dimension;
+        if (!at(TokenKind::RBracket)) {
+            auto parsed = type_integer_expression();
+            length = -2;
+            if (const auto* literal = std::get_if<IntegerExpr>(&parsed->data)) {
+                if (literal->value >
+                    static_cast<unsigned long long>(std::numeric_limits<long long>::max())) {
+                    error(previous(), "Array dimension is too large.");
+                }
+                length = static_cast<long long>(literal->value);
+            }
+            dimension.reset(parsed.release());
         }
-        t.span.end = consume(TokenKind::RBracket, "Expected a nonnegative integer literal dimension or '[]'.").span.end;
+        t.span.end = consume(TokenKind::RBracket, "Expected ']' after array dimension.").span.end;
         t.dimensions.push_back(length);
+        t.dimension_expressions.push_back(std::move(dimension));
         ++t.array_depth;
     }
 
@@ -362,6 +428,76 @@ TypeName Parser::type_name() {
     }
     return t;
 }
+
+ExprPtr Parser::type_integer_factor() {
+    if (match(TokenKind::Plus)) return type_integer_factor();
+
+    if (match(TokenKind::Minus)) {
+        const auto op = previous();
+        auto operand = type_integer_factor();
+        auto result = std::make_unique<Expr>();
+        result->span = SourceSpan{op.span.start, operand->span.end};
+        result->data = UnaryExpr{"-", std::move(operand)};
+        return result;
+    }
+
+    if (match(TokenKind::Integer)) {
+        const auto token = previous();
+        std::uint64_t value{};
+        const auto parsed =
+            std::from_chars(token.text.data(), token.text.data() + token.text.size(), value);
+        if (parsed.ec != std::errc{} ||
+            parsed.ptr != token.text.data() + token.text.size()) {
+            error(token, "Integer extent is too large.");
+        }
+        auto result = std::make_unique<Expr>();
+        result->span = token.span;
+        result->data = IntegerExpr{value};
+        return result;
+    }
+
+    if (match(TokenKind::Identifier)) {
+        const auto token = previous();
+        if (token.text == "_") {
+            error(token, "'_' is only valid as a tensor/neural wildcard axis.");
+        }
+        auto result = std::make_unique<Expr>();
+        result->span = token.span;
+        result->data = NameExpr{token.text};
+        return result;
+    }
+
+    if (match(TokenKind::LParen)) {
+        const auto start = previous().span.start;
+        auto result = type_integer_expression();
+        const auto end = consume(TokenKind::RParen, "Expected ')' after integer extent expression.").span.end;
+        result->span = SourceSpan{start, end};
+        return result;
+    }
+
+    error(peek(), "Expected an integer extent expression.");
+}
+
+ExprPtr Parser::type_integer_term() {
+    auto left = type_integer_factor();
+    while (at(TokenKind::Star) || at(TokenKind::Slash) || at(TokenKind::Percent)) {
+        const auto op = tokens_[current_++];
+        auto right = type_integer_factor();
+        left = make_binary(std::move(left), op, std::move(right));
+    }
+    return left;
+}
+
+ExprPtr Parser::type_integer_expression() {
+    auto left = type_integer_term();
+    while (at(TokenKind::Plus) || at(TokenKind::Minus)) {
+        const auto op = tokens_[current_++];
+        auto right = type_integer_term();
+        left = make_binary(std::move(left), op, std::move(right));
+    }
+    return left;
+}
+
 
 std::vector<TypeName> Parser::type_argument_list() {
     consume(TokenKind::Less, "Expected '<' before type arguments.");

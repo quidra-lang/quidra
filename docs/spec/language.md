@@ -466,6 +466,26 @@ tensor<float32><1, _, _> o = tensor.ones<float32>([1, 224, 224])
 
 The direct `tensor<T>(shape)` form creates uninitialized tensor storage. Scalar indexed assignment initializes an element. `tensor.zeros<T>` and `tensor.ones<T>` create fully initialized tensors. When the expected tensor type supplies dtype and every exact extent, `tensor.zeros()` and `tensor.ones()` may use that context to allocate; an unconstrained rank or `_` extent still requires an explicit shape argument. Initialization is tracked independently from shape knowledge and numeric contents; reading an uninitialized element is a deterministic safety failure.
 
+### Tensor device placement
+
+Device placement is explicit runtime/compiler metadata and is not part of the nominal `tensor<T><...>` type. CPU is the default. A tensor constructor may instead name a zero-based GPU index with the ordinary named-argument syntax `gpu = n`:
+
+```quidra
+tensor<float32> cpu = tensor.zeros<float32>([1024])
+tensor<float32> gpu0 = tensor.zeros<float32>([1024], gpu = 0)
+tensor<float32><1024> gpu1 = tensor.ones(gpu = 1)
+```
+
+The `gpu` argument is optional but, when present, must be named, integer-valued, and non-negative. There is no public negative GPU sentinel: `gpu = -1` is invalid. Omission means CPU. The same placement rule applies to uninitialized `tensor<T>(shape)`, zeros, and ones.
+
+Transfers are explicit value operations. `value.gpu(index)` copies a tensor to the requested GPU and requires exactly one non-negative integer index. `value.gpu()` is invalid. `value.cpu()` copies a tensor to CPU and takes no arguments. An explicit transfer remains an observable semantic boundary for optimization: `tensor.zeros<T>(shape).gpu(0)` means CPU allocation followed by CPU-to-GPU transfer and may not be rewritten as direct GPU allocation. Likewise a later `.gpu(n)` cannot relocate an earlier computation to that GPU.
+
+Quidra never performs an implicit CPU/GPU or GPU/GPU transfer. Tensor-to-tensor operations require compatible operands to be on the same device; a mismatch fails rather than copying either input. Results remain on the input device. Scalar literals and scalar variables are not tensor placements and may be passed as scalar kernel arguments to an operation on the tensor's device.
+
+A requested GPU that does not exist or whose backend is unavailable is a runtime error, for example `error: gpu(0) is not available`. CPU fallback is forbidden. If an operation has no implementation for the tensor's current GPU backend, it fails explicitly with a diagnostic such as `operation is not supported on gpu(0)`; executing the operation over hidden CPU storage is not a valid implementation.
+
+The public placement semantics are independent of OS and vendor. NVIDIA systems use Quidra's NVIDIA backend through the CUDA Driver API rather than a user `nvcc`, `CUDA_HOME`, or `/usr/local/cuda` selection. Apple Silicon uses Metal. Future AMD acceleration uses the corresponding backend without changing Quidra source syntax. Unified-memory hardware may allow a backend to elide a physical copy, but the explicit logical device transition remains part of the program semantics. `quidra gpu` reports Quidra's zero-based device enumeration and active backend information.
+
 Tensor storage is row-major, with the last dimension contiguous. Integer indices remove axes, slices retain axes, and omitted trailing dimensions mean full slices. Inferred rank and known shape facts are projected accordingly. Fully indexing a known rank-N tensor with N integer indices yields an internal rank-0 tensor, not a scalar; `.item()` is the explicit scalar extraction operation.
 
 ```quidra

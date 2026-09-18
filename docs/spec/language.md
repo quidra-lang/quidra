@@ -24,7 +24,7 @@ int[3] fixed = [4, 7, 8]
 int[2][3] matrix = [[1, 2, 3], [4, 5, 6]]
 ```
 
-`T[]` has runtime length. `T[n]` has a fixed nonnegative integer-literal length. Dimensions read from the outside inward: `int[5][6]` contains five arrays of six integers. `int[][]` can contain rows of different lengths. Fixed dimensions must agree with the assigned value. A dynamically typed shape cannot be implicitly asserted to be fixed; use a value whose shape is statically known.
+`T[]` has runtime length. `T[expr]` accepts an integer extent expression. A compile-time expression is folded; otherwise it is evaluated once when that array binding is created and the resulting nonnegative extent is captured for that binding. Later mutation of variables used by the expression does not change the captured contract. Dimensions read from the outside inward: `int[5][6]` contains five arrays of six integers, while `float[][n * m]` has a runtime-sized outer dimension and a captured inner extent. Unconstrained `T[]` dimensions may still be ragged.
 
 An array's storage and nested elements obey value semantics. Copying a nested array cannot make a later write to one copy modify another.
 
@@ -454,7 +454,7 @@ tensor<float32><_, _, _> any_rank_three
 
 The number of shape entries is the required rank. Each entry is either an integer expression or `_`. A constant integer expression is folded by the compiler; a runtime integer expression is evaluated once when the binding is created and the resulting nonnegative extent is captured for that binding. `_` requires the axis to exist but leaves its extent unrestricted. Therefore `tensor<float32><3, _, _>` accepts `[3,H,W]` but rejects `[3,H]`, `[3,H,W,D]`, and `[1,H,W]`. Dtype and shape always occupy separate angle groups, tensor dtype is mandatory, and empty slots or trailing commas are invalid.
 
-A tensor expression whose rank and fixed extents are statically known may satisfy a shape-pattern destination. An unconstrained tensor whose required facts cannot be proven does not implicitly assert a pattern. APIs that produce runtime data may validate an expected pattern and return their existing `error` alternative; `image.read` is the primary example. Shape patterns and inferred rank/shape metadata are erased before runtime representation, so they do not alter TensorStorage or the LLVM ABI.
+Known rank or extent conflicts are rejected statically. If a source tensor's relevant rank or extent is not statically known, assignment or parameter passing to a constrained destination performs the corresponding runtime constraint check instead of silently assuming the shape. Declared captured constraints remain fixed for that binding across reassignment, while inferred flow facts may weaken after reassignment or control-flow joins. APIs that produce runtime data may additionally validate an expected pattern through their normal result model; `image.read` is the primary example. Shape constraints and inferred rank/shape facts do not change TensorStorage or the LLVM ABI.
 
 ```quidra
 tensor<float32> a = tensor<float32>([3, 224, 224])

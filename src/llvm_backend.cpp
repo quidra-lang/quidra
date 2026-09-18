@@ -827,7 +827,8 @@ struct FunctionEmitter {
             values[n.out]=n.type;
             out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_create(ptr "<<value(n.shape)
                <<", i32 "<<tensor_dtype_code(*n.type.first)<<", i32 "<<n.fill_mode
-               <<", i64 "<<(n.gpu?value(*n.gpu):"-1")
+               <<", i1 "<<(n.gpu?"1":"0")
+               <<", i64 "<<(n.gpu?value(*n.gpu):"0")
                <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::TensorTransfer>){
@@ -3036,7 +3037,7 @@ declare i1 @quidra_array_can_append_move(ptr)
 declare ptr @quidra_array_grow_move(ptr, i64)
 declare ptr @quidra_array_sorted(ptr, i32, i64, i64, i64)
 declare void @quidra_numeric_cast_element(ptr, ptr, i32, i32, i64, i64)
-declare ptr @quidra_tensor_create(ptr, i32, i32, i64, i64, i64)
+declare ptr @quidra_tensor_create(ptr, i32, i32, i1, i64, i64, i64)
 declare ptr @quidra_tensor_to_gpu(ptr, i64, i64, i64)
 declare ptr @quidra_tensor_to_cpu(ptr, i64, i64)
 declare ptr @quidra_tensor_clone(ptr)

@@ -3292,6 +3292,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         error("TYPE_MISMATCH", "linear.matmul right operand must be a tensor.",
                               node->args[1].span);
                     }
+                    long long result_rank = -1;
                     if (!poisoned(left) && !poisoned(right) &&
                         left.kind == TypeKind::Tensor && right.kind == TypeKind::Tensor) {
                         if (*left.first != *right.first) {
@@ -3299,14 +3300,24 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                                   "linear.matmul requires identical tensor element types.",
                                   expression.span);
                         }
-                        if ((left.length >= 0 && left.length != 2) ||
-                            (right.length >= 0 && right.length != 2)) {
-                            error("TYPE_MISMATCH", "linear.matmul requires rank-2 tensors.", expression.span);
+                        const auto valid_rank = [](long long rank) {
+                            return rank < 0 || rank == 1 || rank == 2;
+                        };
+                        if (!valid_rank(left.length) || !valid_rank(right.length)) {
+                            error("TYPE_MISMATCH",
+                                  "linear.matmul supports vector-matrix, matrix-vector, and matrix-matrix operands.",
+                                  expression.span);
+                        } else if (left.length == 1 && right.length == 1) {
+                            error("TYPE_MISMATCH",
+                                  "linear.matmul does not accept two vectors; use linear.dot.",
+                                  expression.span);
+                        } else if (left.length >= 0 && right.length >= 0) {
+                            result_rank = left.length == 2 && right.length == 2 ? 2 : 1;
                         }
                     }
                     type = poisoned(left) || poisoned(right)
                         ? simple(TypeKind::Invalid)
-                        : Type::tensor(*left.first, 2);
+                        : Type::tensor(*left.first, result_rank);
                     break;
                 }
                 case BuiltinCallable::LinearDot: {

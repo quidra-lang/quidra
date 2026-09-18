@@ -122,4 +122,31 @@ bool compute_affine_backward(
     int dtype, std::size_t batches, std::size_t features_in,
     std::size_t features_out, std::string& error);
 
+bool compute_image_geometry(
+    Buffer* output, const Buffer* input, int dtype,
+    std::size_t channels, std::size_t input_height, std::size_t input_width,
+    std::size_t output_height, std::size_t output_width,
+    int operation, std::size_t parameter0, std::size_t parameter1,
+    std::string& error);
+bool compute_image_grayscale(
+    Buffer* output, const Buffer* input, std::size_t channels,
+    std::size_t height, std::size_t width, std::string& error);
+bool compute_image_threshold(
+    Buffer* output, const Buffer* input, std::size_t count,
+    std::uint8_t cutoff, std::uint8_t low, std::uint8_t high,
+    std::string& error);
+bool compute_image_blur(
+    Buffer* output, const Buffer* input, std::size_t channels,
+    std::size_t height, std::size_t width, std::size_t radius,
+    std::string& error);
+bool compute_image_filter(
+    Buffer* output, const Buffer* input, const Buffer* kernel,
+    std::size_t channels, std::size_t height, std::size_t width,
+    std::size_t kernel_height, std::size_t kernel_width,
+    std::int64_t divisor, std::int64_t offset, std::string& error);
+bool compute_image_morphology(
+    Buffer* output, const Buffer* input, int dtype,
+    std::size_t channels, std::size_t height, std::size_t width,
+    std::size_t radius, bool dilate, std::string& error);
+
 } // namespace quidra::device

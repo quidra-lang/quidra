@@ -94,8 +94,6 @@ bool spaced_operator(TokenKind kind) {
         case TokenKind::Star:
         case TokenKind::Slash:
         case TokenKind::Percent:
-        case TokenKind::ShiftLeft:
-        case TokenKind::ShiftRight:
         case TokenKind::Pipe:
             return true;
         default:

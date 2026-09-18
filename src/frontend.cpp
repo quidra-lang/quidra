@@ -126,8 +126,14 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
         exports.functions.emplace("dot", std::string(*standard_function_target(module, "dot")));
         exports.functions.emplace("matmul", std::string(*standard_function_target(module, "matmul")));
     } else if (module == "image") {
-        exports.functions.emplace("read", std::string(*standard_function_target(module, "read")));
-        exports.functions.emplace("write", std::string(*standard_function_target(module, "write")));
+        for (const char* name : {
+                 "read", "write", "tensor_crop", "tensor_resize",
+                 "tensor_flip_horizontal", "tensor_flip_vertical",
+                 "tensor_rotate90", "tensor_rotate270", "tensor_grayscale",
+                 "tensor_threshold", "tensor_blur", "tensor_filter",
+                 "tensor_dilate", "tensor_erode"}) {
+            exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
+        }
     } else if (module == "neural") {
         exports.classes.emplace("Gradients", "$std.neural.Gradients");
         exports.classes.emplace("Parameter", "$std.neural.Parameter");

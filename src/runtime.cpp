@@ -6376,3 +6376,405 @@ extern "C" bool quidra_cli_parse_bool(const char* text) {
     if (text && std::strcmp(text, "false") == 0) return false;
     cli_fail("bool values must be true or false");
 }
+
+
+namespace {
+
+void image_tensor_require_chw(
+    const TensorValue& value,const char* operation,
+    unsigned long long line,unsigned long long column) {
+    if(value.shape.size()!=3)
+        tensor_fail((std::string(operation)+" requires a rank-3 CHW tensor").c_str(),line,column);
+    if(value.shape[0]<=0||value.shape[1]<=0||value.shape[2]<=0)
+        tensor_fail((std::string(operation)+" requires positive CHW dimensions").c_str(),line,column);
+    tensor_require_initialized(value,line,column);
+}
+
+TensorValue* image_tensor_output(
+    int dtype,const std::vector<long long>& shape,int device,
+    unsigned long long line,unsigned long long column) {
+    const auto count=tensor_element_count(shape,line,column);
+    auto* storage=tensor_storage_create(dtype,count,1,device,line,column);
+    auto strides=tensor_contiguous_strides(shape);
+    return tensor_descriptor(storage,shape,std::move(strides),0);
+}
+
+const TensorStorage* image_tensor_dense_gpu(
+    const TensorValue& source,TensorStorage*& materialized,
+    unsigned long long line,unsigned long long column) {
+    materialized=nullptr;
+    if(tensor_is_contiguous_value(source)&&source.offset==0)
+        return source.storage;
+    materialized=tensor_gpu_materialize_storage(source,line,column);
+    return materialized;
+}
+
+template <typename T>
+void image_morphology_cpu(
+    const TensorValue& input,TensorStorage& output,std::size_t channels,
+    std::size_t height,std::size_t width,std::size_t radius,bool dilate) {
+    for(std::size_t c=0;c<channels;++c)
+        for(std::size_t y=0;y<height;++y)
+            for(std::size_t x=0;x<width;++x){
+                const auto center=tensor_storage_index(
+                    input,(c*height+y)*width+x);
+                T best{};
+                std::memcpy(&best,input.storage->data.data()+center*sizeof(T),sizeof(T));
+                const auto y0=y>radius?y-radius:0;
+                const auto y1=std::min(height-1,y+std::min(radius,height-1-y));
+                const auto x0=x>radius?x-radius:0;
+                const auto x1=std::min(width-1,x+std::min(radius,width-1-x));
+                for(std::size_t sy=y0;sy<=y1;++sy)
+                    for(std::size_t sx=x0;sx<=x1;++sx){
+                        const auto source_index=tensor_storage_index(
+                            input,(c*height+sy)*width+sx);
+                        T candidate{};
+                        std::memcpy(&candidate,
+                            input.storage->data.data()+source_index*sizeof(T),sizeof(T));
+                        if(dilate?candidate>best:candidate<best) best=candidate;
+                    }
+                const auto out_index=(c*height+y)*width+x;
+                std::memcpy(output.data.data()+out_index*sizeof(T),&best,sizeof(T));
+            }
+}
+
+} // namespace
+
+extern "C" void* quidra_image_tensor_geometry(
+    void* raw,int dtype,int operation,
+    long long p0,long long p1,long long p2,long long p3,
+    unsigned long long line,unsigned long long column) {
+    if(!raw) tensor_fail("image tensor geometry received a null tensor",line,column);
+    auto& input=*static_cast<TensorValue*>(raw);
+    if(input.storage->dtype!=dtype)
+        tensor_fail("image tensor geometry dtype mismatch",line,column);
+    image_tensor_require_chw(input,"image tensor geometry",line,column);
+    const auto channels=static_cast<std::size_t>(input.shape[0]);
+    const auto ih=static_cast<std::size_t>(input.shape[1]);
+    const auto iw=static_cast<std::size_t>(input.shape[2]);
+    std::size_t oh=ih,ow=iw,param0=0,param1=0;
+
+    if(operation==1){
+        if(p0<0||p1<0||p2<=0||p3<=0)
+            tensor_fail("image crop requires nonnegative origin and positive size",line,column);
+        if(p0>=input.shape[1]||p1>=input.shape[2]||
+           p2>input.shape[1]-p0||p3>input.shape[2]-p1)
+            tensor_fail("image crop rectangle exceeds the image",line,column);
+        param0=static_cast<std::size_t>(p0);
+        param1=static_cast<std::size_t>(p1);
+        oh=static_cast<std::size_t>(p2);
+        ow=static_cast<std::size_t>(p3);
+    }else if(operation==2){
+        if(p0<=0||p1<=0)
+            tensor_fail("image resize requires positive output dimensions",line,column);
+        oh=static_cast<std::size_t>(p0);
+        ow=static_cast<std::size_t>(p1);
+    }else if(operation==3||operation==4){
+    }else if(operation==5||operation==6){
+        oh=iw; ow=ih;
+    }else{
+        tensor_fail("unknown image tensor geometry operation",line,column);
+    }
+
+    std::vector<long long> shape{
+        static_cast<long long>(channels),
+        static_cast<long long>(oh),
+        static_cast<long long>(ow)};
+    auto* result=image_tensor_output(dtype,shape,input.storage->device,line,column);
+
+    if(!tensor_on_cpu(*input.storage)){
+        TensorStorage* materialized=nullptr;
+        const auto* source=image_tensor_dense_gpu(input,materialized,line,column);
+        std::string backend_error;
+        const bool ok=quidra::device::compute_image_geometry(
+            result->storage->gpu_buffer,source->gpu_buffer,dtype,
+            channels,ih,iw,oh,ow,operation,param0,param1,backend_error);
+        if(materialized) tensor_storage_release(materialized);
+        if(!ok){
+            quidra_tensor_drop(result);
+            tensor_fail(backend_error.c_str(),line,column);
+        }
+        return result;
+    }
+
+    const auto bytes=tensor_dtype_bytes(dtype);
+    const auto output_count=channels*oh*ow;
+    for(std::size_t linear=0;linear<output_count;++linear){
+        const auto x=linear%ow;
+        const auto y=(linear/ow)%oh;
+        const auto c=linear/(ow*oh);
+        std::size_t sy=0,sx=0;
+        if(operation==1){sy=param0+y;sx=param1+x;}
+        else if(operation==2){sy=y*ih/oh;sx=x*iw/ow;}
+        else if(operation==3){sy=y;sx=iw-1-x;}
+        else if(operation==4){sy=ih-1-y;sx=x;}
+        else if(operation==5){sy=ih-1-x;sx=y;}
+        else {sy=x;sx=iw-1-y;}
+        const auto source_index=tensor_storage_index(input,(c*ih+sy)*iw+sx);
+        std::memcpy(
+            result->storage->data.data()+linear*bytes,
+            input.storage->data.data()+source_index*bytes,bytes);
+    }
+    return result;
+}
+
+extern "C" void* quidra_image_tensor_grayscale(
+    void* raw,unsigned long long line,unsigned long long column) {
+    if(!raw) tensor_fail("image grayscale received a null tensor",line,column);
+    auto& input=*static_cast<TensorValue*>(raw);
+    image_tensor_require_chw(input,"image grayscale",line,column);
+    if(input.storage->dtype!=5)
+        tensor_fail("image grayscale requires tensor<uint8>",line,column);
+    const auto channels=static_cast<std::size_t>(input.shape[0]);
+    const auto height=static_cast<std::size_t>(input.shape[1]);
+    const auto width=static_cast<std::size_t>(input.shape[2]);
+    if(channels!=1&&channels!=3&&channels!=4)
+        tensor_fail("image grayscale requires 1, 3, or 4 channels",line,column);
+    std::vector<long long> shape{1,input.shape[1],input.shape[2]};
+    auto* result=image_tensor_output(5,shape,input.storage->device,line,column);
+    if(!tensor_on_cpu(*input.storage)){
+        TensorStorage* materialized=nullptr;
+        const auto* source=image_tensor_dense_gpu(input,materialized,line,column);
+        std::string backend_error;
+        const bool ok=quidra::device::compute_image_grayscale(
+            result->storage->gpu_buffer,source->gpu_buffer,
+            channels,height,width,backend_error);
+        if(materialized) tensor_storage_release(materialized);
+        if(!ok){
+            quidra_tensor_drop(result);
+            tensor_fail(backend_error.c_str(),line,column);
+        }
+        return result;
+    }
+    const auto pixels=height*width;
+    for(std::size_t i=0;i<pixels;++i){
+        std::uint8_t value{};
+        if(channels==1){
+            const auto index=tensor_storage_index(input,i);
+            value=input.storage->data[index];
+        }else{
+            const auto ri=tensor_storage_index(input,i);
+            const auto gi=tensor_storage_index(input,pixels+i);
+            const auto bi=tensor_storage_index(input,2*pixels+i);
+            const double luminance=
+                0.299*input.storage->data[ri]+
+                0.587*input.storage->data[gi]+
+                0.114*input.storage->data[bi];
+            value=static_cast<std::uint8_t>(
+                std::clamp<long long>(std::llround(luminance),0,255));
+        }
+        result->storage->data[i]=value;
+    }
+    return result;
+}
+
+extern "C" void* quidra_image_tensor_threshold(
+    void* raw,std::uint8_t cutoff,std::uint8_t low,std::uint8_t high,
+    unsigned long long line,unsigned long long column) {
+    if(!raw) tensor_fail("image threshold received a null tensor",line,column);
+    auto& input=*static_cast<TensorValue*>(raw);
+    image_tensor_require_chw(input,"image threshold",line,column);
+    if(input.storage->dtype!=5)
+        tensor_fail("image threshold requires tensor<uint8>",line,column);
+    auto* result=image_tensor_output(5,input.shape,input.storage->device,line,column);
+    const auto count=tensor_logical_count(input);
+    if(!tensor_on_cpu(*input.storage)){
+        TensorStorage* materialized=nullptr;
+        const auto* source=image_tensor_dense_gpu(input,materialized,line,column);
+        std::string backend_error;
+        const bool ok=quidra::device::compute_image_threshold(
+            result->storage->gpu_buffer,source->gpu_buffer,count,
+            cutoff,low,high,backend_error);
+        if(materialized) tensor_storage_release(materialized);
+        if(!ok){
+            quidra_tensor_drop(result);
+            tensor_fail(backend_error.c_str(),line,column);
+        }
+        return result;
+    }
+    for(std::size_t i=0;i<count;++i){
+        const auto source=tensor_storage_index(input,i);
+        result->storage->data[i]=input.storage->data[source]>=cutoff?high:low;
+    }
+    return result;
+}
+
+extern "C" void* quidra_image_tensor_blur(
+    void* raw,long long radius,
+    unsigned long long line,unsigned long long column) {
+    if(!raw) tensor_fail("image blur received a null tensor",line,column);
+    auto& input=*static_cast<TensorValue*>(raw);
+    image_tensor_require_chw(input,"image blur",line,column);
+    if(input.storage->dtype!=5)
+        tensor_fail("image blur requires tensor<uint8>",line,column);
+    if(radius<0) tensor_fail("image blur radius must be nonnegative",line,column);
+    const auto channels=static_cast<std::size_t>(input.shape[0]);
+    const auto height=static_cast<std::size_t>(input.shape[1]);
+    const auto width=static_cast<std::size_t>(input.shape[2]);
+    const auto r=static_cast<std::size_t>(radius);
+    auto* result=image_tensor_output(5,input.shape,input.storage->device,line,column);
+    if(!tensor_on_cpu(*input.storage)){
+        TensorStorage* materialized=nullptr;
+        const auto* source=image_tensor_dense_gpu(input,materialized,line,column);
+        std::string backend_error;
+        const bool ok=quidra::device::compute_image_blur(
+            result->storage->gpu_buffer,source->gpu_buffer,
+            channels,height,width,r,backend_error);
+        if(materialized) tensor_storage_release(materialized);
+        if(!ok){
+            quidra_tensor_drop(result);
+            tensor_fail(backend_error.c_str(),line,column);
+        }
+        return result;
+    }
+    for(std::size_t c=0;c<channels;++c)
+        for(std::size_t y=0;y<height;++y)
+            for(std::size_t x=0;x<width;++x){
+                std::uint64_t total=0,count=0;
+                const auto y0=y>r?y-r:0;
+                const auto y1=std::min(height-1,y+std::min(r,height-1-y));
+                const auto x0=x>r?x-r:0;
+                const auto x1=std::min(width-1,x+std::min(r,width-1-x));
+                for(std::size_t sy=y0;sy<=y1;++sy)
+                    for(std::size_t sx=x0;sx<=x1;++sx){
+                        const auto source=tensor_storage_index(
+                            input,(c*height+sy)*width+sx);
+                        total+=input.storage->data[source];
+                        ++count;
+                    }
+                result->storage->data[(c*height+y)*width+x]=
+                    static_cast<std::uint8_t>(total/count);
+            }
+    return result;
+}
+
+extern "C" void* quidra_image_tensor_filter(
+    void* raw,void* kernel_raw,long long divisor,long long offset,
+    unsigned long long line,unsigned long long column) {
+    if(!raw||!kernel_raw)
+        tensor_fail("image filter received a null tensor",line,column);
+    auto& input=*static_cast<TensorValue*>(raw);
+    auto& kernel=*static_cast<TensorValue*>(kernel_raw);
+    image_tensor_require_chw(input,"image filter",line,column);
+    tensor_require_initialized(kernel,line,column);
+    if(input.storage->dtype!=5||kernel.storage->dtype!=1||kernel.shape.size()!=2)
+        tensor_fail("image filter requires tensor<uint8> pixels and a rank-2 tensor<int> kernel",line,column);
+    if(kernel.shape[0]<=0||kernel.shape[1]<=0)
+        tensor_fail("image filter requires positive kernel dimensions",line,column);
+    if(divisor==0) tensor_fail("image filter divisor must not be zero",line,column);
+    if(input.storage->device!=kernel.storage->device)
+        tensor_fail("image filter tensors must be on the same device",line,column);
+    const auto channels=static_cast<std::size_t>(input.shape[0]);
+    const auto height=static_cast<std::size_t>(input.shape[1]);
+    const auto width=static_cast<std::size_t>(input.shape[2]);
+    const auto kh=static_cast<std::size_t>(kernel.shape[0]);
+    const auto kw=static_cast<std::size_t>(kernel.shape[1]);
+    auto* result=image_tensor_output(5,input.shape,input.storage->device,line,column);
+
+    if(!tensor_on_cpu(*input.storage)){
+        TensorStorage* input_mat=nullptr;
+        TensorStorage* kernel_mat=nullptr;
+        const auto* input_store=image_tensor_dense_gpu(input,input_mat,line,column);
+        const auto* kernel_store=image_tensor_dense_gpu(kernel,kernel_mat,line,column);
+        std::string backend_error;
+        const bool ok=quidra::device::compute_image_filter(
+            result->storage->gpu_buffer,input_store->gpu_buffer,kernel_store->gpu_buffer,
+            channels,height,width,kh,kw,divisor,offset,backend_error);
+        if(input_mat) tensor_storage_release(input_mat);
+        if(kernel_mat) tensor_storage_release(kernel_mat);
+        if(!ok){
+            quidra_tensor_drop(result);
+            tensor_fail(backend_error.c_str(),line,column);
+        }
+        return result;
+    }
+
+    const auto cy=kh/2,cx=kw/2;
+    for(std::size_t c=0;c<channels;++c)
+        for(std::size_t y=0;y<height;++y)
+            for(std::size_t x=0;x<width;++x){
+                __int128 total=0;
+                for(std::size_t ky=0;ky<kh;++ky){
+                    const auto sy=static_cast<long long>(y)+
+                        static_cast<long long>(ky)-static_cast<long long>(cy);
+                    if(sy<0||sy>=static_cast<long long>(height)) continue;
+                    for(std::size_t kx=0;kx<kw;++kx){
+                        const auto sx=static_cast<long long>(x)+
+                            static_cast<long long>(kx)-static_cast<long long>(cx);
+                        if(sx<0||sx>=static_cast<long long>(width)) continue;
+                        const auto pi=tensor_storage_index(
+                            input,(c*height+static_cast<std::size_t>(sy))*width+
+                                  static_cast<std::size_t>(sx));
+                        const auto ki=tensor_storage_index(kernel,ky*kw+kx);
+                        std::int64_t weight{};
+                        std::memcpy(&weight,kernel.storage->data.data()+ki*8,8);
+                        total+=static_cast<__int128>(input.storage->data[pi])*
+                               static_cast<__int128>(weight);
+                        if(total<std::numeric_limits<std::int64_t>::min()||
+                           total>std::numeric_limits<std::int64_t>::max()){
+                            quidra_tensor_drop(result);
+                            tensor_fail("image filter integer arithmetic overflow",line,column);
+                        }
+                    }
+                }
+                const auto divided=static_cast<std::int64_t>(total)/divisor;
+                const __int128 adjusted=static_cast<__int128>(divided)+offset;
+                if(adjusted<std::numeric_limits<std::int64_t>::min()||
+                   adjusted>std::numeric_limits<std::int64_t>::max()){
+                    quidra_tensor_drop(result);
+                    tensor_fail("image filter integer arithmetic overflow",line,column);
+                }
+                const auto clamped=std::clamp<std::int64_t>(
+                    static_cast<std::int64_t>(adjusted),0,255);
+                result->storage->data[(c*height+y)*width+x]=
+                    static_cast<std::uint8_t>(clamped);
+            }
+    return result;
+}
+
+extern "C" void* quidra_image_tensor_morphology(
+    void* raw,int dtype,long long radius,bool dilate,
+    unsigned long long line,unsigned long long column) {
+    if(!raw) tensor_fail("image morphology received a null tensor",line,column);
+    auto& input=*static_cast<TensorValue*>(raw);
+    if(input.storage->dtype!=dtype)
+        tensor_fail("image morphology dtype mismatch",line,column);
+    image_tensor_require_chw(input,"image morphology",line,column);
+    if(radius<0)
+        tensor_fail("image morphology radius must be nonnegative",line,column);
+    const auto channels=static_cast<std::size_t>(input.shape[0]);
+    const auto height=static_cast<std::size_t>(input.shape[1]);
+    const auto width=static_cast<std::size_t>(input.shape[2]);
+    const auto r=static_cast<std::size_t>(radius);
+    auto* result=image_tensor_output(dtype,input.shape,input.storage->device,line,column);
+    if(!tensor_on_cpu(*input.storage)){
+        TensorStorage* materialized=nullptr;
+        const auto* source=image_tensor_dense_gpu(input,materialized,line,column);
+        std::string backend_error;
+        const bool ok=quidra::device::compute_image_morphology(
+            result->storage->gpu_buffer,source->gpu_buffer,dtype,
+            channels,height,width,r,dilate,backend_error);
+        if(materialized) tensor_storage_release(materialized);
+        if(!ok){
+            quidra_tensor_drop(result);
+            tensor_fail(backend_error.c_str(),line,column);
+        }
+        return result;
+    }
+    switch(dtype){
+        case 1:image_morphology_cpu<std::int64_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 2:image_morphology_cpu<std::int8_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 3:image_morphology_cpu<std::int16_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 4:image_morphology_cpu<std::int32_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 5:image_morphology_cpu<std::uint8_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 6:image_morphology_cpu<std::uint16_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 7:image_morphology_cpu<std::uint32_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 8:image_morphology_cpu<std::uint64_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 9:image_morphology_cpu<double>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 10:image_morphology_cpu<float>(input,*result->storage,channels,height,width,r,dilate);break;
+        default:
+            quidra_tensor_drop(result);
+            tensor_fail("image morphology received an unsupported dtype",line,column);
+    }
+    return result;
+}

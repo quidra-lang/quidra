@@ -2196,6 +2196,34 @@ struct Lowerer {
                     if(n.args.size()==3) release_arg(2,quality);
                     return out;
                 }
+                case BuiltinCallable::ImageTensorCrop:
+                case BuiltinCallable::ImageTensorResize:
+                case BuiltinCallable::ImageTensorFlipHorizontal:
+                case BuiltinCallable::ImageTensorFlipVertical:
+                case BuiltinCallable::ImageTensorRotate90:
+                case BuiltinCallable::ImageTensorRotate270:
+                case BuiltinCallable::ImageTensorGrayscale:
+                case BuiltinCallable::ImageTensorThreshold:
+                case BuiltinCallable::ImageTensorBlur:
+                case BuiltinCallable::ImageTensorFilter:
+                case BuiltinCallable::ImageTensorDilate:
+                case BuiltinCallable::ImageTensorErode: {
+                    std::vector<ValueId> args;
+                    args.reserve(n.args.size());
+                    for (const auto& argument : n.args) {
+                        args.push_back(expr(*argument.value));
+                    }
+                    auto out=fresh();
+                    const auto input_type=type_of(*n.args[0].value);
+                    block->instructions.push_back(ImageTensorOp{
+                        out,*resolution.builtin,std::move(args),
+                        checked.raw_types.at(&e),*input_type.first,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    for(std::size_t i=0;i<n.args.size();++i)
+                        release_arg(i,std::get<ImageTensorOp>(block->instructions.back()).args[i]);
+                    return out;
+                }
                 case BuiltinCallable::HttpGet: {
                     auto url=expr(*n.args[0].value),out=fresh();
                     block->instructions.push_back(HttpGet{out,url,checked.raw_types.at(&e)});
@@ -3057,6 +3085,7 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
         out<<" : "<<type_name(n.result_type);
     }
     if constexpr(std::is_same_v<T,ImageWrite>)out<<"%"<<n.out<<" = image.write %"<<n.path<<", %"<<n.image<<", quality %"<<n.quality<<" : "<<type_name(n.result_type);
+    if constexpr(std::is_same_v<T,ImageTensorOp>)out<<"%"<<n.out<<" = image.tensor.op";
     if constexpr(std::is_same_v<T,TensorBinary>)out<<"%"<<n.out<<" = tensor.binary "<<n.op<<" %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.result_type);
     if constexpr(std::is_same_v<T,TensorIndex>){
         out<<"%"<<n.out<<" = tensor.index %"<<n.tensor<<" [";

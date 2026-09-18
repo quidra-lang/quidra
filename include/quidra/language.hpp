@@ -131,6 +131,18 @@ enum class BuiltinCallable {
     LinearDot,
     ImageRead,
     ImageWrite,
+    ImageTensorCrop,
+    ImageTensorResize,
+    ImageTensorFlipHorizontal,
+    ImageTensorFlipVertical,
+    ImageTensorRotate90,
+    ImageTensorRotate270,
+    ImageTensorGrayscale,
+    ImageTensorThreshold,
+    ImageTensorBlur,
+    ImageTensorFilter,
+    ImageTensorDilate,
+    ImageTensorErode,
     NeuralTrack,
     NeuralParameterTrack,
     NeuralAffine,
@@ -174,7 +186,7 @@ inline constexpr std::array<BuiltinCallableInfo, 11> builtin_callables{{
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 80> intrinsic_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 92> intrinsic_callables{{
     {"$std.math.sin", BuiltinCallable::MathSin},
     {"$std.math.cos", BuiltinCallable::MathCos},
     {"$std.math.tan", BuiltinCallable::MathTan},
@@ -237,6 +249,18 @@ inline constexpr std::array<BuiltinCallableInfo, 80> intrinsic_callables{{
     {"$std.linear.dot", BuiltinCallable::LinearDot},
     {"$std.image.read", BuiltinCallable::ImageRead},
     {"$std.image.write", BuiltinCallable::ImageWrite},
+    {"$std.image.tensor_crop", BuiltinCallable::ImageTensorCrop},
+    {"$std.image.tensor_resize", BuiltinCallable::ImageTensorResize},
+    {"$std.image.tensor_flip_horizontal", BuiltinCallable::ImageTensorFlipHorizontal},
+    {"$std.image.tensor_flip_vertical", BuiltinCallable::ImageTensorFlipVertical},
+    {"$std.image.tensor_rotate90", BuiltinCallable::ImageTensorRotate90},
+    {"$std.image.tensor_rotate270", BuiltinCallable::ImageTensorRotate270},
+    {"$std.image.tensor_grayscale", BuiltinCallable::ImageTensorGrayscale},
+    {"$std.image.tensor_threshold", BuiltinCallable::ImageTensorThreshold},
+    {"$std.image.tensor_blur", BuiltinCallable::ImageTensorBlur},
+    {"$std.image.tensor_filter", BuiltinCallable::ImageTensorFilter},
+    {"$std.image.tensor_dilate", BuiltinCallable::ImageTensorDilate},
+    {"$std.image.tensor_erode", BuiltinCallable::ImageTensorErode},
     {"$std.neural.track", BuiltinCallable::NeuralTrack},
     {"$std.neural.parameter_track", BuiltinCallable::NeuralParameterTrack},
     {"$std.neural.affine", BuiltinCallable::NeuralAffine},
@@ -346,6 +370,18 @@ inline constexpr std::optional<std::string_view> standard_function_target(
     if (module == "image") {
         if (member == "read") return "$std.image.read";
         if (member == "write") return "$std.image.write";
+        if (member == "tensor_crop") return "$std.image.tensor_crop";
+        if (member == "tensor_resize") return "$std.image.tensor_resize";
+        if (member == "tensor_flip_horizontal") return "$std.image.tensor_flip_horizontal";
+        if (member == "tensor_flip_vertical") return "$std.image.tensor_flip_vertical";
+        if (member == "tensor_rotate90") return "$std.image.tensor_rotate90";
+        if (member == "tensor_rotate270") return "$std.image.tensor_rotate270";
+        if (member == "tensor_grayscale") return "$std.image.tensor_grayscale";
+        if (member == "tensor_threshold") return "$std.image.tensor_threshold";
+        if (member == "tensor_blur") return "$std.image.tensor_blur";
+        if (member == "tensor_filter") return "$std.image.tensor_filter";
+        if (member == "tensor_dilate") return "$std.image.tensor_dilate";
+        if (member == "tensor_erode") return "$std.image.tensor_erode";
         return std::nullopt;
     }
     if (module == "neural") {

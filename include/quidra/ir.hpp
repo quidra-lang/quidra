@@ -107,6 +107,15 @@ struct ImageRead {
     std::vector<long long> expected_shape_prefix;
 };
 struct ImageWrite { ValueId out; ValueId path; ValueId image; ValueId quality; Type result_type; };
+struct ImageTensorOp {
+    ValueId out;
+    BuiltinCallable operation;
+    std::vector<ValueId> args;
+    Type result_type;
+    Type element_type;
+    std::uint32_t line{};
+    std::uint32_t column{};
+};
 struct TensorBinary {
     ValueId out;
     std::string op;
@@ -251,7 +260,7 @@ using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantBool, Const
                                  NeuralAffine, NeuralConvolve2D, NeuralUpdate, NeuralNormalize,
                                  NeuralRandomMask, NeuralMomentUpdate,
                                  NeuralSave, NeuralLoad,
-                                 StatsMean, StatsReduce, LinearMatmul, LinearDot, ImageRead, ImageWrite, TensorBinary, TensorIndex, TensorSet, ParseNumber, NumericAbs, Sqrt, MathUnary, MathRoundInt, MathPow,
+                                 StatsMean, StatsReduce, LinearMatmul, LinearDot, ImageRead, ImageWrite, ImageTensorOp, TensorBinary, TensorIndex, TensorSet, ParseNumber, NumericAbs, Sqrt, MathUnary, MathRoundInt, MathPow,
                                  CliArgument, CliOption, CliFlag, CliFinish,
                                  FileRead, FileReadBytes, FileWrite, FileWriteBytes, FileExists, FileIsDirectory, FileRemove, FileCopy, FileMove, FileMkdir, FileList,
                                  EnvironmentGet, EnvironmentHas, TestAssert,

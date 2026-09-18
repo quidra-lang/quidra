@@ -3590,6 +3590,175 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                                                  simple(TypeKind::Error)});
                     break;
                 }
+                case BuiltinCallable::ImageTensorCrop:
+                case BuiltinCallable::ImageTensorResize:
+                case BuiltinCallable::ImageTensorFlipHorizontal:
+                case BuiltinCallable::ImageTensorFlipVertical:
+                case BuiltinCallable::ImageTensorRotate90:
+                case BuiltinCallable::ImageTensorRotate270:
+                case BuiltinCallable::ImageTensorDilate:
+                case BuiltinCallable::ImageTensorErode: {
+                    const bool crop = builtin == BuiltinCallable::ImageTensorCrop;
+                    const bool resize = builtin == BuiltinCallable::ImageTensorResize;
+                    const bool morphology =
+                        builtin == BuiltinCallable::ImageTensorDilate ||
+                        builtin == BuiltinCallable::ImageTensorErode;
+                    const std::size_t expected_args =
+                        crop ? 5U : resize ? 3U : morphology ? 2U : 1U;
+                    if (!node->type_arguments.empty()) {
+                        error("GENERIC_TARGET",
+                              name + " does not take explicit type arguments.",
+                              expression.span);
+                    }
+                    if (node->args.size() != expected_args) {
+                        error("ARGUMENT_MISMATCH",
+                              name + " has an invalid argument count.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
+                    }
+                    auto input = builtin_arg(0, "value");
+                    bool valid = !poisoned(input) &&
+                        input.kind == TypeKind::Tensor && input.first &&
+                        is_numeric(*input.first);
+                    if (!poisoned(input) && !valid) {
+                        error("TYPE_MISMATCH",
+                              name + " requires a numeric tensor.",
+                              node->args[0].span);
+                    }
+                    if (valid && input.length >= 0 && input.length != 3) {
+                        error("TYPE_MISMATCH",
+                              name + " requires a rank-3 CHW tensor.",
+                              node->args[0].span);
+                        valid = false;
+                    }
+                    const auto int_type = simple(TypeKind::Int);
+                    for (std::size_t i = 1; i < node->args.size(); ++i) {
+                        const char* label = crop
+                            ? (i == 1 ? "top" : i == 2 ? "left" :
+                               i == 3 ? "height" : "width")
+                            : resize
+                                ? (i == 1 ? "height" : "width")
+                                : "radius";
+                        auto argument = builtin_arg(i, label, &int_type);
+                        valid = valid && !poisoned(argument);
+                    }
+                    if (!valid) {
+                        type = simple(TypeKind::Invalid);
+                    } else if (crop || resize ||
+                               builtin == BuiltinCallable::ImageTensorRotate90 ||
+                               builtin == BuiltinCallable::ImageTensorRotate270) {
+                        type = Type::tensor(*input.first, 3);
+                    } else {
+                        type = input;
+                    }
+                    break;
+                }
+                case BuiltinCallable::ImageTensorGrayscale: {
+                    if (!node->type_arguments.empty() || node->args.size() != 1) {
+                        error("ARGUMENT_MISMATCH",
+                              "image.tensor_grayscale requires one uint8 CHW tensor.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
+                    }
+                    auto input = builtin_arg(0, "value");
+                    const auto uint8_type = simple(TypeKind::UInt8);
+                    const bool valid = !poisoned(input) &&
+                        input.kind == TypeKind::Tensor && input.first &&
+                        *input.first == uint8_type &&
+                        (input.length < 0 || input.length == 3);
+                    if (!poisoned(input) && !valid) {
+                        error("TYPE_MISMATCH",
+                              "image.tensor_grayscale requires tensor<uint8> with rank 3.",
+                              node->args[0].span);
+                    }
+                    type = valid ? Type::tensor(uint8_type, 3)
+                                 : simple(TypeKind::Invalid);
+                    break;
+                }
+                case BuiltinCallable::ImageTensorThreshold: {
+                    if (!node->type_arguments.empty() || node->args.size() != 4) {
+                        error("ARGUMENT_MISMATCH",
+                              "image.tensor_threshold requires value, cutoff, low, and high.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
+                    }
+                    auto input = builtin_arg(0, "value");
+                    const auto uint8_type = simple(TypeKind::UInt8);
+                    bool valid = !poisoned(input) &&
+                        input.kind == TypeKind::Tensor && input.first &&
+                        *input.first == uint8_type &&
+                        (input.length < 0 || input.length == 3);
+                    for (std::size_t i = 1; i < 4; ++i) {
+                        const char* label = i == 1 ? "cutoff" : i == 2 ? "low" : "high";
+                        auto argument = builtin_arg(i, label, &uint8_type);
+                        valid = valid && !poisoned(argument);
+                    }
+                    if (!poisoned(input) && !valid) {
+                        error("TYPE_MISMATCH",
+                              "image.tensor_threshold requires tensor<uint8> and uint8 scalar values.",
+                              expression.span);
+                    }
+                    type = valid ? input : simple(TypeKind::Invalid);
+                    break;
+                }
+                case BuiltinCallable::ImageTensorBlur: {
+                    if (!node->type_arguments.empty() || node->args.size() != 2) {
+                        error("ARGUMENT_MISMATCH",
+                              "image.tensor_blur requires value and radius.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
+                    }
+                    auto input = builtin_arg(0, "value");
+                    const auto uint8_type = simple(TypeKind::UInt8);
+                    const auto int_type = simple(TypeKind::Int);
+                    auto radius = builtin_arg(1, "radius", &int_type);
+                    const bool valid = !poisoned(input) && !poisoned(radius) &&
+                        input.kind == TypeKind::Tensor && input.first &&
+                        *input.first == uint8_type &&
+                        (input.length < 0 || input.length == 3);
+                    if (!poisoned(input) && !valid) {
+                        error("TYPE_MISMATCH",
+                              "image.tensor_blur requires tensor<uint8> with rank 3 and an integer radius.",
+                              expression.span);
+                    }
+                    type = valid ? input : simple(TypeKind::Invalid);
+                    break;
+                }
+                case BuiltinCallable::ImageTensorFilter: {
+                    if (!node->type_arguments.empty() || node->args.size() != 4) {
+                        error("ARGUMENT_MISMATCH",
+                              "image.tensor_filter requires value, kernel, divisor, and offset.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
+                    }
+                    auto input = builtin_arg(0, "value");
+                    auto kernel = builtin_arg(1, "kernel");
+                    const auto int_type = simple(TypeKind::Int);
+                    auto divisor = builtin_arg(2, "divisor", &int_type);
+                    auto offset = builtin_arg(3, "offset", &int_type);
+                    bool valid = !poisoned(input) && !poisoned(kernel) &&
+                        !poisoned(divisor) && !poisoned(offset);
+                    if (valid) {
+                        valid = input.kind == TypeKind::Tensor && input.first &&
+                            *input.first == simple(TypeKind::UInt8) &&
+                            (input.length < 0 || input.length == 3) &&
+                            kernel.kind == TypeKind::Tensor && kernel.first &&
+                            *kernel.first == int_type &&
+                            (kernel.length < 0 || kernel.length == 2);
+                    }
+                    if (!poisoned(input) && !poisoned(kernel) && !valid) {
+                        error("TYPE_MISMATCH",
+                              "image.tensor_filter requires tensor<uint8> CHW pixels and a rank-2 tensor<int> kernel.",
+                              expression.span);
+                    }
+                    type = valid ? input : simple(TypeKind::Invalid);
+                    break;
+                }
                 case BuiltinCallable::TensorCreate:
                 case BuiltinCallable::TensorZeros:
                 case BuiltinCallable::TensorOnes: {

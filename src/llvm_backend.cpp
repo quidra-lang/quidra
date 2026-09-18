@@ -1952,6 +1952,54 @@ struct FunctionEmitter {
             out<<"  br label %"<<done<<"\n";
             out<<done<<":\n";
         }
+        if constexpr(std::is_same_v<T,ir::ImageTensorOp>){
+            values[n.out]=n.result_type;
+            const auto dtype=tensor_dtype_code(n.element_type);
+            if(n.args.empty())
+                throw std::logic_error("image tensor IR requires an input tensor");
+            const auto geometry_op =
+                n.operation==BuiltinCallable::ImageTensorCrop ? 1 :
+                n.operation==BuiltinCallable::ImageTensorResize ? 2 :
+                n.operation==BuiltinCallable::ImageTensorFlipHorizontal ? 3 :
+                n.operation==BuiltinCallable::ImageTensorFlipVertical ? 4 :
+                n.operation==BuiltinCallable::ImageTensorRotate90 ? 5 :
+                n.operation==BuiltinCallable::ImageTensorRotate270 ? 6 : 0;
+            if(geometry_op){
+                const auto arg=[&](std::size_t index)->std::string{
+                    return index<n.args.size()?value(n.args[index]):"0";
+                };
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_image_tensor_geometry(ptr "
+                   <<value(n.args[0])<<", i32 "<<dtype<<", i32 "<<geometry_op
+                   <<", i64 "<<arg(1)<<", i64 "<<arg(2)
+                   <<", i64 "<<arg(3)<<", i64 "<<arg(4)
+                   <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }else if(n.operation==BuiltinCallable::ImageTensorGrayscale){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_image_tensor_grayscale(ptr "
+                   <<value(n.args[0])<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }else if(n.operation==BuiltinCallable::ImageTensorThreshold){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_image_tensor_threshold(ptr "
+                   <<value(n.args[0])<<", i8 "<<value(n.args[1])
+                   <<", i8 "<<value(n.args[2])<<", i8 "<<value(n.args[3])
+                   <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }else if(n.operation==BuiltinCallable::ImageTensorBlur){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_image_tensor_blur(ptr "
+                   <<value(n.args[0])<<", i64 "<<value(n.args[1])
+                   <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }else if(n.operation==BuiltinCallable::ImageTensorFilter){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_image_tensor_filter(ptr "
+                   <<value(n.args[0])<<", ptr "<<value(n.args[1])
+                   <<", i64 "<<value(n.args[2])<<", i64 "<<value(n.args[3])
+                   <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }else if(n.operation==BuiltinCallable::ImageTensorDilate ||
+                     n.operation==BuiltinCallable::ImageTensorErode){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_image_tensor_morphology(ptr "
+                   <<value(n.args[0])<<", i32 "<<dtype<<", i64 "<<value(n.args[1])
+                   <<", i1 "<<(n.operation==BuiltinCallable::ImageTensorDilate?"true":"false")
+                   <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }else{
+                throw std::logic_error("unknown image tensor operation");
+            }
+        }
         if constexpr(std::is_same_v<T,ir::HttpGet>){
             values[n.out]=n.result_type;
             const auto raw=temp("http.get.raw"),ok=temp("http.get.ok"),result=value(n.out);
@@ -3032,6 +3080,12 @@ declare void @quidra_http_response_drop(ptr)
 declare ptr @quidra_image_read(ptr, i32, i32, i32, i64, i64, i64, ptr)
 declare i1 @quidra_image_write(ptr, ptr, i32, i64)
 declare ptr @quidra_image_last_error_copy()
+declare ptr @quidra_image_tensor_geometry(ptr, i32, i32, i64, i64, i64, i64, i64, i64)
+declare ptr @quidra_image_tensor_grayscale(ptr, i64, i64)
+declare ptr @quidra_image_tensor_threshold(ptr, i8, i8, i8, i64, i64)
+declare ptr @quidra_image_tensor_blur(ptr, i64, i64, i64)
+declare ptr @quidra_image_tensor_filter(ptr, ptr, i64, i64, i64, i64)
+declare ptr @quidra_image_tensor_morphology(ptr, i32, i64, i1, i64, i64)
 declare i32 @printf(ptr, ...)
 declare i32 @puts(ptr nocapture nonnull readonly)
 declare i64 @strlen(ptr nocapture nonnull readonly)

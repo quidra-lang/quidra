@@ -61,9 +61,9 @@ for name in ["print","write","input","range","array","len","abs","sqrt","min","m
 assert x["standard_modules"] == ["math","cli","file","environment","test","time","random","process","map","set","json","http","stats","linear","signal","image","tensor","neural"]
 assert x["array_growth_model"].startswith("append(value)")
 assert "Unicode code-point" in x["string_operation_model"]
-assert "tensor<T, N>" in x["current_types"]
-assert "compile-time rank contract" in x["tensor_model"]
-assert "shape() has static type int[N]" in x["tensor_model"]
+assert "tensor<T, A, B, ...>" in x["current_types"]
+assert "leading shape axes" in x["tensor_model"]
+assert "rank and known shape are inferred" in x["tensor_model"]
 PY
 $QUIDRA check "$ROOT/examples/hello.qui" --json > "$TMP/check-version.json"
 python3 - "$TMP/check-version.json" "$ROOT/quidra.manifest.json" <<'PY'
@@ -2534,46 +2534,42 @@ import json,sys
 x=json.load(open(sys.argv[1]))
 tensor=x["inspection"]["type_contracts"]["tensor"]
 rank=x["inspection"]["type_contracts"]["tensor_rank"]
-assert tensor == "tensor<T> | tensor<T, N>"
-assert "compile-time rank" in rank
-assert "runtime-ABI-erased" in rank
-assert x["inspection"]["type_contracts"]["tensor_shape"] == "tensor<T, N>.shape() -> int[N]; tensor<T>.shape() -> int[]"
+assert tensor == "tensor<T> | tensor<T, A, B, ...>"
+assert "compiler-inferred" in rank
+assert "never written" in rank
+assert "leading shape axes" in x["inspection"]["type_contracts"]["tensor_shape"]
 calls=x["calls"]
 assert calls["argument_order"] == "positional_then_named"
 assert calls["named_syntax"] == "name = value"
 assert "duplicate_parameter" in calls["rejected"]
 PY
 
-cat > "$TMP/inspect-tensor-rank.qui" <<'QUI'
-tensor<float32, 2> matrix = tensor.zeros<float32>([2, 3])
+cat > "$TMP/inspect-tensor-shape.qui" <<'QUI'
+tensor<float32, 2, 3> matrix = tensor.zeros<float32>([2, 3])
 auto row = matrix[0]
 auto dimensions = matrix.shape()
 QUI
-"$QUIDRA" inspect "$TMP/inspect-tensor-rank.qui" --no-source --no-effects > "$TMP/inspect-tensor-rank.json"
-python3 - "$TMP/inspect-tensor-rank.json" <<'PY'
+"$QUIDRA" inspect "$TMP/inspect-tensor-shape.qui" --no-source --no-effects > "$TMP/inspect-tensor-shape.json"
+python3 - "$TMP/inspect-tensor-shape.json" <<'PY'
 import json,sys
 x=json.load(open(sys.argv[1]))
 types={n["inferred_type"] for n in x["nodes"] if n["inferred_type"]}
-assert "tensor<float32, 2>" in types, types
-assert "tensor<float32, 1>" in types, types
+assert "tensor<float32, 2, 3>" in types, types
+assert "tensor<float32, 3>" in types, types
 assert "int[2]" in types, types
 PY
 
-cat > "$TMP/tensor-shape-runtime.qui" <<'QUI'
-tensor<float32, 2> matrix = tensor.zeros<float32>([2, 3])
-auto fixed_shape = matrix.shape()
-tensor<float32> erased = matrix
-auto dynamic_shape = erased.shape()
-print(fixed_shape[0])
-print(fixed_shape[1])
-print(dynamic_shape[0])
-print(dynamic_shape[1])
+cat > "$TMP/tensor-rank-inference.qui" <<'QUI'
+tensor<float32> matrix = tensor.zeros<float32>([2, 3])
+auto shape = matrix.shape()
+print(shape[0])
+print(shape[1])
 QUI
-"$QUIDRA" run "$TMP/tensor-shape-runtime.qui" > "$TMP/tensor-shape-runtime.out"
-python3 - "$TMP/tensor-shape-runtime.out" <<'PY'
+"$QUIDRA" run "$TMP/tensor-rank-inference.qui" > "$TMP/tensor-rank-inference.out"
+python3 - "$TMP/tensor-rank-inference.out" <<'PY'
 import sys
 text=open(sys.argv[1]).read()
-assert text.splitlines() == ["2","3","2","3"], repr(text)
+assert text.splitlines() == ["2","3"], repr(text)
 PY
 
 "$QUIDRA" inspect "$ROOT/examples/classes.qui" --no-source --no-effects --kind integer > "$TMP/inspect-compact.json"

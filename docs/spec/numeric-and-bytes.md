@@ -35,7 +35,7 @@ Explicit casts are practical rather than exact-only. Integer-to-floating-point a
 
 Floating-point to integer conversion is deliberately not a generic cast because it requires an explicit rounding choice. Use `math.trunc`, `math.round`, `math.floor`, or `math.ceil`; these operations reject non-finite and out-of-range results deterministically. `math.round` rounds halfway cases away from zero.
 
-`tensor<T>.cast<U>()` follows the same explicit conversion policy elementwise: integer narrowing is range checked, integer-to-floating-point and floating-point precision reduction may round, and floating-point tensor to integer tensor conversion is rejected in favor of an explicit rounding operation.
+`T(value)` applies the same policy to scalar values and numeric containers. For nested arrays it preserves every fixed/dynamic dimension and converts numeric leaves recursively; for tensors it preserves rank and shape facts while changing the element dtype. Integer narrowing is range checked, integer-to-floating-point and floating-point precision reduction may round, and floating-point containers cannot be generically cast to integer containers. `tensor.cast<T>()` is not a source-language operation.
 
 ## Parsing and text conversion
 

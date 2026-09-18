@@ -2717,8 +2717,30 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if (node->args.size() != 2) {
                         error("ARGUMENT_MISMATCH", "test.equal requires actual and expected values.", expression.span);
                     }
-                    auto actual = builtin_arg(0, "actual");
-                    auto expected_value = builtin_arg(1, "expected");
+                    const auto actual_family =
+                        numeric_literal_family(*node->args[0].value);
+                    const auto expected_family =
+                        numeric_literal_family(*node->args[1].value);
+                    const bool actual_family_only =
+                        actual_family == NumericLiteralFamily::Integer ||
+                        actual_family == NumericLiteralFamily::Floating;
+                    const bool expected_family_only =
+                        expected_family == NumericLiteralFamily::Integer ||
+                        expected_family == NumericLiteralFamily::Floating;
+
+                    Type actual;
+                    Type expected_value;
+                    if (actual_family_only && !expected_family_only) {
+                        expected_value = builtin_arg(1, "expected");
+                        actual = poisoned(expected_value)
+                            ? simple(TypeKind::Invalid)
+                            : builtin_arg(0, "actual", &expected_value);
+                    } else {
+                        actual = builtin_arg(0, "actual");
+                        expected_value = poisoned(actual)
+                            ? simple(TypeKind::Invalid)
+                            : builtin_arg(1, "expected", &actual);
+                    }
                     if (poisoned(actual) || poisoned(expected_value)) {
                         type = simple(TypeKind::Invalid);
                     } else {

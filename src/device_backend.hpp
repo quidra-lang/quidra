@@ -79,6 +79,8 @@ bool compute_matmul(Buffer* output, const Buffer* left, const Buffer* right,
                     std::string& error);
 bool compute_dot(const Buffer* left, const Buffer* right, int dtype,
                  std::size_t count, void* host_result, std::string& error);
+bool compute_reduce(const Buffer* input, int dtype, int operation,
+                    std::size_t count, void* host_result, std::string& error);
 bool compute_mean(const Buffer* input, int dtype, std::size_t count,
                   double& result, std::string& error);
 

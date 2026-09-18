@@ -1299,6 +1299,176 @@ bool compute_dot(const Buffer* left, const Buffer* right, int dtype,
     return real_compute_unavailable(left,"linear.dot",dtype,error);
 }
 
+
+bool compute_reduce(const Buffer* input, int dtype, int operation,
+                    std::size_t count, void* host_result, std::string& error) {
+    if (!input || !host_result || operation < 1 || operation > 3) {
+        error = "invalid GPU tensor reduction";
+        return false;
+    }
+    const auto width = compute_dtype_width(dtype);
+    if (!compute_buffer_range(input, 0, count, width, error)) return false;
+    if (count == 0) {
+        if (operation == 1) {
+            std::memset(host_result, 0, width);
+            return true;
+        }
+        error = operation == 2
+            ? "stats.min is undefined for an empty tensor"
+            : "stats.max is undefined for an empty tensor";
+        return false;
+    }
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    if (input->backend == Backend::Test) {
+        auto run = [&](auto tag) -> bool {
+            using T = decltype(tag);
+            T result{};
+            std::memcpy(&result, input->test_data.data(), sizeof(T));
+            if (operation == 1) result = T{};
+            for (std::size_t i = 0; i < count; ++i) {
+                T value{};
+                std::memcpy(&value, input->test_data.data() + i * sizeof(T), sizeof(T));
+                if (operation == 1) {
+                    T next{};
+                    if (!fake_add(result, value, next)) {
+                        error = "stats.sum integer arithmetic overflow";
+                        return false;
+                    }
+                    result = next;
+                } else if (operation == 2) {
+                    if (value < result) result = value;
+                } else {
+                    if (value > result) result = value;
+                }
+            }
+            std::memcpy(host_result, &result, sizeof(T));
+            return true;
+        };
+        switch (dtype) {
+            case 1: return run(std::int64_t{});
+            case 2: return run(std::int8_t{});
+            case 3: return run(std::int16_t{});
+            case 4: return run(std::int32_t{});
+            case 5: return run(std::uint8_t{});
+            case 6: return run(std::uint16_t{});
+            case 7: return run(std::uint32_t{});
+            case 8: return run(std::uint64_t{});
+            case 9: return run(double{});
+            case 10:return run(float{});
+            default:
+                error = "invalid tensor reduction dtype";
+                return false;
+        }
+    }
+#endif
+
+    if ((dtype == 9 || dtype == 10) && input->backend == Backend::Nvidia) {
+        const bool f32 = dtype == 10;
+        const auto element_width = f32 ? 4U : 8U;
+        std::ostringstream ptx;
+        ptx << ".version 6.0\n.target sm_30\n.address_size 64\n\n"
+               ".visible .entry q_kernel(\n"
+               "  .param .u64 p_out,\n  .param .u64 p_in,\n"
+               "  .param .u64 p_count)\n{\n"
+            << (f32
+              ? "  .reg .pred %p<4>;\n  .reg .b64 %rd<20>;\n  .reg .f32 %f<8>;\n"
+              : "  .reg .pred %p<4>;\n  .reg .b64 %rd<20>;\n  .reg .f64 %fd<8>;\n")
+            << "  ld.param.u64 %rd1, [p_out];\n"
+               "  ld.param.u64 %rd2, [p_in];\n"
+               "  ld.param.u64 %rd5, [p_count];\n"
+               "  mov.u64 %rd7, 0;\n";
+        if (f32) {
+            if (operation == 1) ptx << "  mov.f32 %f1, 0f00000000;\n";
+            else ptx << "  ld.global.f32 %f1, [%rd2];\n  mov.u64 %rd7, 1;\n";
+        } else {
+            if (operation == 1) ptx << "  mov.f64 %fd1, 0d0000000000000000;\n";
+            else ptx << "  ld.global.f64 %fd1, [%rd2];\n  mov.u64 %rd7, 1;\n";
+        }
+        ptx << "LOOP:\n"
+               "  setp.ge.u64 %p1, %rd7, %rd5;\n"
+               "  @%p1 bra STORE;\n"
+            << "  mul.lo.u64 %rd8, %rd7, " << element_width << ";\n"
+               "  add.u64 %rd9, %rd2, %rd8;\n";
+        if (f32) {
+            ptx << "  ld.global.f32 %f2, [%rd9];\n";
+            if (operation == 1) ptx << "  add.f32 %f1, %f1, %f2;\n";
+            else if (operation == 2) ptx << "  min.f32 %f1, %f1, %f2;\n";
+            else ptx << "  max.f32 %f1, %f1, %f2;\n";
+        } else {
+            ptx << "  ld.global.f64 %fd2, [%rd9];\n";
+            if (operation == 1) ptx << "  add.f64 %fd1, %fd1, %fd2;\n";
+            else {
+                ptx << "  setp." << (operation == 2 ? "lt" : "gt")
+                    << ".f64 %p2, %fd2, %fd1;\n"
+                       "  @%p2 mov.f64 %fd1, %fd2;\n";
+            }
+        }
+        ptx << "  add.u64 %rd7, %rd7, 1;\n"
+               "  bra LOOP;\nSTORE:\n";
+        if (f32) ptx << "  st.global.f32 [%rd1], %f1;\n";
+        else ptx << "  st.global.f64 [%rd1], %fd1;\n";
+        ptx << "  ret;\n}\n";
+
+        std::unique_ptr<Buffer, void(*)(Buffer*)> output(
+            allocate(input->global_index, width, error),
+            [](Buffer* value){ quidra::device::release(value); });
+        if (!output) return false;
+        auto out_ptr = output->cuda_pointer;
+        auto in_ptr = input->cuda_pointer;
+        auto n = static_cast<std::uint64_t>(count);
+        void* args[] = {&out_ptr, &in_ptr, &n};
+        auto* module = cached_ptx_module(
+            input->global_index,
+            "reduce-" + std::to_string(dtype) + "-" + std::to_string(operation),
+            ptx.str(), error);
+        if (!module) return false;
+        if (!launch(module, "q_kernel", LaunchDimensions{1,1,1},
+                    LaunchDimensions{1,1,1}, args, error)) return false;
+        return copy_to_host(output.get(), 0, host_result, width, error);
+    }
+
+#ifdef __APPLE__
+    if (dtype == 10 && input->backend == Backend::Metal) {
+        const char* init = operation == 1 ? "0.0f" : "in[0]";
+        const char* start = operation == 1 ? "0" : "1";
+        const char* update = operation == 1
+            ? "result += value;"
+            : operation == 2
+                ? "if (value < result) result = value;"
+                : "if (value > result) result = value;";
+        std::string source =
+            "#include <metal_stdlib>\nusing namespace metal;\n"
+            "kernel void q_kernel(device float* out [[buffer(0)]], "
+            "const device float* in [[buffer(1)]], "
+            "constant ulong& count [[buffer(2)]]) {\n"
+            "  if (thread_position_in_grid.x != 0) return;\n"
+            "  float result = " + std::string(init) + ";\n"
+            "  for (ulong i = " + std::string(start) + "; i < count; ++i) {\n"
+            "    float value = in[i]; " + std::string(update) + "\n"
+            "  }\n"
+            "  out[0] = result;\n"
+            "}\n";
+        auto pipeline = cached_metal_pipeline(
+            [input->metal_buffer device],
+            "reduce-f32-" + std::to_string(operation), source, error);
+        if (!pipeline) return false;
+        std::unique_ptr<Buffer, void(*)(Buffer*)> output(
+            allocate(input->global_index, sizeof(float), error),
+            [](Buffer* value){ quidra::device::release(value); });
+        if (!output) return false;
+        const auto n = static_cast<std::uint64_t>(count);
+        if (!dispatch_metal_1d(output.get(), pipeline, 1,
+            [&](id<MTLComputeCommandEncoder> encoder) {
+                [encoder setBuffer:output->metal_buffer offset:0 atIndex:0];
+                [encoder setBuffer:input->metal_buffer offset:0 atIndex:1];
+                [encoder setBytes:&n length:sizeof(n) atIndex:2];
+            }, error)) return false;
+        return copy_to_host(output.get(), 0, host_result, sizeof(float), error);
+    }
+#endif
+    return real_compute_unavailable(input, "stats reduction", dtype, error);
+}
+
 bool compute_mean(const Buffer* input, int dtype, std::size_t count,
                   double& result, std::string& error) {
     if(!input||count==0){

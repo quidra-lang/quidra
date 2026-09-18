@@ -1916,6 +1916,17 @@ QUI
 [[ "$("$QUIDRA" run "$TMP/cli-exact.qui" -- 123456789012345678901234567890 --ratio 0.125)" == "$(printf '123456789012345678901234567890\ntrue')" ]]
 [[ "$("$QUIDRA" run "$TMP/cli-exact.qui" -- 7)" == "$(printf '7\nfalse')" ]]
 
+set +e
+"$QUIDRA" run "$TMP/cli-exact.qui" -- nope >"$TMP/cli-exact-bigint.out" 2>"$TMP/cli-exact-bigint.err"
+cli_exact_bigint_rc=$?
+"$QUIDRA" run "$TMP/cli-exact.qui" -- 7 --ratio nope >"$TMP/cli-exact-bigreal.out" 2>"$TMP/cli-exact-bigreal.err"
+cli_exact_bigreal_rc=$?
+set -e
+[[ "$cli_exact_bigint_rc" -eq 2 ]]
+[[ "$cli_exact_bigreal_rc" -eq 2 ]]
+grep -q 'Quidra CLI error: invalid bigint value' "$TMP/cli-exact-bigint.err"
+grep -q 'Quidra CLI error: invalid bigreal value' "$TMP/cli-exact-bigreal.err"
+
 python3 - "$QUIDRA" "$TMP/cli-text.qui" <<'PY'
 import os
 import subprocess

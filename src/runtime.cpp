@@ -44,6 +44,9 @@
 #include <unistd.h>
 #endif
 
+extern "C" void* quidra_bigint_parse(const char*);
+extern "C" void* quidra_bigreal_parse(const char*);
+
 namespace {
 int runtime_argc = 0;
 char** runtime_argv = nullptr;
@@ -7283,6 +7286,18 @@ extern "C" double quidra_cli_parse_float(const char* text) {
     char* end = nullptr;
     const auto value = std::strtod(text, &end);
     if (errno == ERANGE || end == text || !end || *end != '\0') cli_fail("invalid float value");
+    return value;
+}
+
+extern "C" void* quidra_cli_parse_bigint(const char* text) {
+    auto* value = quidra_bigint_parse(text);
+    if (!value) cli_fail("invalid bigint value");
+    return value;
+}
+
+extern "C" void* quidra_cli_parse_bigreal(const char* text) {
+    auto* value = quidra_bigreal_parse(text);
+    if (!value) cli_fail("invalid bigreal value");
     return value;
 }
 

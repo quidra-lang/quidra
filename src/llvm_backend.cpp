@@ -1658,8 +1658,8 @@ struct FunctionEmitter {
             if(n.type.kind==TypeKind::String) out<<"  "<<value(n.out)<<" = getelementptr i8, ptr "<<raw<<", i64 0\n";
             else if(n.type.kind==TypeKind::Int) out<<"  "<<value(n.out)<<" = call i64 @quidra_cli_parse_int(ptr "<<raw<<")\n";
             else if(n.type.kind==TypeKind::Float) out<<"  "<<value(n.out)<<" = call double @quidra_cli_parse_float(ptr "<<raw<<")\n";
-            else if(n.type.kind==TypeKind::BigInt) out<<"  "<<value(n.out)<<" = call ptr @quidra_bigint_literal(ptr "<<raw<<")\n";
-            else if(n.type.kind==TypeKind::BigReal) out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_literal(ptr "<<raw<<")\n";
+            else if(n.type.kind==TypeKind::BigInt) out<<"  "<<value(n.out)<<" = call ptr @quidra_cli_parse_bigint(ptr "<<raw<<")\n";
+            else if(n.type.kind==TypeKind::BigReal) out<<"  "<<value(n.out)<<" = call ptr @quidra_cli_parse_bigreal(ptr "<<raw<<")\n";
             else if(n.type.kind==TypeKind::Bool) out<<"  "<<value(n.out)<<" = call i1 @quidra_cli_parse_bool(ptr "<<raw<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::CliOption>){
@@ -1680,8 +1680,8 @@ struct FunctionEmitter {
                 parsed=temp("cli.option.value");
                 if(n.type.kind==TypeKind::Int) out<<"  "<<parsed<<" = call i64 @quidra_cli_parse_int(ptr "<<raw<<")\n";
                 else if(n.type.kind==TypeKind::Float) out<<"  "<<parsed<<" = call double @quidra_cli_parse_float(ptr "<<raw<<")\n";
-                else if(n.type.kind==TypeKind::BigInt) out<<"  "<<parsed<<" = call ptr @quidra_bigint_literal(ptr "<<raw<<")\n";
-                else if(n.type.kind==TypeKind::BigReal) out<<"  "<<parsed<<" = call ptr @quidra_bigreal_literal(ptr "<<raw<<")\n";
+                else if(n.type.kind==TypeKind::BigInt) out<<"  "<<parsed<<" = call ptr @quidra_cli_parse_bigint(ptr "<<raw<<")\n";
+                else if(n.type.kind==TypeKind::BigReal) out<<"  "<<parsed<<" = call ptr @quidra_cli_parse_bigreal(ptr "<<raw<<")\n";
                 else if(n.type.kind==TypeKind::Bool) out<<"  "<<parsed<<" = call i1 @quidra_cli_parse_bool(ptr "<<raw<<")\n";
             }
             out<<"  br label %"<<done<<"\n"<<done<<":\n";
@@ -3486,6 +3486,8 @@ declare i1 @quidra_cli_flag(ptr)
 declare void @quidra_cli_finish()
 declare i64 @quidra_cli_parse_int(ptr)
 declare double @quidra_cli_parse_float(ptr)
+declare ptr @quidra_cli_parse_bigint(ptr)
+declare ptr @quidra_cli_parse_bigreal(ptr)
 declare i1 @quidra_cli_parse_bool(ptr)
 declare ptr @quidra_file_read_raw(ptr)
 declare ptr @quidra_file_read_bin_raw(ptr)

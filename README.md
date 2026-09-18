@@ -765,8 +765,14 @@ Results are limited to ABI-stable scalar values or `void`. Scalar/bool parameter
 quidra
 quidra repl
 quidra lsp
-quidra package list
-quidra package install ./my-package --name my_package
+quidra install dnn
+quidra install dnn@0.2.0
+quidra install ./my-package
+quidra remove dnn
+quidra list
+quidra lock program.qui
+quidra lock program.qui --check
+quidra package-path
 quidra program.qui
 quidra run program.qui
 quidra check program.qui
@@ -783,8 +789,17 @@ quidra debug program.qui -- arg1 arg2
 quidra describe
 ```
 
+Released packages are installed from immutable `vMAJOR.MINOR.PATCH` tags, never
+from `main`, `develop`, or another moving branch. A bare first-party package
+name such as `dnn` resolves to `quidra-lang/dnn`; with no version written,
+Quidra chooses the newest released tag compatible with the running compiler.
+`quidra.package` records the package version and its
+`requires.quidra`/package dependency ranges. Local directory installation and
+`QUIDRA_PACKAGE_PATH` remain available for development.
 
-Installed source packages use the existing deterministic package location `~/.quidra/packages/<name>/main.qui` and can also be discovered through `QUIDRA_PACKAGE_PATH`. The built-in `quidra package` commands manage only the default local store: `install` validates `main.qui` through the ordinary frontend before an atomic directory replacement, rejects symbolic links, and refuses replacement unless `--force` is explicit; `remove`, `list`, and `path` provide the corresponding local operations. Network fetching is intentionally outside this core command, so installing a package never executes a package script or silently contacts a registry. For reproducible projects, `quidra package lock FILE.qui` writes `quidra.lock` with the SHA-256 of every direct and transitive installed package actually reached by the import graph. Once present, the compiler enforces those hashes; `quidra package lock FILE.qui --check` is the non-writing CI check.
+`quidra lock FILE.qui` records each resolved package's version and SHA-256 in
+`quidra.lock`; normal compilation verifies both. See
+[Package management](docs/packages.md) for the complete contract.
 
 ### Debugging
 
@@ -793,6 +808,7 @@ Installed source packages use the existing deterministic package location `~/.qu
 ## Documentation
 
 - [Development and release workflow](docs/development.md)
+- [Package management](docs/packages.md)
 - [Language semantics](docs/spec/language.md)
 - [Numeric types and bytes](docs/spec/numeric-and-bytes.md)
 - [Grammar](docs/spec/grammar.ebnf)

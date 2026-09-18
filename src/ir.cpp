@@ -596,7 +596,7 @@ struct Lowerer {
             block->instructions.push_back(LoadLocal{out,result_name,to});
             return out;
         }
-        if(to.kind==TypeKind::Union && from.kind!=TypeKind::Union){if(copy)v=copy_value(v,from);auto out=fresh();block->instructions.push_back(VariantMake{out,case_index(to,from),v,to,from});return out;}
+        if(to.kind==TypeKind::Union && from.kind!=TypeKind::Union){if(copy)v=copy_value(v,from);auto out=fresh();block->instructions.push_back(VariantMake{out,compatible_case_index(to,from),v,to,from});return out;}
         if(from!=to && is_numeric(from) && is_numeric(to)){
             auto out=fresh();
             block->instructions.push_back(NumericConvert{out,v,from,to,false});

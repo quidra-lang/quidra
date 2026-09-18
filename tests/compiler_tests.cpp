@@ -1390,6 +1390,16 @@ tensor<float32, 2> source = tensor.ones<float32>([2, 2])
 tensor<float32> erased = erase_rank(source)
 tensor<float32, 2> kept = keep_rank(source)
 )");
+ good(R"(tensor<float32> | error direct = tensor.zeros<float32>([2, 2])
+tensor<float32, 2> | error ranked = tensor.ones<float32>([2, 2])
+tensor<float32> | error widened = ranked
+match widened
+    tensor<float32> pixels
+        int[] dimensions = pixels.shape()
+        print(dimensions[0])
+    error problem
+        print(problem)
+)");
  good(R"(tensor<float32, 3> | error loaded = tensor.ones<float32>([1, 2, 3])
 match loaded
     tensor<float32> pixels

@@ -481,6 +481,33 @@ inline int case_index(const Type& type, const Type& current) {
     return it == type.cases.end() ? -1 : static_cast<int>(it - type.cases.begin());
 }
 
+inline bool representation_erasure_compatible(const Type& from, const Type& to) {
+    if (from == to) return true;
+    if (from.kind == TypeKind::Tensor && to.kind == TypeKind::Tensor) {
+        return from.first && to.first && *from.first == *to.first &&
+               from.length >= 0 && to.length < 0;
+    }
+    if (from.kind == TypeKind::Array && to.kind == TypeKind::Array) {
+        if (!from.first || !to.first) return false;
+        if (to.length >= 0 && from.length != to.length) return false;
+        if (from.length < 0 && to.length >= 0) return false;
+        return representation_erasure_compatible(*from.first, *to.first);
+    }
+    return false;
+}
+
+inline int compatible_case_index(const Type& type, const Type& current) {
+    if (const int exact = case_index(type, current); exact >= 0) return exact;
+
+    int match = -1;
+    for (std::size_t i = 0; i < type.cases.size(); ++i) {
+        if (!representation_erasure_compatible(current, type.cases[i])) continue;
+        if (match >= 0) return -1;
+        match = static_cast<int>(i);
+    }
+    return match;
+}
+
 inline bool assignable(const Type& from, const Type& to) {
     if (from.kind == TypeKind::Invalid || to.kind == TypeKind::Invalid || from == to ||
         from.kind == TypeKind::Never) {
@@ -489,10 +516,11 @@ inline bool assignable(const Type& from, const Type& to) {
     if (lossless_implicit_numeric_conversion(from, to)) return true;
     if (to.kind == TypeKind::Union) {
         if (from.kind == TypeKind::Union) {
-            return std::all_of(from.cases.begin(), from.cases.end(),
-                               [&](const auto& current) { return case_index(to, current) >= 0; });
+            return std::all_of(
+                from.cases.begin(), from.cases.end(),
+                [&](const auto& current) { return compatible_case_index(to, current) >= 0; });
         }
-        return case_index(to, from) >= 0;
+        return compatible_case_index(to, from) >= 0;
     }
     if (from.kind == TypeKind::Array && to.kind == TypeKind::Array) {
         return (to.length < 0 || to.length == from.length) &&

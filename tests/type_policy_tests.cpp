@@ -40,6 +40,17 @@ int main() {
     require(runtime_storage_bytes(tensor_rank2) == runtime_storage_bytes(tensor_unknown),
             "tensor rank metadata must not change runtime ABI size");
 
+    const auto tensor_or_error =
+        Type::union_of({tensor_unknown, t(TypeKind::Error)});
+    const auto ranked_tensor_or_error =
+        Type::union_of({tensor_rank2, t(TypeKind::Error)});
+    require(compatible_case_index(tensor_or_error, tensor_rank2) >= 0,
+            "ranked tensor maps to rank-erased union case");
+    require(assignable(tensor_rank2, tensor_or_error),
+            "ranked tensor may enter a union through rank erasure");
+    require(assignable(ranked_tensor_or_error, tensor_or_error),
+            "ranked tensor union may widen through rank erasure");
+
     require(lossless_implicit_numeric_conversion(t(TypeKind::Int8), t(TypeKind::Int16)),
             "int8 -> int16");
     require(lossless_implicit_numeric_conversion(t(TypeKind::UInt8), t(TypeKind::Int16)),

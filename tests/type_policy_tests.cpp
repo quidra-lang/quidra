@@ -89,8 +89,8 @@ int main() {
                 NumericConversionPolicy::Forbidden,
             "float -> int requires an explicit rounding operation");
     require(numeric_conversion_policy(t(TypeKind::Float), t(TypeKind::Float32)) ==
-                NumericConversionPolicy::ExplicitDeterministic,
-            "float64 -> float32 is a deterministic explicit conversion");
+                NumericConversionPolicy::ExplicitRangeCheck,
+            "float64 -> float32 permits rounding but rejects finite range overflow");
 
     require(integer_value_fits(127, t(TypeKind::Int8)), "127 fits int8");
     require(!integer_value_fits(128, t(TypeKind::Int8)), "128 does not fit int8");
@@ -99,6 +99,10 @@ int main() {
 
     require(float_value_fits_exactly(1.5, t(TypeKind::Float32)), "1.5 is exact float32");
     require(!float_value_fits_exactly(0.1, t(TypeKind::Float32)), "0.1 is not exact float32");
+    require(float_value_fits_range(0.1, t(TypeKind::Float32)),
+            "0.1 may round when materialized as float32");
+    require(!float_value_fits_range(1.0e100, t(TypeKind::Float32)),
+            "finite values outside float32 range are rejected");
     require(integer_value_fits_exactly_in_float(9007199254740992LL, t(TypeKind::Float)),
             "2^53 is exactly representable by float64");
     require(!integer_value_fits_exactly_in_float(9007199254740993LL, t(TypeKind::Float)),

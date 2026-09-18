@@ -1798,6 +1798,13 @@ enum class NeuralOp {
     Absolute, Exponential, Logarithm, Mean, SumLast, MaxLast
 };
 
+extern "C" void* quidra_neural_tensor_unary(
+    void* raw,int op,unsigned long long line,unsigned long long column);
+extern "C" void* quidra_tensor_binary(
+    void* primary_raw,void* other_raw,void* scalar,int scalar_side,
+    int operation,unsigned long long line,unsigned long long column);
+
+
 class NeuralBuffer {
 public:
     explicit NeuralBuffer(int dtype=10) { set_dtype(dtype); }
@@ -1869,8 +1876,13 @@ struct NeuralNode {
     NeuralBuffer aux;
     std::vector<std::size_t> aux_index;
     unsigned long long parameter_id{};
+    TensorValue* device_tensor{};
 
     ~NeuralNode() noexcept {
+        if(device_tensor){
+            quidra_tensor_drop(device_tensor);
+            device_tensor=nullptr;
+        }
         // shared_ptr parent chains can otherwise recurse through destructors and
         // exhaust the native stack even though graph traversal itself is iterative.
         std::vector<std::shared_ptr<NeuralNode>> pending;
@@ -1941,9 +1953,19 @@ NeuralBuffer tensor_float_values(const TensorValue& tensor,
 std::shared_ptr<NeuralNode> neural_constant_node(const TensorValue& tensor,
                                                  unsigned long long line,
                                                  unsigned long long column) {
+    tensor_require_initialized(tensor,line,column);
+    if(tensor.storage->dtype!=9&&tensor.storage->dtype!=10)
+        neural_fail("neural values require float32 or float tensors",line,column);
     auto node=std::make_shared<NeuralNode>(tensor.storage->dtype);
     node->shape=tensor.shape;
-    node->data=tensor_float_values(tensor,line,column);
+    if(tensor_on_cpu(*tensor.storage)){
+        node->data=tensor_float_values(tensor,line,column);
+    }else{
+        node->device_tensor=static_cast<TensorValue*>(
+            quidra_tensor_clone(const_cast<TensorValue*>(&tensor)));
+        if(!node->device_tensor)
+            neural_fail("failed to retain GPU tensor for neural graph",line,column);
+    }
     return node;
 }
 
@@ -1977,7 +1999,33 @@ TensorValue* neural_tensor_from_values(
 }
 
 TensorValue* neural_tensor_from_node(const NeuralNode& node) {
+    if(node.device_tensor)
+        return static_cast<TensorValue*>(quidra_tensor_clone(node.device_tensor));
     return neural_tensor_from_values(node.dtype,node.shape,node.data);
+}
+
+std::size_t neural_node_count(const NeuralNode& node) {
+    return node.device_tensor
+        ? tensor_logical_count(*node.device_tensor)
+        : node.data.size();
+}
+
+void neural_require_same_node_device(
+    const char* operation,const NeuralNode& left,const NeuralNode& right,
+    unsigned long long line,unsigned long long column) {
+    const bool left_gpu=left.device_tensor!=nullptr;
+    const bool right_gpu=right.device_tensor!=nullptr;
+    if(left_gpu!=right_gpu){
+        const auto message=std::string(operation)+
+            " operands must be on the same device; transfer them explicitly before neural.track";
+        neural_fail(message.c_str(),line,column);
+    }
+    if(left_gpu &&
+       left.device_tensor->storage->device!=right.device_tensor->storage->device){
+        const auto message=std::string(operation)+
+            " operands must use the same gpu(n)";
+        neural_fail(message.c_str(),line,column);
+    }
 }
 
 TensorValue* neural_parameter_tensor(void* parameter_raw) {
@@ -2113,8 +2161,11 @@ void neural_set_state_u64(void* state,std::uint64_t value) {
 
 void neural_require_same_shape(const NeuralNode& a,const NeuralNode& b,
                                unsigned long long line,unsigned long long column) {
-    if(a.shape!=b.shape || a.data.size()!=b.data.size()) neural_fail("neural operand shapes must match",line,column);
-    if(a.dtype!=b.dtype) neural_fail("neural operand element types must match",line,column);
+    if(a.shape!=b.shape || neural_node_count(a)!=neural_node_count(b))
+        neural_fail("neural operand shapes must match",line,column);
+    if(a.dtype!=b.dtype)
+        neural_fail("neural operand element types must match",line,column);
+    neural_require_same_node_device("neural operation",a,b,line,column);
 }
 
 template <typename T>
@@ -2167,13 +2218,23 @@ void neural_apply_unary(NeuralBuffer& values,int dtype,int op,const std::vector<
 std::shared_ptr<NeuralNode> neural_unary_node(const std::shared_ptr<NeuralNode>& input,int op,
                                               unsigned long long line,unsigned long long column) {
     auto node=std::make_shared<NeuralNode>(input->dtype);
-    node->dtype=input->dtype;node->shape=input->shape;node->data=input->data;node->parents={input};
+    node->dtype=input->dtype;
+    node->shape=input->shape;
+    node->parents={input};
     node->op=op==1?NeuralOp::Absolute:
         op==2?NeuralOp::Exponential:
         op==3?NeuralOp::Logarithm:
         op==4?NeuralOp::Mean:
         op==5?NeuralOp::SumLast:NeuralOp::MaxLast;
-    neural_apply_unary(node->data,node->dtype,op,node->shape,line,column);
+    if(input->device_tensor){
+        node->device_tensor=static_cast<TensorValue*>(
+            quidra_neural_tensor_unary(input->device_tensor,op,line,column));
+        if(!node->device_tensor)
+            neural_fail("GPU neural unary operation returned null",line,column);
+    }else{
+        node->data=input->data;
+        neural_apply_unary(node->data,node->dtype,op,node->shape,line,column);
+    }
     if(op==4) node->shape={};
     return node;
 }

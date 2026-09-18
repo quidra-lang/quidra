@@ -1509,13 +1509,14 @@ tensor<float><2, 2> neural_restored = neural_converted.untrack()
  bad_code("tensor<float> values = tensor.ones<float>([2])\nauto converted = int(values)\n", "NUMERIC_CAST");
  bad_code("tensor<int> values = tensor.ones<int>([2])\nauto converted = values.cast<float>()\n", "UNKNOWN_MEMBER");
 
- // Tensor flow facts must weaken at control-flow joins when paths disagree.
- bad_code(R"(void branch_shape(bool flag)
+ // Tensor flow facts weaken at joins. A later exact-shape binding accepts the
+ // unknown fact set and emits a runtime constraint check.
+ good(R"(void branch_shape(bool flag)
     tensor<float32> value = tensor.zeros<float32>([3, 4])
     if flag
         value = tensor.zeros<float32>([3, 5])
     tensor<float32><3, 4> exact = value
-)", "TYPE_MISMATCH");
+)");
  bad_code(R"(void branch_rank(bool flag)
     tensor<float32> value = tensor.zeros<float32>([2, 2])
     if flag

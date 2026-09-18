@@ -134,12 +134,27 @@ tensor<float32> product = linear.matmul(matrix_a, matrix_b)
 print(product[0, 0].item())
 print(product[1, 1].item())
 
+tensor<float32> row_vector = tensor.ones<float32>([3], gpu = 0)
+tensor<float32> vector_matrix = linear.matmul(row_vector, matrix_b)
+print(vector_matrix.shape()[0])
+print(vector_matrix[1].item())
+
+tensor<float32> column_vector = tensor.ones<float32>([3], gpu = 0)
+tensor<float32> matrix_vector = linear.matmul(matrix_a, column_vector)
+print(matrix_vector.shape()[0])
+print(matrix_vector[1].item())
+
+tensor<float32> cpu_matrix = tensor.ones<float32>([2, 3])
+tensor<float32> cpu_vector = tensor.ones<float32>([3])
+tensor<float32> cpu_matrix_vector = linear.matmul(cpu_matrix, cpu_vector)
+print(cpu_matrix_vector[1].item())
+
 tensor<float32> cpu_reference = product.cpu()
 print(cpu_reference[0, 0].item())
 QUI
 
 gpu_compute_output="$("$QUIDRA" run "$TMP/gpu-compute.qui")"
-gpu_compute_expected="$(printf '2.0\n4.0\n3.0\n-1.0\n3.0\n6\n1\n3\n2.0\n2.0\n3.0\n3.0\n3.0')"
+gpu_compute_expected="$(printf '2.0\n4.0\n3.0\n-1.0\n3.0\n6\n1\n3\n2.0\n2.0\n3.0\n3.0\n2\n3.0\n2\n3.0\n3.0\n3.0')"
 if [[ "$gpu_compute_output" != "$gpu_compute_expected" ]]; then
     echo "unexpected fake-GPU compute output:" >&2
     printf '%s\n' "$gpu_compute_output" >&2

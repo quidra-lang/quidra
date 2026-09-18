@@ -366,6 +366,144 @@ std::string hip_gather_source(std::size_t width) {
            "if(i<count)out[i]=src[indices[i]];}";
 }
 
+
+bool hip_integer_dtype(int dtype) {
+    return dtype>=1 && dtype<=8;
+}
+bool hip_signed_dtype(int dtype) {
+    return dtype>=1 && dtype<=4;
+}
+std::string hip_signed_min(int dtype) {
+    switch(dtype){
+        case 1:return "(-9223372036854775807ll-1ll)";
+        case 2:return "(-127-1)";
+        case 3:return "(-32767-1)";
+        case 4:return "(-2147483647-1)";
+        default:return "0";
+    }
+}
+std::string hip_integral_max(int dtype) {
+    switch(dtype){
+        case 1:return "9223372036854775807ll";
+        case 2:return "127";
+        case 3:return "32767";
+        case 4:return "2147483647";
+        case 5:return "255u";
+        case 6:return "65535u";
+        case 7:return "4294967295u";
+        case 8:return "18446744073709551615ull";
+        default:return "0";
+    }
+}
+std::string hip_integer_binary_source(int dtype,int operation,int scalar_side) {
+    const auto type=hip_dtype_type(dtype);
+    const bool is_signed=hip_signed_dtype(dtype);
+    std::ostringstream out;
+    out<<"extern \"C\" __global__ void q_kernel("<<type<<"* out,const "<<type
+       <<"* left,const "<<type<<"* right,"<<type
+       <<" scalar,unsigned long long count,unsigned int* status){"
+         "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+         "if(i>=count)return;"<<type<<" a=left[i],b=";
+    if(scalar_side==0) out<<"right[i];";
+    else out<<"scalar;";
+    if(scalar_side==1) out<<type<<" tmp=a;a=b;b=tmp;";
+    out<<type<<" r=0;bool bad=false;";
+    if(operation==1) out<<"bad=__builtin_add_overflow(a,b,&r);";
+    else if(operation==2) out<<"bad=__builtin_sub_overflow(a,b,&r);";
+    else if(operation==3) out<<"bad=__builtin_mul_overflow(a,b,&r);";
+    else if(operation==4){
+        out<<"if(b==0)bad=true;";
+        if(is_signed) out<<"else if(a==("<<type<<")"<<hip_signed_min(dtype)<<"&&b==("<<type<<")-1)bad=true;";
+        out<<"else r=("<<type<<")(a/b);";
+    }else{
+        out<<"if(b==0)bad=true;else {";
+        if(is_signed) out<<"if(a==("<<type<<")"<<hip_signed_min(dtype)<<"&&b==("<<type<<")-1)r=("<<type<<")0;else ";
+        out<<"r=("<<type<<")(a%b);}";
+    }
+    out<<"if(bad){status[0]=1u;return;}out[i]=r;}";
+    return out.str();
+}
+std::string hip_integer_unary_source(int dtype) {
+    const auto type=hip_dtype_type(dtype);
+    return "extern \"C\" __global__ void q_kernel("+type+
+      "* out,const "+type+"* in,unsigned long long count,unsigned int* status){"
+      "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;if(i>=count)return;"
+      +type+" v=in[i];if(v==("+type+")"+hip_signed_min(dtype)+"){status[0]=1u;return;}out[i]=("+type+")(-v);}";
+}
+std::string hip_cast_source(int source_dtype,int target_dtype) {
+    const auto src=hip_dtype_type(source_dtype),dst=hip_dtype_type(target_dtype);
+    const bool src_int=hip_integer_dtype(source_dtype),dst_int=hip_integer_dtype(target_dtype);
+    std::ostringstream out;
+    out<<"extern \"C\" __global__ void q_kernel("<<dst<<"* out,const "<<src
+       <<"* in,unsigned long long count,unsigned int* status){"
+         "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;if(i>=count)return;"
+       <<src<<" v=in[i];";
+    if(src_int&&dst_int){
+        const bool ss=hip_signed_dtype(source_dtype),ds=hip_signed_dtype(target_dtype);
+        if(ss&&ds){
+            out<<"long long q=(long long)v;if(q<(long long)"<<hip_signed_min(target_dtype)
+               <<"||q>(long long)"<<hip_integral_max(target_dtype)<<"){status[0]=1u;return;}";
+        }else if(ss&&!ds){
+            out<<"if(v<0){status[0]=1u;return;}unsigned long long q=(unsigned long long)v;"
+                  "if(q>(unsigned long long)"<<hip_integral_max(target_dtype)<<"){status[0]=1u;return;}";
+        }else if(!ss&&ds){
+            out<<"unsigned long long q=(unsigned long long)v;if(q>(unsigned long long)"
+               <<hip_integral_max(target_dtype)<<"){status[0]=1u;return;}";
+        }else{
+            out<<"unsigned long long q=(unsigned long long)v;if(q>(unsigned long long)"
+               <<hip_integral_max(target_dtype)<<"){status[0]=1u;return;}";
+        }
+    }
+    out<<"out[i]=("<<dst<<")v;}";
+    return out.str();
+}
+std::string hip_matmul_source(int dtype,bool checked) {
+    const auto type=hip_dtype_type(dtype);
+    std::ostringstream out;
+    out<<"extern \"C\" __global__ void q_kernel("<<type<<"* out,const "<<type
+       <<"* left,const "<<type
+       <<"* right,unsigned long long m,unsigned long long k,unsigned long long n,unsigned int* status){"
+         "unsigned long long g=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;if(g>=m*n)return;"
+         "unsigned long long row=g/n,col=g%n;"<<type<<" total=("<<type<<")0;"
+         "for(unsigned long long i=0;i<k;++i){"<<type<<" p=0,next=0;";
+    if(checked)
+        out<<"if(__builtin_mul_overflow(left[row*k+i],right[i*n+col],&p)||"
+              "__builtin_add_overflow(total,p,&next)){status[0]=1u;return;}total=next;";
+    else
+        out<<"total+=left[row*k+i]*right[i*n+col];";
+    out<<"}out[g]=total;}";
+    return out.str();
+}
+std::string hip_dot_source(int dtype,bool checked) {
+    const auto type=hip_dtype_type(dtype);
+    std::ostringstream out;
+    out<<"extern \"C\" __global__ void q_kernel("<<type<<"* out,const "<<type
+       <<"* left,const "<<type<<"* right,unsigned long long count,unsigned int* status){"
+         "if(blockIdx.x||threadIdx.x)return;"<<type<<" total=("<<type<<")0;"
+         "for(unsigned long long i=0;i<count;++i){"<<type<<" p=0,next=0;";
+    if(checked)
+        out<<"if(__builtin_mul_overflow(left[i],right[i],&p)||__builtin_add_overflow(total,p,&next)){status[0]=1u;return;}total=next;";
+    else out<<"total+=left[i]*right[i];";
+    out<<"}out[0]=total;}";
+    return out.str();
+}
+std::string hip_reduce_source(int dtype,int operation,bool checked) {
+    const auto type=hip_dtype_type(dtype);
+    std::ostringstream out;
+    out<<"extern \"C\" __global__ void q_kernel("<<type<<"* out,const "<<type
+       <<"* in,unsigned long long count,unsigned int* status){if(blockIdx.x||threadIdx.x)return;"
+       <<type<<" result=";
+    if(operation==1) out<<"("<<type<<")0;unsigned long long start=0;";
+    else out<<"in[0];unsigned long long start=1;";
+    out<<"for(unsigned long long i=start;i<count;++i){";
+    if(operation==1&&checked) out<<type<<" next=0;if(__builtin_add_overflow(result,in[i],&next)){status[0]=1u;return;}result=next;";
+    else if(operation==1) out<<"result+=in[i];";
+    else if(operation==2) out<<"if(in[i]<result)result=in[i];";
+    else out<<"if(in[i]>result)result=in[i];";
+    out<<"}out[0]=result;}";
+    return out.str();
+}
+
 std::string hip_float_binary_source(int dtype,int operation,int scalar_side) {
     const auto type=dtype==10?"float":"double";
     const char* op=operation==1?"+":operation==2?"-":operation==3?"*":"/";

@@ -1407,7 +1407,7 @@ bool same = a == b
  bad_code("import math\n", "STANDARD_NAMESPACE_IMPORT");
  bad_code("auto loaded = vision.read<uint8>(\"input.png\")\n", "GENERIC_RECEIVER");
  bad_code("auto loaded = vision.read(\"input.png\")\n", "UNKNOWN_NAME");
- good("print(math.sqrt(16.0))\n");
+ good("print(math.sqrt(float(16.0)))\n");
  good("tensor<float32> grid = tensor.zeros<float32>([2, 2])\nprint(grid.shape()[0])\n");
  bad_code("1 = 2\n", "INVALID_ASSIGNMENT");
  bad_code(R"(class Broken : Missing

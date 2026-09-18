@@ -105,6 +105,30 @@ print(int(1))  // valid
 
 There are no display-only, interpolation-only, or other special exceptions for numeric-family literals.
 
+## Fixed-width bitwise operations
+
+Bitwise operations are defined only for the fixed-width integer types `int8`, `int16`, `int32`, `int`/`int64`, `uint8`, `uint16`, `uint32`, and `uint64`.
+
+```quidra
+uint8 flags = 240
+uint8 mask = 204
+
+uint8 both = flags AND mask
+uint8 either = flags OR mask
+uint8 changed = flags XOR mask
+uint8 inverted = NOT flags
+uint8 left = flags << 1
+uint8 right = flags >> 2
+```
+
+`AND`, `OR`, `XOR`, and `NOT` are uppercase deliberately. Lowercase `and`, `or`, and `not` are bool-only logical operations; `&` remains explicit storage access and `|` remains union syntax. The language therefore does not reuse one spelling for unrelated meanings.
+
+Binary bitwise operands have the same concrete fixed-width integer type. A bare integer-family literal may materialize from that operator context in the normal way. `float32`, `float`, `bigint`, `bigreal`, `bool`, `bin`, tensor, and neural values do not accept these operators.
+
+`NOT` flips every bit of the fixed-width representation. `AND`, `OR`, and `XOR` operate on that representation directly. `<<` discards bits shifted beyond the fixed width. `>>` is arithmetic for signed integer types and logical for unsigned integer types. Shift counts must be nonnegative and smaller than the operand width; a provably invalid constant count is a compile-time `SHIFT_COUNT` error and a dynamic invalid count is a deterministic runtime `SHIFT_COUNT` failure.
+
+These operations are representation operations rather than arithmetic conversions. They never change the operand type and never imply a cast.
+
 ## Exact integers and reals
 
 `bigint` arithmetic `+`, `-`, `*`, integer `/`, and `%` is exact and does not overflow because storage grows with the value. The source type never changes as the value grows.

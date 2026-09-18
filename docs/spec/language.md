@@ -162,9 +162,11 @@ Generic class instantiation remains explicit. Function and method type arguments
 
 ```quidra
 Box<int> box = Box<int>(value = 7)
-int first_value = first([1, 2, 3])
+int[] values = [1, 2, 3]
+int first_value = first(values)
 Convert convert = Convert()
-int same = convert.identity(5)
+int input = 5
+int same = convert.identity(input)
 ```
 
 Explicit function or method type arguments remain valid when inference would be ambiguous or when the caller wants to state them explicitly.

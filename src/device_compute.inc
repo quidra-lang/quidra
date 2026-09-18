@@ -1994,6 +1994,31 @@ bool compute_dot(const Buffer* left, const Buffer* right, int dtype,
                    LaunchDimensions{1,1,1},args,error))return false;
         return copy_to_host(result.get(),0,host_result,width,error);
     }
+#ifdef __APPLE__
+    if(dtype==10&&left->backend==Backend::Metal){
+        const std::string source=
+            "#include <metal_stdlib>\nusing namespace metal;\n"
+            "kernel void q_kernel(device float* out [[buffer(0)]],"
+            "const device float* left [[buffer(1)]],const device float* right [[buffer(2)]],"
+            "constant ulong& count [[buffer(3)]],uint gid [[thread_position_in_grid]]){"
+            "if(gid!=0)return;float total=0.0f;for(ulong i=0;i<count;++i)total+=left[i]*right[i];out[0]=total;}\n";
+        auto pipeline=cached_metal_pipeline(
+            [left->metal_buffer device],"dot-f32",source,error);
+        if(!pipeline)return false;
+        std::unique_ptr<Buffer,void(*)(Buffer*)> result_buffer(
+            allocate(left->global_index,sizeof(float),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!result_buffer)return false;
+        const auto n=static_cast<std::uint64_t>(count);
+        if(!dispatch_metal_1d(result_buffer.get(),pipeline,1,[&](id<MTLComputeCommandEncoder> e){
+            [e setBuffer:result_buffer->metal_buffer offset:0 atIndex:0];
+            [e setBuffer:left->metal_buffer offset:0 atIndex:1];
+            [e setBuffer:right->metal_buffer offset:0 atIndex:2];
+            [e setBytes:&n length:sizeof(n) atIndex:3];
+        },error))return false;
+        return copy_to_host(result_buffer.get(),0,host_result,sizeof(float),error);
+    }
+#endif
     if(left->backend==Backend::Amd){
         const bool checked=hip_integer_dtype(dtype);
         std::unique_ptr<Buffer,void(*)(Buffer*)> result(
@@ -2345,6 +2370,32 @@ bool compute_mean(const Buffer* input, int dtype, std::size_t count,
                    LaunchDimensions{1,1,1},args,error))return false;
         return copy_to_host(output.get(),0,&result,sizeof(result),error);
     }
+#ifdef __APPLE__
+    if(dtype==10&&input->backend==Backend::Metal){
+        const std::string source=
+            "#include <metal_stdlib>\nusing namespace metal;\n"
+            "kernel void q_kernel(device float* out [[buffer(0)]],const device float* in [[buffer(1)]],"
+            "constant ulong& count [[buffer(2)]],uint gid [[thread_position_in_grid]]){"
+            "if(gid!=0)return;float total=0.0f;for(ulong i=0;i<count;++i)total+=in[i];out[0]=total/float(count);}\n";
+        auto pipeline=cached_metal_pipeline(
+            [input->metal_buffer device],"mean-f32",source,error);
+        if(!pipeline)return false;
+        std::unique_ptr<Buffer,void(*)(Buffer*)> output(
+            allocate(input->global_index,sizeof(float),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!output)return false;
+        const auto n=static_cast<std::uint64_t>(count);
+        if(!dispatch_metal_1d(output.get(),pipeline,1,[&](id<MTLComputeCommandEncoder> e){
+            [e setBuffer:output->metal_buffer offset:0 atIndex:0];
+            [e setBuffer:input->metal_buffer offset:0 atIndex:1];
+            [e setBytes:&n length:sizeof(n) atIndex:2];
+        },error))return false;
+        float value=0.0F;
+        if(!copy_to_host(output.get(),0,&value,sizeof(value),error))return false;
+        result=static_cast<double>(value);
+        return true;
+    }
+#endif
     if(input->backend==Backend::Amd){
         std::unique_ptr<Buffer,void(*)(Buffer*)> output(
             allocate(input->global_index,sizeof(double),error),

@@ -31,24 +31,35 @@ int main() {
 
     const auto tensor_plain = Type::tensor(t(TypeKind::Float32));
     const auto tensor_rank2 = Type::tensor(t(TypeKind::Float32), 2);
-    const auto tensor_first3 = Type::tensor(t(TypeKind::Float32), -1, {3});
-    const auto tensor_3x4 = Type::tensor(t(TypeKind::Float32), -1, {3, 4});
+    const auto tensor_first3 = Type::tensor(t(TypeKind::Float32), 1, {3});
+    const auto tensor_3x4 = Type::tensor(t(TypeKind::Float32), 2, {3, 4});
+    const auto tensor_3_any = Type::tensor(t(TypeKind::Float32), 2, {3, -1});
     const auto inferred_3x4 = Type::tensor(t(TypeKind::Float32), 2, {}, {3, 4});
     require(type_name(tensor_plain) == "tensor<float32>", "plain tensor name");
     require(type_name(tensor_rank2) == "tensor<float32>",
             "internal rank must not appear in source type name");
-    require(type_name(tensor_first3) == "tensor<float32, 3>",
-            "first-axis tensor constraint name");
-    require(type_name(tensor_3x4) == "tensor<float32, 3, 4>",
-            "shape-prefix tensor constraint name");
-    require(assignable(inferred_3x4, tensor_first3),
-            "inferred shape may satisfy a source shape constraint");
+    require(type_name(tensor_first3) == "tensor<float32><3>",
+            "rank-1 tensor shape pattern name");
+    require(type_name(tensor_3x4) == "tensor<float32><3, 4>",
+            "exact tensor shape pattern name");
+    require(type_name(tensor_3_any) == "tensor<float32><3, _>",
+            "tensor wildcard shape pattern name");
+    require(!assignable(inferred_3x4, tensor_first3),
+            "shape pattern rank is exact");
+    require(assignable(inferred_3x4, tensor_3_any),
+            "wildcard extent accepts an inferred matching rank");
     require(assignable(inferred_3x4, tensor_3x4),
-            "inferred full prefix may satisfy a source shape constraint");
+            "inferred shape may satisfy an exact source pattern");
     require(!assignable(tensor_plain, tensor_first3),
             "unknown shape cannot assert a constrained first axis");
     require(runtime_storage_bytes(tensor_first3) == runtime_storage_bytes(tensor_plain),
-            "tensor shape constraints must not change runtime ABI size");
+            "tensor shape patterns must not change runtime ABI size");
+    require(type_name(Type::neural(t(TypeKind::Float32), 3, {3, -1, -1})) ==
+                "neural<3, _, _>",
+            "default-float neural shape shorthand");
+    require(type_name(Type::neural(t(TypeKind::Float), 2, {-1, 768})) ==
+                "neural<float><_, 768>",
+            "explicit neural dtype plus shape pattern");
 
     const auto tensor_or_error = Type::union_of({tensor_plain, t(TypeKind::Error)});
     const auto constrained_or_error =

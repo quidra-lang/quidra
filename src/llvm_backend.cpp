@@ -268,9 +268,16 @@ struct FunctionEmitter {
     std::unordered_set<std::string> writable_params;
     std::unordered_set<std::string> borrowed_params;
     std::unordered_set<std::string> borrowed_locals;
-    // Per-function scratch arrays live in the entry block so repeated lowering
-    // inside source loops cannot grow the native stack on each iteration.
-    std::map<ir::ValueId,std::size_t> pointer_scratch_slots;
+    struct FrameScratchSlot {
+        std::string name;
+        std::string type;
+        std::size_t alignment{};
+    };
+    // Instruction-local temporary storage is planned before block emission and
+    // allocated once in the function entry frame. This prevents source loops
+    // from accumulating stack space through repeated LLVM alloca instructions.
+    std::vector<FrameScratchSlot> frame_scratch_slots;
+    std::unordered_map<const ir::Instruction*,std::vector<std::size_t>> instruction_scratch_slots;
     bool guard_stack_depth{};
     const std::unordered_set<std::string>& recursive_callees;
     std::size_t temp_counter{0};
@@ -290,7 +297,25 @@ struct FunctionEmitter {
     std::string local(const std::string&n)const{return "%local."+local_id(n);}
     std::string arg(const std::string&n)const{return "%arg."+local_id(n);}
     std::string storage(const std::string&n)const{return writable_params.contains(n)?arg(n):local(n);}
-    std::string pointer_scratch(ir::ValueId id)const{return "%scratch.ptrs."+std::to_string(id);}
+    void plan_scratch(const ir::Instruction& instruction,std::string type,std::size_t alignment=0){
+        const auto index=frame_scratch_slots.size();
+        frame_scratch_slots.push_back(
+            FrameScratchSlot{"%scratch."+std::to_string(index),std::move(type),alignment});
+        instruction_scratch_slots[&instruction].push_back(index);
+    }
+    const std::string& scratch(const ir::Instruction& instruction,std::size_t index=0)const{
+        const auto found=instruction_scratch_slots.find(&instruction);
+        if(found==instruction_scratch_slots.end()||index>=found->second.size())
+            throw std::logic_error("missing planned function scratch slot");
+        return frame_scratch_slots.at(found->second[index]).name;
+    }
+    void emit_entry_scratch(){
+        for(const auto& slot:frame_scratch_slots){
+            out<<"  "<<slot.name<<" = alloca "<<slot.type;
+            if(slot.alignment) out<<", align "<<slot.alignment;
+            out<<"\n";
+        }
+    }
     std::string temp(const std::string&prefix){return "%"+prefix+"."+std::to_string(temp_counter++);}
     std::string unique_label(const std::string&prefix){return prefix+"."+std::to_string(temp_counter++);}
     void fail_if(const std::string& condition,const std::string& code,const std::string& message,
@@ -394,9 +419,39 @@ struct FunctionEmitter {
                 if(const auto* literal=std::get_if<ir::ConstantString>(&i)) pool.intern(literal->value);
                 if(const auto* exact=std::get_if<ir::ConstantExact>(&i)) pool.intern(exact->spelling);
                 if(const auto* concat=std::get_if<ir::StringConcat>(&i))
-                    pointer_scratch_slots[concat->out]=concat->values.size();
+                    plan_scratch(i,"["+std::to_string(concat->values.size())+" x ptr]");
                 if(const auto* append=std::get_if<ir::StringAppendMove>(&i))
-                    pointer_scratch_slots[append->out]=append->suffixes.size();
+                    plan_scratch(i,"["+std::to_string(append->suffixes.size())+" x ptr]");
+                if(std::holds_alternative<ir::NeuralMomentUpdate>(i))
+                    plan_scratch(i,"[48 x i8]",8);
+                if(const auto* save=std::get_if<ir::NeuralSave>(&i)){
+                    for(const auto& leaf:save->values){
+                        if(leaf.type.kind!=TypeKind::String&&leaf.type.kind!=TypeKind::Bin&&
+                           leaf.type.kind!=TypeKind::Tensor)
+                            plan_scratch(i,llvm_type(leaf.type));
+                    }
+                }
+                if(const auto* binary=std::get_if<ir::TensorBinary>(&i)){
+                    const bool left_tensor=binary->left_type.kind==TypeKind::Tensor;
+                    const bool right_tensor=binary->right_type.kind==TypeKind::Tensor;
+                    if(left_tensor!=right_tensor){
+                        const auto& scalar_type=left_tensor?binary->right_type:binary->left_type;
+                        plan_scratch(i,llvm_type(scalar_type));
+                    }
+                }
+                if(const auto* index=std::get_if<ir::TensorIndex>(&i))
+                    plan_scratch(i,"["+std::to_string(index->items.size()*4)+" x i64]",8);
+                if(const auto* set=std::get_if<ir::TensorSet>(&i)){
+                    plan_scratch(i,"["+std::to_string(set->indices.size())+" x i64]",8);
+                    plan_scratch(i,llvm_type(set->element_type));
+                }
+                if(const auto* parse=std::get_if<ir::ParseNumber>(&i)){
+                    if(is_integer(parse->target_type)) plan_scratch(i,"i64");
+                    else if(parse->target_type.kind==TypeKind::Float32) plan_scratch(i,"float");
+                    else if(parse->target_type.kind==TypeKind::Float) plan_scratch(i,"double");
+                }
+                if(std::holds_alternative<ir::ImageRead>(i)) plan_scratch(i,"i32");
+                if(std::holds_alternative<ir::Input>(i)) plan_scratch(i,"ptr");
             }
         }
     }
@@ -788,7 +843,7 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::StringJoin>){values[n.out]=Type::simple(TypeKind::String);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_join(ptr "<<value(n.values)<<", ptr "<<value(n.separator)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringConcat>){
             values[n.out]=Type::simple(TypeKind::String);
-            const auto items=pointer_scratch(n.out);
+            const auto& items=scratch(ins);
             for(std::size_t i=0;i<n.values.size();++i){
                 const auto slot=temp("string.concat.slot");
                 out<<"  "<<slot<<" = getelementptr inbounds ["<<n.values.size()
@@ -803,7 +858,7 @@ struct FunctionEmitter {
         }
         if constexpr(std::is_same_v<T,ir::StringAppendMove>){
             values[n.out]=Type::simple(TypeKind::String);
-            const auto items=pointer_scratch(n.out);
+            const auto& items=scratch(ins);
             for(std::size_t i=0;i<n.suffixes.size();++i){
                 const auto slot=temp("string.append.slot");
                 out<<"  "<<slot<<" = getelementptr inbounds ["<<n.suffixes.size()
@@ -1010,8 +1065,7 @@ struct FunctionEmitter {
             }
         }
         if constexpr(std::is_same_v<T,ir::NeuralMomentUpdate>){
-            const auto state=temp("neural.moment_update.state");
-            out<<"  "<<state<<" = alloca [48 x i8], align 8\n";
+            const auto& state=scratch(ins);
             const auto store_state_field=[&](std::size_t offset,const char* type,ir::ValueId field){
                 const auto address=temp("neural.moment_update.field");
                 out<<"  "<<address<<" = getelementptr inbounds i8, ptr "<<state
@@ -1091,6 +1145,7 @@ struct FunctionEmitter {
             const auto context=temp("quistate.save");
             out<<"  "<<context<<" = call ptr @quidra_neural_state_save_begin(ptr "<<value(n.path)
                <<", ptr "<<schema_ptr<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            std::size_t scalar_scratch_index=0;
             for(const auto& leaf:n.values){
                 const auto leaf_name=pool.intern(leaf.path);
                 const auto leaf_ptr=temp("quistate.path");
@@ -1101,9 +1156,8 @@ struct FunctionEmitter {
                    leaf.type.kind==TypeKind::Tensor){
                     raw=value(leaf.value);
                 }else{
-                    const auto slot=temp("quistate.scalar");
-                    out<<"  "<<slot<<" = alloca "<<llvm_type(leaf.type)<<"\n"
-                       <<"  store "<<llvm_type(leaf.type)<<" "<<value(leaf.value)
+                    const auto& slot=scratch(ins,scalar_scratch_index++);
+                    out<<"  store "<<llvm_type(leaf.type)<<" "<<value(leaf.value)
                        <<", ptr "<<slot<<", align 1\n";
                     raw=slot;
                 }
@@ -1187,8 +1241,7 @@ struct FunctionEmitter {
             }else{
                 const auto scalar=n.left_type.kind==TypeKind::Tensor?n.right:n.left;
                 const auto scalar_type=n.left_type.kind==TypeKind::Tensor?n.right_type:n.left_type;
-                const auto slot=temp("tensor.scalar");
-                out<<"  "<<slot<<" = alloca "<<llvm_type(scalar_type)<<"\n";
+                const auto& slot=scratch(ins);
                 out<<"  store "<<llvm_type(scalar_type)<<" "<<value(scalar)<<", ptr "<<slot<<", align 1\n";
                 const auto tensor=n.left_type.kind==TypeKind::Tensor?n.left:n.right;
                 const int side=n.left_type.kind==TypeKind::Tensor?2:1;
@@ -1200,15 +1253,15 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::TensorIndex>){
             values[n.out]=n.type;
             const auto count=n.items.size();
-            const auto specs=temp("tensor.index.specs");
-            out<<"  "<<specs<<" = alloca i64, i64 "<<(count*4)<<"\n";
+            const auto& specs=scratch(ins);
             constexpr long long missing=std::numeric_limits<long long>::min();
             for(std::size_t i=0;i<count;++i){
                 const auto& item=n.items[i];
                 const auto base=i*4;
                 const auto emit_slot=[&](std::size_t offset,const std::string& value_text){
                     const auto slot=temp("tensor.index.slot");
-                    out<<"  "<<slot<<" = getelementptr inbounds i64, ptr "<<specs<<", i64 "<<(base+offset)<<"\n";
+                    out<<"  "<<slot<<" = getelementptr inbounds ["<<(count*4)
+                       <<" x i64], ptr "<<specs<<", i64 0, i64 "<<(base+offset)<<"\n";
                     out<<"  store i64 "<<value_text<<", ptr "<<slot<<", align 8\n";
                 };
                 emit_slot(0,item.slice?"1":"0");
@@ -1227,15 +1280,14 @@ struct FunctionEmitter {
         }
         if constexpr(std::is_same_v<T,ir::TensorSet>){
             const auto count=n.indices.size();
-            const auto indices=temp("tensor.set.indices");
-            out<<"  "<<indices<<" = alloca i64, i64 "<<count<<"\n";
+            const auto& indices=scratch(ins,0);
             for(std::size_t i=0;i<count;++i){
                 const auto slot=temp("tensor.set.index");
-                out<<"  "<<slot<<" = getelementptr inbounds i64, ptr "<<indices<<", i64 "<<i<<"\n";
+                out<<"  "<<slot<<" = getelementptr inbounds ["<<count
+                   <<" x i64], ptr "<<indices<<", i64 0, i64 "<<i<<"\n";
                 out<<"  store i64 "<<value(n.indices[i])<<", ptr "<<slot<<", align 8\n";
             }
-            const auto scalar=temp("tensor.set.value");
-            out<<"  "<<scalar<<" = alloca "<<llvm_type(n.element_type)<<"\n";
+            const auto& scalar=scratch(ins,1);
             out<<"  store "<<llvm_type(n.element_type)<<" "<<value(n.value)
                <<", ptr "<<scalar<<", align 1\n";
             out<<"  call void @quidra_tensor_set(ptr "<<value(n.tensor)<<", ptr "<<indices
@@ -1502,24 +1554,21 @@ struct FunctionEmitter {
             std::string parsed;
             std::string parse_ok;
             if(is_integer(n.target_type)){
-                const auto slot=temp("parse.integer.slot");
+                const auto& slot=scratch(ins);
                 parsed=temp("parse.integer");
                 parse_ok=temp("parse.ok");
-                out<<"  "<<slot<<" = alloca i64\n";
                 out<<"  "<<parse_ok<<" = call i1 @"<<(is_signed_integer(n.target_type)?"quidra_parse_signed":"quidra_parse_unsigned")
                    <<"(ptr "<<value(n.text)<<", ptr "<<slot<<")\n";
                 out<<"  "<<parsed<<" = load i64, ptr "<<slot<<"\n";
             }else{
-                const auto slot=temp("parse.float.slot");
+                const auto& slot=scratch(ins);
                 parse_ok=temp("parse.ok");
                 if(n.target_type.kind==TypeKind::Float32){
                     parsed=temp("parse.float");
-                    out<<"  "<<slot<<" = alloca float\n";
                     out<<"  "<<parse_ok<<" = call i1 @quidra_parse_float32(ptr "<<value(n.text)<<", ptr "<<slot<<")\n";
                     out<<"  "<<parsed<<" = load float, ptr "<<slot<<"\n";
                 }else{
                     parsed=temp("parse.float");
-                    out<<"  "<<slot<<" = alloca double\n";
                     out<<"  "<<parse_ok<<" = call i1 @quidra_parse_float64(ptr "<<value(n.text)<<", ptr "<<slot<<")\n";
                     out<<"  "<<parsed<<" = load double, ptr "<<slot<<"\n";
                 }
@@ -2146,9 +2195,8 @@ struct FunctionEmitter {
                 n.expected_shape_prefix.size()>1?n.expected_shape_prefix[1]:-1;
             const long long expected_width=
                 n.expected_shape_prefix.size()>2?n.expected_shape_prefix[2]:-1;
-            const auto dtype_slot=temp("image.read.dtype.slot");
+            const auto& dtype_slot=scratch(ins);
             const auto raw=temp("image.read.raw"),ok=temp("image.read.ok"),result=value(n.out);
-            out<<"  "<<dtype_slot<<" = alloca i32\n";
             out<<"  store i32 0, ptr "<<dtype_slot<<"\n";
             out<<"  "<<raw<<" = call ptr @quidra_image_read(ptr "<<value(n.path)
                <<", i32 "<<expected_dtype
@@ -2698,9 +2746,8 @@ struct FunctionEmitter {
         }
         if constexpr(std::is_same_v<T,ir::Input>){
             values[n.out]=n.result_type;
-            const auto result=value(n.out),text_slot=temp("input.text.slot"),status=temp("input.status");
+            const auto result=value(n.out),text_slot=scratch(ins),status=temp("input.status");
             out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
-            out<<"  "<<text_slot<<" = alloca ptr\n";
             out<<"  store ptr null, ptr "<<text_slot<<"\n";
             out<<"  "<<status<<" = call i32 @quidra_input_read(ptr "<<text_slot<<")\n";
 
@@ -2743,7 +2790,7 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::Branch>)out<<"  br i1 "<<value(n.condition)<<", label %"<<n.if_true<<", label %"<<n.if_false<<"\n";
     },ins);}
 
-    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<") {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[id,count]:pointer_scratch_slots)out<<"  "<<pointer_scratch(id)<<" = alloca ["<<count<<" x ptr]\n";for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";return out.str();}
+    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<") {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}emit_entry_scratch();for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";return out.str();}
 };
 
 

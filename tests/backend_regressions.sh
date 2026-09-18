@@ -101,6 +101,28 @@ QUI
 ! grep -q 'alloca ptr, i64' "$TMP/string-concat-loop.ll"
 [[ "$("$QUIDRA" run "$TMP/string-concat-loop.qui")" == "ab" ]]
 
+
+cat > "$TMP/frame-scratch-loop.qui" <<'QUI'
+tensor<float32> values = tensor.ones<float32>([2])
+int i = 0
+while i < 20
+    int | error parsed = int.parse("42")
+    tensor<float32> shifted = values + 1.0
+    tensor<float32> first = shifted[0:1]
+    values[0] = 2.0
+    string joined = "x" + "y"
+    i += 1
+print(values[0].item())
+QUI
+"$QUIDRA" llvm "$TMP/frame-scratch-loop.qui" > "$TMP/frame-scratch-loop.ll"
+"$OPT" -passes=verify -disable-output "$TMP/frame-scratch-loop.ll"
+awk '/^define .* @main\(/,/^}$/' "$TMP/frame-scratch-loop.ll" > "$TMP/frame-scratch-main.ll"
+first_loop_line="$(grep -n '^while\.' "$TMP/frame-scratch-main.ll" | head -n1 | cut -d: -f1)"
+last_alloca_line="$(grep -n ' = alloca ' "$TMP/frame-scratch-main.ll" | tail -n1 | cut -d: -f1)"
+[[ -n "$first_loop_line" && -n "$last_alloca_line" ]]
+[[ "$last_alloca_line" -lt "$first_loop_line" ]]
+[[ "$("$QUIDRA" run "$TMP/frame-scratch-loop.qui")" == "2.0" ]]
+
 cat > "$TMP/float32-rounding.qui" <<'QUI'
 float32 rounded = 0.000001
 float source = 0.1

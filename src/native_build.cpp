@@ -468,6 +468,14 @@ int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options)
         "-lm",
         "-pthread",
     };
+#ifdef __APPLE__
+    arguments.emplace_back("-framework");
+    arguments.emplace_back("Foundation");
+    arguments.emplace_back("-framework");
+    arguments.emplace_back("Metal");
+#else
+    arguments.emplace_back("-ldl");
+#endif
     if (options.debug) {
         arguments.emplace_back("-g");
         arguments.emplace_back("-fno-omit-frame-pointer");

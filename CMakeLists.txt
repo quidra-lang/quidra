@@ -5,6 +5,11 @@ file(READ "${CMAKE_CURRENT_SOURCE_DIR}/docs/spec/grammar.ebnf" QUIDRA_GRAMMAR_EB
 string(JSON QUIDRA_PROJECT_VERSION GET "${QUIDRA_MANIFEST_JSON}" compiler_version)
 project(quidra VERSION ${QUIDRA_PROJECT_VERSION} LANGUAGES CXX)
 
+if(APPLE)
+  enable_language(OBJCXX)
+  set_source_files_properties(src/device_backend.cpp PROPERTIES LANGUAGE OBJCXX)
+endif()
+
 # The manifest supplies both the project version and the text `quidra describe`
 # prints, but file(READ) creates no dependency on its own: editing the manifest
 # would otherwise leave a stale copy compiled in until the next reconfigure.
@@ -87,9 +92,16 @@ add_library(quidra_runtime STATIC
     src/runtime_json.cpp
     src/runtime_http.cpp
     src/runtime_image.cpp
+    src/device_backend.cpp
 )
 target_include_directories(quidra_runtime PRIVATE ${CURL_INCLUDE_DIRS} ${WEBP_INCLUDE_DIR})
 target_link_libraries(quidra_runtime PRIVATE PNG::PNG JPEG::JPEG TIFF::TIFF ${WEBP_LIBRARY})
+if(CMAKE_DL_LIBS)
+  target_link_libraries(quidra_runtime PRIVATE ${CMAKE_DL_LIBS})
+endif()
+if(APPLE)
+  target_link_libraries(quidra_runtime PRIVATE "-framework Foundation" "-framework Metal")
+endif()
 set_target_properties(quidra_runtime PROPERTIES POSITION_INDEPENDENT_CODE ON)
 if(WIN32)
   target_compile_definitions(quidra_runtime PRIVATE NOMINMAX)
@@ -107,8 +119,22 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU" AND
   target_compile_options(quidra_runtime PRIVATE -fno-sanitize=all)
 endif()
 
-add_executable(quidra src/main.cpp src/repl_cli.cpp src/lsp_server.cpp src/package_cli.cpp src/native_build.cpp)
+add_executable(quidra
+    src/main.cpp
+    src/repl_cli.cpp
+    src/lsp_server.cpp
+    src/package_cli.cpp
+    src/device_cli.cpp
+    src/device_backend.cpp
+    src/native_build.cpp
+)
 target_link_libraries(quidra PRIVATE quidra_core)
+if(CMAKE_DL_LIBS)
+  target_link_libraries(quidra PRIVATE ${CMAKE_DL_LIBS})
+endif()
+if(APPLE)
+  target_link_libraries(quidra PRIVATE "-framework Foundation" "-framework Metal")
+endif()
 add_dependencies(quidra quidra_runtime)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU" AND CMAKE_CXX_FLAGS MATCHES "sanitize")

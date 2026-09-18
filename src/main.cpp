@@ -11,6 +11,7 @@
 #include "lsp_server.hpp"
 #include "package_cli.hpp"
 #include "native_build.hpp"
+#include "device_cli.hpp"
 
 #include <chrono>
 #include <cstdlib>
@@ -215,6 +216,8 @@ void usage(std::ostream& out) {
         << "  quidra list                       list installed packages and versions\n"
         << "  quidra lock FILE.qui [--check]    write or verify quidra.lock\n"
         << "  quidra package-path               print the default package store path\n"
+        << "  quidra gpu                        list supported GPU devices and backends\n"
+        << "  quidra info                       print CPU/GPU backend information\n"
         << "  quidra FILE.qui [ARGS...]         compile and run with program arguments\n"
         << "  quidra run FILE.qui [-- ARGS...]  compile and run; '--' separates program arguments\n"
         << "  quidra check FILE.qui [--json] [--max-errors N]\n"
@@ -325,6 +328,14 @@ int main(int argc, char** argv) {
     // Legacy alias retained for projects/scripts written before the short CLI.
     if (argc >= 2 && std::string(argv[1]) == "package") {
         return quidra::cli::run_package_cli(argc - 2, argv + 2);
+    }
+
+    if (argc == 2 && std::string(argv[1]) == "gpu") {
+        return quidra::cli::run_gpu_cli(false);
+    }
+
+    if (argc == 2 && std::string(argv[1]) == "info") {
+        return quidra::cli::run_gpu_cli(true);
     }
 
     if (argc >= 2 && std::string(argv[1]) == "describe") {

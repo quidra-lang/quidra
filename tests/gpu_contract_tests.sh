@@ -171,6 +171,25 @@ if [[ "$gpu_compute_output" != "$gpu_compute_expected" ]]; then
     exit 1
 fi
 
+cat > "$TMP/gpu-neural-unary.qui" <<'QUI'
+tensor<float> value = tensor.ones<float>([1], gpu = 0)
+neural<float> exponential = neural.exponential(neural.track(value))
+neural<float> restored = neural.logarithm(exponential)
+float result = restored.untrack().item()
+print(result > 0.999999999 and result < 1.000000001)
+QUI
+if [[ "$("$QUIDRA" run "$TMP/gpu-neural-unary.qui")" != "true" ]]; then
+    echo "unexpected fake-GPU float64 neural exp/log result" >&2
+    exit 1
+fi
+
+cat > "$TMP/gpu-log-domain.qui" <<'QUI'
+tensor<float32> value = tensor.zeros<float32>([1], gpu = 0)
+neural<float32> invalid = neural.logarithm(neural.track(value))
+print(invalid.untrack().item())
+QUI
+expect_runtime_error "$TMP/gpu-log-domain.qui" "logarithm requires finite positive values"
+
 cat > "$TMP/gpu-view.qui" <<'QUI'
 tensor<int> value = tensor.zeros<int>([2, 3], gpu = 0)
 value[0, 0] = 1

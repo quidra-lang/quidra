@@ -768,6 +768,21 @@ print(x)
  "int x\nx = 4\nprint(x)\n", "auto x = 41\nprint(x)\n", "int end = 7\nprint(end)\n", "// comment only\nint x = 1 // trailing comment\nprint(x)\n"}) good(s);
  good("int exit = 7\nprint(exit)\n");
 
+ ir_contains(R"(bin bits = bin.parse("01")
+print(bits[0])
+)", "release %");
+ ir_contains(R"(bool flag = bool(bin.parse("1"))
+print(flag)
+)", "release %");
+ ir_contains(R"(bin bits = bin.fill(1, 0)
+bits[0] = bin.parse("1")
+print(bits)
+)", "release %");
+ ir_contains(R"(bin bits = bin.parse("01")
+for bit in bits
+    print(bit)
+)", "bin.get");
+
  good(R"(float scalar = 3
 float32 scalar32 = 2
 float[] values = [1, 2, 3]

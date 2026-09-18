@@ -633,7 +633,8 @@ struct Lowerer {
         }
         if (const auto* index = std::get_if<IndexExpr>(&expression.data)) {
             const auto base_kind = type_of(*index->base).kind;
-            if (base_kind == TypeKind::Tensor || base_kind == TypeKind::String) return true;
+            if (base_kind == TypeKind::Tensor || base_kind == TypeKind::String ||
+                base_kind == TypeKind::Bin) return true;
             return expression_owns_result(*index->base);
         }
         if (const auto* tried = std::get_if<TryExpr>(&expression.data)) {
@@ -1503,6 +1504,7 @@ struct Lowerer {
                     out,value,source,target,
                     static_cast<std::uint32_t>(e.span.start.line),
                     static_cast<std::uint32_t>(e.span.start.column)});
+                release_temporary(*n.args[0].value,value);
             }else if(source.kind==TypeKind::Tensor){
                 block->instructions.push_back(TensorCast{
                     out,value,source,target,
@@ -1546,6 +1548,7 @@ struct Lowerer {
                         out,value,type_of(*n.args[0].value),Type::simple(TypeKind::Bin),
                         static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column)});
+                    release_temporary(*n.args[0].value,value);
                     return out;
                 }
                 auto length=expr(*n.args[0].value);
@@ -2357,7 +2360,8 @@ struct Lowerer {
                 static_cast<std::uint32_t>(n.iterable->span.start.column),
                 iterable_initialization_proven,true});
         }
-        element=copy_value(element,item); block->instructions.push_back(StoreLocal{iter_name,element,item});
+        if(array_type.kind!=TypeKind::Bin) element=copy_value(element,item);
+        block->instructions.push_back(StoreLocal{iter_name,element,item});
         loop_targets.push_back({step_label,break_label});
         for(const auto& s:n.body){ stmt(*s); if(terminated()) break; }
         loop_targets.pop_back();
@@ -2368,13 +2372,16 @@ struct Lowerer {
             auto ix2=fresh(), val=fresh();
             block->instructions.push_back(LoadLocal{ix2,idx_name,locals[idx_name]});
             block->instructions.push_back(LoadLocal{val,iter_name,item});
-            val=copy_value(val,item);
-            if(array_type.kind==TypeKind::Bin) block->instructions.push_back(BinSet{array,ix2,val,0,0,true});
-            else block->instructions.push_back(ArraySet{
+            if(array_type.kind==TypeKind::Bin) {
+                block->instructions.push_back(BinSet{array,ix2,val,0,0,true});
+            } else {
+                val=copy_value(val,item);
+                block->instructions.push_back(ArraySet{
                 array,ix2,val,item,
                 static_cast<std::uint32_t>(n.iterable->span.start.line),
                 static_cast<std::uint32_t>(n.iterable->span.start.column),
                 iterable_initialization_proven,true});
+            }
         };
 
         auto& sb=add_block(step_label); block=&sb; write_back();
@@ -2750,11 +2757,13 @@ struct Lowerer {
                         static_cast<std::uint32_t>(n->target->span.start.column)});
                 }else{
                     auto i=expr(*ix.items.front().index);
-                    if(base_type.kind==TypeKind::Bin) block->instructions.push_back(BinSet{
-                        a,i,v,static_cast<std::uint32_t>(n->target->span.start.line),
-                        static_cast<std::uint32_t>(n->target->span.start.column),
-                        checked.bounds_proven.contains(ix.items.front().index.get())});
-                    else block->instructions.push_back(ArraySet{
+                    if(base_type.kind==TypeKind::Bin) {
+                        block->instructions.push_back(BinSet{
+                            a,i,v,static_cast<std::uint32_t>(n->target->span.start.line),
+                            static_cast<std::uint32_t>(n->target->span.start.column),
+                            checked.bounds_proven.contains(ix.items.front().index.get())});
+                        block->instructions.push_back(Release{v,t});
+                    } else block->instructions.push_back(ArraySet{
                         a,i,v,t,static_cast<std::uint32_t>(n->target->span.start.line),
                         static_cast<std::uint32_t>(n->target->span.start.column),
                         initialization_proven,

@@ -72,7 +72,7 @@ Quidra tries to give common forms one stable job:
 | `T(value)` | explicit representation conversion |
 | `tensor<T><3, _, _>` | element type plus three axis slots: first extent is 3, the other extents are unrestricted, and three slots require rank 3 |
 | `and / or / not` | boolean logic only |
-| `AND / OR / XOR / NOT / << / >>` | fixed-width integer bit operations, without reusing `&` or `|` |
+| `AND / OR / XOR / NOT / << / >>` | fixed-width integer bit operations, without reusing `&` or `\|` |
 | `match` | alternatives must be handled explicitly and exhaustively |
 
 The same principle applies beyond individual tokens. Visible names cannot be shadowed, so adding nearby code cannot silently redirect an earlier reference. Numeric values do not change representation merely because a destination type would accept them. Mutable storage is not created implicitly from ordinary value assignment. CPU/GPU movement is explicit rather than inferred from later operations.

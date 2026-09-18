@@ -1399,7 +1399,7 @@ bool same = a == b
  bad_code("class A\n    int x\nA a = A(x = 1)\nprint(a.y)\n", "UNKNOWN_MEMBER");
  bad_code("print(missing)\n", "UNKNOWN_NAME");
  bad_code("Missing value\n", "UNKNOWN_TYPE");
- bad_code("float value = 1e9999\n", "FLOAT_RANGE");
+ bad_code("float value = 1.0e9999\n", "FLOAT_RANGE");
  bad_code("import math\n", "STANDARD_NAMESPACE_IMPORT");
  bad_code("auto loaded = vision.read<uint8>(\"input.png\")\n", "GENERIC_RECEIVER");
  bad_code("auto loaded = vision.read(\"input.png\")\n", "UNKNOWN_NAME");

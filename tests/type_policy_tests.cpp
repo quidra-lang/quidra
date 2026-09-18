@@ -103,6 +103,10 @@ int main() {
             "0.1 may round when materialized as float32");
     require(!float_value_fits_range(1.0e100, t(TypeKind::Float32)),
             "finite values outside float32 range are rejected");
+    require(float_value_fits_range(0.1, t(TypeKind::Float32)),
+            "0.1 may round when materialized as float32");
+    require(!float_value_fits_range(1.0e100, t(TypeKind::Float32)),
+            "finite values outside float32 range are rejected");
     require(integer_value_fits_exactly_in_float(9007199254740992LL, t(TypeKind::Float)),
             "2^53 is exactly representable by float64");
     require(!integer_value_fits_exactly_in_float(9007199254740993LL, t(TypeKind::Float)),

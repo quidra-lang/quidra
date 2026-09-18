@@ -161,10 +161,15 @@ print((scalar_base * 2.0)[0].item())
 print((2.0 * scalar_base)[0].item())
 print((scalar_base / 2.0)[0].item())
 print((8.0 / scalar_base)[0].item())
+
+tensor<int> direct = tensor<int>([2], gpu = 0)
+direct[0] = 4
+direct[1] = 5
+print(direct[1].item())
 QUI
 
 gpu_compute_output="$("$QUIDRA" run "$TMP/gpu-compute.qui")"
-gpu_compute_expected="$(printf '2.0\n4.0\n3.0\n-1.0\n3.0\n6\n1\n3\n2.0\n2.0\n3.0\n3.0\n2\n3.0\n2\n3.0\n3.0\n3.0\n6.0\n6.0\n2.0\n6.0\n8.0\n8.0\n2.0\n2.0')"
+gpu_compute_expected="$(printf '2.0\n4.0\n3.0\n-1.0\n3.0\n6\n1\n3\n2.0\n2.0\n3.0\n3.0\n2\n3.0\n2\n3.0\n3.0\n3.0\n6.0\n6.0\n2.0\n6.0\n8.0\n8.0\n2.0\n2.0\n5')"
 if [[ "$gpu_compute_output" != "$gpu_compute_expected" ]]; then
     echo "unexpected fake-GPU compute output:" >&2
     printf '%s\n' "$gpu_compute_output" >&2
@@ -189,6 +194,12 @@ neural<float32> invalid = neural.logarithm(neural.track(value))
 print(invalid.untrack().item())
 QUI
 expect_runtime_error "$TMP/gpu-log-domain.qui" "logarithm requires finite positive values"
+
+cat > "$TMP/gpu-uninitialized.qui" <<'QUI'
+tensor<int> value = tensor<int>([1], gpu = 0)
+print(value[0].item())
+QUI
+expect_runtime_error "$TMP/gpu-uninitialized.qui" "uninitialized"
 
 cat > "$TMP/gpu-view.qui" <<'QUI'
 tensor<int> value = tensor.zeros<int>([2, 3], gpu = 0)

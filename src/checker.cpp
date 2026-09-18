@@ -2,6 +2,7 @@
 #include "quidra/language.hpp"
 #include "operator_policy.hpp"
 #include "numeric_literal_policy.hpp"
+#include "constant_integer_eval.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include <cctype>
@@ -274,96 +275,6 @@ void collect_rebound_references(
             }
         }
     }
-}
-
-std::optional<long long> constant_integer_value(
-    const Expr& expression,
-    const std::unordered_map<std::string, long long>* names = nullptr) {
-    if (const auto* literal = std::get_if<IntegerExpr>(&expression.data)) {
-        if (literal->value > static_cast<unsigned long long>(std::numeric_limits<long long>::max())) {
-            return std::nullopt;
-        }
-        return static_cast<long long>(literal->value);
-    }
-
-    if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
-        if (!names) return std::nullopt;
-        const auto found = names->find(name->name);
-        return found == names->end() ? std::nullopt
-                                     : std::optional<long long>{found->second};
-    }
-
-    if (const auto* unary = std::get_if<UnaryExpr>(&expression.data)) {
-        if (unary->op != "-") return std::nullopt;
-        const auto value = constant_integer_value(*unary->operand, names);
-        if (!value || *value == std::numeric_limits<long long>::min()) return std::nullopt;
-        return -*value;
-    }
-
-    if (const auto* call = std::get_if<CallExpr>(&expression.data)) {
-        if (call->args.size() != 1 || call->args[0].writable || call->args[0].name) return std::nullopt;
-        const auto target = builtin_scalar_type(call->callee);
-        if (!target || !is_integer(*target)) return std::nullopt;
-        const auto value = constant_integer_value(*call->args[0].value, names);
-        if (!value || !integer_value_fits(*value, *target)) return std::nullopt;
-        return value;
-    }
-
-    const auto* binary = std::get_if<BinaryExpr>(&expression.data);
-    if (!binary) return std::nullopt;
-    const auto left = constant_integer_value(*binary->left, names);
-    const auto right = constant_integer_value(*binary->right, names);
-    if (!left || !right) return std::nullopt;
-
-    if ((binary->op == "/" || binary->op == "%") && *right == 0) return std::nullopt;
-    if ((binary->op == "/" || binary->op == "%") &&
-        *left == std::numeric_limits<long long>::min() && *right == -1) {
-        return std::nullopt;
-    }
-    if (binary->op == "/") return *left / *right;
-    if (binary->op == "%") return *left % *right;
-
-    const auto checked_add = [](long long a, long long b, long long& out) {
-        constexpr auto min = std::numeric_limits<long long>::min();
-        constexpr auto max = std::numeric_limits<long long>::max();
-        if ((b > 0 && a > max - b) || (b < 0 && a < min - b)) return false;
-        out = a + b;
-        return true;
-    };
-    const auto checked_sub = [](long long a, long long b, long long& out) {
-        constexpr auto min = std::numeric_limits<long long>::min();
-        constexpr auto max = std::numeric_limits<long long>::max();
-        if ((b > 0 && a < min + b) || (b < 0 && a > max + b)) return false;
-        out = a - b;
-        return true;
-    };
-    const auto checked_mul = [](long long a, long long b, long long& out) {
-        constexpr auto min = std::numeric_limits<long long>::min();
-        constexpr auto max = std::numeric_limits<long long>::max();
-        if (a == 0 || b == 0) {
-            out = 0;
-            return true;
-        }
-        if (a > 0) {
-            if ((b > 0 && a > max / b) || (b < 0 && b < min / a)) return false;
-        } else {
-            if ((b > 0 && a < min / b) || (b < 0 && a < max / b)) return false;
-        }
-        out = a * b;
-        return true;
-    };
-
-    long long result{};
-    if (binary->op == "+") {
-        if (!checked_add(*left, *right, result)) return std::nullopt;
-    } else if (binary->op == "-") {
-        if (!checked_sub(*left, *right, result)) return std::nullopt;
-    } else if (binary->op == "*") {
-        if (!checked_mul(*left, *right, result)) return std::nullopt;
-    } else {
-        return std::nullopt;
-    }
-    return result;
 }
 
 void union_set(std::unordered_set<std::string>& destination,
@@ -810,7 +721,7 @@ bool Checker::storage_initialized(const Expr& expression) const {
 
 void Checker::check_static_index_bounds(const Type& base, const Expr& index) {
     if (base.kind != TypeKind::Array || base.length < 0) return;
-    const auto value = constant_integer_value(index);
+    const auto value = constant_eval::integer(index);
     if (!value) return;
     if (*value < 0 || *value >= base.length) {
         error("INDEX_BOUNDS",
@@ -1521,7 +1432,7 @@ void Checker::check_type_extent_expressions(const TypeName& source) {
                   expression->span);
         }
         if (const auto known =
-                constant_integer_value(*expression, &const_integer_values_);
+                constant_eval::integer(*expression, &const_integer_values_);
             known && *known < 0) {
             error("INVALID_TYPE",
                   "Array/tensor extents cannot be negative.",
@@ -1678,7 +1589,7 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
             if (item.stop) check_expr(*item.stop, &index_type);
             if (item.step) {
                 check_expr(*item.step, &index_type);
-                if (const auto step = constant_integer_value(*item.step); step && *step <= 0) {
+                if (const auto step = constant_eval::integer(*item.step); step && *step <= 0) {
                     error("SLICE_STEP",
                           "Tensor slices currently require a positive step.",
                           item.step->span);
@@ -1763,12 +1674,12 @@ Type Checker::check_method_call_expr(const Expr& expression,
             auto int_type = simple(TypeKind::Int);
             auto count = check_expr(*node->args[0].value, &int_type);
             auto fill = check_expr(*node->args[1].value, &int_type);
-            if (const auto value = constant_integer_value(*node->args[0].value);
+            if (const auto value = constant_eval::integer(*node->args[0].value);
                 value && *value < 0) {
                 error("ARGUMENT_MISMATCH", "bin.fill length cannot be negative.",
                       node->args[0].span);
             }
-            if (const auto value = constant_integer_value(*node->args[1].value);
+            if (const auto value = constant_eval::integer(*node->args[1].value);
                 value && *value != 0 && *value != 1) {
                 error("ARGUMENT_MISMATCH", "bin.fill bit must be 0 or 1.",
                       node->args[1].span);
@@ -1790,7 +1701,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
             auto int_type = simple(TypeKind::Int);
             auto value = check_expr(*node->args[0].value, &string_type);
             auto count = check_expr(*node->args[1].value, &int_type);
-            if (const auto amount = constant_integer_value(*node->args[1].value);
+            if (const auto amount = constant_eval::integer(*node->args[1].value);
                 amount && *amount < 0) {
                 error("ARGUMENT_MISMATCH", "string.repeat count cannot be negative.",
                       node->args[1].span);
@@ -1887,7 +1798,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                             : check_expr(*node->args[0].value, &int_type);
                         if (!node->args.empty()) {
                             if (const auto index =
-                                    constant_integer_value(*node->args[0].value,
+                                    constant_eval::integer(*node->args[0].value,
                                                            &const_integer_values_);
                                 index && *index < 0) {
                                 error("ARGUMENT_MISMATCH",
@@ -1931,7 +1842,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                     std::get_if<ArrayExpr>(&node->args[0].value->data)) {
                                 bool known = true;
                                 for (const auto& item : literal->elements) {
-                                    const auto extent = constant_integer_value(*item);
+                                    const auto extent = constant_eval::integer(*item);
                                     if (!extent || *extent < 0) {
                                         known = false;
                                         break;
@@ -1966,7 +1877,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                             const auto constant_axis = [&](std::size_t index)
                                 -> std::optional<long long> {
                                 if (index >= node->args.size()) return std::nullopt;
-                                return constant_integer_value(
+                                return constant_eval::integer(
                                     *node->args[index].value, &const_integer_values_);
                             };
                             const auto a0 = constant_axis(0);
@@ -2335,7 +2246,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                                   expression.span);
                         }
                         if (expected->length >= 0) {
-                            const auto literal = constant_integer_value(*node->args[0].value);
+                            const auto literal = constant_eval::integer(*node->args[0].value);
                             if (!literal || *literal != expected->length) {
                                 error("ARRAY_SHAPE",
                                       "array(n) used for a fixed array requires a matching constant length.",
@@ -2355,7 +2266,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                             }
                             if (expected && expected->kind == TypeKind::Array &&
                                 expected->length >= 0) {
-                                const auto literal = constant_integer_value(*node->args[0].value);
+                                const auto literal = constant_eval::integer(*node->args[0].value);
                                 if (!literal || *literal != expected->length) {
                                     error("ARRAY_SHAPE",
                                           "array(n, fill = value) used for a fixed array requires a matching constant length.",
@@ -3623,7 +3534,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                                 continue;
                             }
                             const auto channel_type = check_expr(*argument.value, &int_type);
-                            const auto channels = constant_integer_value(*argument.value);
+                            const auto channels = constant_eval::integer(*argument.value);
                             if (poisoned(channel_type) || !channels ||
                                 (*channels != 1 && *channels != 3 && *channels != 4)) {
                                 error("ARGUMENT_MISMATCH",
@@ -4062,7 +3973,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                             bad_gpu = true;
                         }
                         if (const auto index =
-                                constant_integer_value(*node->args[*gpu_index].value,
+                                constant_eval::integer(*node->args[*gpu_index].value,
                                                        &const_integer_values_);
                             index && *index < 0) {
                             error("ARGUMENT_MISMATCH",
@@ -4134,7 +4045,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                             bool known = true;
                             for (const auto& item : literal->elements) {
                                 const auto extent =
-                                    constant_integer_value(*item, &const_integer_values_);
+                                    constant_eval::integer(*item, &const_integer_values_);
                                 if (!extent || *extent < 0) {
                                     known = false;
                                     break;
@@ -4988,7 +4899,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                           expression.span);
                 }
                 if (operator_policy::is_shift(node->op)) {
-                    const auto count = constant_integer_value(*node->right);
+                    const auto count = constant_eval::integer(*node->right);
                     if (count && (*count < 0 ||
                                   *count >= static_cast<long long>(integer_width(left)))) {
                         error("SHIFT_COUNT",
@@ -5021,7 +4932,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                     error("TYPE_MISMATCH", "Arithmetic requires compatible numbers.", expression.span);
                 }
                 if (is_integer_family_type(left) && (node->op == "/" || node->op == "%")) {
-                    const auto divisor = constant_integer_value(*node->right);
+                    const auto divisor = constant_eval::integer(*node->right);
                     if (divisor && *divisor == 0) {
                         error("DIVIDE_BY_ZERO",
                               node->op == "/" ? "Integer division by zero is known at compile time."
@@ -5101,7 +5012,7 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
                 error("INVALID_TYPE", "Array/tensor extents require integer expressions.", span);
             }
             if (const auto known =
-                    constant_integer_value(*expression, &const_integer_values_)) {
+                    constant_eval::integer(*expression, &const_integer_values_)) {
                 if (*known < 0) {
                     error("INVALID_TYPE", "Array/tensor extents cannot be negative.", span);
                 }
@@ -5234,7 +5145,7 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             const_bindings_.insert(node.name);
             if (node.value && is_integer(type)) {
                 if (const auto known =
-                        constant_integer_value(*node.value, &const_integer_values_)) {
+                        constant_eval::integer(*node.value, &const_integer_values_)) {
                     const_integer_values_[node.name] = *known;
                 }
             }

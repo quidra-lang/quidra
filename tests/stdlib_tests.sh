@@ -832,11 +832,12 @@ tensor<float32> c = a + b
 print(c.shape()[0])
 QUI
 set +e
-"$QUIDRA" "$TMP/tensor-rank-mismatch.qui" >"$TMP/tensor-rank-mismatch.out" 2>"$TMP/tensor-rank-mismatch.err"
+"$QUIDRA" check "$TMP/tensor-rank-mismatch.qui" --json >"$TMP/tensor-rank-mismatch.json"
 tensor_rank_rc=$?
 set -e
-[[ "$tensor_rank_rc" -eq 101 ]]
-grep -Eq 'Quidra runtime error\[TENSOR\] at [0-9]+:[0-9]+: .*identical ranks' "$TMP/tensor-rank-mismatch.err"
+[[ "$tensor_rank_rc" -eq 1 ]]
+grep -q 'TYPE_MISMATCH' "$TMP/tensor-rank-mismatch.json"
+grep -q 'identical rank' "$TMP/tensor-rank-mismatch.json"
 
 cat > "$TMP/tensor-float-int-cast.qui" <<'QUI'
 tensor<float> source = tensor.ones<float>([1]) * 1.5

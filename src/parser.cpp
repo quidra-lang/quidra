@@ -64,11 +64,12 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
     if (index < tokens.size() && tokens[index].kind == TokenKind::Less) {
         ++index;
         if (!scan_type_lookahead(tokens, index, depth + 1, limit)) return false;
-        if (!qualified && root_name == "tensor" &&
-            index < tokens.size() && tokens[index].kind == TokenKind::Comma) {
-            ++index;
-            if (index >= tokens.size() || tokens[index++].kind != TokenKind::Integer) {
-                return false;
+        if (!qualified && root_name == "tensor") {
+            while (index < tokens.size() && tokens[index].kind == TokenKind::Comma) {
+                ++index;
+                if (index >= tokens.size() || tokens[index++].kind != TokenKind::Integer) {
+                    return false;
+                }
             }
         } else {
             while (index < tokens.size() && tokens[index].kind == TokenKind::Comma) {

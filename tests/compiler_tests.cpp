@@ -228,8 +228,8 @@ int main(){
  llvm_contains("extern int32 c_bytes(const bytes &data) = \"c_bytes\"\nbytes value = bytes(3, fill = 1)\nint32 result = c_bytes(&value)\n", "ffi.bytes.length");
  llvm_contains("extern int32 c_bytes(const bytes &data) = \"c_bytes\"\nbytes value = bytes(3, fill = 1)\nint32 result = c_bytes(&value)\n", "call i32 @c_bytes(ptr nocapture nonnull readonly");
  llvm_file_contains("tensor<float> source = tensor.ones<float>([1])\nneural<float> value = neural.track(source)\nneural<float> next = value + 1\n", "@quidra_neural_binary_scalar");
- llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nuint8 scalar = 255\nneural<float32> next = value + scalar\n", "uitofp i8");
- llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nint8 scalar = -1\nneural<float32> next = value + scalar\n", "sitofp i8");
+ llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nuint8 scalar = 255\nneural<float32> next = value + float32(scalar)\n", "uitofp i8");
+ llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nint8 scalar = -1\nneural<float32> next = value + float32(scalar)\n", "sitofp i8");
 
  bad_code("extern int32 implicit_text(string text) = \"implicit_text\"\n", "FFI_REFERENCE");
  bad_code("extern int32 implicit_bytes(bytes data) = \"implicit_bytes\"\n", "FFI_REFERENCE");
@@ -709,10 +709,10 @@ print(outer.inner.y)
 int result = 10 / denominator
 )",
  R"(int8 small = 127
-int16 wider = small
+int16 wider = int16(small)
 uint8 byte_value = 255
 uint32 count = 100
-int total = count
+int total = int(count)
 float exact_float = 1
 float32 exact_small_float = 1.5
 int8 casted = int8(100)

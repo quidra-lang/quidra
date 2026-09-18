@@ -685,6 +685,7 @@ The v0.1 implementation uses libcurl directly in the native runtime. It permits 
 The expected tensor type is an acceptance constraint, never an implicit conversion request. For example:
 
 ```quidra
+string path = "input.png"
 tensor<uint16, 3> | error loaded = image.read(path)
 ```
 
@@ -693,6 +694,7 @@ accepts only a uint16 image whose decoded CHW first axis is 3. A dtype or constr
 Conversion is performed only by explicit named arguments:
 
 ```quidra
+string path = "input.png"
 image.read(path, channels = 1)
 image.read(path, channels = 3, dtype = float32)
 ```

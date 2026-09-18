@@ -1702,9 +1702,9 @@ int8 a = 10
 int8 b = 12
 uint8 u = 200
 uint8 v = 20
-int16 widened = a
+int16 widened = int16(a)
 uint32 count = 100
-int total = count
+int total = int(count)
 float exact = float(a)
 float32 compact = float32(1.5)
 print(a + b)

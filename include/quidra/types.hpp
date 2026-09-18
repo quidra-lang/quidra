@@ -323,6 +323,14 @@ inline bool integer_literal_value_fits(unsigned long long value, const Type& typ
     }
 }
 
+inline bool negative_integer_literal_value_fits(unsigned long long magnitude, const Type& type) {
+    if (!is_signed_integer(type)) return false;
+    const auto width = integer_width(type);
+    if (width <= 0) return false;
+    const auto limit = 1ULL << (width - 1);
+    return magnitude <= limit;
+}
+
 inline bool float_value_fits_exactly(double value, const Type& type) {
     if (type.kind == TypeKind::Float) return true;
     if (type.kind != TypeKind::Float32) return false;

@@ -173,7 +173,7 @@ int main() {
             "checked integer overflow diagnostic missing");
 
     auto other_device = buffer(gpu1, 4 * sizeof(float), error);
-    require(other_device, error);
+    require(static_cast<bool>(other_device), error);
     upload<float>(other_device.get(), {1.0F, 1.0F, 1.0F, 1.0F}, error);
     error.clear();
     require(

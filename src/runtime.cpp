@@ -6942,6 +6942,13 @@ extern "C" bool quidra_bin_equal(void* left, void* right) {
         bytes) == 0;
 }
 
+extern "C" long long quidra_bin_byte_length(void* raw) {
+    const auto bits = bin_length(raw);
+    if (bits % 8 != 0)
+        runtime_text_failure("bin length is not byte-aligned for this operation");
+    return bits / 8;
+}
+
 extern "C" void* quidra_bin_from_array(void* raw, int width, int stride) {
     if (!raw || width <= 0 || width > 64 || stride <= 0)
         runtime_text_failure("invalid bin array conversion");

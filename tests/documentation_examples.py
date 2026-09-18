@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
@@ -17,6 +18,11 @@ DOCS = [
     ROOT / "docs/spec/language.md",
     ROOT / "docs/spec/llm-guide.md",
 ]
+
+# quidra run includes native compilation. Windows CI has materially higher
+# toolchain startup cost, so keep the timeout as a hang guard rather than a
+# performance assertion.
+NATIVE_EXAMPLE_TIMEOUT = 60 if os.name == "nt" else 15
 
 POINT = """class Point
     float x
@@ -284,7 +290,7 @@ def main() -> int:
                         stdout=subprocess.PIPE,
                         stderr=subprocess.PIPE,
                         check=False,
-                        timeout=15,
+                        timeout=NATIVE_EXAMPLE_TIMEOUT,
                     )
                     actual = native.stdout.rstrip("\n")
                     expected = "\n".join(expected_output)

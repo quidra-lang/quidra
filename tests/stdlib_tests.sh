@@ -167,6 +167,18 @@ data = open(sys.argv[1], "rb").read()
 assert data == bytes([0, 255, 66, 10, 128]), data
 PY
 
+cat > "$TMP/file-bin-unaligned.qui" <<QUI
+bin value = bin.fill(3, 1)
+auto saved = file.write_bin("$TMP/unaligned.bin", value)
+match saved
+    void
+        print("unexpected")
+    error problem
+        print(problem)
+QUI
+[[ "$("$QUIDRA" "$TMP/file-bin-unaligned.qui")" == "file operation failed" ]]
+[[ ! -e "$TMP/unaligned.bin" ]]
+
 printf 'b' > "$TMP/new-directory/b.txt"
 printf 'a' > "$TMP/new-directory/a.txt"
 cat > "$TMP/file-list.qui" <<QUI
@@ -1581,4 +1593,28 @@ set +e
 bin_cast_length_rc=$?
 set -e
 [[ "$bin_cast_length_rc" -eq 101 ]]
-grep -q 'Quidra runtime error' "$TMP/bin-cast-length-fail.err"
+grep -q 'bin length does not match destination type width' "$TMP/bin-cast-length-fail.err"
+
+cat > "$TMP/bin-bool-length-fail.qui" <<'QUI'
+bin value = bin.parse("10")
+bool decoded = bool(value)
+print(decoded)
+QUI
+set +e
+"$QUIDRA" "$TMP/bin-bool-length-fail.qui" >"$TMP/bin-bool-length-fail.out" 2>"$TMP/bin-bool-length-fail.err"
+bin_bool_length_rc=$?
+set -e
+[[ "$bin_bool_length_rc" -eq 101 ]]
+grep -q 'bin length does not match destination type width' "$TMP/bin-bool-length-fail.err"
+
+cat > "$TMP/bin-array-length-fail.qui" <<'QUI'
+bin value = bin.parse("101")
+uint8[] decoded = uint8[](value)
+print(len(decoded))
+QUI
+set +e
+"$QUIDRA" "$TMP/bin-array-length-fail.qui" >"$TMP/bin-array-length-fail.out" 2>"$TMP/bin-array-length-fail.err"
+bin_array_length_rc=$?
+set -e
+[[ "$bin_array_length_rc" -eq 101 ]]
+grep -q 'bin length is not divisible by destination element width' "$TMP/bin-array-length-fail.err"

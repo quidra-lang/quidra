@@ -133,6 +133,7 @@ private:
     std::string current_class_;
 
     Type resolve_type(const TypeName& type, bool allow_auto = false);
+    void check_type_extent_expressions(const TypeName& source);
     Type check_expr(const Expr& expr, const Type* expected = nullptr);
     Type check_address_target(const Expr& expr, bool allow_tensor_element = false);
     bool storage_initialized(const Expr& expr) const;

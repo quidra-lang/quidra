@@ -6,9 +6,37 @@ Quidra is a statically typed, native general-purpose programming language design
 
 The name **Quidra** is derived from *quid*.
 
-Its goal is not to minimize characters. Its goal is **semantic compression**: a small amount of syntax should communicate a large amount of reliable intent.
+## Why Quidra
 
-A Quidra program should make the important facts visible:
+Programming languages communicate intent through tokens, but not every token contributes equally. Ceremony, duplicated declarations, context-sensitive syntax, implicit conversions, hidden mutation, hidden failure, and unstable name resolution all consume attention and context without necessarily adding reliable meaning.
+
+Quidra treats that as a language-design problem.
+
+The goal is to make each important token carry a stable semantic role, while allowing the compiler to infer facts that can be proven safely. Humans should spend less effort reconstructing hidden behavior. Language models should need fewer tokens and less surrounding context to determine what a program means, what it may do, and what may legally change.
+
+> **Fewer meaningless tokens, not fewer meaningful distinctions.**
+
+Quidra is therefore not designed around shortest source code, familiar syntax at any cost, or compiler cleverness hidden behind the program. It is designed around **semantic compression**.
+
+## Maximum Meaning Per Token
+
+Semantic compression means expressing a large amount of reliable intent with a small amount of syntax.
+
+It is not code golf.
+
+A shorter spelling is worse when it removes a distinction the reader or compiler needs. A longer spelling is waste when it merely repeats information that is already unambiguous and mechanically provable.
+
+Quidra aims to maximize the useful semantic information carried by source tokens:
+
+```text
+semantic information
+────────────────────
+       tokens
+```
+
+This is a design target rather than a claim that every semantic property can be reduced to one numeric metric.
+
+A Quidra program should make the facts that affect correctness visible:
 
 - what is a value and what is storage,
 - who is allowed to write,
@@ -16,26 +44,36 @@ A Quidra program should make the important facts visible:
 - which operations can fail,
 - when a conversion changes representation,
 - which alternatives a value may contain,
+- what shape or rank a tensor is required to have,
 - and which effects a call can have on existing state.
 
-The compiler uses those facts aggressively. Ambiguity and hidden behavior are treated as costs, even when another language would consider them convenient.
+The compiler should infer what is safely provable. Source syntax should state what cannot be inferred without changing meaning.
 
-```text
-Quidra source
-    → AST
-    → module resolution
-    → generic specialization
-    → static checking, effect analysis, and call resolution
-    → typed Quidra IR
-    → LLVM IR
-    → native machine code
-```
+This gives Quidra two complementary rules:
 
-A central implementation rule is that later stages do not rediscover meaning from source spelling. Module resolution and generic specialization establish concrete declarations; the checker resolves calls, conversions, storage authority, initialization facts, and observable effects; typed Quidra IR carries those decisions explicitly into LLVM lowering.
+1. **Remove ceremony that carries little semantic information.**
+2. **Keep syntax that distinguishes behavior, authority, failure, state, or representation.**
 
-The compiler is implemented in C++20. Native code is produced through LLVM IR and Clang; normal execution does not transpile Quidra to another source language.
+## Semantic compression in practice
 
-The supported desktop targets are Linux, macOS, and Windows. The compiler emits platform-neutral LLVM IR and uses the host Clang toolchain for native code generation; platform-specific executable discovery, process launching, runtime packaging, and filesystem replacement are isolated behind host implementations.
+Quidra tries to give common forms one stable job:
+
+| Form | Meaning carried |
+| --- | --- |
+| `=` | independent value-oriented assignment |
+| `&x` | explicit observable access to storage |
+| `T &` | writable path to caller-visible storage |
+| `const T &` | live read-only path to storage |
+| `T | none` | normal absence is part of the type |
+| `T | error` | failure is part of the type |
+| `try` | propagate `error`, not every non-value state |
+| `T(value)` | explicit representation conversion |
+| `tensor<T><3, _, _>` | dtype, exact rank, and shape constraints |
+| `match` | alternatives must be handled explicitly and exhaustively |
+
+The same principle applies beyond individual tokens. Visible names cannot be shadowed, so adding nearby code cannot silently redirect an earlier reference. Numeric values do not change representation merely because a destination type would accept them. Mutable storage is not created implicitly from ordinary value assignment. CPU/GPU movement is explicit rather than inferred from later operations.
+
+These choices deliberately spend syntax where the syntax carries important meaning, and remove syntax where the compiler can recover the same fact unambiguously.
 
 ## The language in one example
 
@@ -78,7 +116,7 @@ Several core ideas appear here:
 
 These are not independent features. They follow from a common semantic model.
 
-## Core design laws
+## Design laws derived from semantic compression
 
 ### 1. Values are the default; storage is explicit
 
@@ -674,6 +712,23 @@ Floating-point arithmetic follows IEEE-754 behavior for its width.
 Internal allocation identity is intentionally not part of the source-language model.
 
 ## Native implementation
+
+Semantic compression is a source-language goal, not a request for a lightweight or interpreted implementation. Quidra preserves the meaning established by the source through a typed native compilation pipeline:
+
+```text
+Quidra source
+    → AST
+    → module resolution
+    → generic specialization
+    → static checking, effect analysis, and call resolution
+    → typed Quidra IR
+    → LLVM IR
+    → native machine code
+```
+
+Later stages do not rediscover meaning from source spelling. Module resolution and generic specialization establish concrete declarations; the checker resolves calls, conversions, storage authority, initialization facts, shape constraints, and observable effects; typed Quidra IR carries those decisions explicitly into lowering.
+
+The compiler is implemented in C++20. Native code is produced through LLVM IR and Clang; normal execution does not transpile Quidra to another source language. The supported desktop targets are Linux, macOS, and Windows. Platform-specific executable discovery, process launching, runtime packaging, and filesystem replacement are isolated behind host implementations.
 
 The current implementation includes:
 

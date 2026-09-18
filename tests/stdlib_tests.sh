@@ -1308,7 +1308,7 @@ QUI
 http_output="$("$QUIDRA" "$TMP/http.qui")"
 wait "$HTTP_PID"
 HTTP_PID=""
-http_expected="$(printf '200\n3\n65\n0\npresent\nnone\n404\n7\ntransport-error')"
+http_expected="$(printf '200\n24\n0\n1\npresent\nnone\n404\n56\ntransport-error')"
 [[ "$http_output" == "$http_expected" ]]
 
 cat > "$TMP/http-direct-construction.qui" <<'QUI'

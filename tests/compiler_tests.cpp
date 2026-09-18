@@ -1392,6 +1392,8 @@ print(result)
 )");
  bad_code("bin raw = bin(3567446)\n", "AMBIGUOUS_NUMERIC_LITERAL");
  good("bin raw = bin(int32(3567446))\nprint(raw)\n");
+ bad_code("bigint value = 1\nbin raw = bin(value)\n", "TYPE_MISMATCH");
+ bad_code("bigreal value = 1.0\nbin raw = bin(value)\n", "TYPE_MISMATCH");
  good("float32 rounded = float32(16777217)\n");
  bad_code("float32 too_large = 1.0e100\n", "FLOAT_RANGE");
  bad_code("float32 too_large = float32(1.0e100)\n", "NUMERIC_CAST");

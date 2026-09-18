@@ -54,7 +54,7 @@ assert x["lsp"] is True
 assert x["package_management"] is True
 assert x["c_ffi"] is True
 assert x["debug_build"] is True
-for name in ["int8","int16","int32","int64 (= int)","uint8","uint16","uint32","uint64","float32","float64 (= float)","bin"]:
+for name in ["int8","int16","int32","int64 (= int)","uint8","uint16","uint32","uint64","bigint","float32","float64 (= float)","bigreal","bin"]:
     assert name in x["current_types"], name
 for name in ["print","write","input","range","array","len","abs","sqrt","min","max","error"]:
     assert name in x["current_builtins"], name
@@ -1905,6 +1905,17 @@ cli args
 
 print(args.value)
 QUI
+cat > "$TMP/cli-exact.qui" <<'QUI'
+cli args
+    bigint count = argument()
+    bigreal ratio = option(default = 0.1)
+
+print(args.count)
+print(args.ratio == bigreal(0.125))
+QUI
+[[ "$("$QUIDRA" run "$TMP/cli-exact.qui" -- 123456789012345678901234567890 --ratio 0.125)" == "$(printf '123456789012345678901234567890\ntrue')" ]]
+[[ "$("$QUIDRA" run "$TMP/cli-exact.qui" -- 7)" == "$(printf '7\nfalse')" ]]
+
 python3 - "$QUIDRA" "$TMP/cli-text.qui" <<'PY'
 import os
 import subprocess

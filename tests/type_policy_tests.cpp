@@ -60,15 +60,15 @@ int main() {
     require(assignable(constrained_or_error, tensor_or_error),
             "constrained tensor union may widen to unconstrained tensor union");
 
-    require(lossless_implicit_numeric_conversion(t(TypeKind::Int8), t(TypeKind::Int8)),
+    require(assignable(t(TypeKind::Int8), t(TypeKind::Int8)),
             "identity numeric representation is assignable");
-    require(!lossless_implicit_numeric_conversion(t(TypeKind::Int8), t(TypeKind::Int16)),
+    require(!assignable(t(TypeKind::Int8), t(TypeKind::Int16)),
             "typed integer widening is not implicit");
-    require(!lossless_implicit_numeric_conversion(t(TypeKind::UInt8), t(TypeKind::Int16)),
+    require(!assignable(t(TypeKind::UInt8), t(TypeKind::Int16)),
             "typed signedness/width changes are not implicit");
-    require(!lossless_implicit_numeric_conversion(t(TypeKind::Int16), t(TypeKind::Float32)),
+    require(!assignable(t(TypeKind::Int16), t(TypeKind::Float32)),
             "typed integer-to-float conversion is not implicit");
-    require(!lossless_implicit_numeric_conversion(t(TypeKind::Float32), t(TypeKind::Float)),
+    require(!assignable(t(TypeKind::Float32), t(TypeKind::Float)),
             "typed float widening is not implicit");
 
     require(numeric_conversion_policy(t(TypeKind::Int), t(TypeKind::Int8)) ==

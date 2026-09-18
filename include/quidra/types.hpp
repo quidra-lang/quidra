@@ -395,11 +395,6 @@ inline bool integer_range_exact_in_float(const Type& from, const Type& to) {
     return float_precision_bits(to) >= required_bits;
 }
 
-inline bool lossless_implicit_numeric_conversion(const Type& from, const Type& to) {
-    // Quidra never changes the representation of an already-typed numeric value
-    // implicitly. Numeric literals may still be contextually typed by the checker.
-    return is_numeric(from) && is_numeric(to) && from == to;
-}
 
 inline bool explicit_numeric_cast_supported(const Type& from, const Type& to) {
     if (!is_numeric(from) || !is_numeric(to)) return false;
@@ -409,7 +404,6 @@ inline bool explicit_numeric_cast_supported(const Type& from, const Type& to) {
 
 enum class NumericConversionPolicy {
     Identity,
-    ImplicitLossless,
     ExplicitRangeCheck,
     ExplicitDeterministic,
     Forbidden
@@ -417,7 +411,6 @@ enum class NumericConversionPolicy {
 
 inline NumericConversionPolicy numeric_conversion_policy(const Type& from, const Type& to) {
     if (from == to) return NumericConversionPolicy::Identity;
-    if (lossless_implicit_numeric_conversion(from, to)) return NumericConversionPolicy::ImplicitLossless;
     if (!explicit_numeric_cast_supported(from, to)) return NumericConversionPolicy::Forbidden;
     if (is_integer(from) && is_integer(to)) return NumericConversionPolicy::ExplicitRangeCheck;
     return NumericConversionPolicy::ExplicitDeterministic;
@@ -542,7 +535,6 @@ inline bool assignable(const Type& from, const Type& to) {
         from.kind == TypeKind::Never) {
         return true;
     }
-    if (lossless_implicit_numeric_conversion(from, to)) return true;
     if (to.kind == TypeKind::Union) {
         if (from.kind == TypeKind::Union) {
             return std::all_of(

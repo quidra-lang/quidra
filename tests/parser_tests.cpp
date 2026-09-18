@@ -32,6 +32,8 @@ static void reject(const std::string& source) {
 }
 
 int main() {
+    reject("tensor<float32, , 3> invalid\n");
+    reject("tensor<float32, _, 3> invalid\n");
     {
         bool rejected = false;
         try {

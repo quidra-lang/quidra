@@ -16,21 +16,7 @@ Integer literal magnitudes are accepted through the full `uint64` range. They ar
 
 ## Numeric conversion
 
-Implicit numeric conversion is permitted only when every value of the source type is exactly representable by the destination type.
-
-Examples:
-
-- `int8 -> int16`: allowed
-- `uint8 -> int16`: allowed
-- `uint32 -> int`: allowed
-- `int16 -> float32`: allowed
-- `uint32 -> float`: allowed
-- `float32 -> float`: allowed
-- `int8 -> uint8`: not allowed
-- `uint16 -> int16`: not allowed
-- `uint64 -> int`: not allowed
-- `int32 -> float32`: not allowed
-- `int -> float`: not allowed
+Already-typed numeric values never change representation implicitly. This includes widening changes such as `int8 -> int16` and `float32 -> float`. Numeric literals may still be contextually typed when the literal value is representable by the expected numeric type.
 
 Explicit numeric conversion uses the destination type as a call:
 

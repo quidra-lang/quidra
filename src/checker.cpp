@@ -3971,8 +3971,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             } else {
                 const Type& scalar = left_neural ? right : left;
                 const Expr& scalar_expr = left_neural ? *node->right : *node->left;
-                bool compatible = is_numeric(scalar) &&
-                    (scalar == element || lossless_implicit_numeric_conversion(scalar, element));
+                bool compatible = is_numeric(scalar) && scalar == element;
                 if (!compatible) {
                     if (const auto integer = constant_integer_value(scalar_expr)) {
                         compatible = is_integer(element)
@@ -3996,9 +3995,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             const Type& tensor_type = left_tensor ? left : right;
             const auto element = *tensor_type.first;
             const auto scalar_compatible = [&](const Expr& source, const Type& actual) {
-                if (actual == element || lossless_implicit_numeric_conversion(actual, element)) {
-                    return true;
-                }
+                if (actual == element) return true;
                 if (const auto integer = constant_integer_value(source)) {
                     if (is_integer(element)) return integer_value_fits(*integer, element);
                     if (is_float(element)) return integer_value_fits_exactly_in_float(*integer, element);

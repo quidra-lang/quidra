@@ -1860,7 +1860,8 @@ private:
                 } else if (axis < actual.tensor_shape_prefix.size()) {
                     actual_extent = actual.tensor_shape_prefix[axis];
                 }
-                if (!actual_extent || *actual_extent != pattern.tensor_shape_prefix[axis]) {
+                if (actual_extent &&
+                    *actual_extent != pattern.tensor_shape_prefix[axis]) {
                     return false;
                 }
             }

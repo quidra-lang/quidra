@@ -1382,6 +1382,13 @@ float32 dot = linear.dot(reshaped, tensor.ones<float32>([6]))
 tensor<float32> source = tensor.ones<float32>([3, 2])
 tensor<float32, 3> constrained = first_three(source)
 )");
+ // Generic dtype inference may proceed through an unknown shape, but the
+ // specialized call still enforces the tensor shape constraint.
+ bad_code(R"(tensor<T, 3> first_three<T>(tensor<T, 3> value)
+    return value
+tensor<float32> source = tensor.ones<float32>([2, 2])
+tensor<float32, 3> constrained = first_three(source)
+)", "TYPE_MISMATCH");
  good(R"(tensor<float32> | error direct = tensor.zeros<float32>([2, 2])
 tensor<float32, 2> | error constrained = tensor.ones<float32>([2, 2])
 tensor<float32> | error widened = constrained

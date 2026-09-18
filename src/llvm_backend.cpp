@@ -792,31 +792,33 @@ struct FunctionEmitter {
             out<<"  "<<value(n.out)<<" = call ptr @quidra_string_append_move_many(ptr "<<value(n.text)
                <<", ptr "<<items<<", i64 "<<n.suffixes.size()<<")\n";
         }
+        if constexpr(std::is_same_v<T,ir::StringRepeat>){
+            values[n.out]=Type::simple(TypeKind::String);
+            out<<"  "<<value(n.out)<<" = call ptr @quidra_string_repeat(i64 "<<value(n.count)
+               <<", ptr "<<value(n.fill)<<")\n";
+        }
         if constexpr(std::is_same_v<T,ir::BytesAlloc>){
             values[n.out]=Type::simple(TypeKind::Bytes);
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_array_alloc(i64 "<<value(n.length)<<", i64 1, i32 1)\n";
-            auto data=temp("bytes.data"),fill32=temp("bytes.fill");
-            out<<"  "<<data<<" = getelementptr inbounds i8, ptr "<<value(n.out)<<", i64 8\n";
-            out<<"  "<<fill32<<" = zext i8 "<<value(n.fill)<<" to i32\n";
-            out<<"  call ptr @memset(ptr "<<data<<", i32 "<<fill32<<", i64 "<<value(n.length)<<")\n";
+            out<<"  "<<value(n.out)<<" = call ptr @quidra_bin_alloc(i64 "<<value(n.length)
+               <<", i64 "<<value(n.fill)<<")\n";
         }
-        if constexpr(std::is_same_v<T,ir::BytesLength>){values[n.out]=Type::simple(TypeKind::Int);out<<"  "<<value(n.out)<<" = load i64, ptr "<<value(n.bytes)<<", align 1\n";}
+        if constexpr(std::is_same_v<T,ir::BytesLength>){
+            values[n.out]=Type::simple(TypeKind::Int);
+            out<<"  "<<value(n.out)<<" = load i64, ptr "<<value(n.bytes)<<", align 1\n";
+        }
         if constexpr(std::is_same_v<T,ir::BytesGet>){
-            values[n.out]=Type::simple(TypeKind::UInt8);
-            auto slot=temp("bytes.get.slot");
-            if(n.bounds_proven)
-                out<<"  "<<slot<<" = call ptr @quidra_array_slot_proven(ptr "<<value(n.bytes)<<", i64 "<<value(n.index)<<", i64 1)\n";
-            else
-                out<<"  "<<slot<<" = call ptr @quidra_array_slot(ptr "<<value(n.bytes)<<", i64 "<<value(n.index)<<", i64 1, i64 "<<n.line<<", i64 "<<n.column<<")\n";
-            out<<"  "<<value(n.out)<<" = load i8, ptr "<<slot<<", align 1\n";
+            values[n.out]=Type::simple(TypeKind::Bytes);
+            out<<"  "<<value(n.out)<<" = call ptr @quidra_bin_index(ptr "<<value(n.bytes)
+               <<", i64 "<<value(n.index)<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::BytesSet>){
-            auto slot=temp("bytes.set.slot");
-            if(n.bounds_proven)
-                out<<"  "<<slot<<" = call ptr @quidra_array_slot_proven(ptr "<<value(n.bytes)<<", i64 "<<value(n.index)<<", i64 1)\n";
-            else
-                out<<"  "<<slot<<" = call ptr @quidra_array_slot(ptr "<<value(n.bytes)<<", i64 "<<value(n.index)<<", i64 1, i64 "<<n.line<<", i64 "<<n.column<<")\n";
-            out<<"  store i8 "<<value(n.value)<<", ptr "<<slot<<", align 1\n";
+            out<<"  call void @quidra_bin_set(ptr "<<value(n.bytes)<<", i64 "<<value(n.index)
+               <<", ptr "<<value(n.value)<<")\n";
+        }
+        if constexpr(std::is_same_v<T,ir::BytesSlice>){
+            values[n.out]=Type::simple(TypeKind::Bytes);
+            out<<"  "<<value(n.out)<<" = call ptr @quidra_bin_slice(ptr "<<value(n.bytes)
+               <<", i64 "<<value(n.start)<<", i64 "<<value(n.end)<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::ArrayNumericCast>){
             values[n.out]=n.target_type;
@@ -1302,6 +1304,79 @@ struct FunctionEmitter {
                     }
                 }else{
                     out<<"  "<<value(n.out)<<" = fadd "<<target_ty<<" "<<value(n.value)<<", 0.000000e+00\n";
+                }
+            }
+        }
+        if constexpr(std::is_same_v<T,ir::ParseBin>){
+            values[n.out]=n.result_type;
+            const auto parsed=temp("bin.parse.value");
+            out<<"  "<<parsed<<" = call ptr @quidra_bin_parse(ptr "<<value(n.text)<<")\n";
+            if(n.result_type.kind==TypeKind::Bytes){
+                out<<"  "<<value(n.out)<<" = getelementptr i8, ptr "<<parsed<<", i64 0\n";
+            }else{
+                const auto result=value(n.out);
+                out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
+                const auto ok=temp("bin.parse.ok");
+                const auto ok_label=unique_label("bin.parse.ok");
+                const auto fail_label=unique_label("bin.parse.fail");
+                const auto done_label=unique_label("bin.parse.done");
+                out<<"  "<<ok<<" = icmp ne ptr "<<parsed<<", null\n";
+                out<<"  br i1 "<<ok<<", label %"<<ok_label<<", label %"<<fail_label<<"\n";
+                out<<ok_label<<":\n";
+                out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Bytes))<<", ptr "<<result<<"\n";
+                const auto ok_payload=temp("bin.parse.payload");
+                out<<"  "<<ok_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n";
+                out<<"  store ptr "<<parsed<<", ptr "<<ok_payload<<"\n";
+                out<<"  br label %"<<done_label<<"\n";
+                out<<fail_label<<":\n";
+                out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
+                const auto err_payload=temp("bin.parse.error.payload");
+                out<<"  "<<err_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n";
+                out<<"  store ptr @.err.parse, ptr "<<err_payload<<"\n";
+                out<<"  br label %"<<done_label<<"\n";
+                out<<done_label<<":\n";
+            }
+        }
+        if constexpr(std::is_same_v<T,ir::BinConvert>){
+            values[n.out]=n.target_type;
+            if(n.source_type.kind==TypeKind::Bytes){
+                if(n.target_type.kind==TypeKind::Array){
+                    const auto width=n.target_type.first->kind==TypeKind::Bool?1:integer_width(*n.target_type.first);
+                    const auto stride=runtime_storage_bytes(*n.target_type.first);
+                    out<<"  "<<value(n.out)<<" = call ptr @quidra_bin_to_array(ptr "<<value(n.value)
+                       <<", i32 "<<width<<", i32 "<<stride<<")\n";
+                }else{
+                    const auto width=n.target_type.kind==TypeKind::Bool?1:integer_width(n.target_type);
+                    const auto raw=temp("bin.scalar");
+                    out<<"  "<<raw<<" = call i64 @quidra_bin_to_u64(ptr "<<value(n.value)
+                       <<", i32 "<<width<<")\n";
+                    if(n.target_type.kind==TypeKind::Bool){
+                        out<<"  "<<value(n.out)<<" = trunc i64 "<<raw<<" to i1\n";
+                    }else if(width<64){
+                        out<<"  "<<value(n.out)<<" = trunc i64 "<<raw<<" to "<<llvm_type(n.target_type)<<"\n";
+                    }else{
+                        out<<"  "<<value(n.out)<<" = add i64 "<<raw<<", 0\n";
+                    }
+                }
+            }else if(n.target_type.kind==TypeKind::Bytes){
+                if(n.source_type.kind==TypeKind::Array){
+                    const auto width=n.source_type.first->kind==TypeKind::Bool?1:integer_width(*n.source_type.first);
+                    const auto stride=runtime_storage_bytes(*n.source_type.first);
+                    out<<"  "<<value(n.out)<<" = call ptr @quidra_bin_from_array(ptr "<<value(n.value)
+                       <<", i32 "<<width<<", i32 "<<stride<<")\n";
+                }else{
+                    const auto width=n.source_type.kind==TypeKind::Bool?1:integer_width(n.source_type);
+                    std::string widened=value(n.value);
+                    if(n.source_type.kind==TypeKind::Bool){
+                        widened=temp("bin.bool");
+                        out<<"  "<<widened<<" = zext i1 "<<value(n.value)<<" to i64\n";
+                    }else if(width<64){
+                        widened=temp("bin.integer");
+                        out<<"  "<<widened<<" = "<<(is_signed_integer(n.source_type)?"sext":"zext")
+                           <<" "<<llvm_type(n.source_type)<<" "<<value(n.value)<<" to i64\n";
+                    }
+                    out<<"  "<<value(n.out)<<" = call ptr @quidra_bin_from_u64(i64 "<<widened
+                       <<", i32 "<<width<<")\n";
                 }
             }
         }
@@ -2210,6 +2285,8 @@ struct FunctionEmitter {
                 out<<"  "<<value(n.out)<<" = call ptr @quidra_float_text(double "<<widened<<")\n";
             }else if(n.source_type.kind==TypeKind::Bool){
                 out<<"  "<<value(n.out)<<" = select i1 "<<value(n.value)<<", ptr @.bool.true, ptr @.bool.false\n";
+            }else if(n.source_type.kind==TypeKind::Bytes){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bin_string(ptr "<<value(n.value)<<")\n";
             }else if(n.source_type.kind==TypeKind::String||n.source_type.kind==TypeKind::Error){
                 out<<"  "<<value(n.out)<<" = getelementptr i8, ptr "<<value(n.value)<<", i64 0\n";
             }
@@ -2330,6 +2407,12 @@ struct FunctionEmitter {
             }else if(n.type.kind==TypeKind::Bool){
                 auto t=temp("print.bool");out<<"  "<<t<<" = select i1 "<<value(n.value)<<", ptr @.bool.true, ptr @.bool.false\n";
                 if(newline)out<<"  call i32 @puts(ptr "<<t<<")\n";else out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr "<<t<<")\n";
+            }else if(n.type.kind==TypeKind::Bytes){
+                auto text=temp("print.bin");
+                out<<"  "<<text<<" = call ptr @quidra_bin_string(ptr "<<value(n.value)<<")\n";
+                if(newline)out<<"  call i32 @puts(ptr "<<text<<")\n";
+                else out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr "<<text<<")\n";
+                out<<"  call void @quidra_managed_release(ptr "<<text<<", ptr null)\n";
             }else{
                 if(newline)out<<"  call i32 @puts(ptr "<<value(n.value)<<")\n";else out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr "<<value(n.value)<<")\n";
             }
@@ -2564,14 +2647,8 @@ std::string emit_clone_helper(const Type&t,const std::unordered_map<std::string,
  }
  if(t.kind==TypeKind::Bytes){
     std::ostringstream o;
-    o<<"define ptr "<<clone_name(t)<<"(ptr %src) {\n"
-     <<"entry:\n  %null = icmp eq ptr %src, null\n"
-     <<"  br i1 %null, label %null.ret, label %clone.body\n"
-     <<"null.ret:\n  ret ptr null\n"
-     <<"clone.body:\n  %len = load i64, ptr %src, align 1\n"
-     <<"  %bytes = add i64 %len, 8\n"
-     <<"  %dst = call ptr @quidra_alloc(i64 %bytes)\n"
-     <<"  call ptr @memcpy(ptr %dst, ptr %src, i64 %bytes)\n"
+    o<<"define ptr "<<clone_name(t)<<"(ptr %src) {\nentry:\n"
+     <<"  %dst = call ptr @quidra_bin_clone(ptr %src)\n"
      <<"  ret ptr %dst\n}\n\n";
     return o.str();
  }
@@ -2916,16 +2993,8 @@ std::string emit_equality_helper(
 
     if (type.kind == TypeKind::Bytes) {
         out << "compare:\n"
-            << "  %left.len = load i64, ptr %left, align 1\n"
-            << "  %right.len = load i64, ptr %right, align 1\n"
-            << "  %length.equal = icmp eq i64 %left.len, %right.len\n"
-            << "  br i1 %length.equal, label %bytes.compare, label %different\n"
-            << "bytes.compare:\n"
-            << "  %left.data = getelementptr inbounds i8, ptr %left, i64 8\n"
-            << "  %right.data = getelementptr inbounds i8, ptr %right, i64 8\n"
-            << "  %cmp = call i32 @memcmp(ptr %left.data, ptr %right.data, i64 %left.len)\n"
-            << "  %bytes.equal = icmp eq i32 %cmp, 0\n"
-            << "  br i1 %bytes.equal, label %equal, label %different\n";
+            << "  %bin.equal = call i1 @quidra_bin_equal(ptr %left, ptr %right)\n"
+            << "  br i1 %bin.equal, label %equal, label %different\n";
     } else if (type.kind == TypeKind::Class) {
         const auto& layout = layouts.at(type.class_name);
         out << "compare:\n";
@@ -3033,6 +3102,19 @@ declare ptr @quidra_string_join(ptr, ptr, i64, i64)
 declare ptr @quidra_string_concat_many(ptr, i64)
 declare i1 @quidra_string_can_append_move(ptr)
 declare ptr @quidra_string_append_move_many(ptr, ptr, i64)
+declare ptr @quidra_string_repeat(i64, ptr)
+declare ptr @quidra_bin_alloc(i64, i64)
+declare ptr @quidra_bin_index(ptr, i64)
+declare void @quidra_bin_set(ptr, i64, ptr)
+declare ptr @quidra_bin_slice(ptr, i64, i64)
+declare ptr @quidra_bin_parse(ptr)
+declare ptr @quidra_bin_string(ptr)
+declare ptr @quidra_bin_from_u64(i64, i32)
+declare i64 @quidra_bin_to_u64(ptr, i32)
+declare ptr @quidra_bin_from_array(ptr, i32, i32)
+declare ptr @quidra_bin_to_array(ptr, i32, i32)
+declare ptr @quidra_bin_clone(ptr)
+declare i1 @quidra_bin_equal(ptr, ptr)
 declare ptr @quidra_cli_argument(i64)
 declare ptr @quidra_cli_option(ptr)
 declare i1 @quidra_cli_flag(ptr)

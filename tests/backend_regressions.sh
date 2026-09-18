@@ -60,6 +60,47 @@ print(sum)
 QUI
 verify_and_run contextual-literals "$(printf '3.0\n2.0\n3.0\n1.5\n-3.0\n6.0\n105')"
 
+cat > "$TMP/bitwise.qui" <<'QUI'
+uint8 a = 240
+uint8 b = 204
+print(a AND b)
+print(a OR b)
+print(a XOR b)
+print(NOT a)
+uint8 small = 3
+print(small << 2)
+uint8 high = 128
+print(high >> 7)
+int8 signed_value = -8
+print(signed_value >> 2)
+QUI
+verify_and_run bitwise "$(printf '192\n252\n60\n15\n12\n1\n-2')"
+
+cat > "$TMP/shift-count-runtime.qui" <<'QUI'
+uint8 value = 1
+uint8 count = 8
+print(value << count)
+QUI
+set +e
+"$QUIDRA" run "$TMP/shift-count-runtime.qui" >"$TMP/shift-count-runtime.out" 2>"$TMP/shift-count-runtime.err"
+status=$?
+set -e
+[[ "$status" -eq 101 ]]
+cat "$TMP/shift-count-runtime.out" "$TMP/shift-count-runtime.err" | grep -q "SHIFT_COUNT"
+
+cat > "$TMP/string-concat-loop.qui" <<'QUI'
+string text = ""
+int i = 0
+while i < 200000
+    text = "a" + "b"
+    i += 1
+print(text)
+QUI
+"$QUIDRA" llvm "$TMP/string-concat-loop.qui" > "$TMP/string-concat-loop.ll"
+"$OPT" -passes=verify -disable-output "$TMP/string-concat-loop.ll"
+! grep -q 'alloca ptr, i64' "$TMP/string-concat-loop.ll"
+[[ "$("$QUIDRA" run "$TMP/string-concat-loop.qui")" == "ab" ]]
+
 cat > "$TMP/float32-rounding.qui" <<'QUI'
 float32 rounded = 0.000001
 float source = 0.1

@@ -2,7 +2,7 @@
   "schema_version": 1,
   "language": "Quidra",
   "language_version": "0.1",
-  "compiler_version": "0.2.0",
+  "compiler_version": "0.3.0",
   "tagline": "Programming with maximum meaning per token.",
   "source_extension": ".qui",
   "source_version_header": false,

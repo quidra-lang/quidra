@@ -63,8 +63,12 @@ private:
     ExprPtr string_expression(const Token& token);
     ExprPtr or_expr();
     ExprPtr and_expr();
+    ExprPtr bit_or_expr();
+    ExprPtr bit_xor_expr();
+    ExprPtr bit_and_expr();
     ExprPtr equality();
     ExprPtr comparison();
+    ExprPtr shift_expr();
     ExprPtr term();
     ExprPtr factor();
     ExprPtr unary();

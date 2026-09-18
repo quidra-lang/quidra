@@ -996,13 +996,23 @@ struct Lowerer {
                     static_cast<std::uint32_t>(e.span.start.line),
                     static_cast<std::uint32_t>(e.span.start.column)});
             }else{
-                auto i=expr(*n->items.front().index);
                 if(base_type.kind==TypeKind::Bytes) {
-                    block->instructions.push_back(BytesGet{
-                        out,a,i,static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column),
-                        checked.bounds_proven.contains(n->items.front().index.get())});
+                    const auto& item=n->items.front();
+                    if(item.slice){
+                        auto start=item.start?expr(*item.start):const_int(0);
+                        ValueId stop;
+                        if(item.stop) stop=expr(*item.stop);
+                        else { stop=fresh(); block->instructions.push_back(BytesLength{stop,a}); }
+                        block->instructions.push_back(BytesSlice{out,a,start,stop});
+                    }else{
+                        auto i=expr(*item.index);
+                        block->instructions.push_back(BytesGet{
+                            out,a,i,static_cast<std::uint32_t>(e.span.start.line),
+                            static_cast<std::uint32_t>(e.span.start.column),
+                            checked.bounds_proven.contains(item.index.get())});
+                    }
                 } else if(base_type.kind==TypeKind::String) {
+                    auto i=expr(*n->items.front().index);
                     block->instructions.push_back(StringIndex{
                         out,a,i,static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column)});
@@ -1206,6 +1216,12 @@ struct Lowerer {
                 if(target && is_numeric(*target)){
                     auto text=expr(*n->args[0].value),out=fresh();
                     block->instructions.push_back(ParseNumber{out,text,*target,checked.raw_types.at(&e)});
+                    release_temporary(*n->args[0].value,text);
+                    return out;
+                }
+                if(target && target->kind==TypeKind::Bytes){
+                    auto text=expr(*n->args[0].value),out=fresh();
+                    block->instructions.push_back(ParseBin{out,text,checked.raw_types.at(&e)});
                     release_temporary(*n->args[0].value,text);
                     return out;
                 }
@@ -1470,7 +1486,12 @@ struct Lowerer {
             auto value=expr(*n.args[0].value),out=fresh();
             const auto source=type_of(*n.args[0].value);
             const auto& target=resolution.type;
-            if(source.kind==TypeKind::Tensor){
+            if(source.kind==TypeKind::Bytes){
+                block->instructions.push_back(BinConvert{
+                    out,value,source,target,
+                    static_cast<std::uint32_t>(e.span.start.line),
+                    static_cast<std::uint32_t>(e.span.start.column)});
+            }else if(source.kind==TypeKind::Tensor){
                 block->instructions.push_back(TensorCast{
                     out,value,source,target,
                     static_cast<std::uint32_t>(e.span.start.line),
@@ -1500,17 +1521,23 @@ struct Lowerer {
             if(resolution.type.kind==TypeKind::Error) {
                 return expr(*n.args[0].value);
             }
+            if(resolution.target=="string.repeat"){
+                auto count=expr(*n.args[0].value),fill=expr(*n.args[1].value),out=fresh();
+                block->instructions.push_back(StringRepeat{out,count,fill});
+                release_temporary(*n.args[1].value,fill);
+                return out;
+            }
             if(resolution.type.kind==TypeKind::Bytes){
-                auto byte_type=Type::simple(TypeKind::UInt8);
-                ValueId length=n.args.empty()?const_int(0):expr(*n.args[0].value);
-                ValueId fill;
-                if(n.args.size()<2){
-                    fill=fresh();
-                    block->instructions.push_back(ConstantInt{fill,"0",byte_type});
-                }else{
-                    fill=expr(*n.args[1].value);
-                    fill=convert(fill,type_of(*n.args[1].value),byte_type);
+                if(resolution.target=="bin.cast"){
+                    auto value=expr(*n.args[0].value),out=fresh();
+                    block->instructions.push_back(BinConvert{
+                        out,value,type_of(*n.args[0].value),Type::simple(TypeKind::Bytes),
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    return out;
                 }
+                auto length=expr(*n.args[0].value);
+                auto fill=expr(*n.args[1].value);
                 auto out=fresh();
                 block->instructions.push_back(BytesAlloc{out,length,fill});
                 return out;
@@ -2298,7 +2325,7 @@ struct Lowerer {
             array_type.kind == TypeKind::Array &&
             array_expression_fully_initialized(*n.iterable);
         auto array=expr(*n.iterable);
-        const auto item=array_type.kind==TypeKind::Bytes?Type::simple(TypeKind::UInt8):*array_type.first;
+        const auto item=array_type.kind==TypeKind::Bytes?Type::simple(TypeKind::Bytes):*array_type.first;
         const bool iterable_temporary=expression_owns_result(*n.iterable);
         const auto idx_name=hidden("for.index"), len_name=hidden("for.length"); locals[idx_name]=locals[len_name]=Type::simple(TypeKind::Int); const auto iter_name=bind_source_local(n.name,item);
         auto len=fresh();

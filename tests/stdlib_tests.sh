@@ -1374,6 +1374,30 @@ QUI
 captured_shapes_output="$("$QUIDRA" "$TMP/captured-shapes.qui")"
 [[ "$captured_shapes_output" == "$(printf '3\n5\n10\n5')" ]]
 
+cat > "$TMP/dependent-signature-shape.qui" <<'QUI'
+tensor<float><n, 2> keep_shape(int n, tensor<float><n, 2> value)
+    return value
+tensor<float> source = tensor.ones<float>([3, 2])
+tensor<float><3, 2> checked = keep_shape(3, source)
+print(checked.shape()[0])
+QUI
+dependent_signature_output="$("$QUIDRA" "$TMP/dependent-signature-shape.qui")"
+[[ "$dependent_signature_output" == "3" ]]
+
+cat > "$TMP/dependent-signature-shape-fail.qui" <<'QUI'
+tensor<float><n, 2> keep_shape(int n, tensor<float><n, 2> value)
+    return value
+tensor<float> source = tensor.ones<float>([4, 2])
+auto checked = keep_shape(3, source)
+print(checked.shape()[0])
+QUI
+set +e
+"$QUIDRA" "$TMP/dependent-signature-shape-fail.qui" >"$TMP/dependent-signature-shape-fail.out" 2>"$TMP/dependent-signature-shape-fail.err"
+dependent_signature_rc=$?
+set -e
+[[ "$dependent_signature_rc" -eq 101 ]]
+grep -q 'captured shape constraint' "$TMP/dependent-signature-shape-fail.err"
+
 cat > "$TMP/captured-shape-reassign-fail.qui" <<'QUI'
 int n = 3
 tensor<float><n, 4> value = tensor.ones<float>([3, 4])

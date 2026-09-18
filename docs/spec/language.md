@@ -693,11 +693,11 @@ The v0.1 implementation uses libcurl directly in the native runtime. It permits 
 
 ### stats
 
-`stats.mean(value)` accepts a numeric tensor and returns its arithmetic mean as `float`. The tensor may be contiguous or a view. Empty tensors and tensors containing any uninitialized element fail deterministically at runtime rather than inventing a default value.
+`stats.sum(value)`, `stats.min(value)`, and `stats.max(value)` reduce a numeric tensor to a scalar of the same element type. Integer `sum` is overflow-checked. `min` and `max` are undefined for an empty tensor. `stats.mean(value)` returns the arithmetic mean as `float` and is likewise undefined for an empty tensor. All four reductions accept contiguous tensors or views, require every participating element to be initialized, and preserve explicit GPU placement semantics without hidden CPU fallback; only the scalar result is transferred to the host when the API returns a host scalar.
 
 ### linear
 
-`linear.dot(a, b)` computes the scalar dot product of two rank-1 numeric tensors with the same element type and length. The scalar result preserves that element type. `linear.matmul(a, b)` implements rank-2 matrix multiplication for operands with the same tensor element type and shapes `[m, k]` and `[k, n]`; the result has shape `[m, n]` and preserves that element type. Integer multiplication and accumulation remain overflow-checked in both operations. Higher-rank batched matmul is not implicit in language version 0.1.
+`linear.dot(a, b)` computes the scalar dot product of two rank-1 numeric tensors with the same element type and length. The scalar result preserves that element type. `linear.matmul(a, b)` supports vector-matrix `[k] × [k, n] -> [n]`, matrix-vector `[m, k] × [k] -> [m]`, and matrix-matrix `[m, k] × [k, n] -> [m, n]` multiplication. Operands must have the same tensor element type and compatible inner dimensions; results preserve that element type and device placement. Integer multiplication and accumulation remain overflow-checked. Vector-vector multiplication remains `linear.dot`; higher-rank batched matmul is not implicit in language version 0.1.
 
 ### image
 

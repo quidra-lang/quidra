@@ -2534,6 +2534,24 @@ const NeuralGradient* neural_gradient_for_parameter(
     return &gradient;
 }
 
+
+void neural_replace_tensor_value(
+    TensorValue& target,TensorValue* source,
+    unsigned long long line,unsigned long long column) {
+    if(!source||!source->storage)
+        neural_fail("invalid GPU optimizer result",line,column);
+    if(source->storage->owners==std::numeric_limits<std::size_t>::max())
+        neural_fail("GPU optimizer storage ownership overflow",line,column);
+    ++source->storage->owners;
+    auto* old=target.storage;
+    target.storage=source->storage;
+    target.shape=source->shape;
+    target.strides=source->strides;
+    target.offset=source->offset;
+    tensor_storage_release(old);
+    quidra_tensor_drop(source);
+}
+
 void neural_apply_parameter_delta(
     void* parameter_raw,const std::vector<double>& delta,
     unsigned long long line,unsigned long long column) {
@@ -3174,6 +3192,28 @@ extern "C" bool quidra_neural_update_parameter(
     const auto* gradient=neural_gradient_for_parameter(
         parameter,gradients_raw,line,column);
     if(!gradient) return false;
+    if(gradient->device_tensor){
+        auto* tensor=neural_parameter_tensor(parameter);
+        if(!tensor) neural_fail("invalid neural Parameter",line,column);
+        void* scaled_raw=nullptr;
+        if(gradient->dtype==10){
+            float scalar=static_cast<float>(rate);
+            scaled_raw=quidra_tensor_binary(
+                gradient->device_tensor,nullptr,&scalar,2,3,line,column);
+        }else if(gradient->dtype==9){
+            double scalar=rate;
+            scaled_raw=quidra_tensor_binary(
+                gradient->device_tensor,nullptr,&scalar,2,3,line,column);
+        }else{
+            neural_fail("invalid neural gradient dtype",line,column);
+        }
+        auto* scaled=static_cast<TensorValue*>(scaled_raw);
+        auto* next=static_cast<TensorValue*>(
+            quidra_tensor_binary(tensor,scaled,nullptr,0,2,line,column));
+        quidra_tensor_drop(scaled);
+        neural_replace_tensor_value(*tensor,next,line,column);
+        return true;
+    }
     if(gradient->dtype==10)
         return neural_update_parameter_t<float>(parameter,*gradient,rate,line,column);
     if(gradient->dtype==9)
@@ -3284,6 +3324,10 @@ extern "C" bool quidra_neural_moment_update_parameter(
 
     const auto* gradient=neural_gradient_for_parameter(parameter,gradients_raw,line,column);
     bool matched=gradient!=nullptr;
+    if(gradient&&gradient->device_tensor)
+        neural_fail(
+            "neural.moment_update GPU gradients require the DNN GPU moment backend",
+            line,column);
     if(matched){
         if(record.step==std::numeric_limits<std::uint64_t>::max())
             neural_fail("moment update Parameter step counter overflow",line,column);

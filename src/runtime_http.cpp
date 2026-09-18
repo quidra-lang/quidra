@@ -117,7 +117,8 @@ void* http_make_bytes(const std::vector<unsigned char>& body) {
     if (body.size() > static_cast<std::size_t>(std::numeric_limits<long long>::max())) return nullptr;
     if (body.size() > static_cast<std::size_t>(-1) - 8) return nullptr;
     auto* value = static_cast<unsigned char*>(quidra_managed_alloc(8 + body.size()));
-    const auto length = static_cast<long long>(body.size());
+    if (body.size() > static_cast<std::size_t>(std::numeric_limits<long long>::max() / 8)) return nullptr;
+    const auto length = static_cast<long long>(body.size() * 8);
     std::memcpy(value, &length, sizeof(length));
     if (!body.empty()) std::memcpy(value + 8, body.data(), body.size());
     return value;
@@ -156,12 +157,13 @@ void* http_clone_bytes(void* source) {
     long long length = 0;
     std::memcpy(&length, source, sizeof(length));
     if (length < 0) return nullptr;
-    const auto size = static_cast<unsigned long long>(length);
-    if (size > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()) - 8ULL) {
+    if (length % 8 != 0) return nullptr;
+    const auto byte_count = static_cast<unsigned long long>(length / 8);
+    if (byte_count > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()) - 8ULL) {
         return nullptr;
     }
-    auto* copy = static_cast<unsigned char*>(quidra_managed_alloc(8ULL + size));
-    std::memcpy(copy, source, static_cast<std::size_t>(8ULL + size));
+    auto* copy = static_cast<unsigned char*>(quidra_managed_alloc(8ULL + byte_count));
+    std::memcpy(copy, source, static_cast<std::size_t>(8ULL + byte_count));
     return copy;
 }
 }

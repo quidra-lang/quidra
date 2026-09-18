@@ -146,6 +146,36 @@ print(len(acc))
 """,
     40000, 80000, lambda n: str(n * 10))
 
+# Repeated prefix operations must not revalidate or index every byte of the
+# growing source on each iteration. These two regressions used to turn otherwise
+# constant-prefix work into O(n^2).
+check_scaling(
+    "string starts_with reuses validation metadata",
+    """int n = {n}
+string source = "x"
+for i in range(0, n)
+    source = source + "x"
+int matches = 0
+for i in range(0, n)
+    if source.starts_with("x")
+        matches += 1
+print(matches)
+""",
+    5000, 10000, lambda n: str(n))
+
+check_scaling(
+    "short string slice does not scan the full source",
+    """int n = {n}
+string source = "x"
+for i in range(0, n)
+    source = source + "x"
+int total = 0
+for i in range(0, n)
+    total += len(source.slice(0, 1))
+print(total)
+""",
+    3000, 6000, lambda n: str(n))
+
 # Every checked element access through a writable array reference consults the
 # runtime initialization tracker, which cached exactly one allocation. A loop
 # that reads one array while writing another missed that cache on every access

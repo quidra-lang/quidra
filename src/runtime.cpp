@@ -15,6 +15,7 @@
 #include <filesystem>
 #include <fstream>
 #include <initializer_list>
+#include <iostream>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -179,13 +180,11 @@ ManagedAllocation* managed_containing(const void* address) {
     return entry.allocation;
 }
 
-void* managed_allocate(std::size_t bytes) {
+void* managed_allocate_impl(std::size_t bytes, bool track_interior_range) {
     if (bytes == 0) bytes = 1;
     auto* memory = std::malloc(bytes);
     if (!memory) runtime_allocation_failure();
     const auto key = reinterpret_cast<std::uintptr_t>(memory);
-    // unordered_map insertion may rehash and invalidate the cached value pointer.
-    clear_managed_range_cache();
     if (next_managed_identity == std::numeric_limits<std::uint64_t>::max()) {
         std::free(memory);
         runtime_allocation_failure();
@@ -195,8 +194,24 @@ void* managed_allocate(std::size_t bytes) {
     allocation.size = bytes;
     allocation.identity = next_managed_identity++;
     managed_allocations.emplace(key, std::move(allocation));
-    managed_ranges.emplace(key, bytes);
+
+    // std::unordered_map rehash invalidates iterators, not references or pointers
+    // to elements. The range cache stores pointers to mapped values, so inserting
+    // another exact allocation does not require flushing the cache.
+    //
+    // Strings never expose interior references: indexing and slicing return new
+    // values. Keep them out of the ordered range index entirely; exact ownership
+    // still lives in managed_allocations.
+    if (track_interior_range) managed_ranges.emplace(key, bytes);
     return memory;
+}
+
+void* managed_allocate(std::size_t bytes) {
+    return managed_allocate_impl(bytes, true);
+}
+
+void* managed_allocate_string(std::size_t bytes) {
+    return managed_allocate_impl(bytes, false);
 }
 
 std::uint64_t managed_identity(const void* value) {
@@ -263,12 +278,17 @@ tracked_unit_for_address(const void* address) {
     std::exit(101);
 }
 
-bool valid_utf8(std::string_view text) {
+bool valid_utf8(std::string_view text, std::size_t* codepoints = nullptr,
+                bool* contains_nul = nullptr) {
     std::size_t index = 0;
+    std::size_t count = 0;
+    bool nul = false;
     while (index < text.size()) {
         const auto first = static_cast<unsigned char>(text[index]);
         if (first <= 0x7fU) {
+            nul = nul || first == 0;
             ++index;
+            ++count;
             continue;
         }
 
@@ -301,12 +321,16 @@ bool valid_utf8(std::string_view text) {
             return false;
         }
         index += width;
+        ++count;
     }
+    if (codepoints) *codepoints = count;
+    if (contains_nul) *contains_nul = nul;
     return true;
 }
 
 bool valid_runtime_text(std::string_view text) {
-    return text.find('\0') == std::string_view::npos && valid_utf8(text);
+    bool contains_nul = false;
+    return valid_utf8(text, nullptr, &contains_nul) && !contains_nul;
 }
 
 void validate_utf8(std::string_view text) {
@@ -314,21 +338,49 @@ void validate_utf8(std::string_view text) {
 }
 
 void validate_runtime_text(std::string_view text) {
-    if (!valid_utf8(text)) runtime_text_failure("string text is not valid UTF-8");
-    if (text.find('\0') != std::string_view::npos) {
-        runtime_text_failure("string text cannot contain NUL");
-    }
+    bool contains_nul = false;
+    if (!valid_utf8(text, nullptr, &contains_nul))
+        runtime_text_failure("string text is not valid UTF-8");
+    if (contains_nul) runtime_text_failure("string text cannot contain NUL");
+}
+
+void mark_managed_string(char* value, std::size_t byte_length,
+                         std::optional<std::size_t> codepoints = std::nullopt) {
+    const auto it =
+        managed_allocations.find(reinterpret_cast<std::uintptr_t>(value));
+    if (it == managed_allocations.end())
+        runtime_text_failure("string storage is not managed");
+    auto& allocation = it->second;
+    allocation.string_byte_length_known = true;
+    allocation.string_byte_length = byte_length;
+    allocation.string_utf8_validated = true;
+    allocation.string_codepoint_length_known = codepoints.has_value();
+    allocation.string_codepoint_length = codepoints.value_or(0);
+    allocation.string_index_cursor_valid = false;
+    allocation.string_index_cursor_codepoint = 0;
+    allocation.string_index_cursor_byte = 0;
+}
+
+char* copy_validated_runtime_text(
+    std::string_view value,
+    std::optional<std::size_t> codepoints = std::nullopt) {
+    if (value.size() == std::numeric_limits<std::size_t>::max())
+        runtime_allocation_failure();
+    auto* result =
+        static_cast<char*>(managed_allocate_string(value.size() + 1));
+    if (!value.empty()) std::memcpy(result, value.data(), value.size());
+    result[value.size()] = '\0';
+    mark_managed_string(result, value.size(), codepoints);
+    return result;
 }
 
 char* copy_runtime_text(std::string_view value) {
-    validate_runtime_text(value);
-    if (value.size() == std::numeric_limits<std::size_t>::max()) {
-        runtime_allocation_failure();
-    }
-    auto* result = static_cast<char*>(managed_allocate(value.size() + 1));
-    if (!value.empty()) std::memcpy(result, value.data(), value.size());
-    result[value.size()] = '\0';
-    return result;
+    std::size_t codepoints = 0;
+    bool contains_nul = false;
+    if (!valid_utf8(value, &codepoints, &contains_nul))
+        runtime_text_failure("string text is not valid UTF-8");
+    if (contains_nul) runtime_text_failure("string text cannot contain NUL");
+    return copy_validated_runtime_text(value, codepoints);
 }
 
 char* runtime_copy_string(const std::string& value) {
@@ -401,6 +453,32 @@ std::string_view cached_string_view(const char* text, ManagedAllocation*& alloca
         allocation->string_byte_length_known = true;
     }
     return std::string_view(text, allocation->string_byte_length);
+}
+
+std::string_view validated_string_view(
+    const char* text, ManagedAllocation*& allocation,
+    std::size_t* codepoints = nullptr) {
+    const auto source = cached_string_view(text, allocation);
+    if (allocation && allocation->string_utf8_validated) {
+        if (codepoints) {
+            if (!allocation->string_codepoint_length_known) {
+                allocation->string_codepoint_length = utf8_length(source);
+                allocation->string_codepoint_length_known = true;
+            }
+            *codepoints = allocation->string_codepoint_length;
+        }
+        return source;
+    }
+
+    std::size_t count = 0;
+    if (!valid_utf8(source, &count)) runtime_text_failure("invalid UTF-8 string");
+    if (allocation) {
+        allocation->string_utf8_validated = true;
+        allocation->string_codepoint_length_known = true;
+        allocation->string_codepoint_length = count;
+    }
+    if (codepoints) *codepoints = count;
+    return source;
 }
 
 StringIndexBounds utf8_index_bounds(const char* text, std::size_t position) {
@@ -641,6 +719,36 @@ extern "C" char* quidra_runtime_copy_text_bytes(
         std::string_view(data ? data : "", static_cast<std::size_t>(size)));
 }
 
+extern "C" char* quidra_runtime_copy_validated_text_bytes(
+    const char* data, unsigned long long size) {
+    if (!data && size != 0) runtime_text_failure("null text data");
+    if (size > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()))
+        runtime_allocation_failure();
+    return copy_validated_runtime_text(
+        std::string_view(data ? data : "", static_cast<std::size_t>(size)));
+}
+
+extern "C" char* quidra_runtime_try_copy_text_bytes(
+    const char* data, unsigned long long size) {
+    if (!data && size != 0) return nullptr;
+    if (size > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()))
+        return nullptr;
+    const auto view =
+        std::string_view(data ? data : "", static_cast<std::size_t>(size));
+    std::size_t codepoints = 0;
+    bool contains_nul = false;
+    if (!valid_utf8(view, &codepoints, &contains_nul) || contains_nul)
+        return nullptr;
+    return copy_validated_runtime_text(view, codepoints);
+}
+
+extern "C" unsigned long long quidra_runtime_text_byte_length(
+    const char* text) {
+    ManagedAllocation* allocation = nullptr;
+    const auto source = cached_string_view(text, allocation);
+    return static_cast<unsigned long long>(source.size());
+}
+
 extern "C" void quidra_managed_retain(void* value) {
     if (!value) return;
     const auto it = managed_allocations.find(reinterpret_cast<std::uintptr_t>(value));
@@ -675,7 +783,11 @@ extern "C" void quidra_managed_release(void* value, void* drop_function) {
 
 extern "C" void quidra_managed_pin(void* address) {
     if (!address) return;
-    auto* allocation = managed_containing(address);
+    ManagedAllocation* allocation = nullptr;
+    const auto exact =
+        managed_allocations.find(reinterpret_cast<std::uintptr_t>(address));
+    if (exact != managed_allocations.end()) allocation = &exact->second;
+    else allocation = managed_containing(address);
     if (!allocation) return;
     if (allocation->pins == std::numeric_limits<std::size_t>::max()) {
         runtime_text_failure("managed pin count overflow");
@@ -685,7 +797,11 @@ extern "C" void quidra_managed_pin(void* address) {
 
 extern "C" void quidra_managed_unpin(void* address) {
     if (!address) return;
-    auto* allocation = managed_containing(address);
+    ManagedAllocation* allocation = nullptr;
+    const auto exact =
+        managed_allocations.find(reinterpret_cast<std::uintptr_t>(address));
+    if (exact != managed_allocations.end()) allocation = &exact->second;
+    else allocation = managed_containing(address);
     if (!allocation) return;
     if (allocation->pins == 0) runtime_text_failure("managed pin count underflow");
     --allocation->pins;
@@ -6568,69 +6684,157 @@ extern "C" char* quidra_string_index(const char* text, long long index,
         std::exit(101);
     }
 
-    return runtime_copy_string(
-        std::string(text + bounds.start, bounds.end - bounds.start));
+    return copy_validated_runtime_text(
+        std::string_view(text + bounds.start, bounds.end - bounds.start), 1);
 }
 
 extern "C" long long quidra_string_length(const char* text) {
     ManagedAllocation* allocation = nullptr;
-    const auto source = cached_string_view(text, allocation);
-    if (allocation && allocation->string_codepoint_length_known) {
-        return static_cast<long long>(allocation->string_codepoint_length);
-    }
-    const auto length = utf8_length(source);
-    if (allocation) {
-        allocation->string_codepoint_length_known = true;
-        allocation->string_codepoint_length = length;
-    }
+    std::size_t length = 0;
+    (void)validated_string_view(text, allocation, &length);
     return static_cast<long long>(length);
 }
 
 extern "C" bool quidra_string_contains(const char* text, const char* needle) {
     if (!text || !needle) runtime_text_failure("null string");
-    const std::string_view source(text), query(needle);
-    validate_utf8(source);
-    validate_utf8(query);
+    ManagedAllocation* source_allocation = nullptr;
+    ManagedAllocation* query_allocation = nullptr;
+    const auto source = validated_string_view(text, source_allocation);
+    const auto query = validated_string_view(needle, query_allocation);
     return source.find(query) != std::string_view::npos;
 }
 
 extern "C" bool quidra_string_starts_with(const char* text, const char* prefix) {
     if (!text || !prefix) runtime_text_failure("null string");
-    const std::string_view source(text), query(prefix);
-    validate_utf8(source);
-    validate_utf8(query);
-    return source.size() >= query.size() && source.substr(0,query.size()) == query;
+    ManagedAllocation* source_allocation = nullptr;
+    ManagedAllocation* query_allocation = nullptr;
+    const auto source = validated_string_view(text, source_allocation);
+    const auto query = validated_string_view(prefix, query_allocation);
+    return source.size() >= query.size() && source.substr(0, query.size()) == query;
 }
 
 extern "C" bool quidra_string_ends_with(const char* text, const char* suffix) {
     if (!text || !suffix) runtime_text_failure("null string");
-    const std::string_view source(text), query(suffix);
-    validate_utf8(source);
-    validate_utf8(query);
+    ManagedAllocation* source_allocation = nullptr;
+    ManagedAllocation* query_allocation = nullptr;
+    const auto source = validated_string_view(text, source_allocation);
+    const auto query = validated_string_view(suffix, query_allocation);
     return source.size() >= query.size() &&
-           source.substr(source.size()-query.size()) == query;
+           source.substr(source.size() - query.size()) == query;
 }
+
 extern "C" long long quidra_string_find(const char* text, const char* needle) {
     if (!text || !needle) runtime_text_failure("null string");
-    const std::string_view source(text), query(needle);
-    validate_utf8(source);
-    validate_utf8(query);
+    ManagedAllocation* source_allocation = nullptr;
+    ManagedAllocation* query_allocation = nullptr;
+    const auto source = validated_string_view(text, source_allocation);
+    const auto query = validated_string_view(needle, query_allocation);
     const auto pos = source.find(query);
     if (pos == std::string_view::npos) return -1;
     // Valid UTF-8 is self-synchronizing: a valid query cannot begin at a
     // continuation byte in a valid source. Count code points only up to the match.
     return static_cast<long long>(utf8_prefix_length(source, pos));
 }
-extern "C" char* quidra_string_slice(const char* text,long long start,long long end){if(!text)runtime_text_failure("null string");const std::string_view a(text);const auto offsets=utf8_offsets(a);const auto length=static_cast<long long>(offsets.size()-1);if(start<0||end<start||end>length)runtime_text_failure("string slice is outside [0, len]");return runtime_copy_string(std::string(a.substr(offsets[static_cast<std::size_t>(start)],offsets[static_cast<std::size_t>(end)]-offsets[static_cast<std::size_t>(start)])));}
-extern "C" char* quidra_string_trim(const char* text){if(!text)runtime_text_failure("null string");const std::string_view a(text);const auto offsets=utf8_offsets(a);std::size_t first=0,last=offsets.size()-1;while(first<last){std::size_t c=offsets[first];if(!unicode_space(utf8_next(a,c)))break;++first;}while(last>first){std::size_t c=offsets[last-1];if(!unicode_space(utf8_next(a,c)))break;--last;}return runtime_copy_string(std::string(a.substr(offsets[first],offsets[last]-offsets[first])));}
+
+extern "C" char* quidra_string_slice(
+    const char* text, long long start, long long end) {
+    if (!text) runtime_text_failure("null string");
+    if (start < 0 || end < start)
+        runtime_text_failure("string slice is outside [0, len]");
+
+    ManagedAllocation* allocation = nullptr;
+    const auto source = validated_string_view(text, allocation);
+    const auto target_start = static_cast<std::size_t>(start);
+    const auto target_end = static_cast<std::size_t>(end);
+
+    std::size_t codepoint = 0;
+    std::size_t byte = 0;
+    if (allocation && allocation->string_index_cursor_valid &&
+        allocation->string_index_cursor_codepoint <= target_start &&
+        allocation->string_index_cursor_byte <= source.size()) {
+        codepoint = allocation->string_index_cursor_codepoint;
+        byte = allocation->string_index_cursor_byte;
+    }
+
+    while (codepoint < target_start && byte < source.size()) {
+        (void)utf8_next(source, byte);
+        ++codepoint;
+    }
+    if (codepoint != target_start) {
+        runtime_text_failure("string slice is outside [0, len]");
+    }
+    const auto byte_start = byte;
+
+    while (codepoint < target_end && byte < source.size()) {
+        (void)utf8_next(source, byte);
+        ++codepoint;
+    }
+    if (codepoint != target_end) {
+        runtime_text_failure("string slice is outside [0, len]");
+    }
+
+    if (allocation) {
+        allocation->string_index_cursor_valid = true;
+        allocation->string_index_cursor_codepoint = codepoint;
+        allocation->string_index_cursor_byte = byte;
+        if (byte == source.size()) {
+            allocation->string_codepoint_length_known = true;
+            allocation->string_codepoint_length = codepoint;
+        }
+    }
+    return copy_validated_runtime_text(
+        source.substr(byte_start, byte - byte_start), target_end - target_start);
+}
+
+extern "C" char* quidra_string_trim(const char* text) {
+    if (!text) runtime_text_failure("null string");
+    ManagedAllocation* allocation = nullptr;
+    const auto source = validated_string_view(text, allocation);
+
+    std::size_t first = 0;
+    std::size_t removed_front = 0;
+    while (first < source.size()) {
+        auto next = first;
+        const auto codepoint = utf8_next(source, next);
+        if (!unicode_space(codepoint)) break;
+        first = next;
+        ++removed_front;
+    }
+
+    std::size_t last = source.size();
+    std::size_t removed_back = 0;
+    while (last > first) {
+        auto begin = last - 1;
+        while (begin > first &&
+               (static_cast<unsigned char>(source[begin]) & 0xc0U) == 0x80U) {
+            --begin;
+        }
+        auto next = begin;
+        const auto codepoint = utf8_next(source, next);
+        if (next != last) runtime_text_failure("invalid UTF-8 boundary");
+        if (!unicode_space(codepoint)) break;
+        last = begin;
+        ++removed_back;
+    }
+
+    std::optional<std::size_t> count;
+    if (allocation && allocation->string_codepoint_length_known) {
+        const auto original = allocation->string_codepoint_length;
+        if (removed_front + removed_back <= original)
+            count = original - removed_front - removed_back;
+    }
+    return copy_validated_runtime_text(source.substr(first, last - first), count);
+}
+
 extern "C" void* quidra_string_split(const char* text, const char* separator) {
     if (!text || !separator) runtime_text_failure("null string");
-    const std::string_view source(text), delimiter(separator);
-    validate_utf8(source);
-    validate_utf8(delimiter);
+    ManagedAllocation* source_allocation = nullptr;
+    ManagedAllocation* delimiter_allocation = nullptr;
+    const auto source = validated_string_view(text, source_allocation);
+    const auto delimiter = validated_string_view(separator, delimiter_allocation);
     if (delimiter.empty()) runtime_text_failure("string split separator cannot be empty");
 
-    std::vector<std::string> pieces;
+    std::vector<std::string_view> pieces;
     std::size_t start = 0;
     while (true) {
         const auto pos = source.find(delimiter, start);
@@ -6650,7 +6854,7 @@ extern "C" void* quidra_string_split(const char* text, const char* separator) {
     const auto count = static_cast<long long>(pieces.size());
     std::memcpy(result, &count, sizeof(count));
     for (std::size_t i = 0; i < pieces.size(); ++i) {
-        auto* item = runtime_copy_string(pieces[i]);
+        auto* item = copy_validated_runtime_text(pieces[i]);
         std::memcpy(result + 8 + i * sizeof(char*), &item, sizeof(item));
     }
     return result;
@@ -6693,26 +6897,32 @@ extern "C" char* quidra_string_append_move_many(
     // validated bytes stay validated because every suffix is checked before it is
     // appended, so a validated prefix plus validated suffixes is still valid.
     ManagedAllocation* receiver = nullptr;
-    const auto original = cached_string_view(raw, receiver);
-    if (!receiver || !receiver->string_utf8_validated) {
-        validate_utf8(original);
-        if (receiver) receiver->string_utf8_validated = true;
-    }
+    std::size_t old_codepoints = 0;
+    const auto original =
+        validated_string_view(raw, receiver, &old_codepoints);
     const auto old_length = original.size();
 
     std::vector<std::size_t> lengths(count);
     std::vector<unsigned char> aliases(count, 0);
     std::size_t added = 0;
+    std::size_t added_codepoints = 0;
     for (std::size_t i = 0; i < count; ++i) {
         if (!suffixes[i]) runtime_text_failure("null string in append");
         aliases[i] = suffixes[i] == raw ? 1 : 0;
-        const std::string_view suffix(suffixes[i]);
-        validate_utf8(suffix);
+        ManagedAllocation* suffix_allocation = nullptr;
+        std::size_t suffix_codepoints = 0;
+        const auto suffix = validated_string_view(
+            suffixes[i], suffix_allocation, &suffix_codepoints);
         lengths[i] = suffix.size();
         if (lengths[i] > std::numeric_limits<std::size_t>::max() - added) {
             runtime_allocation_failure();
         }
         added += lengths[i];
+        if (suffix_codepoints >
+            std::numeric_limits<std::size_t>::max() - added_codepoints) {
+            runtime_allocation_failure();
+        }
+        added_codepoints += suffix_codepoints;
     }
     if (added > std::numeric_limits<std::size_t>::max() - old_length) {
         runtime_allocation_failure();
@@ -6782,7 +6992,8 @@ extern "C" char* quidra_string_append_move_many(
     result[new_length] = '\0';
     it->second.string_byte_length_known = true;
     it->second.string_byte_length = new_length;
-    it->second.string_codepoint_length_known = false;
+    it->second.string_codepoint_length_known = true;
+    it->second.string_codepoint_length = old_codepoints + added_codepoints;
     it->second.string_utf8_validated = true;
     return result;
 }
@@ -6795,24 +7006,37 @@ extern "C" char* quidra_string_concat_many(const char* const* values,
     const auto count = static_cast<std::size_t>(raw_count);
     if (count != 0 && !values) runtime_text_failure("null string concat values");
 
+    std::vector<std::string_view> pieces;
+    pieces.reserve(count);
     std::size_t total = 0;
+    std::size_t total_codepoints = 0;
     for (std::size_t i = 0; i < count; ++i) {
         if (!values[i]) runtime_text_failure("null string in concatenation");
-        const auto length = std::strlen(values[i]);
-        if (length > std::numeric_limits<std::size_t>::max() - total - 1) {
+        ManagedAllocation* allocation = nullptr;
+        std::size_t codepoints = 0;
+        const auto piece =
+            validated_string_view(values[i], allocation, &codepoints);
+        if (piece.size() > std::numeric_limits<std::size_t>::max() - total - 1) {
             runtime_allocation_failure();
         }
-        total += length;
+        total += piece.size();
+        if (codepoints >
+            std::numeric_limits<std::size_t>::max() - total_codepoints) {
+            runtime_allocation_failure();
+        }
+        total_codepoints += codepoints;
+        pieces.push_back(piece);
     }
 
-    auto* result = static_cast<char*>(managed_allocate(total + 1));
+    auto* result =
+        static_cast<char*>(managed_allocate_string(total + 1));
     std::size_t offset = 0;
-    for (std::size_t i = 0; i < count; ++i) {
-        const auto length = std::strlen(values[i]);
-        if (length != 0) std::memcpy(result + offset, values[i], length);
-        offset += length;
+    for (const auto piece : pieces) {
+        if (!piece.empty()) std::memcpy(result + offset, piece.data(), piece.size());
+        offset += piece.size();
     }
     result[total] = '\0';
+    mark_managed_string(result, total, total_codepoints);
     return result;
 }
 
@@ -6907,9 +7131,13 @@ extern "C" char* quidra_bin_string(void* raw) {
     const auto count = static_cast<unsigned long long>(bit_count);
     if (count > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()) - 1ULL)
         runtime_allocation_failure();
-    auto* result = static_cast<char*>(managed_allocate(static_cast<std::size_t>(count) + 1));
-    for (long long i = 0; i < bit_count; ++i) result[i] = bin_bit_at(raw, i) ? '1' : '0';
+    auto* result = static_cast<char*>(
+        managed_allocate_string(static_cast<std::size_t>(count) + 1));
+    for (long long i = 0; i < bit_count; ++i)
+        result[i] = bin_bit_at(raw, i) ? '1' : '0';
     result[bit_count] = '\0';
+    mark_managed_string(result, static_cast<std::size_t>(count),
+                        static_cast<std::size_t>(count));
     return result;
 }
 
@@ -7030,25 +7258,29 @@ extern "C" void* quidra_bin_to_array(void* raw, int width, int stride) {
 extern "C" char* quidra_string_repeat(long long count, const char* fill) {
     if (count < 0) runtime_text_failure("string length cannot be negative");
     if (!fill) runtime_text_failure("null string fill");
-    const std::string_view unit(fill);
-    validate_utf8(unit);
-    if (utf8_length(unit) != 1) runtime_text_failure("string fill must contain exactly one Unicode code point");
+    ManagedAllocation* fill_allocation = nullptr;
+    std::size_t fill_codepoints = 0;
+    const auto unit =
+        validated_string_view(fill, fill_allocation, &fill_codepoints);
+    if (fill_codepoints != 1)
+        runtime_text_failure("string fill must contain exactly one Unicode code point");
     const auto n = static_cast<std::size_t>(count);
     if (count != static_cast<long long>(n) ||
         (!unit.empty() && n > (std::numeric_limits<std::size_t>::max() - 1) / unit.size()))
         runtime_allocation_failure();
     const auto bytes = n * unit.size();
-    auto* result = static_cast<char*>(managed_allocate(bytes + 1));
+    auto* result = static_cast<char*>(managed_allocate_string(bytes + 1));
     for (std::size_t i = 0; i < n; ++i)
         if (!unit.empty()) std::memcpy(result + i * unit.size(), unit.data(), unit.size());
     result[bytes] = '\0';
+    mark_managed_string(result, bytes, n);
     return result;
 }
 
 extern "C" void* quidra_string_utf8(const char* text) {
     if (!text) runtime_text_failure("null string");
-    const std::string_view source(text);
-    validate_utf8(source);
+    ManagedAllocation* allocation = nullptr;
+    const auto source = validated_string_view(text, allocation);
     if (source.size() > (std::numeric_limits<std::size_t>::max() - 8) ||
         source.size() > static_cast<std::size_t>(std::numeric_limits<long long>::max() / 8)) {
         runtime_allocation_failure();
@@ -7062,9 +7294,10 @@ extern "C" void* quidra_string_utf8(const char* text) {
 
 extern "C" void* quidra_string_codepoints(const char* text) {
     if (!text) runtime_text_failure("null string");
-    const std::string_view source(text);
-    validate_utf8(source);
-    const auto count_size = utf8_length(source);
+    ManagedAllocation* allocation = nullptr;
+    std::size_t count_size = 0;
+    const auto source =
+        validated_string_view(text, allocation, &count_size);
     if (count_size > (std::numeric_limits<std::size_t>::max() - 8) / sizeof(long long)) {
         runtime_allocation_failure();
     }
@@ -7100,51 +7333,66 @@ extern "C" char* quidra_string_join(void* raw, const char* separator,
             static_cast<unsigned long long>(count * sizeof(char*)), line, column);
     }
 
-    const std::string_view delimiter(separator);
-    validate_utf8(delimiter);
+    ManagedAllocation* delimiter_allocation = nullptr;
+    std::size_t delimiter_codepoints = 0;
+    const auto delimiter = validated_string_view(
+        separator, delimiter_allocation, &delimiter_codepoints);
 
     std::size_t total = 0;
+    std::size_t total_codepoints = 0;
     if (count > 1 && delimiter.size() != 0) {
         if (count - 1 > std::numeric_limits<std::size_t>::max() / delimiter.size()) {
             runtime_allocation_failure();
         }
         total = (count - 1) * delimiter.size();
+        if (delimiter_codepoints != 0 &&
+            count - 1 > std::numeric_limits<std::size_t>::max() / delimiter_codepoints) {
+            runtime_allocation_failure();
+        }
+        total_codepoints = (count - 1) * delimiter_codepoints;
     }
+
+    std::vector<std::string_view> pieces;
+    pieces.reserve(count);
     for (std::size_t i = 0; i < count; ++i) {
         char* item = nullptr;
         std::memcpy(&item,
                     static_cast<unsigned char*>(raw) + 8 + i * sizeof(char*),
                     sizeof(item));
         if (!item) runtime_text_failure("null string in join");
-        const std::string_view piece(item);
-        validate_utf8(piece);
+        ManagedAllocation* item_allocation = nullptr;
+        std::size_t item_codepoints = 0;
+        const auto piece =
+            validated_string_view(item, item_allocation, &item_codepoints);
         if (piece.size() > std::numeric_limits<std::size_t>::max() - total) {
             runtime_allocation_failure();
         }
         total += piece.size();
+        if (item_codepoints >
+            std::numeric_limits<std::size_t>::max() - total_codepoints) {
+            runtime_allocation_failure();
+        }
+        total_codepoints += item_codepoints;
+        pieces.push_back(piece);
     }
     if (total == std::numeric_limits<std::size_t>::max()) {
         runtime_allocation_failure();
     }
 
-    auto* result = static_cast<char*>(managed_allocate(total + 1));
+    auto* result = static_cast<char*>(managed_allocate_string(total + 1));
     std::size_t offset = 0;
-    for (std::size_t i = 0; i < count; ++i) {
-        char* item = nullptr;
-        std::memcpy(&item,
-                    static_cast<unsigned char*>(raw) + 8 + i * sizeof(char*),
-                    sizeof(item));
-        const std::string_view piece(item);
+    for (std::size_t i = 0; i < pieces.size(); ++i) {
         if (i != 0 && !delimiter.empty()) {
             std::memcpy(result + offset, delimiter.data(), delimiter.size());
             offset += delimiter.size();
         }
-        if (!piece.empty()) {
-            std::memcpy(result + offset, piece.data(), piece.size());
-            offset += piece.size();
+        if (!pieces[i].empty()) {
+            std::memcpy(result + offset, pieces[i].data(), pieces[i].size());
+            offset += pieces[i].size();
         }
     }
     result[total] = '\0';
+    mark_managed_string(result, total, total_codepoints);
     return result;
 }
 
@@ -7215,19 +7463,17 @@ extern "C" int quidra_input_read(char** out) {
     *out = nullptr;
 
     std::string text;
-    while (true) {
-        const int ch = std::fgetc(stdin);
-        if (ch == EOF) {
-            if (std::ferror(stdin)) return -1;
-            if (text.empty()) return 0;
-            break;
-        }
-        if (ch == '\n') break;
-        text.push_back(static_cast<char>(ch));
+    if (!std::getline(std::cin, text)) {
+        if (std::cin.bad()) return -1;
+        if (std::cin.eof()) return 0;
+        return -1;
     }
 
-    if (!valid_runtime_text(text)) return -1;
-    *out = runtime_copy_string(text);
+    std::size_t codepoints = 0;
+    bool contains_nul = false;
+    if (!valid_utf8(text, &codepoints, &contains_nul) || contains_nul)
+        return -1;
+    *out = copy_validated_runtime_text(text, codepoints);
     return 1;
 }
 

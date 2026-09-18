@@ -1,6 +1,7 @@
 #include "runtime_internal.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -16,29 +17,44 @@ bool valid_text(const std::string& value) {
     return quidra_runtime_text_valid_bytes(
         value.data(), static_cast<unsigned long long>(value.size()));
 }
-char* copy_text(const std::string& value) {
-    return quidra_runtime_copy_text_bytes(
+
+char* copy_validated_text(const std::string& value) {
+    return quidra_runtime_copy_validated_text_bytes(
         value.data(), static_cast<unsigned long long>(value.size()));
+}
+
+bool read_all_bytes(const char* path, std::string& data) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) return false;
+
+    std::array<char, 64 * 1024> buffer{};
+    while (true) {
+        in.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        const auto count = in.gcount();
+        if (count > 0) {
+            const auto size = static_cast<std::size_t>(count);
+            if (size > std::numeric_limits<std::size_t>::max() - data.size())
+                return false;
+            data.append(buffer.data(), size);
+        }
+        if (in.eof()) return true;
+        if (!in) return false;
+    }
 }
 }
 
 extern "C" char* quidra_file_read_raw(const char* path) {
     if (!path) return nullptr;
-    std::ifstream in(path, std::ios::binary);
-    if (!in) return nullptr;
-    const std::string data((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    if (!in.good() && !in.eof()) return nullptr;
-    if (!valid_text(data)) return nullptr;
-    return copy_text(data);
+    std::string data;
+    if (!read_all_bytes(path, data)) return nullptr;
+    return quidra_runtime_try_copy_text_bytes(
+        data.data(), static_cast<unsigned long long>(data.size()));
 }
 
 extern "C" void* quidra_file_read_bin_raw(const char* path) {
     if (!path) return nullptr;
-    std::ifstream in(path, std::ios::binary);
-    if (!in) return nullptr;
-    std::vector<unsigned char> data(
-        (std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-    if (!in.good() && !in.eof()) return nullptr;
+    std::string data;
+    if (!read_all_bytes(path, data)) return nullptr;
     if (data.size() > static_cast<std::size_t>(std::numeric_limits<long long>::max() / 8) ||
         data.size() > std::numeric_limits<std::size_t>::max() - 8) return nullptr;
     auto* result=static_cast<unsigned char*>(
@@ -51,9 +67,14 @@ extern "C" void* quidra_file_read_bin_raw(const char* path) {
 
 extern "C" bool quidra_file_write_raw(const char* path,const char* text) {
     if(!path||!text) return false;
+    const auto byte_count = quidra_runtime_text_byte_length(text);
+    if (byte_count >
+        static_cast<unsigned long long>(std::numeric_limits<std::streamsize>::max()))
+        return false;
     std::ofstream out(path,std::ios::binary|std::ios::trunc);
     if(!out) return false;
-    out.write(text,static_cast<std::streamsize>(std::strlen(text)));
+    if(byte_count)
+        out.write(text,static_cast<std::streamsize>(byte_count));
     out.close();
     return static_cast<bool>(out);
 }
@@ -152,7 +173,7 @@ extern "C" void* quidra_file_list_raw(const char* path,bool recursive) {
     const auto count=static_cast<long long>(entries.size());
     std::memcpy(result,&count,sizeof(count));
     for(std::size_t i=0;i<entries.size();++i){
-        auto* item=copy_text(entries[i]);
+        auto* item=copy_validated_text(entries[i]);
         std::memcpy(result+8+i*sizeof(char*),&item,sizeof(item));
     }
     return result;
@@ -175,7 +196,7 @@ extern "C" char* quidra_environment_get(const char* name) {
         quidra_runtime_text_error(
             "environment value must be valid UTF-8 text without NUL");
     }
-    return copy_text(text);
+    return copy_validated_text(text);
 }
 
 extern "C" bool quidra_environment_has(const char* name) {

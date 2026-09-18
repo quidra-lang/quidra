@@ -9,3 +9,9 @@ extern "C" bool quidra_runtime_text_valid_bytes(
 extern "C" void quidra_runtime_text_error(const char* message);
 extern "C" char* quidra_runtime_copy_text_bytes(
     const char* data, unsigned long long size);
+extern "C" char* quidra_runtime_copy_validated_text_bytes(
+    const char* data, unsigned long long size);
+extern "C" char* quidra_runtime_try_copy_text_bytes(
+    const char* data, unsigned long long size);
+extern "C" unsigned long long quidra_runtime_text_byte_length(
+    const char* text);

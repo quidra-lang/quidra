@@ -3641,6 +3641,12 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         const auto int_type = simple(TypeKind::Int);
                         auto gpu = check_expr(*node->args[*gpu_index].value, &int_type);
                         bad_gpu = poisoned(gpu);
+                        if (!bad_gpu && gpu != int_type) {
+                            error("TYPE_MISMATCH",
+                                  "tensor gpu index expected int.",
+                                  node->args[*gpu_index].span);
+                            bad_gpu = true;
+                        }
                         if (const auto index =
                                 constant_integer_value(*node->args[*gpu_index].value,
                                                        &const_integer_values_);

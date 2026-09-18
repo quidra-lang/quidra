@@ -1593,7 +1593,8 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
 void Checker::check_type_extent_expressions(const TypeName& source) {
     const auto check_extent = [&](const std::shared_ptr<Expr>& expression) {
         if (!expression) return;
-        const auto type = check_expr(*expression);
+        const auto int_type = simple(TypeKind::Int);
+        const auto type = check_expr(*expression, &int_type);
         if (!poisoned(type) && !is_integer(type)) {
             error("INVALID_TYPE",
                   "Array/tensor extents require integer expressions.",
@@ -4070,7 +4071,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     bool bad_gpu = false;
                     if (gpu_index) {
                         const auto int_type = simple(TypeKind::Int);
-                        auto gpu = check_expr(*node->args[*gpu_index].value);
+                        auto gpu = check_expr(*node->args[*gpu_index].value, &int_type);
                         bad_gpu = poisoned(gpu);
                         if (!bad_gpu && gpu != int_type) {
                             error("TYPE_MISMATCH",
@@ -5060,7 +5061,8 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
         const auto resolve_extent = [&](const std::shared_ptr<Expr>& expression,
                                         SourceSpan span) -> long long {
             if (!expression) return -1;
-            const auto extent_type = check_expr(*expression);
+            const auto int_type = simple(TypeKind::Int);
+            const auto extent_type = check_expr(*expression, &int_type);
             if (!poisoned(extent_type) && !is_integer(extent_type)) {
                 error("INVALID_TYPE", "Array/tensor extents require integer expressions.", span);
             }

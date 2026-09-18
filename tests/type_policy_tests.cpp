@@ -50,8 +50,8 @@ int main() {
             "wildcard extent accepts an inferred matching rank");
     require(assignable(inferred_3x4, tensor_3x4),
             "inferred shape may satisfy an exact source pattern");
-    require(!assignable(tensor_plain, tensor_first3),
-            "unknown shape cannot assert a constrained first axis");
+    require(assignable(tensor_plain, tensor_first3),
+            "unknown tensor shape may defer a constrained axis check to runtime");
     require(runtime_storage_bytes(tensor_first3) == runtime_storage_bytes(tensor_plain),
             "tensor shape patterns must not change runtime ABI size");
     require(type_name(Type::neural(t(TypeKind::Float32), 3, {3, -1, -1})) ==

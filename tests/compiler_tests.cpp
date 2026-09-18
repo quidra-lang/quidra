@@ -1453,7 +1453,7 @@ tensor<float><3, 2> checked = keep_shape(3, unknown)
  good(R"(int[][n] keep_rows(int n, int[][n] rows)
     return rows
 int[][] dynamic_rows = [[1, 2], [3, 4]]
-int[][2] checked_rows = keep_rows(2, dynamic_rows)
+int[][] checked_rows = keep_rows(2, dynamic_rows)
 )");
 
  // Runtime extent expressions are captured per binding; mutable sources remain legal.

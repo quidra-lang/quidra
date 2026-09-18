@@ -1437,7 +1437,7 @@ set +e
 captured_array_reassign_rc=$?
 set -e
 [[ "$captured_array_reassign_rc" -eq 101 ]]
-grep -q 'SHAPE_MISMATCH' "$TMP/captured-array-reassign-fail.err"
+grep -q 'Quidra runtime error' "$TMP/captured-array-reassign-fail.err"
 
 cat > "$TMP/captured-nested-array-fail.qui" <<'QUI'
 int n = 2

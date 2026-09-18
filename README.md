@@ -533,7 +533,7 @@ int[] ordered = values.sorted()
 Dense numeric tensors use the dedicated `tensor<T>` type. The element dtype is always static. An optional second angle group is an exact-rank shape pattern: each entry is either `_`, meaning that axis exists but its extent is unrestricted, or an integer expression. The number of entries is the exact required rank. A non-constant extent expression is evaluated once when the binding is created and its value is captured; later mutations of variables used by that expression do not change the binding's shape contract.
 
 ```quidra
-int batch = input()
+int batch = 3
 tensor<float32><batch * 2, 224> contextual = tensor.zeros()
 batch = 8 // contextual keeps the extent captured above
 

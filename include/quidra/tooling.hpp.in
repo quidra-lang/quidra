@@ -25,9 +25,9 @@ inline constexpr std::string_view llm_interface_json = R"QUIDRA_JSON({
     "command": "quidra inspect FILE.qui --no-source",
     "fields": ["revision", "node_id", "kind", "source_hash", "parent_id", "depth", "inferred_type", "authority", "effects"],
     "type_contracts": {
-      "tensor": "tensor<T> | tensor<T, N>",
-      "tensor_rank": "N is exact compile-time rank; omitted means unknown; rank metadata is runtime-ABI-erased",
-      "tensor_shape": "tensor<T, N>.shape() -> int[N]; tensor<T>.shape() -> int[]"
+      "tensor": "tensor<T> | tensor<T, A, B, ...>",
+      "tensor_rank": "rank is compiler-inferred flow metadata and is never written as a tensor type argument",
+      "tensor_shape": "A,B,... constrain consecutive leading shape axes; inferred rank may make shape() return fixed int[N]"
     }
   },
   "repair": {

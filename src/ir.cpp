@@ -3081,10 +3081,10 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,StringConcat>){out<<"%"<<n.out<<" = string.concat";for(const auto value:n.values)out<<" %"<<value;}
     if constexpr(std::is_same_v<T,StringCanAppendMove>)out<<"%"<<n.out<<" = string.can_append_move %"<<n.text;
     if constexpr(std::is_same_v<T,StringAppendMove>){out<<"%"<<n.out<<" = string.append_move %"<<n.text;for(const auto value:n.suffixes)out<<" %"<<value;}
-    if constexpr(std::is_same_v<T,BytesAlloc>)out<<"%"<<n.out<<" = bytes.alloc %"<<n.length<<", %"<<n.fill;
-    if constexpr(std::is_same_v<T,BytesLength>)out<<"%"<<n.out<<" = bytes.length %"<<n.bytes;
-    if constexpr(std::is_same_v<T,BytesGet>)out<<"%"<<n.out<<" = bytes.get %"<<n.bytes<<", %"<<n.index;
-    if constexpr(std::is_same_v<T,BytesSet>)out<<"bytes.set %"<<n.bytes<<", %"<<n.index<<", %"<<n.value;
+    if constexpr(std::is_same_v<T,BytesAlloc>)out<<"%"<<n.out<<" = bin.alloc %"<<n.length<<", %"<<n.fill;
+    if constexpr(std::is_same_v<T,BytesLength>)out<<"%"<<n.out<<" = bin.length %"<<n.bytes;
+    if constexpr(std::is_same_v<T,BytesGet>)out<<"%"<<n.out<<" = bin.get %"<<n.bytes<<", %"<<n.index;
+    if constexpr(std::is_same_v<T,BytesSet>)out<<"bin.set %"<<n.bytes<<", %"<<n.index<<", %"<<n.value;
     if constexpr(std::is_same_v<T,MathRoundInt>)out<<"%"<<n.out<<" = math.round-int %"<<n.value;
     if constexpr(std::is_same_v<T,NumericConvert>)out<<"%"<<n.out<<" = convert %"<<n.value<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type)<<(n.checked_range?" checked":"");
     if constexpr(std::is_same_v<T,TensorCreate>)out<<"%"<<n.out<<" = tensor.create %"<<n.shape<<" : "<<type_name(n.type)<<" init="<<(n.fill_mode==0?"uninitialized":n.fill_mode==1?"zeros":"ones")<<(n.gpu?" gpu=%"+std::to_string(*n.gpu):" cpu");
@@ -3154,9 +3154,9 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,CliFlag>)out<<"%"<<n.out<<" = cli.flag %"<<n.name;
     if constexpr(std::is_same_v<T,CliFinish>)out<<"cli.finish";
     if constexpr(std::is_same_v<T,FileRead>)out<<"%"<<n.out<<" = file.read %"<<n.path;
-    if constexpr(std::is_same_v<T,FileReadBytes>)out<<"%"<<n.out<<" = file.read_bytes %"<<n.path;
+    if constexpr(std::is_same_v<T,FileReadBytes>)out<<"%"<<n.out<<" = file.read_bin %"<<n.path;
     if constexpr(std::is_same_v<T,FileWrite>)out<<"%"<<n.out<<" = file.write %"<<n.path<<", %"<<n.text;
-    if constexpr(std::is_same_v<T,FileWriteBytes>)out<<"%"<<n.out<<" = file.write_bytes %"<<n.path<<", %"<<n.bytes;
+    if constexpr(std::is_same_v<T,FileWriteBytes>)out<<"%"<<n.out<<" = file.write_bin %"<<n.path<<", %"<<n.bytes;
     if constexpr(std::is_same_v<T,FileExists>)out<<"%"<<n.out<<" = file.exists %"<<n.path;
     if constexpr(std::is_same_v<T,FileIsDirectory>)out<<"%"<<n.out<<" = file.is_directory %"<<n.path;
     if constexpr(std::is_same_v<T,FileRemove>)out<<"%"<<n.out<<" = file.remove %"<<n.path;

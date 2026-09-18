@@ -3288,7 +3288,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if(!poisoned(step)&&!step_valid)
                         error("TYPE_MISMATCH","moment_update step must be neural.State<int>.",step_arg.span);
                     if(!poisoned(moments)&&!moments_valid)
-                        error("TYPE_MISMATCH","moment_update moments must be neural.State<bytes>.",moments_arg.span);
+                        error("TYPE_MISMATCH","moment_update moments must be neural.State<bin>.",moments_arg.span);
                     if(!poisoned(gradients)&&gradients.kind!=TypeKind::Gradients)
                         error("TYPE_MISMATCH","moment_update requires neural.Gradients.",gradients_arg.span);
                     StorageEffect write_effect;
@@ -6251,9 +6251,9 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                             error("FFI_REFERENCE","External C scalar parameters are explicit by-value inputs and cannot use const/reference parameter forms.",parameter.span);
                     } else if(ffi_borrowed_buffer(type)) {
                         if(!parameter.writable || !parameter.is_const)
-                            error("FFI_REFERENCE","External C string/bytes inputs must be explicit call-scoped read-only borrows written as const T &.",parameter.span);
+                            error("FFI_REFERENCE","External C string/bin inputs must be explicit call-scoped read-only borrows written as const T &.",parameter.span);
                     } else {
-                        error("FFI_TYPE","External C parameters must use explicit numeric/bool scalar values or const string/bytes references.",parameter.span);
+                        error("FFI_TYPE","External C parameters must use explicit numeric/bool scalar values or const string/bin references.",parameter.span);
                     }
                 }
                 if (parameter.default_value) {

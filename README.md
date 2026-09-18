@@ -147,7 +147,7 @@ print(view) // 5
 
 `&x` is a safe abstract storage address, not a numeric pointer. `T &` is a read/write path to that storage; `const T &` is a live read-only path. `const T` is an immutable value binding. A const reference can observe changes performed through another writable path, but it cannot write, rebind, or recover write authority. Quidra does not expose pointer arithmetic, address-to-integer conversion, an explicit `*` dereference operator, or a general object-identity operator.
 
-This same model applies to bindings, class fields, array elements, and bytes elements.
+This same model applies to bindings, class fields, array elements, and bin bits.
 
 ### 2. Authority is part of the call
 
@@ -691,7 +691,7 @@ The native runtime checks cases that depend on runtime values, including:
 
 - integer overflow at each supported integer width,
 - integer division and remainder by zero,
-- array and bytes bounds,
+- array and bin bounds,
 - invalid allocation sizes,
 - zero range steps,
 - out-of-range explicit integer casts.
@@ -706,7 +706,7 @@ Floating-point arithmetic follows IEEE-754 behavior for its width.
 
 - scalars compare their values,
 - strings compare text,
-- bytes compare contents,
+- bin compares bit contents,
 - arrays compare lengths and elements recursively,
 - classes compare fields recursively when those fields are definitely initialized.
 

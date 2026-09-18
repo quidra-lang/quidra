@@ -849,7 +849,7 @@ set +e
 tensor_cast_rc=$?
 set -e
 [[ "$tensor_cast_rc" -eq 1 ]]
-grep -q 'floating-point to integer conversion requires' "$TMP/tensor-float-int-cast.json"
+grep -qi 'floating-point to integer conversion requires' "$TMP/tensor-float-int-cast.json"
 
 cat > "$TMP/tensor-uninitialized.qui" <<'QUI'
 tensor<float32> values = tensor<float32>([2])

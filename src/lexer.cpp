@@ -162,17 +162,34 @@ Token Lexer::number() {
     const auto start_index = index_;
     const auto start = pos_;
     while (!eof() && std::isdigit(static_cast<unsigned char>(peek()))) advance();
+
+    if (index_ == start_index + 1 && source_[start_index] == '0' &&
+        (peek() == 'x' || peek() == 'X' || peek() == 'b' || peek() == 'B' ||
+         peek() == 'o' || peek() == 'O')) {
+        error("LEX_ERROR",
+              "Base-prefixed numeric literals are not supported; integer literals use decimal notation.",
+              start);
+    }
+
     bool floating = false;
+    bool has_decimal_point = false;
     if (!eof() && peek() == '.' && std::isdigit(static_cast<unsigned char>(peek(1)))) {
         floating = true;
+        has_decimal_point = true;
         advance();
         while (!eof() && std::isdigit(static_cast<unsigned char>(peek()))) advance();
     }
     if (!eof() && (peek() == 'e' || peek() == 'E')) {
-        floating = true;
+        if (!has_decimal_point) {
+            error("LEX_ERROR",
+                  "Exponent notation requires an explicit decimal point, for example 1.0e8.",
+                  start);
+        }
         advance();
         if (!eof() && (peek() == '+' || peek() == '-')) advance();
-        if (eof() || !std::isdigit(static_cast<unsigned char>(peek()))) error("LEX_ERROR", "Malformed float exponent.", start);
+        if (eof() || !std::isdigit(static_cast<unsigned char>(peek()))) {
+            error("LEX_ERROR", "Malformed float exponent.", start);
+        }
         while (!eof() && std::isdigit(static_cast<unsigned char>(peek()))) advance();
     }
     return make(floating ? TokenKind::Float : TokenKind::Integer, start_index, start);

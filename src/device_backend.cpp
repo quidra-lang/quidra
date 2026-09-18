@@ -94,6 +94,9 @@ struct CudaApi {
     using CUdevice = int;
     using CUcontext = void*;
     using CUdeviceptr = std::uint64_t;
+    using CUmodule = void*;
+    using CUfunction = void*;
+    using CUstream = void*;
     using Result = int;
 
     DynamicLibrary library;
@@ -108,7 +111,15 @@ struct CudaApi {
     Result (*mem_free)(CUdeviceptr){};
     Result (*copy_h2d)(CUdeviceptr, const void*, std::size_t){};
     Result (*copy_d2h)(void*, CUdeviceptr, std::size_t){};
+    Result (*copy_d2d)(CUdeviceptr, CUdeviceptr, std::size_t){};
     Result (*memset_d8)(CUdeviceptr, unsigned char, std::size_t){};
+    Result (*module_load_data)(CUmodule*, const void*){};
+    Result (*module_unload)(CUmodule){};
+    Result (*module_get_function)(CUfunction*, CUmodule, const char*){};
+    Result (*launch_kernel)(CUfunction, unsigned, unsigned, unsigned,
+                            unsigned, unsigned, unsigned, unsigned,
+                            CUstream, void**, void**){};
+    Result (*ctx_synchronize)(){};
     std::vector<CUcontext> contexts;
     std::mutex mutex;
     bool ready{};
@@ -140,9 +151,22 @@ struct CudaApi {
         copy_d2h = load_symbol<decltype(copy_d2h)>(library, "cuMemcpyDtoH_v2");
         if (!copy_d2h)
             copy_d2h = load_symbol<decltype(copy_d2h)>(library, "cuMemcpyDtoH");
+        copy_d2d = load_symbol<decltype(copy_d2d)>(library, "cuMemcpyDtoD_v2");
+        if (!copy_d2d)
+            copy_d2d = load_symbol<decltype(copy_d2d)>(library, "cuMemcpyDtoD");
         memset_d8 = load_symbol<decltype(memset_d8)>(library, "cuMemsetD8_v2");
         if (!memset_d8)
             memset_d8 = load_symbol<decltype(memset_d8)>(library, "cuMemsetD8");
+        module_load_data =
+            load_symbol<decltype(module_load_data)>(library, "cuModuleLoadData");
+        module_unload =
+            load_symbol<decltype(module_unload)>(library, "cuModuleUnload");
+        module_get_function =
+            load_symbol<decltype(module_get_function)>(library, "cuModuleGetFunction");
+        launch_kernel =
+            load_symbol<decltype(launch_kernel)>(library, "cuLaunchKernel");
+        ctx_synchronize =
+            load_symbol<decltype(ctx_synchronize)>(library, "cuCtxSynchronize");
         ready = init && device_count && device_get && device_name && driver_version &&
                 ctx_create && ctx_set_current && mem_alloc && mem_free &&
                 copy_h2d && copy_d2h && memset_d8 && init(0) == 0;
@@ -239,6 +263,12 @@ struct BufferImpl {
 #endif
 };
 
+struct ModuleImpl {
+    int global_index{-1};
+    int backend_index{-1};
+    void* cuda_module{};
+};
+
 std::vector<Info> enumerate_devices() {
     std::vector<Info> result;
 #ifdef __APPLE__
@@ -309,6 +339,7 @@ bool range_ok(const BufferImpl& buffer, std::size_t offset, std::size_t bytes) {
 } // namespace
 
 struct Buffer : BufferImpl {};
+struct Module : ModuleImpl {};
 
 const std::vector<Info>& devices() {
     static const std::vector<Info> value = enumerate_devices();
@@ -501,6 +532,66 @@ bool copy_to_host(const Buffer* raw, std::size_t offset, void* destination,
     return false;
 }
 
+bool copy_device_to_device(
+    Buffer* destination, std::size_t destination_offset,
+    const Buffer* source, std::size_t source_offset,
+    std::size_t bytes, std::string& error) {
+    if (!destination || !source ||
+        !range_ok(*destination, destination_offset, bytes) ||
+        !range_ok(*source, source_offset, bytes)) {
+        error = "invalid GPU device-copy range";
+        return false;
+    }
+    if (bytes == 0) return true;
+    if (destination->backend != source->backend ||
+        destination->global_index != source->global_index) {
+        error = "direct GPU device copy requires the same gpu(n); cross-device transfers are staged explicitly";
+        return false;
+    }
+
+    if (destination->backend == Backend::Nvidia) {
+        auto& api = cuda();
+        CudaApi::CUcontext context = nullptr;
+        if (!api.copy_d2d ||
+            !api.current(destination->backend_index, context, error)) {
+            if (error.empty()) error = "NVIDIA device-to-device copy is unavailable";
+            return false;
+        }
+        if (api.copy_d2d(destination->cuda_pointer + destination_offset,
+                         source->cuda_pointer + source_offset, bytes) != 0) {
+            error = "NVIDIA device-to-device copy failed";
+            return false;
+        }
+        return true;
+    }
+    if (destination->backend == Backend::Amd) {
+        auto& api = hip();
+        if (!api.ready || api.set_device(destination->backend_index) != 0 ||
+            api.memcpy_fn(static_cast<unsigned char*>(destination->pointer) +
+                              destination_offset,
+                          static_cast<unsigned char*>(source->pointer) +
+                              source_offset,
+                          bytes, 3) != 0) {
+            error = "AMD device-to-device copy failed";
+            return false;
+        }
+        return true;
+    }
+#ifdef __APPLE__
+    if (destination->backend == Backend::Metal) {
+        std::memmove(
+            static_cast<unsigned char*>([destination->metal_buffer contents]) +
+                destination_offset,
+            static_cast<unsigned char*>([source->metal_buffer contents]) +
+                source_offset,
+            bytes);
+        return true;
+    }
+#endif
+    error = "GPU device-to-device copy is unavailable";
+    return false;
+}
+
 bool zero(Buffer* raw, std::size_t offset, std::size_t bytes,
           std::string& error) {
     if (!raw || !range_ok(*raw, offset, bytes)) {
@@ -541,6 +632,93 @@ bool zero(Buffer* raw, std::size_t offset, std::size_t bytes,
 
 int buffer_device(const Buffer* buffer) {
     return buffer ? buffer->global_index : -1;
+}
+
+Module* load_ptx(int index, const std::string& ptx, std::string& error) {
+    const auto* info = find(index);
+    if (!info) {
+        error = "gpu(" + std::to_string(index) + ") is not available";
+        return nullptr;
+    }
+    if (info->backend != Backend::Nvidia) {
+        error = "PTX modules are only supported by the NVIDIA backend";
+        return nullptr;
+    }
+    auto& api = cuda();
+    if (!api.module_load_data || !api.module_unload || !api.module_get_function ||
+        !api.launch_kernel || !api.ctx_synchronize) {
+        error = "NVIDIA PTX module/launch API is unavailable";
+        return nullptr;
+    }
+    CudaApi::CUcontext context = nullptr;
+    if (!api.current(info->backend_index, context, error)) return nullptr;
+
+    CudaApi::CUmodule module = nullptr;
+    if (api.module_load_data(&module, ptx.c_str()) != 0 || !module) {
+        error = "failed to load Quidra PTX module";
+        return nullptr;
+    }
+    auto result = std::make_unique<Module>();
+    result->global_index = index;
+    result->backend_index = info->backend_index;
+    result->cuda_module = module;
+    return result.release();
+}
+
+void release(Module* raw) {
+    if (!raw) return;
+    std::unique_ptr<Module> module(raw);
+    auto& api = cuda();
+    std::string ignored;
+    CudaApi::CUcontext context = nullptr;
+    if (module->cuda_module &&
+        api.current(module->backend_index, context, ignored) &&
+        api.module_unload) {
+        (void)api.module_unload(
+            static_cast<CudaApi::CUmodule>(module->cuda_module));
+    }
+}
+
+bool launch(Module* module, const char* kernel,
+            LaunchDimensions grid, LaunchDimensions block,
+            void** arguments, std::string& error) {
+    if (!module || !module->cuda_module || !kernel || !*kernel) {
+        error = "invalid NVIDIA kernel launch";
+        return false;
+    }
+    if (grid.x == 0 || grid.y == 0 || grid.z == 0 ||
+        block.x == 0 || block.y == 0 || block.z == 0) {
+        error = "NVIDIA kernel launch dimensions must be nonzero";
+        return false;
+    }
+
+    auto& api = cuda();
+    if (!api.module_get_function || !api.launch_kernel || !api.ctx_synchronize) {
+        error = "NVIDIA PTX module/launch API is unavailable";
+        return false;
+    }
+    CudaApi::CUcontext context = nullptr;
+    if (!api.current(module->backend_index, context, error)) return false;
+
+    CudaApi::CUfunction function = nullptr;
+    if (api.module_get_function(
+            &function, static_cast<CudaApi::CUmodule>(module->cuda_module),
+            kernel) != 0 || !function) {
+        error = std::string("NVIDIA PTX kernel not found: ") + kernel;
+        return false;
+    }
+    if (api.launch_kernel(function,
+                          grid.x, grid.y, grid.z,
+                          block.x, block.y, block.z,
+                          0, nullptr, arguments, nullptr) != 0) {
+        error = std::string("NVIDIA kernel launch failed: ") + kernel;
+        return false;
+    }
+    if (api.ctx_synchronize() != 0) {
+        error = std::string("NVIDIA kernel synchronization failed: ") + kernel;
+        return false;
+    }
+    return true;
 }
 
 } // namespace quidra::device

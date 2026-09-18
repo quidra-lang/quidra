@@ -718,7 +718,7 @@ print(reshaped_shape[0])
 print(reshaped_shape[1])
 
 tensor<float> exact_source = tensor.ones<float>([1])
-tensor<float32> exact_cast = exact_source.cast<float32>()
+tensor<float32> exact_cast = float32(exact_source)
 print(exact_cast[0].item())
 QUI
 tensor_output="$("$QUIDRA" "$TMP/tensor.qui")"
@@ -841,7 +841,7 @@ grep -q 'identical rank' "$TMP/tensor-rank-mismatch.json"
 
 cat > "$TMP/tensor-float-int-cast.qui" <<'QUI'
 tensor<float> source = tensor.ones<float>([1]) * 1.5
-tensor<int> converted = source.cast<int>()
+tensor<int> converted = int(source)
 print(converted[0].item())
 QUI
 set +e
@@ -1351,11 +1351,52 @@ print(math.round(value))
 print(math.floor(-1.25))
 print(math.ceil(-1.25))
 tensor<float> source = tensor.ones<float>([1]) * 1.25
-tensor<float32> converted = source.cast<float32>()
+tensor<float32> converted = float32(source)
 print(converted[0].item())
 QUI
 practical_cast_output="$("$QUIDRA" "$TMP/practical-casts.qui")"
 [[ "$practical_cast_output" == "$(printf '1.6777216e+07\n1.75\n1\n2\n-2\n-1\n1.25')" ]]
+
+cat > "$TMP/container-casts.qui" <<'QUI'
+int[][] dynamic = [[1, 2], [3, 4]]
+float[][] dynamic_float = float(dynamic)
+print(dynamic_float[1][0])
+
+int[2][2] fixed = [[5, 6], [7, 8]]
+float[2][2] fixed_float = float(fixed)
+print(fixed_float[0][1])
+
+tensor<int><2, 2> matrix = tensor.ones<int>([2, 2])
+tensor<float><2, 2> matrix_float = float(matrix)
+print(matrix_float[1, 1].item())
+QUI
+container_cast_output="$("$QUIDRA" "$TMP/container-casts.qui")"
+[[ "$container_cast_output" == "$(printf '3.0\n6.0\n1.0')" ]]
+
+cat > "$TMP/container-cast-range.qui" <<'QUI'
+int[] values = [1, 300]
+int8[] converted = int8(values)
+print(converted[0])
+QUI
+set +e
+"$QUIDRA" "$TMP/container-cast-range.qui" >"$TMP/container-cast-range.out" 2>"$TMP/container-cast-range.err"
+container_range_rc=$?
+set -e
+[[ "$container_range_rc" -eq 101 ]]
+grep -q 'NUMERIC_CAST_RANGE' "$TMP/container-cast-range.err"
+
+cat > "$TMP/container-cast-uninitialized.qui" <<'QUI'
+int[2] values
+values[0] = 7
+float[2] converted = float(values)
+print(converted[0])
+QUI
+set +e
+"$QUIDRA" "$TMP/container-cast-uninitialized.qui" >"$TMP/container-cast-uninitialized.out" 2>"$TMP/container-cast-uninitialized.err"
+container_uninitialized_rc=$?
+set -e
+[[ "$container_uninitialized_rc" -eq 101 ]]
+grep -q 'UNINITIALIZED' "$TMP/container-cast-uninitialized.err"
 
 cat > "$TMP/float-int-cast-rejected.qui" <<'QUI'
 float value = 1.0

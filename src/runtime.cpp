@@ -1649,18 +1649,9 @@ extern "C" void* quidra_tensor_item_ptr(void* raw, unsigned long long line,
         !tracker_bit(tensor->storage->initialization, tensor->offset)) {
         runtime_uninitialized_failure(line, column);
     }
+    tensor_require_cpu(*tensor->storage, "tensor.item", line, column);
     const auto width = tensor_dtype_bytes(tensor->storage->dtype);
-    if (tensor_on_cpu(*tensor->storage)) {
-        return tensor->storage->data.data() + tensor->offset * width;
-    }
-    thread_local std::array<unsigned char, 8> scalar{};
-    std::string backend_error;
-    if (!quidra::device::copy_to_host(
-            tensor->storage->gpu_buffer, tensor->offset * width,
-            scalar.data(), width, backend_error)) {
-        tensor_fail(backend_error.c_str(), line, column);
-    }
-    return scalar.data();
+    return tensor->storage->data.data() + tensor->offset * width;
 }
 
 extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,

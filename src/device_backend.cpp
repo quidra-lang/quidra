@@ -11,7 +11,9 @@
 #include <utility>
 
 #ifdef _WIN32
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 #else
 #include <dlfcn.h>
@@ -320,7 +322,7 @@ std::vector<Info> enumerate_devices() {
                 char name[256]{};
                 if (cu.device_get(&dev, i) != 0) continue;
                 if (cu.device_name(name, static_cast<int>(sizeof(name)), dev) != 0)
-                    std::strcpy(name, "NVIDIA GPU");
+                    std::memcpy(name, "NVIDIA GPU", sizeof("NVIDIA GPU"));
                 result.push_back(Info{
                     static_cast<int>(result.size()), Backend::Nvidia, i, name,
                     cuda_version_string(driver), "CUDA Driver API"});
@@ -338,7 +340,7 @@ std::vector<Info> enumerate_devices() {
                 char name[256]{};
                 if (!h.get_name ||
                     h.get_name(name, static_cast<int>(sizeof(name)), i) != 0)
-                    std::strcpy(name, "AMD GPU");
+                    std::memcpy(name, "AMD GPU", sizeof("AMD GPU"));
                 const auto runtime = version > 0
                     ? "HIP " + std::to_string(version / 10000000) + "." +
                           std::to_string((version / 100000) % 100)

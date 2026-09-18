@@ -1032,7 +1032,22 @@ struct Lowerer {
             if(base_owned) block->instructions.push_back(Release{a,base_type});
             return out;
         }
-        if (const auto* n=std::get_if<UnaryExpr>(&e.data)) { auto v=expr(*n->operand), out=fresh(); block->instructions.push_back(Unary{out,n->op,v,type_of(e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}); return out; }
+        if (const auto* n=std::get_if<UnaryExpr>(&e.data)) {
+            if(n->op=="-"){
+                if(const auto* literal=std::get_if<IntegerExpr>(&n->operand->data);
+                   literal && is_integer(type_of(e))){
+                    auto out=fresh();
+                    block->instructions.push_back(ConstantInt{
+                        out,"-"+std::to_string(literal->value),type_of(e)});
+                    return out;
+                }
+            }
+            auto v=expr(*n->operand), out=fresh();
+            block->instructions.push_back(Unary{
+                out,n->op,v,type_of(e),static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)});
+            return out;
+        }
         if (const auto* n=std::get_if<BinaryExpr>(&e.data)) {
             if(n->op=="+" && type_of(e).kind==TypeKind::String){
                 std::vector<const Expr*> parts;

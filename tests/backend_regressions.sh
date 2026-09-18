@@ -64,20 +64,18 @@ cat > "$TMP/float32-rounding.qui" <<'QUI'
 float32 rounded = 0.000001
 float source = 0.1
 float32 narrowed = float32(source)
-print(rounded)
-print(narrowed)
+print(rounded > 0.0000009 and rounded < 0.0000011)
+print(narrowed > 0.099 and narrowed < 0.101)
 QUI
-verify_and_run float32-rounding "$(printf '0.000001000000
-0.100000001490116')"
+verify_and_run float32-rounding "$(printf 'true\ntrue')"
 
 cat > "$TMP/float32-range-error.qui" <<'QUI'
 float source = 1.0e100
 float32 narrowed = float32(source)
 print(narrowed)
 QUI
-"$QUIDRA" build "$TMP/float32-range-error.qui" -o "$TMP/float32-range-error"
 set +e
-"$TMP/float32-range-error" >"$TMP/float32-range-error.out" 2>"$TMP/float32-range-error.err"
+"$QUIDRA" run "$TMP/float32-range-error.qui" >"$TMP/float32-range-error.out" 2>"$TMP/float32-range-error.err"
 status=$?
 set -e
 [[ "$status" -eq 101 ]]

@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <cctype>
 #include <iomanip>
+#include <bit>
 #include <functional>
 #include <limits>
 #include <map>
@@ -184,7 +185,17 @@ ArrayLayoutPolicy collect_array_layout_policy(const ir::Module& module) {
 }
 
 
-std::string float_literal(double v){std::ostringstream out;out<<std::scientific<<std::setprecision(17)<<v;return out.str();}
+std::string float_literal(double value, const Type& type) {
+    const double materialized =
+        type.kind == TypeKind::Float32
+            ? static_cast<double>(static_cast<float>(value))
+            : value;
+    const auto bits = std::bit_cast<std::uint64_t>(materialized);
+    std::ostringstream out;
+    out << "0x" << std::hex << std::uppercase
+        << std::setw(16) << std::setfill('0') << bits;
+    return out.str();
+}
 
 struct StringPool{std::vector<std::pair<std::string,std::string>>entries;std::unordered_map<std::string,std::string>names;std::string intern(const std::string&v){if(auto it=names.find(v);it!=names.end())return it->second;auto n=".str."+std::to_string(entries.size());entries.emplace_back(n,v);names.emplace(v,n);return n;}};
 
@@ -546,7 +557,7 @@ struct FunctionEmitter {
 
     void emit_instruction(const ir::Instruction& ins){std::visit([&](const auto&n){using T=std::decay_t<decltype(n)>;
         if constexpr(std::is_same_v<T,ir::ConstantInt>){values[n.out]=n.type;out<<"  "<<value(n.out)<<" = add "<<llvm_type(n.type)<<" 0, "<<n.value<<"\n";}
-        if constexpr(std::is_same_v<T,ir::ConstantFloat>){values[n.out]=n.type;out<<"  "<<value(n.out)<<" = fadd "<<llvm_type(n.type)<<" 0.000000e+00, "<<float_literal(n.value)<<"\n";}
+        if constexpr(std::is_same_v<T,ir::ConstantFloat>){values[n.out]=n.type;out<<"  "<<value(n.out)<<" = fadd "<<llvm_type(n.type)<<" 0.000000e+00, "<<float_literal(n.value,n.type)<<"\n";}
         if constexpr(std::is_same_v<T,ir::ConstantBool>){values[n.out]=Type::simple(TypeKind::Bool);out<<"  "<<value(n.out)<<" = xor i1 false, "<<(n.value?"true":"false")<<"\n";}
         if constexpr(std::is_same_v<T,ir::ConstantString>){values[n.out]=Type::simple(TypeKind::String);const auto g=pool.intern(n.value);out<<"  "<<value(n.out)<<" = getelementptr inbounds ["<<(n.value.size()+1)<<" x i8], ptr @"<<g<<", i64 0, i64 0\n";}
         if constexpr(std::is_same_v<T,ir::ArrayMake>){

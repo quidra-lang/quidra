@@ -99,52 +99,75 @@ print(invalid.shape()[0])
 QUI
 expect_runtime_error "$TMP/gpu-gpu-mismatch.qui" "tensor operands are on different devices"
 
-cat > "$TMP/same-gpu-no-fallback.qui" <<'QUI'
+cat > "$TMP/gpu-compute.qui" <<'QUI'
 tensor<float32> left = tensor.ones<float32>([2], gpu = 0)
 tensor<float32> right = tensor.ones<float32>([2], gpu = 0)
-tensor<float32> invalid = left + right
-print(invalid.shape()[0])
-QUI
-expect_runtime_error "$TMP/same-gpu-no-fallback.qui" "tensor arithmetic is not supported on gpu(0)"
+tensor<float32> added = left + right
+tensor<float32> scaled = added * 2.0
+tensor<float32> reversed = 10.0 - scaled
+tensor<float32> divided = reversed / 2.0
+tensor<float32> negated = -left
 
-cat > "$TMP/scalar-kernel-argument.qui" <<'QUI'
-tensor<float32> value = tensor.ones<float32>([2], gpu = 0)
-tensor<float32> invalid = value + 1.0
-print(invalid.shape()[0])
+print(added[0].item())
+print(scaled[1].item())
+print(divided[0].item())
+print(negated[0].item())
+
+tensor<int> values = tensor.zeros<int>([3], gpu = 0)
+values[0] = 1
+values[1] = 2
+values[2] = 3
+tensor<float> converted = float(values)
+print(converted[2].item())
+print(stats.sum(values))
+print(stats.min(values))
+print(stats.max(values))
+print(stats.mean(values))
+
+tensor<float32> vector_a = tensor.ones<float32>([2], gpu = 0)
+tensor<float32> vector_b = tensor.ones<float32>([2], gpu = 0)
+print(linear.dot(vector_a, vector_b))
+
+tensor<float32> matrix_a = tensor.ones<float32>([2, 3], gpu = 0)
+tensor<float32> matrix_b = tensor.ones<float32>([3, 2], gpu = 0)
+tensor<float32> product = linear.matmul(matrix_a, matrix_b)
+print(product[0, 0].item())
+print(product[1, 1].item())
+
+tensor<float32> cpu_reference = product.cpu()
+print(cpu_reference[0, 0].item())
 QUI
-expect_runtime_error "$TMP/scalar-kernel-argument.qui" "tensor arithmetic is not supported on gpu(0)"
-if grep -Fq "different devices" "$TMP/scalar-kernel-argument.qui.err"; then
-    echo "scalar operand was incorrectly treated as a tensor device mismatch" >&2
+
+gpu_compute_output="$("$QUIDRA" run "$TMP/gpu-compute.qui")"
+gpu_compute_expected="$(printf '2.0\n4.0\n3.0\n-1.0\n3.0\n6\n1\n3\n2.0\n2.0\n3.0\n3.0\n3.0')"
+if [[ "$gpu_compute_output" != "$gpu_compute_expected" ]]; then
+    echo "unexpected fake-GPU compute output:" >&2
+    printf '%s\n' "$gpu_compute_output" >&2
     exit 1
 fi
 
-cat > "$TMP/item-no-hidden-download.qui" <<'QUI'
-tensor<float32> value = tensor.ones<float32>([1], gpu = 0)
-print(value[0].item())
+cat > "$TMP/gpu-view.qui" <<'QUI'
+tensor<int> value = tensor.zeros<int>([2, 3], gpu = 0)
+value[0, 0] = 1
+value[0, 1] = 2
+value[0, 2] = 3
+value[1, 0] = 4
+value[1, 1] = 5
+value[1, 2] = 6
+tensor<int> view = value[0:2, 1:3]
+tensor<int> dense = view.contiguous()
+print(dense.shape()[0])
+print(dense.shape()[1])
+print(dense[0, 0].item())
+print(dense[1, 1].item())
 QUI
-expect_runtime_error "$TMP/item-no-hidden-download.qui" "tensor.item is not supported on gpu(0)"
-
-cat > "$TMP/cast-no-fallback.qui" <<'QUI'
-tensor<int> value = tensor.ones<int>([1], gpu = 0)
-tensor<float> converted = float(value)
-print(converted.shape()[0])
-QUI
-expect_runtime_error "$TMP/cast-no-fallback.qui" "tensor.cast is not supported on gpu(0)"
-
-cat > "$TMP/dot-no-fallback.qui" <<'QUI'
-tensor<float32> left = tensor.ones<float32>([2], gpu = 0)
-tensor<float32> right = tensor.ones<float32>([2], gpu = 0)
-float32 result = linear.dot(left, right)
-print(result)
-QUI
-expect_runtime_error "$TMP/dot-no-fallback.qui" "linear.dot is not supported on gpu(0)"
-
-cat > "$TMP/mean-no-fallback.qui" <<'QUI'
-tensor<float32> value = tensor.ones<float32>([2], gpu = 0)
-float result = stats.mean(value)
-print(result)
-QUI
-expect_runtime_error "$TMP/mean-no-fallback.qui" "stats.mean is not supported on gpu(0)"
+gpu_view_output="$("$QUIDRA" run "$TMP/gpu-view.qui")"
+gpu_view_expected="$(printf '2\n2\n2\n6')"
+if [[ "$gpu_view_output" != "$gpu_view_expected" ]]; then
+    echo "unexpected fake-GPU view output:" >&2
+    printf '%s\n' "$gpu_view_output" >&2
+    exit 1
+fi
 
 cat > "$TMP/image-write-no-fallback.qui" <<'QUI'
 tensor<uint8> value = tensor.ones<uint8>([1, 1, 1], gpu = 0)

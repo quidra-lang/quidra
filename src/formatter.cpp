@@ -51,6 +51,10 @@ bool word_like(TokenKind kind) {
         case TokenKind::KwNot:
         case TokenKind::KwAnd:
         case TokenKind::KwOr:
+        case TokenKind::KwBitNot:
+        case TokenKind::KwBitAnd:
+        case TokenKind::KwBitOr:
+        case TokenKind::KwBitXor:
             return true;
         default:
             return false;
@@ -90,6 +94,8 @@ bool spaced_operator(TokenKind kind) {
         case TokenKind::Star:
         case TokenKind::Slash:
         case TokenKind::Percent:
+        case TokenKind::ShiftLeft:
+        case TokenKind::ShiftRight:
         case TokenKind::Pipe:
             return true;
         default:

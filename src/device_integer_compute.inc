@@ -500,6 +500,34 @@ std::string msl_integer_dot_source(int dtype) {
       "for(ulong i=0;i<count;++i){"+t+" p=0,next=0;if(q_mul(left[i],right[i],p)||q_add(total,p,next)){"
       "atomic_store_explicit(status,1u,memory_order_relaxed);return;}total=next;}out[0]=total;}\n";
 }
+std::string msl_integer_mean_source(int dtype) {
+    const auto t=msl_integer_type(dtype);
+    const bool sign=gpu_integer_signed(dtype);
+    std::ostringstream o;
+    o<<"#include <metal_stdlib>\nusing namespace metal;\n"
+     <<"kernel void q_kernel(device "<<(sign?"long":"ulong")
+     <<"* out [[buffer(0)]],const device "<<t
+     <<"* in [[buffer(1)]],constant ulong& count [[buffer(2)]],"
+       "uint gid [[thread_position_in_grid]]){if(gid!=0)return;";
+    if(sign){
+        o<<"long n=long(count),q=0,r=0;"
+          "for(ulong i=0;i<count;++i){long x=long(in[i]);long xq=x/n,xr=x%n;"
+          "q+=xq;"
+          "if(xr>0&&r>=n-xr){r-=n-xr;q+=1;}"
+          "else if(xr<0&&r<=-n-xr){r+=n;q-=1;}"
+          "else r+=xr;}"
+          "out[0]=q;out[1]=r;}";
+    }else{
+        o<<"ulong n=count,q=0,r=0;"
+          "for(ulong i=0;i<count;++i){ulong x=ulong(in[i]);ulong xq=x/n,xr=x%n;"
+          "q+=xq;"
+          "if(xr!=0&&r>=n-xr){r-=n-xr;q+=1;}else r+=xr;}"
+          "out[0]=q;out[1]=r;}";
+    }
+    o<<"\n";
+    return o.str();
+}
+
 std::string msl_integer_reduce_source(int dtype,int operation) {
     const auto t=msl_integer_type(dtype);
     std::ostringstream o;

@@ -2407,6 +2407,44 @@ bool compute_mean(const Buffer* input, int dtype, std::size_t count,
         return copy_to_host(output.get(),0,&result,sizeof(result),error);
     }
 #ifdef __APPLE__
+    if(gpu_integer_dtype(dtype)&&input->backend==Backend::Metal){
+        if(count>static_cast<std::size_t>(std::numeric_limits<std::int64_t>::max())){
+            error="stats.mean tensor is too large for Metal integer reduction";
+            return false;
+        }
+        std::unique_ptr<Buffer,void(*)(Buffer*)> output(
+            allocate(input->global_index,2*sizeof(std::uint64_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!output)return false;
+        auto source_code=msl_integer_mean_source(dtype);
+        auto pipeline=cached_metal_pipeline(
+            [input->metal_buffer device],
+            "mean-int-"+std::to_string(dtype),source_code,error);
+        if(!pipeline)return false;
+        const auto n=static_cast<std::uint64_t>(count);
+        if(!dispatch_metal_1d(output.get(),pipeline,1,[&](id<MTLComputeCommandEncoder> e){
+            [e setBuffer:output->metal_buffer offset:0 atIndex:0];
+            [e setBuffer:input->metal_buffer offset:0 atIndex:1];
+            [e setBytes:&n length:sizeof(n) atIndex:2];
+        },error))return false;
+        std::array<std::uint64_t,2> parts{};
+        if(!copy_to_host(output.get(),0,parts.data(),sizeof(parts),error))return false;
+        if(gpu_integer_signed(dtype)){
+            std::int64_t quotient{},remainder{};
+            std::memcpy(&quotient,&parts[0],sizeof(quotient));
+            std::memcpy(&remainder,&parts[1],sizeof(remainder));
+            const long double exact=
+                static_cast<long double>(quotient)+
+                static_cast<long double>(remainder)/static_cast<long double>(count);
+            result=static_cast<double>(exact);
+        }else{
+            const long double exact=
+                static_cast<long double>(parts[0])+
+                static_cast<long double>(parts[1])/static_cast<long double>(count);
+            result=static_cast<double>(exact);
+        }
+        return true;
+    }
     if(dtype==10&&input->backend==Backend::Metal){
         const std::string source=
             "#include <metal_stdlib>\nusing namespace metal;\n"

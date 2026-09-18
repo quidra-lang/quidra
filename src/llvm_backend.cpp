@@ -3392,6 +3392,7 @@ std::string emit_llvm(const ir::Module& module) {
         funcs.push_back(FunctionEmitter{
             f, sigs, external_symbols, pool, layouts, array_layout, recursive.contains(f.name), recursive}.emit());
     }
+    const auto array_cast_pairs = collect_array_cast_pairs(module);
     std::map<std::string, Type> clone_types;
     collect_clone_types(module, clone_types, layouts);
     std::ostringstream out;
@@ -3423,6 +3424,12 @@ for (const auto& [name, value] : pool.entries) {
         << " x i8] c\"" << escape_bytes(value) << "\"\n";
 }
 out << "\n";
+for (const auto& [_, pair] : array_cast_pairs)
+    out << "declare ptr " << array_cast_name(pair.source,pair.target)
+        << "(ptr, i64, i64)\n";
+out << "\n";
+for (const auto& [_, pair] : array_cast_pairs)
+    out << emit_array_cast_helper(pair.source,pair.target,array_layout);
 for (const auto& [_, type] : clone_types) out << emit_clone_helper(type, layouts, array_layout);
 std::map<std::string, Type> drop_types;
 collect_drop_types(module, drop_types, layouts);

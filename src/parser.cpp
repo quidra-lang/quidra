@@ -3,6 +3,7 @@
 #include "quidra/lexer.hpp"
 #include <algorithm>
 #include <charconv>
+#include <cctype>
 #include <cstdlib>
 #include <functional>
 #include <limits>

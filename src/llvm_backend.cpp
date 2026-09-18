@@ -421,46 +421,10 @@ struct FunctionEmitter {
             return;
         }
         if (type.kind == TypeKind::Bytes) {
-            emit_repl_text("bytes[");
-            const auto len = temp("repl.bytes.len");
-            const auto index_slot = temp("repl.bytes.index.slot");
-            const auto cond = unique_label("repl.bytes.cond");
-            const auto body = unique_label("repl.bytes.body");
-            const auto done = unique_label("repl.bytes.done");
-            const auto comma = unique_label("repl.bytes.comma");
-            const auto item = unique_label("repl.bytes.item");
-            out << "  " << len << " = load i64, ptr " << raw_value << ", align 1\n";
-            out << "  " << index_slot << " = alloca i64\n";
-            out << "  store i64 0, ptr " << index_slot << "\n";
-            out << "  br label %" << cond << "\n";
-            out << cond << ":\n";
-            const auto index = temp("repl.bytes.index");
-            const auto more = temp("repl.bytes.more");
-            out << "  " << index << " = load i64, ptr " << index_slot << "\n";
-            out << "  " << more << " = icmp slt i64 " << index << ", " << len << "\n";
-            out << "  br i1 " << more << ", label %" << body << ", label %" << done << "\n";
-            out << body << ":\n";
-            const auto first = temp("repl.bytes.first");
-            out << "  " << first << " = icmp eq i64 " << index << ", 0\n";
-            out << "  br i1 " << first << ", label %" << item << ", label %" << comma << "\n";
-            out << comma << ":\n";
-            emit_repl_text(", ");
-            out << "  br label %" << item << "\n";
-            out << item << ":\n";
-            const auto offset = temp("repl.bytes.offset");
-            const auto ptr = temp("repl.bytes.ptr");
-            const auto value_text = temp("repl.bytes.value");
-            out << "  " << offset << " = add i64 " << index << ", 8\n";
-            out << "  " << ptr << " = getelementptr inbounds i8, ptr " << raw_value
-                << ", i64 " << offset << "\n";
-            out << "  " << value_text << " = load i8, ptr " << ptr << ", align 1\n";
-            emit_repl_value(Type::simple(TypeKind::UInt8), value_text);
-            const auto next = temp("repl.bytes.next");
-            out << "  " << next << " = add i64 " << index << ", 1\n";
-            out << "  store i64 " << next << ", ptr " << index_slot << "\n";
-            out << "  br label %" << cond << "\n";
-            out << done << ":\n";
-            emit_repl_text("]");
+            const auto text = temp("repl.bin");
+            out << "  " << text << " = call ptr @quidra_bin_string(ptr " << raw_value << ")\n";
+            out << "  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr " << text << ")\n";
+            out << "  call void @quidra_managed_release(ptr " << text << ", ptr null)\n";
             return;
         }
         if (type.kind == TypeKind::Array) {
@@ -2336,9 +2300,9 @@ struct FunctionEmitter {
                     argument=value(n.args[i].value);
                 }
                 if(ffi_borrowed_buffer&&parameter.type.kind==TypeKind::Bytes){
-                    const auto length=temp("ffi.bytes.length");
-                    const auto data=temp("ffi.bytes.data");
-                    out<<"  "<<length<<" = load i64, ptr "<<argument<<", align 1\n";
+                    const auto length=temp("ffi.bin.length");
+                    const auto data=temp("ffi.bin.data");
+                    out<<"  "<<length<<" = call i64 @quidra_bin_byte_length(ptr "<<argument<<")\n";
                     out<<"  "<<data<<" = getelementptr inbounds i8, ptr "<<argument<<", i64 8\n";
                     ffi_lengths[i]=length;
                     argument=data;
@@ -3115,6 +3079,7 @@ declare ptr @quidra_bin_from_array(ptr, i32, i32)
 declare ptr @quidra_bin_to_array(ptr, i32, i32)
 declare ptr @quidra_bin_clone(ptr)
 declare i1 @quidra_bin_equal(ptr, ptr)
+declare i64 @quidra_bin_byte_length(ptr)
 declare ptr @quidra_cli_argument(i64)
 declare ptr @quidra_cli_option(ptr)
 declare i1 @quidra_cli_flag(ptr)

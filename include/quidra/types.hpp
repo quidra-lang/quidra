@@ -330,6 +330,13 @@ inline bool float_value_fits_exactly(double value, const Type& type) {
     return static_cast<double>(narrowed) == value;
 }
 
+inline bool float_value_fits_range(double value, const Type& type) {
+    if (!is_float(type) || !std::isfinite(value)) return false;
+    if (type.kind == TypeKind::Float) return true;
+    if (type.kind != TypeKind::Float32) return false;
+    return std::isfinite(static_cast<float>(value));
+}
+
 inline bool float_value_fits_exactly_in_integer(double value, const Type& type) {
     if (!is_integer(type) || !std::isfinite(value) || std::trunc(value) != value) return false;
     const long double exact = static_cast<long double>(value);
@@ -436,6 +443,9 @@ inline NumericConversionPolicy numeric_conversion_policy(const Type& from, const
     if (from == to) return NumericConversionPolicy::Identity;
     if (!explicit_numeric_cast_supported(from, to)) return NumericConversionPolicy::Forbidden;
     if (is_integer(from) && is_integer(to)) return NumericConversionPolicy::ExplicitRangeCheck;
+    if (from.kind == TypeKind::Float && to.kind == TypeKind::Float32) {
+        return NumericConversionPolicy::ExplicitRangeCheck;
+    }
     return NumericConversionPolicy::ExplicitDeterministic;
 }
 

@@ -2805,8 +2805,22 @@ struct Lowerer {
     }
 
     void begin_function(Function out) {
-        module.functions.push_back(std::move(out));fn=&module.functions.back();next_value=1;next_label=0;next_hidden=0;locals.clear();local_names.clear();reference_names.clear();references.clear();fully_initialized_array_locals.clear();fn->blocks.push_back(Block{"entry",{}});block=&fn->blocks.back();
+        module.functions.push_back(std::move(out));fn=&module.functions.back();next_value=1;next_label=0;next_hidden=0;locals.clear();local_names.clear();reference_names.clear();references.clear();fully_initialized_array_locals.clear();shaped_constraints.clear();array_constraints.clear();contextual_tensor_shapes.clear();fn->blocks.push_back(Block{"entry",{}});block=&fn->blocks.back();
         for(const auto& p:fn->parameters){locals[p.name]=p.type;local_names[p.name]=p.name;}
+        for(const auto& p:fn->parameters){
+            if((p.type.kind!=TypeKind::Tensor&&p.type.kind!=TypeKind::Neural)||
+               p.type.tensor_shape_prefix.empty()) continue;
+            auto parameter=fresh();
+            block->instructions.push_back(LoadLocal{parameter,p.name,p.type});
+            std::vector<std::optional<ValueId>> extents;
+            extents.reserve(p.type.tensor_shape_prefix.size());
+            for(const auto extent:p.type.tensor_shape_prefix){
+                if(extent>=0) extents.push_back(const_int(extent));
+                else extents.push_back(std::nullopt);
+            }
+            block->instructions.push_back(ShapedConstraintCheck{
+                parameter,p.type.kind,std::move(extents),0,0});
+        }
     }
 
     void lower_function(const FunctionDecl& source){

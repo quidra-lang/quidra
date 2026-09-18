@@ -1804,6 +1804,8 @@ enum class NeuralOp {
 
 extern "C" void* quidra_neural_tensor_unary(
     void* raw,int op,unsigned long long line,unsigned long long column);
+extern "C" void* quidra_tensor_unary(
+    void* raw,int operation,unsigned long long line,unsigned long long column);
 extern "C" void* quidra_tensor_binary(
     void* primary_raw,void* other_raw,void* scalar,int scalar_side,
     int operation,unsigned long long line,unsigned long long column);
@@ -2713,8 +2715,11 @@ void* neural_normalize_inference(
         output->gpu_buffer,in_store->gpu_buffer,s_store->gpu_buffer,b_store->gpu_buffer,
         m_store->gpu_buffer,v_store->gpu_buffer,input.storage->dtype,count,
         layout.features,layout.inner,epsilon,backend_error);
-    if(in_mat)tensor_storage_release(in_mat);if(s_mat)tensor_storage_release(s_mat);if(b_mat)tensor_storage_release(b_mat);
-    if(m_mat)tensor_storage_release(m_mat);if(v_mat)tensor_storage_release(v_mat);
+    if(in_mat) tensor_storage_release(in_mat);
+    if(s_mat) tensor_storage_release(s_mat);
+    if(b_mat) tensor_storage_release(b_mat);
+    if(m_mat) tensor_storage_release(m_mat);
+    if(v_mat) tensor_storage_release(v_mat);
     if(!ok){tensor_storage_release(output);neural_fail(backend_error.c_str(),line,column);}
     return tensor_descriptor(output,input.shape,tensor_contiguous_strides(input.shape),0);
 }
@@ -3036,7 +3041,9 @@ extern "C" void* quidra_neural_tensor_convolve2d(
         static_cast<std::size_t>(out_c),static_cast<std::size_t>(kh),static_cast<std::size_t>(kw),
         static_cast<std::size_t>(out_h),static_cast<std::size_t>(out_w),
         static_cast<std::size_t>(stride),static_cast<std::size_t>(padding),backend_error);
-    if(in_mat)tensor_storage_release(in_mat);if(w_mat)tensor_storage_release(w_mat);if(b_mat)tensor_storage_release(b_mat);
+    if(in_mat) tensor_storage_release(in_mat);
+    if(w_mat) tensor_storage_release(w_mat);
+    if(b_mat) tensor_storage_release(b_mat);
     if(!ok){tensor_storage_release(output);neural_fail(backend_error.c_str(),line,column);}
     return tensor_descriptor(output,output_shape,tensor_contiguous_strides(output_shape),0);
 }
@@ -3122,7 +3129,9 @@ extern "C" void* quidra_neural_tensor_affine(
     const bool ok=quidra::device::compute_affine(
         output->gpu_buffer,in_store->gpu_buffer,w_store->gpu_buffer,b_store->gpu_buffer,
         input.storage->dtype,batches,features_in,features_out,backend_error);
-    if(in_mat)tensor_storage_release(in_mat); if(w_mat)tensor_storage_release(w_mat); if(b_mat)tensor_storage_release(b_mat);
+    if(in_mat) tensor_storage_release(in_mat);
+    if(w_mat) tensor_storage_release(w_mat);
+    if(b_mat) tensor_storage_release(b_mat);
     if(!ok){tensor_storage_release(output);neural_fail(backend_error.c_str(),line,column);}
     return tensor_descriptor(output,shape,tensor_contiguous_strides(shape),0);
 }
@@ -4069,25 +4078,6 @@ TensorValue* neural_device_binary_tensor(
     unsigned long long line,unsigned long long column) {
     return static_cast<TensorValue*>(
         quidra_tensor_binary(left,right,nullptr,0,operation,line,column));
-}
-
-TensorValue* neural_device_scalar_tensor(
-    TensorValue* input,double scalar,int operation,bool scalar_left,
-    unsigned long long line,unsigned long long column) {
-    if(!input) neural_fail("null GPU neural tensor",line,column);
-    if(input->storage->dtype==10){
-        float value=static_cast<float>(scalar);
-        return static_cast<TensorValue*>(
-            quidra_tensor_binary(
-                input,nullptr,&value,scalar_left?1:2,operation,line,column));
-    }
-    if(input->storage->dtype==9){
-        double value=scalar;
-        return static_cast<TensorValue*>(
-            quidra_tensor_binary(
-                input,nullptr,&value,scalar_left?1:2,operation,line,column));
-    }
-    neural_fail("invalid GPU neural tensor dtype",line,column);
 }
 
 TensorValue* neural_device_negate_tensor(

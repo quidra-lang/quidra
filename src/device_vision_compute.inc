@@ -390,6 +390,77 @@ std::string ptx_image_morphology_source(int dtype,bool dilate) {
     return out.str();
 }
 
+
+std::string ptx_image_filter_source() {
+    return
+        ".version 6.0\n.target sm_30\n.address_size 64\n\n"
+        ".visible .entry q_kernel(\n"
+        " .param .u64 p_out,\n .param .u64 p_in,\n .param .u64 p_kernel,\n"
+        " .param .u64 p_status,\n .param .u64 p_count,\n .param .u64 p_h,\n"
+        " .param .u64 p_w,\n .param .u64 p_kh,\n .param .u64 p_kw,\n"
+        " .param .s64 p_divisor,\n .param .s64 p_offset)\n{\n"
+        " .reg .pred %p<16>;\n .reg .b32 %r<16>;\n .reg .b64 %rd<64>;\n"
+        " ld.param.u64 %rd1,[p_out];\n ld.param.u64 %rd2,[p_in];\n"
+        " ld.param.u64 %rd3,[p_kernel];\n ld.param.u64 %rd4,[p_status];\n"
+        " ld.param.u64 %rd5,[p_count];\n ld.param.u64 %rd10,[p_h];\n"
+        " ld.param.u64 %rd11,[p_w];\n ld.param.u64 %rd12,[p_kh];\n"
+        " ld.param.u64 %rd13,[p_kw];\n ld.param.s64 %rd14,[p_divisor];\n"
+        " ld.param.s64 %rd15,[p_offset];\n"
+        " mov.u32 %r1,%ctaid.x;\n mov.u32 %r2,%ntid.x;\n mov.u32 %r3,%tid.x;\n"
+        " mad.lo.s32 %r4,%r1,%r2,%r3;\n cvt.u64.u32 %rd7,%r4;\n"
+        " setp.ge.u64 %p1,%rd7,%rd5;\n @%p1 bra DONE;\n"
+        " rem.u64 %rd16,%rd7,%rd11;\n div.u64 %rd17,%rd7,%rd11;\n"
+        " rem.u64 %rd18,%rd17,%rd10;\n div.u64 %rd19,%rd17,%rd10;\n"
+        " div.u64 %rd20,%rd12,2;\n div.u64 %rd21,%rd13,2;\n"
+        " mov.s64 %rd22,0;\n mov.u64 %rd23,0;\n"
+        "KY_LOOP:\n setp.ge.u64 %p2,%rd23,%rd12;\n @%p2 bra REDUCE;\n"
+        " cvt.s64.u64 %rd24,%rd18;\n cvt.s64.u64 %rd25,%rd23;\n"
+        " add.s64 %rd26,%rd24,%rd25;\n cvt.s64.u64 %rd27,%rd20;\n sub.s64 %rd26,%rd26,%rd27;\n"
+        " setp.lt.s64 %p3,%rd26,0;\n @%p3 bra KY_NEXT;\n"
+        " cvt.s64.u64 %rd28,%rd10;\n setp.ge.s64 %p4,%rd26,%rd28;\n @%p4 bra KY_NEXT;\n"
+        " mov.u64 %rd29,0;\n"
+        "KX_LOOP:\n setp.ge.u64 %p5,%rd29,%rd13;\n @%p5 bra KY_NEXT;\n"
+        " cvt.s64.u64 %rd30,%rd16;\n cvt.s64.u64 %rd31,%rd29;\n"
+        " add.s64 %rd32,%rd30,%rd31;\n cvt.s64.u64 %rd33,%rd21;\n sub.s64 %rd32,%rd32,%rd33;\n"
+        " setp.lt.s64 %p6,%rd32,0;\n @%p6 bra KX_NEXT;\n"
+        " cvt.s64.u64 %rd34,%rd11;\n setp.ge.s64 %p7,%rd32,%rd34;\n @%p7 bra KX_NEXT;\n"
+        " mul.lo.u64 %rd35,%rd19,%rd10;\n cvt.u64.s64 %rd36,%rd26;\n"
+        " add.u64 %rd35,%rd35,%rd36;\n mul.lo.u64 %rd35,%rd35,%rd11;\n"
+        " cvt.u64.s64 %rd37,%rd32;\n add.u64 %rd35,%rd35,%rd37;\n"
+        " add.u64 %rd38,%rd2,%rd35;\n ld.global.u8 %r5,[%rd38];\n"
+        " mul.lo.u64 %rd39,%rd23,%rd13;\n add.u64 %rd39,%rd39,%rd29;\n"
+        " mul.lo.u64 %rd40,%rd39,8;\n add.u64 %rd41,%rd3,%rd40;\n"
+        " ld.global.s64 %rd42,[%rd41];\n cvt.s64.u32 %rd43,%r5;\n"
+        " mul.lo.s64 %rd44,%rd43,%rd42;\n mul.hi.s64 %rd45,%rd43,%rd42;\n"
+        " setp.lt.s64 %p8,%rd44,0;\n selp.s64 %rd46,-1,0,%p8;\n"
+        " setp.ne.s64 %p9,%rd45,%rd46;\n @%p9 bra OVERFLOW;\n"
+        " setp.gt.s64 %p10,%rd44,0;\n @!%p10 bra ADD_NEG;\n"
+        " mov.s64 %rd47,0x7fffffffffffffff;\n sub.s64 %rd48,%rd47,%rd44;\n"
+        " setp.gt.s64 %p11,%rd22,%rd48;\n @%p11 bra OVERFLOW;\n bra ADD_OK;\n"
+        "ADD_NEG:\n setp.lt.s64 %p12,%rd44,0;\n @!%p12 bra ADD_OK;\n"
+        " mov.s64 %rd49,0x8000000000000000;\n sub.s64 %rd50,%rd49,%rd44;\n"
+        " setp.lt.s64 %p13,%rd22,%rd50;\n @%p13 bra OVERFLOW;\n"
+        "ADD_OK:\n add.s64 %rd22,%rd22,%rd44;\n"
+        "KX_NEXT:\n add.u64 %rd29,%rd29,1;\n bra KX_LOOP;\n"
+        "KY_NEXT:\n add.u64 %rd23,%rd23,1;\n bra KY_LOOP;\n"
+        "REDUCE:\n mov.s64 %rd51,0x8000000000000000;\n"
+        " setp.eq.s64 %p14,%rd22,%rd51;\n setp.eq.s64 %p15,%rd14,-1;\n"
+        " and.pred %p14,%p14,%p15;\n @%p14 bra OVERFLOW;\n"
+        " div.s64 %rd52,%rd22,%rd14;\n"
+        " setp.gt.s64 %p10,%rd15,0;\n @!%p10 bra OFFSET_NEG;\n"
+        " mov.s64 %rd47,0x7fffffffffffffff;\n sub.s64 %rd48,%rd47,%rd15;\n"
+        " setp.gt.s64 %p11,%rd52,%rd48;\n @%p11 bra OVERFLOW;\n bra OFFSET_OK;\n"
+        "OFFSET_NEG:\n setp.lt.s64 %p12,%rd15,0;\n @!%p12 bra OFFSET_OK;\n"
+        " mov.s64 %rd49,0x8000000000000000;\n sub.s64 %rd50,%rd49,%rd15;\n"
+        " setp.lt.s64 %p13,%rd52,%rd50;\n @%p13 bra OVERFLOW;\n"
+        "OFFSET_OK:\n add.s64 %rd52,%rd52,%rd15;\n"
+        " max.s64 %rd52,%rd52,0;\n min.s64 %rd52,%rd52,255;\n"
+        " cvt.u32.u64 %r6,%rd52;\n add.u64 %rd53,%rd1,%rd7;\n"
+        " st.global.u8 [%rd53],%r6;\n bra DONE;\n"
+        "OVERFLOW:\n mov.u32 %r7,1;\n atom.global.exch.b32 %r8,[%rd4],%r7;\n"
+        "DONE:\n ret;\n}\n";
+}
+
 #ifdef __APPLE__
 std::string msl_image_geometry_source(std::size_t bytes,int operation) {
     const auto type=msl_raw_type(bytes);
@@ -423,6 +494,31 @@ std::string msl_image_threshold_source(){
       "kernel void q_kernel(device uchar* out [[buffer(0)]],const device uchar* in [[buffer(1)]],"
       "constant ulong& count [[buffer(2)]],constant uchar& cutoff [[buffer(3)]],constant uchar& low [[buffer(4)]],"
       "constant uchar& high [[buffer(5)]],uint gid [[thread_position_in_grid]]){ulong i=ulong(gid);if(i<count)out[i]=in[i]>=cutoff?high:low;}\n";
+}
+
+std::string msl_image_filter_source(){
+    return "#include <metal_stdlib>\\nusing namespace metal;\\n"
+      "kernel void q_kernel(device uchar* out [[buffer(0)]],const device uchar* in [[buffer(1)]],"
+      "const device long* kernel [[buffer(2)]],device atomic_uint* status [[buffer(3)]],"
+      "constant ulong& count [[buffer(4)]],constant ulong& h [[buffer(5)]],constant ulong& w [[buffer(6)]],"
+      "constant ulong& kh [[buffer(7)]],constant ulong& kw [[buffer(8)]],"
+      "constant long& divisor [[buffer(9)]],constant long& offset [[buffer(10)]],"
+      "uint gid [[thread_position_in_grid]]){"
+      "ulong i=ulong(gid);if(i>=count)return;ulong x=i%w;ulong t=i/w;ulong y=t%h;ulong c=t/h;"
+      "long total=0;long cy=long(kh/2),cx=long(kw/2);"
+      "for(ulong ky=0;ky<kh;++ky){long sy=long(y)+long(ky)-cy;if(sy<0||sy>=long(h))continue;"
+      "for(ulong kx=0;kx<kw;++kx){long sx=long(x)+long(kx)-cx;if(sx<0||sx>=long(w))continue;"
+      "long p=long(in[(c*h+ulong(sy))*w+ulong(sx)]);long k=kernel[ky*kw+kx];"
+      "if(p!=0){long hi=0x7fffffffffffffffL/p;long lo=(-0x7fffffffffffffffL-1L)/p;"
+      "if(k>hi||k<lo){atomic_store_explicit(status,1u,memory_order_relaxed);return;}}"
+      "long product=p*k;if((product>0&&total>0x7fffffffffffffffL-product)||"
+      "(product<0&&total<(-0x7fffffffffffffffL-1L)-product)){atomic_store_explicit(status,1u,memory_order_relaxed);return;}"
+      "total+=product;}}"
+      "if(total==(-0x7fffffffffffffffL-1L)&&divisor==-1){atomic_store_explicit(status,1u,memory_order_relaxed);return;}"
+      "long value=total/divisor;"
+      "if((offset>0&&value>0x7fffffffffffffffL-offset)||(offset<0&&value<(-0x7fffffffffffffffL-1L)-offset)){"
+      "atomic_store_explicit(status,1u,memory_order_relaxed);return;}"
+      "value+=offset;value=clamp(value,0L,255L);out[i]=uchar(value);}\\n";
 }
 std::string msl_image_blur_source(){
     return "#include <metal_stdlib>\nusing namespace metal;\n"
@@ -620,8 +716,57 @@ bool compute_image_filter(
     if(output->backend==Backend::Test)
         return fake_image_filter(output,input,kernel,channels,height,width,kh,kw,divisor,offset,error);
 #endif
-    error="image filter is not yet available on this real GPU backend";
-    return false;
+    std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+        allocate(output->global_index,sizeof(std::uint32_t),error),
+        [](Buffer* value){quidra::device::release(value);});
+    if(!status)return false;
+    const std::uint32_t zero=0;
+    if(!copy_from_host(status.get(),0,&zero,sizeof(zero),error))return false;
+
+    if(output->backend==Backend::Nvidia){
+        auto ptx=ptx_image_filter_source();
+        auto out_ptr=output->cuda_pointer,in_ptr=input->cuda_pointer,
+             k_ptr=kernel->cuda_pointer,status_ptr=status->cuda_pointer;
+        auto n=static_cast<std::uint64_t>(count),
+             hh=static_cast<std::uint64_t>(height),ww=static_cast<std::uint64_t>(width),
+             kh64=static_cast<std::uint64_t>(kh),kw64=static_cast<std::uint64_t>(kw);
+        auto div=divisor,off=offset;
+        void* args[]={&out_ptr,&in_ptr,&k_ptr,&status_ptr,&n,&hh,&ww,&kh64,&kw64,&div,&off};
+        if(!launch_ptx_1d(output,"image-filter-u8-i64",ptx,count,args,error))return false;
+    }
+#ifdef __APPLE__
+    else if(output->backend==Backend::Metal){
+        auto source=msl_image_filter_source();
+        auto pipeline=cached_metal_pipeline(
+            [output->metal_buffer device],"image-filter-u8-i64",source,error);
+        if(!pipeline)return false;
+        auto n=static_cast<std::uint64_t>(count),
+             hh=static_cast<std::uint64_t>(height),ww=static_cast<std::uint64_t>(width),
+             kh64=static_cast<std::uint64_t>(kh),kw64=static_cast<std::uint64_t>(kw);
+        auto div=divisor,off=offset;
+        if(!dispatch_metal_1d(output,pipeline,count,[&](id<MTLComputeCommandEncoder> e){
+            [e setBuffer:output->metal_buffer offset:0 atIndex:0];
+            [e setBuffer:input->metal_buffer offset:0 atIndex:1];
+            [e setBuffer:kernel->metal_buffer offset:0 atIndex:2];
+            [e setBuffer:status->metal_buffer offset:0 atIndex:3];
+            [e setBytes:&n length:8 atIndex:4];[e setBytes:&hh length:8 atIndex:5];
+            [e setBytes:&ww length:8 atIndex:6];[e setBytes:&kh64 length:8 atIndex:7];
+            [e setBytes:&kw64 length:8 atIndex:8];[e setBytes:&div length:8 atIndex:9];
+            [e setBytes:&off length:8 atIndex:10];
+        },error))return false;
+    }
+#endif
+    else{
+        return real_compute_unavailable(output,"image filter",5,error);
+    }
+
+    std::uint32_t overflow=0;
+    if(!copy_to_host(status.get(),0,&overflow,sizeof(overflow),error))return false;
+    if(overflow!=0){
+        error="vision.filter integer arithmetic overflow";
+        return false;
+    }
+    return true;
 }
 
 bool compute_image_morphology(

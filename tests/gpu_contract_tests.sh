@@ -169,6 +169,60 @@ if [[ "$gpu_view_output" != "$gpu_view_expected" ]]; then
     exit 1
 fi
 
+
+cat > "$TMP/integer-dtypes.qui" <<'QUI'
+tensor<int8> i8 = tensor.ones<int8>([2], gpu = 0) + int8(2)
+tensor<int16> i16 = tensor.ones<int16>([2], gpu = 0) * int16(3)
+tensor<int32> i32 = tensor.ones<int32>([2], gpu = 0) - int32(4)
+tensor<int> i64 = tensor.ones<int>([2], gpu = 0) + 5
+tensor<uint8> u8 = tensor.ones<uint8>([2], gpu = 0) + uint8(6)
+tensor<uint16> u16 = tensor.ones<uint16>([2], gpu = 0) * uint16(7)
+tensor<uint32> u32 = tensor.ones<uint32>([2], gpu = 0) + uint32(8)
+tensor<uint64> u64 = tensor.ones<uint64>([2], gpu = 0) + uint64(9)
+
+print(i8.cpu()[0].item())
+print(i16.cpu()[0].item())
+print(i32.cpu()[0].item())
+print(i64.cpu()[0].item())
+print(u8.cpu()[0].item())
+print(u16.cpu()[0].item())
+print(u32.cpu()[0].item())
+print(u64.cpu()[0].item())
+
+tensor<int8> cast_source = tensor.ones<int8>([2], gpu = 0)
+tensor<uint16> casted = uint16(cast_source)
+print(casted.cpu()[1].item())
+
+tensor<int16> dot_a = tensor.ones<int16>([3], gpu = 0)
+tensor<int16> dot_b = tensor.ones<int16>([3], gpu = 0)
+print(linear.dot(dot_a, dot_b))
+
+tensor<int32> matrix_a = tensor.ones<int32>([2, 2], gpu = 0)
+tensor<int32> matrix_b = tensor.ones<int32>([2, 2], gpu = 0)
+tensor<int32> matrix_c = linear.matmul(matrix_a, matrix_b)
+print(matrix_c.cpu()[1, 1].item())
+
+print(stats.sum(u32))
+print(stats.min(i32))
+print(stats.max(u64))
+print(stats.mean(i16))
+QUI
+
+integer_output="$("$QUIDRA" run "$TMP/integer-dtypes.qui")"
+integer_expected="$(printf '3\n3\n-3\n6\n7\n7\n9\n10\n1\n3\n2\n18\n-3\n10\n3.0')"
+if [[ "$integer_output" != "$integer_expected" ]]; then
+    echo "unexpected fake-GPU integer dtype output:" >&2
+    printf '%s\n' "$integer_output" >&2
+    exit 1
+fi
+
+cat > "$TMP/integer-overflow.qui" <<'QUI'
+tensor<int8> value = tensor.ones<int8>([1], gpu = 0) * int8(127)
+tensor<int8> invalid = value + int8(1)
+print(invalid.cpu()[0].item())
+QUI
+expect_runtime_error "$TMP/integer-overflow.qui" "tensor integer arithmetic overflow"
+
 cat > "$TMP/image-write-no-fallback.qui" <<'QUI'
 tensor<uint8> value = tensor.ones<uint8>([1, 1, 1], gpu = 0)
 auto written = image.write("should-not-exist.png", value)

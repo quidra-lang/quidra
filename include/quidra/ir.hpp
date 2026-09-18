@@ -24,7 +24,7 @@ struct DeclareLocal { std::string name; Type type; };
 struct DeclareReference { std::string name; Type type; bool is_const{}; };
 struct AddressLocal { ValueId out; std::string name; };
 struct AddressField { ValueId out; ValueId object; std::size_t index; };
-struct AddressElement { ValueId out; ValueId array; ValueId index; Type array_type; Type element_type; bool byte_element{}; std::uint32_t line{}; std::uint32_t column{}; };
+struct AddressElement { ValueId out; ValueId array; ValueId index; Type array_type; Type element_type; bool bin_element{}; std::uint32_t line{}; std::uint32_t column{}; };
 struct LoadAddress { ValueId out; ValueId address; Type type; };
 struct StoreAddress { ValueId address; ValueId value; Type type; };
 struct BindReference { std::string name; ValueId address; };

@@ -587,8 +587,8 @@ struct FunctionEmitter {
             out<<"  "<<value(n.out)<<" = getelementptr inbounds i8, ptr "<<value(n.object)<<", i64 "<<class_field_offset(layout,n.index)<<"\n";
         }
         if constexpr(std::is_same_v<T,ir::AddressElement>){
-            const auto stride=n.byte_element?1:array_element_stride(n.array_type,array_layout);
-            if(n.byte_element||!is_fixed_array(n.array_type)){
+            const auto stride=n.bin_element?1:array_element_stride(n.array_type,array_layout);
+            if(n.bin_element||!is_fixed_array(n.array_type)){
                 out<<"  "<<value(n.out)<<" = call ptr @quidra_array_slot(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<stride<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
             }else{
                 if(array_layout.inline_fixed_child(n.array_type)){

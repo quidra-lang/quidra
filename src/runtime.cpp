@@ -1,5 +1,6 @@
 #include "device_backend.hpp"
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cctype>
 #include <bit>
@@ -1619,6 +1620,9 @@ extern "C" void* quidra_tensor_contiguous(void* raw) {
     if (!raw) runtime_text_failure("null tensor");
     auto* source = static_cast<TensorValue*>(raw);
     if (tensor_is_contiguous_value(*source)) return quidra_tensor_clone(raw);
+    if (!tensor_on_cpu(*source->storage)) {
+        tensor_gpu_unsupported("tensor.contiguous", *source->storage, 0, 0);
+    }
     const auto count = tensor_logical_count(*source);
     auto* storage = tensor_storage_create(source->storage->dtype, count, 0);
     const auto width = tensor_dtype_bytes(source->storage->dtype);
@@ -1645,8 +1649,18 @@ extern "C" void* quidra_tensor_item_ptr(void* raw, unsigned long long line,
         !tracker_bit(tensor->storage->initialization, tensor->offset)) {
         runtime_uninitialized_failure(line, column);
     }
-    return tensor->storage->data.data() +
-           tensor->offset * tensor_dtype_bytes(tensor->storage->dtype);
+    const auto width = tensor_dtype_bytes(tensor->storage->dtype);
+    if (tensor_on_cpu(*tensor->storage)) {
+        return tensor->storage->data.data() + tensor->offset * width;
+    }
+    thread_local std::array<unsigned char, 8> scalar{};
+    std::string backend_error;
+    if (!quidra::device::copy_to_host(
+            tensor->storage->gpu_buffer, tensor->offset * width,
+            scalar.data(), width, backend_error)) {
+        tensor_fail(backend_error.c_str(), line, column);
+    }
+    return scalar.data();
 }
 
 extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
@@ -1654,6 +1668,7 @@ extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
                                       unsigned long long column) {
     if (!raw) tensor_fail("null tensor", line, column);
     auto* source = static_cast<TensorValue*>(raw);
+    tensor_require_cpu(*source->storage, "tensor.cast", line, column);
     tensor_require_initialized(*source, line, column);
     const auto count = tensor_logical_count(*source);
     auto* output = tensor_storage_create(target_dtype, count, 1);
@@ -1705,7 +1720,7 @@ extern "C" void quidra_tensor_extent_check(
 
 namespace {
 
-void tensor_detach_for_write(TensorValue& tensor);
+void tensor_detach_for_write(TensorValue& tensor, unsigned long long line, unsigned long long column);
 
 enum class NeuralOp {
     Leaf, Add, Sub, Mul, Div, Affine, Convolution, Normalize, RandomMask,
@@ -1828,6 +1843,7 @@ struct NeuralGradients {
 NeuralBuffer tensor_float_values(const TensorValue& tensor,
                                  unsigned long long line,
                                  unsigned long long column) {
+    tensor_require_cpu(*tensor.storage, "neural tensor conversion", line, column);
     tensor_require_initialized(tensor,line,column);
     if(tensor.storage->dtype!=9&&tensor.storage->dtype!=10)
         neural_fail("neural values require float32 or float tensors",line,column);
@@ -1902,6 +1918,7 @@ TensorValue* neural_parameter_tensor(void* parameter_raw) {
 
 double neural_tensor_value(const TensorValue& tensor,std::size_t logical,
                            unsigned long long line,unsigned long long column) {
+    tensor_require_cpu(*tensor.storage, "neural parameter access", line, column);
     const auto index=tensor_storage_index(tensor,logical);
     if(index>=tensor.storage->count ||
        !tracker_bit(tensor.storage->initialization,index)) {
@@ -2341,7 +2358,7 @@ void neural_apply_parameter_delta(
     if(!tensor) neural_fail("invalid neural Parameter",line,column);
     if(delta.size()!=tensor_logical_count(*tensor))
         neural_fail("optimizer update size mismatch",line,column);
-    tensor_detach_for_write(*tensor);
+    tensor_detach_for_write(*tensor, line, column);
     for(std::size_t i=0;i<delta.size();++i){
         const auto storage_index=tensor_storage_index(*tensor,i);
         const auto current=neural_tensor_value(*tensor,i,line,column);
@@ -2503,8 +2520,8 @@ void* neural_normalize_forward_t(
     if(!running_mean||!running_variance) neural_fail("invalid normalization state",line,column);
     const T momentum=static_cast<T>(neural_object_double_field(receiver,32));
     const T epsilon=static_cast<T>(neural_object_double_field(receiver,40));
-    tensor_detach_for_write(*running_mean);
-    tensor_detach_for_write(*running_variance);
+    tensor_detach_for_write(*running_mean, line, column);
+    tensor_detach_for_write(*running_variance, line, column);
     for(std::size_t feature=0;feature<features;++feature){
         const T old_mean=static_cast<T>(neural_tensor_value(*running_mean,feature,line,column));
         const T old_variance=static_cast<T>(neural_tensor_value(*running_variance,feature,line,column));
@@ -2820,7 +2837,7 @@ bool neural_update_parameter_t(
     if(values.size()!=tensor_logical_count(*tensor))
         neural_fail("optimizer update size mismatch",line,column);
     const T rate=static_cast<T>(rate_raw);
-    tensor_detach_for_write(*tensor);
+    tensor_detach_for_write(*tensor, line, column);
     for(std::size_t i=0;i<values.size();++i){
         const auto storage_index=tensor_storage_index(*tensor,i);
         const T current=static_cast<T>(neural_tensor_value(*tensor,i,line,column));
@@ -3122,6 +3139,7 @@ void neural_state_expect_path(
 void neural_state_write_tensor(
     NeuralStateContext& context,TensorValue& tensor,
     unsigned long long line,unsigned long long column) {
+    tensor_require_cpu(*tensor.storage, "neural.save", line, column);
     tensor_require_initialized(tensor,line,column);
     neural_state_append_u32(
         context.data,static_cast<std::uint32_t>(tensor.storage->dtype));
@@ -3182,7 +3200,7 @@ void neural_state_read_tensor(
         return;
     }
 
-    tensor_detach_for_write(*tensor);
+    tensor_detach_for_write(*tensor, line, column);
     for(std::size_t i=0;i<static_cast<std::size_t>(count);++i){
         const auto index=tensor_storage_index(*tensor,i);
         neural_state_read_raw(
@@ -4027,6 +4045,13 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
     if (other && primary->storage->dtype != other->storage->dtype) {
         tensor_fail("tensor operands must have identical element types", line, column);
     }
+    if (other && primary->storage->device != other->storage->device) {
+        tensor_fail("tensor operands are on different devices; use an explicit .gpu(n) or .cpu() transfer",
+                    line, column);
+    }
+    if (!tensor_on_cpu(*primary->storage)) {
+        tensor_gpu_unsupported("tensor arithmetic", *primary->storage, line, column);
+    }
 
     const auto output_shape =
         other ? tensor_broadcast_shape(*primary, *other, line, column) : primary->shape;
@@ -4241,6 +4266,13 @@ void validate_linear_dot(const TensorValue& left, const TensorValue& right,
     if (left.storage->dtype != dtype || right.storage->dtype != dtype) {
         tensor_fail("linear.dot requires identical expected element types", line, column);
     }
+    if (left.storage->device != right.storage->device) {
+        tensor_fail("linear.dot operands are on different devices; transfer them explicitly",
+                    line, column);
+    }
+    if (!tensor_on_cpu(*left.storage)) {
+        tensor_gpu_unsupported("linear.dot", *left.storage, line, column);
+    }
     if (left.shape.size() != 1 || right.shape.size() != 1) {
         tensor_fail("linear.dot requires rank-1 tensors", line, column);
     }
@@ -4305,6 +4337,7 @@ extern "C" double quidra_stats_mean(void* raw,
                                       unsigned long long column) {
     if (!raw) tensor_fail("stats.mean received a null tensor", line, column);
     auto& value = *static_cast<TensorValue*>(raw);
+    tensor_require_cpu(*value.storage, "stats.mean", line, column);
     const auto count = tensor_logical_count(value);
     if (count == 0) tensor_fail("stats.mean is undefined for an empty tensor", line, column);
     long double sum = 0.0L;
@@ -4332,6 +4365,13 @@ extern "C" void* quidra_linear_matmul(void* left_raw, void* right_raw,
     auto& right = *static_cast<TensorValue*>(right_raw);
     if (left.storage->dtype != right.storage->dtype) {
         tensor_fail("linear.matmul requires identical element types", line, column);
+    }
+    if (left.storage->device != right.storage->device) {
+        tensor_fail("linear.matmul operands are on different devices; transfer them explicitly",
+                    line, column);
+    }
+    if (!tensor_on_cpu(*left.storage)) {
+        tensor_gpu_unsupported("linear.matmul", *left.storage, line, column);
     }
     if (left.shape.size() != 2 || right.shape.size() != 2) {
         tensor_fail("linear.matmul currently requires rank-2 tensors", line, column);
@@ -4384,7 +4424,9 @@ TensorStorage* tensor_materialize_storage(const TensorValue& source) {
     return output;
 }
 
-void tensor_detach_for_write(TensorValue& tensor) {
+void tensor_detach_for_write(
+    TensorValue& tensor, unsigned long long line, unsigned long long column) {
+    tensor_require_cpu(*tensor.storage, "tensor mutation", line, column);
     const auto logical_count = tensor_logical_count(tensor);
     const bool owns_full_contiguous_storage =
         tensor.offset == 0 && tensor_is_contiguous_value(tensor) &&
@@ -4481,7 +4523,7 @@ extern "C" void quidra_tensor_set(void* raw, const long long* indices,
     }
     if (count != 0 && !indices) tensor_fail("missing tensor indices", line, column);
 
-    tensor_detach_for_write(*tensor);
+    tensor_detach_for_write(*tensor, line, column);
 
     std::size_t storage_index = tensor->offset;
     for (std::size_t axis = 0; axis < static_cast<std::size_t>(count); ++axis) {
@@ -4556,7 +4598,8 @@ extern "C" bool quidra_tensor_chw_copy(void* raw,
                                         unsigned long long count) {
     if (!raw) return false;
     const auto& tensor = *static_cast<TensorValue*>(raw);
-    if (!tensor.storage || tensor.storage->dtype < 1 || tensor.storage->dtype > 10 ||
+    if (!tensor.storage || !tensor_on_cpu(*tensor.storage) ||
+        tensor.storage->dtype < 1 || tensor.storage->dtype > 10 ||
         tensor.shape.size() != 3) {
         return false;
     }
@@ -4626,7 +4669,8 @@ extern "C" bool quidra_tensor_u8_chw_copy(void* raw,
                                             unsigned long long count) {
     if (!raw) return false;
     const auto& tensor = *static_cast<TensorValue*>(raw);
-    if (!tensor.storage || tensor.storage->dtype != 5 || tensor.shape.size() != 3) return false;
+    if (!tensor.storage || !tensor_on_cpu(*tensor.storage) ||
+        tensor.storage->dtype != 5 || tensor.shape.size() != 3) return false;
     std::size_t logical = 0;
     try {
         logical = tensor_logical_count(tensor);

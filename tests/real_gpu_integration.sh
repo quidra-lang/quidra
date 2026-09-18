@@ -115,13 +115,74 @@ print(stats.sum(ru32) == uint32(18))
 print(stats.min(ri32) == int32(-3))
 print(stats.max(ru64) == uint64(10))
 print(stats.mean(ri16) == 3.0)
+
+print(stats.min(cpu_b) == stats.min(gpu_b))
+print(stats.max(cpu_b) == stats.max(gpu_b))
+tensor<float32> negated = (-gpu_b).cpu()
+print(negated[0].item() == float32(-3))
+tensor<float32> scalar_add = (2.0 + gpu_a).cpu()
+tensor<float32> scalar_sub_right = (gpu_b - 1.0).cpu()
+tensor<float32> scalar_sub_left = (10.0 - gpu_b).cpu()
+tensor<float32> scalar_div_right = (gpu_b / 3.0).cpu()
+tensor<float32> scalar_div_left = (12.0 / gpu_b).cpu()
+print(scalar_add[0].item() == float32(3))
+print(scalar_sub_right[0].item() == float32(2))
+print(scalar_sub_left[0].item() == float32(7))
+print(scalar_div_right[0].item() == float32(1))
+print(scalar_div_left[0].item() == float32(4))
+
+tensor<float32><3, 2> transposed = gpu_left.transpose(0, 1)
+print(transposed.shape()[0] == 3 and transposed.shape()[1] == 2)
+print(transposed[2, 1].item() == float32(1))
 QUI
 
 output="$("$QUIDRA" run "$TMP/real-gpu.qui")"
-expected="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue')"
+expected="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue')"
 if [[ "$output" != "$expected" ]]; then
     echo "real GPU numerical equivalence failed on gpu($GPU_INDEX)" >&2
     printf '%s\n' "$output" >&2
+    exit 1
+fi
+
+cat > "$TMP/integer-overflow.qui" <<QUI
+tensor<int8> value = tensor.ones<int8>([1], gpu = $GPU_INDEX) * int8(127)
+tensor<int8> invalid = value + int8(1)
+print(invalid[0].item())
+QUI
+set +e
+"$QUIDRA" run "$TMP/integer-overflow.qui" >"$TMP/integer-overflow.out" 2>"$TMP/integer-overflow.err"
+overflow_status=$?
+set -e
+if [[ $overflow_status -ne 101 ]]; then
+    echo "real GPU integer overflow should fail with status 101, got $overflow_status" >&2
+    cat "$TMP/integer-overflow.out" >&2 || true
+    cat "$TMP/integer-overflow.err" >&2 || true
+    exit 1
+fi
+if ! grep -Fq "tensor integer arithmetic overflow" "$TMP/integer-overflow.err"; then
+    echo "missing real GPU integer overflow diagnostic" >&2
+    cat "$TMP/integer-overflow.err" >&2
+    exit 1
+fi
+
+cat > "$TMP/integer-div-zero.qui" <<QUI
+tensor<int32> value = tensor.ones<int32>([1], gpu = $GPU_INDEX)
+tensor<int32> invalid = value / int32(0)
+print(invalid[0].item())
+QUI
+set +e
+"$QUIDRA" run "$TMP/integer-div-zero.qui" >"$TMP/integer-div-zero.out" 2>"$TMP/integer-div-zero.err"
+divzero_status=$?
+set -e
+if [[ $divzero_status -ne 101 ]]; then
+    echo "real GPU integer division by zero should fail with status 101, got $divzero_status" >&2
+    cat "$TMP/integer-div-zero.out" >&2 || true
+    cat "$TMP/integer-div-zero.err" >&2 || true
+    exit 1
+fi
+if ! grep -Fq "invalid tensor division/remainder or integer overflow" "$TMP/integer-div-zero.err"; then
+    echo "missing real GPU division-by-zero diagnostic" >&2
+    cat "$TMP/integer-div-zero.err" >&2
     exit 1
 fi
 

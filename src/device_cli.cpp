@@ -13,7 +13,7 @@ int run_gpu_cli(bool verbose) {
         std::cout << "CPU backend: native LLVM\n";
     }
     if (all.empty()) {
-        std::cout << "No supported GPU devices detected.\n";
+        std::cout << "No supported GPUs found.\n";
         return 0;
     }
 
@@ -25,7 +25,13 @@ int run_gpu_cli(bool verbose) {
             std::cout << "  driver: " << gpu.driver << "\n";
         if (!gpu.runtime.empty())
             std::cout << "  runtime: " << gpu.runtime << "\n";
-        std::cout << "  placement: supported\n";
+        std::cout << "  Quidra " << device::backend_name(gpu.backend)
+                  << " backend: " << quidra::compiler_version << "\n";
+        if (gpu.backend == device::Backend::Nvidia) {
+            std::cout << "  CUDA Toolkit dependency: none (CUDA Driver API only)\n";
+        }
+        std::cout << "  status: supported\n";
+        std::cout << "  placement: explicit\n";
         std::cout << "  implicit CPU fallback: disabled\n";
     }
     return 0;

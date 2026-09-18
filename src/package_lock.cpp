@@ -1,4 +1,5 @@
 #include "quidra/package_lock.hpp"
+#include "quidra/package_manifest.hpp"
 
 #include <algorithm>
 #include <array>
@@ -211,6 +212,10 @@ std::string package_tree_sha256(const fs::path& package_main) {
     for (fs::recursive_directory_iterator iterator(root), end; iterator != end; ++iterator) {
         const auto status = iterator->symlink_status(error);
         if (error) throw std::runtime_error("cannot inspect package tree: " + error.message());
+        if (fs::is_directory(status) && iterator->path().filename() == ".git") {
+            iterator.disable_recursion_pending();
+            continue;
+        }
         if (fs::is_symlink(status)) {
             throw std::runtime_error(
                 "package hashing rejects symbolic links: " + iterator->path().string());
@@ -260,9 +265,15 @@ std::optional<PackageLockEntries> read_package_lock(const fs::path& project_root
 
     std::ifstream input(path, std::ios::binary);
     if (!input) throw std::runtime_error("cannot read quidra.lock");
+
     std::string line;
-    if (!std::getline(input, line) || line != "quidra-lock-v1") {
-        throw std::runtime_error("quidra.lock must begin with 'quidra-lock-v1'");
+    if (!std::getline(input, line)) {
+        throw std::runtime_error("quidra.lock is empty");
+    }
+    const bool legacy = line == "quidra-lock-v1";
+    if (!legacy && line != "quidra-lock-v2") {
+        throw std::runtime_error(
+            "quidra.lock must begin with 'quidra-lock-v2'");
     }
 
     PackageLockEntries entries;
@@ -270,31 +281,77 @@ std::optional<PackageLockEntries> read_package_lock(const fs::path& project_root
     while (std::getline(input, line)) {
         ++line_number;
         if (line.empty()) continue;
-        const auto separator = line.find(' ');
-        if (separator == std::string::npos || line.find(' ', separator + 1) != std::string::npos) {
-            throw std::runtime_error(
-                "invalid quidra.lock entry on line " + std::to_string(line_number));
+
+        std::istringstream fields(line);
+        std::string name;
+        std::string version = "-";
+        std::string digest;
+        std::string extra;
+        if (legacy) {
+            if (!(fields >> name >> digest) || (fields >> extra)) {
+                throw std::runtime_error(
+                    "invalid quidra.lock entry on line " +
+                    std::to_string(line_number));
+            }
+        } else {
+            if (!(fields >> name >> version >> digest) || (fields >> extra)) {
+                throw std::runtime_error(
+                    "invalid quidra.lock entry on line " +
+                    std::to_string(line_number));
+            }
         }
-        const auto name = line.substr(0, separator);
-        const auto digest = line.substr(separator + 1);
+
         if (!valid_lock_name(name) || !valid_sha256(digest)) {
             throw std::runtime_error(
-                "invalid quidra.lock entry on line " + std::to_string(line_number));
+                "invalid quidra.lock entry on line " +
+                std::to_string(line_number));
         }
-        if (!entries.emplace(name, digest).second) {
-            throw std::runtime_error("duplicate package in quidra.lock: " + name);
+        if (version != "-") {
+            try {
+                (void)parse_semantic_version(version);
+            } catch (const std::exception&) {
+                throw std::runtime_error(
+                    "invalid package version in quidra.lock on line " +
+                    std::to_string(line_number));
+            }
+        }
+
+        if (!entries
+                 .emplace(
+                     name,
+                     PackageLockEntry{
+                         std::move(version), std::move(digest)})
+                 .second) {
+            throw std::runtime_error(
+                "duplicate package in quidra.lock: " + name);
         }
     }
     return entries;
 }
 
-std::string package_lock_text(const std::map<std::string, fs::path>& packages) {
+std::string package_lock_text(
+    const std::map<std::string, fs::path>& packages) {
     std::ostringstream output;
-    output << "quidra-lock-v1\n";
+    output << "quidra-lock-v2\n";
+
     for (const auto& [name, main] : packages) {
-        if (!valid_lock_name(name)) throw std::runtime_error("invalid package name in resolved dependency set");
-        output << name << ' ' << package_tree_sha256(main) << '\n';
+        if (!valid_lock_name(name)) {
+            throw std::runtime_error(
+                "invalid package name in resolved dependency set");
+        }
+
+        std::string version = "-";
+        if (const auto manifest =
+                try_read_package_manifest(main.parent_path())) {
+            version = manifest->version.str();
+        }
+
+        output
+            << name << ' '
+            << version << ' '
+            << package_tree_sha256(main) << '\n';
     }
+
     return output.str();
 }
 

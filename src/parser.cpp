@@ -1087,9 +1087,13 @@ ExprPtr Parser::make_binary(ExprPtr left, const Token& op, ExprPtr right) {
     expr->data = BinaryExpr{op.text, std::move(left), std::move(right)}; return expr;
 }
 ExprPtr Parser::or_expr() { auto e=and_expr(); while(match(TokenKind::KwOr)){auto op=previous(); e=make_binary(std::move(e),op,and_expr());} return e; }
-ExprPtr Parser::and_expr() { auto e=equality(); while(match(TokenKind::KwAnd)){auto op=previous(); e=make_binary(std::move(e),op,equality());} return e; }
+ExprPtr Parser::and_expr() { auto e=bit_or_expr(); while(match(TokenKind::KwAnd)){auto op=previous(); e=make_binary(std::move(e),op,bit_or_expr());} return e; }
+ExprPtr Parser::bit_or_expr() { auto e=bit_xor_expr(); while(match(TokenKind::KwBitOr)){auto op=previous(); e=make_binary(std::move(e),op,bit_xor_expr());} return e; }
+ExprPtr Parser::bit_xor_expr() { auto e=bit_and_expr(); while(match(TokenKind::KwBitXor)){auto op=previous(); e=make_binary(std::move(e),op,bit_and_expr());} return e; }
+ExprPtr Parser::bit_and_expr() { auto e=equality(); while(match(TokenKind::KwBitAnd)){auto op=previous(); e=make_binary(std::move(e),op,equality());} return e; }
 ExprPtr Parser::equality() { auto e=comparison(); while(match(TokenKind::EqEq)||match(TokenKind::NotEq)){auto op=previous(); e=make_binary(std::move(e),op,comparison());} return e; }
-ExprPtr Parser::comparison() { auto e=term(); while(match(TokenKind::Less)||match(TokenKind::LessEq)||match(TokenKind::Greater)||match(TokenKind::GreaterEq)){auto op=previous(); e=make_binary(std::move(e),op,term());} return e; }
+ExprPtr Parser::comparison() { auto e=shift_expr(); while(match(TokenKind::Less)||match(TokenKind::LessEq)||match(TokenKind::Greater)||match(TokenKind::GreaterEq)){auto op=previous(); e=make_binary(std::move(e),op,shift_expr());} return e; }
+ExprPtr Parser::shift_expr() { auto e=term(); while(match(TokenKind::ShiftLeft)||match(TokenKind::ShiftRight)){auto op=previous(); e=make_binary(std::move(e),op,term());} return e; }
 ExprPtr Parser::term() { auto e=factor(); while(match(TokenKind::Plus)||match(TokenKind::Minus)){auto op=previous(); e=make_binary(std::move(e),op,factor());} return e; }
 ExprPtr Parser::factor() { auto e=unary(); while(match(TokenKind::Star)||match(TokenKind::Slash)||match(TokenKind::Percent)){auto op=previous(); e=make_binary(std::move(e),op,unary());} return e; }
 
@@ -1100,7 +1104,7 @@ ExprPtr Parser::unary() {
         auto value = unary();
         auto e=std::make_unique<Expr>(); e->span=SourceSpan{start,value->span.end}; e->data=TryExpr{std::move(value)}; return e;
     }
-    if (match(TokenKind::KwNot) || match(TokenKind::Minus)) {
+    if (match(TokenKind::KwNot) || match(TokenKind::KwBitNot) || match(TokenKind::Minus)) {
         const auto op=previous(); auto operand=unary(); auto e=std::make_unique<Expr>();
         e->span=SourceSpan{op.span.start,operand->span.end}; e->data=UnaryExpr{op.text,std::move(operand)}; return e;
     }

@@ -2474,7 +2474,7 @@ struct Lowerer {
             // the allocation is uniquely owned, fully initialized, and not pinned
             // by an interior reference. Otherwise the ordinary value-copy path is
             // preserved exactly.
-            if(t.kind==TypeKind::Array && t.length<0){
+            if(t.kind==TypeKind::Array && t.length==-1){
                 const auto* target_name=std::get_if<NameExpr>(&n->target->data);
                 const auto* append=std::get_if<MethodCallExpr>(&n->value->data);
                 const auto* receiver_name=append
@@ -2593,7 +2593,16 @@ struct Lowerer {
                 } else if(is_source_reference(name->name)) {
                     block->instructions.push_back(StoreReference{source_reference(name->name),v,t});
                 } else {
-                    block->instructions.push_back(StoreLocal{source_local(name->name),v,t});
+                    const auto local_name=source_local(name->name);
+                    if(const auto found=shaped_constraints.find(local_name);
+                       found!=shaped_constraints.end()){
+                        emit_shaped_constraint(v,t.kind,found->second,s.span);
+                    }
+                    if(const auto found=array_constraints.find(local_name);
+                       found!=array_constraints.end()){
+                        emit_array_constraints(v,t,found->second,0,s.span);
+                    }
+                    block->instructions.push_back(StoreLocal{local_name,v,t});
                     if (t.kind == TypeKind::Array) {
                         if (assigned_array_full) fully_initialized_array_locals.insert(name->name);
                         else fully_initialized_array_locals.erase(name->name);
@@ -2917,6 +2926,9 @@ if constexpr(std::is_same_v<T,NeuralSave>)out<<"neural.save leaves="<<n.values.s
 if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.size();
     if constexpr(std::is_same_v<T,ArrayNumericCast>)out<<"%"<<n.out<<" = array.numeric_cast %"<<n.array<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
     if constexpr(std::is_same_v<T,TensorCast>)out<<"%"<<n.out<<" = tensor.numeric_cast %"<<n.tensor<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
+    if constexpr(std::is_same_v<T,NeuralNumericCast>)out<<"%"<<n.out<<" = neural.numeric_cast %"<<n.value<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
+    if constexpr(std::is_same_v<T,ShapedConstraintCheck>)out<<"shape.constraint %"<<n.value<<" rank="<<n.extents.size();
+    if constexpr(std::is_same_v<T,ExtentEqualCheck>)out<<"extent.check %"<<n.actual<<", %"<<n.expected;
     if constexpr(std::is_same_v<T,StatsMean>)out<<"%"<<n.out<<" = stats.mean %"<<n.tensor;
     if constexpr(std::is_same_v<T,LinearMatmul>)out<<"%"<<n.out<<" = linear.matmul %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,LinearDot>)out<<"%"<<n.out<<" = linear.dot %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.element_type);

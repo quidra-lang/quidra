@@ -81,6 +81,8 @@ const char* token_name(TokenKind kind) {
         case TokenKind::KwContinue: return "continue"; case TokenKind::KwTrue: return "true";
         case TokenKind::KwFalse: return "false"; case TokenKind::KwNot: return "not";
         case TokenKind::KwAnd: return "and"; case TokenKind::KwOr: return "or";
+        case TokenKind::KwBitNot: return "NOT"; case TokenKind::KwBitAnd: return "AND";
+        case TokenKind::KwBitOr: return "OR"; case TokenKind::KwBitXor: return "XOR";
         case TokenKind::LParen: return "("; case TokenKind::RParen: return ")";
         case TokenKind::LBracket: return "["; case TokenKind::RBracket: return "]";
         case TokenKind::Colon: return ":"; case TokenKind::Comma: return ","; case TokenKind::Dot: return ".";
@@ -90,6 +92,7 @@ const char* token_name(TokenKind kind) {
         case TokenKind::PercentAssign: return "%="; case TokenKind::Plus: return "+";
         case TokenKind::Minus: return "-"; case TokenKind::Star: return "*";
         case TokenKind::Slash: return "/"; case TokenKind::Percent: return "%";
+        case TokenKind::ShiftLeft: return "<<"; case TokenKind::ShiftRight: return ">>";
         case TokenKind::EqEq: return "=="; case TokenKind::NotEq: return "!=";
         case TokenKind::Less: return "<"; case TokenKind::LessEq: return "<=";
         case TokenKind::Greater: return ">"; case TokenKind::GreaterEq: return ">=";
@@ -152,7 +155,9 @@ Token Lexer::identifier() {
         {"in", TokenKind::KwIn}, {"match", TokenKind::KwMatch}, {"try", TokenKind::KwTry},
         {"break", TokenKind::KwBreak}, {"continue", TokenKind::KwContinue},
         {"true", TokenKind::KwTrue}, {"false", TokenKind::KwFalse}, {"not", TokenKind::KwNot},
-        {"and", TokenKind::KwAnd}, {"or", TokenKind::KwOr}
+        {"and", TokenKind::KwAnd}, {"or", TokenKind::KwOr},
+        {"NOT", TokenKind::KwBitNot}, {"AND", TokenKind::KwBitAnd},
+        {"OR", TokenKind::KwBitOr}, {"XOR", TokenKind::KwBitXor}
     };
     if (const auto it = keywords.find(text); it != keywords.end()) return make(it->second, start_index, start, text);
     return make(TokenKind::Identifier, start_index, start, text);
@@ -304,8 +309,16 @@ std::vector<Token> Lexer::scan() {
             case '!':
                 if (!match('=')) error("LEX_ERROR", "Expected '=' after '!'.", start);
                 tokens.push_back(make(TokenKind::NotEq, start_index, start)); break;
-            case '<': tokens.push_back(make(match('=') ? TokenKind::LessEq : TokenKind::Less, start_index, start)); break;
-            case '>': tokens.push_back(make(match('=') ? TokenKind::GreaterEq : TokenKind::Greater, start_index, start)); break;
+            case '<':
+                tokens.push_back(make(match('<') ? TokenKind::ShiftLeft
+                                                  : (match('=') ? TokenKind::LessEq : TokenKind::Less),
+                                      start_index, start));
+                break;
+            case '>':
+                tokens.push_back(make(match('>') ? TokenKind::ShiftRight
+                                                  : (match('=') ? TokenKind::GreaterEq : TokenKind::Greater),
+                                      start_index, start));
+                break;
             default: error("LEX_ERROR", "Unexpected character in source.", start);
         }
     }

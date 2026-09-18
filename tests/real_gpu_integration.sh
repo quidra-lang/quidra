@@ -160,7 +160,7 @@ fi
 cat > "$TMP/log-domain.qui" <<QUI
 tensor<float32> value = tensor.zeros<float32>([1], gpu = $GPU_INDEX)
 neural<float32> invalid = neural.logarithm(neural.track(value))
-print(invalid.untrack()[0].item())
+print(invalid.untrack().reshape([]).item())
 QUI
 set +e
 "$QUIDRA" run "$TMP/log-domain.qui" >"$TMP/log-domain.out" 2>"$TMP/log-domain.err"
@@ -255,7 +255,7 @@ print(product[1, 1].item() == 2.0)
 tensor<float> positive = tensor.ones<float>([1], gpu = $GPU_INDEX)
 neural<float> exponential = neural.exponential(neural.track(positive))
 neural<float> restored = neural.logarithm(exponential)
-float restored_value = restored.untrack()[0].item()
+float restored_value = restored.untrack().reshape([]).item()
 print(restored_value > 0.999999999 and restored_value < 1.000000001)
 QUI
     float64_output="$("$QUIDRA" run "$TMP/float64-real-gpu.qui")"

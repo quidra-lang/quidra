@@ -165,8 +165,8 @@ Box<int> box = Box<int>(value = 7)
 int[] values = [1, 2, 3]
 int first_value = first(values)
 Convert convert = Convert()
-int input = 5
-int same = convert.identity(input)
+int sample = 5
+int same = convert.identity(sample)
 ```
 
 Explicit function or method type arguments remain valid when inference would be ambiguous or when the caller wants to state them explicitly.

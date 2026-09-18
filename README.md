@@ -4,9 +4,11 @@
 
 Quidra is a statically typed, native general-purpose programming language designed for both humans and language models.
 
+Its primary optimization target is **semantic density**: how much reliable intent can be recovered from each token without hidden conventions, guesswork, or repeated ceremony. Fewer characters are not automatically better. Fewer tokens are better only when the same meaning remains explicit, stable, and mechanically checkable.
+
 The name **Quidra** is derived from *quid*.
 
-## Why Quidra
+## The design thesis
 
 Programming languages communicate intent through tokens, but not every token contributes equally. Ceremony, duplicated declarations, context-sensitive syntax, implicit conversions, hidden mutation, hidden failure, and unstable name resolution all consume attention and context without necessarily adding reliable meaning.
 
@@ -54,7 +56,7 @@ This gives Quidra two complementary rules:
 1. **Remove ceremony that carries little semantic information.**
 2. **Keep syntax that distinguishes behavior, authority, failure, state, or representation.**
 
-## Semantic compression in practice
+## Meaning per token, concretely
 
 Quidra tries to give common forms one stable job:
 
@@ -77,9 +79,9 @@ The same principle applies beyond individual tokens. Visible names cannot be sha
 
 These choices deliberately spend syntax where the syntax carries important meaning, and remove syntax where the compiler can recover the same fact unambiguously.
 
-## Semantic compression in one program
+## A program as compressed semantics
 
-A Quidra example is most useful when it shows how much meaning can be recovered directly from the source, not merely how the syntax looks.
+A Quidra example is most useful when it shows how much meaning can be recovered directly from the source, not merely how the syntax looks. The goal is not to minimize characters; it is to make every surviving token pay for itself by carrying a stable semantic fact.
 
 ```quidra
 int | none | error read_count(string path)
@@ -110,6 +112,9 @@ The point is not that every line is as short as possible. The point is that the 
 - `AND` is fixed-width integer bitwise AND. Lowercase `and` remains boolean logic, `&` remains storage access, and `|` remains union syntax.
 
 This is what Quidra means by **semantic compression**: do not spend tokens repeating facts the compiler can prove, and do spend tokens where removing them would blur authority, representation, failure, state, shape, or behavior.
+
+Nothing in this example relies on an invisible default representation, hidden alias, implicit exception channel, or inferred permission to mutate. The source is compact because the language removes repetition, not because it removes distinctions.
+
 ## Design laws derived from semantic compression
 
 ### 1. Values are the default; storage is explicit
@@ -727,7 +732,7 @@ Floating-point arithmetic follows IEEE-754 behavior for its width.
 
 Internal allocation identity is intentionally not part of the source-language model.
 
-## Native implementation
+## Meaning preserved through native compilation
 
 Semantic compression is a source-language goal, not a request for a lightweight or interpreted implementation. Native execution serves the semantic model rather than defining it: Quidra first makes meaning explicit and statically resolved, then preserves those decisions through a typed native compilation pipeline:
 
@@ -753,7 +758,7 @@ The current implementation includes:
 - definite-initialization analysis for bindings, fields, arrays, and tensors,
 - receiver and reference-parameter effect summaries, including read-only `const T &` paths,
 - unions, exhaustive matching, and explicit `error` propagation,
-- fixed-width numeric checking with strict implicit conversion and range-checked explicit integer casts,
+- fixed-width numeric checking with strict implicit conversion, range-checked explicit integer casts, and explicit fixed-width bitwise semantics,
 - partial classes, explicit static inheritance, and value equality,
 - explicit safe storage references with pinned substorage lifetime,
 - monotonic bare-name resolution and always-visible standard namespaces,

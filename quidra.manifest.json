@@ -126,7 +126,7 @@
   "modules": true,
   "generics": true,
   "module_model": "standard namespaces are always visible and cannot be imported or aliased; unquoted non-standard names resolve to installed packages without local-file fallback; quoted relative paths resolve from importer; quoted @/ paths resolve from command working directory; imported source modules are declaration-only; cycles rejected",
-  "cli_model": "one declarative cli binding per root source; argument() is positional, option(default = value) maps the field name to --name, flag() maps the field name to a bool flag; typed values are validated before normal execution; functions do not implicitly capture the top-level cli binding",
+  "cli_model": "one declarative cli binding per root source; argument() is positional, option(default = value) maps the field name to --name, flag() maps the field name to a bool flag; scalar CLI values support string, int, float, bigint, bigreal, and bool, with exact numeric text parsed directly for bigint/bigreal; typed values are validated before normal execution; functions do not implicitly capture the top-level cli binding",
   "file_model": "standard file module with explicit whole-text read/write and whole-binary read_bin/write_bin plus exists/is_directory/remove/copy/move/mkdir and deterministic sorted list; text reads require valid UTF-8 without NUL; binary I/O preserves arbitrary byte-aligned bin payloads exactly; list paths are converted to valid UTF-8 text; operational or text-representation failures are returned through error unions",
   "standard_modules": [
     "math",

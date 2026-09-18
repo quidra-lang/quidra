@@ -551,7 +551,7 @@ print(args.count)
 print(args.verbose)
 ```
 
-`argument()` declares a required positional value. `option(default = value)` declares a named `--field value` option whose type is inferred from the field declaration and checked against its default. `flag()` declares a boolean `--field` flag. Field names are the command-line names, so they are not repeated as string literals. The initial CLI value types are `string`, `int`, `float`, and `bool`; `flag()` is `bool` only. Missing required values, invalid typed values, non-UTF-8 text values, duplicate or unknown arguments, and misplaced arguments terminate with CLI status 2.
+`argument()` declares a required positional value. `option(default = value)` declares a named `--field value` option whose type is inferred from the field declaration and checked against its default. `flag()` declares a boolean `--field` flag. Field names are the command-line names, so they are not repeated as string literals. CLI scalar values support `string`, `int`, `float`, `bigint`, `bigreal`, and `bool`; `flag()` is `bool` only. Exact numeric CLI text is parsed directly into `bigint`/`bigreal` without an intermediate fixed-width integer or IEEE float. Missing required values, invalid typed values, non-UTF-8 text values, duplicate or unknown arguments, and misplaced arguments terminate with CLI status 2.
 
 The generated CLI binding is a root top-level value. Function bodies do not implicitly capture top-level bindings, including the CLI binding; pass CLI-derived values or a configuration value explicitly to reusable functions.
 

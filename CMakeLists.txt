@@ -64,6 +64,7 @@ add_library(quidra_core
     src/source_tools.cpp
     src/source_patch.cpp
     src/formatter.cpp
+    src/package_manifest.cpp
     src/package_lock.cpp
 )
 target_include_directories(quidra_core PUBLIC include ${CMAKE_CURRENT_BINARY_DIR}/generated)
@@ -153,9 +154,14 @@ if(BUILD_TESTING)
   target_link_libraries(quidra_type_policy_tests PRIVATE quidra_core)
   add_test(NAME quidra_type_policy_tests COMMAND quidra_type_policy_tests)
 
+  add_executable(quidra_package_manifest_tests tests/package_manifest_tests.cpp)
+  target_link_libraries(quidra_package_manifest_tests PRIVATE quidra_core)
+  add_test(NAME quidra_package_manifest_tests COMMAND quidra_package_manifest_tests)
+
   if(UNIX)
     add_test(NAME quidra_cli COMMAND bash ${CMAKE_SOURCE_DIR}/tests/cli_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_package_names COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_name_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_package_releases COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_release_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_stdlib COMMAND bash ${CMAKE_SOURCE_DIR}/tests/stdlib_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_neural_foundation COMMAND bash ${CMAKE_SOURCE_DIR}/tests/neural_foundation_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_image_dtype COMMAND bash ${CMAKE_SOURCE_DIR}/tests/image_dtype_tests.sh $<TARGET_FILE:quidra>)
@@ -191,6 +197,7 @@ if(BUILD_TESTING)
     quidra_import_path_tests
     quidra_parser_tests
     quidra_type_policy_tests
+    quidra_package_manifest_tests
     quidra_documentation_examples
     quidra_manifest_registry
     quidra_generic_specialization_benchmark_smoke
@@ -200,6 +207,7 @@ if(BUILD_TESTING)
     set_tests_properties(
       quidra_cli
       quidra_package_names
+      quidra_package_releases
       quidra_stdlib
       quidra_neural_foundation
       quidra_image_dtype

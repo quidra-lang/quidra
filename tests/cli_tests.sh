@@ -2569,106 +2569,11 @@ print(fixed_shape[1])
 print(dynamic_shape[0])
 print(dynamic_shape[1])
 QUI
-[[ "$("$QUIDRA" run "$TMP/tensor-shape-runtime.qui")" == python3 - "$TMP/inspect-compact.json" <<'PY'
-import json,sys
-x=json.load(open(sys.argv[1]))
-assert x["nodes"]
-assert all(n["kind"] == "integer" for n in x["nodes"])
-assert all("source" not in n for n in x["nodes"])
-assert x["effects"] == []
+"$QUIDRA" run "$TMP/tensor-shape-runtime.qui" > "$TMP/tensor-shape-runtime.out"
+python3 - "$TMP/tensor-shape-runtime.out" <<'PY'
+import sys
+assert open(sys.argv[1]).read() == "2\\n3\\n2\\n3\\n"
 PY
-"$QUIDRA" inspect "$ROOT/examples/classes.qui" > "$TMP/inspect-full.json"
-python3 - "$TMP/inspect-full.json" "$TMP/inspect-compact.json" <<'PY'
-import os,sys
-assert os.path.getsize(sys.argv[2]) < os.path.getsize(sys.argv[1])
-PY
-
-"$QUIDRA" inspect "$ROOT/examples/classes.qui" --no-source --no-effects --depth 1 > "$TMP/inspect-depth.json"
-python3 - "$TMP/inspect-depth.json" <<'PY'
-import json,sys
-x=json.load(open(sys.argv[1]))
-assert x["nodes"]
-assert all(n["depth"] <= 1 for n in x["nodes"])
-ids={n["node_id"] for n in x["nodes"]}
-assert all(n["parent_id"] is None or n["parent_id"] in ids for n in x["nodes"])
-assert any(n["parent_id"] is not None for n in x["nodes"])
-PY
-
-
-cat > "$TMP/uint64-literals.qui" <<'QUI'
-uint64 high = 10000000000000000000
-uint64 maximum = 18446744073709551615
-print(high)
-print(maximum)
-QUI
-[[ "$("$QUIDRA" run "$TMP/uint64-literals.qui")" == $'10000000000000000000\n18446744073709551615' ]]
-
-cat > "$TMP/uint64-too-large.qui" <<'QUI'
-uint64 value = 18446744073709551616
-QUI
-set +e
-"$QUIDRA" check "$TMP/uint64-too-large.qui" --json > "$TMP/uint64-too-large.json"
-uint64_large_rc=$?
-set -e
-[[ "$uint64_large_rc" -eq 1 ]]
-python3 - "$TMP/uint64-too-large.json" <<'PY'
-import json,sys
-x=json.load(open(sys.argv[1]))
-assert any(d["code"] == "INTEGER_RANGE" for d in x["diagnostics"])
-PY
-
-cat > "$TMP/default-int-too-large.qui" <<'QUI'
-auto value = 10000000000000000000
-QUI
-set +e
-"$QUIDRA" check "$TMP/default-int-too-large.qui" --json > "$TMP/default-int-too-large.json"
-default_large_rc=$?
-set -e
-[[ "$default_large_rc" -eq 1 ]]
-python3 - "$TMP/default-int-too-large.json" <<'PY'
-import json,sys
-x=json.load(open(sys.argv[1]))
-assert any(d["code"] == "INTEGER_RANGE" for d in x["diagnostics"])
-PY
-
-cat > "$TMP/deep-recursion.qui" <<'QUI'
-int deep(int n)
-    if n == 0
-        return 0
-    return 1 + deep(n - 1)
-
-print(deep(10000000))
-QUI
-set +e
-"$QUIDRA" run "$TMP/deep-recursion.qui" > "$TMP/deep-recursion.out" 2>&1
-deep_rc=$?
-set -e
-[[ "$deep_rc" -eq 101 ]]
-grep -Eq 'Quidra runtime error\[CALL_DEPTH_LIMIT\] at [0-9]+:[0-9]+: call depth limit' "$TMP/deep-recursion.out"
-
-cat > "$TMP/standalone-none.qui" <<'QUI'
-none
-print("ok")
-QUI
-[[ "$("$QUIDRA" run "$TMP/standalone-none.qui")" == "ok" ]]
-
-
-cat > "$TMP/float-canonical-text.qui" <<'QUI'
-print(0.6)
-print(1.0 / 3.0)
-print(1.0)
-print(-0.0)
-print(1.0e20)
-QUI
-[[ "$("$QUIDRA" run "$TMP/float-canonical-text.qui")" == $'0.6\n0.3333333333333333\n1.0\n-0.0\n1.0e+20' ]]
-
-cat > "$TMP/float-exception-text.qui" <<'QUI'
-print(0.0 / 0.0)
-print(1.0 / 0.0)
-print(-1.0 / 0.0)
-QUI
-[[ "$("$QUIDRA" run "$TMP/float-exception-text.qui")" == $'nan\ninf\n-inf' ]]
-2\n3\n2\n3' ]]
 
 "$QUIDRA" inspect "$ROOT/examples/classes.qui" --no-source --no-effects --kind integer > "$TMP/inspect-compact.json"
 python3 - "$TMP/inspect-compact.json" <<'PY'

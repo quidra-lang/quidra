@@ -1232,7 +1232,11 @@ struct FunctionEmitter {
                 out<<bad_label<<":\n  call void @quidra_fail_at(ptr @.code.numeric.cast, ptr @.msg.numeric.cast, i64 "<<n.line<<", i64 "<<n.column<<")\n  unreachable\n";
                 out<<ok_label<<":\n";
             };
-            if((n.source_type.kind==TypeKind::BigInt||n.source_type.kind==TypeKind::BigReal) &&
+            if(n.source_type==n.target_type &&
+               (is_integer(n.source_type)||is_float(n.source_type))){
+                out<<"  "<<value(n.out)<<" = select i1 true, "<<target_ty<<" "<<value(n.value)
+                   <<", "<<target_ty<<" "<<value(n.value)<<"\n";
+            }else if((n.source_type.kind==TypeKind::BigInt||n.source_type.kind==TypeKind::BigReal) &&
                n.source_type==n.target_type){
                 out<<"  call void @quidra_managed_retain(ptr "<<value(n.value)<<")\n";
                 out<<"  "<<value(n.out)<<" = getelementptr inbounds i8, ptr "<<value(n.value)<<", i64 0\n";

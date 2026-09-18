@@ -151,10 +151,20 @@ print(cpu_matrix_vector[1].item())
 
 tensor<float32> cpu_reference = product.cpu()
 print(cpu_reference[0, 0].item())
+
+tensor<float32> scalar_base = tensor.ones<float32>([1], gpu = 0) * 4.0
+print((scalar_base + 2.0)[0].item())
+print((2.0 + scalar_base)[0].item())
+print((scalar_base - 2.0)[0].item())
+print((10.0 - scalar_base)[0].item())
+print((scalar_base * 2.0)[0].item())
+print((2.0 * scalar_base)[0].item())
+print((scalar_base / 2.0)[0].item())
+print((8.0 / scalar_base)[0].item())
 QUI
 
 gpu_compute_output="$("$QUIDRA" run "$TMP/gpu-compute.qui")"
-gpu_compute_expected="$(printf '2.0\n4.0\n3.0\n-1.0\n3.0\n6\n1\n3\n2.0\n2.0\n3.0\n3.0\n2\n3.0\n2\n3.0\n3.0\n3.0')"
+gpu_compute_expected="$(printf '2.0\n4.0\n3.0\n-1.0\n3.0\n6\n1\n3\n2.0\n2.0\n3.0\n3.0\n2\n3.0\n2\n3.0\n3.0\n3.0\n6.0\n6.0\n2.0\n6.0\n8.0\n8.0\n2.0\n2.0')"
 if [[ "$gpu_compute_output" != "$gpu_compute_expected" ]]; then
     echo "unexpected fake-GPU compute output:" >&2
     printf '%s\n' "$gpu_compute_output" >&2

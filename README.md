@@ -402,7 +402,7 @@ bigint
 bigreal
 ```
 
-`int` is signed 64-bit. `float` is IEEE-754 binary64. `float32` is IEEE-754 binary32. `bigint` is an exact arbitrary-precision integer; `bigreal` represents exact rational and symbolic real values rather than a configurable floating-point precision.
+`int` is signed 64-bit. Fixed-width signed integers have a defined two's-complement bit representation. `float` is IEEE-754 binary64. `float32` is IEEE-754 binary32. `bigint` is an exact arbitrary-precision integer; `bigreal` represents exact rational and symbolic real values rather than a configurable floating-point precision.
 
 Fixed-width integers use explicit bitwise syntax:
 
@@ -413,7 +413,7 @@ uint8 inverted = NOT flags
 uint8 shifted = flags << 2
 ```
 
-Uppercase bitwise words are intentionally distinct from boolean `and` / `or` / `not`, safe storage `&`, and union `|`. This is a small example of Quidra preferring one stable semantic role per spelling over familiar overloads.
+Uppercase bitwise words are intentionally distinct from boolean `and` / `or` / `not`, safe storage `&`, and union `|`. Signed operations use the same defined N-bit two's-complement representation used by explicit binary conversion; signed `>>` preserves the sign bit. This is a small example of Quidra preferring one stable semantic role per spelling over familiar overloads.
 
 There is no `char` type:
 

@@ -218,8 +218,8 @@ static void string_input_ignores_package_lock() {
                 << "dnn 0000000000000000000000000000000000000000000000000000000000000000\n";
         }
         std::filesystem::current_path(root);
-        (void)quidra::check("print(1)\n");
-        (void)quidra::compile("print(1)\n");
+        (void)quidra::check("print(int(1))\n");
+        (void)quidra::compile("print(int(1))\n");
         std::filesystem::current_path(original);
         std::filesystem::remove_all(root);
     } catch (const std::exception& e) {
@@ -961,11 +961,10 @@ print(outer.inner.y)
  "void f(int &x)\n    x = 2\nint x = 1\nf(x)\n", "void f(int x)\n    return\nint x = 1\nf(&x)\n",
  "int f(int x = 1, int y)\n    return y\n", "void f(int &x = 1)\n    return\n", "void f(const int &x = 1)\n    return\n", "int f(int x, int y = x)\n    return y\n",
  "int f(int x)\n    return x\nprint(f(x: 1))\n", "int f(int x, int y)\n    return x\nprint(f(x = 1, 2))\n",
- "int | none x = 1\nmatch x\n    int\n        print(x)\n", "int | none x = 1\nmatch x\n    int\n        print(x)\n    int y\n        print(y)\n    none\n        print(0)\n",
- "int | none x = 1\nmatch x\n    int\n        x = none\n    none\n        print(0)\n",
+ "int | none x = 1\nmatch x\n    int\n        print(x)\n", "int | none x = 1\nmatch x\n    int\n        print(x)\n    int y\n        print(y)\n    none\n        print(int(0))\n",
+ "int | none x = 1\nmatch x\n    int\n        x = none\n    none\n        print(int(0))\n",
  "auto x = 9223372036854775808\n", "auto x = []\n", "auto x = range(3)\n",
  "int8 x = 128\n", "uint8 x = -1\n", "int8 x = int8(300)\n",
- "float32 x = 0.1\n",
  "bin x = bin(2, fill = 0)\n", "bin x = bin.fill(-1, 0)\n", "bin x = bin.fill(2, 2)\n", "string x = string(2, fill = \"a\")\n", "string x = string.repeat(\"a\", -1)\n",
  "string tab = \"x\"\n", "void f(string enter)\n    return\n",
  "int x = 1\nif true\n    int x = 2\n", "int x = 1\nint x = 2\n",
@@ -1012,7 +1011,7 @@ print(plain<int>(1))
 GenericOnly value
 )",
  "class A\n    int x\nclass B\n    int y\nclass C : A, B\n    int z\n",
- "#if DEBUG\nprint(1)\n", "# comment\nprint(1)\n"}) bad(s);
+ "#if DEBUG\nprint(int(1))\n", "# comment\nprint(int(1))\n"}) bad(s);
  good(R"(class Linear
     int unused = 0
 class Rbf
@@ -1289,9 +1288,14 @@ print(combine(1, first = 2))
 )", "ARGUMENT_MISMATCH", "Argument 'first' is supplied more than once");
  bad_code("int[2] values = [1]\n", "ARRAY_SHAPE");
  bad_code("class A\n    int x\nclass A\n    int y\n", "DUPLICATE_NAME");
+ bad_code(R"(T identity<T>(T value)
+    return value
+auto result = identity(1)
+)", "GENERIC_INFERENCE");
  good(R"(T identity<T>(T value)
     return value
-print(identity(1))
+auto result = identity(int32(1))
+print(result)
 )");
  bad_code(R"(T identity<T>(T value)
     return value
@@ -1311,10 +1315,38 @@ class B : A
         return 0
 )", "INVALID_OVERRIDE");
  bad_code("break\n", "LOOP_CONTROL_CONTEXT");
- bad_code("int | none x = 1\nmatch x\n    int\n        print(1)\n    int y\n        print(y)\n    none\n        print(0)\n", "MATCH_CASE");
+ bad_code("int | none x = 1\nmatch x\n    int\n        print(int(1))\n    int y\n        print(y)\n    none\n        print(int(0))\n", "MATCH_CASE");
  bad_code("int f(bool yes)\n    if yes\n        return 1\n", "MISSING_RETURN");
  bad_code("int8 x = int8(300)\n", "NUMERIC_CAST");
  bad_code("int x = int(3.5)\n", "NUMERIC_CAST");
+
+ // Numeric literals carry families, not default concrete types.
+ good("int32 x = 3\nfloat32 y = 3.0\nfloat32 z = 0.1\n");
+ bad_code("auto x = 3\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ bad_code("auto x = 1.5\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ bad_code("print(1)\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ bad_code("float x = 3\n", "NUMERIC_FAMILY");
+ bad_code("int x = 3.0\n", "NUMERIC_FAMILY");
+ bad_code("auto x = [1, 2, 3]\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ good(R"(int32 seed = 1
+auto values = [2, seed, 3]
+print(values[0])
+)");
+ good(R"(int32 fixed_identity(int32 value)
+    return value
+auto result = fixed_identity(3)
+print(result)
+)");
+ bad_code("bin raw = bin(3567446)\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ good("bin raw = bin(int32(3567446))\nprint(raw)\n");
+ good("float32 rounded = float32(16777217)\n");
+ bad_code("float32 too_large = 1.0e100\n", "FLOAT_RANGE");
+ bad_code("float32 too_large = float32(1.0e100)\n", "NUMERIC_CAST");
+
+ // Numeric spelling has one integer radix; exponent notation is visibly floating.
+ bad_code("float x = 1e8\n", "LEX_ERROR");
+ good("float x = 1.0e8\n");
+ bad_code("int x = 0x10\n", "LEX_ERROR");
  bad_code(R"(class A
     int get()
         return 1

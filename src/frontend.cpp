@@ -1721,8 +1721,13 @@ private:
             result.span = expression.span;
             return std::optional<TypeName>{std::move(result)};
         };
-        if (std::holds_alternative<IntegerExpr>(expression.data)) return simple_type("int");
-        if (std::holds_alternative<FloatExpr>(expression.data)) return simple_type("float");
+        // Numeric literals carry only a family until a surrounding concrete type
+        // determines their representation. Generic inference must not invent
+        // default int/float types for them.
+        if (std::holds_alternative<IntegerExpr>(expression.data) ||
+            std::holds_alternative<FloatExpr>(expression.data)) {
+            return std::nullopt;
+        }
         if (std::holds_alternative<StringExpr>(expression.data) ||
             std::holds_alternative<StringTemplateExpr>(expression.data)) return simple_type("string");
         if (std::holds_alternative<BoolExpr>(expression.data)) return simple_type("bool");
@@ -1828,6 +1833,13 @@ private:
             }
             if (call->callee == "$std.neural.grad") {
                 return simple_type("$std.neural.Gradients");
+            }
+            if (const auto scalar = builtin_scalar_type(call->callee);
+                scalar && is_numeric(*scalar)) {
+                TypeName result;
+                result.name = type_name(*scalar);
+                result.span = expression.span;
+                return result;
             }
             if (class_index_.contains(call->callee)) {
                 TypeName result;

@@ -6921,6 +6921,94 @@ extern "C" unsigned long long quidra_bin_to_u64(void* raw, int width) {
     return value;
 }
 
+extern "C" void* quidra_bin_clone(void* raw) {
+    const auto bit_count = bin_length(raw);
+    const auto bytes = bin_payload_bytes(bit_count);
+    auto* result = static_cast<unsigned char*>(managed_allocate(8 + bytes));
+    std::memcpy(result, raw, 8 + bytes);
+    return result;
+}
+
+extern "C" bool quidra_bin_equal(void* left, void* right) {
+    if (left == right) return true;
+    if (!left || !right) return false;
+    const auto left_bits = bin_length(left);
+    const auto right_bits = bin_length(right);
+    if (left_bits != right_bits) return false;
+    const auto bytes = bin_payload_bytes(left_bits);
+    return bytes == 0 || std::memcmp(
+        static_cast<unsigned char*>(left) + 8,
+        static_cast<unsigned char*>(right) + 8,
+        bytes) == 0;
+}
+
+extern "C" void* quidra_bin_from_array(void* raw, int width, int stride) {
+    if (!raw || width <= 0 || width > 64 || stride <= 0)
+        runtime_text_failure("invalid bin array conversion");
+    long long signed_count = 0;
+    std::memcpy(&signed_count, raw, sizeof(signed_count));
+    if (signed_count < 0) runtime_text_failure("invalid array length in bin conversion");
+    const auto count = static_cast<unsigned long long>(signed_count);
+    if (count != 0 && static_cast<unsigned long long>(width) >
+        static_cast<unsigned long long>(std::numeric_limits<long long>::max()) / count)
+        runtime_allocation_failure();
+    const auto total_bits = static_cast<long long>(count * static_cast<unsigned long long>(width));
+    auto* result = quidra_bin_alloc(total_bits, 0);
+    const auto* data = static_cast<const unsigned char*>(raw) + 8;
+    for (unsigned long long i = 0; i < count; ++i) {
+        unsigned long long value = 0;
+        if (width == 1) {
+            value = data[i * static_cast<unsigned long long>(stride)] ? 1ULL : 0ULL;
+        } else {
+            std::memcpy(&value, data + i * static_cast<unsigned long long>(stride),
+                        static_cast<std::size_t>(stride));
+        }
+        for (int bit = 0; bit < width; ++bit) {
+            const auto shift = static_cast<unsigned>(width - 1 - bit);
+            bin_set_bit(result,
+                        static_cast<long long>(i * static_cast<unsigned long long>(width) +
+                                               static_cast<unsigned long long>(bit)),
+                        ((value >> shift) & 1ULL) != 0);
+        }
+    }
+    return result;
+}
+
+extern "C" void* quidra_bin_to_array(void* raw, int width, int stride) {
+    if (!raw || width <= 0 || width > 64 || stride <= 0)
+        runtime_text_failure("invalid bin array conversion");
+    const auto bits = bin_length(raw);
+    if (bits % width != 0)
+        runtime_text_failure("bin length is not divisible by destination element width");
+    const auto count = bits / width;
+    const auto count_size = static_cast<std::size_t>(count);
+    if (count < 0 || static_cast<long long>(count_size) != count ||
+        (count_size != 0 &&
+         static_cast<std::size_t>(stride) >
+             (std::numeric_limits<std::size_t>::max() - 8) / count_size))
+        runtime_allocation_failure();
+    auto* result = static_cast<unsigned char*>(
+        managed_allocate(8 + count_size * static_cast<std::size_t>(stride)));
+    std::memcpy(result, &count, sizeof(count));
+    auto* data = result + 8;
+    for (long long i = 0; i < count; ++i) {
+        unsigned long long value = 0;
+        for (int bit = 0; bit < width; ++bit)
+            value = (value << 1U) |
+                    (bin_bit_at(raw, i * static_cast<long long>(width) + bit) ? 1ULL : 0ULL);
+        if (width == 1) {
+            data[static_cast<std::size_t>(i) * static_cast<std::size_t>(stride)] =
+                value ? 1 : 0;
+        } else {
+            std::memcpy(data + static_cast<std::size_t>(i) * static_cast<std::size_t>(stride),
+                        &value, static_cast<std::size_t>(stride));
+        }
+    }
+    quidra_init_create(result, static_cast<unsigned long long>(count_size),
+                       static_cast<unsigned long long>(stride), 8, 1);
+    return result;
+}
+
 extern "C" char* quidra_string_repeat(long long count, const char* fill) {
     if (count < 0) runtime_text_failure("string length cannot be negative");
     if (!fill) runtime_text_failure("null string fill");

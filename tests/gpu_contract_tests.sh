@@ -299,6 +299,44 @@ print(invalid.cpu()[0].item())
 QUI
 expect_runtime_error "$TMP/integer-overflow.qui" "tensor integer arithmetic overflow"
 
+cat > "$TMP/unsigned-underflow.qui" <<'QUI'
+tensor<uint8> value = tensor.zeros<uint8>([1], gpu = 0)
+tensor<uint8> invalid = value - uint8(1)
+print(invalid[0].item())
+QUI
+expect_runtime_error "$TMP/unsigned-underflow.qui" "tensor integer arithmetic overflow"
+
+cat > "$TMP/integer-div-zero.qui" <<'QUI'
+tensor<int32> value = tensor.ones<int32>([1], gpu = 0)
+tensor<int32> invalid = value / int32(0)
+print(invalid[0].item())
+QUI
+expect_runtime_error "$TMP/integer-div-zero.qui" "invalid tensor division/remainder or integer overflow"
+
+cat > "$TMP/integer-min-div-negative-one.qui" <<'QUI'
+tensor<int8> value = tensor.ones<int8>([1], gpu = 0) * int8(-128)
+tensor<int8> invalid = value / int8(-1)
+print(invalid[0].item())
+QUI
+expect_runtime_error "$TMP/integer-min-div-negative-one.qui" "invalid tensor division/remainder or integer overflow"
+
+cat > "$TMP/integer-min-remainder-negative-one.qui" <<'QUI'
+tensor<int8> value = tensor.ones<int8>([1], gpu = 0) * int8(-128)
+tensor<int8> remainder = value % int8(-1)
+print(remainder[0].item())
+QUI
+if [[ "$("$QUIDRA" run "$TMP/integer-min-remainder-negative-one.qui")" != "0" ]]; then
+    echo "fake-GPU signed min % -1 must match CPU semantics" >&2
+    exit 1
+fi
+
+cat > "$TMP/integer-cast-range.qui" <<'QUI'
+tensor<int16> source = tensor.ones<int16>([1], gpu = 0) * int16(300)
+tensor<int8> invalid = int8(source)
+print(invalid[0].item())
+QUI
+expect_runtime_error "$TMP/integer-cast-range.qui" "tensor cast is unsupported or a value is outside the target range"
+
 cat > "$TMP/image-write-no-fallback.qui" <<'QUI'
 tensor<uint8> value = tensor.ones<uint8>([1, 1, 1], gpu = 0)
 auto written = image.write("should-not-exist.png", value)

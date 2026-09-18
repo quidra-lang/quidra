@@ -73,8 +73,12 @@ uint8 high = 128
 print(high >> 7)
 int8 signed_value = -8
 print(signed_value >> 2)
+int8 signed_zero = 0
+print(NOT signed_zero)
+int8 signed_left = 64
+print(signed_left << 1)
 QUI
-verify_and_run bitwise "$(printf '192\n252\n60\n15\n12\n1\n-2')"
+verify_and_run bitwise "$(printf '192\n252\n60\n15\n12\n1\n-2\n-1\n-128')"
 
 cat > "$TMP/shift-count-runtime.qui" <<'QUI'
 uint8 value = 1

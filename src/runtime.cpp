@@ -454,6 +454,7 @@ bool unicode_space(std::uint32_t v){return(v>=0x09U&&v<=0x0dU)||v==0x20U||v==0x8
 extern "C" char* quidra_format_float(double value) {
     if (std::isnan(value)) return runtime_copy_string("nan");
     if (std::isinf(value)) return runtime_copy_string(value < 0.0 ? "-inf" : "inf");
+    if (value == 0.0) return runtime_copy_string(std::signbit(value) ? "-0.0" : "0.0");
 
     char buffer[64];
     const auto result =
@@ -554,6 +555,7 @@ std::string format_float_significant(double value, int significant) {
 std::string canonical_float_text(double value) {
     if (std::isnan(value)) return "nan";
     if (std::isinf(value)) return value < 0.0 ? "-inf" : "inf";
+    if (value == 0.0) return std::signbit(value) ? "-0.0" : "0.0";
     char buffer[64];
     const auto result = std::to_chars(std::begin(buffer), std::end(buffer), value, std::chars_format::general);
     if (result.ec != std::errc{}) runtime_text_failure("float formatting failed");

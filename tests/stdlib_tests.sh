@@ -1263,47 +1263,55 @@ exact_numeric_expected=$(printf '%s\n' \
 'true' 'true' '2' 'true' 'true' 'true' 'true' 'true')
 [[ "$exact_numeric_output" == "$exact_numeric_expected" ]]
 
-cat > "$TMP/json-exact-numerics.qui" <<'QUI'
-auto parsed = json.parse("{\"huge\":12345678901234567890123456789012345678901234567890,\"real\":1.25e1000}")
-match parsed
-    json.Value root
-        auto huge_value = root.get("huge")
-        match huge_value
-            json.Value value
-                auto huge = value.bigint()
-                match huge
-                    bigint integer
-                        print(integer)
-                    error problem
-                        print(problem)
-            none
-                print("missing-huge")
-            error problem
-                print(problem)
-
-        auto real_value = root.get("real")
-        match real_value
-            json.Value value
-                auto exact = value.bigreal()
-                match exact
-                    bigreal number
-                        bigreal expected = 1.25e1000
-                        print(number == expected)
+cat > "$TMP/json-exact-data.json" <<'JSON'
+{"huge":12345678901234567890123456789012345678901234567890,"real":1.25e1000}
+JSON
+cat > "$TMP/json-exact-numerics.qui" <<QUI
+auto loaded = file.read("$TMP/json-exact-data.json")
+match loaded
+    string source
+        auto parsed = json.parse(source)
+        match parsed
+            json.Value root
+                auto huge_value = root.get("huge")
+                match huge_value
+                    json.Value value
+                        auto huge = value.bigint()
+                        match huge
+                            bigint integer
+                                print(integer)
+                            error problem
+                                print(problem)
+                    none
+                        print("missing-huge")
                     error problem
                         print(problem)
 
-                auto narrow = value.number()
-                match narrow
-                    float number
-                        print(number)
+                auto real_value = root.get("real")
+                match real_value
+                    json.Value value
+                        auto exact = value.bigreal()
+                        match exact
+                            bigreal number
+                                bigreal expected = 1.25e1000
+                                print(number == expected)
+                            error problem
+                                print(problem)
+
+                        auto narrow = value.number()
+                        match narrow
+                            float number
+                                print(number)
+                            error problem
+                                print("narrow-error")
+                    none
+                        print("missing-real")
                     error problem
-                        print("narrow-error")
-            none
-                print("missing-real")
+                        print(problem)
+
+                print(root.encode())
             error problem
                 print(problem)
-
-        print(root.encode())
     error problem
         print(problem)
 QUI

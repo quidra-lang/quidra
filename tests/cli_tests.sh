@@ -1495,8 +1495,10 @@ QUI
 [[ "$(cd "$TMP/project" && "$QUIDRA" run src/generic-inference.qui)" == $'7\n7' ]]
 
 cat > "$TMP/project/src/stdlib-math.qui" <<'QUI'
-print(math.pi)
-print(math.e)
+float pi_value = math.pi
+float e_value = math.e
+print(pi_value)
+print(e_value)
 print(math.sin(float(0.0)))
 print(math.cos(float(0.0)))
 print(math.pow(float(2.0), 3.0))

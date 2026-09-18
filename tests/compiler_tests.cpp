@@ -272,7 +272,7 @@ print(reals[1])
      "bigreal x = math.pi\n",
      "call ptr @quidra_bigreal_literal");
  bad_code("tensor<bigint> x = tensor<bigint>([1])\n", "INVALID_TYPE");
- bad_code("neural<bigreal> x\n", "INVALID_TYPE");
+ bad_code("neural<bigreal> x = neural.track(tensor<float>([1]))\n", "INVALID_TYPE");
 
  good("extern void scalar_abi(int8 a, int16 b, int32 c, int d, uint8 e, uint16 f, uint32 g, uint64 h, float32 i, float j, bool k) = \"scalar_abi\"\n");
  llvm_contains("extern bool c_bool(bool value) = \"c_bool\"\n", "declare zeroext i1 @c_bool(i1 zeroext)");

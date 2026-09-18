@@ -4745,7 +4745,6 @@ TensorStorage* tensor_materialize_storage(const TensorValue& source) {
 
 void tensor_detach_for_write(
     TensorValue& tensor, unsigned long long line, unsigned long long column) {
-    tensor_require_cpu(*tensor.storage, "tensor mutation", line, column);
     const auto logical_count = tensor_logical_count(tensor);
     const bool owns_full_contiguous_storage =
         tensor.offset == 0 && tensor_is_contiguous_value(tensor) &&
@@ -4753,7 +4752,9 @@ void tensor_detach_for_write(
     if (tensor.storage->owners == 1 && owns_full_contiguous_storage) return;
 
     auto* old = tensor.storage;
-    auto* replacement = tensor_materialize_storage(tensor);
+    auto* replacement = tensor_on_cpu(*old)
+        ? tensor_materialize_storage(tensor)
+        : tensor_gpu_materialize_storage(tensor, line, column);
     tensor.storage = replacement;
     tensor.offset = 0;
     tensor.strides = tensor_contiguous_strides(tensor.shape);
@@ -4857,7 +4858,16 @@ extern "C" void quidra_tensor_set(void* raw, const long long* indices,
         tensor_fail("tensor element assignment exceeds storage", line, column);
     }
     const auto width = tensor_dtype_bytes(tensor->storage->dtype);
-    std::memcpy(tensor->storage->data.data() + storage_index * width, value, width);
+    if (tensor_on_cpu(*tensor->storage)) {
+        std::memcpy(tensor->storage->data.data() + storage_index * width, value, width);
+    } else {
+        std::string backend_error;
+        if (!quidra::device::copy_from_host(
+                tensor->storage->gpu_buffer, storage_index * width,
+                value, width, backend_error)) {
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+    }
     tracker_set(tensor->storage->initialization, storage_index);
 }
 

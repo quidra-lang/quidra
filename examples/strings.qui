@@ -1,5 +1,5 @@
 auto name = "Quidra"
-auto n = 42
+int n = 42
 auto ready = true
 string separator = tab
 

@@ -2027,9 +2027,8 @@ bool compute_cast(Buffer* output, const Buffer* input, std::size_t input_offset,
             ptx,count,args,error);
     }
     if (output->backend==Backend::Amd &&
-        (hip_integer_dtype(source_dtype)||source_dtype==9||source_dtype==10) &&
-        (hip_integer_dtype(target_dtype)||target_dtype==9||target_dtype==10) &&
-        !(source_dtype==9||source_dtype==10 ? hip_integer_dtype(target_dtype) : false)) {
+        hip_integer_dtype(source_dtype) &&
+        (hip_integer_dtype(target_dtype)||target_dtype==9||target_dtype==10)) {
         std::unique_ptr<Buffer,void(*)(Buffer*)> status(
             allocate(output->global_index,sizeof(std::uint32_t),error),
             [](Buffer* value){quidra::device::release(value);});

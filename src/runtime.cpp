@@ -1308,6 +1308,23 @@ TensorStorage* tensor_transfer_storage(
     std::array<unsigned char, 8> element{};
     std::string backend_error;
 
+    if (target_device >= 0 && source.storage->device == target_device &&
+        source.storage->initialization.fully_initialized &&
+        tensor_is_contiguous_value(source)) {
+        const auto source_offset = source.offset * width;
+        const auto bytes = count * width;
+        if (quidra::device::copy_device_to_device(
+                output->gpu_buffer, 0, source.storage->gpu_buffer,
+                source_offset, bytes, backend_error)) {
+            output->initialization.fully_initialized = true;
+            output->initialization.initialized_count = count;
+            output->initialization.bits.clear();
+            return output;
+        }
+        tensor_storage_release(output);
+        tensor_fail(backend_error.c_str(), line, column);
+    }
+
     for (std::size_t logical = 0; logical < count; ++logical) {
         const auto source_index = tensor_storage_index(source, logical);
         if (source_index >= source.storage->count) {

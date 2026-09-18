@@ -1496,9 +1496,9 @@ QUI
 cat > "$TMP/project/src/stdlib-math.qui" <<'QUI'
 print(math.pi)
 print(math.e)
-print(math.sin(0.0))
-print(math.cos(0.0))
-print(math.pow(2.0, 3.0))
+print(math.sin(float(0.0)))
+print(math.cos(float(0.0)))
+print(math.pow(float(2.0), 3.0))
 QUI
 stdlib_math_output="$(cd "$TMP/project" && "$QUIDRA" run src/stdlib-math.qui)"
 python3 - "$stdlib_math_output" <<'PY'
@@ -2671,7 +2671,7 @@ set -e
 python3 - "$TMP/default-int-too-large.json" <<'PY'
 import json,sys
 x=json.load(open(sys.argv[1]))
-assert any(d["code"] == "INTEGER_RANGE" for d in x["diagnostics"])
+assert any(d["code"] == "AMBIGUOUS_NUMERIC_LITERAL" for d in x["diagnostics"])
 PY
 
 cat > "$TMP/deep-recursion.qui" <<'QUI'

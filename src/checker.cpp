@@ -3367,9 +3367,10 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     }
 
                     if (expected_tensor &&
-                        expected_tensor->tensor_shape_prefix.size() > 3) {
+                        !expected_tensor->tensor_shape_prefix.empty() &&
+                        expected_tensor->tensor_shape_prefix.size() != 3) {
                         error("TYPE_MISMATCH",
-                              "image.read returns rank-3 CHW tensors; the expected shape prefix has more than three axes.",
+                              "image.read returns rank-3 CHW tensors; an expected shape pattern must contain exactly three axes.",
                               expression.span);
                         type = simple(TypeKind::Invalid);
                         break;
@@ -3384,6 +3385,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     }
                     if (target_channels && expected_tensor &&
                         !expected_tensor->tensor_shape_prefix.empty() &&
+                        expected_tensor->tensor_shape_prefix.front() >= 0 &&
                         expected_tensor->tensor_shape_prefix.front() != *target_channels) {
                         error("TYPE_MISMATCH",
                               "image.read channel conversion conflicts with the expected tensor shape.",
@@ -3398,7 +3400,10 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         std::vector<long long> known_shape;
                         if (expected_tensor) {
                             shape_contract = expected_tensor->tensor_shape_prefix;
-                            known_shape = expected_tensor->tensor_shape_prefix;
+                            for (const auto extent : shape_contract) {
+                                if (extent < 0) break;
+                                known_shape.push_back(extent);
+                            }
                         }
                         if (target_channels) {
                             if (known_shape.empty()) known_shape.push_back(*target_channels);
@@ -3460,14 +3465,15 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                                   "image.write requires a rank-3 CHW tensor.",
                                   node->args[1].span);
                         }
-                        if (value_type.tensor_shape_prefix.size() > 3) {
+                        if (!value_type.tensor_shape_prefix.empty() &&
+                            value_type.tensor_shape_prefix.size() != 3) {
                             error("TYPE_MISMATCH",
-                                  "image.write cannot accept a tensor shape constraint beyond CHW rank 3.",
+                                  "image.write requires an exact-rank three-axis CHW shape pattern.",
                                   node->args[1].span);
                         }
                         if (!value_type.tensor_shape_prefix.empty()) {
                             const auto channels = value_type.tensor_shape_prefix.front();
-                            if (channels != 1 && channels != 3 && channels != 4) {
+                            if (channels >= 0 && channels != 1 && channels != 3 && channels != 4) {
                                 error("TYPE_MISMATCH",
                                       "image.write requires CHW channel count 1, 3, or 4.",
                                       node->args[1].span);

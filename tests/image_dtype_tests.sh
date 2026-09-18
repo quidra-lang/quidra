@@ -265,30 +265,30 @@ rgb[2, 0, 0] = uint8(0)
 auto rgb_written = image.write("$TMP/rgb.png", rgb)
 match rgb_written
     void
-        tensor<uint8, 3> | error exact_rgb = image.read("$TMP/rgb.png")
+        tensor<uint8><3, _, _> | error exact_rgb = image.read("$TMP/rgb.png")
         match exact_rgb
-            tensor<uint8, 3> pixels
+            tensor<uint8><3, _, _> pixels
                 print(pixels.shape()[0])
             error problem
                 print(problem)
 
-        tensor<uint8, 1> | error rejected_gray = image.read("$TMP/rgb.png")
+        tensor<uint8><1, _, _> | error rejected_gray = image.read("$TMP/rgb.png")
         match rejected_gray
-            tensor<uint8, 1> pixels
+            tensor<uint8><1, _, _> pixels
                 print("unexpected")
             error problem
                 print("shape-error")
 
-        tensor<uint8, 1> | error gray = image.read("$TMP/rgb.png", channels = 1)
+        tensor<uint8><1, _, _> | error gray = image.read("$TMP/rgb.png", channels = 1)
         match gray
-            tensor<uint8, 1> pixels
+            tensor<uint8><1, _, _> pixels
                 print(pixels[0, 0, 0].item())
             error problem
                 print(problem)
 
-        tensor<float32, 3> | error float_rgb = image.read("$TMP/rgb.png", dtype = float32)
+        tensor<float32><3, _, _> | error float_rgb = image.read("$TMP/rgb.png", dtype = float32)
         match float_rgb
-            tensor<float32, 3> pixels
+            tensor<float32><3, _, _> pixels
                 print(pixels[0, 0, 0].item())
             error problem
                 print(problem)

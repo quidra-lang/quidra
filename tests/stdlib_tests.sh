@@ -191,8 +191,7 @@ match listed
     error problem
         print(problem)
 QUI
-[[ "$("$QUIDRA" "$TMP/file-list.qui")" == $'2\ntrue\ntrue' ]]
-
+[[ "$("$QUIDRA" "$TMP/file-list.qui")" == $'2\n
 cat > "$TMP/file-list-missing.qui" <<QUI
 auto listed = file.list("$TMP/no-such-directory")
 match listed

@@ -80,7 +80,7 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
             exports.values.emplace(name, std::string(*standard_value_target(module, name)));
         }
     } else if (module == "file") {
-        for (const char* name : {"read", "write", "read_bytes", "write_bytes", "exists", "is_directory", "remove", "copy", "move", "mkdir", "list"}) {
+        for (const char* name : {"read", "write", "read_bin", "write_bin", "exists", "is_directory", "remove", "copy", "move", "mkdir", "list"}) {
             exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
         }
     } else if (module == "environment") {
@@ -320,10 +320,10 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
     int[] __slots = array(8, fill = -1)
 
     int __hash(K key)
-        bytes __encoded = key.string().utf8()
+        int[] __encoded = key.string().codepoints()
         int __result = 0
-        for __byte in __encoded
-            __result = (__result * 131 + int(__byte)) % 2147483647
+        for __unit in __encoded
+            __result = (__result * 131 + __unit) % 2147483647
         return __result
 
     int __find(K key, int hash)
@@ -404,7 +404,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         response.name = "$std.http.Response";
         response.span = standard_span();
         response.fields.push_back(standard_field("status", "int"));
-        response.fields.push_back(standard_field("body", "bytes"));
+        response.fields.push_back(standard_field("body", "bin"));
         response.fields.push_back(standard_field("$headers", "uint64"));
 
         std::vector<Parameter> header_parameters;
@@ -476,10 +476,10 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
     int[] __slots = array(8, fill = -1)
 
     int __hash(T value)
-        bytes __encoded = value.string().utf8()
+        int[] __encoded = value.string().codepoints()
         int __result = 0
-        for __byte in __encoded
-            __result = (__result * 131 + int(__byte)) % 2147483647
+        for __unit in __encoded
+            __result = (__result * 131 + __unit) % 2147483647
         return __result
 
     int __find(T value, int hash)

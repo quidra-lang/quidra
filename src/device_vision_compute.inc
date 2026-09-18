@@ -139,7 +139,7 @@ bool fake_image_filter(
     for(std::size_t c=0;c<channels;++c)
         for(std::size_t y=0;y<height;++y)
             for(std::size_t x=0;x<width;++x){
-                __int128 total=0;
+                std::int64_t total=0;
                 for(std::size_t ky=0;ky<kh;++ky){
                     const auto sy_signed=static_cast<long long>(y)+
                         static_cast<long long>(ky)-static_cast<long long>(cy);
@@ -153,22 +153,26 @@ bool fake_image_filter(
                         const auto pixel=input->test_data[
                             (c*height+static_cast<std::size_t>(sy_signed))*width+
                             static_cast<std::size_t>(sx_signed)];
-                        total+=static_cast<__int128>(pixel)*static_cast<__int128>(weight);
-                        if(total<std::numeric_limits<std::int64_t>::min()||
-                           total>std::numeric_limits<std::int64_t>::max()){
+                        std::int64_t product{},next{};
+                        if(!fake_mul(static_cast<std::int64_t>(pixel),weight,product)||
+                           !fake_add(total,product,next)){
                             error="vision.filter integer arithmetic overflow";
                             return false;
                         }
+                        total=next;
                     }
                 }
-                auto value=static_cast<std::int64_t>(total)/divisor;
-                __int128 with_offset=static_cast<__int128>(value)+offset;
-                if(with_offset<std::numeric_limits<std::int64_t>::min()||
-                   with_offset>std::numeric_limits<std::int64_t>::max()){
+                if(total==std::numeric_limits<std::int64_t>::min()&&divisor==-1){
                     error="vision.filter integer arithmetic overflow";
                     return false;
                 }
-                value=static_cast<std::int64_t>(with_offset);
+                auto value=static_cast<std::int64_t>(total/divisor);
+                std::int64_t with_offset{};
+                if(!fake_add(value,offset,with_offset)){
+                    error="vision.filter integer arithmetic overflow";
+                    return false;
+                }
+                value=with_offset;
                 value=std::clamp<std::int64_t>(value,0,255);
                 output->test_data[(c*height+y)*width+x]=
                     static_cast<std::uint8_t>(value);

@@ -6693,7 +6693,7 @@ extern "C" void* quidra_image_tensor_filter(
     for(std::size_t c=0;c<channels;++c)
         for(std::size_t y=0;y<height;++y)
             for(std::size_t x=0;x<width;++x){
-                __int128 total=0;
+                std::int64_t total=0;
                 for(std::size_t ky=0;ky<kh;++ky){
                     const auto sy=static_cast<long long>(y)+
                         static_cast<long long>(ky)-static_cast<long long>(cy);
@@ -6708,29 +6708,28 @@ extern "C" void* quidra_image_tensor_filter(
                         const auto ki=tensor_storage_index(kernel,ky*kw+kx);
                         std::int64_t weight{};
                         std::memcpy(&weight,kernel.storage->data.data()+ki*8,8);
-                        total+=static_cast<__int128>(input.storage->data[pi])*
-                               static_cast<__int128>(weight);
-                        if(total<std::numeric_limits<std::int64_t>::min()||
-                           total>std::numeric_limits<std::int64_t>::max()){
+                        std::int64_t product{},next{};
+                        if(!tensor_mul_checked(
+                               static_cast<std::int64_t>(input.storage->data[pi]),
+                               weight,product)||
+                           !tensor_add_checked(total,product,next)){
                             quidra_tensor_drop(result);
                             tensor_fail("image filter integer arithmetic overflow",line,column);
                         }
+                        total=next;
                     }
                 }
-                const auto exact_total=static_cast<std::int64_t>(total);
-                if(exact_total==std::numeric_limits<std::int64_t>::min()&&divisor==-1){
+                if(total==std::numeric_limits<std::int64_t>::min()&&divisor==-1){
                     quidra_tensor_drop(result);
                     tensor_fail("image filter integer arithmetic overflow",line,column);
                 }
-                const auto divided=exact_total/divisor;
-                const __int128 adjusted=static_cast<__int128>(divided)+offset;
-                if(adjusted<std::numeric_limits<std::int64_t>::min()||
-                   adjusted>std::numeric_limits<std::int64_t>::max()){
+                const auto divided=total/divisor;
+                std::int64_t adjusted{};
+                if(!tensor_add_checked(divided,offset,adjusted)){
                     quidra_tensor_drop(result);
                     tensor_fail("image filter integer arithmetic overflow",line,column);
                 }
-                const auto clamped=std::clamp<std::int64_t>(
-                    static_cast<std::int64_t>(adjusted),0,255);
+                const auto clamped=std::clamp<std::int64_t>(adjusted,0,255);
                 result->storage->data[(c*height+y)*width+x]=
                     static_cast<std::uint8_t>(clamped);
             }

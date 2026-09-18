@@ -74,6 +74,29 @@ if [[ "$update_output" != "$(printf 'true\ntrue')" ]]; then
     exit 1
 fi
 
+cat > "$TMP/dtype-cast.qui" <<'QUI'
+class Model
+    neural.Parameter<float32> value
+
+Model model = Model(
+    value = neural.Parameter<float32>(value = tensor.ones<float32>([2]))
+)
+neural<float32><2> tracked = model.value.track()
+neural<float><2> promoted = float(tracked)
+tensor<float><2> restored = promoted.untrack()
+print(restored.shape()[0])
+print(restored[0].item())
+neural<float> loss = neural.mean(promoted * promoted)
+neural.Gradients gradients = neural.grad(loss)
+neural.update(&model, gradients, rate = 0.1)
+print(math.abs(float(model.value.raw()[0].item()) - 0.9) < 0.000001)
+QUI
+dtype_cast_output="$("$QUIDRA" "$TMP/dtype-cast.qui")"
+if [[ "$dtype_cast_output" != "$(printf '2\n1.0\ntrue')" ]]; then
+    echo "unexpected neural dtype cast output: $dtype_cast_output" >&2
+    exit 1
+fi
+
 cat > "$TMP/normalize.qui" <<'QUI'
 neural.Parameter<float32> scale = neural.Parameter<float32>(
     value = tensor.ones<float32>([2])

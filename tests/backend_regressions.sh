@@ -79,7 +79,7 @@ set +e
 status=$?
 set -e
 [[ "$status" -eq 101 ]]
-grep -q "NUMERIC_CAST_RANGE" "$TMP/float32-range-error.err"
+cat "$TMP/float32-range-error.out" "$TMP/float32-range-error.err" | grep -q "NUMERIC_CAST_RANGE"
 
 cat > "$TMP/try-class.qui" <<'QUI'
 class Pair

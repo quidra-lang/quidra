@@ -1334,26 +1334,130 @@ TensorStorage* tensor_transfer_storage(
     auto* output = tensor_storage_create(
         source.storage->dtype, count, 0, target_device, line, column);
     const auto width = tensor_dtype_bytes(source.storage->dtype);
+    if (count != 0 && width > std::numeric_limits<std::size_t>::max() / count) {
+        tensor_storage_release(output);
+        tensor_fail("tensor transfer size overflow", line, column);
+    }
+    const auto bytes = count * width;
     std::array<unsigned char, 8> element{};
     std::string backend_error;
 
-    if (target_device >= 0 && source.storage->device == target_device &&
-        source.storage->initialization.fully_initialized &&
-        tensor_is_contiguous_value(source)) {
-        const auto source_offset = source.offset * width;
-        const auto bytes = count * width;
-        if (quidra::device::copy_device_to_device(
-                output->gpu_buffer, 0, source.storage->gpu_buffer,
-                source_offset, bytes, backend_error)) {
-            output->initialization.fully_initialized = true;
-            output->initialization.initialized_count = count;
-            output->initialization.bits.clear();
-            return output;
+    const auto mark_fully_initialized = [&] {
+        output->initialization.fully_initialized = true;
+        output->initialization.initialized_count = count;
+        output->initialization.bits.clear();
+    };
+
+    // The common explicit-transfer case is fully initialized. Preserve the
+    // logical transfer boundary while moving the payload in one bulk operation.
+    // Non-contiguous GPU views are first gathered on the source GPU, so an
+    // explicit .cpu() or .gpu(other) never degenerates into one transfer per
+    // element.
+    if (source.storage->initialization.fully_initialized) {
+        TensorStorage* gpu_materialized = nullptr;
+        const TensorStorage* dense_gpu_source = nullptr;
+        std::vector<unsigned char> host_materialized;
+        const unsigned char* dense_host_source = nullptr;
+
+        if (tensor_on_cpu(*source.storage)) {
+            if (tensor_is_contiguous_value(source)) {
+                if (source.offset > source.storage->count ||
+                    count > source.storage->count - source.offset) {
+                    tensor_storage_release(output);
+                    tensor_fail("tensor view exceeds storage", line, column);
+                }
+                dense_host_source =
+                    source.storage->data.data() + source.offset * width;
+            } else {
+                try {
+                    host_materialized.resize(bytes);
+                } catch (...) {
+                    tensor_storage_release(output);
+                    runtime_allocation_failure();
+                }
+                for (std::size_t logical = 0; logical < count; ++logical) {
+                    const auto source_index = tensor_storage_index(source, logical);
+                    if (source_index >= source.storage->count) {
+                        tensor_storage_release(output);
+                        tensor_fail("tensor view exceeds storage", line, column);
+                    }
+                    std::memcpy(
+                        host_materialized.data() + logical * width,
+                        source.storage->data.data() + source_index * width,
+                        width);
+                }
+                dense_host_source = host_materialized.data();
+            }
+        } else {
+            if (tensor_is_contiguous_value(source)) {
+                if (source.offset > source.storage->count ||
+                    count > source.storage->count - source.offset) {
+                    tensor_storage_release(output);
+                    tensor_fail("tensor view exceeds storage", line, column);
+                }
+                dense_gpu_source = source.storage;
+            } else {
+                gpu_materialized =
+                    tensor_gpu_materialize_storage(source, line, column);
+                dense_gpu_source = gpu_materialized;
+            }
         }
-        tensor_storage_release(output);
-        tensor_fail(backend_error.c_str(), line, column);
+
+        bool ok = true;
+        if (dense_host_source) {
+            if (tensor_on_cpu(*output)) {
+                if (bytes != 0) {
+                    std::memcpy(output->data.data(), dense_host_source, bytes);
+                }
+            } else {
+                ok = quidra::device::copy_from_host(
+                    output->gpu_buffer, 0, dense_host_source, bytes,
+                    backend_error);
+            }
+        } else if (dense_gpu_source) {
+            const auto source_offset =
+                gpu_materialized ? std::size_t{0} : source.offset * width;
+            if (tensor_on_cpu(*output)) {
+                ok = quidra::device::copy_to_host(
+                    dense_gpu_source->gpu_buffer, source_offset,
+                    output->data.data(), bytes, backend_error);
+            } else if (dense_gpu_source->device == target_device) {
+                ok = quidra::device::copy_device_to_device(
+                    output->gpu_buffer, 0, dense_gpu_source->gpu_buffer,
+                    source_offset, bytes, backend_error);
+            } else {
+                // Cross-GPU movement is explicit at source level. Backends do
+                // not currently promise peer access across arbitrary vendors,
+                // so stage once through host memory rather than once per
+                // element.
+                try {
+                    host_materialized.resize(bytes);
+                } catch (...) {
+                    if (gpu_materialized) tensor_storage_release(gpu_materialized);
+                    tensor_storage_release(output);
+                    runtime_allocation_failure();
+                }
+                ok = quidra::device::copy_to_host(
+                         dense_gpu_source->gpu_buffer, source_offset,
+                         host_materialized.data(), bytes, backend_error) &&
+                     quidra::device::copy_from_host(
+                         output->gpu_buffer, 0, host_materialized.data(),
+                         bytes, backend_error);
+            }
+        }
+
+        if (gpu_materialized) tensor_storage_release(gpu_materialized);
+        if (!ok) {
+            tensor_storage_release(output);
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+        mark_fully_initialized();
+        return output;
     }
 
+    // Partially initialized tensors preserve initialization at element
+    // granularity. This uncommon path intentionally copies only initialized
+    // elements so uninitialized storage is never exposed as initialized data.
     for (std::size_t logical = 0; logical < count; ++logical) {
         const auto source_index = tensor_storage_index(source, logical);
         if (source_index >= source.storage->count) {

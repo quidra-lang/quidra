@@ -487,12 +487,6 @@ inline bool representation_erasure_compatible(const Type& from, const Type& to) 
         return from.first && to.first && *from.first == *to.first &&
                from.length >= 0 && to.length < 0;
     }
-    if (from.kind == TypeKind::Array && to.kind == TypeKind::Array) {
-        if (!from.first || !to.first) return false;
-        if (to.length >= 0 && from.length != to.length) return false;
-        if (from.length < 0 && to.length >= 0) return false;
-        return representation_erasure_compatible(*from.first, *to.first);
-    }
     return false;
 }
 

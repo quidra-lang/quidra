@@ -1797,21 +1797,6 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                   expression.span);
                         }
                         type = *receiver.first;
-                    } else if (node->method == "cast") {
-                        if (node->type_arguments.size() != 1 || !node->args.empty()) {
-                            error("ARGUMENT_MISMATCH",
-                                  "tensor.cast<T>() requires exactly one numeric target type.",
-                                  expression.span);
-                        }
-                        auto target = resolve_type(node->type_arguments.front());
-                        if (!is_numeric(target)) {
-                            error("INVALID_TYPE", "tensor cast target must be numeric.", node->type_arguments.front().span);
-                        } else if (!explicit_numeric_cast_supported(*receiver.first, target)) {
-                            error("TYPE_MISMATCH", "tensor.cast cannot convert " + type_name(*receiver.first) + " to " + type_name(target) + "; floating-point to integer conversion requires an explicit rounding operation.", expression.span);
-                        }
-                        type = Type::tensor(target, receiver.length,
-                                            receiver.tensor_shape_prefix,
-                                            receiver.tensor_known_shape_prefix);
                     } else {
                         error("UNKNOWN_MEMBER",
                               "Type '" + type_name(receiver) + "' has no method '" +
@@ -3716,26 +3701,71 @@ Type Checker::check_call_expr(const Expr& expression,
             }
         } else if (const auto target = builtin_scalar_type(name);
                    target && is_numeric(*target)) {
-            call_resolutions_[&expression] =
-                CallResolution{CallKind::NumericCast, name, std::nullopt, *target};
             if (node->args.size() != 1 || node->args[0].writable ||
                 (node->args[0].name && *node->args[0].name != "value")) {
                 error("ARGUMENT_MISMATCH", "Numeric cast requires one value argument.", expression.span);
             }
             auto source = check_expr(*node->args[0].value);
-            if (!poisoned(source)) {
-                if (!is_numeric(source) || !explicit_numeric_cast_supported(source, *target)) {
-                    const std::string detail = is_float(source) && is_integer(*target)
+
+            std::function<std::optional<Type>(const Type&)> cast_result =
+                [&](const Type& current) -> std::optional<Type> {
+                    if (is_numeric(current)) {
+                        if (!explicit_numeric_cast_supported(current, *target)) return std::nullopt;
+                        return *target;
+                    }
+                    if (current.kind == TypeKind::Array && current.first) {
+                        const auto child = cast_result(*current.first);
+                        if (!child) return std::nullopt;
+                        return Type::array(*child, current.length);
+                    }
+                    if (current.kind == TypeKind::Tensor && current.first &&
+                        is_numeric(*current.first) &&
+                        explicit_numeric_cast_supported(*current.first, *target)) {
+                        return Type::tensor(*target, current.length,
+                                            current.tensor_shape_prefix,
+                                            current.tensor_known_shape_prefix);
+                    }
+                    return std::nullopt;
+                };
+
+            if (poisoned(source)) {
+                type = source;
+                call_resolutions_[&expression] =
+                    CallResolution{CallKind::NumericCast, name, std::nullopt, source};
+            } else {
+                const auto result = cast_result(source);
+                if (!result) {
+                    Type leaf = source;
+                    while (leaf.kind == TypeKind::Array && leaf.first) leaf = *leaf.first;
+                    if (leaf.kind == TypeKind::Tensor && leaf.first) leaf = *leaf.first;
+                    const std::string detail = is_float(leaf) && is_integer(*target)
                         ? " Floating-point to integer conversion requires math.trunc, math.round, math.floor, or math.ceil."
                         : "";
-                    error("NUMERIC_CAST", "Explicit cast from " + type_name(source) + " to " + type_name(*target) + " is not supported." + detail, expression.span);
+                    error("NUMERIC_CAST",
+                          "Explicit cast from " + type_name(source) +
+                          " to element type " + type_name(*target) +
+                          " is not supported." + detail,
+                          expression.span);
+                    type = simple(TypeKind::Invalid);
+                } else {
+                    if (is_numeric(source)) {
+                        if (const auto* literal =
+                                std::get_if<IntegerExpr>(&node->args[0].value->data)) {
+                            if (is_integer(*target) &&
+                                !integer_literal_value_fits(
+                                    static_cast<unsigned long long>(literal->value), *target)) {
+                                error("NUMERIC_CAST",
+                                      "Integer literal is outside the range of " +
+                                          type_name(*target) + ".",
+                                      expression.span);
+                            }
+                        }
+                    }
+                    type = *result;
                 }
-                if (const auto* literal = std::get_if<IntegerExpr>(&node->args[0].value->data)) {
-                    if (is_integer(*target) && !integer_literal_value_fits(static_cast<unsigned long long>(literal->value), *target))
-                        error("NUMERIC_CAST", "Integer literal is outside the range of " + type_name(*target) + ".", expression.span);
-                }
+                call_resolutions_[&expression] =
+                    CallResolution{CallKind::NumericCast, name, std::nullopt, type};
             }
-            type = poisoned(source) ? source : *target;
         } else if (name == "bytes") {
             call_resolutions_[&expression] =
                 CallResolution{CallKind::Constructor, "bytes", std::nullopt, simple(TypeKind::Bytes)};

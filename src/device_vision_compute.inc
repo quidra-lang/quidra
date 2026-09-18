@@ -586,7 +586,7 @@ std::string msl_image_threshold_source(){
 }
 
 std::string msl_image_filter_source(){
-    return "#include <metal_stdlib>\\nusing namespace metal;\\n"
+    return "#include <metal_stdlib>\nusing namespace metal;\n"
       "kernel void q_kernel(device uchar* out [[buffer(0)]],const device uchar* in [[buffer(1)]],"
       "const device long* kernel [[buffer(2)]],device atomic_uint* status [[buffer(3)]],"
       "constant ulong& count [[buffer(4)]],constant ulong& h [[buffer(5)]],constant ulong& w [[buffer(6)]],"
@@ -607,7 +607,7 @@ std::string msl_image_filter_source(){
       "long value=total/divisor;"
       "if((offset>0&&value>0x7fffffffffffffffL-offset)||(offset<0&&value<(-0x7fffffffffffffffL-1L)-offset)){"
       "atomic_store_explicit(status,1u,memory_order_relaxed);return;}"
-      "value+=offset;value=clamp(value,0L,255L);out[i]=uchar(value);}\\n";
+      "value+=offset;value=clamp(value,0L,255L);out[i]=uchar(value);}\n";
 }
 std::string msl_image_blur_source(){
     return "#include <metal_stdlib>\nusing namespace metal;\n"

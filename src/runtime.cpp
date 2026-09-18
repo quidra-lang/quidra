@@ -5790,14 +5790,39 @@ extern "C" void* quidra_linear_matmul(void* left_raw, void* right_raw,
         tensor_fail("linear.matmul operands are on different devices; transfer them explicitly",
                     line, column);
     }
-    if (left.shape.size() != 2 || right.shape.size() != 2) {
-        tensor_fail("linear.matmul currently requires rank-2 tensors", line, column);
+
+    const bool left_vector = left.shape.size() == 1;
+    const bool right_vector = right.shape.size() == 1;
+    const bool left_matrix = left.shape.size() == 2;
+    const bool right_matrix = right.shape.size() == 2;
+    if ((!left_vector && !left_matrix) || (!right_vector && !right_matrix) ||
+        (left_vector && right_vector)) {
+        tensor_fail(
+            "linear.matmul supports vector-matrix, matrix-vector, and matrix-matrix operands",
+            line, column);
     }
-    if (left.shape[1] != right.shape[0]) {
+
+    const auto rows = left_vector ? std::size_t{1}
+                                  : static_cast<std::size_t>(left.shape[0]);
+    const auto inner = left_vector ? static_cast<std::size_t>(left.shape[0])
+                                   : static_cast<std::size_t>(left.shape[1]);
+    const auto right_inner = static_cast<std::size_t>(right.shape[0]);
+    const auto columns = right_vector ? std::size_t{1}
+                                      : static_cast<std::size_t>(right.shape[1]);
+    if (inner != right_inner) {
         tensor_fail("linear.matmul inner dimensions do not match", line, column);
     }
-    std::vector<long long> shape{left.shape[0], right.shape[1]};
+
+    std::vector<long long> shape;
+    if (left_vector) {
+        shape = {static_cast<long long>(columns)};
+    } else if (right_vector) {
+        shape = {static_cast<long long>(rows)};
+    } else {
+        shape = {static_cast<long long>(rows), static_cast<long long>(columns)};
+    }
     const auto count = tensor_element_count(shape, line, column);
+
     if (!tensor_on_cpu(*left.storage)) {
         tensor_require_initialized(left, line, column);
         tensor_require_initialized(right, line, column);
@@ -5818,10 +5843,7 @@ extern "C" void* quidra_linear_matmul(void* left_raw, void* right_raw,
         std::string backend_error;
         const bool ok = quidra::device::compute_matmul(
             output->gpu_buffer, left_storage->gpu_buffer, right_storage->gpu_buffer,
-            left.storage->dtype,
-            static_cast<std::size_t>(left.shape[0]),
-            static_cast<std::size_t>(left.shape[1]),
-            static_cast<std::size_t>(right.shape[1]), backend_error);
+            left.storage->dtype, rows, inner, columns, backend_error);
         if (left_materialized) tensor_storage_release(left_materialized);
         if (right_materialized) tensor_storage_release(right_materialized);
         if (!ok) {
@@ -5831,18 +5853,34 @@ extern "C" void* quidra_linear_matmul(void* left_raw, void* right_raw,
         auto strides = tensor_contiguous_strides(shape);
         return tensor_descriptor(output, std::move(shape), std::move(strides), 0);
     }
+
+    TensorValue left_view = left;
+    TensorValue right_view = right;
+    if (left_vector) {
+        const auto stride = left.strides[0];
+        left_view.shape = {1, left.shape[0]};
+        left_view.strides = {
+            static_cast<long long>(left.shape[0]) * stride,
+            stride};
+    }
+    if (right_vector) {
+        const auto stride = right.strides[0];
+        right_view.shape = {right.shape[0], 1};
+        right_view.strides = {stride, 1};
+    }
+
     auto* output = tensor_storage_create(left.storage->dtype, count, 1);
     switch (left.storage->dtype) {
-        case 1: tensor_matmul_typed<std::int64_t>(left,right,*output,line,column); break;
-        case 2: tensor_matmul_typed<std::int8_t>(left,right,*output,line,column); break;
-        case 3: tensor_matmul_typed<std::int16_t>(left,right,*output,line,column); break;
-        case 4: tensor_matmul_typed<std::int32_t>(left,right,*output,line,column); break;
-        case 5: tensor_matmul_typed<std::uint8_t>(left,right,*output,line,column); break;
-        case 6: tensor_matmul_typed<std::uint16_t>(left,right,*output,line,column); break;
-        case 7: tensor_matmul_typed<std::uint32_t>(left,right,*output,line,column); break;
-        case 8: tensor_matmul_typed<std::uint64_t>(left,right,*output,line,column); break;
-        case 9: tensor_matmul_typed<double>(left,right,*output,line,column); break;
-        case 10:tensor_matmul_typed<float>(left,right,*output,line,column); break;
+        case 1: tensor_matmul_typed<std::int64_t>(left_view,right_view,*output,line,column); break;
+        case 2: tensor_matmul_typed<std::int8_t>(left_view,right_view,*output,line,column); break;
+        case 3: tensor_matmul_typed<std::int16_t>(left_view,right_view,*output,line,column); break;
+        case 4: tensor_matmul_typed<std::int32_t>(left_view,right_view,*output,line,column); break;
+        case 5: tensor_matmul_typed<std::uint8_t>(left_view,right_view,*output,line,column); break;
+        case 6: tensor_matmul_typed<std::uint16_t>(left_view,right_view,*output,line,column); break;
+        case 7: tensor_matmul_typed<std::uint32_t>(left_view,right_view,*output,line,column); break;
+        case 8: tensor_matmul_typed<std::uint64_t>(left_view,right_view,*output,line,column); break;
+        case 9: tensor_matmul_typed<double>(left_view,right_view,*output,line,column); break;
+        case 10:tensor_matmul_typed<float>(left_view,right_view,*output,line,column); break;
         default:
             delete output;
             tensor_fail("linear.matmul received an unsupported tensor dtype", line, column);

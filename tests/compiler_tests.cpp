@@ -1546,6 +1546,51 @@ tensor<float><2, 2> neural_restored = neural_converted.untrack()
     int[2] dimensions = value.shape()
 )", "TYPE_MISMATCH");
 
+ // Device placement is runtime/compiler metadata, not part of the nominal tensor type.
+ good(R"(tensor<float32> cpu = tensor.zeros<float32>([2])
+tensor<float32> direct_gpu = tensor.zeros<float32>([2], gpu = 0)
+tensor<float32><2> contextual_gpu = tensor.ones(gpu = 1)
+tensor<float32> copied = cpu.gpu(0)
+tensor<float32> returned = copied.cpu()
+)");
+ bad_message("auto value = tensor.zeros<float32>([1], gpu = -1)\n",
+             "ARGUMENT_MISMATCH", "gpu index must be non-negative");
+ bad_message("auto value = tensor.zeros<float32>([1], gpu = 1.5)\n",
+             "TYPE_MISMATCH", "expected int");
+ bad_code("auto value = tensor.zeros<float32>([1], device = 0)\n",
+          "ARGUMENT_MISMATCH");
+ bad_message("auto value = tensor.zeros<float32>([1])\nauto moved = value.gpu()\n",
+             "ARGUMENT_MISMATCH", "requires exactly one positional integer GPU index");
+ bad_message("auto value = tensor.zeros<float32>([1])\nauto moved = value.gpu(-1)\n",
+             "ARGUMENT_MISMATCH", "non-negative GPU index");
+ bad_message("auto value = tensor.zeros<float32>([1])\nauto moved = value.cpu(0)\n",
+             "ARGUMENT_MISMATCH", "takes no arguments");
+
+ // Explicit transfer remains an observable IR boundary; it must not be folded
+ // into the preceding allocation or relocate earlier arithmetic.
+ const std::string explicit_gpu_transfer = R"(tensor<float32> source = tensor.zeros<float32>([2])
+tensor<float32> moved = source.gpu(0)
+)";
+ ir_contains(explicit_gpu_transfer, "tensor.create");
+ ir_contains(explicit_gpu_transfer, " cpu");
+ ir_contains(explicit_gpu_transfer, "tensor.gpu");
+ const std::string post_compute_transfer = R"(tensor<float32> left = tensor.ones<float32>([2])
+tensor<float32> right = tensor.ones<float32>([2])
+tensor<float32> sum = left + right
+tensor<float32> moved = sum.gpu(0)
+)";
+ ir_contains(post_compute_transfer, "tensor.binary");
+ ir_contains(post_compute_transfer, "tensor.gpu");
+ llvm_contains(
+     "auto value = tensor.zeros<float32>([1], gpu = 0)\n",
+     "@quidra_tensor_create");
+ llvm_contains(
+     "auto value = tensor.zeros<float32>([1])\nauto moved = value.gpu(0)\n",
+     "@quidra_tensor_to_gpu");
+ llvm_contains(
+     "auto value = tensor.zeros<float32>([1])\nauto moved = value.cpu()\n",
+     "@quidra_tensor_to_cpu");
+
  // Loop-carried tensor facts must be weakened before checking the loop body.
  good(R"(void loop_backedge(bool flag)
     tensor<float32> value = tensor.zeros<float32>([2, 2])

@@ -267,6 +267,9 @@ struct FunctionEmitter {
     std::unordered_set<std::string> writable_params;
     std::unordered_set<std::string> borrowed_params;
     std::unordered_set<std::string> borrowed_locals;
+    // Per-function scratch arrays live in the entry block so repeated lowering
+    // inside source loops cannot grow the native stack on each iteration.
+    std::map<ir::ValueId,std::size_t> pointer_scratch_slots;
     bool guard_stack_depth{};
     const std::unordered_set<std::string>& recursive_callees;
     std::size_t temp_counter{0};
@@ -286,6 +289,7 @@ struct FunctionEmitter {
     std::string local(const std::string&n)const{return "%local."+local_id(n);}
     std::string arg(const std::string&n)const{return "%arg."+local_id(n);}
     std::string storage(const std::string&n)const{return writable_params.contains(n)?arg(n):local(n);}
+    std::string pointer_scratch(ir::ValueId id)const{return "%scratch.ptrs."+std::to_string(id);}
     std::string temp(const std::string&prefix){return "%"+prefix+"."+std::to_string(temp_counter++);}
     std::string unique_label(const std::string&prefix){return prefix+"."+std::to_string(temp_counter++);}
     void fail_if(const std::string& condition,const std::string& code,const std::string& message,
@@ -372,7 +376,29 @@ struct FunctionEmitter {
         }
     }
 
-    void scan(){for(const auto&p:fn.parameters){locals[p.name]=p.type;if(p.writable)writable_params.insert(p.name);if(p.borrowed)borrowed_params.insert(p.name);}for(const auto&b:fn.blocks)for(const auto&i:b.instructions){if(const auto*s=std::get_if<ir::StoreLocal>(&i)){locals[s->name]=s->type;if(s->borrowed)borrowed_locals.insert(s->name);}if(const auto*d=std::get_if<ir::DeclareLocal>(&i))locals[d->name]=d->type;if(const auto*r=std::get_if<ir::DeclareReference>(&i))references[r->name]=r->type;if(const auto*c=std::get_if<ir::ConstantString>(&i))pool.intern(c->value);if(const auto*c=std::get_if<ir::ConstantExact>(&i))pool.intern(c->spelling);}}
+    void scan(){
+        for(const auto& p:fn.parameters){
+            locals[p.name]=p.type;
+            if(p.writable) writable_params.insert(p.name);
+            if(p.borrowed) borrowed_params.insert(p.name);
+        }
+        for(const auto& b:fn.blocks){
+            for(const auto& i:b.instructions){
+                if(const auto* s=std::get_if<ir::StoreLocal>(&i)){
+                    locals[s->name]=s->type;
+                    if(s->borrowed) borrowed_locals.insert(s->name);
+                }
+                if(const auto* d=std::get_if<ir::DeclareLocal>(&i)) locals[d->name]=d->type;
+                if(const auto* r=std::get_if<ir::DeclareReference>(&i)) references[r->name]=r->type;
+                if(const auto* literal=std::get_if<ir::ConstantString>(&i)) pool.intern(literal->value);
+                if(const auto* exact=std::get_if<ir::ConstantExact>(&i)) pool.intern(exact->spelling);
+                if(const auto* concat=std::get_if<ir::StringConcat>(&i))
+                    pointer_scratch_slots[concat->out]=concat->values.size();
+                if(const auto* append=std::get_if<ir::StringAppendMove>(&i))
+                    pointer_scratch_slots[append->out]=append->suffixes.size();
+            }
+        }
+    }
 
     void emit_repl_text(const std::string& text) {
         const auto literal = pool.intern(text);
@@ -761,11 +787,11 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::StringJoin>){values[n.out]=Type::simple(TypeKind::String);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_join(ptr "<<value(n.values)<<", ptr "<<value(n.separator)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringConcat>){
             values[n.out]=Type::simple(TypeKind::String);
-            const auto items=temp("string.concat.items");
-            out<<"  "<<items<<" = alloca ptr, i64 "<<n.values.size()<<"\n";
+            const auto items=pointer_scratch(n.out);
             for(std::size_t i=0;i<n.values.size();++i){
                 const auto slot=temp("string.concat.slot");
-                out<<"  "<<slot<<" = getelementptr inbounds ptr, ptr "<<items<<", i64 "<<i<<"\n";
+                out<<"  "<<slot<<" = getelementptr inbounds ["<<n.values.size()
+                   <<" x ptr], ptr "<<items<<", i64 0, i64 "<<i<<"\n";
                 out<<"  store ptr "<<value(n.values[i])<<", ptr "<<slot<<"\n";
             }
             out<<"  "<<value(n.out)<<" = call ptr @quidra_string_concat_many(ptr "<<items<<", i64 "<<n.values.size()<<")\n";
@@ -776,11 +802,11 @@ struct FunctionEmitter {
         }
         if constexpr(std::is_same_v<T,ir::StringAppendMove>){
             values[n.out]=Type::simple(TypeKind::String);
-            const auto items=temp("string.append.items");
-            out<<"  "<<items<<" = alloca ptr, i64 "<<n.suffixes.size()<<"\n";
+            const auto items=pointer_scratch(n.out);
             for(std::size_t i=0;i<n.suffixes.size();++i){
                 const auto slot=temp("string.append.slot");
-                out<<"  "<<slot<<" = getelementptr inbounds ptr, ptr "<<items<<", i64 "<<i<<"\n";
+                out<<"  "<<slot<<" = getelementptr inbounds ["<<n.suffixes.size()
+                   <<" x ptr], ptr "<<items<<", i64 0, i64 "<<i<<"\n";
                 out<<"  store ptr "<<value(n.suffixes[i])<<", ptr "<<slot<<"\n";
             }
             out<<"  "<<value(n.out)<<" = call ptr @quidra_string_append_move_many(ptr "<<value(n.text)
@@ -2371,6 +2397,8 @@ struct FunctionEmitter {
                    <<value(n.operand)<<", i32 1, i64 "<<n.line<<", i64 "<<n.column<<")\n";
             }else if(n.op=="not"){
                 out<<"  "<<value(n.out)<<" = xor i1 "<<value(n.operand)<<", true\n";
+            }else if(n.op=="NOT"){
+                out<<"  "<<value(n.out)<<" = xor "<<llvm_type(n.type)<<" "<<value(n.operand)<<", -1\n";
             }else if(n.type.kind==TypeKind::BigInt){
                 out<<"  "<<value(n.out)<<" = call ptr @quidra_bigint_neg(ptr "<<value(n.operand)
                    <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
@@ -2418,6 +2446,31 @@ struct FunctionEmitter {
             if(is_integer(ot)){
                 const auto ty=llvm_type(ot);
                 const auto width=integer_width(ot);
+                if(n.op=="AND"||n.op=="OR"||n.op=="XOR"){
+                    const auto instruction=n.op=="AND"?"and":n.op=="OR"?"or":"xor";
+                    out<<"  "<<value(n.out)<<" = "<<instruction<<" "<<ty<<" "
+                       <<value(n.left)<<", "<<value(n.right)<<"\n";
+                    return;
+                }
+                if(n.op=="<<"||n.op==">>"){
+                    std::string invalid;
+                    const auto high=temp("shift.high");
+                    if(is_signed_integer(ot)){
+                        const auto low=temp("shift.low");
+                        invalid=temp("shift.invalid");
+                        out<<"  "<<low<<" = icmp slt "<<ty<<" "<<value(n.right)<<", 0\n";
+                        out<<"  "<<high<<" = icmp sge "<<ty<<" "<<value(n.right)<<", "<<width<<"\n";
+                        out<<"  "<<invalid<<" = or i1 "<<low<<", "<<high<<"\n";
+                    }else{
+                        invalid=high;
+                        out<<"  "<<high<<" = icmp uge "<<ty<<" "<<value(n.right)<<", "<<width<<"\n";
+                    }
+                    fail_if(invalid,"@.code.shift","@.msg.shift","shift",n.line,n.column);
+                    const auto instruction=n.op=="<<"?"shl":(is_signed_integer(ot)?"ashr":"lshr");
+                    out<<"  "<<value(n.out)<<" = "<<instruction<<" "<<ty<<" "
+                       <<value(n.left)<<", "<<value(n.right)<<"\n";
+                    return;
+                }
                 if(n.op=="+"||n.op=="-"||n.op=="*"){
                     const auto opname=n.op=="+"?"add":n.op=="-"?"sub":"mul";
                     const auto sign=is_signed_integer(ot)?"s":"u";
@@ -2689,7 +2742,7 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::Branch>)out<<"  br i1 "<<value(n.condition)<<", label %"<<n.if_true<<", label %"<<n.if_false<<"\n";
     },ins);}
 
-    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<") {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";return out.str();}
+    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<") {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[id,count]:pointer_scratch_slots)out<<"  "<<pointer_scratch(id)<<" = alloca ["<<count<<" x ptr]\n";for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";return out.str();}
 };
 
 
@@ -3980,6 +4033,7 @@ out<<"@.fmt.repl.error = private unnamed_addr constant [12 x i8] c\"error(\\22%s
 out<<"@.fmt.runtime.error = private unnamed_addr constant [43 x i8] c\"Quidra runtime error[%s] at %lld:%lld: %s\\0A\\00\"\n";
 out<<"@.code.overflow = private unnamed_addr constant [17 x i8] c\"INTEGER_OVERFLOW\\00\"\n@.msg.overflow = private unnamed_addr constant [17 x i8] c\"integer overflow\\00\"\n";
 out<<"@.code.divzero = private unnamed_addr constant [17 x i8] c\"DIVISION_BY_ZERO\\00\"\n@.msg.divzero = private unnamed_addr constant [17 x i8] c\"division by zero\\00\"\n";
+out<<"@.code.shift = private unnamed_addr constant [12 x i8] c\"SHIFT_COUNT\\00\"\n@.msg.shift = private unnamed_addr constant [34 x i8] c\"shift count outside integer width\\00\"\n";
 out<<"@.code.range.step = private unnamed_addr constant [16 x i8] c\"RANGE_STEP_ZERO\\00\"\n@.msg.range.step = private unnamed_addr constant [19 x i8] c\"range step is zero\\00\"\n";
 out<<"@.code.stack = private unnamed_addr constant [17 x i8] c\"CALL_DEPTH_LIMIT\\00\"\n@.msg.stack = private unnamed_addr constant [17 x i8] c\"call depth limit\\00\"\n";
 out<<"@.code.numeric.cast = private unnamed_addr constant [19 x i8] c\"NUMERIC_CAST_RANGE\\00\"\n@.msg.numeric.cast = private unnamed_addr constant [39 x i8] c\"numeric cast outside destination range\\00\"\n";

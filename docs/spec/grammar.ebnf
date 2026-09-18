@@ -90,6 +90,12 @@ argument         = "&", identifier, "=", "&", expression
                  | [ "&" ], expression ;
 statement_end    = NEWLINE | EOF ;
 
+(* Numeric lexical constraints:
+   - integer literals are decimal digits only; 0x/0b/0o-style base prefixes do not exist;
+   - floating literals contain a decimal point;
+   - exponent notation is available only after that decimal point, e.g. 1.0e8;
+   - numeric literals carry integer/floating families rather than default concrete types. *)
+
 (* Static/frontend constraints:
    - import is top-level only; imported modules contain declarations only;
    - standard namespaces are always visible and cannot be imported;

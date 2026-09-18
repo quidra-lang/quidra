@@ -46,7 +46,11 @@ struct Type {
     TypeKind kind{TypeKind::Void};
     std::shared_ptr<Type> first;
     std::vector<Type> cases;
+    // Arrays use length as their static length. Tensors use length only as a
+    // compiler-internal known rank; it is not part of the source-visible type.
     long long length{-1};
+    std::vector<long long> tensor_shape_prefix;
+    std::vector<long long> tensor_known_shape_prefix;
     std::string class_name;
 
     static Type simple(TypeKind kind) {
@@ -68,10 +72,14 @@ struct Type {
         return type;
     }
 
-    static Type tensor(Type element, long long rank = -1) {
+    static Type tensor(Type element, long long rank = -1,
+                       std::vector<long long> shape_prefix = {},
+                       std::vector<long long> known_shape_prefix = {}) {
         auto type = simple(TypeKind::Tensor);
         type.first = std::make_shared<Type>(std::move(element));
         type.length = rank;
+        type.tensor_shape_prefix = std::move(shape_prefix);
+        type.tensor_known_shape_prefix = std::move(known_shape_prefix);
         return type;
     }
 
@@ -84,9 +92,17 @@ struct Type {
     static Type union_of(std::vector<Type>);
 
     bool operator==(const Type& other) const {
-        return kind == other.kind && length == other.length && class_name == other.class_name &&
-               cases == other.cases && bool(first) == bool(other.first) &&
-               (!first || *first == *other.first);
+        if (kind != other.kind || class_name != other.class_name ||
+            cases != other.cases || bool(first) != bool(other.first) ||
+            (first && *first != *other.first)) {
+            return false;
+        }
+        if (kind == TypeKind::Array) return length == other.length;
+        if (kind == TypeKind::Tensor) {
+            // Rank and inferred shape are flow facts, not nominal type identity.
+            return tensor_shape_prefix == other.tensor_shape_prefix;
+        }
+        return true;
     }
 
     bool operator!=(const Type& other) const { return !(*this == other); }
@@ -115,9 +131,13 @@ inline std::string type_name(const Type& type) {
         case TypeKind::Range: return "range";
         case TypeKind::Invalid: return "<invalid>";
         case TypeKind::Class: return type.class_name;
-        case TypeKind::Tensor:
-            return "tensor<" + type_name(*type.first) +
-                   (type.length < 0 ? ">" : ", " + std::to_string(type.length) + ">");
+        case TypeKind::Tensor: {
+            std::string result = "tensor<" + type_name(*type.first);
+            for (const auto extent : type.tensor_shape_prefix) {
+                result += ", " + std::to_string(extent);
+            }
+            return result + ">";
+        }
         case TypeKind::Neural:
             return *type.first == Type::simple(TypeKind::Float32)
                 ? "neural"
@@ -376,15 +396,9 @@ inline bool integer_range_exact_in_float(const Type& from, const Type& to) {
 }
 
 inline bool lossless_implicit_numeric_conversion(const Type& from, const Type& to) {
-    if (!is_numeric(from) || !is_numeric(to)) return false;
-    if (from == to) return true;
-
-    if (is_integer(from) && is_integer(to)) return integer_range_contained(from, to);
-    if (is_integer(from) && is_float(to)) return integer_range_exact_in_float(from, to);
-    if (is_float(from) && is_float(to)) {
-        return from.kind == TypeKind::Float32 && to.kind == TypeKind::Float;
-    }
-    return false;
+    // Quidra never changes the representation of an already-typed numeric value
+    // implicitly. Numeric literals may still be contextually typed by the checker.
+    return is_numeric(from) && is_numeric(to) && from == to;
 }
 
 inline bool explicit_numeric_cast_supported(const Type& from, const Type& to) {
@@ -481,11 +495,32 @@ inline int case_index(const Type& type, const Type& current) {
     return it == type.cases.end() ? -1 : static_cast<int>(it - type.cases.begin());
 }
 
+inline std::optional<long long> tensor_known_extent(const Type& type, std::size_t axis) {
+    if (axis < type.tensor_known_shape_prefix.size()) {
+        return type.tensor_known_shape_prefix[axis];
+    }
+    if (axis < type.tensor_shape_prefix.size()) return type.tensor_shape_prefix[axis];
+    return std::nullopt;
+}
+
+inline bool tensor_satisfies_shape_prefix(const Type& from, const Type& to) {
+    if (to.tensor_shape_prefix.empty()) return true;
+    if (from.length >= 0 &&
+        static_cast<std::size_t>(from.length) < to.tensor_shape_prefix.size()) {
+        return false;
+    }
+    for (std::size_t axis = 0; axis < to.tensor_shape_prefix.size(); ++axis) {
+        const auto extent = tensor_known_extent(from, axis);
+        if (!extent || *extent != to.tensor_shape_prefix[axis]) return false;
+    }
+    return true;
+}
+
 inline bool representation_erasure_compatible(const Type& from, const Type& to) {
     if (from == to) return true;
     if (from.kind == TypeKind::Tensor && to.kind == TypeKind::Tensor) {
         return from.first && to.first && *from.first == *to.first &&
-               from.length >= 0 && to.length < 0;
+               tensor_satisfies_shape_prefix(from, to);
     }
     return false;
 }
@@ -521,8 +556,7 @@ inline bool assignable(const Type& from, const Type& to) {
                assignable(*from.first, *to.first);
     }
     if (from.kind == TypeKind::Tensor && to.kind == TypeKind::Tensor) {
-        return *from.first == *to.first &&
-               (to.length < 0 || (from.length >= 0 && from.length == to.length));
+        return *from.first == *to.first && tensor_satisfies_shape_prefix(from, to);
     }
     if (from.kind == TypeKind::Neural && to.kind == TypeKind::Neural) {
         return *from.first == *to.first;

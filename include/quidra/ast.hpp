@@ -16,7 +16,12 @@ struct TypeName {
     std::size_t array_depth{};
     std::vector<long long> dimensions;
     SourceSpan span{};
+    // tensor_shape_prefix is source-visible: tensor<T, A, B> constrains
+    // shape[0] == A and shape[1] == B. tensor_rank and
+    // tensor_known_shape_prefix are compiler-internal refinements only.
+    std::vector<long long> tensor_shape_prefix;
     std::optional<long long> tensor_rank;
+    std::vector<long long> tensor_known_shape_prefix;
 };
 
 struct Expr;

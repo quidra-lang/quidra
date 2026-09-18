@@ -275,18 +275,18 @@ TypeName Parser::type_name() {
             consume(TokenKind::Less, "Expected '<' before tensor element type.");
             if (at(TokenKind::Greater)) error(peek(), "tensor requires an element type.");
             t.arguments.push_back(type_name());
-            if (match(TokenKind::Comma)) {
-                const auto rank = consume(
+            while (match(TokenKind::Comma)) {
+                const auto extent = consume(
                     TokenKind::Integer,
-                    "tensor static rank must be a nonnegative integer literal.");
+                    "tensor shape constraints must be consecutive nonnegative integer literals.");
                 long long value{};
                 const auto parsed = std::from_chars(
-                    rank.text.data(), rank.text.data() + rank.text.size(), value);
+                    extent.text.data(), extent.text.data() + extent.text.size(), value);
                 if (parsed.ec != std::errc{} ||
-                    parsed.ptr != rank.text.data() + rank.text.size()) {
-                    error(rank, "tensor static rank is too large.");
+                    parsed.ptr != extent.text.data() + extent.text.size()) {
+                    error(extent, "tensor shape constraint is too large.");
                 }
-                t.tensor_rank = value;
+                t.tensor_shape_prefix.push_back(value);
             }
             consume(TokenKind::Greater, "Expected '>' after tensor type.");
         } else {

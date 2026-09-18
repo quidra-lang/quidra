@@ -1345,7 +1345,9 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
         if (!is_numeric(element)) {
             error("INVALID_TYPE", "tensor element type must be numeric.", source.arguments.front().span);
         }
-        type = Type::tensor(element, source.tensor_rank.value_or(-1));
+        type = Type::tensor(element, source.tensor_rank.value_or(-1),
+                            source.tensor_shape_prefix,
+                            source.tensor_known_shape_prefix);
     } else if (source.name == "neural") {
         Type element = simple(TypeKind::Float32);
         if (source.arguments.size() > 1) {
@@ -1526,7 +1528,22 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
                 }
             }
         }
-        return Type::tensor(*base.first, result_rank);
+        auto shape_prefix = base.tensor_shape_prefix;
+        auto known_shape_prefix = base.tensor_known_shape_prefix;
+        const auto project_prefix = [&](std::vector<long long>& prefix) {
+            std::size_t axis = 0;
+            for (const auto& item : node->items) {
+                if (!item.slice) {
+                    if (axis < prefix.size()) prefix.erase(prefix.begin() + axis);
+                } else {
+                    ++axis;
+                }
+            }
+        };
+        project_prefix(shape_prefix);
+        project_prefix(known_shape_prefix);
+        return Type::tensor(*base.first, result_rank,
+                            std::move(shape_prefix), std::move(known_shape_prefix));
     }
 
     if (node->items.size() != 1 || node->items.front().slice ||
@@ -1635,9 +1652,25 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                 }
                             }
                         }
+                        std::vector<long long> known_shape;
+                        if (!poisoned(shape)) {
+                            if (const auto* literal =
+                                    std::get_if<ArrayExpr>(&node->args[0].value->data)) {
+                                bool known = true;
+                                for (const auto& item : literal->elements) {
+                                    const auto extent = constant_integer_value(*item);
+                                    if (!extent || *extent < 0) {
+                                        known = false;
+                                        break;
+                                    }
+                                    known_shape.push_back(*extent);
+                                }
+                                if (!known) known_shape.clear();
+                            }
+                        }
                         type = poisoned(shape)
                             ? simple(TypeKind::Invalid)
-                            : Type::tensor(*receiver.first, rank);
+                            : Type::tensor(*receiver.first, rank, {}, std::move(known_shape));
                     } else if (node->method == "contiguous") {
                         if (!node->type_arguments.empty() || !node->args.empty()) {
                             error("ARGUMENT_MISMATCH",
@@ -1679,7 +1712,9 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         } else if (!explicit_numeric_cast_supported(*receiver.first, target)) {
                             error("TYPE_MISMATCH", "tensor.cast cannot convert " + type_name(*receiver.first) + " to " + type_name(target) + "; floating-point to integer conversion requires an explicit rounding operation.", expression.span);
                         }
-                        type = Type::tensor(target, receiver.length);
+                        type = Type::tensor(target, receiver.length,
+                                            receiver.tensor_shape_prefix,
+                                            receiver.tensor_known_shape_prefix);
                     } else {
                         error("UNKNOWN_MEMBER",
                               "Type '" + type_name(receiver) + "' has no method '" +
@@ -3279,9 +3314,25 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                             }
                         }
                     }
+                    std::vector<long long> known_shape;
+                    if (!poisoned(shape)) {
+                        if (const auto* literal =
+                                std::get_if<ArrayExpr>(&node->args[0].value->data)) {
+                            bool known = true;
+                            for (const auto& item : literal->elements) {
+                                const auto extent = constant_integer_value(*item);
+                                if (!extent || *extent < 0) {
+                                    known = false;
+                                    break;
+                                }
+                                known_shape.push_back(*extent);
+                            }
+                            if (!known) known_shape.clear();
+                        }
+                    }
                     type = poisoned(shape)
                         ? simple(TypeKind::Invalid)
-                        : Type::tensor(element, rank);
+                        : Type::tensor(element, rank, {}, std::move(known_shape));
                     break;
                 }
             }
@@ -4047,6 +4098,14 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             }
         } else if (node.value) {
             check_expr(*node.value, &type);
+            if (type.kind == TypeKind::Tensor) {
+                const auto raw = raw_types_.find(node.value.get());
+                if (raw != raw_types_.end() && raw->second.kind == TypeKind::Tensor) {
+                    type.length = raw->second.length;
+                    type.tensor_known_shape_prefix =
+                        raw->second.tensor_known_shape_prefix;
+                }
+            }
         }
         if (!is_storable(type)) {
             error("INVALID_TYPE", "Binding requires a storable type.", statement.span);
@@ -4162,7 +4221,22 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                 }
                 type = variables_.at(name->name);
                 expr_types_[node.target.get()] = raw_types_[node.target.get()] = type;
-                check_expr(*node.value, &type);
+                auto expected = type;
+                if (expected.kind == TypeKind::Tensor) {
+                    expected.length = -1;
+                    expected.tensor_known_shape_prefix.clear();
+                }
+                check_expr(*node.value, &expected);
+                if (type.kind == TypeKind::Tensor) {
+                    const auto raw = raw_types_.find(node.value.get());
+                    if (raw != raw_types_.end() && raw->second.kind == TypeKind::Tensor) {
+                        auto refined = type;
+                        refined.length = raw->second.length;
+                        refined.tensor_known_shape_prefix =
+                            raw->second.tensor_known_shape_prefix;
+                        variables_[name->name] = std::move(refined);
+                    }
+                }
                 if (current_reference_parameters_.contains(name->name)) {
                     record_storage_assignment(
                         current_reference_effects_[name->name], "", type, *node.value);

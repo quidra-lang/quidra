@@ -150,6 +150,27 @@ if [[ "$output" != "$expected" ]]; then
     exit 1
 fi
 
+cat > "$TMP/log-domain.qui" <<QUI
+tensor<float32> value = tensor.zeros<float32>([1], gpu = $GPU_INDEX)
+neural<float32> invalid = neural.logarithm(neural.track(value))
+print(invalid.untrack().item())
+QUI
+set +e
+"$QUIDRA" run "$TMP/log-domain.qui" >"$TMP/log-domain.out" 2>"$TMP/log-domain.err"
+log_status=$?
+set -e
+if [[ $log_status -ne 101 ]]; then
+    echo "real GPU log domain violation should fail with status 101, got $log_status" >&2
+    cat "$TMP/log-domain.out" >&2 || true
+    cat "$TMP/log-domain.err" >&2 || true
+    exit 1
+fi
+if ! grep -Fq "logarithm requires finite positive values" "$TMP/log-domain.err"; then
+    echo "missing real GPU log domain diagnostic" >&2
+    cat "$TMP/log-domain.err" >&2
+    exit 1
+fi
+
 cat > "$TMP/integer-overflow.qui" <<QUI
 tensor<int8> value = tensor.ones<int8>([1], gpu = $GPU_INDEX) * int8(127)
 tensor<int8> invalid = value + int8(1)
@@ -224,9 +245,14 @@ tensor<float> left = tensor.ones<float>([2, 2], gpu = $GPU_INDEX)
 tensor<float> right = tensor.ones<float>([2, 2], gpu = $GPU_INDEX)
 tensor<float> product = linear.matmul(left, right).cpu()
 print(product[1, 1].item() == 2.0)
+tensor<float> positive = tensor.ones<float>([1], gpu = $GPU_INDEX)
+neural<float> exponential = neural.exponential(neural.track(positive))
+neural<float> restored = neural.logarithm(exponential)
+float restored_value = restored.untrack().item()
+print(restored_value > 0.999999999 and restored_value < 1.000000001)
 QUI
     float64_output="$("$QUIDRA" run "$TMP/float64-real-gpu.qui")"
-    float64_expected="$(printf 'true\ntrue\ntrue')"
+    float64_expected="$(printf 'true\ntrue\ntrue\ntrue')"
     if [[ "$float64_output" != "$float64_expected" ]]; then
         echo "real GPU float64 equivalence failed on gpu($GPU_INDEX)" >&2
         printf '%s\n' "$float64_output" >&2

@@ -56,6 +56,45 @@ int main() {
                 "neural explicit dtype shape pattern AST");
     }
     {
+        auto extents = parse(
+            "int n = 3\n"
+            "int m = 4\n"
+            "tensor<float><n * 2 + 1, _, 224> image\n"
+            "neural<float><n * m, 224> graph\n"
+            "float[n * m] row\n"
+            "float[][n * m] nested\n"
+        );
+        const auto& image =
+            std::get<BindingStmt>(extents.statements[2]->data).declared_type;
+        const auto& graph =
+            std::get<BindingStmt>(extents.statements[3]->data).declared_type;
+        const auto& row =
+            std::get<BindingStmt>(extents.statements[4]->data).declared_type;
+        const auto& nested =
+            std::get<BindingStmt>(extents.statements[5]->data).declared_type;
+        require(image.tensor_shape_prefix ==
+                    std::vector<long long>({-2, -1, 224}) &&
+                image.tensor_shape_expressions.size() == 3 &&
+                image.tensor_shape_expressions[0] &&
+                !image.tensor_shape_expressions[1] &&
+                image.tensor_shape_expressions[2],
+                "tensor integer-expression shape AST");
+        require(graph.tensor_shape_prefix ==
+                    std::vector<long long>({-2, 224}) &&
+                graph.tensor_shape_expressions[0],
+                "neural integer-expression shape AST");
+        require(row.dimensions == std::vector<long long>({-2}) &&
+                row.dimension_expressions.size() == 1 &&
+                row.dimension_expressions[0],
+                "array integer-expression extent AST");
+        require(nested.dimensions == std::vector<long long>({-1, -2}) &&
+                nested.dimension_expressions.size() == 2 &&
+                !nested.dimension_expressions[0] &&
+                nested.dimension_expressions[1],
+                "nested array captured extent AST");
+    }
+
+    {
         bool rejected = false;
         try {
             (void)parse(

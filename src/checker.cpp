@@ -4794,9 +4794,24 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
     } else if (const auto* node = std::get_if<UnaryExpr>(&expression.data)) {
         std::optional<Type> literal_expected;
         const Type* operand_expected = nullptr;
+        bool materialized_signed_minimum = false;
         if (node->op == "-" && expected &&
             (is_numeric(*expected) || expected->kind == TypeKind::Tensor)) {
             operand_expected = expected;
+            if (const auto* literal = std::get_if<IntegerExpr>(&node->operand->data);
+                literal && is_integer(*expected) && is_signed_integer(*expected) &&
+                !integer_literal_value_fits(
+                    static_cast<unsigned long long>(literal->value), *expected) &&
+                negative_integer_literal_value_fits(
+                    static_cast<unsigned long long>(literal->value), *expected)) {
+                // The sign is part of the source expression's value. Signed minima
+                // such as int8(-128) must not reject the magnitude 128 before '-'
+                // is applied.
+                type = *expected;
+                raw_types_[node->operand.get()] = *expected;
+                expr_types_[node->operand.get()] = *expected;
+                materialized_signed_minimum = true;
+            }
         } else if (node->op == "-") {
             const auto family = numeric_literal_family(*node->operand);
             if (family == NumericLiteralFamily::Mixed) {
@@ -4815,7 +4830,9 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 operand_expected = &*literal_expected;
             }
         }
-        type = check_expr(*node->operand, operand_expected);
+        if (!materialized_signed_minimum) {
+            type = check_expr(*node->operand, operand_expected);
+        }
         if (!poisoned(type)) {
             if (node->op == "not") {
                 if (type.kind != TypeKind::Bool) {

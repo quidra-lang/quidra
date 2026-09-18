@@ -46,12 +46,12 @@ Scalar values provide `.string()` for their standard textual representation.
 `bin` is a mutable packed raw bit sequence with value semantics.
 
 ```quidra
-bin zeros = bin(8, fill = 0)
-bin ones = bin(5, fill = 1)
+bin zeros = bin.fill(8, 0)
+bin ones = bin.fill(5, 1)
 bin pattern = bin.parse("01010000")
 ```
 
-`bin(n, fill = 0|1)` allocates exactly `n` bits. `len(value)` returns the bit count. Negative lengths, fill values other than 0 or 1, and invalid allocation sizes fail deterministically.
+`bin.fill(n, bit)` allocates exactly `n` bits, with `bit` restricted to `0` or `1`. `bin(value)` is reserved for explicit conversion. `len(value)` returns the bit count. Negative lengths, fill values other than 0 or 1, and invalid allocation sizes fail deterministically.
 
 A written bit pattern is parsed rather than given a separate binary literal grammar:
 

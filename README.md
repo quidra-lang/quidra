@@ -417,22 +417,22 @@ int[] dynamic = [1, 2, 3]
 int[3] fixed = [4, 5, 6]
 int[] zeros = array(5, fill = 0)
 
-bin data = bin(8, fill = 0)
+bin data = bin.fill(8, 0)
 data[0] = bin.parse("1")
 bin first = data[0]
 ```
 
 Fixed array lengths are part of the type. Arrays have value semantics, including nested arrays.
 
-`bin` is mutable packed raw binary data. `len(data)` is the number of bits, `data[i]` returns a one-bit `bin`, and `data[start:end]` returns a `bin` slice. `bin(n, fill = 0|1)` allocates exactly `n` bits; `bin.parse("0101")` parses a written bit pattern. Binary-to-numeric interpretation is always explicit, for example `uint8(bits)`, and the bit length must match the destination width exactly.
+`bin` is mutable packed raw binary data. `len(data)` is the number of bits, `data[i]` returns a one-bit `bin`, and `data[start:end]` returns a `bin` slice. `bin.fill(n, bit)` allocates exactly `n` bits and requires `bit` to be `0` or `1`; `bin.parse("0101")` parses a written bit pattern. Binary-to-numeric interpretation is always explicit, for example `uint8(bits)`, and the bit length must match the destination width exactly.
 
 ### Strings
 
-Strings are immutable values. Repeated initialization uses `string(n, fill = value)`, where `value` is exactly one Unicode code point.
+Strings are immutable values. Repetition uses `string.repeat(value, n)`, where `value` is exactly one Unicode code point and `n` is the repeat count.
 
 ```quidra
 string name = "Quidra"
-string repeated = string(6, fill = "a")
+string repeated = string.repeat("a", 6)
 print("Hello, {name}")
 print("first{enter}second")
 ```

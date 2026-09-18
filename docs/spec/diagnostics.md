@@ -16,10 +16,10 @@ Codes are contracts for the category of failure. Message wording may become more
 | `DUPLICATE_IMPORT_ALIAS` | Two imports expose the same alias. | Give imports distinct aliases. |
 | `DUPLICATE_NAME` | A declaration duplicates an existing name or uses a name reserved for that declaration kind. | Rename or remove the declaration; reserved names cannot be reused. |
 | `FFI_DEFAULT` | An external C parameter declares a default argument. | Remove the default; external C parameters are supplied at every call site. |
-| `FFI_REFERENCE` | An external C parameter uses a reference/const form its type does not admit. | Pass numeric/bool scalars by value; declare `string`/`bytes` inputs as `const T &`. |
+| `FFI_REFERENCE` | An external C parameter uses a reference/const form its type does not admit. | Pass numeric/bool scalars by value; declare `string`/`bin` inputs as `const T &`. |
 | `FFI_SYMBOL` | An external C symbol is not an ASCII C identifier. | Bind an ordinary C identifier symbol. |
 | `FFI_SYMBOL_CONFLICT` | An external C symbol is reserved by the compiler/runtime implementation, or is already bound by another `extern` declaration. | Use a distinct C wrapper symbol; bind each C symbol once per compilation. |
-| `FFI_TYPE` | An external C result or parameter type is not admitted at the C ABI boundary. | Use `void` or an explicit numeric/bool scalar result, and scalar values or `const string &` / `const bytes &` parameters. |
+| `FFI_TYPE` | An external C result or parameter type is not admitted at the C ABI boundary. | Use `void` or an explicit numeric/bool scalar result, and scalar values or `const string &` / `const bin &` parameters. |
 | `FLOAT_RANGE` | A floating literal is not a finite representable source literal. | Use a finite literal in range. |
 | `FUNCTION_NOT_VALUE` | A function or method name is used where a first-class value is required. | Call it directly; declarations are not first-class values. |
 | `GENERIC_ARGUMENTS_REQUIRED` | A generic class was used where explicit type arguments are required. | Supply the class type arguments with `<...>`; generic functions and methods may omit them when inference is unambiguous. |
@@ -34,7 +34,7 @@ Codes are contracts for the category of failure. Message wording may become more
 | `IMPORT_TOP_LEVEL` | An imported module contains executable top-level statements. | Keep imported modules declaration-only. |
 | `STANDARD_NAMESPACE_IMPORT` | Source attempts to import or alias a standard namespace that is already always visible. | Remove the import and use the standard namespace directly. |
 | `INDEX_BOUNDS` | A constant array index is provably outside a statically known array length. | Use an index in the valid half-open range. |
-| `INDEX_ARITY` | An index list has the wrong shape for the indexed value. | Arrays/bytes use one integer index; tensors may use comma-separated indices/slices up to runtime rank. |
+| `INDEX_ARITY` | An index list has the wrong shape for the indexed value. | Arrays use one integer index; bin uses one integer index or a bit slice; tensors may use comma-separated indices/slices up to runtime rank. |
 | `INDEX_SYNTAX` | A tensor index component is structurally incomplete. | Supply an integer index or a valid slice. |
 | `SLICE_STEP` | A tensor slice step is statically known to be non-positive. | Use a positive step. |
 | `INVALID_CONTEXT` | A declaration or operation is used in a frontend context where it is not legal. | Move it to a supported context. |
@@ -105,7 +105,7 @@ Deterministic runtime safety failures terminate with status `101`. They include:
 
 - integer overflow at every supported signed or unsigned width;
 - dynamically determined integer division or remainder by zero;
-- array or bytes index bounds violations (array failures include the offending index and current length);
+- array or bin index bounds violations (array failures include the offending index and current length);
 - reads from runtime-tracked array or tensor storage that has not been initialized;
 - invalid allocation sizes;
 - integer casts whose runtime value is outside the destination range;

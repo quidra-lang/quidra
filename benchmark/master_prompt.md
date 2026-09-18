@@ -112,6 +112,12 @@ Do not mix measurements from different runs.
 
 Each run directory must be self-contained. Put the methodology, task definitions, prompt templates, tests, inputs, expected outputs, measurement and scoring scripts, utilities, reproducibility documentation, and generated evidence used for that run inside its directory. Material may be copied forward from an older run only after it is checked against this specification; the copied version then belongs to the new run and does not create shared infrastructure at the `benchmark/` root.
 
+Source implementations, task solutions, harness code, fixtures, and other generated artifacts from an older completed run may also be copied forward when they are still valid for the current task and specification. Reuse is allowed and is preferred over meaningless regeneration when it does not change what a metric measures. Every reused artifact must be identified in the new run and revalidated before use.
+
+Reuse of an artifact never permits reuse of its old measurements or scores. In every new run, rebuild or recompile as applicable, execute correctness checks again, repeat every timing/resource/token measurement required by the current specification, preserve the new raw evidence, and calculate all scores from the new run's measurements.
+
+LLM generation evaluations are the exception to source-solution reuse. Each scored initial LLM trial must still use the required fresh isolated session and must not be seeded with a prior run's generated solution or repair history unless a benchmark condition explicitly supplies the same prior artifact to every language being compared. This restriction protects what the LLM-generation metrics actually measure; it does not prohibit reuse of non-LLM benchmark infrastructure.
+
 After a benchmark is fully complete, its preserved run directory may be imported from the disposable scratch copy directly under `benchmark/` as a separate post-benchmark operation. Update the literal `(latest)` suffix only after the new run is complete. Do not commit or push while measurements are in progress.
 
 Do not retain in a completed run directory:

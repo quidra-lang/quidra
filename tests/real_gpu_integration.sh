@@ -140,10 +140,15 @@ tensor<int32> cow_copy = cow_original
 cow_copy[0] = int32(9)
 print(cow_original[0].item() == int32(1))
 print(cow_copy[0].item() == int32(9))
+
+tensor<int32> direct = tensor<int32>([2], gpu = $GPU_INDEX)
+direct[0] = int32(4)
+direct[1] = int32(5)
+print(direct[0].item() == int32(4) and direct[1].item() == int32(5))
 QUI
 
 output="$("$QUIDRA" run "$TMP/real-gpu.qui")"
-expected="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue')"
+expected="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue')"
 if [[ "$output" != "$expected" ]]; then
     echo "real GPU numerical equivalence failed on gpu($GPU_INDEX)" >&2
     printf '%s\n' "$output" >&2

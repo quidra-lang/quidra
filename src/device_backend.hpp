@@ -123,6 +123,34 @@ bool compute_affine_backward(
     int dtype, std::size_t batches, std::size_t features_in,
     std::size_t features_out, std::string& error);
 
+bool compute_conv2d_backward(
+    Buffer* input_gradient, Buffer* weight_gradient, Buffer* bias_gradient,
+    const Buffer* gradient, const Buffer* input, const Buffer* weight,
+    int dtype, std::size_t batches, std::size_t channels_in,
+    std::size_t height, std::size_t width, std::size_t channels_out,
+    std::size_t kernel_h, std::size_t kernel_w, std::size_t output_h,
+    std::size_t output_w, std::size_t stride, std::size_t padding,
+    std::string& error);
+bool compute_normalize_training(
+    Buffer* output, Buffer* cache, Buffer* running_mean, Buffer* running_variance,
+    const Buffer* input, const Buffer* scale, const Buffer* bias,
+    int dtype, std::size_t count, std::size_t features, std::size_t inner,
+    std::size_t samples, double momentum, double epsilon, std::string& error);
+bool compute_normalize_backward(
+    Buffer* input_gradient, Buffer* scale_gradient, Buffer* bias_gradient,
+    const Buffer* gradient, const Buffer* input, const Buffer* scale,
+    const Buffer* cache, int dtype, std::size_t count, std::size_t features,
+    std::size_t inner, std::size_t samples, std::string& error);
+bool compute_random_mask(
+    Buffer* output, Buffer* mask, const Buffer* input, int dtype,
+    std::size_t count, std::uint64_t initial_state, std::uint64_t cutoff,
+    double scale, std::string& error);
+bool compute_moment_update(
+    Buffer* parameter, const Buffer* gradient, Buffer* first, Buffer* second,
+    int dtype, std::size_t count, double rate, double beta1, double beta2,
+    double epsilon, double correction1, double correction2,
+    std::string& error);
+
 bool compute_image_geometry(
     Buffer* output, const Buffer* input, int dtype,
     std::size_t channels, std::size_t input_height, std::size_t input_width,

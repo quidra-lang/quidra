@@ -985,6 +985,7 @@ bool launch(Module* module, const char* kernel,
 #include "device_compute.inc"
 #include "device_neural_compute.inc"
 #include "device_autograd_compute.inc"
+#include "device_training_compute.inc"
 #include "device_vision_compute.inc"
 
 } // namespace quidra::device

@@ -157,7 +157,8 @@ BigInt sub_abs(const BigInt&a,const BigInt&b){
     return BigInt(1,std::move(out));
 }
 BigInt add(const BigInt&a,const BigInt&b){
-    if(!a.sign)return b;if(!b.sign)return a;
+    if(!a.sign)return b;
+    if(!b.sign)return a;
     if(a.sign==b.sign){auto out=add_abs(a,b);out.sign=a.sign;return out;}
     const int c=cmp_abs(a,b);if(!c)return {};
     auto out=c>0?sub_abs(a,b):sub_abs(b,a);
@@ -176,20 +177,6 @@ BigInt mul_small(const BigInt&a,std::uint32_t factor){
     }
     if(carry)out.push_back(static_cast<std::uint32_t>(carry));
     return BigInt(a.sign,std::move(out));
-}
-BigInt add_small(BigInt a,std::uint32_t value){
-    if(!value)return a;
-    if(a.sign<0)return add(a,BigInt::from_u64(value));
-    if(!a.sign)return BigInt::from_u64(value);
-    std::uint64_t carry=value;
-    std::size_t i=0;
-    while(carry&&i<a.limbs.size()){
-        const auto total=static_cast<std::uint64_t>(a.limbs[i])+carry;
-        a.limbs[i]=static_cast<std::uint32_t>(total%LIMB_BASE);
-        carry=total/LIMB_BASE;++i;
-    }
-    if(carry)a.limbs.push_back(static_cast<std::uint32_t>(carry));
-    return a;
 }
 BigInt mul(const BigInt&a,const BigInt&b){
     if(!a.sign||!b.sign)return {};
@@ -305,7 +292,9 @@ int cmp_dec(const std::string&a0,const std::string&b0){
 std::string add_dec(const std::string&a,const std::string&b){
     std::string out;int carry=0;std::size_t i=a.size(),j=b.size();
     while(i||j||carry){
-        int v=carry;if(i)v+=a[--i]-'0';if(j)v+=b[--j]-'0';
+        int v=carry;
+        if(i)v+=a[--i]-'0';
+        if(j)v+=b[--j]-'0';
         out.push_back(static_cast<char>('0'+v%10));carry=v/10;
     }
     std::reverse(out.begin(),out.end());return trim_dec(out);
@@ -410,7 +399,8 @@ bool parse_decimal(std::string_view text,Rational&out){
     }
     int sign=1;
     if(!s.empty()&&(s[0]=='+'||s[0]=='-')){
-        if(s[0]=='-')sign=-1;s.erase(0,1);
+        if(s[0]=='-')sign=-1;
+        s.erase(0,1);
     }
     if(s.empty())return false;
     const auto dot=s.find('.');
@@ -550,7 +540,8 @@ RealPtr real_neg(RealPtr a){
 RealPtr real_add(RealPtr a,RealPtr b){
     if(a->kind==RealKind::Rational&&b->kind==RealKind::Rational)
         return rr(rat_add(a->rational,b->rational));
-    if(is_zero(a))return b;if(is_zero(b))return a;
+    if(is_zero(a))return b;
+    if(is_zero(b))return a;
     return binary(RealKind::Add,std::move(a),std::move(b));
 }
 RealPtr real_sub(RealPtr a,RealPtr b){
@@ -581,7 +572,8 @@ RealPtr real_mul(RealPtr a,RealPtr b){
     if(a->kind==RealKind::Rational&&b->kind==RealKind::Rational)
         return rr(rat_mul(a->rational,b->rational));
     if(is_zero(a)||is_zero(b))return rr({});
-    if(is_one(a))return b;if(is_one(b))return a;
+    if(is_one(a))return b;
+    if(is_one(b))return a;
     Rational ca,cb;RealPtr ra,rb;
     if(sqrt_term(a,ca,ra)&&sqrt_term(b,cb,rb)){
         std::size_t budget=4096;

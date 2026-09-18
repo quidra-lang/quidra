@@ -470,7 +470,7 @@ ExprPtr Parser::type_integer_factor() {
         }
         auto result = std::make_unique<Expr>();
         result->span = token.span;
-        result->data = IntegerExpr{value};
+        result->data = IntegerExpr{value, std::to_string(value), true};
         return result;
     }
 
@@ -597,7 +597,7 @@ void Parser::cli_decl(Program& program) {
     auto integer_expr = [](std::size_t value, SourceSpan span) {
         auto out = std::make_unique<Expr>();
         out->span = span;
-        out->data = IntegerExpr{static_cast<std::uint64_t>(value)};
+        out->data = IntegerExpr{static_cast<std::uint64_t>(value), std::to_string(value), true};
         return out;
     };
 

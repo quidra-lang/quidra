@@ -10,23 +10,29 @@
 
 namespace quidra {
 
+struct Expr;
+using ExprPtr = std::unique_ptr<Expr>;
+
 struct TypeName {
     std::string name;
     std::vector<TypeName> arguments;
     std::size_t array_depth{};
     std::vector<long long> dimensions;
+    // Null means an unconstrained [] dimension. Non-null expressions are
+    // evaluated once when the binding is created and then captured.
+    std::vector<std::shared_ptr<Expr>> dimension_expressions;
     SourceSpan span{};
     // tensor_shape_prefix stores a source-visible exact shape pattern for
     // tensor/neural values. Nonnegative entries are fixed extents and -1 is
     // the '_' wildcard. tensor_rank and tensor_known_shape_prefix also carry
     // compiler-internal flow refinements.
     std::vector<long long> tensor_shape_prefix;
+    // Null means '_' for the corresponding axis. Non-null expressions are
+    // evaluated once when a binding is created.
+    std::vector<std::shared_ptr<Expr>> tensor_shape_expressions;
     std::optional<long long> tensor_rank;
     std::vector<long long> tensor_known_shape_prefix;
 };
-
-struct Expr;
-using ExprPtr = std::unique_ptr<Expr>;
 
 struct IntegerExpr { std::uint64_t value{}; };
 struct FloatExpr { double value{}; };

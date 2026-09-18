@@ -64,7 +64,9 @@ jobs:
       - name: Build
         run: cmake --build build-gpu-contracts --parallel
       - name: GPU backend and placement contracts
-        run: ctest --test-dir build-gpu-contracts -R '^quidra_(device_backend_tests|gpu_contracts)
+        run: |
+          ctest --test-dir build-gpu-contracts -R '^quidra_device_backend_tests$' --output-on-failure
+          ctest --test-dir build-gpu-contracts -R '^quidra_gpu_contracts$' --output-on-failure
 
   sanitizers:
     runs-on: ubuntu-latest

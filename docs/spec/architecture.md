@@ -8,6 +8,14 @@ The C++20 compiler lexes indentation-aware source into tokens, builds a parsed A
 
 Language semantics belong to the frontend. LLVM is an implementation target. Typed IR separates semantic checks from native representation and supports source inspection, transformations, and future backend work.
 
+### Phase ownership and lowering invariants
+
+The compiler keeps semantic ownership directional. Parsing owns syntax shape; resolution and checking own names, concrete types, authority, initialization, effects, numeric representation, and operator validity; typed IR carries those decisions forward; LLVM lowering consumes them rather than re-inferring source intent. Shared operator classification is centralized so checker, IR lowering, and native lowering cannot silently evolve different operator categories.
+
+Native lowering may change representation only when the change is unobservable under the checked language contract. Function-frame scratch storage is planned before basic-block emission and allocated in the entry frame when an IR operation needs temporary native storage. A source loop must not accumulate native stack space merely because an instruction inside the loop needs scratch memory. Block emission reuses the preplanned slot; runtime-sized semantic data uses the managed/runtime allocation model instead of an unbounded sequence of loop-local LLVM `alloca` operations.
+
+This phase boundary is a correctness property, not only an optimization. Backend transformations may erase proven checks or choose cheaper storage, but they may not recover missing semantic facts by guessing from source spellings, LLVM pointer shapes, or incidental control-flow layout.
+
 ## Core contracts
 
 - Reserved identifiers are absolute in user code: a reserved spelling cannot be redefined as a binding, parameter, function, class, field, method, generic parameter, binder, CLI field, or import alias, even behind qualification. Standard namespaces are always visible and are not imported or aliased; only referenced standard implementations are linked. Standard-library internal generated declarations are language-owned and are the implementation-level exception.

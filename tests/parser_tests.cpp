@@ -32,8 +32,29 @@ static void reject(const std::string& source) {
 }
 
 int main() {
-    reject("tensor<float32, , 3> invalid\n");
-    reject("tensor<float32, _, 3> invalid\n");
+    reject("tensor<float32, 3> invalid\n");
+    reject("tensor<3, _, _> invalid\n");
+    reject("tensor<float32><3, , _> invalid\n");
+    reject("tensor<float32><3, _ ,> invalid\n");
+    {
+        auto shaped = parse(
+            "tensor<float32><3, _, _> image\n"
+            "neural<3, _, _> graph\n"
+            "neural<float><_, 768> wide\n"
+        );
+        const auto& image = std::get<BindingStmt>(shaped.statements[0]->data).declared_type;
+        const auto& graph = std::get<BindingStmt>(shaped.statements[1]->data).declared_type;
+        const auto& wide = std::get<BindingStmt>(shaped.statements[2]->data).declared_type;
+        require(image.arguments.size() == 1 &&
+                image.tensor_shape_prefix == std::vector<long long>({3, -1, -1}),
+                "tensor exact shape pattern AST");
+        require(graph.arguments.empty() &&
+                graph.tensor_shape_prefix == std::vector<long long>({3, -1, -1}),
+                "neural default-float shape shorthand AST");
+        require(wide.arguments.size() == 1 &&
+                wide.tensor_shape_prefix == std::vector<long long>({-1, 768}),
+                "neural explicit dtype shape pattern AST");
+    }
     {
         bool rejected = false;
         try {

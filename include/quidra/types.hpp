@@ -22,8 +22,10 @@ enum class TypeKind {
     UInt16,
     UInt32,
     UInt64,
+    BigInt,
     Float,
     Float32,
+    BigReal,
     Bool,
     String,
     Bin,
@@ -124,8 +126,10 @@ inline std::string type_name(const Type& type) {
         case TypeKind::UInt16: return "uint16";
         case TypeKind::UInt32: return "uint32";
         case TypeKind::UInt64: return "uint64";
+        case TypeKind::BigInt: return "bigint";
         case TypeKind::Float: return "float";
         case TypeKind::Float32: return "float32";
+        case TypeKind::BigReal: return "bigreal";
         case TypeKind::Bool: return "bool";
         case TypeKind::String: return "string";
         case TypeKind::Bin: return "bin";
@@ -236,11 +240,31 @@ inline bool is_signed_integer(const Type& type) {
            type.kind == TypeKind::Int16 || type.kind == TypeKind::Int32;
 }
 
+inline bool is_bigint(const Type& type) {
+    return type.kind == TypeKind::BigInt;
+}
+
+inline bool is_integer_family_type(const Type& type) {
+    return is_integer(type) || is_bigint(type);
+}
+
 inline bool is_float(const Type& type) {
     return type.kind == TypeKind::Float || type.kind == TypeKind::Float32;
 }
 
+inline bool is_bigreal(const Type& type) {
+    return type.kind == TypeKind::BigReal;
+}
+
+inline bool is_real(const Type& type) {
+    return is_float(type) || is_bigreal(type);
+}
+
 inline bool is_numeric(const Type& type) {
+    return is_integer_family_type(type) || is_real(type);
+}
+
+inline bool is_tensor_numeric(const Type& type) {
     return is_integer(type) || is_float(type);
 }
 
@@ -436,7 +460,10 @@ inline bool integer_range_exact_in_float(const Type& from, const Type& to) {
 
 inline bool explicit_numeric_cast_supported(const Type& from, const Type& to) {
     if (!is_numeric(from) || !is_numeric(to)) return false;
-    if (is_float(from) && is_integer(to)) return false;
+    // IEEE real -> integer is a rounding operation, not a representation
+    // conversion. Exact bigreal -> integer is allowed only when runtime proof
+    // establishes that the mathematical value is integral.
+    if (is_float(from) && is_integer_family_type(to)) return false;
     return true;
 }
 
@@ -450,7 +477,11 @@ enum class NumericConversionPolicy {
 inline NumericConversionPolicy numeric_conversion_policy(const Type& from, const Type& to) {
     if (from == to) return NumericConversionPolicy::Identity;
     if (!explicit_numeric_cast_supported(from, to)) return NumericConversionPolicy::Forbidden;
-    if (is_integer(from) && is_integer(to)) return NumericConversionPolicy::ExplicitRangeCheck;
+    if ((is_integer(from) && is_integer(to)) ||
+        (is_bigint(from) && is_integer(to)) ||
+        (is_bigreal(from) && is_integer_family_type(to))) {
+        return NumericConversionPolicy::ExplicitRangeCheck;
+    }
     if (from.kind == TypeKind::Float && to.kind == TypeKind::Float32) {
         return NumericConversionPolicy::ExplicitRangeCheck;
     }
@@ -467,8 +498,10 @@ inline std::optional<Type> builtin_scalar_type(std::string_view name) {
     if (name == "uint16") return Type::simple(TypeKind::UInt16);
     if (name == "uint32") return Type::simple(TypeKind::UInt32);
     if (name == "uint64") return Type::simple(TypeKind::UInt64);
+    if (name == "bigint") return Type::simple(TypeKind::BigInt);
     if (name == "float") return Type::simple(TypeKind::Float);
     if (name == "float32") return Type::simple(TypeKind::Float32);
+    if (name == "bigreal") return Type::simple(TypeKind::BigReal);
     if (name == "bool") return Type::simple(TypeKind::Bool);
     if (name == "string") return Type::simple(TypeKind::String);
     if (name == "bin") return Type::simple(TypeKind::Bin);
@@ -476,7 +509,8 @@ inline std::optional<Type> builtin_scalar_type(std::string_view name) {
 }
 
 inline bool is_pointer_runtime_type(const Type& type) {
-    return type.kind == TypeKind::String || type.kind == TypeKind::Bin ||
+    return type.kind == TypeKind::BigInt || type.kind == TypeKind::BigReal ||
+           type.kind == TypeKind::String || type.kind == TypeKind::Bin ||
            type.kind == TypeKind::Error || type.kind == TypeKind::Array ||
            type.kind == TypeKind::Tensor || type.kind == TypeKind::Neural ||
            type.kind == TypeKind::Gradients || type.kind == TypeKind::Union ||
@@ -490,7 +524,8 @@ enum class ValueStoragePolicy {
 };
 
 inline ValueStoragePolicy value_storage_policy(const Type& type) {
-    if (type.kind == TypeKind::String || type.kind == TypeKind::Error ||
+    if (type.kind == TypeKind::BigInt || type.kind == TypeKind::BigReal ||
+        type.kind == TypeKind::String || type.kind == TypeKind::Error ||
         (type.kind == TypeKind::Class && type.class_name == "$std.json.Value")) {
         return ValueStoragePolicy::ImmutableShared;
     }

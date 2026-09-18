@@ -7,8 +7,10 @@ Quidra provides these numeric scalar types:
 - `int8`, `int16`, `int32`, `int`, `int64`
 - `uint8`, `uint16`, `uint32`, `uint64`
 - `float32`, `float`, `float64`
+- `bigint`
+- `bigreal`
 
-`int` and `int64` are the same signed 64-bit type. `float` and `float64` are the same IEEE-754 binary64 type. `float32` is IEEE-754 binary32.
+`int` and `int64` are the same signed 64-bit type. `float` and `float64` are the same IEEE-754 binary64 type. `float32` is IEEE-754 binary32. `bigint` is an exact arbitrary-precision integer. `bigreal` is an exact mathematical-real value: finite decimals are exact rationals, while exact constants and irrational results may remain symbolic rather than being rounded to an IEEE representation.
 
 There is no `char`, `bit`, `byte`, or `bytes` source type. Text uses `string`; a one-byte numeric value uses `uint8`; arbitrary raw bit sequences use `bin`. A quoted literal is always `string`.
 
@@ -17,7 +19,9 @@ There is no `char`, `bit`, `byte`, or `bytes` source type. Text uses `string`; a
 A numeric literal does not have a default concrete numeric type.
 
 - `3` is an **integer-family literal**.
-- `3.0` is a **floating-family literal**.
+- `3.0` is a **real-family literal**.
+
+The integer family can materialize as a fixed-width integer type or `bigint`. The real family can materialize as `float32`, `float`, or `bigreal`.
 
 A literal becomes concrete only when surrounding source code determines exactly one type in the same family:
 
@@ -43,14 +47,22 @@ Use an explicit conversion when a representation change is intended:
 float x = float(3)
 ```
 
-Within the floating family, destination rounding is allowed while materializing a literal, but the literal must remain inside the finite range of the destination type. Thus `float32 x = 0.1` is valid and deterministically rounds to binary32, while a finite literal larger than the maximum finite binary32 value is rejected.
+When a real-family literal materializes as `float32` or `float`, destination rounding is allowed, but the literal must remain inside the finite range of that IEEE type. Thus `float32 x = 0.1` is valid and deterministically rounds to binary32. When the same literal materializes as `bigreal`, its decimal spelling becomes an exact rational value; it is not routed through `float` first.
+
+Integer literal syntax has no implementation-width ceiling when the unique context is `bigint`:
+
+```quidra
+bigint exact = 1234567890123456789012345678901234567890
+```
+
+Fixed-width integer contexts still enforce their normal ranges.
 
 Integer literals use decimal notation only. Base-prefixed forms such as `0x`, `0b`, and `0o` are not source syntax. Floating exponent notation requires an explicit decimal point:
 
 ```quidra
 1e8      // error
-1.0e8    // floating-family literal
-1.0e-8   // floating-family literal
+1.0e8    // real-family literal
+1.0e-8   // real-family literal
 ```
 
 ## `auto`
@@ -93,6 +105,23 @@ print(int(1))  // valid
 
 There are no display-only, interpolation-only, or other special exceptions for numeric-family literals.
 
+## Exact integers and reals
+
+`bigint` arithmetic `+`, `-`, `*`, integer `/`, and `%` is exact and does not overflow because storage grows with the value. The source type never changes as the value grows.
+
+`bigreal` is not a configurable-precision floating type. Exact decimals are rationals; values such as `math.pi`, `math.e`, and `math.sqrt(2.0)` may remain symbolic. Algebraic simplification is valid only when it preserves the represented mathematical value. For example, an implementation may prove `math.sqrt(2.0) * math.sqrt(8.0) == 4.0` without approximating either square root.
+
+Equality and ordering of exact symbolic values must not silently fall back to rounded IEEE guesses. If a result cannot be established within the runtime's finite proof budget, evaluation fails deterministically instead of returning an unproved Boolean. Decimal formatting is an observation of the exact stored value and does not mutate it.
+
+`math.pi` and `math.e` are real-family constants whose concrete representation comes from context:
+
+```quidra
+float fast_pi = math.pi
+bigreal exact_pi = math.pi
+```
+
+Without a unique real-family context, these constants are ambiguous for the same reason as a bare real-family literal.
+
 ## Conversion
 
 Already-typed values never change concrete type implicitly.
@@ -114,9 +143,18 @@ int8 checked = int8(value)
 
 Explicit conversion may lose precision when the destination representation requires deterministic rounding. It must not silently leave the destination's representable finite range. Integer narrowing never wraps or clamps, and finite floating narrowing must not silently become infinity.
 
-Floating-point to integer conversion is not a generic cast because a rounding policy is required; use `math.trunc`, `math.round`, `math.floor`, or `math.ceil`.
+IEEE floating-point to an integer-family type is not a generic cast because a rounding policy is required; use `math.trunc`, `math.round`, `math.floor`, or `math.ceil`.
 
-In short: **an explicit conversion may discard precision, but it may not discard range**.
+Exact conversions follow these rules:
+
+- fixed-width integer -> `bigint`: exact;
+- integer-family value -> `bigreal`: exact;
+- `float32`/`float` -> `bigreal`: exact conversion of the stored IEEE value, not reinterpretation of the original decimal spelling;
+- `bigint` -> fixed-width integer: explicit and range-checked;
+- `bigreal` -> integer-family type: accepted only when the mathematical value is provably integral, then range-checked when the destination is fixed-width;
+- `bigint`/`bigreal` -> IEEE float: explicit, with finite destination-range checking.
+
+In short: **an explicit conversion may discard precision when the destination representation requires it, but it may not discard range or invent an integer rounding policy**.
 
 ## Parsing and text conversion
 
@@ -125,9 +163,13 @@ Numeric parsing is distinct from conversion:
 ```quidra
 int | error count = int.parse("123")
 float32 | error ratio = float32.parse("1.5")
+bigint | error huge = bigint.parse("123456789012345678901234567890")
+bigreal | error exact = bigreal.parse("0.1")
 ```
 
-Scalar values provide `.string()` for their standard textual representation.
+Scalar values provide `.string()` for their standard textual representation. `bigint.parse` and `bigreal.parse` consume the input text directly rather than passing through a fixed-width integer or IEEE float.
+
+JSON number parsing is likewise lossless at the syntax boundary: a valid JSON number token is retained even when it exceeds `float` range. `json.Value.number()` performs IEEE-range conversion, while `json.Value.bigint()` and `json.Value.bigreal()` consume the preserved numeric token directly.
 
 ## Bin
 

@@ -87,6 +87,7 @@ endif()
 
 add_library(quidra_runtime STATIC
     src/runtime.cpp
+    src/runtime_exact.cpp
     src/runtime_io.cpp
     src/runtime_system.cpp
     src/runtime_process.cpp

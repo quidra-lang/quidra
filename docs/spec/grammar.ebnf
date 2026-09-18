@@ -94,7 +94,9 @@ statement_end    = NEWLINE | EOF ;
    - integer literals are decimal digits only; 0x/0b/0o-style base prefixes do not exist;
    - floating literals contain a decimal point;
    - exponent notation is available only after that decimal point, e.g. 1.0e8;
-   - numeric literals carry integer/floating families rather than default concrete types. *)
+   - numeric literals carry integer/real families rather than default concrete types;
+   - an integer-family literal has no implementation-width ceiling when its unique
+     context is bigint; fixed-width contexts retain their normal range limits. *)
 
 (* Static/frontend constraints:
    - import is top-level only; imported modules contain declarations only;
@@ -104,7 +106,7 @@ statement_end    = NEWLINE | EOF ;
    - import cycles and alias collisions are invalid;
    - cli_decl is root-only, occurs at most once, and its
      fields use argument(), option(default = value), or flag();
-   - `tensor<T><D0, D1, ...>` uses a mandatory numeric element type plus an
+   - `tensor<T><D0, D1, ...>` uses a mandatory fixed-width native numeric element type plus an
      optional exact-rank shape pattern; each shape axis is `_` or an integer
      expression, and the number of axes is the required rank. Integer expressions
      that are not compile-time constants are evaluated once when the binding is

@@ -884,16 +884,26 @@ struct Lowerer {
         if (const auto* n=std::get_if<IntegerExpr>(&e.data)) {
             auto out=fresh();
             const auto type=checked.raw_types.at(&e);
-            if(is_float(type)) {
+            const auto spelling=n->spelling.empty()?std::to_string(n->value):n->spelling;
+            if(type.kind==TypeKind::BigInt||type.kind==TypeKind::BigReal) {
+                block->instructions.push_back(ConstantExact{out,spelling,type});
+            } else if(is_float(type)) {
                 block->instructions.push_back(ConstantFloat{
                     out,static_cast<double>(n->value),type});
             } else {
-                block->instructions.push_back(ConstantInt{
-                    out,std::to_string(n->value),type});
+                block->instructions.push_back(ConstantInt{out,spelling,type});
             }
             return out;
         }
-        if (const auto* n=std::get_if<FloatExpr>(&e.data)) { auto out=fresh(); block->instructions.push_back(ConstantFloat{out,n->value,checked.raw_types.at(&e)}); return out; }
+        if (const auto* n=std::get_if<FloatExpr>(&e.data)) {
+            auto out=fresh(); const auto type=checked.raw_types.at(&e);
+            if(type.kind==TypeKind::BigReal)
+                block->instructions.push_back(ConstantExact{
+                    out,n->spelling.empty()?std::to_string(n->value):n->spelling,type});
+            else
+                block->instructions.push_back(ConstantFloat{out,n->value,type});
+            return out;
+        }
         if (const auto* n=std::get_if<BoolExpr>(&e.data)) { auto out=fresh(); block->instructions.push_back(ConstantBool{out,n->value}); return out; }
         if (const auto* n=std::get_if<StringExpr>(&e.data)) { auto out=fresh(); block->instructions.push_back(ConstantString{out,n->value}); return out; }
         if (std::holds_alternative<VoidExpr>(e.data) || std::holds_alternative<NoneExpr>(e.data)) return 0;
@@ -944,7 +954,15 @@ struct Lowerer {
         }
         if (const auto* n=std::get_if<NameExpr>(&e.data)) {
             if(is_builtin_text_constant(n->name)){auto out=fresh();block->instructions.push_back(ConstantString{out,std::string(builtin_text_constant(n->name))});return out;}
-            if(const auto constant=standard_float_constant(n->name)){auto out=fresh();block->instructions.push_back(ConstantFloat{out,*constant,Type::simple(TypeKind::Float)});return out;}
+            if(const auto constant=standard_float_constant(n->name)){
+                auto out=fresh(); const auto type=checked.raw_types.at(&e);
+                if(type.kind==TypeKind::BigReal)
+                    block->instructions.push_back(ConstantExact{
+                        out,n->name=="$std.math.pi"?"$pi":"$e",type});
+                else
+                    block->instructions.push_back(ConstantFloat{out,*constant,type});
+                return out;
+            }
             if(const auto it=checked.field_accesses.find(&e);it!=checked.field_accesses.end()){
                 auto object=receiver_value(),out=fresh();block->instructions.push_back(FieldGet{out,object,it->second.index,it->second.type});return out;
             }
@@ -1542,6 +1560,7 @@ struct Lowerer {
                     out,value,source,target,checked_range,
                     static_cast<std::uint32_t>(e.span.start.line),
                     static_cast<std::uint32_t>(e.span.start.column)});
+                release_temporary(*n.args[0].value,value);
             }
             return out;
         }
@@ -1946,11 +1965,16 @@ struct Lowerer {
                     auto value=expr(*n.args[0].value),out=fresh();
                     block->instructions.push_back(
                         NumericAbs{out,value,type_of(*n.args[0].value),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+                    release_arg(0,value);
                     return out;
                 }
                 case BuiltinCallable::Sqrt: {
                     auto value=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(Sqrt{out,value});
+                    block->instructions.push_back(Sqrt{
+                        out,value,type_of(*n.args[0].value),
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    release_arg(0,value);
                     return out;
                 }
                 case BuiltinCallable::Min:
@@ -1959,6 +1983,8 @@ struct Lowerer {
                     block->instructions.push_back(NumericMinMax{
                         out,left,right,type_of(*n.args[0].value),
                         *resolution.builtin==BuiltinCallable::Max});
+                    release_arg(0,left);
+                    release_arg(1,right);
                     return out;
                 }
                 case BuiltinCallable::MathSin:
@@ -1969,6 +1995,7 @@ struct Lowerer {
                     auto value=expr(*n.args[0].value),out=fresh();
                     block->instructions.push_back(MathUnary{
                         out,value,type_of(*n.args[0].value),*resolution.builtin});
+                    release_arg(0,value);
                     return out;
                 }
                 case BuiltinCallable::MathTrunc:
@@ -1976,13 +2003,19 @@ struct Lowerer {
                 case BuiltinCallable::MathFloor:
                 case BuiltinCallable::MathCeil: {
                     auto input=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(MathRoundInt{out,input,type_of(*n.args[0].value),*resolution.builtin,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+                    block->instructions.push_back(MathRoundInt{
+                        out,input,type_of(*n.args[0].value),checked.raw_types.at(&e),
+                        *resolution.builtin,static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    release_arg(0,input);
                     return out;
                 }
                 case BuiltinCallable::MathPow: {
                     auto base=expr(*n.args[0].value),exponent=expr(*n.args[1].value),out=fresh();
                     block->instructions.push_back(MathPow{
                         out,base,exponent,type_of(*n.args[0].value)});
+                    release_arg(0,base);
+                    release_arg(1,exponent);
                     return out;
                 }
                 case BuiltinCallable::CliArgument: {
@@ -2195,6 +2228,16 @@ struct Lowerer {
                 case BuiltinCallable::JsonNumber: {
                     auto value=receiver_value(),out=fresh();
                     block->instructions.push_back(JsonNumber{out,value,checked.raw_types.at(&e)});
+                    return out;
+                }
+                case BuiltinCallable::JsonBigInt: {
+                    auto value=receiver_value(),out=fresh();
+                    block->instructions.push_back(JsonBigInt{out,value,checked.raw_types.at(&e)});
+                    return out;
+                }
+                case BuiltinCallable::JsonBigReal: {
+                    auto value=receiver_value(),out=fresh();
+                    block->instructions.push_back(JsonBigReal{out,value,checked.raw_types.at(&e)});
                     return out;
                 }
                 case BuiltinCallable::JsonBoolean: {
@@ -3079,6 +3122,7 @@ struct Lowerer {
 std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit([&](const auto& n){using T=std::decay_t<decltype(n)>;
     if constexpr(std::is_same_v<T,ConstantInt>)out<<"%"<<n.out<<" = const.int "<<n.value<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,ConstantFloat>)out<<"%"<<n.out<<" = const.float "<<n.value<<" : "<<type_name(n.type);
+    if constexpr(std::is_same_v<T,ConstantExact>)out<<"%"<<n.out<<" = const.exact "<<n.spelling<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,ConstantBool>)out<<"%"<<n.out<<" = const.bool "<<(n.value?"true":"false");
     if constexpr(std::is_same_v<T,ConstantString>)out<<"%"<<n.out<<" = const.string \""<<n.value<<"\"";
     if constexpr(std::is_same_v<T,ArrayMake>)out<<"%"<<n.out<<" = array.make "<<type_name(n.type);
@@ -3219,6 +3263,8 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,JsonText>)out<<"%"<<n.out<<" = json.text";
     if constexpr(std::is_same_v<T,JsonInteger>)out<<"%"<<n.out<<" = json.integer";
     if constexpr(std::is_same_v<T,JsonNumber>)out<<"%"<<n.out<<" = json.number";
+    if constexpr(std::is_same_v<T,JsonBigInt>)out<<"%"<<n.out<<" = json.bigint";
+    if constexpr(std::is_same_v<T,JsonBigReal>)out<<"%"<<n.out<<" = json.bigreal";
     if constexpr(std::is_same_v<T,JsonBoolean>)out<<"%"<<n.out<<" = json.boolean";
     if constexpr(std::is_same_v<T,JsonEncode>)out<<"%"<<n.out<<" = json.encode";
     if constexpr(std::is_same_v<T,JsonEqual>)out<<"%"<<n.out<<" = json.equal";

@@ -1252,13 +1252,16 @@ ExprPtr Parser::primary() {
     if (match(TokenKind::Integer)) {
         const auto t=previous(); std::uint64_t value{}; const auto* b=t.text.data(); const auto* end=b+t.text.size();
         const auto parsed=std::from_chars(b,end,value);
-        if(parsed.ec==std::errc::result_out_of_range||parsed.ptr!=end) throw CompileError(Diagnostic{"INTEGER_RANGE","Integer literal is outside the uint64 range.",t.span});
-        auto e=std::make_unique<Expr>(); e->span=t.span; e->data=IntegerExpr{value}; return e;
+        const bool fits=parsed.ec!=std::errc::result_out_of_range&&parsed.ptr==end;
+        if(parsed.ec!=std::errc{}&&parsed.ec!=std::errc::result_out_of_range)
+            error(t,"Invalid integer literal.");
+        auto e=std::make_unique<Expr>(); e->span=t.span;
+        e->data=IntegerExpr{fits?value:0,t.text,fits}; return e;
     }
     if (match(TokenKind::Float)) {
         const auto t=previous(); char* end=nullptr; const auto value=std::strtod(t.text.c_str(),&end);
-        if (!end || *end!='\0') error(t,"Invalid float literal.");
-        auto e=std::make_unique<Expr>(); e->span=t.span; e->data=FloatExpr{value}; return e;
+        if (!end || *end!='\0') error(t,"Invalid real literal.");
+        auto e=std::make_unique<Expr>(); e->span=t.span; e->data=FloatExpr{value,t.text}; return e;
     }
     if (match(TokenKind::String)) { const auto t=previous(); return string_expression(t); }
     if (match(TokenKind::KwTrue)||match(TokenKind::KwFalse)) { const auto t=previous(); auto e=std::make_unique<Expr>(); e->span=t.span; e->data=BoolExpr{t.kind==TokenKind::KwTrue}; return e; }

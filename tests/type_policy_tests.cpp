@@ -116,5 +116,45 @@ int main() {
     require(integer_value_fits_exactly_in_float(std::numeric_limits<long long>::min(), t(TypeKind::Float)),
             "int64 min is exactly representable by float64");
 
+    require(builtin_scalar_type("bigint") == t(TypeKind::BigInt),
+            "bigint is a builtin scalar type");
+    require(builtin_scalar_type("bigreal") == t(TypeKind::BigReal),
+            "bigreal is a builtin scalar type");
+    require(type_name(t(TypeKind::BigInt)) == "bigint", "bigint name");
+    require(type_name(t(TypeKind::BigReal)) == "bigreal", "bigreal name");
+    require(is_integer_family_type(t(TypeKind::BigInt)),
+            "bigint belongs to the integer family");
+    require(is_real(t(TypeKind::BigReal)),
+            "bigreal belongs to the real family");
+    require(!is_tensor_numeric(t(TypeKind::BigInt)) &&
+            !is_tensor_numeric(t(TypeKind::BigReal)),
+            "exact scalars are excluded from tensor native dtypes");
+    require(is_pointer_runtime_type(t(TypeKind::BigInt)) &&
+            is_pointer_runtime_type(t(TypeKind::BigReal)),
+            "exact scalars use managed runtime storage");
+    require(uses_shared_immutable_storage(t(TypeKind::BigInt)) &&
+            uses_shared_immutable_storage(t(TypeKind::BigReal)),
+            "exact scalars use immutable shared value storage");
+    require(runtime_storage_bytes(t(TypeKind::BigInt)) == 8 &&
+            runtime_storage_bytes(t(TypeKind::BigReal)) == 8,
+            "exact scalar runtime storage is one managed pointer");
+    require(numeric_conversion_policy(t(TypeKind::Int), t(TypeKind::BigInt)) ==
+                NumericConversionPolicy::ExplicitDeterministic,
+            "fixed integer -> bigint is explicit and deterministic");
+    require(numeric_conversion_policy(t(TypeKind::BigInt), t(TypeKind::BigReal)) ==
+                NumericConversionPolicy::ExplicitDeterministic,
+            "bigint -> bigreal is exact explicit conversion");
+    require(numeric_conversion_policy(t(TypeKind::Float), t(TypeKind::BigReal)) ==
+                NumericConversionPolicy::ExplicitDeterministic,
+            "float -> bigreal preserves the exact IEEE value");
+    require(numeric_conversion_policy(t(TypeKind::BigReal), t(TypeKind::BigInt)) ==
+                NumericConversionPolicy::ExplicitRangeCheck,
+            "bigreal -> bigint requires runtime integer proof");
+    require(numeric_conversion_policy(t(TypeKind::Float), t(TypeKind::BigInt)) ==
+                NumericConversionPolicy::Forbidden,
+            "IEEE float -> bigint requires an explicit rounding operation");
+    require(!assignable(t(TypeKind::BigInt), t(TypeKind::BigReal)),
+            "bigint -> bigreal is never implicit");
+
     return 0;
 }

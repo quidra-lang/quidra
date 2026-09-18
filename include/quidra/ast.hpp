@@ -34,8 +34,15 @@ struct TypeName {
     std::vector<long long> tensor_known_shape_prefix;
 };
 
-struct IntegerExpr { std::uint64_t value{}; };
-struct FloatExpr { double value{}; };
+struct IntegerExpr {
+    std::uint64_t value{};
+    std::string spelling;
+    bool fits_u64{true};
+};
+struct FloatExpr {
+    double value{};
+    std::string spelling;
+};
 struct StringExpr { std::string value; };
 struct InterpolationFormat {
     std::optional<std::uint32_t> integer_width;

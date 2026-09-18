@@ -456,6 +456,12 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
             "number", std::vector<Parameter>{},
             standard_union_type({"float", "error"}), standard_call("$std.json.number")));
         value.methods.push_back(standard_method(
+            "bigint", std::vector<Parameter>{},
+            standard_union_type({"bigint", "error"}), standard_call("$std.json.bigint")));
+        value.methods.push_back(standard_method(
+            "bigreal", std::vector<Parameter>{},
+            standard_union_type({"bigreal", "error"}), standard_call("$std.json.bigreal")));
+        value.methods.push_back(standard_method(
             "boolean", std::vector<Parameter>{},
             standard_union_type({"bool", "error"}), standard_call("$std.json.boolean")));
         value.methods.push_back(standard_method(
@@ -1416,7 +1422,8 @@ bool standard_collection_key_type(const TypeName& type) {
     if (!type.arguments.empty() || !type.dimensions.empty()) return false;
     return type.name == "int" || type.name == "int8" || type.name == "int16" ||
            type.name == "int32" || type.name == "uint8" || type.name == "uint16" ||
-           type.name == "uint32" || type.name == "uint64" || type.name == "bool" ||
+           type.name == "uint32" || type.name == "uint64" || type.name == "bigint" ||
+           type.name == "bool" ||
            type.name == "string";
 }
 

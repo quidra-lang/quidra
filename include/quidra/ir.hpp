@@ -13,6 +13,7 @@ using ValueId = std::uint32_t;
 
 struct ConstantInt { ValueId out; std::string value; Type type; };
 struct ConstantFloat { ValueId out; double value; Type type; };
+struct ConstantExact { ValueId out; std::string spelling; Type type; };
 struct ConstantBool { ValueId out; bool value; };
 struct ConstantString { ValueId out; std::string value; };
 struct ArrayMake { ValueId out; std::vector<ValueId> elements; Type type; };
@@ -157,9 +158,9 @@ struct TensorSet {
 };
 struct ParseNumber { ValueId out; ValueId text; Type target_type; Type result_type; };
 struct NumericAbs { ValueId out; ValueId value; Type type; std::uint32_t line{}; std::uint32_t column{}; };
-struct Sqrt { ValueId out; ValueId value; };
+struct Sqrt { ValueId out; ValueId value; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct MathUnary { ValueId out; ValueId value; Type type; BuiltinCallable operation; };
-struct MathRoundInt { ValueId out; ValueId value; Type source_type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
+struct MathRoundInt { ValueId out; ValueId value; Type source_type; Type result_type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
 struct MathPow { ValueId out; ValueId base; ValueId exponent; Type type; };
 struct CliArgument { ValueId out; ValueId name; ValueId index; Type type; };
 struct CliOption { ValueId out; ValueId name; ValueId default_value; Type type; };
@@ -196,6 +197,8 @@ struct JsonAt { ValueId out; ValueId value; ValueId index; Type result_type; };
 struct JsonText { ValueId out; ValueId value; Type result_type; };
 struct JsonInteger { ValueId out; ValueId value; Type result_type; };
 struct JsonNumber { ValueId out; ValueId value; Type result_type; };
+struct JsonBigInt { ValueId out; ValueId value; Type result_type; };
+struct JsonBigReal { ValueId out; ValueId value; Type result_type; };
 struct JsonBoolean { ValueId out; ValueId value; Type result_type; };
 struct JsonEncode { ValueId out; ValueId value; };
 struct JsonEqual { ValueId out; ValueId left; ValueId right; };
@@ -248,7 +251,7 @@ struct ReturnVoid {};
 struct Jump { std::string target; };
 struct Branch { ValueId condition; std::string if_true; std::string if_false; };
 
-using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantBool, ConstantString,
+using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantExact, ConstantBool, ConstantString,
                                  ArrayMake, ArrayAlloc, ClassMake, FieldGet, FieldSet,
                                  DeclareLocal, DeclareReference, AddressLocal, AddressField, AddressElement,
                                  LoadAddress, StoreAddress, BindReference, ReferenceAddress, LoadReference, StoreReference,
@@ -273,7 +276,7 @@ using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantBool, Const
                                  TimeNow, TimeSince, TimeSeconds, TimeSleep,
                                  RandomGenerator, RandomInt, RandomFloat, RandomBool, ProcessRun,
                                  JsonParse, JsonKind, JsonSize, JsonGet, JsonAt, JsonText,
-                                 JsonInteger, JsonNumber, JsonBoolean, JsonEncode, JsonEqual,
+                                 JsonInteger, JsonNumber, JsonBigInt, JsonBigReal, JsonBoolean, JsonEncode, JsonEqual,
                                  HttpGet, HttpHeader,
                                  NumericMinMax, ArrayGet, ArraySet, Clone, Retain, Release,
                                  Unary, Binary, ToString, FormatNumber, LoadLocal, StoreLocal,

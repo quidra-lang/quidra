@@ -1222,6 +1222,99 @@ set -e
 [[ "$json_equality_rc" -eq 1 ]]
 grep -q 'Equality is not defined for this type' "$TMP/json-equality.json"
 
+cat > "$TMP/exact-numerics.qui" <<'QUI'
+bigint a = 1234567890123456789012345678901234567890
+bigint b = 987654321098765432109876543210
+print(a + b)
+print(a - b)
+print(a * b)
+print(a / b)
+print(a % b)
+
+bigreal root2 = math.sqrt(2.0)
+bigreal root8 = math.sqrt(8.0)
+print(root2 * root8 == bigreal(4))
+print(root2 * root2 == bigreal(2))
+bigint exact_two = bigint(root2 * root2)
+print(exact_two)
+
+bigreal pi_value = math.pi
+bigreal e_value = math.e
+print(pi_value > bigreal(3))
+print(math.log(e_value) == bigreal(1))
+
+float ieee = 0.1
+bigreal preserved = bigreal(ieee)
+float roundtrip = float(preserved)
+print(roundtrip == ieee)
+
+bigint[] integers = [1, 123456789012345678901234567890]
+bigreal[] reals = bigreal(integers)
+print(reals[0] == bigreal(1))
+print(reals[1] == bigreal(integers[1]))
+QUI
+exact_numeric_output="$("$QUIDRA" run "$TMP/exact-numerics.qui")"
+exact_numeric_expected=$(printf '%s\n' \
+'1234567891111111110111111111011111111100' \
+'1234567889135802467913580246791358024680' \
+'1219326311370217952261850327337448559633622923332237463801111263526900' \
+'1249999988' \
+'601851852060185185207253086410' \
+'true' 'true' '2' 'true' 'true' 'true' 'true' 'true')
+[[ "$exact_numeric_output" == "$exact_numeric_expected" ]]
+
+cat > "$TMP/json-exact-numerics.qui" <<'QUI'
+auto parsed = json.parse("{\"huge\":12345678901234567890123456789012345678901234567890,\"real\":1.25e1000}")
+match parsed
+    json.Value root
+        auto huge_value = root.get("huge")
+        match huge_value
+            json.Value value
+                auto huge = value.bigint()
+                match huge
+                    bigint integer
+                        print(integer)
+                    error problem
+                        print(problem)
+            none
+                print("missing-huge")
+            error problem
+                print(problem)
+
+        auto real_value = root.get("real")
+        match real_value
+            json.Value value
+                auto exact = value.bigreal()
+                match exact
+                    bigreal number
+                        bigreal expected = 1.25e1000
+                        print(number == expected)
+                    error problem
+                        print(problem)
+
+                auto narrow = value.number()
+                match narrow
+                    float number
+                        print(number)
+                    error problem
+                        print("narrow-error")
+            none
+                print("missing-real")
+            error problem
+                print(problem)
+
+        print(root.encode())
+    error problem
+        print(problem)
+QUI
+json_exact_output="$("$QUIDRA" run "$TMP/json-exact-numerics.qui")"
+json_exact_expected=$(printf '%s\n' \
+'12345678901234567890123456789012345678901234567890' \
+'true' \
+'narrow-error' \
+'{"huge":12345678901234567890123456789012345678901234567890,"real":1.25e1000}')
+[[ "$json_exact_output" == "$json_exact_expected" ]]
+
 cat > "$TMP/http-server.py" <<'PY'
 import http.server
 import socketserver

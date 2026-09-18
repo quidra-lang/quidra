@@ -232,6 +232,48 @@ static void string_input_ignores_package_lock() {
 }
 
 int main(){
+ good(R"(bigint huge = 12345678901234567890123456789012345678901234567890
+bigint one = 1
+bigint sum = huge + one
+print(sum)
+)");
+ good(R"(bigreal root = math.sqrt(2.0)
+bigreal circle = math.pi
+bigreal natural = math.e
+bigreal ratio = bigreal(1) / bigreal(3)
+print(root)
+print(circle)
+print(natural)
+print(ratio)
+)");
+ good(R"(T identity<T>(T value)
+    return value
+
+bigint large = identity<bigint>(123456789012345678901234567890)
+bigreal exact = identity<bigreal>(math.sqrt(2.0))
+print(large)
+print(exact)
+)");
+ good(R"(bigint[] values = [
+    123456789012345678901234567890,
+    2,
+]
+bigreal[] reals = bigreal(values)
+print(values[0])
+print(reals[1])
+)");
+ llvm_contains(
+     "bigint x = 123456789012345678901234567890\n",
+     "call ptr @quidra_bigint_literal");
+ llvm_contains(
+     "bigreal x = math.sqrt(2.0)\n",
+     "call ptr @quidra_bigreal_sqrt");
+ llvm_contains(
+     "bigreal x = math.pi\n",
+     "call ptr @quidra_bigreal_literal");
+ bad_code("tensor<bigint> x = tensor<bigint>([1])\n", "INVALID_TYPE");
+ bad_code("neural<bigreal> x\n", "INVALID_TYPE");
+
  good("extern void scalar_abi(int8 a, int16 b, int32 c, int d, uint8 e, uint16 f, uint32 g, uint64 h, float32 i, float j, bool k) = \"scalar_abi\"\n");
  llvm_contains("extern bool c_bool(bool value) = \"c_bool\"\n", "declare zeroext i1 @c_bool(i1 zeroext)");
  llvm_contains("extern int8 c_i8(int8 value) = \"c_i8\"\n", "declare signext i8 @c_i8(i8 signext)");

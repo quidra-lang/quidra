@@ -31,7 +31,7 @@ bool printable(const Type& type) {
 enum class NumericLiteralFamily {
     None,
     Integer,
-    Floating,
+    Real,
     Mixed
 };
 
@@ -40,7 +40,11 @@ NumericLiteralFamily numeric_literal_family(const Expr& expression) {
         return NumericLiteralFamily::Integer;
     }
     if (std::holds_alternative<FloatExpr>(expression.data)) {
-        return NumericLiteralFamily::Floating;
+        return NumericLiteralFamily::Real;
+    }
+    if (const auto* name = std::get_if<NameExpr>(&expression.data);
+        name && is_standard_real_constant(name->name)) {
+        return NumericLiteralFamily::Real;
     }
     if (const auto* unary = std::get_if<UnaryExpr>(&expression.data);
         unary && unary->op == "-") {
@@ -65,7 +69,11 @@ NumericLiteralFamily direct_numeric_literal_family(const Expr& expression) {
         return NumericLiteralFamily::Integer;
     }
     if (std::holds_alternative<FloatExpr>(expression.data)) {
-        return NumericLiteralFamily::Floating;
+        return NumericLiteralFamily::Real;
+    }
+    if (const auto* name = std::get_if<NameExpr>(&expression.data);
+        name && is_standard_real_constant(name->name)) {
+        return NumericLiteralFamily::Real;
     }
     if (const auto* unary = std::get_if<UnaryExpr>(&expression.data);
         unary && unary->op == "-") {
@@ -85,19 +93,19 @@ NumericLiteralContext numeric_literal_context(
     NumericLiteralContext result;
     if (!expected ||
         (family != NumericLiteralFamily::Integer &&
-         family != NumericLiteralFamily::Floating)) {
+         family != NumericLiteralFamily::Real)) {
         return result;
     }
 
     const auto matches = [&](const Type& candidate) {
         return family == NumericLiteralFamily::Integer
-            ? is_integer(candidate)
-            : is_float(candidate);
+            ? is_integer_family_type(candidate)
+            : is_real(candidate);
     };
     const auto opposite = [&](const Type& candidate) {
         return family == NumericLiteralFamily::Integer
-            ? is_float(candidate)
-            : is_integer(candidate);
+            ? is_real(candidate)
+            : is_integer_family_type(candidate);
     };
     const auto consider = [&](const Type& candidate) {
         if (matches(candidate)) {
@@ -1534,8 +1542,8 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
             error("GENERIC_ARITY", "tensor requires exactly one element type.", source.span);
         }
         auto element = resolve_type(source.arguments.front());
-        if (!is_numeric(element)) {
-            error("INVALID_TYPE", "tensor element type must be numeric.", source.arguments.front().span);
+        if (!is_tensor_numeric(element)) {
+            error("INVALID_TYPE", "tensor element type must be a fixed-width native numeric type.", source.arguments.front().span);
         }
         const auto rank = !source.tensor_shape_prefix.empty()
             ? static_cast<long long>(source.tensor_shape_prefix.size())
@@ -1621,14 +1629,22 @@ void Checker::check_type_extent_expressions(const TypeName& source) {
 }
 
 
-Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value) {
+Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value,
+                              const Type* expected) {
     Type type = simple(TypeKind::Void);
     const auto* node = &node_value;
 
         if (is_builtin_text_constant(node->name)) {
             type = simple(TypeKind::String);
-        } else if (standard_float_constant(node->name)) {
-            type = simple(TypeKind::Float);
+        } else if (is_standard_real_constant(node->name)) {
+            if (expected && is_real(*expected)) {
+                type = *expected;
+            } else {
+                error("AMBIGUOUS_NUMERIC_LITERAL",
+                      "Exact real constant requires a unique concrete real-family type context.",
+                      expression.span);
+                type = simple(TypeKind::Invalid);
+            }
         } else if (variables_.contains(node->name)) {
             if (current_reference_parameters_.contains(node->name)) {
                 auto& effect = current_reference_effects_[node->name];
@@ -2191,11 +2207,11 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         auto a=check_plain_argument(0,"separator",text_type);
                         type=poisoned(a)?simple(TypeKind::Invalid):text_type;
                     } else {
-                        if (!is_numeric(*receiver.first) &&
+                        if (!is_tensor_numeric(*receiver.first) &&
                             receiver.first->kind != TypeKind::Bool &&
                             receiver.first->kind != TypeKind::String) {
                             error("UNKNOWN_MEMBER",
-                                  "sorted is available on numeric, bool, and string arrays.",
+                                  "sorted is available on fixed-width numeric, bool, and string arrays.",
                                   expression.span);
                         }
                         require_count(0, "array.sorted() takes no arguments.");
@@ -2486,11 +2502,12 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                 }
                 case BuiltinCallable::Sqrt: {
                     if (node->args.size() != 1) {
-                        error("ARGUMENT_MISMATCH", "sqrt requires one floating-point argument.", expression.span);
+                        error("ARGUMENT_MISMATCH", "sqrt requires one real argument.", expression.span);
                     }
-                    auto argument = builtin_arg(0, "value");
-                    if (!poisoned(argument) && !is_float(argument)) {
-                        error("TYPE_MISMATCH", "sqrt requires a floating-point value.", expression.span);
+                    const Type* context = expected && is_real(*expected) ? expected : nullptr;
+                    auto argument = builtin_arg(0, "value", context);
+                    if (!poisoned(argument) && !is_real(argument)) {
+                        error("TYPE_MISMATCH", "sqrt requires a real value.", expression.span);
                     }
                     type = argument;
                     break;
@@ -2522,9 +2539,10 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if (node->args.size() != 1) {
                         error("ARGUMENT_MISMATCH", name + " requires one floating-point argument.", expression.span);
                     }
-                    auto argument = builtin_arg(0, "value");
-                    if (!poisoned(argument) && !is_float(argument)) {
-                        error("TYPE_MISMATCH", name + " requires a floating-point value.", expression.span);
+                    const Type* context = expected && is_real(*expected) ? expected : nullptr;
+                    auto argument = builtin_arg(0, "value", context);
+                    if (!poisoned(argument) && !is_real(argument)) {
+                        error("TYPE_MISMATCH", name + " requires a real value.", expression.span);
                     }
                     type = argument;
                     break;
@@ -2535,21 +2553,25 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                 case BuiltinCallable::MathCeil: {
                     if (node->args.size() != 1) error("ARGUMENT_MISMATCH", name + " requires one floating-point argument.", expression.span);
                     auto argument = builtin_arg(0, "value");
-                    if (!poisoned(argument) && !is_float(argument)) error("TYPE_MISMATCH", name + " requires a floating-point value.", expression.span);
-                    type = poisoned(argument) ? simple(TypeKind::Invalid) : simple(TypeKind::Int);
+                    if (!poisoned(argument) && !is_real(argument))
+                        error("TYPE_MISMATCH", name + " requires a real value.", expression.span);
+                    type = poisoned(argument) ? simple(TypeKind::Invalid)
+                        : simple(argument.kind == TypeKind::BigReal
+                                     ? TypeKind::BigInt : TypeKind::Int);
                     break;
                 }
                 case BuiltinCallable::MathPow: {
                     if (node->args.size() != 2) {
                         error("ARGUMENT_MISMATCH", "math.pow requires two floating-point arguments.", expression.span);
                     }
-                    auto left = builtin_arg(0, "base");
+                    const Type* context = expected && is_real(*expected) ? expected : nullptr;
+                    auto left = builtin_arg(0, "base", context);
                     auto right = builtin_arg(1, "exponent", &left);
                     if (poisoned(left) || poisoned(right)) {
                         type = simple(TypeKind::Invalid);
                     } else {
-                        if (!is_float(left) || right != left) {
-                            error("TYPE_MISMATCH", "math.pow requires two floating-point values of the same type.", expression.span);
+                        if (!is_real(left) || right != left) {
+                            error("TYPE_MISMATCH", "math.pow requires two real values of the same type.", expression.span);
                         }
                         type = left;
                     }
@@ -2723,10 +2745,10 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         numeric_literal_family(*node->args[1].value);
                     const bool actual_family_only =
                         actual_family == NumericLiteralFamily::Integer ||
-                        actual_family == NumericLiteralFamily::Floating;
+                        actual_family == NumericLiteralFamily::Real;
                     const bool expected_family_only =
                         expected_family == NumericLiteralFamily::Integer ||
-                        expected_family == NumericLiteralFamily::Floating;
+                        expected_family == NumericLiteralFamily::Real;
 
                     Type actual;
                     Type expected_value;
@@ -2972,6 +2994,26 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     type = Type::union_of({simple(TypeKind::Float), simple(TypeKind::Error)});
                     break;
                 }
+                case BuiltinCallable::JsonBigInt: {
+                    if (current_class_ != "$std.json.Value") {
+                        error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
+                    }
+                    if (!node->args.empty()) {
+                        error("ARGUMENT_MISMATCH", "Value.bigint takes no arguments.", expression.span);
+                    }
+                    type = Type::union_of({simple(TypeKind::BigInt), simple(TypeKind::Error)});
+                    break;
+                }
+                case BuiltinCallable::JsonBigReal: {
+                    if (current_class_ != "$std.json.Value") {
+                        error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
+                    }
+                    if (!node->args.empty()) {
+                        error("ARGUMENT_MISMATCH", "Value.bigreal takes no arguments.", expression.span);
+                    }
+                    type = Type::union_of({simple(TypeKind::BigReal), simple(TypeKind::Error)});
+                    break;
+                }
                 case BuiltinCallable::JsonBoolean: {
                     if (current_class_ != "$std.json.Value") {
                         error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
@@ -3159,7 +3201,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
 
                     std::function<bool(const Type&,std::unordered_set<std::string>&)> serializable;
                     serializable=[&](const Type& current,std::unordered_set<std::string>& active)->bool{
-                        if(is_numeric(current)||current.kind==TypeKind::Bool||
+                        if(is_tensor_numeric(current)||current.kind==TypeKind::Bool||
                            current.kind==TypeKind::String||current.kind==TypeKind::Bin||
                            current.kind==TypeKind::Tensor) return true;
                         if(current.kind!=TypeKind::Class) return false;
@@ -3686,7 +3728,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                             const auto* name = std::get_if<NameExpr>(&argument.value->data);
                             const auto dtype = name ? builtin_scalar_type(name->name)
                                                     : std::optional<Type>{};
-                            if (!dtype || !is_numeric(*dtype)) {
+                            if (!dtype || !is_tensor_numeric(*dtype)) {
                                 error("ARGUMENT_MISMATCH",
                                       "image.read dtype must name a numeric built-in type.",
                                       argument.span);
@@ -3719,7 +3761,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         if (non_error.size() == 1 &&
                             non_error.front().kind == TypeKind::Tensor &&
                             non_error.front().first &&
-                            is_numeric(*non_error.front().first)) {
+                            is_tensor_numeric(*non_error.front().first)) {
                             expected_tensor = non_error.front();
                         }
                     }
@@ -3812,7 +3854,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     bool bad = poisoned(path_type) || poisoned(value_type);
                     if (!poisoned(value_type) &&
                         (value_type.kind != TypeKind::Tensor || !value_type.first ||
-                         !is_numeric(*value_type.first))) {
+                         !is_tensor_numeric(*value_type.first))) {
                         error("TYPE_MISMATCH",
                               "image.write requires a numeric CHW tensor.",
                               node->args[1].span);
@@ -4042,8 +4084,8 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                               "tensor construction requires one numeric element type unless the expected tensor type supplies it.",
                               expression.span);
                     }
-                    if (!poisoned(element) && !is_numeric(element)) {
-                        error("INVALID_TYPE", "tensor element type must be numeric.",
+                    if (!poisoned(element) && !is_tensor_numeric(element)) {
+                        error("INVALID_TYPE", "tensor element type must be a fixed-width native numeric type.",
                               expression.span);
                     }
 
@@ -4346,14 +4388,14 @@ Type Checker::check_call_expr(const Expr& expression,
             const auto family = numeric_literal_family(*node->args[0].value);
             const auto direct_family =
                 direct_numeric_literal_family(*node->args[0].value);
-            const bool target_integer = is_integer(*target);
-            const bool target_floating = is_float(*target);
+            const bool target_integer = is_integer_family_type(*target);
+            const bool target_floating = is_real(*target);
             const bool same_family =
                 (family == NumericLiteralFamily::Integer && target_integer) ||
-                (family == NumericLiteralFamily::Floating && target_floating);
+                (family == NumericLiteralFamily::Real && target_floating);
             const bool direct_cross_family =
                 (direct_family == NumericLiteralFamily::Integer && target_floating) ||
-                (direct_family == NumericLiteralFamily::Floating && target_integer);
+                (direct_family == NumericLiteralFamily::Real && target_integer);
 
             if (family == NumericLiteralFamily::Mixed) {
                 error("NUMERIC_FAMILY",
@@ -4370,7 +4412,7 @@ Type Checker::check_call_expr(const Expr& expression,
                 }
                 explicit_numeric_literal_context_ = previous;
             } else if (family == NumericLiteralFamily::Integer ||
-                       family == NumericLiteralFamily::Floating) {
+                       family == NumericLiteralFamily::Real) {
                 error("NUMERIC_CAST",
                       "Cross-family conversion of a numeric-family expression requires a concrete source type.",
                       node->args[0].span);
@@ -4393,7 +4435,7 @@ Type Checker::check_call_expr(const Expr& expression,
                         return Type::array(*child, current.length);
                     }
                     if (current.kind == TypeKind::Tensor && current.first &&
-                        is_numeric(*current.first) &&
+                        is_tensor_numeric(*current.first) && is_tensor_numeric(*target) &&
                         explicit_numeric_cast_supported(*current.first, *target)) {
                         return Type::tensor(*target, current.length,
                                             current.tensor_shape_prefix,
@@ -4420,7 +4462,7 @@ Type Checker::check_call_expr(const Expr& expression,
                     while (leaf.kind == TypeKind::Array && leaf.first) leaf = *leaf.first;
                     if ((leaf.kind == TypeKind::Tensor || leaf.kind == TypeKind::Neural) &&
                         leaf.first) leaf = *leaf.first;
-                    const std::string detail = is_float(leaf) && is_integer(*target)
+                    const std::string detail = is_float(leaf) && is_integer_family_type(*target)
                         ? " Floating-point to integer conversion requires math.trunc, math.round, math.floor, or math.ceil."
                         : "";
                     error("NUMERIC_CAST",
@@ -4660,8 +4702,9 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                   expression.span);
         }
         if (context.type) {
-            if (!integer_literal_value_fits(
-                    static_cast<unsigned long long>(node->value), *context.type)) {
+            if (context.type->kind != TypeKind::BigInt &&
+                (!node->fits_u64 || !integer_literal_value_fits(
+                    static_cast<unsigned long long>(node->value), *context.type))) {
                 error(explicit_numeric_literal_context_ ? "NUMERIC_CAST" : "INTEGER_RANGE",
                       "Integer-family literal is outside the range of " +
                           type_name(*context.type) + ".",
@@ -4669,11 +4712,11 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             }
             type = *context.type;
         } else if (explicit_numeric_literal_context_ && expected &&
-                   is_float(*expected)) {
+                   is_real(*expected)) {
             type = *expected;
         } else if (context.opposite_family) {
             error("NUMERIC_FAMILY",
-                  "Integer-family literal cannot materialize as a floating-family type without an explicit cast.",
+                  "Integer-family literal cannot materialize as a real-family type without an explicit cast.",
                   expression.span);
         } else if (expected) {
             error("TYPE_MISMATCH",
@@ -4685,40 +4728,39 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                   expression.span);
         }
     } else if (const auto* node = std::get_if<FloatExpr>(&expression.data)) {
-        if (!std::isfinite(node->value)) {
-            error("FLOAT_RANGE", "Floating-family literal must be finite.", expression.span);
-        }
         const auto context =
-            numeric_literal_context(expected, NumericLiteralFamily::Floating);
+            numeric_literal_context(expected, NumericLiteralFamily::Real);
         if (context.ambiguous) {
             error("AMBIGUOUS_NUMERIC_LITERAL",
-                  "Floating-family literal matches multiple concrete floating types.",
+                  "Real-family literal matches multiple concrete real types.",
                   expression.span);
         }
         if (context.type) {
-            if (!float_value_fits_range(node->value, *context.type)) {
+            if (context.type->kind != TypeKind::BigReal &&
+                (!std::isfinite(node->value) ||
+                 !float_value_fits_range(node->value, *context.type))) {
                 error(explicit_numeric_literal_context_ ? "NUMERIC_CAST" : "FLOAT_RANGE",
-                      "Floating-family literal is outside the finite range of " +
+                      "Real-family literal is outside the finite range of " +
                           type_name(*context.type) + ".",
                       expression.span);
             }
             type = *context.type;
         } else if (explicit_numeric_literal_context_ && expected &&
-                   is_integer(*expected)) {
+                   is_integer_family_type(*expected)) {
             error("NUMERIC_CAST",
                   "Floating-point to integer conversion requires math.trunc, math.round, math.floor, or math.ceil.",
                   expression.span);
         } else if (context.opposite_family) {
             error("NUMERIC_FAMILY",
-                  "Floating-family literal cannot materialize as an integer-family type without an explicit conversion.",
+                  "Real-family literal cannot materialize as an integer-family type without an explicit conversion.",
                   expression.span);
         } else if (expected) {
             error("TYPE_MISMATCH",
-                  "Floating-family literal requires a concrete floating type context.",
+                  "Real-family literal requires a concrete real type context.",
                   expression.span);
         } else {
             error("AMBIGUOUS_NUMERIC_LITERAL",
-                  "Floating-family literal requires a unique concrete floating type context.",
+                  "Real-family literal requires a unique concrete real type context.",
                   expression.span);
         }
     } else if (std::holds_alternative<StringExpr>(expression.data)) {
@@ -4740,7 +4782,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         }
         type = simple(TypeKind::String);
     } else if (const auto* node = std::get_if<NameExpr>(&expression.data)) {
-        type = check_name_expr(expression, *node);
+        type = check_name_expr(expression, *node, expected);
     } else if (const auto* node = std::get_if<MemberExpr>(&expression.data)) {
         type = check_member_expr(expression, *node);
     } else if (const auto* node = std::get_if<ArrayExpr>(&expression.data)) {
@@ -4775,7 +4817,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                     const auto family = numeric_literal_family(*node->elements[i]);
                     if (family == NumericLiteralFamily::Mixed) {
                         error("NUMERIC_FAMILY",
-                              "Numeric-family expression cannot mix integer and floating literals implicitly.",
+                              "Numeric-family expression cannot mix integer- and real-family literals implicitly.",
                               node->elements[i]->span);
                     }
                     if (family == NumericLiteralFamily::None) {
@@ -4838,7 +4880,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             const auto family = numeric_literal_family(*node->operand);
             if (family == NumericLiteralFamily::Mixed) {
                 error("NUMERIC_FAMILY",
-                      "Numeric-family expression cannot mix integer and floating literals implicitly.",
+                      "Numeric-family expression cannot mix integer- and real-family literals implicitly.",
                       expression.span);
             }
             const auto context = numeric_literal_context(expected, family);
@@ -4879,7 +4921,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         if (left_family == NumericLiteralFamily::Mixed ||
             right_family == NumericLiteralFamily::Mixed) {
             error("NUMERIC_FAMILY",
-                  "Numeric-family expression cannot mix integer and floating literals implicitly.",
+                  "Numeric-family expression cannot mix integer- and real-family literals implicitly.",
                   expression.span);
         }
 
@@ -4896,15 +4938,15 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
 
         const bool left_literal =
             left_family == NumericLiteralFamily::Integer ||
-            left_family == NumericLiteralFamily::Floating;
+            left_family == NumericLiteralFamily::Real;
         const bool right_literal =
             right_family == NumericLiteralFamily::Integer ||
-            right_family == NumericLiteralFamily::Floating;
+            right_family == NumericLiteralFamily::Real;
 
         if (left_literal && right_literal) {
             if (left_family != right_family) {
                 error("NUMERIC_FAMILY",
-                      "Integer-family and floating-family expressions cannot mix implicitly.",
+                      "Integer- and real-family expressions cannot mix implicitly.",
                       expression.span);
             }
             const auto context = numeric_literal_context(expected, left_family);
@@ -4947,7 +4989,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 if (left != right) error("TYPE_MISMATCH", "neural arithmetic requires identical element types.", expression.span);
             } else {
                 const Type& scalar = left_neural ? right : left;
-                if (!is_numeric(scalar) || scalar != element) {
+                if (!is_tensor_numeric(scalar) || scalar != element) {
                     error("TYPE_MISMATCH",
                           "neural scalar arithmetic requires the exact element type.",
                           expression.span);
@@ -4977,7 +5019,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 }
             } else {
                 const auto& scalar_type = left_tensor ? right : left;
-                if (!is_numeric(scalar_type) || scalar_type != element) {
+                if (!is_tensor_numeric(scalar_type) || scalar_type != element) {
                     error("TYPE_MISMATCH",
                           "Tensor scalar arithmetic requires the exact element type.",
                           expression.span);
@@ -5022,10 +5064,10 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             } else if (node->op == "+" && left.kind == TypeKind::String) {
                 type = left;
             } else {
-                if (!is_numeric(left) || (node->op == "%" && !is_integer(left))) {
+                if (!is_numeric(left) || (node->op == "%" && !is_integer_family_type(left))) {
                     error("TYPE_MISMATCH", "Arithmetic requires compatible numbers.", expression.span);
                 }
-                if (is_integer(left) && (node->op == "/" || node->op == "%")) {
+                if (is_integer_family_type(left) && (node->op == "/" || node->op == "%")) {
                     const auto divisor = constant_integer_value(*node->right);
                     if (divisor && *divisor == 0) {
                         error("DIVIDE_BY_ZERO",

@@ -17,7 +17,7 @@ struct BuiltinTypeName {
     std::string_view canonical;
 };
 
-inline constexpr std::array<BuiltinTypeName, 18> builtin_type_names{{
+inline constexpr std::array<BuiltinTypeName, 20> builtin_type_names{{
     {"int", "int"},
     {"int8", "int8"},
     {"int16", "int16"},
@@ -27,9 +27,11 @@ inline constexpr std::array<BuiltinTypeName, 18> builtin_type_names{{
     {"uint16", "uint16"},
     {"uint32", "uint32"},
     {"uint64", "uint64"},
+    {"bigint", "bigint"},
     {"float", "float"},
     {"float32", "float32"},
     {"float64", "float"},
+    {"bigreal", "bigreal"},
     {"bool", "bool"},
     {"string", "string"},
     {"bin", "bin"},
@@ -115,6 +117,8 @@ enum class BuiltinCallable {
     JsonText,
     JsonInteger,
     JsonNumber,
+    JsonBigInt,
+    JsonBigReal,
     JsonBoolean,
     JsonEncode,
     JsonEqual,
@@ -186,7 +190,7 @@ inline constexpr std::array<BuiltinCallableInfo, 11> builtin_callables{{
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 92> intrinsic_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 94> intrinsic_callables{{
     {"$std.math.sin", BuiltinCallable::MathSin},
     {"$std.math.cos", BuiltinCallable::MathCos},
     {"$std.math.tan", BuiltinCallable::MathTan},
@@ -234,6 +238,8 @@ inline constexpr std::array<BuiltinCallableInfo, 92> intrinsic_callables{{
     {"$std.json.text", BuiltinCallable::JsonText},
     {"$std.json.integer", BuiltinCallable::JsonInteger},
     {"$std.json.number", BuiltinCallable::JsonNumber},
+    {"$std.json.bigint", BuiltinCallable::JsonBigInt},
+    {"$std.json.bigreal", BuiltinCallable::JsonBigReal},
     {"$std.json.boolean", BuiltinCallable::JsonBoolean},
     {"$std.json.encode", BuiltinCallable::JsonEncode},
     {"$std.json.equal", BuiltinCallable::JsonEqual},
@@ -439,6 +445,10 @@ inline constexpr std::optional<std::string_view> standard_value_target(
     if (member == "pi") return "$std.math.pi";
     if (member == "e") return "$std.math.e";
     return std::nullopt;
+}
+
+inline constexpr bool is_standard_real_constant(std::string_view name) {
+    return name == "$std.math.pi" || name == "$std.math.e";
 }
 
 inline constexpr std::optional<double> standard_float_constant(std::string_view name) {

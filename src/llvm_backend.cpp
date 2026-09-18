@@ -23,6 +23,7 @@ std::string llvm_type(const Type& t) {
         case TypeKind::Float: return "double";
         case TypeKind::Float32: return "float";
         case TypeKind::Bool: return "i1";
+        case TypeKind::BigInt: case TypeKind::BigReal:
         case TypeKind::String: case TypeKind::Bin: case TypeKind::Error:
         case TypeKind::Array: case TypeKind::Tensor: case TypeKind::Neural:
         case TypeKind::Gradients: case TypeKind::Union: case TypeKind::Class: return "ptr";
@@ -95,14 +96,14 @@ int tensor_dtype_code(const Type& t) {
 }
 
 int sortable_kind_code(const Type& type) {
-    if (is_numeric(type)) return tensor_dtype_code(type);
+    if (is_tensor_numeric(type)) return tensor_dtype_code(type);
     if (type.kind == TypeKind::Bool) return 11;
     if (type.kind == TypeKind::String) return 12;
     throw std::logic_error("unsupported sorted array element type");
 }
 
 int neural_state_kind_code(const Type& type) {
-    if (is_numeric(type)) return tensor_dtype_code(type);
+    if (is_tensor_numeric(type)) return tensor_dtype_code(type);
     if (type.kind == TypeKind::Bool) return 11;
     if (type.kind == TypeKind::String) return 12;
     if (type.kind == TypeKind::Bin) return 13;
@@ -339,6 +340,8 @@ struct FunctionEmitter {
     }
 
     std::string drop_callback(const Type& type) const {
+        if (type.kind == TypeKind::BigInt) return "@quidra_bigint_drop";
+        if (type.kind == TypeKind::BigReal) return "@quidra_bigreal_drop";
         if (type.kind == TypeKind::Class && type.class_name == "$std.json.Value") {
             return "@quidra_json_drop";
         }
@@ -369,7 +372,7 @@ struct FunctionEmitter {
         }
     }
 
-    void scan(){for(const auto&p:fn.parameters){locals[p.name]=p.type;if(p.writable)writable_params.insert(p.name);if(p.borrowed)borrowed_params.insert(p.name);}for(const auto&b:fn.blocks)for(const auto&i:b.instructions){if(const auto*s=std::get_if<ir::StoreLocal>(&i)){locals[s->name]=s->type;if(s->borrowed)borrowed_locals.insert(s->name);}if(const auto*d=std::get_if<ir::DeclareLocal>(&i))locals[d->name]=d->type;if(const auto*r=std::get_if<ir::DeclareReference>(&i))references[r->name]=r->type;if(const auto*c=std::get_if<ir::ConstantString>(&i))pool.intern(c->value);}}
+    void scan(){for(const auto&p:fn.parameters){locals[p.name]=p.type;if(p.writable)writable_params.insert(p.name);if(p.borrowed)borrowed_params.insert(p.name);}for(const auto&b:fn.blocks)for(const auto&i:b.instructions){if(const auto*s=std::get_if<ir::StoreLocal>(&i)){locals[s->name]=s->type;if(s->borrowed)borrowed_locals.insert(s->name);}if(const auto*d=std::get_if<ir::DeclareLocal>(&i))locals[d->name]=d->type;if(const auto*r=std::get_if<ir::DeclareReference>(&i))references[r->name]=r->type;if(const auto*c=std::get_if<ir::ConstantString>(&i))pool.intern(c->value);if(const auto*c=std::get_if<ir::ConstantExact>(&i))pool.intern(c->spelling);}}
 
     void emit_repl_text(const std::string& text) {
         const auto literal = pool.intern(text);
@@ -396,6 +399,16 @@ struct FunctionEmitter {
             out << "  call i32 (ptr, ...) @printf(ptr "
                 << (is_signed_integer(type) ? "@.fmt.int.write" : "@.fmt.uint.write")
                 << ", i64 " << widened << ")\n";
+            return;
+        }
+        if (type.kind == TypeKind::BigInt || type.kind == TypeKind::BigReal) {
+            const auto text = temp("repl.exact.text");
+            if (type.kind == TypeKind::BigInt)
+                out << "  " << text << " = call ptr @quidra_bigint_text(ptr " << raw_value << ")\n";
+            else
+                out << "  " << text << " = call ptr @quidra_bigreal_text(ptr " << raw_value << ", i32 34)\n";
+            out << "  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr " << text << ")\n";
+            out << "  call void @quidra_managed_release(ptr " << text << ", ptr null)\n";
             return;
         }
         if (is_float(type)) {
@@ -558,6 +571,12 @@ struct FunctionEmitter {
     void emit_instruction(const ir::Instruction& ins){std::visit([&](const auto&n){using T=std::decay_t<decltype(n)>;
         if constexpr(std::is_same_v<T,ir::ConstantInt>){values[n.out]=n.type;out<<"  "<<value(n.out)<<" = add "<<llvm_type(n.type)<<" 0, "<<n.value<<"\n";}
         if constexpr(std::is_same_v<T,ir::ConstantFloat>){values[n.out]=n.type;out<<"  "<<value(n.out)<<" = fadd "<<llvm_type(n.type)<<" 0.000000e+00, "<<float_literal(n.value,n.type)<<"\n";}
+        if constexpr(std::is_same_v<T,ir::ConstantExact>){
+            values[n.out]=n.type;
+            const auto g=pool.intern(n.spelling);
+            out<<"  "<<value(n.out)<<" = call ptr @"<<(n.type.kind==TypeKind::BigInt?"quidra_bigint_literal":"quidra_bigreal_literal")
+               <<"(ptr @"<<g<<")\n";
+        }
         if constexpr(std::is_same_v<T,ir::ConstantBool>){values[n.out]=Type::simple(TypeKind::Bool);out<<"  "<<value(n.out)<<" = xor i1 false, "<<(n.value?"true":"false")<<"\n";}
         if constexpr(std::is_same_v<T,ir::ConstantString>){values[n.out]=Type::simple(TypeKind::String);const auto g=pool.intern(n.value);out<<"  "<<value(n.out)<<" = getelementptr inbounds ["<<(n.value.size()+1)<<" x i8], ptr @"<<g<<", i64 0, i64 0\n";}
         if constexpr(std::is_same_v<T,ir::ArrayMake>){
@@ -1213,7 +1232,67 @@ struct FunctionEmitter {
                 out<<bad_label<<":\n  call void @quidra_fail_at(ptr @.code.numeric.cast, ptr @.msg.numeric.cast, i64 "<<n.line<<", i64 "<<n.column<<")\n  unreachable\n";
                 out<<ok_label<<":\n";
             };
-            if(is_integer(n.source_type)&&is_integer(n.target_type)){
+            if((n.source_type.kind==TypeKind::BigInt||n.source_type.kind==TypeKind::BigReal) &&
+               n.source_type==n.target_type){
+                out<<"  call void @quidra_managed_retain(ptr "<<value(n.value)<<")\n";
+                out<<"  "<<value(n.out)<<" = getelementptr inbounds i8, ptr "<<value(n.value)<<", i64 0\n";
+            }else if(is_integer(n.source_type)&&n.target_type.kind==TypeKind::BigInt){
+                std::string widened=value(n.value);
+                if(integer_width(n.source_type)<64){
+                    widened=temp("cast.bigint.widen");
+                    out<<"  "<<widened<<" = "<<(is_signed_integer(n.source_type)?"sext":"zext")
+                       <<" "<<source_ty<<" "<<value(n.value)<<" to i64\n";
+                }
+                out<<"  "<<value(n.out)<<" = call ptr @"<<(is_signed_integer(n.source_type)?"quidra_bigint_from_i64":"quidra_bigint_from_u64")
+                   <<"(i64 "<<widened<<")\n";
+            }else if(is_integer(n.source_type)&&n.target_type.kind==TypeKind::BigReal){
+                std::string widened=value(n.value);
+                if(integer_width(n.source_type)<64){
+                    widened=temp("cast.bigreal.widen");
+                    out<<"  "<<widened<<" = "<<(is_signed_integer(n.source_type)?"sext":"zext")
+                       <<" "<<source_ty<<" "<<value(n.value)<<" to i64\n";
+                }
+                out<<"  "<<value(n.out)<<" = call ptr @"<<(is_signed_integer(n.source_type)?"quidra_bigreal_from_i64":"quidra_bigreal_from_u64")
+                   <<"(i64 "<<widened<<")\n";
+            }else if(n.source_type.kind==TypeKind::BigInt&&n.target_type.kind==TypeKind::BigReal){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_from_bigint(ptr "<<value(n.value)<<")\n";
+            }else if(is_float(n.source_type)&&n.target_type.kind==TypeKind::BigReal){
+                std::string widened=value(n.value);
+                if(n.source_type.kind==TypeKind::Float32){
+                    widened=temp("cast.bigreal.float");
+                    out<<"  "<<widened<<" = fpext float "<<value(n.value)<<" to double\n";
+                }
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_from_float64(double "<<widened<<")\n";
+            }else if(n.source_type.kind==TypeKind::BigReal&&n.target_type.kind==TypeKind::BigInt){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_to_bigint(ptr "<<value(n.value)
+                   <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }else if(n.source_type.kind==TypeKind::BigInt&&is_integer(n.target_type)){
+                const auto raw=temp("cast.bigint.integer");
+                out<<"  "<<raw<<" = call i64 @"<<(is_signed_integer(n.target_type)?"quidra_bigint_to_i64":"quidra_bigint_to_u64")
+                   <<"(ptr "<<value(n.value)<<", i32 "<<target_width<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                if(target_width<64) out<<"  "<<value(n.out)<<" = trunc i64 "<<raw<<" to "<<target_ty<<"\n";
+                else out<<"  "<<value(n.out)<<" = add i64 "<<raw<<", 0\n";
+            }else if(n.source_type.kind==TypeKind::BigReal&&is_integer(n.target_type)){
+                const auto exact=temp("cast.bigreal.integer.exact");
+                const auto raw=temp("cast.bigreal.integer");
+                out<<"  "<<exact<<" = call ptr @quidra_bigreal_to_bigint(ptr "<<value(n.value)
+                   <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                out<<"  "<<raw<<" = call i64 @"<<(is_signed_integer(n.target_type)?"quidra_bigint_to_i64":"quidra_bigint_to_u64")
+                   <<"(ptr "<<exact<<", i32 "<<target_width<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                out<<"  call void @quidra_managed_release(ptr "<<exact<<", ptr @quidra_bigint_drop)\n";
+                if(target_width<64) out<<"  "<<value(n.out)<<" = trunc i64 "<<raw<<" to "<<target_ty<<"\n";
+                else out<<"  "<<value(n.out)<<" = add i64 "<<raw<<", 0\n";
+            }else if(n.source_type.kind==TypeKind::BigInt&&is_float(n.target_type)){
+                if(n.target_type.kind==TypeKind::Float32)
+                    out<<"  "<<value(n.out)<<" = call float @quidra_bigint_to_float32(ptr "<<value(n.value)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                else
+                    out<<"  "<<value(n.out)<<" = call double @quidra_bigint_to_float64(ptr "<<value(n.value)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }else if(n.source_type.kind==TypeKind::BigReal&&is_float(n.target_type)){
+                if(n.target_type.kind==TypeKind::Float32)
+                    out<<"  "<<value(n.out)<<" = call float @quidra_bigreal_to_float32(ptr "<<value(n.value)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                else
+                    out<<"  "<<value(n.out)<<" = call double @quidra_bigreal_to_float64(ptr "<<value(n.value)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }else if(is_integer(n.source_type)&&is_integer(n.target_type)){
                 std::vector<std::string> checks;
                 if(n.checked_range){
                     if(is_signed_integer(n.source_type)&&!is_signed_integer(n.target_type)){
@@ -1364,6 +1443,29 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::ParseNumber>){
             values[n.out]=n.result_type;
             const auto result=value(n.out);
+            if(n.target_type.kind==TypeKind::BigInt||n.target_type.kind==TypeKind::BigReal){
+                const auto parsed=temp("parse.exact"),ok=temp("parse.exact.ok");
+                out<<"  "<<parsed<<" = call ptr @"<<(n.target_type.kind==TypeKind::BigInt?"quidra_bigint_parse":"quidra_bigreal_parse")
+                   <<"(ptr "<<value(n.text)<<")\n";
+                if(n.result_type==n.target_type){
+                    out<<"  "<<value(n.out)<<" = getelementptr inbounds i8, ptr "<<parsed<<", i64 0\n";
+                    return;
+                }
+                out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
+                out<<"  "<<ok<<" = icmp ne ptr "<<parsed<<", null\n";
+                const auto yes=unique_label("parse.exact.ok"),bad=unique_label("parse.exact.error"),done=unique_label("parse.exact.done");
+                out<<"  br i1 "<<ok<<", label %"<<yes<<", label %"<<bad<<"\n";
+                out<<yes<<":\n  store i64 "<<case_index(n.result_type,n.target_type)<<", ptr "<<result<<"\n";
+                const auto payload=temp("parse.exact.payload");
+                out<<"  "<<payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+                   <<"  store ptr "<<parsed<<", ptr "<<payload<<"\n  br label %"<<done<<"\n";
+                out<<bad<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
+                const auto ep=temp("parse.exact.error.payload");
+                out<<"  "<<ep<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+                   <<"  store ptr @.err.parse, ptr "<<ep<<"\n  br label %"<<done<<"\n";
+                out<<done<<":\n";
+                return;
+            }
             out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
 
             std::string parsed;
@@ -1448,7 +1550,11 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::NumericAbs>){
             values[n.out]=n.type;
             const auto ty=llvm_type(n.type);
-            if(is_integer(n.type)){
+            if(n.type.kind==TypeKind::BigInt){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigint_abs(ptr "<<value(n.value)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }else if(n.type.kind==TypeKind::BigReal){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_abs(ptr "<<value(n.value)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }else if(is_integer(n.type)){
                 if(!is_signed_integer(n.type)){
                     out<<"  "<<value(n.out)<<" = add "<<ty<<" "<<value(n.value)<<", 0\n";
                 }else{
@@ -1466,14 +1572,32 @@ struct FunctionEmitter {
             }
         }
         if constexpr(std::is_same_v<T,ir::Sqrt>){
-            const auto source=values.at(n.value);
+            const auto source=n.type;
             values[n.out]=source;
-            const auto ty=llvm_type(source);
-            out<<"  "<<value(n.out)<<" = call "<<ty<<" @llvm.sqrt."<<(source.kind==TypeKind::Float32?"f32":"f64")<<"("<<ty<<" "<<value(n.value)<<")\n";
+            if(source.kind==TypeKind::BigReal)
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_sqrt(ptr "<<value(n.value)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            else{
+                const auto ty=llvm_type(source);
+                out<<"  "<<value(n.out)<<" = call "<<ty<<" @llvm.sqrt."<<(source.kind==TypeKind::Float32?"f32":"f64")<<"("<<ty<<" "<<value(n.value)<<")\n";
+            }
         }
         if constexpr(std::is_same_v<T,ir::MathUnary>){
             values[n.out]=n.type;
             const auto ty=llvm_type(n.type);
+            if(n.type.kind==TypeKind::BigReal){
+                int opcode=0;
+                switch(n.operation){
+                    case BuiltinCallable::MathSin: opcode=1; break;
+                    case BuiltinCallable::MathCos: opcode=2; break;
+                    case BuiltinCallable::MathTan: opcode=3; break;
+                    case BuiltinCallable::MathLog: opcode=4; break;
+                    case BuiltinCallable::MathExp: opcode=5; break;
+                    default: throw std::logic_error("invalid exact unary math operation");
+                }
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_math_unary(ptr "<<value(n.value)
+                   <<", i32 "<<opcode<<", i64 0, i64 0)\n";
+                return;
+            }
             const char* base="";
             switch(n.operation){
                 case BuiltinCallable::MathSin: base="sin"; break;
@@ -1487,7 +1611,20 @@ struct FunctionEmitter {
                <<"("<<ty<<" "<<value(n.value)<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::MathRoundInt>){
-            values[n.out]=Type::simple(TypeKind::Int);
+            values[n.out]=n.result_type;
+            if(n.source_type.kind==TypeKind::BigReal){
+                int opcode=0;
+                switch(n.operation){
+                    case BuiltinCallable::MathTrunc: opcode=1; break;
+                    case BuiltinCallable::MathRound: opcode=2; break;
+                    case BuiltinCallable::MathFloor: opcode=3; break;
+                    case BuiltinCallable::MathCeil: opcode=4; break;
+                    default: throw std::logic_error("invalid exact rounding operation");
+                }
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_round(ptr "<<value(n.value)
+                   <<", i32 "<<opcode<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                return;
+            }
             std::string input=value(n.value);
             if(n.source_type.kind==TypeKind::Float32){const auto widened=temp("math.round.widen");out<<"  "<<widened<<" = fpext float "<<input<<" to double\n";input=widened;}
             const char* function="@quidra_math_trunc_int";
@@ -1502,9 +1639,13 @@ struct FunctionEmitter {
         }
         if constexpr(std::is_same_v<T,ir::MathPow>){
             values[n.out]=n.type;
-            const auto ty=llvm_type(n.type);
-            out<<"  "<<value(n.out)<<" = call "<<ty<<" @pow"<<(n.type.kind==TypeKind::Float32?"f":"")
-               <<"("<<ty<<" "<<value(n.base)<<", "<<ty<<" "<<value(n.exponent)<<")\n";
+            if(n.type.kind==TypeKind::BigReal)
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_pow(ptr "<<value(n.base)<<", ptr "<<value(n.exponent)<<", i64 0, i64 0)\n";
+            else{
+                const auto ty=llvm_type(n.type);
+                out<<"  "<<value(n.out)<<" = call "<<ty<<" @pow"<<(n.type.kind==TypeKind::Float32?"f":"")
+                   <<"("<<ty<<" "<<value(n.base)<<", "<<ty<<" "<<value(n.exponent)<<")\n";
+            }
         }
         if constexpr(std::is_same_v<T,ir::CliArgument>){
             values[n.out]=n.type;
@@ -1513,6 +1654,8 @@ struct FunctionEmitter {
             if(n.type.kind==TypeKind::String) out<<"  "<<value(n.out)<<" = getelementptr i8, ptr "<<raw<<", i64 0\n";
             else if(n.type.kind==TypeKind::Int) out<<"  "<<value(n.out)<<" = call i64 @quidra_cli_parse_int(ptr "<<raw<<")\n";
             else if(n.type.kind==TypeKind::Float) out<<"  "<<value(n.out)<<" = call double @quidra_cli_parse_float(ptr "<<raw<<")\n";
+            else if(n.type.kind==TypeKind::BigInt) out<<"  "<<value(n.out)<<" = call ptr @quidra_bigint_literal(ptr "<<raw<<")\n";
+            else if(n.type.kind==TypeKind::BigReal) out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_literal(ptr "<<raw<<")\n";
             else if(n.type.kind==TypeKind::Bool) out<<"  "<<value(n.out)<<" = call i1 @quidra_cli_parse_bool(ptr "<<raw<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::CliOption>){
@@ -1523,7 +1666,7 @@ struct FunctionEmitter {
             const auto use_default=unique_label("cli.option.default"),parse=unique_label("cli.option.parse"),done=unique_label("cli.option.done");
             out<<"  br i1 "<<missing<<", label %"<<use_default<<", label %"<<parse<<"\n";
             out<<use_default<<":\n";
-            if(n.type.kind==TypeKind::String)
+            if(n.type.kind==TypeKind::String||n.type.kind==TypeKind::BigInt||n.type.kind==TypeKind::BigReal)
                 out<<"  call void @quidra_managed_retain(ptr "<<value(n.default_value)<<")\n";
             out<<"  br label %"<<done<<"\n";
             out<<parse<<":\n";
@@ -1533,6 +1676,8 @@ struct FunctionEmitter {
                 parsed=temp("cli.option.value");
                 if(n.type.kind==TypeKind::Int) out<<"  "<<parsed<<" = call i64 @quidra_cli_parse_int(ptr "<<raw<<")\n";
                 else if(n.type.kind==TypeKind::Float) out<<"  "<<parsed<<" = call double @quidra_cli_parse_float(ptr "<<raw<<")\n";
+                else if(n.type.kind==TypeKind::BigInt) out<<"  "<<parsed<<" = call ptr @quidra_bigint_literal(ptr "<<raw<<")\n";
+                else if(n.type.kind==TypeKind::BigReal) out<<"  "<<parsed<<" = call ptr @quidra_bigreal_literal(ptr "<<raw<<")\n";
                 else if(n.type.kind==TypeKind::Bool) out<<"  "<<parsed<<" = call i1 @quidra_cli_parse_bool(ptr "<<raw<<")\n";
             }
             out<<"  br label %"<<done<<"\n"<<done<<":\n";
@@ -1887,6 +2032,34 @@ struct FunctionEmitter {
                <<"  store ptr @.err.json.type, ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
             out<<done<<":\n";
         }
+        if constexpr(std::is_same_v<T,ir::JsonBigInt>||std::is_same_v<T,ir::JsonBigReal>){
+            values[n.out]=n.result_type;
+            const bool want_int=std::is_same_v<T,ir::JsonBigInt>;
+            const auto raw=temp("json.exact.raw"),parsed=temp("json.exact.parsed"),ok=temp("json.exact.ok"),result=value(n.out);
+            out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
+            out<<"  "<<raw<<" = call ptr @quidra_json_number_text(ptr "<<value(n.value)<<")\n";
+            const auto has_text=temp("json.exact.has_text");
+            out<<"  "<<has_text<<" = icmp ne ptr "<<raw<<", null\n";
+            const auto parse_label=unique_label("json.exact.parse"),bad=unique_label("json.exact.error"),yes=unique_label("json.exact.ok"),done=unique_label("json.exact.done");
+            out<<"  br i1 "<<has_text<<", label %"<<parse_label<<", label %"<<bad<<"\n";
+            out<<parse_label<<":\n";
+            out<<"  "<<parsed<<" = call ptr @"<<(want_int?"quidra_bigint_parse":"quidra_bigreal_parse")<<"(ptr "<<raw<<")\n";
+            out<<"  call void @quidra_managed_release(ptr "<<raw<<", ptr null)\n";
+            out<<"  "<<ok<<" = icmp ne ptr "<<parsed<<", null\n";
+            out<<"  br i1 "<<ok<<", label %"<<yes<<", label %"<<bad<<"\n";
+            out<<yes<<":\n";
+            const Type exact_type=Type::simple(want_int?TypeKind::BigInt:TypeKind::BigReal);
+            out<<"  store i64 "<<case_index(n.result_type,exact_type)<<", ptr "<<result<<"\n";
+            const auto payload=temp("json.exact.value");
+            out<<"  "<<payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+               <<"  store ptr "<<parsed<<", ptr "<<payload<<"\n  br label %"<<done<<"\n";
+            out<<bad<<":\n";
+            out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
+            const auto error_payload=temp("json.exact.error.payload");
+            out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+               <<"  store ptr @.err.json.type, ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
+            out<<done<<":\n";
+        }
         if constexpr(std::is_same_v<T,ir::JsonBoolean>){
             values[n.out]=n.result_type;
             const auto ok=temp("json.boolean.ok"),raw=temp("json.boolean.raw"),result=value(n.out);
@@ -2101,6 +2274,17 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::NumericMinMax>){
             values[n.out]=n.type;
             const auto ty=llvm_type(n.type),cmp=temp("num.cmp");
+            if(n.type.kind==TypeKind::BigInt||n.type.kind==TypeKind::BigReal){
+                if(n.type.kind==TypeKind::BigInt)
+                    out<<"  "<<cmp<<" = call i32 @quidra_bigint_compare(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n";
+                else
+                    out<<"  "<<cmp<<" = call i32 @quidra_bigreal_compare(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<", i64 0, i64 0)\n";
+                const auto choose=temp("num.exact.choose");
+                out<<"  "<<choose<<" = icmp "<<(n.maximum?"sgt":"slt")<<" i32 "<<cmp<<", 0\n";
+                out<<"  "<<value(n.out)<<" = select i1 "<<choose<<", ptr "<<value(n.left)<<", ptr "<<value(n.right)<<"\n";
+                out<<"  call void @quidra_managed_retain(ptr "<<value(n.out)<<")\n";
+                return;
+            }
             if(is_integer(n.type)){
                 const auto pred=is_signed_integer(n.type)?(n.maximum?"sgt":"slt"):(n.maximum?"ugt":"ult");
                 out<<"  "<<cmp<<" = icmp "<<pred<<" "<<ty<<" "<<value(n.left)<<", "<<value(n.right)<<"\n";
@@ -2183,6 +2367,12 @@ struct FunctionEmitter {
                    <<value(n.operand)<<", i32 1, i64 "<<n.line<<", i64 "<<n.column<<")\n";
             }else if(n.op=="not"){
                 out<<"  "<<value(n.out)<<" = xor i1 "<<value(n.operand)<<", true\n";
+            }else if(n.type.kind==TypeKind::BigInt){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigint_neg(ptr "<<value(n.operand)
+                   <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }else if(n.type.kind==TypeKind::BigReal){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_neg(ptr "<<value(n.operand)
+                   <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
             }else if(is_integer(n.type)){
                 const auto ty=llvm_type(n.type);
                 const auto width=integer_width(n.type);
@@ -2199,6 +2389,28 @@ struct FunctionEmitter {
             if(n.op=="+"&&ot.kind==TypeKind::String){auto l="%str.l."+std::to_string(n.out),r="%str.r."+std::to_string(n.out),total="%str.t."+std::to_string(n.out),alloc="%str.a."+std::to_string(n.out),dest="%str.d."+std::to_string(n.out),term="%str.z."+std::to_string(n.out);out<<"  "<<l<<" = call i64 @strlen(ptr "<<value(n.left)<<")\n  "<<r<<" = call i64 @strlen(ptr "<<value(n.right)<<")\n  "<<total<<" = add i64 "<<l<<", "<<r<<"\n  "<<alloc<<" = add i64 "<<total<<", 1\n  "<<value(n.out)<<" = call ptr @quidra_alloc(i64 "<<alloc<<")\n  call ptr @memcpy(ptr "<<value(n.out)<<", ptr "<<value(n.left)<<", i64 "<<l<<")\n  "<<dest<<" = getelementptr inbounds i8, ptr "<<value(n.out)<<", i64 "<<l<<"\n  call ptr @memcpy(ptr "<<dest<<", ptr "<<value(n.right)<<", i64 "<<r<<")\n  "<<term<<" = getelementptr inbounds i8, ptr "<<value(n.out)<<", i64 "<<total<<"\n  store i8 0, ptr "<<term<<"\n";return;}
             if((n.op=="=="||n.op=="!=")&&(ot.kind==TypeKind::String||ot.kind==TypeKind::Error)){auto c="%str.cmp."+std::to_string(n.out);out<<"  "<<c<<" = call i32 @strcmp(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n  "<<value(n.out)<<" = icmp "<<(n.op=="=="?"eq":"ne")<<" i32 "<<c<<", 0\n";return;}
             if((n.op=="=="||n.op=="!=")&&(ot.kind==TypeKind::Bin||ot.kind==TypeKind::Array||ot.kind==TypeKind::Class)){auto eq="%deep.eq."+std::to_string(n.out);out<<"  "<<eq<<" = call i1 "<<equality_name(ot)<<"(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n";if(n.op=="==")out<<"  "<<value(n.out)<<" = xor i1 "<<eq<<", false\n";else out<<"  "<<value(n.out)<<" = xor i1 "<<eq<<", true\n";return;}
+            if(ot.kind==TypeKind::BigInt||ot.kind==TypeKind::BigReal){
+                const bool bigint=ot.kind==TypeKind::BigInt;
+                if(n.op=="+"||n.op=="-"||n.op=="*"||n.op=="/"||(bigint&&n.op=="%")){
+                    int opcode=n.op=="+"?1:n.op=="-"?2:n.op=="*"?3:n.op=="/"?4:5;
+                    out<<"  "<<value(n.out)<<" = call ptr @"<<(bigint?"quidra_bigint_binary":"quidra_bigreal_binary")
+                       <<"(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<", i32 "<<opcode
+                       <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                    return;
+                }
+                const auto comparison=temp("exact.compare");
+                if(bigint)
+                    out<<"  "<<comparison<<" = call i32 @quidra_bigint_compare(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n";
+                else
+                    out<<"  "<<comparison<<" = call i32 @quidra_bigreal_compare(ptr "<<value(n.left)<<", ptr "<<value(n.right)
+                       <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                std::string pred;
+                if(n.op=="==")pred="eq";else if(n.op=="!=")pred="ne";
+                else if(n.op=="<")pred="slt";else if(n.op=="<=")pred="sle";
+                else if(n.op==">")pred="sgt";else pred="sge";
+                out<<"  "<<value(n.out)<<" = icmp "<<pred<<" i32 "<<comparison<<", 0\n";
+                return;
+            }
             if(is_integer(ot)){
                 const auto ty=llvm_type(ot);
                 const auto width=integer_width(ot);
@@ -2249,7 +2461,11 @@ struct FunctionEmitter {
         }
         if constexpr(std::is_same_v<T,ir::ToString>){
             values[n.out]=Type::simple(TypeKind::String);
-            if(is_integer(n.source_type)){
+            if(n.source_type.kind==TypeKind::BigInt){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigint_text(ptr "<<value(n.value)<<")\n";
+            }else if(n.source_type.kind==TypeKind::BigReal){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_text(ptr "<<value(n.value)<<", i32 34)\n";
+            }else if(is_integer(n.source_type)){
                 out<<"  "<<value(n.out)<<" = call ptr @quidra_alloc(i64 32)\n";
                 std::string widened=value(n.value);
                 if(integer_width(n.source_type)<64){
@@ -2277,7 +2493,12 @@ struct FunctionEmitter {
             const auto integer=n.integer_width?std::to_string(*n.integer_width):"-1";
             const auto fractional=n.fractional_digits?std::to_string(*n.fractional_digits):"-1";
             const auto significant=n.significant_digits?std::to_string(*n.significant_digits):"-1";
-            if(is_integer(n.source_type)){
+            if(n.source_type.kind==TypeKind::BigInt){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigint_text(ptr "<<value(n.value)<<")\n";
+            }else if(n.source_type.kind==TypeKind::BigReal){
+                const int precision=n.significant_digits?static_cast<int>(*n.significant_digits):34;
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_text(ptr "<<value(n.value)<<", i32 "<<precision<<")\n";
+            }else if(is_integer(n.source_type)){
                 std::string widened=value(n.value);
                 if(integer_width(n.source_type)<64){
                     widened=temp("format.int");
@@ -2377,6 +2598,15 @@ struct FunctionEmitter {
                 std::string widened=value(n.value);
                 if(integer_width(n.type)<64){widened=temp("print.int");out<<"  "<<widened<<" = "<<(is_signed_integer(n.type)?"sext":"zext")<<" "<<llvm_type(n.type)<<" "<<value(n.value)<<" to i64\n";}
                 out<<"  call i32 (ptr, ...) @printf(ptr "<<(is_signed_integer(n.type)?(newline?"@.fmt.int":"@.fmt.int.write"):(newline?"@.fmt.uint":"@.fmt.uint.write"))<<", i64 "<<widened<<")\n";
+            }else if(n.type.kind==TypeKind::BigInt||n.type.kind==TypeKind::BigReal){
+                auto text=temp("print.exact.text");
+                if(n.type.kind==TypeKind::BigInt)
+                    out<<"  "<<text<<" = call ptr @quidra_bigint_text(ptr "<<value(n.value)<<")\n";
+                else
+                    out<<"  "<<text<<" = call ptr @quidra_bigreal_text(ptr "<<value(n.value)<<", i32 34)\n";
+                if(newline)out<<"  call i32 @puts(ptr "<<text<<")\n";
+                else out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr "<<text<<")\n";
+                out<<"  call void @quidra_managed_release(ptr "<<text<<", ptr null)\n";
             }else if(is_float(n.type)){
                 std::string widened=value(n.value);
                 if(n.type.kind==TypeKind::Float32){widened=temp("print.float");out<<"  "<<widened<<" = fpext float "<<value(n.value)<<" to double\n";}
@@ -2574,10 +2804,117 @@ std::string emit_array_cast_helper(const Type& source, const Type& target,
     } else {
         if (!is_numeric(source_element) || !is_numeric(target_element))
             throw std::logic_error("array numeric cast leaf must be numeric");
-        o << "  call void @quidra_numeric_cast_element(ptr %dst.slot, ptr %src.slot, i32 "
-          << tensor_dtype_code(source_element) << ", i32 "
-          << tensor_dtype_code(target_element)
-          << ", i64 %line, i64 %column)\n";
+
+        if (is_tensor_numeric(source_element) && is_tensor_numeric(target_element)) {
+            o << "  call void @quidra_numeric_cast_element(ptr %dst.slot, ptr %src.slot, i32 "
+              << tensor_dtype_code(source_element) << ", i32 "
+              << tensor_dtype_code(target_element)
+              << ", i64 %line, i64 %column)\n";
+        } else {
+            o << "  call void @quidra_init_check(ptr %src.slot, i64 %line, i64 %column)\n";
+            const std::string src_value="%exact.cast.src";
+            o << "  " << src_value << " = load " << llvm_type(source_element)
+              << ", ptr %src.slot, align 1\n";
+
+            if (target_element.kind == TypeKind::BigInt) {
+                if (source_element.kind == TypeKind::BigInt) {
+                    o << "  call void @quidra_managed_retain(ptr " << src_value << ")\n"
+                      << "  store ptr " << src_value << ", ptr %dst.slot, align 1\n";
+                } else if (source_element.kind == TypeKind::BigReal) {
+                    o << "  %exact.cast.out = call ptr @quidra_bigreal_to_bigint(ptr "
+                      << src_value << ", i64 %line, i64 %column)\n"
+                      << "  store ptr %exact.cast.out, ptr %dst.slot, align 1\n";
+                } else if (is_integer(source_element)) {
+                    std::string widened=src_value;
+                    if (integer_width(source_element)<64) {
+                        widened="%exact.cast.widen";
+                        o << "  " << widened << " = "
+                          << (is_signed_integer(source_element)?"sext":"zext") << " "
+                          << llvm_type(source_element) << " " << src_value << " to i64\n";
+                    }
+                    o << "  %exact.cast.out = call ptr @"
+                      << (is_signed_integer(source_element)?"quidra_bigint_from_i64":"quidra_bigint_from_u64")
+                      << "(i64 " << widened << ")\n"
+                      << "  store ptr %exact.cast.out, ptr %dst.slot, align 1\n";
+                } else {
+                    throw std::logic_error("unsupported array cast to bigint");
+                }
+            } else if (target_element.kind == TypeKind::BigReal) {
+                if (source_element.kind == TypeKind::BigReal) {
+                    o << "  call void @quidra_managed_retain(ptr " << src_value << ")\n"
+                      << "  store ptr " << src_value << ", ptr %dst.slot, align 1\n";
+                } else if (source_element.kind == TypeKind::BigInt) {
+                    o << "  %exact.cast.out = call ptr @quidra_bigreal_from_bigint(ptr "
+                      << src_value << ")\n"
+                      << "  store ptr %exact.cast.out, ptr %dst.slot, align 1\n";
+                } else if (is_integer(source_element)) {
+                    std::string widened=src_value;
+                    if (integer_width(source_element)<64) {
+                        widened="%exact.cast.widen";
+                        o << "  " << widened << " = "
+                          << (is_signed_integer(source_element)?"sext":"zext") << " "
+                          << llvm_type(source_element) << " " << src_value << " to i64\n";
+                    }
+                    o << "  %exact.cast.out = call ptr @"
+                      << (is_signed_integer(source_element)?"quidra_bigreal_from_i64":"quidra_bigreal_from_u64")
+                      << "(i64 " << widened << ")\n"
+                      << "  store ptr %exact.cast.out, ptr %dst.slot, align 1\n";
+                } else if (is_float(source_element)) {
+                    std::string widened=src_value;
+                    if (source_element.kind==TypeKind::Float32) {
+                        widened="%exact.cast.float";
+                        o << "  " << widened << " = fpext float " << src_value << " to double\n";
+                    }
+                    o << "  %exact.cast.out = call ptr @quidra_bigreal_from_float64(double "
+                      << widened << ")\n"
+                      << "  store ptr %exact.cast.out, ptr %dst.slot, align 1\n";
+                } else {
+                    throw std::logic_error("unsupported array cast to bigreal");
+                }
+            } else if (is_integer(target_element)) {
+                std::string integer_source;
+                if (source_element.kind == TypeKind::BigReal) {
+                    o << "  %exact.cast.integer = call ptr @quidra_bigreal_to_bigint(ptr "
+                      << src_value << ", i64 %line, i64 %column)\n";
+                    integer_source="%exact.cast.integer";
+                } else if (source_element.kind == TypeKind::BigInt) {
+                    integer_source=src_value;
+                } else {
+                    throw std::logic_error("unsupported exact array integer source");
+                }
+                const auto raw="%exact.cast.raw";
+                o << "  " << raw << " = call i64 @"
+                  << (is_signed_integer(target_element)?"quidra_bigint_to_i64":"quidra_bigint_to_u64")
+                  << "(ptr " << integer_source << ", i32 " << integer_width(target_element)
+                  << ", i64 %line, i64 %column)\n";
+                if (source_element.kind == TypeKind::BigReal)
+                    o << "  call void @quidra_managed_release(ptr %exact.cast.integer, ptr @quidra_bigint_drop)\n";
+                if (integer_width(target_element)<64)
+                    o << "  %exact.cast.out = trunc i64 " << raw << " to "
+                      << llvm_type(target_element) << "\n";
+                else
+                    o << "  %exact.cast.out = add i64 " << raw << ", 0\n";
+                o << "  store " << llvm_type(target_element)
+                  << " %exact.cast.out, ptr %dst.slot, align 1\n";
+            } else if (is_float(target_element)) {
+                if (source_element.kind != TypeKind::BigInt &&
+                    source_element.kind != TypeKind::BigReal)
+                    throw std::logic_error("unsupported exact array float source");
+                const bool from_real=source_element.kind==TypeKind::BigReal;
+                if (target_element.kind==TypeKind::Float32)
+                    o << "  %exact.cast.out = call float @"
+                      << (from_real?"quidra_bigreal_to_float32":"quidra_bigint_to_float32")
+                      << "(ptr " << src_value << ", i64 %line, i64 %column)\n";
+                else
+                    o << "  %exact.cast.out = call double @"
+                      << (from_real?"quidra_bigreal_to_float64":"quidra_bigint_to_float64")
+                      << "(ptr " << src_value << ", i64 %line, i64 %column)\n";
+                o << "  store " << llvm_type(target_element)
+                  << " %exact.cast.out, ptr %dst.slot, align 1\n";
+            } else {
+                throw std::logic_error("unsupported exact array numeric cast");
+            }
+        }
     }
 
     o << "  %next = add i64 %i, 1\n"
@@ -2733,7 +3070,8 @@ std::string emit_clone_helper(const Type&t,const std::unordered_map<std::string,
 void collect_drop_type(const Type& type, std::map<std::string,Type>& types,
                        const std::unordered_map<std::string,ir::ClassLayout>& layouts) {
     if (!requires_lifetime_management(type)) return;
-    if (type.kind == TypeKind::String || type.kind == TypeKind::Error ||
+    if (type.kind == TypeKind::BigInt || type.kind == TypeKind::BigReal ||
+        type.kind == TypeKind::String || type.kind == TypeKind::Error ||
         (type.kind == TypeKind::Class &&
          (type.class_name == "$std.json.Value" ||
           type.class_name == "$std.http.Response"))) return;
@@ -2778,6 +3116,8 @@ void collect_drop_types(const ir::Module& module, std::map<std::string,Type>& ty
 
 std::string drop_callback_for(const Type& type,
                               const std::unordered_map<std::string,ir::ClassLayout>& layouts) {
+    if (type.kind == TypeKind::BigInt) return "@quidra_bigint_drop";
+    if (type.kind == TypeKind::BigReal) return "@quidra_bigreal_drop";
     if (type.kind == TypeKind::Class && type.class_name == "$std.json.Value") {
         return "@quidra_json_drop";
     }
@@ -2941,7 +3281,13 @@ void collect_equality_types(const ir::Module& module, std::map<std::string,Type>
 std::string equality_value_ir(const Type& type, const std::string& left,
                               const std::string& right, const std::string& id) {
     std::ostringstream out;
-    if (is_integer(type)) {
+    if (type.kind == TypeKind::BigInt) {
+        out << "  %" << id << ".cmp = call i32 @quidra_bigint_compare(ptr " << left << ", ptr " << right << ")\n"
+            << "  %" << id << " = icmp eq i32 %" << id << ".cmp, 0\n";
+    } else if (type.kind == TypeKind::BigReal) {
+        out << "  %" << id << ".cmp = call i32 @quidra_bigreal_compare(ptr " << left << ", ptr " << right << ", i64 0, i64 0)\n"
+            << "  %" << id << " = icmp eq i32 %" << id << ".cmp, 0\n";
+    } else if (is_integer(type)) {
         out << "  %" << id << " = icmp eq " << llvm_type(type) << " " << left << ", " << right << "\n";
     } else if (type.kind == TypeKind::Bool) {
         out << "  %" << id << " = icmp eq i1 " << left << ", " << right << "\n";
@@ -3068,6 +3414,39 @@ std::string emit_equality_helper(
 
 std::string runtime_helpers(){return R"LLVM(
 declare void @quidra_runtime_set_args(i32, ptr)
+declare ptr @quidra_bigint_literal(ptr)
+declare ptr @quidra_bigint_parse(ptr)
+declare ptr @quidra_bigreal_literal(ptr)
+declare ptr @quidra_bigreal_parse(ptr)
+declare void @quidra_bigint_drop(ptr)
+declare void @quidra_bigreal_drop(ptr)
+declare ptr @quidra_bigint_text(ptr)
+declare ptr @quidra_bigreal_text(ptr, i32)
+declare ptr @quidra_bigint_neg(ptr, i64, i64)
+declare ptr @quidra_bigint_abs(ptr, i64, i64)
+declare ptr @quidra_bigint_binary(ptr, ptr, i32, i64, i64)
+declare i32 @quidra_bigint_compare(ptr, ptr)
+declare ptr @quidra_bigreal_neg(ptr, i64, i64)
+declare ptr @quidra_bigreal_abs(ptr, i64, i64)
+declare ptr @quidra_bigreal_binary(ptr, ptr, i32, i64, i64)
+declare i32 @quidra_bigreal_compare(ptr, ptr, i64, i64)
+declare ptr @quidra_bigreal_sqrt(ptr, i64, i64)
+declare ptr @quidra_bigreal_math_unary(ptr, i32, i64, i64)
+declare ptr @quidra_bigreal_pow(ptr, ptr, i64, i64)
+declare ptr @quidra_bigreal_round(ptr, i32, i64, i64)
+declare ptr @quidra_bigint_from_i64(i64)
+declare ptr @quidra_bigint_from_u64(i64)
+declare ptr @quidra_bigreal_from_i64(i64)
+declare ptr @quidra_bigreal_from_u64(i64)
+declare ptr @quidra_bigreal_from_float64(double)
+declare ptr @quidra_bigreal_from_bigint(ptr)
+declare ptr @quidra_bigreal_to_bigint(ptr, i64, i64)
+declare i64 @quidra_bigint_to_i64(ptr, i32, i64, i64)
+declare i64 @quidra_bigint_to_u64(ptr, i32, i64, i64)
+declare double @quidra_bigreal_to_float64(ptr, i64, i64)
+declare float @quidra_bigreal_to_float32(ptr, i64, i64)
+declare double @quidra_bigint_to_float64(ptr, i64, i64)
+declare float @quidra_bigint_to_float32(ptr, i64, i64)
 declare ptr @quidra_string_index(ptr, i64, i64, i64)
 declare i64 @quidra_string_length(ptr)
 declare i1 @quidra_string_contains(ptr, ptr)
@@ -3138,6 +3517,7 @@ declare i1 @quidra_json_integer_ok(ptr)
 declare i64 @quidra_json_integer(ptr)
 declare i1 @quidra_json_number_ok(ptr)
 declare double @quidra_json_number(ptr)
+declare ptr @quidra_json_number_text(ptr)
 declare i1 @quidra_json_boolean_ok(ptr)
 declare i1 @quidra_json_boolean(ptr)
 declare ptr @quidra_json_encode(ptr)

@@ -139,7 +139,8 @@ private:
     Type check_address_target(const Expr& expr, bool allow_tensor_element = false);
     bool storage_initialized(const Expr& expr) const;
     void check_static_index_bounds(const Type& base, const Expr& index);
-    Type check_name_expr(const Expr& expression, const NameExpr& node);
+    Type check_name_expr(const Expr& expression, const NameExpr& node,
+                         const Type* expected = nullptr);
     Type check_member_expr(const Expr& expression, const MemberExpr& node);
     Type check_index_expr(const Expr& expression, const IndexExpr& node);
     Type check_method_call_expr(const Expr& expression, const MethodCallExpr& node);

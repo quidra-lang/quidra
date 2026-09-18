@@ -61,8 +61,8 @@ for name in ["print","write","input","range","array","len","abs","sqrt","min","m
 assert x["standard_modules"] == ["math","cli","file","environment","test","time","random","process","map","set","json","http","stats","linear","signal","image","tensor","neural"]
 assert x["array_growth_model"].startswith("append(value)")
 assert "Unicode code-point" in x["string_operation_model"]
-assert "tensor<T, A, B, ...>" in x["current_types"]
-assert "leading shape axes" in x["tensor_model"]
+assert "tensor<T><D0, D1, ...>" in x["current_types"]
+assert "exact-rank shape pattern" in x["tensor_model"]
 assert "rank and known shape are inferred" in x["tensor_model"]
 PY
 $QUIDRA check "$ROOT/examples/hello.qui" --json > "$TMP/check-version.json"
@@ -2534,10 +2534,10 @@ import json,sys
 x=json.load(open(sys.argv[1]))
 tensor=x["inspection"]["type_contracts"]["tensor"]
 rank=x["inspection"]["type_contracts"]["tensor_rank"]
-assert tensor == "tensor<T> | tensor<T, A, B, ...>"
+assert tensor == "tensor<T> | tensor<T><D0, D1, ...>"
 assert "compiler-inferred" in rank
 assert "never written" in rank
-assert "leading shape axes" in x["inspection"]["type_contracts"]["tensor_shape"]
+assert "exact rank" in x["inspection"]["type_contracts"]["tensor_shape"]
 calls=x["calls"]
 assert calls["argument_order"] == "positional_then_named"
 assert calls["named_syntax"] == "name = value"
@@ -2545,7 +2545,7 @@ assert "duplicate_parameter" in calls["rejected"]
 PY
 
 cat > "$TMP/inspect-tensor-shape.qui" <<'QUI'
-tensor<float32, 2, 3> matrix = tensor.zeros<float32>([2, 3])
+tensor<float32><2, 3> matrix = tensor.zeros<float32>([2, 3])
 auto row = matrix[0]
 auto dimensions = matrix.shape()
 QUI
@@ -2554,8 +2554,8 @@ python3 - "$TMP/inspect-tensor-shape.json" <<'PY'
 import json,sys
 x=json.load(open(sys.argv[1]))
 types={n["inferred_type"] for n in x["nodes"] if n["inferred_type"]}
-assert "tensor<float32, 2, 3>" in types, types
-assert "tensor<float32, 3>" in types, types
+assert "tensor<float32><2, 3>" in types, types
+assert "tensor<float32><3>" in types, types
 assert "int[2]" in types, types
 PY
 

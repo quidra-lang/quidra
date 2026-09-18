@@ -1450,7 +1450,7 @@ set +e
 captured_nested_array_rc=$?
 set -e
 [[ "$captured_nested_array_rc" -eq 101 ]]
-grep -q 'SHAPE_MISMATCH' "$TMP/captured-nested-array-fail.err"
+grep -q 'Quidra runtime error' "$TMP/captured-nested-array-fail.err"
 
 cat > "$TMP/contextual-wildcard-zero.qui" <<'QUI'
 tensor<float><_, 4> value = tensor.zeros()

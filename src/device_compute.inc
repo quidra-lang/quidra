@@ -212,6 +212,13 @@ bool fake_cast_values(Buffer* output, const Buffer* input,
             return false;
         } else {
             value = static_cast<Dst>(source);
+            if constexpr (std::is_floating_point_v<Src> &&
+                          std::is_floating_point_v<Dst>) {
+                if (std::isfinite(source) && !std::isfinite(value)) {
+                    error = "tensor cast is unsupported or a value is outside the target range";
+                    return false;
+                }
+            }
         }
         std::memcpy(dst + i * sizeof(Dst), &value, sizeof(Dst));
     }
@@ -548,6 +555,14 @@ std::string hip_float_cast_source(int source_dtype,int target_dtype) {
         "* out,const "+src+"* in,unsigned long long count){"
         "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
         "if(i<count)out[i]=("+dst+")in[i];}";
+}
+
+std::string hip_float_narrow_validate_source() {
+    return "#include <math.h>\nextern \"C\" __global__ void q_kernel("
+           "const double* in,unsigned long long count,unsigned int* status){"
+           "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+           "if(i<count){double v=in[i];float narrowed=(float)v;"
+           "if(isfinite(v)&&!isfinite(narrowed))atomicExch(status,1u);}}";
 }
 
 std::string hip_float_matmul_source(int dtype) {
@@ -934,6 +949,29 @@ std::string ptx_float_cast_kernel(int source_dtype, int target_dtype) {
                "  st.global.f32 [%rd11], %f1;\n";
     }
     out << "DONE:\n  ret;\n}\n";
+    return out.str();
+}
+
+std::string ptx_float_narrow_validate_kernel() {
+    std::ostringstream out;
+    out << ptx_thread_prologue(
+        "  .param .u64 p_in,\n  .param .u64 p_count,\n  .param .u64 p_status\n",
+        "  .reg .pred %p<4>;\n  .reg .b32 %r<8>;\n  .reg .b64 %rd<20>;\n");
+    out << "  ld.param.u64 %rd1, [p_in];\n"
+           "  ld.param.u64 %rd5, [p_count];\n"
+           "  ld.param.u64 %rd4, [p_status];\n"
+           "  setp.ge.u64 %p1, %rd7, %rd5;\n"
+           "  @%p1 bra DONE;\n"
+           "  mul.lo.u64 %rd8, %rd7, 8;\n"
+           "  add.u64 %rd9, %rd1, %rd8;\n"
+           "  ld.global.u64 %rd10, [%rd9];\n"
+           "  and.b64 %rd11, %rd10, 0x7fffffffffffffff;\n"
+           "  setp.ge.u64 %p2, %rd11, 0x7ff0000000000000;\n"
+           "  @%p2 bra DONE;\n"
+           "  setp.gt.u64 %p3, %rd11, 0x47efffffe0000000;\n"
+           "  @!%p3 bra DONE;\n"
+           "  atom.global.exch.b32 %r5, [%rd4], 1;\n"
+           "DONE:\n  ret;\n}\n";
     return out.str();
 }
 
@@ -1960,6 +1998,25 @@ bool compute_cast(Buffer* output, const Buffer* input, std::size_t input_offset,
     if((source_dtype==9||source_dtype==10) &&
        (target_dtype==9||target_dtype==10) &&
        output->backend==Backend::Nvidia){
+        if(source_dtype==9 && target_dtype==10){
+            std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+                allocate(output->global_index,sizeof(std::uint32_t),error),
+                [](Buffer* value){quidra::device::release(value);});
+            if(!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+            auto validate=ptx_float_narrow_validate_kernel();
+            auto validate_in=input->cuda_pointer+input_offset;
+            auto validate_status=status->cuda_pointer;
+            auto validate_count=static_cast<std::uint64_t>(count);
+            void* validate_args[]={&validate_in,&validate_count,&validate_status};
+            if(!launch_ptx_1d(
+                status.get(),"cast-range-f64-f32",validate,count,validate_args,error))return false;
+            std::uint32_t failed=0;
+            if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+            if(failed){
+                error="tensor cast is unsupported or a value is outside the target range";
+                return false;
+            }
+        }
         auto ptx=ptx_float_cast_kernel(source_dtype,target_dtype);
         auto out_ptr=output->cuda_pointer;
         auto in_ptr=input->cuda_pointer+input_offset;
@@ -2002,6 +2059,25 @@ bool compute_cast(Buffer* output, const Buffer* input, std::size_t input_offset,
     if ((source_dtype==9||source_dtype==10) &&
         (target_dtype==9||target_dtype==10) &&
         output->backend==Backend::Amd) {
+        if(source_dtype==9 && target_dtype==10){
+            std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+                allocate(output->global_index,sizeof(std::uint32_t),error),
+                [](Buffer* value){quidra::device::release(value);});
+            if(!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+            auto validate=hip_float_narrow_validate_source();
+            auto validate_in=static_cast<unsigned char*>(input->pointer)+input_offset;
+            auto validate_status=status->pointer;
+            auto validate_count=static_cast<std::uint64_t>(count);
+            void* validate_args[]={&validate_in,&validate_count,&validate_status};
+            if(!launch_hip_1d(
+                status.get(),"cast-range-f64-f32",validate,count,validate_args,error))return false;
+            std::uint32_t failed=0;
+            if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+            if(failed){
+                error="tensor cast is unsupported or a value is outside the target range";
+                return false;
+            }
+        }
         auto source_code=hip_float_cast_source(source_dtype,target_dtype);
         auto out_ptr=output->pointer;
         auto in_ptr=static_cast<unsigned char*>(input->pointer)+input_offset;

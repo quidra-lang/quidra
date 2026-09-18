@@ -33,8 +33,11 @@ parameter        = [ "const" ], type, [ "&" ], identifier, [ "=", expression ] ;
 
 type             = array_type, { "|", array_type } ;
 array_type       = type_atom, { "[", [ integer ], "]" } ;
-type_atom        = tensor_type | qualified_identifier, [ type_arguments ] ;
-tensor_type      = "tensor", "<", type, { ",", integer }, ">" ;
+type_atom        = tensor_type | neural_type | qualified_identifier, [ type_arguments ] ;
+tensor_type      = "tensor", "<", type, ">", [ shape_pattern ] ;
+neural_type      = "neural", [ ( type_arguments, [ shape_pattern ] ) | shape_pattern ] ;
+shape_pattern    = "<", shape_axis, { ",", shape_axis }, ">" ;
+shape_axis       = integer | "_" ;
 type_arguments   = "<", type, { ",", type }, ">" ;
 qualified_identifier = identifier, { ".", identifier } ;
 

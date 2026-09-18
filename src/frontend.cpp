@@ -1226,10 +1226,14 @@ std::string canonical_type(const TypeName& type) {
             if (i) out += ",";
             out += canonical_type(type.arguments[i]);
         }
-        if (type.name == "tensor") {
-            for (const auto extent : type.tensor_shape_prefix) {
-                out += "," + std::to_string(extent);
-            }
+        out += ">";
+    }
+    if (!type.tensor_shape_prefix.empty()) {
+        out += "<";
+        for (std::size_t i = 0; i < type.tensor_shape_prefix.size(); ++i) {
+            if (i) out += ",";
+            const auto extent = type.tensor_shape_prefix[i];
+            out += extent < 0 ? "_" : std::to_string(extent);
         }
         out += ">";
     }
@@ -1656,6 +1660,9 @@ private:
                     TypeName result;
                     result.name = "neural";
                     result.arguments.push_back(clone_type(source->arguments.front()));
+                    result.tensor_rank = source->tensor_rank;
+                    result.tensor_shape_prefix = source->tensor_shape_prefix;
+                    result.tensor_known_shape_prefix = source->tensor_known_shape_prefix;
                     result.span = expression.span;
                     return result;
                 }
@@ -1800,6 +1807,9 @@ private:
                 TypeName result;
                 result.name = "tensor";
                 result.arguments.push_back(clone_type(receiver->arguments.front()));
+                result.tensor_rank = receiver->tensor_rank;
+                result.tensor_shape_prefix = receiver->tensor_shape_prefix;
+                result.tensor_known_shape_prefix = receiver->tensor_known_shape_prefix;
                 result.span = expression.span;
                 return result;
             }
@@ -1847,23 +1857,24 @@ private:
             pattern.dimensions.size() != actual.dimensions.size()) {
             return false;
         }
-        if (pattern.name == "tensor") {
+        if ((pattern.name == "tensor" || pattern.name == "neural") &&
+            !pattern.tensor_shape_prefix.empty()) {
+            const auto rank = pattern.tensor_shape_prefix.size();
             if (actual.tensor_rank &&
-                pattern.tensor_shape_prefix.size() >
-                    static_cast<std::size_t>(*actual.tensor_rank)) {
+                static_cast<std::size_t>(*actual.tensor_rank) != rank) {
                 return false;
             }
-            for (std::size_t axis = 0; axis < pattern.tensor_shape_prefix.size(); ++axis) {
+            for (std::size_t axis = 0; axis < rank; ++axis) {
+                const auto required = pattern.tensor_shape_prefix[axis];
+                if (required < 0) continue;
                 std::optional<long long> actual_extent;
                 if (axis < actual.tensor_known_shape_prefix.size()) {
                     actual_extent = actual.tensor_known_shape_prefix[axis];
-                } else if (axis < actual.tensor_shape_prefix.size()) {
+                } else if (axis < actual.tensor_shape_prefix.size() &&
+                           actual.tensor_shape_prefix[axis] >= 0) {
                     actual_extent = actual.tensor_shape_prefix[axis];
                 }
-                if (actual_extent &&
-                    *actual_extent != pattern.tensor_shape_prefix[axis]) {
-                    return false;
-                }
+                if (actual_extent && *actual_extent != required) return false;
             }
         }
         for (std::size_t i = 0; i < pattern.dimensions.size(); ++i) {

@@ -16,9 +16,10 @@ struct TypeName {
     std::size_t array_depth{};
     std::vector<long long> dimensions;
     SourceSpan span{};
-    // tensor_shape_prefix is source-visible: tensor<T, A, B> constrains
-    // shape[0] == A and shape[1] == B. tensor_rank and
-    // tensor_known_shape_prefix are compiler-internal refinements only.
+    // tensor_shape_prefix stores a source-visible exact shape pattern for
+    // tensor/neural values. Nonnegative entries are fixed extents and -1 is
+    // the '_' wildcard. tensor_rank and tensor_known_shape_prefix also carry
+    // compiler-internal flow refinements.
     std::vector<long long> tensor_shape_prefix;
     std::optional<long long> tensor_rank;
     std::vector<long long> tensor_known_shape_prefix;

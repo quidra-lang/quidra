@@ -49,44 +49,66 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
             "Type nesting exceeds the parser limit.",
             token.span});
     }
-    if (index >= tokens.size() || tokens[index].kind != TokenKind::Identifier) {
-        return false;
-    }
+    if (index >= tokens.size() || tokens[index].kind != TokenKind::Identifier) return false;
     const auto root_name = tokens[index++].text;
     bool qualified = false;
     while (index < tokens.size() && tokens[index].kind == TokenKind::Dot) {
         qualified = true;
         ++index;
-        if (index >= tokens.size() || tokens[index++].kind != TokenKind::Identifier) {
-            return false;
-        }
+        if (index >= tokens.size() || tokens[index++].kind != TokenKind::Identifier) return false;
     }
-    if (index < tokens.size() && tokens[index].kind == TokenKind::Less) {
+
+    const auto scan_shape = [&]() -> bool {
+        if (index >= tokens.size() || tokens[index].kind != TokenKind::Less) return false;
         ++index;
-        if (!scan_type_lookahead(tokens, index, depth + 1, limit)) return false;
-        if (!qualified && root_name == "tensor") {
-            while (index < tokens.size() && tokens[index].kind == TokenKind::Comma) {
+        bool any = false;
+        while (true) {
+            if (index >= tokens.size()) return false;
+            if (tokens[index].kind == TokenKind::Integer ||
+                (tokens[index].kind == TokenKind::Identifier && tokens[index].text == "_")) {
                 ++index;
-                if (index >= tokens.size() || tokens[index++].kind != TokenKind::Integer) {
-                    return false;
-                }
+                any = true;
+            } else {
+                return false;
             }
+            if (index < tokens.size() && tokens[index].kind == TokenKind::Comma) {
+                ++index;
+                continue;
+            }
+            break;
+        }
+        return any && index < tokens.size() && tokens[index++].kind == TokenKind::Greater;
+    };
+
+    if (index < tokens.size() && tokens[index].kind == TokenKind::Less) {
+        if (!qualified && root_name == "tensor") {
+            ++index;
+            if (!scan_type_lookahead(tokens, index, depth + 1, limit)) return false;
+            if (index >= tokens.size() || tokens[index++].kind != TokenKind::Greater) return false;
+            if (index < tokens.size() && tokens[index].kind == TokenKind::Less &&
+                !scan_shape()) return false;
+        } else if (!qualified && root_name == "neural" && index + 1 < tokens.size() &&
+                   (tokens[index + 1].kind == TokenKind::Integer ||
+                    (tokens[index + 1].kind == TokenKind::Identifier &&
+                     tokens[index + 1].text == "_"))) {
+            if (!scan_shape()) return false;
         } else {
+            ++index;
+            if (!scan_type_lookahead(tokens, index, depth + 1, limit)) return false;
             while (index < tokens.size() && tokens[index].kind == TokenKind::Comma) {
                 ++index;
                 if (!scan_type_lookahead(tokens, index, depth + 1, limit)) return false;
             }
-        }
-        if (index >= tokens.size() || tokens[index++].kind != TokenKind::Greater) {
-            return false;
+            if (index >= tokens.size() || tokens[index++].kind != TokenKind::Greater) return false;
+            if (!qualified && root_name == "neural" &&
+                index < tokens.size() && tokens[index].kind == TokenKind::Less &&
+                !scan_shape()) return false;
         }
     }
     while (index < tokens.size() && tokens[index].kind == TokenKind::LBracket) {
         ++index;
         if (index < tokens.size() && tokens[index].kind == TokenKind::Integer) ++index;
-        if (index >= tokens.size() || tokens[index++].kind != TokenKind::RBracket) {
-            return false;
-        }
+        if (index >= tokens.size() || tokens[index++].kind != TokenKind::RBracket) return false;
     }
     if (index < tokens.size() && tokens[index].kind == TokenKind::Pipe) {
         ++index;
@@ -271,31 +293,52 @@ TypeName Parser::type_name() {
         t.span.end = part.span.end;
     }
 
-    if (at(TokenKind::Less)) {
-        if (t.name == "tensor") {
-            consume(TokenKind::Less, "Expected '<' before tensor element type.");
-            if (at(TokenKind::Greater)) error(peek(), "tensor requires an element type.");
-            t.arguments.push_back(type_name());
-            while (match(TokenKind::Comma)) {
-                const auto extent = consume(
-                    TokenKind::Integer,
-                    "tensor shape constraints must be consecutive nonnegative integer literals.");
+    const auto parse_shape_pattern = [&]() {
+        consume(TokenKind::Less, "Expected '<' before shape pattern.");
+        if (at(TokenKind::Greater)) error(peek(), "Shape pattern requires at least one axis.");
+        while (true) {
+            if (at(TokenKind::Integer)) {
+                const auto extent = consume(TokenKind::Integer, "Expected shape extent.");
                 long long value{};
                 const auto parsed = std::from_chars(
                     extent.text.data(), extent.text.data() + extent.text.size(), value);
                 if (parsed.ec != std::errc{} ||
                     parsed.ptr != extent.text.data() + extent.text.size()) {
-                    error(extent, "tensor shape constraint is too large.");
+                    error(extent, "Shape extent is too large.");
                 }
                 t.tensor_shape_prefix.push_back(value);
+            } else if (at(TokenKind::Identifier) && peek().text == "_") {
+                consume(TokenKind::Identifier, "Expected '_'.");
+                t.tensor_shape_prefix.push_back(-1);
+            } else {
+                error(peek(), "Shape axes must be nonnegative integer literals or '_'.");
             }
-            consume(TokenKind::Greater, "Expected '>' after tensor type.");
+            if (!match(TokenKind::Comma)) break;
+            if (at(TokenKind::Greater)) error(peek(), "Trailing comma is not allowed in a shape pattern.");
+        }
+        consume(TokenKind::Greater, "Expected '>' after shape pattern.");
+        t.tensor_rank = static_cast<long long>(t.tensor_shape_prefix.size());
+        t.span.end = previous().span.end;
+    };
+
+    if (at(TokenKind::Less)) {
+        if (t.name == "tensor") {
+            consume(TokenKind::Less, "Expected '<' before tensor element type.");
+            if (at(TokenKind::Greater)) error(peek(), "tensor requires an element type.");
+            t.arguments.push_back(type_name());
+            consume(TokenKind::Greater, "Expected '>' after tensor element type.");
+            t.span.end = previous().span.end;
+            if (at(TokenKind::Less)) parse_shape_pattern();
+        } else if (t.name == "neural" &&
+                   (peek(1).kind == TokenKind::Integer ||
+                    (peek(1).kind == TokenKind::Identifier && peek(1).text == "_"))) {
+            parse_shape_pattern();
         } else {
             t.arguments = type_argument_list();
+            t.span.end = previous().span.end;
+            if (t.name == "neural" && at(TokenKind::Less)) parse_shape_pattern();
         }
-        t.span.end = previous().span.end;
     }
-
     while (match(TokenKind::LBracket)) {
         long long length = -1;
         if (at(TokenKind::Integer)) {

@@ -46,8 +46,8 @@ struct Type {
     TypeKind kind{TypeKind::Void};
     std::shared_ptr<Type> first;
     std::vector<Type> cases;
-    // Arrays use length as their static length. Tensors use length only as a
-    // compiler-internal known rank; it is not part of the source-visible type.
+    // Arrays use length as their static length. Tensor/neural values use it
+    // for compiler-known rank; a source shape pattern fixes rank exactly.
     long long length{-1};
     std::vector<long long> tensor_shape_prefix;
     std::vector<long long> tensor_known_shape_prefix;
@@ -83,9 +83,14 @@ struct Type {
         return type;
     }
 
-    static Type neural(Type element = simple(TypeKind::Float32)) {
+    static Type neural(Type element = simple(TypeKind::Float32), long long rank = -1,
+                       std::vector<long long> shape_pattern = {},
+                       std::vector<long long> known_shape = {}) {
         auto type = simple(TypeKind::Neural);
         type.first = std::make_shared<Type>(std::move(element));
+        type.length = rank;
+        type.tensor_shape_prefix = std::move(shape_pattern);
+        type.tensor_known_shape_prefix = std::move(known_shape);
         return type;
     }
 
@@ -98,8 +103,9 @@ struct Type {
             return false;
         }
         if (kind == TypeKind::Array) return length == other.length;
-        if (kind == TypeKind::Tensor) {
-            // Rank and inferred shape are flow facts, not nominal type identity.
+        if (kind == TypeKind::Tensor || kind == TypeKind::Neural) {
+            // Inferred rank/shape facts are flow facts. Only an explicit source
+            // shape pattern participates in static type identity.
             return tensor_shape_prefix == other.tensor_shape_prefix;
         }
         return true;
@@ -132,16 +138,33 @@ inline std::string type_name(const Type& type) {
         case TypeKind::Invalid: return "<invalid>";
         case TypeKind::Class: return type.class_name;
         case TypeKind::Tensor: {
-            std::string result = "tensor<" + type_name(*type.first);
-            for (const auto extent : type.tensor_shape_prefix) {
-                result += ", " + std::to_string(extent);
+            std::string result = "tensor<" + type_name(*type.first) + ">";
+            if (!type.tensor_shape_prefix.empty()) {
+                result += "<";
+                for (std::size_t i = 0; i < type.tensor_shape_prefix.size(); ++i) {
+                    if (i) result += ", ";
+                    result += type.tensor_shape_prefix[i] < 0
+                        ? "_" : std::to_string(type.tensor_shape_prefix[i]);
+                }
+                result += ">";
             }
-            return result + ">";
+            return result;
         }
-        case TypeKind::Neural:
-            return *type.first == Type::simple(TypeKind::Float32)
+        case TypeKind::Neural: {
+            std::string result = *type.first == Type::simple(TypeKind::Float32)
                 ? "neural"
                 : "neural<" + type_name(*type.first) + ">";
+            if (!type.tensor_shape_prefix.empty()) {
+                result += "<";
+                for (std::size_t i = 0; i < type.tensor_shape_prefix.size(); ++i) {
+                    if (i) result += ", ";
+                    result += type.tensor_shape_prefix[i] < 0
+                        ? "_" : std::to_string(type.tensor_shape_prefix[i]);
+                }
+                result += ">";
+            }
+            return result;
+        }
         case TypeKind::Gradients:
             return "neural.Gradients";
         case TypeKind::Array: {
@@ -492,26 +515,29 @@ inline std::optional<long long> tensor_known_extent(const Type& type, std::size_
     if (axis < type.tensor_known_shape_prefix.size()) {
         return type.tensor_known_shape_prefix[axis];
     }
-    if (axis < type.tensor_shape_prefix.size()) return type.tensor_shape_prefix[axis];
+    if (axis < type.tensor_shape_prefix.size() && type.tensor_shape_prefix[axis] >= 0) {
+        return type.tensor_shape_prefix[axis];
+    }
     return std::nullopt;
 }
 
 inline bool tensor_satisfies_shape_prefix(const Type& from, const Type& to) {
     if (to.tensor_shape_prefix.empty()) return true;
-    if (from.length >= 0 &&
-        static_cast<std::size_t>(from.length) < to.tensor_shape_prefix.size()) {
-        return false;
-    }
+    const auto required_rank = static_cast<long long>(to.tensor_shape_prefix.size());
+    if (from.length < 0 || from.length != required_rank) return false;
     for (std::size_t axis = 0; axis < to.tensor_shape_prefix.size(); ++axis) {
+        const auto required = to.tensor_shape_prefix[axis];
+        if (required < 0) continue;
         const auto extent = tensor_known_extent(from, axis);
-        if (!extent || *extent != to.tensor_shape_prefix[axis]) return false;
+        if (!extent || *extent != required) return false;
     }
     return true;
 }
 
 inline bool representation_erasure_compatible(const Type& from, const Type& to) {
     if (from == to) return true;
-    if (from.kind == TypeKind::Tensor && to.kind == TypeKind::Tensor) {
+    if ((from.kind == TypeKind::Tensor && to.kind == TypeKind::Tensor) ||
+        (from.kind == TypeKind::Neural && to.kind == TypeKind::Neural)) {
         return from.first && to.first && *from.first == *to.first &&
                tensor_satisfies_shape_prefix(from, to);
     }
@@ -551,7 +577,7 @@ inline bool assignable(const Type& from, const Type& to) {
         return *from.first == *to.first && tensor_satisfies_shape_prefix(from, to);
     }
     if (from.kind == TypeKind::Neural && to.kind == TypeKind::Neural) {
-        return *from.first == *to.first;
+        return *from.first == *to.first && tensor_satisfies_shape_prefix(from, to);
     }
     return false;
 }

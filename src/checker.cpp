@@ -148,16 +148,17 @@ ReferenceTargetJoin join_reference_targets(
     return result;
 }
 
-Type merge_tensor_flow_facts(
+Type merge_shaped_flow_facts(
     const Type& base, const std::vector<Type>& continuing) {
-    if (base.kind != TypeKind::Tensor || continuing.empty()) return base;
+    const bool shaped = base.kind == TypeKind::Tensor || base.kind == TypeKind::Neural;
+    if (!shaped || continuing.empty()) return base;
 
     auto merged = base;
-    merged.length = continuing.front().kind == TypeKind::Tensor
+    merged.length = continuing.front().kind == base.kind
         ? continuing.front().length
         : -1;
     for (const auto& state : continuing) {
-        if (state.kind != TypeKind::Tensor || state.length != merged.length) {
+        if (state.kind != base.kind || state.length != merged.length) {
             merged.length = -1;
             break;
         }
@@ -172,7 +173,7 @@ Type merge_tensor_flow_facts(
         std::optional<long long> extent;
         bool known_on_every_path = true;
         for (const auto& state : continuing) {
-            if (state.kind != TypeKind::Tensor) {
+            if (state.kind != base.kind) {
                 known_on_every_path = false;
                 break;
             }
@@ -229,7 +230,8 @@ void weaken_loop_tensor_facts(
     const std::unordered_set<std::string>& assigned) {
     for (const auto& name : assigned) {
         const auto it = variables.find(name);
-        if (it == variables.end() || it->second.kind != TypeKind::Tensor) continue;
+        if (it == variables.end() ||
+            (it->second.kind != TypeKind::Tensor && it->second.kind != TypeKind::Neural)) continue;
         it->second.length = -1;
         it->second.tensor_known_shape_prefix.clear();
     }
@@ -1432,8 +1434,10 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
         if (!is_numeric(element)) {
             error("INVALID_TYPE", "tensor element type must be numeric.", source.arguments.front().span);
         }
-        type = Type::tensor(element, source.tensor_rank.value_or(-1),
-                            source.tensor_shape_prefix,
+        const auto rank = !source.tensor_shape_prefix.empty()
+            ? static_cast<long long>(source.tensor_shape_prefix.size())
+            : source.tensor_rank.value_or(-1);
+        type = Type::tensor(element, rank, source.tensor_shape_prefix,
                             source.tensor_known_shape_prefix);
     } else if (source.name == "neural") {
         Type element = simple(TypeKind::Float32);
@@ -1445,7 +1449,11 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
         if (element.kind != TypeKind::Float32 && element.kind != TypeKind::Float) {
             error("INVALID_TYPE", "neural element type must be float32 or float.", source.span);
         }
-        type = Type::neural(element);
+        const auto rank = !source.tensor_shape_prefix.empty()
+            ? static_cast<long long>(source.tensor_shape_prefix.size())
+            : source.tensor_rank.value_or(-1);
+        type = Type::neural(element, rank, source.tensor_shape_prefix,
+                            source.tensor_known_shape_prefix);
     } else if (source.name == "$std.neural.Gradients") {
         type = simple(TypeKind::Gradients);
     } else if (const auto builtin = builtin_scalar_type(source.name)) {
@@ -1710,7 +1718,9 @@ Type Checker::check_method_call_expr(const Expr& expression,
                     if (node->method == "untrack") {
                         if (!node->type_arguments.empty() || !node->args.empty())
                             error("ARGUMENT_MISMATCH", "neural.untrack() takes no arguments.", expression.span);
-                        type = Type::tensor(*receiver.first);
+                        type = Type::tensor(*receiver.first, receiver.length,
+                                            receiver.tensor_shape_prefix,
+                                            receiver.tensor_known_shape_prefix);
                     } else {
                         error("UNKNOWN_MEMBER", "Type '" + type_name(receiver) +
                               "' has no method '" + node->method + "'.", expression.span);
@@ -2721,7 +2731,10 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                               name + " requires tensor<float32> or tensor<float>.",
                               expression.span);
                     }
-                    type = poisoned(input) ? simple(TypeKind::Invalid) : Type::neural(*input.first);
+                    type = poisoned(input) ? simple(TypeKind::Invalid)
+                        : Type::neural(*input.first, input.length,
+                                       input.tensor_shape_prefix,
+                                       input.tensor_known_shape_prefix);
                     break;
                 }
                 case BuiltinCallable::NeuralConvolve2D: {
@@ -3147,6 +3160,11 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if (!poisoned(input) && !valid)
                         error("TYPE_MISMATCH", name + " requires neural or a floating-point tensor.", expression.span);
                     type = valid ? input : simple(TypeKind::Invalid);
+                    if (valid && builtin == BuiltinCallable::NeuralMean) {
+                        type.length = 0;
+                        type.tensor_shape_prefix.clear();
+                        type.tensor_known_shape_prefix.clear();
+                    }
                     break;
                 }
                 case BuiltinCallable::NeuralGrad: {
@@ -4309,9 +4327,9 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             }
         } else if (node.value) {
             check_expr(*node.value, &type);
-            if (type.kind == TypeKind::Tensor) {
+            if (type.kind == TypeKind::Tensor || type.kind == TypeKind::Neural) {
                 const auto raw = raw_types_.find(node.value.get());
-                if (raw != raw_types_.end() && raw->second.kind == TypeKind::Tensor) {
+                if (raw != raw_types_.end() && raw->second.kind == type.kind) {
                     type.length = raw->second.length;
                     type.tensor_known_shape_prefix =
                         raw->second.tensor_known_shape_prefix;
@@ -4433,14 +4451,14 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                 type = variables_.at(name->name);
                 expr_types_[node.target.get()] = raw_types_[node.target.get()] = type;
                 auto expected = type;
-                if (expected.kind == TypeKind::Tensor) {
-                    expected.length = -1;
+                if (expected.kind == TypeKind::Tensor || expected.kind == TypeKind::Neural) {
+                    if (expected.tensor_shape_prefix.empty()) expected.length = -1;
                     expected.tensor_known_shape_prefix.clear();
                 }
                 check_expr(*node.value, &expected);
-                if (type.kind == TypeKind::Tensor) {
+                if (type.kind == TypeKind::Tensor || type.kind == TypeKind::Neural) {
                     const auto raw = raw_types_.find(node.value.get());
-                    if (raw != raw_types_.end() && raw->second.kind == TypeKind::Tensor) {
+                    if (raw != raw_types_.end() && raw->second.kind == type.kind) {
                         auto refined = type;
                         refined.length = raw->second.length;
                         refined.tensor_known_shape_prefix =
@@ -4652,7 +4670,7 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         current_receiver_effect_.invalidates = before_method_invalidated;
         current_reference_effects_ = before_reference_effects;
         for (const auto& [name, base_type] : variables) {
-            if (base_type.kind == TypeKind::Tensor) {
+            if (base_type.kind == TypeKind::Tensor || base_type.kind == TypeKind::Neural) {
                 std::vector<Type> continuing_types;
                 if (!yes_terminates) {
                     if (const auto it = yes_variables.find(name); it != yes_variables.end()) {
@@ -4666,7 +4684,7 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
                 }
                 if (!continuing_types.empty()) {
                     variables_[name] =
-                        merge_tensor_flow_facts(base_type, continuing_types);
+                        merge_shaped_flow_facts(base_type, continuing_types);
                 }
             }
             if ((yes_terminates || yes.contains(name)) && (no_terminates || no.contains(name))) {
@@ -4760,11 +4778,11 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         initialized_ = initialized;
         class_initialized_paths_ = paths;
         for (const auto& [name, base_type] : variables) {
-            if (base_type.kind != TypeKind::Tensor) continue;
+            if (base_type.kind != TypeKind::Tensor && base_type.kind != TypeKind::Neural) continue;
             const auto it = body_variables.find(name);
             if (it == body_variables.end()) continue;
             variables_[name] =
-                merge_tensor_flow_facts(base_type, {base_type, it->second});
+                merge_shaped_flow_facts(base_type, {base_type, it->second});
         }
         current_receiver_effect_.initializes = method_initialized;
         current_receiver_effect_.writes = method_written;
@@ -4849,11 +4867,11 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         initialized_ = initialized;
         class_initialized_paths_ = class_paths;
         for (const auto& [name, base_type] : variables) {
-            if (base_type.kind != TypeKind::Tensor) continue;
+            if (base_type.kind != TypeKind::Tensor && base_type.kind != TypeKind::Neural) continue;
             const auto it = body_variables.find(name);
             if (it == body_variables.end()) continue;
             variables_[name] =
-                merge_tensor_flow_facts(base_type, {base_type, it->second});
+                merge_shaped_flow_facts(base_type, {base_type, it->second});
         }
         current_receiver_effect_.initializes = method_initialized;
         current_receiver_effect_.writes = method_written;
@@ -5010,7 +5028,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
 
     if (!continuing_initialized.empty()) {
         for (const auto& [name, variable_type] : variables) {
-            if (variable_type.kind == TypeKind::Tensor) {
+            if (variable_type.kind == TypeKind::Tensor || variable_type.kind == TypeKind::Neural) {
                 std::vector<Type> continuing_types;
                 continuing_types.reserve(continuing_variables.size());
                 for (const auto& state : continuing_variables) {
@@ -5020,7 +5038,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
                 }
                 if (!continuing_types.empty()) {
                     variables_[name] =
-                        merge_tensor_flow_facts(variable_type, continuing_types);
+                        merge_shaped_flow_facts(variable_type, continuing_types);
                 }
             }
             if (std::all_of(continuing_initialized.begin(), continuing_initialized.end(),

@@ -10,6 +10,9 @@ enum class Backend {
     Nvidia,
     Amd,
     Metal,
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    Test,
+#endif
 };
 
 struct Info {

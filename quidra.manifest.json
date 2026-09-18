@@ -214,6 +214,24 @@
   "tensor_initialization_model": "tensor<T>(shape) creates per-element uninitialized storage; tensor.zeros<T>(shape) and tensor.ones<T>(shape) are fully initialized; tensor.zeros()/tensor.ones() may derive dtype and allocation shape from a fully specified expected exact shape but reject unconstrained rank or _ extents; shape knowledge never implies value initialization; uninitialized reads fail deterministically",
   "tensor_value_model": "tensor copies and slices preserve source-level independent value semantics; internal storage sharing is permitted and mutation detaches with copy-on-write; slice assignment and writable tensor-element references are not exposed",
   "tensor_cow_implemented": true,
+  "tensor_device_model": "CPU is the default tensor placement; gpu = n requests direct allocation on a non-negative Quidra GPU index; .gpu(n) and .cpu() are explicit copy boundaries; device is runtime/compiler metadata rather than nominal tensor type; implicit CPU/GPU or GPU/GPU transfer and CPU fallback are forbidden; operations preserve input placement and unsupported GPU operations fail explicitly",
+  "gpu_backend_model": {
+    "index_space": "one zero-based Quidra GPU index space per process",
+    "nvidia": {
+      "backend_revision": "Quidra compiler release",
+      "driver_api": "OS/NVIDIA-driver supplied CUDA Driver API",
+      "system_cuda_toolkit": false,
+      "nvcc": false,
+      "cuda_home": false,
+      "managed_component_lock": "future bundled NVIDIA user-space components are fixed per Quidra release by version, artifact identity, and checksum"
+    },
+    "metal": {
+      "backend_revision": "Quidra compiler release",
+      "runtime": "OS Metal framework",
+      "logical_placement_preserved_on_unified_memory": true
+    },
+    "dnn_acceleration_owner": "official dnn package owns cuDNN/cuBLAS/NCCL or platform equivalents"
+  },
   "standard_namespace_model": "standard namespaces themselves are reserved identifiers everywhere in user code; their qualified member names are resolved inside the namespace and do not automatically become global reserved identifiers; only referenced standard implementations are linked",
   "package_model": "unquoted non-standard imports resolve installed packages from configured package paths and never fall back to the current source directory",
   "stats_model": "stats.mean(tensor) returns a float mean and rejects empty or uninitialized tensor input",

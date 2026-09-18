@@ -4789,6 +4789,7 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         ++loop_depth_;
         check_block(node.body);
         --loop_depth_;
+        auto body_variables = variables_;
         auto body_written = current_receiver_effect_.writes;
         auto body_invalidated = current_receiver_effect_.invalidates;
         variables_ = variables;

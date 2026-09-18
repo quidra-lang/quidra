@@ -47,12 +47,14 @@ NumericLiteralFamily numeric_literal_family(const Expr& expression) {
         return NumericLiteralFamily::Real;
     }
     if (const auto* unary = std::get_if<UnaryExpr>(&expression.data);
-        unary && unary->op == "-") {
+        unary && (unary->op == "-" || unary->op == "NOT")) {
         return numeric_literal_family(*unary->operand);
     }
     if (const auto* binary = std::get_if<BinaryExpr>(&expression.data);
         binary && (binary->op == "+" || binary->op == "-" || binary->op == "*" ||
-                   binary->op == "/" || binary->op == "%")) {
+                   binary->op == "/" || binary->op == "%" ||
+                   binary->op == "AND" || binary->op == "OR" || binary->op == "XOR" ||
+                   binary->op == "<<" || binary->op == ">>")) {
         const auto left = numeric_literal_family(*binary->left);
         const auto right = numeric_literal_family(*binary->right);
         if (left == NumericLiteralFamily::None || right == NumericLiteralFamily::None) {
@@ -76,7 +78,7 @@ NumericLiteralFamily direct_numeric_literal_family(const Expr& expression) {
         return NumericLiteralFamily::Real;
     }
     if (const auto* unary = std::get_if<UnaryExpr>(&expression.data);
-        unary && unary->op == "-") {
+        unary && (unary->op == "-" || unary->op == "NOT")) {
         return direct_numeric_literal_family(*unary->operand);
     }
     return NumericLiteralFamily::None;
@@ -4865,7 +4867,22 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         std::optional<Type> literal_expected;
         const Type* operand_expected = nullptr;
         bool materialized_signed_minimum = false;
-        if (node->op == "-" && expected &&
+        if (node->op == "NOT") {
+            const auto family = numeric_literal_family(*node->operand);
+            if (family == NumericLiteralFamily::Real || family == NumericLiteralFamily::Mixed) {
+                error("TYPE_MISMATCH", "NOT requires a fixed-width integer.", expression.span);
+            }
+            const auto context = numeric_literal_context(expected, family);
+            if (context.ambiguous) {
+                error("AMBIGUOUS_NUMERIC_LITERAL",
+                      "Numeric-family literal matches multiple concrete types.",
+                      expression.span);
+            }
+            if (context.type) {
+                literal_expected = *context.type;
+                operand_expected = &*literal_expected;
+            }
+        } else if (node->op == "-" && expected &&
             (is_numeric(*expected) || expected->kind == TypeKind::Tensor)) {
             operand_expected = expected;
             if (const auto* literal = std::get_if<IntegerExpr>(&node->operand->data);
@@ -4907,6 +4924,10 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             if (node->op == "not") {
                 if (type.kind != TypeKind::Bool) {
                     error("TYPE_MISMATCH", "not requires bool.", expression.span);
+                }
+            } else if (node->op == "NOT") {
+                if (!is_integer(type)) {
+                    error("TYPE_MISMATCH", "NOT requires a fixed-width integer.", expression.span);
                 }
             } else if (type.kind == TypeKind::Tensor) {
                 if (!type.first || !is_numeric(*type.first) ||
@@ -5048,6 +5069,23 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             if (node->op == "and" || node->op == "or") {
                 if (left.kind != TypeKind::Bool) {
                     error("TYPE_MISMATCH", "Logical operands must be bool.", expression.span);
+                }
+                type = left;
+            } else if (node->op == "AND" || node->op == "OR" || node->op == "XOR" ||
+                       node->op == "<<" || node->op == ">>") {
+                if (!is_integer(left)) {
+                    error("TYPE_MISMATCH",
+                          "Bitwise operators require identical fixed-width integer operands.",
+                          expression.span);
+                }
+                if (node->op == "<<" || node->op == ">>") {
+                    const auto count = constant_integer_value(*node->right);
+                    if (count && (*count < 0 ||
+                                  static_cast<unsigned long long>(*count) >= integer_width(left))) {
+                        error("SHIFT_COUNT",
+                              "Shift count must be between zero and one less than the integer width.",
+                              node->right->span);
+                    }
                 }
                 type = left;
             } else if (node->op == "==" || node->op == "!=") {

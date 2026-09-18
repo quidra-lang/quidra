@@ -5,9 +5,14 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <cmath>
+#include <functional>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <sstream>
+#include <type_traits>
+#include <unordered_map>
 #include <utility>
 
 #ifdef _WIN32
@@ -784,5 +789,7 @@ bool launch(Module* module, const char* kernel,
     }
     return true;
 }
+
+#include "device_compute.inc"
 
 } // namespace quidra::device

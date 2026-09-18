@@ -35,6 +35,7 @@ extern "C" void* quidra_tensor_from_chw(
     unsigned long long channels,
     unsigned long long height,
     unsigned long long width);
+extern "C" long long quidra_tensor_device_index(void* raw);
 extern "C" int quidra_tensor_chw_info(
     void* raw,
     unsigned long long* channels,
@@ -182,6 +183,11 @@ Image tensor_to_image(void* raw, int expected_dtype) {
     if (dtype == 0 || (expected_dtype != 0 && dtype != expected_dtype)) {
         throw std::invalid_argument(
             "image.write requires a numeric CHW tensor with shape [1|3|4, H, W]");
+    }
+    const auto device = quidra_tensor_device_index(raw);
+    if (device >= 0) {
+        throw std::invalid_argument(
+            "image.write is not supported on gpu(" + std::to_string(device) + ")");
     }
     if (channels > std::numeric_limits<std::size_t>::max() ||
         height > std::numeric_limits<std::size_t>::max() ||

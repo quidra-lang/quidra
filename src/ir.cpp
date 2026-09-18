@@ -627,7 +627,12 @@ struct Lowerer {
         if (std::holds_alternative<StringExpr>(expression.data)) {
             return false;
         }
-        if (std::holds_alternative<NameExpr>(expression.data)) return false;
+        if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+            // Ordinary names borrow local/reference storage, but exact standard
+            // real constants materialize a fresh managed bigreal value.
+            return type.kind == TypeKind::BigReal &&
+                   standard_float_constant(name->name).has_value();
+        }
         if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
             return expression_owns_result(*member->base);
         }

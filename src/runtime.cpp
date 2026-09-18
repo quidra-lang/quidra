@@ -2999,9 +2999,18 @@ extern "C" void* quidra_neural_convolve2d(
         neural_fail("convolution input and Parameter dtypes must match",line,column);
     auto node=std::make_shared<NeuralNode>(input->dtype);
     node->dtype=input->dtype;
-    node->data=neural_conv2d_values(
-        input->data,input->shape,weight->data,weight->shape,bias->data,
-        stride,padding,node->shape,line,column);
+    if(input->device_tensor){
+        node->device_tensor=static_cast<TensorValue*>(
+            quidra_neural_tensor_convolve2d(
+                input->device_tensor,weight_raw,bias_raw,stride,padding,line,column));
+        if(!node->device_tensor)
+            neural_fail("GPU neural convolution returned null",line,column);
+        node->shape=node->device_tensor->shape;
+    }else{
+        node->data=neural_conv2d_values(
+            input->data,input->shape,weight->data,weight->shape,bias->data,
+            stride,padding,node->shape,line,column);
+    }
     node->op=NeuralOp::Convolution;
     node->parents={input,weight,bias};
     node->aux_index={
@@ -3080,8 +3089,16 @@ extern "C" void* quidra_neural_affine(
     node->shape=input->shape;
     if(node->shape.empty())neural_fail("affine requires input rank >= 1",line,column);
     node->shape.back()=weight->shape[0];
-    node->data=neural_affine_values(
-        input->data,input->shape,weight->data,weight->shape,bias->data,line,column);
+    if(input->device_tensor){
+        node->device_tensor=static_cast<TensorValue*>(
+            quidra_neural_tensor_affine(
+                input->device_tensor,weight_raw,bias_raw,line,column));
+        if(!node->device_tensor)
+            neural_fail("GPU neural affine returned null",line,column);
+    }else{
+        node->data=neural_affine_values(
+            input->data,input->shape,weight->data,weight->shape,bias->data,line,column);
+    }
     node->op=NeuralOp::Affine;
     node->parents={input,weight,bias};
     return neural_descriptor(std::move(node));
@@ -3900,6 +3917,18 @@ extern "C" void* quidra_neural_binary(void* left_raw,void* right_raw,int op,
     const auto left=static_cast<NeuralValue*>(left_raw)->node;
     const auto right=static_cast<NeuralValue*>(right_raw)->node;
     neural_require_same_shape(*left,*right,line,column);
+    if(left->device_tensor){
+        auto node=std::make_shared<NeuralNode>(left->dtype);
+        node->shape=left->shape;
+        node->parents={left,right};
+        node->op=op==1?NeuralOp::Add:op==2?NeuralOp::Sub:op==3?NeuralOp::Mul:NeuralOp::Div;
+        node->device_tensor=static_cast<TensorValue*>(
+            quidra_tensor_binary(
+                left->device_tensor,right->device_tensor,nullptr,0,op,line,column));
+        if(!node->device_tensor)
+            neural_fail("GPU neural binary operation returned null",line,column);
+        return neural_descriptor(std::move(node));
+    }
     if(left->dtype==10) return neural_binary_t<float>(left,right,op,line,column);
     if(left->dtype==9) return neural_binary_t<double>(left,right,op,line,column);
     neural_fail("invalid neural binary dtype",line,column);
@@ -3912,7 +3941,33 @@ extern "C" void* quidra_neural_binary_scalar(
     auto input=static_cast<NeuralValue*>(raw)->node;
     auto constant=std::make_shared<NeuralNode>(input->dtype);
     constant->shape=input->shape;
-    constant->data.assign(input->data.size(),scalar);
+    if(input->device_tensor){
+        void* zero_tensor=nullptr;
+        void* constant_tensor=nullptr;
+        if(input->dtype==10){
+            const float zero=0.0F;
+            const float value=static_cast<float>(scalar);
+            zero_tensor=quidra_tensor_binary(
+                input->device_tensor,nullptr,const_cast<float*>(&zero),2,3,line,column);
+            constant_tensor=quidra_tensor_binary(
+                zero_tensor,nullptr,const_cast<float*>(&value),2,1,line,column);
+        }else if(input->dtype==9){
+            const double zero=0.0;
+            const double value=scalar;
+            zero_tensor=quidra_tensor_binary(
+                input->device_tensor,nullptr,const_cast<double*>(&zero),2,3,line,column);
+            constant_tensor=quidra_tensor_binary(
+                zero_tensor,nullptr,const_cast<double*>(&value),2,1,line,column);
+        }else{
+            neural_fail("invalid neural scalar dtype",line,column);
+        }
+        quidra_tensor_drop(zero_tensor);
+        constant->device_tensor=static_cast<TensorValue*>(constant_tensor);
+        if(!constant->device_tensor)
+            neural_fail("GPU neural scalar materialization returned null",line,column);
+    }else{
+        constant->data.assign(input->data.size(),scalar);
+    }
     NeuralValue a{scalar_left?constant:input},b{scalar_left?input:constant};
     return quidra_neural_binary(&a,&b,op,line,column);
 }

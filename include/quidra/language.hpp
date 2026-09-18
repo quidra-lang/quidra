@@ -32,7 +32,7 @@ inline constexpr std::array<BuiltinTypeName, 18> builtin_type_names{{
     {"float64", "float"},
     {"bool", "bool"},
     {"string", "string"},
-    {"bytes", "bytes"},
+    {"bin", "bin"},
     {"void", "void"},
     {"none", "none"},
     {"error", "error"},
@@ -202,9 +202,9 @@ inline constexpr std::array<BuiltinCallableInfo, 92> intrinsic_callables{{
     {"$std.cli.flag", BuiltinCallable::CliFlag},
     {"$std.cli.finish", BuiltinCallable::CliFinish},
     {"$std.file.read", BuiltinCallable::FileRead},
-    {"$std.file.read_bytes", BuiltinCallable::FileReadBytes},
+    {"$std.file.read_bin", BuiltinCallable::FileReadBytes},
     {"$std.file.write", BuiltinCallable::FileWrite},
-    {"$std.file.write_bytes", BuiltinCallable::FileWriteBytes},
+    {"$std.file.write_bin", BuiltinCallable::FileWriteBytes},
     {"$std.file.exists", BuiltinCallable::FileExists},
     {"$std.file.is_directory", BuiltinCallable::FileIsDirectory},
     {"$std.file.remove", BuiltinCallable::FileRemove},
@@ -406,9 +406,9 @@ inline constexpr std::optional<std::string_view> standard_function_target(
     }
     if (module == "file") {
         if (member == "read") return "$std.file.read";
-        if (member == "read_bytes") return "$std.file.read_bytes";
+        if (member == "read_bin") return "$std.file.read_bin";
         if (member == "write") return "$std.file.write";
-        if (member == "write_bytes") return "$std.file.write_bytes";
+        if (member == "write_bin") return "$std.file.write_bin";
         if (member == "exists") return "$std.file.exists";
         if (member == "is_directory") return "$std.file.is_directory";
         if (member == "remove") return "$std.file.remove";

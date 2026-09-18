@@ -29,49 +29,47 @@ int main() {
     require(type_name(Type::neural(t(TypeKind::Float))) == "neural<float>", "explicit neural float64 name");
     require(is_pointer_runtime_type(t(TypeKind::Bytes)), "bytes uses managed runtime storage");
 
-    const auto tensor_unknown = Type::tensor(t(TypeKind::Float32));
+    const auto tensor_plain = Type::tensor(t(TypeKind::Float32));
     const auto tensor_rank2 = Type::tensor(t(TypeKind::Float32), 2);
-    const auto tensor_rank3 = Type::tensor(t(TypeKind::Float32), 3);
-    require(type_name(tensor_unknown) == "tensor<float32>", "unknown-rank tensor name");
-    require(type_name(tensor_rank2) == "tensor<float32, 2>", "static-rank tensor name");
-    require(assignable(tensor_rank2, tensor_unknown), "known tensor rank may erase to unknown rank");
-    require(!assignable(tensor_unknown, tensor_rank2), "unknown tensor rank cannot assert a known rank");
-    require(!assignable(tensor_rank2, tensor_rank3), "different known tensor ranks are incompatible");
-    require(runtime_storage_bytes(tensor_rank2) == runtime_storage_bytes(tensor_unknown),
-            "tensor rank metadata must not change runtime ABI size");
+    const auto tensor_first3 = Type::tensor(t(TypeKind::Float32), -1, {3});
+    const auto tensor_3x4 = Type::tensor(t(TypeKind::Float32), -1, {3, 4});
+    const auto inferred_3x4 = Type::tensor(t(TypeKind::Float32), 2, {}, {3, 4});
+    require(type_name(tensor_plain) == "tensor<float32>", "plain tensor name");
+    require(type_name(tensor_rank2) == "tensor<float32>",
+            "internal rank must not appear in source type name");
+    require(type_name(tensor_first3) == "tensor<float32, 3>",
+            "first-axis tensor constraint name");
+    require(type_name(tensor_3x4) == "tensor<float32, 3, 4>",
+            "shape-prefix tensor constraint name");
+    require(assignable(inferred_3x4, tensor_first3),
+            "inferred shape may satisfy a source shape constraint");
+    require(assignable(inferred_3x4, tensor_3x4),
+            "inferred full prefix may satisfy a source shape constraint");
+    require(!assignable(tensor_plain, tensor_first3),
+            "unknown shape cannot assert a constrained first axis");
+    require(runtime_storage_bytes(tensor_first3) == runtime_storage_bytes(tensor_plain),
+            "tensor shape constraints must not change runtime ABI size");
 
-    const auto tensor_or_error =
-        Type::union_of({tensor_unknown, t(TypeKind::Error)});
-    const auto ranked_tensor_or_error =
-        Type::union_of({tensor_rank2, t(TypeKind::Error)});
-    require(compatible_case_index(tensor_or_error, tensor_rank2) >= 0,
-            "ranked tensor maps to rank-erased union case");
-    require(assignable(tensor_rank2, tensor_or_error),
-            "ranked tensor may enter a union through rank erasure");
-    require(assignable(ranked_tensor_or_error, tensor_or_error),
-            "ranked tensor union may widen through rank erasure");
+    const auto tensor_or_error = Type::union_of({tensor_plain, t(TypeKind::Error)});
+    const auto constrained_or_error =
+        Type::union_of({tensor_first3, t(TypeKind::Error)});
+    require(compatible_case_index(tensor_or_error, tensor_first3) >= 0,
+            "constrained tensor maps to unconstrained union case");
+    require(assignable(tensor_first3, tensor_or_error),
+            "constrained tensor may enter an unconstrained union");
+    require(assignable(constrained_or_error, tensor_or_error),
+            "constrained tensor union may widen to unconstrained tensor union");
 
-    require(lossless_implicit_numeric_conversion(t(TypeKind::Int8), t(TypeKind::Int16)),
-            "int8 -> int16");
-    require(lossless_implicit_numeric_conversion(t(TypeKind::UInt8), t(TypeKind::Int16)),
-            "uint8 -> int16");
-    require(lossless_implicit_numeric_conversion(t(TypeKind::UInt32), t(TypeKind::Int)),
-            "uint32 -> int64");
-    require(!lossless_implicit_numeric_conversion(t(TypeKind::Int8), t(TypeKind::UInt8)),
-            "signed -> unsigned is not universally safe");
-    require(!lossless_implicit_numeric_conversion(t(TypeKind::UInt64), t(TypeKind::Int)),
-            "uint64 -> int64 is not universally safe");
-
-    require(lossless_implicit_numeric_conversion(t(TypeKind::Int16), t(TypeKind::Float32)),
-            "all int16 values are exactly representable by float32");
-    require(!lossless_implicit_numeric_conversion(t(TypeKind::Int32), t(TypeKind::Float32)),
-            "all int32 values are not exactly representable by float32");
-    require(lossless_implicit_numeric_conversion(t(TypeKind::UInt32), t(TypeKind::Float)),
-            "all uint32 values are exactly representable by float64");
-    require(!lossless_implicit_numeric_conversion(t(TypeKind::Int), t(TypeKind::Float)),
-            "all int64 values are not exactly representable by float64");
-    require(lossless_implicit_numeric_conversion(t(TypeKind::Float32), t(TypeKind::Float)),
-            "float32 -> float64");
+    require(lossless_implicit_numeric_conversion(t(TypeKind::Int8), t(TypeKind::Int8)),
+            "identity numeric representation is assignable");
+    require(!lossless_implicit_numeric_conversion(t(TypeKind::Int8), t(TypeKind::Int16)),
+            "typed integer widening is not implicit");
+    require(!lossless_implicit_numeric_conversion(t(TypeKind::UInt8), t(TypeKind::Int16)),
+            "typed signedness/width changes are not implicit");
+    require(!lossless_implicit_numeric_conversion(t(TypeKind::Int16), t(TypeKind::Float32)),
+            "typed integer-to-float conversion is not implicit");
+    require(!lossless_implicit_numeric_conversion(t(TypeKind::Float32), t(TypeKind::Float)),
+            "typed float widening is not implicit");
 
     require(numeric_conversion_policy(t(TypeKind::Int), t(TypeKind::Int8)) ==
                 NumericConversionPolicy::ExplicitRangeCheck,

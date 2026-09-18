@@ -982,6 +982,7 @@ bool launch(Module* module, const char* kernel,
     return false;
 }
 
+#include "device_integer_compute.inc"
 #include "device_compute.inc"
 #include "device_neural_compute.inc"
 #include "device_autograd_compute.inc"

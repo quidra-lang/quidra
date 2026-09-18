@@ -7037,6 +7037,25 @@ extern "C" char* quidra_string_concat_many(const char* const* values,
     return result;
 }
 
+extern "C" char* quidra_string_concat2(
+    const char* left, const char* right) {
+    const char* values[2]{left, right};
+    return quidra_string_concat_many(values, 2);
+}
+
+extern "C" bool quidra_string_equal(
+    const char* left, const char* right) {
+    if (left == right) return true;
+    if (!left || !right) return false;
+    ManagedAllocation* left_allocation = nullptr;
+    ManagedAllocation* right_allocation = nullptr;
+    const auto left_view = cached_string_view(left, left_allocation);
+    const auto right_view = cached_string_view(right, right_allocation);
+    return left_view.size() == right_view.size() &&
+           (left_view.empty() ||
+            std::memcmp(left_view.data(), right_view.data(), left_view.size()) == 0);
+}
+
 namespace {
 std::size_t bin_payload_bytes(long long bit_count) {
     if (bit_count < 0) runtime_text_failure("bin length cannot be negative");

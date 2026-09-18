@@ -2472,8 +2472,8 @@ struct FunctionEmitter {
             }
         }
         if constexpr(std::is_same_v<T,ir::Binary>){values[n.out]=n.result_type;const auto&ot=n.operand_type;
-            if(n.op=="+"&&ot.kind==TypeKind::String){auto l="%str.l."+std::to_string(n.out),r="%str.r."+std::to_string(n.out),total="%str.t."+std::to_string(n.out),alloc="%str.a."+std::to_string(n.out),dest="%str.d."+std::to_string(n.out),term="%str.z."+std::to_string(n.out);out<<"  "<<l<<" = call i64 @strlen(ptr "<<value(n.left)<<")\n  "<<r<<" = call i64 @strlen(ptr "<<value(n.right)<<")\n  "<<total<<" = add i64 "<<l<<", "<<r<<"\n  "<<alloc<<" = add i64 "<<total<<", 1\n  "<<value(n.out)<<" = call ptr @quidra_alloc(i64 "<<alloc<<")\n  call ptr @memcpy(ptr "<<value(n.out)<<", ptr "<<value(n.left)<<", i64 "<<l<<")\n  "<<dest<<" = getelementptr inbounds i8, ptr "<<value(n.out)<<", i64 "<<l<<"\n  call ptr @memcpy(ptr "<<dest<<", ptr "<<value(n.right)<<", i64 "<<r<<")\n  "<<term<<" = getelementptr inbounds i8, ptr "<<value(n.out)<<", i64 "<<total<<"\n  store i8 0, ptr "<<term<<"\n";return;}
-            if((n.op=="=="||n.op=="!=")&&(ot.kind==TypeKind::String||ot.kind==TypeKind::Error)){auto c="%str.cmp."+std::to_string(n.out);out<<"  "<<c<<" = call i32 @strcmp(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n  "<<value(n.out)<<" = icmp "<<(n.op=="=="?"eq":"ne")<<" i32 "<<c<<", 0\n";return;}
+            if(n.op=="+"&&ot.kind==TypeKind::String){out<<"  "<<value(n.out)<<" = call ptr @quidra_string_concat2(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n";return;}
+            if((n.op=="=="||n.op=="!=")&&(ot.kind==TypeKind::String||ot.kind==TypeKind::Error)){auto equal="%str.equal."+std::to_string(n.out);out<<"  "<<equal<<" = call i1 @quidra_string_equal(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n";if(n.op=="==")out<<"  "<<value(n.out)<<" = xor i1 "<<equal<<", false\n";else out<<"  "<<value(n.out)<<" = xor i1 "<<equal<<", true\n";return;}
             if((n.op=="=="||n.op=="!=")&&(ot.kind==TypeKind::Bin||ot.kind==TypeKind::Array||ot.kind==TypeKind::Class)){auto eq="%deep.eq."+std::to_string(n.out);out<<"  "<<eq<<" = call i1 "<<equality_name(ot)<<"(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n";if(n.op=="==")out<<"  "<<value(n.out)<<" = xor i1 "<<eq<<", false\n";else out<<"  "<<value(n.out)<<" = xor i1 "<<eq<<", true\n";return;}
             if(ot.kind==TypeKind::BigInt||ot.kind==TypeKind::BigReal){
                 const bool bigint=ot.kind==TypeKind::BigInt;
@@ -3406,8 +3406,8 @@ std::string equality_value_ir(const Type& type, const std::string& left,
     } else if (is_float(type)) {
         out << "  %" << id << " = fcmp oeq " << llvm_type(type) << " " << left << ", " << right << "\n";
     } else if (type.kind == TypeKind::String || type.kind == TypeKind::Error) {
-        out << "  %" << id << ".cmp = call i32 @strcmp(ptr " << left << ", ptr " << right << ")\n"
-            << "  %" << id << " = icmp eq i32 %" << id << ".cmp, 0\n";
+        out << "  %" << id << " = call i1 @quidra_string_equal(ptr "
+            << left << ", ptr " << right << ")\n";
     } else if (type.kind == TypeKind::Bin || type.kind == TypeKind::Array || type.kind == TypeKind::Class) {
         out << "  %" << id << " = call i1 " << equality_name(type) << "(ptr "
             << left << ", ptr " << right << ")\n";
@@ -3572,6 +3572,8 @@ declare ptr @quidra_string_utf8(ptr)
 declare ptr @quidra_string_codepoints(ptr)
 declare ptr @quidra_string_join(ptr, ptr, i64, i64)
 declare ptr @quidra_string_concat_many(ptr, i64)
+declare ptr @quidra_string_concat2(ptr, ptr)
+declare i1 @quidra_string_equal(ptr, ptr)
 declare i1 @quidra_string_can_append_move(ptr)
 declare ptr @quidra_string_append_move_many(ptr, ptr, i64)
 declare ptr @quidra_string_repeat(i64, ptr)

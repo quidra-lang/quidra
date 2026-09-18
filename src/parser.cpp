@@ -136,8 +136,16 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
                 !scan_shape()) return false;
         } else if (!qualified && root_name == "neural" && index + 1 < tokens.size() &&
                    (tokens[index + 1].kind == TokenKind::Integer ||
+                    tokens[index + 1].kind == TokenKind::Plus ||
+                    tokens[index + 1].kind == TokenKind::Minus ||
+                    tokens[index + 1].kind == TokenKind::LParen ||
                     (tokens[index + 1].kind == TokenKind::Identifier &&
-                     tokens[index + 1].text == "_"))) {
+                     (tokens[index + 1].text == "_" ||
+                      (tokens[index + 1].text != "float" &&
+                       tokens[index + 1].text != "float32" &&
+                       (!tokens[index + 1].text.empty() &&
+                        std::islower(static_cast<unsigned char>(
+                            tokens[index + 1].text.front())))))))) {
             if (!scan_shape()) return false;
         } else {
             ++index;
@@ -388,7 +396,16 @@ TypeName Parser::type_name() {
             if (at(TokenKind::Less)) parse_shape_pattern();
         } else if (t.name == "neural" &&
                    (peek(1).kind == TokenKind::Integer ||
-                    (peek(1).kind == TokenKind::Identifier && peek(1).text == "_"))) {
+                    peek(1).kind == TokenKind::Plus ||
+                    peek(1).kind == TokenKind::Minus ||
+                    peek(1).kind == TokenKind::LParen ||
+                    (peek(1).kind == TokenKind::Identifier &&
+                     (peek(1).text == "_" ||
+                      (peek(1).text != "float" &&
+                       peek(1).text != "float32" &&
+                       !peek(1).text.empty() &&
+                       std::islower(static_cast<unsigned char>(
+                           peek(1).text.front()))))))) {
             parse_shape_pattern();
         } else {
             t.arguments = type_argument_list();

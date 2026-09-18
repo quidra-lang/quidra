@@ -194,6 +194,47 @@ Type merge_tensor_flow_facts(
     return merged;
 }
 
+void collect_assigned_bindings(
+    const std::vector<StmtPtr>& body, std::unordered_set<std::string>& names) {
+    for (const auto& statement : body) {
+        if (const auto* assignment = std::get_if<AssignStmt>(&statement->data)) {
+            if (const auto* name = std::get_if<NameExpr>(&assignment->target->data)) {
+                names.insert(name->name);
+            }
+            continue;
+        }
+        if (const auto* branch = std::get_if<IfStmt>(&statement->data)) {
+            collect_assigned_bindings(branch->then_body, names);
+            collect_assigned_bindings(branch->else_body, names);
+            continue;
+        }
+        if (const auto* loop = std::get_if<WhileStmt>(&statement->data)) {
+            collect_assigned_bindings(loop->body, names);
+            continue;
+        }
+        if (const auto* loop = std::get_if<ForStmt>(&statement->data)) {
+            collect_assigned_bindings(loop->body, names);
+            continue;
+        }
+        if (const auto* match = std::get_if<MatchStmt>(&statement->data)) {
+            for (const auto& match_case : match->cases) {
+                collect_assigned_bindings(match_case.body, names);
+            }
+        }
+    }
+}
+
+void weaken_loop_tensor_facts(
+    std::unordered_map<std::string, Type>& variables,
+    const std::unordered_set<std::string>& assigned) {
+    for (const auto& name : assigned) {
+        const auto it = variables.find(name);
+        if (it == variables.end() || it->second.kind != TypeKind::Tensor) continue;
+        it->second.length = -1;
+        it->second.tensor_known_shape_prefix.clear();
+    }
+}
+
 void collect_rebound_references(
     const std::vector<StmtPtr>& body, std::unordered_set<std::string>& names) {
     for (const auto& statement : body) {
@@ -4701,6 +4742,10 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         auto method_written = current_receiver_effect_.writes;
         auto method_invalidated = current_receiver_effect_.invalidates;
         auto reference_effects = current_reference_effects_;
+        std::unordered_set<std::string> loop_assigned;
+        collect_assigned_bindings(node.body, loop_assigned);
+        weaken_loop_tensor_facts(variables_, loop_assigned);
+        variables = variables_;
         ++loop_depth_;
         check_block(node.body);
         --loop_depth_;
@@ -4764,6 +4809,10 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         auto method_invalidated = current_receiver_effect_.invalidates;
         auto reference_effects = current_reference_effects_;
         auto borrowed = borrowed_;
+        std::unordered_set<std::string> loop_assigned;
+        collect_assigned_bindings(node.body, loop_assigned);
+        weaken_loop_tensor_facts(variables_, loop_assigned);
+        variables = variables_;
 
         if (node.writable) {
             auto* name = std::get_if<NameExpr>(&node.iterable->data);

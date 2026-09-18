@@ -1458,6 +1458,21 @@ tensor<float32, 2> known = erase(tensor.zeros<float32>([2, 2]))
     int[2] dimensions = value.shape()
 )", "TYPE_MISMATCH");
 
+ // Loop-carried tensor facts must be weakened before checking the loop body.
+ good(R"(void loop_backedge(bool flag)
+    tensor<float32> value = tensor.zeros<float32>([2, 2])
+    while flag
+        auto product = linear.matmul(value, value)
+        value = tensor.zeros<float32>([2, 2, 2])
+        flag = false
+)");
+ good(R"(void for_backedge(int[] items)
+    tensor<float32> value = tensor.zeros<float32>([2, 2])
+    for item in items
+        auto product = linear.matmul(value, value)
+        value = tensor.zeros<float32>([2, 2, 2])
+)");
+
  std::string deep = "print(";
  deep.append(5000, '(');
  deep += "1";

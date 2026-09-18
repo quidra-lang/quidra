@@ -317,7 +317,7 @@ PY
 
 cat > "$TMP/test-module.qui" <<'QUI'
 test.check(true)
-test.equal(2 + 3, 5)
+test.equal(int(2) + 3, 5)
 test.equal("Quidra", "Quidra")
 int[] actual = [1, 2, 3]
 int[] expected = [1, 2, 3]
@@ -530,14 +530,14 @@ match found
     int value
         print(value)
     none
-        print(-1)
+        print(int(-1))
 many.set("k73", 999)
 auto replaced = many.get("k73")
 match replaced
     int value
         print(value)
     none
-        print(-1)
+        print(int(-1))
 string[] ordered_keys = many.keys()
 print(ordered_keys[0])
 print(ordered_keys[99])
@@ -585,14 +585,14 @@ match middle
     int value
         print(value)
     none
-        print(-1)
+        print(int(-1))
 large.set(4097, 123456)
 auto replaced_large = large.get(4097)
 match replaced_large
     int value
         print(value)
     none
-        print(-1)
+        print(int(-1))
 int[] large_keys = large.keys()
 print(large_keys[0])
 print(large_keys[4999])
@@ -631,19 +631,19 @@ match collision_a
     int value
         print(value)
     none
-        print(-1)
+        print(int(-1))
 auto collision_i = collisions.get("i")
 match collision_i
     int value
         print(value)
     none
-        print(-1)
+        print(int(-1))
 auto collision_q = collisions.get("q")
 match collision_q
     int value
         print(value)
     none
-        print(-1)
+        print(int(-1))
 string[] collision_keys = collisions.keys()
 print(collision_keys[0])
 print(collision_keys[1])

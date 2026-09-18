@@ -63,6 +63,20 @@ struct TensorShape { ValueId out; ValueId tensor; Type type; };
 struct TensorIsContiguous { ValueId out; ValueId tensor; };
 struct TensorItem { ValueId out; ValueId tensor; Type element_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorCast { ValueId out; ValueId tensor; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
+struct ShapedConstraintCheck {
+    ValueId value;
+    TypeKind kind{TypeKind::Tensor};
+    std::vector<std::optional<ValueId>> extents;
+    std::uint32_t line{};
+    std::uint32_t column{};
+};
+struct ExtentEqualCheck {
+    ValueId actual;
+    ValueId expected;
+    std::uint32_t line{};
+    std::uint32_t column{};
+};
+struct NeuralNumericCast { ValueId out; ValueId value; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct NeuralTrack { ValueId out; ValueId tensor; Type type; bool parameter{}; std::uint32_t line{}; std::uint32_t column{}; };
 struct NeuralUntrack { ValueId out; ValueId value; Type type; };
 struct NeuralUnary { ValueId out; ValueId value; Type type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
@@ -230,6 +244,7 @@ using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantBool, Const
                                  BytesAlloc, BytesLength, BytesGet, BytesSet,
                                  NumericConvert, ArrayNumericCast, TensorCreate, TensorReshape, TensorContiguous,
                                  TensorShape, TensorIsContiguous, TensorItem, TensorCast,
+                                 ShapedConstraintCheck, ExtentEqualCheck, NeuralNumericCast,
                                  NeuralTrack, NeuralUntrack, NeuralUnary, NeuralBinary, NeuralGrad,
                                  NeuralAffine, NeuralConvolve2D, NeuralUpdate, NeuralNormalize,
                                  NeuralRandomMask, NeuralMomentUpdate,

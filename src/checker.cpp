@@ -4961,12 +4961,14 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
     for (auto& match_case : node.cases) {
         const auto requested_case_type = resolve_type(match_case.type);
         int tag = case_index(type, requested_case_type);
-        if (tag < 0 && requested_case_type.kind == TypeKind::Tensor &&
-            requested_case_type.length < 0 && requested_case_type.first) {
+        if (tag < 0 &&
+            (requested_case_type.kind == TypeKind::Tensor ||
+             requested_case_type.kind == TypeKind::Neural) &&
+            requested_case_type.first) {
             int compatible_tag = -1;
             for (std::size_t i = 0; i < type.cases.size(); ++i) {
                 const auto& candidate = type.cases[i];
-                if (candidate.kind != TypeKind::Tensor || !candidate.first ||
+                if (candidate.kind != requested_case_type.kind || !candidate.first ||
                     *candidate.first != *requested_case_type.first ||
                     !tensor_satisfies_shape_prefix(candidate, requested_case_type)) {
                     continue;

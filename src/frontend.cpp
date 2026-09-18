@@ -1210,12 +1210,31 @@ TypeName clone_type(const TypeName& source) {
     out.name = source.name;
     out.array_depth = source.array_depth;
     out.dimensions = source.dimensions;
+    out.dimension_expressions = source.dimension_expressions;
     out.span = source.span;
     out.tensor_shape_prefix = source.tensor_shape_prefix;
+    out.tensor_shape_expressions = source.tensor_shape_expressions;
     out.tensor_rank = source.tensor_rank;
     out.tensor_known_shape_prefix = source.tensor_known_shape_prefix;
     for (const auto& argument : source.arguments) out.arguments.push_back(clone_type(argument));
     return out;
+}
+
+std::string canonical_extent_expression(const Expr& expression) {
+    if (const auto* literal = std::get_if<IntegerExpr>(&expression.data)) {
+        return std::to_string(literal->value);
+    }
+    if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+        return name->name;
+    }
+    if (const auto* unary = std::get_if<UnaryExpr>(&expression.data)) {
+        return unary->op + "(" + canonical_extent_expression(*unary->operand) + ")";
+    }
+    if (const auto* binary = std::get_if<BinaryExpr>(&expression.data)) {
+        return "(" + canonical_extent_expression(*binary->left) + binary->op +
+               canonical_extent_expression(*binary->right) + ")";
+    }
+    return "<extent>";
 }
 
 std::string canonical_type(const TypeName& type) {
@@ -1232,14 +1251,23 @@ std::string canonical_type(const TypeName& type) {
         out += "<";
         for (std::size_t i = 0; i < type.tensor_shape_prefix.size(); ++i) {
             if (i) out += ",";
-            const auto extent = type.tensor_shape_prefix[i];
-            out += extent < 0 ? "_" : std::to_string(extent);
+            if (i < type.tensor_shape_expressions.size() &&
+                type.tensor_shape_expressions[i]) {
+                out += canonical_extent_expression(*type.tensor_shape_expressions[i]);
+            } else {
+                const auto extent = type.tensor_shape_prefix[i];
+                out += extent < 0 ? "_" : std::to_string(extent);
+            }
         }
         out += ">";
     }
-    for (const auto dimension : type.dimensions) {
+    for (std::size_t i = 0; i < type.dimensions.size(); ++i) {
         out += "[";
-        if (dimension >= 0) out += std::to_string(dimension);
+        if (i < type.dimension_expressions.size() && type.dimension_expressions[i]) {
+            out += canonical_extent_expression(*type.dimension_expressions[i]);
+        } else if (type.dimensions[i] >= 0) {
+            out += std::to_string(type.dimensions[i]);
+        }
         out += "]";
     }
     return out;
@@ -1292,6 +1320,12 @@ TypeName substitute_raw(
             std::vector<long long> dimensions = source.dimensions;
             dimensions.insert(dimensions.end(), result.dimensions.begin(), result.dimensions.end());
             result.dimensions = std::move(dimensions);
+            auto dimension_expressions = source.dimension_expressions;
+            dimension_expressions.insert(
+                dimension_expressions.end(),
+                result.dimension_expressions.begin(),
+                result.dimension_expressions.end());
+            result.dimension_expressions = std::move(dimension_expressions);
             result.array_depth = result.dimensions.size();
             result.span = source.span;
             return result;

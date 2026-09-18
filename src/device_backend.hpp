@@ -84,4 +84,27 @@ bool compute_reduce(const Buffer* input, int dtype, int operation,
 bool compute_mean(const Buffer* input, int dtype, std::size_t count,
                   double& result, std::string& error);
 
+bool compute_mean_to(Buffer* output, const Buffer* input, int dtype,
+                     std::size_t count, std::string& error);
+bool compute_last_reduce_broadcast(Buffer* output, const Buffer* input, int dtype,
+                                   std::size_t count, std::size_t width,
+                                   int operation, std::string& error);
+bool compute_affine(Buffer* output, const Buffer* input, const Buffer* weight,
+                    const Buffer* bias, int dtype, std::size_t batches,
+                    std::size_t features_in, std::size_t features_out,
+                    std::string& error);
+bool compute_conv2d(Buffer* output, const Buffer* input, const Buffer* weight,
+                    const Buffer* bias, int dtype,
+                    std::size_t batches, std::size_t channels_in,
+                    std::size_t height, std::size_t width,
+                    std::size_t channels_out, std::size_t kernel_h,
+                    std::size_t kernel_w, std::size_t output_h,
+                    std::size_t output_w, std::size_t stride,
+                    std::size_t padding, std::string& error);
+bool compute_normalize_inference(
+    Buffer* output, const Buffer* input, const Buffer* scale,
+    const Buffer* bias, const Buffer* mean, const Buffer* variance,
+    int dtype, std::size_t count, std::size_t features,
+    std::size_t inner, double epsilon, std::string& error);
+
 } // namespace quidra::device

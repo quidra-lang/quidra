@@ -1403,10 +1403,10 @@ match widened
  bad_code("tensor<float32><3, _> wrong_rank = tensor.zeros<float32>([3, 4, 5])\n", "TYPE_MISMATCH");
  good("tensor<float32><3, _, _> exact_rank = tensor.zeros<float32>([3, 4, 5])\n");
  bad_code("tensor<float32><2, 3> value = tensor.ones<float32>([2, 3])\nint[3] wrong_shape = value.shape()\n", "TYPE_MISMATCH");
- bad_code(R"(tensor<float32> erase(tensor<float32> value)
+ good(R"(tensor<float32> erase(tensor<float32> value)
     return value
 tensor<float32><2, _> known = erase(tensor.zeros<float32>([2, 2]))
-)", "TYPE_MISMATCH");
+)");
  bad_code("tensor<float32> value = tensor.ones<float32>([1])\nfloat32 scalar = value.item()\n", "TYPE_MISMATCH");
  bad_code("tensor<float32><2, 2> value = tensor.ones<float32>([2, 2])\nauto bad = value[0, 0, 0]\n", "INDEX_ARITY");
  bad_code("tensor<float32> value = tensor.ones<float32>([2, 2])\nfloat32 bad = linear.dot(value, value)\n", "TYPE_MISMATCH");
@@ -1444,6 +1444,23 @@ tensor<float><2, _> restored = value.untrack()
 neural<3, _> wrong = neural.track(source)
 )", "TYPE_MISMATCH");
 
+ // Runtime extent expressions are captured per binding; mutable sources remain legal.
+ good(R"(int n = 3
+int m = 4
+tensor<float><n * 2 + 1, 224> captured =
+    tensor.ones<float>([7, 224])
+n = 10
+tensor<float><n, 224> later =
+    tensor.ones<float>([10, 224])
+float[n * m] dynamic_fixed
+dynamic_fixed[0] = 1.0
+tensor<float><3, 224> contextual = tensor.zeros()
+tensor<float><_, 224> explicit_shape = tensor.zeros([3, 224])
+)");
+ bad_code(R"(int n = 3
+tensor<float><n, 224> wrong = tensor.ones<float>([3, 224, 1])
+)", "TYPE_MISMATCH");
+
  // Numeric container casts preserve array structure and tensor shape facts.
  good(R"(int[][] values = [[1, 2], [3, 4]]
 float[][] converted = float(values)
@@ -1451,6 +1468,10 @@ int[2][2] fixed = [[1, 2], [3, 4]]
 float[2][2] fixed_converted = float(fixed)
 tensor<int><2, 2> matrix = tensor.ones<int>([2, 2])
 tensor<float><2, 2> tensor_converted = float(matrix)
+tensor<float32><2, 2> tracked_source = tensor.ones<float32>([2, 2])
+neural<2, 2> tracked = neural.track(tracked_source)
+neural<float><2, 2> neural_converted = float(tracked)
+tensor<float><2, 2> neural_restored = neural_converted.untrack()
 )");
  bad_code("int[] values = [1, 2]\nfloat[] converted = values\n", "TYPE_MISMATCH");
  bad_code("float[] values = [1.0, 2.0]\nint[] converted = int(values)\n", "NUMERIC_CAST");

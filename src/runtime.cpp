@@ -1254,7 +1254,6 @@ bool exact_numeric_cast(Src source, Dst& destination) {
         return false;
     } else {
         destination = static_cast<Dst>(source);
-        if (std::isfinite(source) && !std::isfinite(destination)) return false;
         return true;
     }
 }
@@ -1297,6 +1296,60 @@ bool tensor_cast_from(const TensorValue& tensor, int target_dtype,
 }
 
 } // namespace
+
+template <typename Src>
+bool numeric_cast_element_from(const void* source_raw, void* destination_raw,
+                               int target_dtype) {
+    Src source{};
+    std::memcpy(&source, source_raw, sizeof(Src));
+    const auto write = [&](auto tag) -> bool {
+        using Dst = decltype(tag);
+        Dst destination{};
+        if (!exact_numeric_cast(source, destination)) return false;
+        std::memcpy(destination_raw, &destination, sizeof(Dst));
+        return true;
+    };
+    switch (target_dtype) {
+        case 1: return write(std::int64_t{});
+        case 2: return write(std::int8_t{});
+        case 3: return write(std::int16_t{});
+        case 4: return write(std::int32_t{});
+        case 5: return write(std::uint8_t{});
+        case 6: return write(std::uint16_t{});
+        case 7: return write(std::uint32_t{});
+        case 8: return write(std::uint64_t{});
+        case 9: return write(double{});
+        case 10:return write(float{});
+        default:return false;
+    }
+}
+
+extern "C" void quidra_numeric_cast_element(
+    void* destination, const void* source, int source_dtype, int target_dtype,
+    unsigned long long line, unsigned long long column) {
+    if (!destination || !source) runtime_text_failure("null numeric cast storage");
+    quidra_init_check(const_cast<void*>(source), line, column);
+    bool ok=false;
+    switch (source_dtype) {
+        case 1: ok=numeric_cast_element_from<std::int64_t>(source,destination,target_dtype); break;
+        case 2: ok=numeric_cast_element_from<std::int8_t>(source,destination,target_dtype); break;
+        case 3: ok=numeric_cast_element_from<std::int16_t>(source,destination,target_dtype); break;
+        case 4: ok=numeric_cast_element_from<std::int32_t>(source,destination,target_dtype); break;
+        case 5: ok=numeric_cast_element_from<std::uint8_t>(source,destination,target_dtype); break;
+        case 6: ok=numeric_cast_element_from<std::uint16_t>(source,destination,target_dtype); break;
+        case 7: ok=numeric_cast_element_from<std::uint32_t>(source,destination,target_dtype); break;
+        case 8: ok=numeric_cast_element_from<std::uint64_t>(source,destination,target_dtype); break;
+        case 9: ok=numeric_cast_element_from<double>(source,destination,target_dtype); break;
+        case 10:ok=numeric_cast_element_from<float>(source,destination,target_dtype); break;
+        default: break;
+    }
+    if (!ok) {
+        std::fprintf(stderr,
+            "Quidra runtime error[NUMERIC_CAST_RANGE] at %llu:%llu: numeric cast outside destination range\n",
+            line,column);
+        std::exit(101);
+    }
+}
 
 extern "C" void* quidra_tensor_create(void* shape_array, int dtype, int fill_mode,
                                         unsigned long long line,

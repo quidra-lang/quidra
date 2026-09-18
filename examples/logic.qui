@@ -1,7 +1,7 @@
 bool is_even(int value)
     return value % 2 == 0
 
-auto value = 42
+int value = 42
 if is_even(value) and value > 0
     print("positive even integer")
 else

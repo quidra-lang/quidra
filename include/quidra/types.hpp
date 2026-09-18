@@ -128,7 +128,7 @@ inline std::string type_name(const Type& type) {
         case TypeKind::Float32: return "float32";
         case TypeKind::Bool: return "bool";
         case TypeKind::String: return "string";
-        case TypeKind::Bytes: return "bytes";
+        case TypeKind::Bytes: return "bin";
         case TypeKind::Void: return "void";
         case TypeKind::Never: return "never";
         case TypeKind::Error: return "error";
@@ -453,7 +453,7 @@ inline std::optional<Type> builtin_scalar_type(std::string_view name) {
     if (name == "float32") return Type::simple(TypeKind::Float32);
     if (name == "bool") return Type::simple(TypeKind::Bool);
     if (name == "string") return Type::simple(TypeKind::String);
-    if (name == "bytes") return Type::simple(TypeKind::Bytes);
+    if (name == "bin") return Type::simple(TypeKind::Bytes);
     return std::nullopt;
 }
 

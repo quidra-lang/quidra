@@ -280,6 +280,7 @@ struct FunctionEmitter {
     // from accumulating stack space through repeated LLVM alloca instructions.
     std::vector<FrameScratchSlot> frame_scratch_slots;
     std::unordered_map<const ir::Instruction*,std::vector<std::size_t>> instruction_scratch_slots;
+    std::string active_repl_array_index_scratch;
     bool guard_stack_depth{};
     const std::unordered_set<std::string>& recursive_callees;
     std::size_t temp_counter{0};
@@ -453,6 +454,7 @@ struct FunctionEmitter {
                     else if(parse->target_type.kind==TypeKind::Float) plan_scratch(i,"double");
                 }
                 if(std::holds_alternative<ir::ImageRead>(i)) plan_scratch(i,"i32");
+                if(std::holds_alternative<ir::ReplDisplay>(i)) plan_scratch(i,"i64");
                 if(std::holds_alternative<ir::Input>(i)) plan_scratch(i,"ptr");
             }
         }
@@ -539,7 +541,9 @@ struct FunctionEmitter {
             emit_repl_text("[");
             const bool fixed=is_fixed_array(type);
             const auto len = temp("repl.array.len");
-            const auto index_slot = temp("repl.array.index.slot");
+            if(active_repl_array_index_scratch.empty())
+                throw std::logic_error("REPL array display requires planned scratch storage");
+            const auto& index_slot = active_repl_array_index_scratch;
             const auto cond = unique_label("repl.array.cond");
             const auto body = unique_label("repl.array.body");
             const auto done = unique_label("repl.array.done");
@@ -547,7 +551,6 @@ struct FunctionEmitter {
             const auto item = unique_label("repl.array.item");
             if(fixed) out << "  " << len << " = add i64 0, " << type.length << "\n";
             else out << "  " << len << " = load i64, ptr " << raw_value << ", align 1\n";
-            out << "  " << index_slot << " = alloca i64\n";
             out << "  store i64 0, ptr " << index_slot << "\n";
             out << "  br label %" << cond << "\n";
             out << cond << ":\n";
@@ -2740,11 +2743,13 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::ReplDisplay>){
             const auto begin=pool.intern("__QUIDRA_REPL_RESULT_BEGIN_6D8F2C__");
             const auto end=pool.intern("__QUIDRA_REPL_RESULT_END_6D8F2C__");
+            active_repl_array_index_scratch=scratch(ins);
             out<<"  call i32 @puts(ptr @"<<begin<<")\n";
             emit_repl_value(n.type, n.type.kind == TypeKind::None ? std::string{} : value(n.value),
                             n.initialized_paths);
             emit_repl_text("\n");
             out<<"  call i32 @puts(ptr @"<<end<<")\n";
+            active_repl_array_index_scratch.clear();
         }
         if constexpr(std::is_same_v<T,ir::Input>){
             values[n.out]=n.result_type;

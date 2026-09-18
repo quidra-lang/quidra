@@ -1694,7 +1694,7 @@ print(len(values))
 print(float(3))
 print(abs(int(-5)))
 print(abs(float(-2.5)))
-print(sqrt(9.0))
+print(sqrt(float(9.0)))
 print(min(int(4), 2))
 print(max(int(4), 2))
 QUI
@@ -2038,7 +2038,7 @@ PY
 
 
 cat > "$TMP/repl-input.txt" <<'QUI'
-1 + 2
+int(1) + 2
 int x = 5
 x
 x = 8
@@ -2056,7 +2056,8 @@ T identity<T>(T value)
     return value
 
 identity<int>(7)
-[1, 2, 3]
+int[] repl_values = [1, 2, 3]
+repl_values
 bin.fill(3, 1)
 box
 Box partial = Box()
@@ -2064,8 +2065,9 @@ partial
 none
 "hello"
 bool broken = 1
+1 + 2
 x
-10 / 0
+int(10) / 0
 x
 float y = 4.0
 y
@@ -2093,6 +2095,7 @@ for value in expected:
     assert found >= 0, (value, out, err)
     position=found+len(value)
 assert "TYPE_MISMATCH" in err
+assert "AMBIGUOUS_NUMERIC_LITERAL" in err
 assert "DIVIDE_BY_ZERO" in err
 PY
 
@@ -2135,9 +2138,9 @@ int plus_one(int value)
     return value + 1
 
 :type plus_one(1)
-1 + 2
+int(1) + 2
 :reset
-1 + 2
+int(1) + 2
 :exit
 QUI
 (
@@ -2165,7 +2168,7 @@ void effect_then_fail(string path)
 effect_then_fail("effect.txt")
 effect_then_fail("effect.txt")
 :reset
-1 + 2
+int(1) + 2
 :exit
 QUI
 (
@@ -2186,7 +2189,7 @@ binary=sys.argv[1]
 pid, fd=pty.fork()
 if pid == 0:
     os.execl(binary, binary)
-os.write(fd, b"1 + 2\n:exit\n")
+os.write(fd, b"int(1) + 2\n:exit\n")
 chunks=[]
 while True:
     try:
@@ -2216,7 +2219,7 @@ os.write(fd, b"int interrupted(int x)\n")
 time.sleep(0.2)
 os.kill(pid, signal.SIGINT)
 time.sleep(0.2)
-os.write(fd, b"1 + 2\n:exit\n")
+os.write(fd, b"int(1) + 2\n:exit\n")
 chunks=[]
 while True:
     try:

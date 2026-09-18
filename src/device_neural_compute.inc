@@ -453,6 +453,70 @@ std::string ptx_normalize_inference_source(int dtype) {
     return out.str();
 }
 
+
+std::string hip_neural_mean_source(int dtype) {
+    const auto type=dtype==10?"float":"double";
+    return "extern \"C\" __global__ void q_kernel("+std::string(type)+
+      "* out,const "+type+"* in,unsigned long long count){if(blockIdx.x||threadIdx.x)return;"+
+      type+" total=("+type+")0;for(unsigned long long i=0;i<count;++i)total+=in[i];"
+      "out[0]=total/("+type+")count;}";
+}
+
+std::string hip_neural_last_source(int dtype,int operation) {
+    const auto type=dtype==10?"float":"double";
+    std::ostringstream out;
+    out<<"extern \"C\" __global__ void q_kernel("<<type<<"* out,const "<<type
+       <<"* in,unsigned long long count,unsigned long long width){"
+         "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+         "if(i>=count)return;unsigned long long base=(i/width)*width;"<<type<<" r=";
+    if(operation==1) out<<"("<<type<<")0;";
+    else out<<"in[base];";
+    out<<"for(unsigned long long j=0;j<width;++j){";
+    if(operation==1) out<<"r+=in[base+j];";
+    else out<<"if(in[base+j]>r)r=in[base+j];";
+    out<<"}out[i]=r;}";
+    return out.str();
+}
+
+std::string hip_neural_affine_source(int dtype) {
+    const auto type=dtype==10?"float":"double";
+    return "extern \"C\" __global__ void q_kernel("+std::string(type)+
+      "* out,const "+type+"* input,const "+type+"* weight,const "+type+
+      "* bias,unsigned long long total,unsigned long long fin,unsigned long long fout){"
+      "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+      "if(i>=total)return;unsigned long long b=i/fout,o=i%fout;"+type+" sum=bias[o];"
+      "for(unsigned long long f=0;f<fin;++f)sum+=input[b*fin+f]*weight[o*fin+f];out[i]=sum;}";
+}
+
+std::string hip_neural_conv2d_source(int dtype) {
+    const auto type=dtype==10?"float":"double";
+    return "extern \"C\" __global__ void q_kernel("+std::string(type)+
+      "* out,const "+type+"* input,const "+type+"* weight,const "+type+
+      "* bias,unsigned long long total,unsigned long long ci,unsigned long long h,unsigned long long w,"
+      "unsigned long long co,unsigned long long kh,unsigned long long kw,unsigned long long oh,unsigned long long ow,"
+      "unsigned long long stride,unsigned long long padding){"
+      "unsigned long long q=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;if(q>=total)return;"
+      "unsigned long long g=q,ox=g%ow;g/=ow;unsigned long long oy=g%oh;g/=oh;unsigned long long oc=g%co;unsigned long long n=g/co;"
+      +std::string(type)+" sum=bias[oc];"
+      "for(unsigned long long ic=0;ic<ci;++ic)for(unsigned long long ky=0;ky<kh;++ky)for(unsigned long long kx=0;kx<kw;++kx){"
+      "long long iy=(long long)(oy*stride+ky)-(long long)padding;long long ix=(long long)(ox*stride+kx)-(long long)padding;"
+      "if(iy<0||ix<0||iy>=(long long)h||ix>=(long long)w)continue;"
+      "unsigned long long ii=((n*ci+ic)*h+(unsigned long long)iy)*w+(unsigned long long)ix;"
+      "unsigned long long wi=((oc*ci+ic)*kh+ky)*kw+kx;sum+=input[ii]*weight[wi];}out[q]=sum;}";
+}
+
+std::string hip_neural_normalize_source(int dtype) {
+    const auto type=dtype==10?"float":"double";
+    const auto sqrt_expr=dtype==10?"__builtin_sqrtf(v)":"__builtin_sqrt(v)";
+    return "extern \"C\" __global__ void q_kernel("+std::string(type)+
+      "* out,const "+type+"* input,const "+type+"* scale,const "+type+"* bias,const "+type+
+      "* mean,const "+type+"* variance,unsigned long long count,unsigned long long features,"
+      "unsigned long long inner,double epsilon){"
+      "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;if(i>=count)return;"
+      "unsigned long long f=(i/inner)%features;"+type+" v=variance[f]+("+type+")epsilon;"
+      +type+" root="+sqrt_expr+";out[i]=((input[i]-mean[f])/root)*scale[f]+bias[f];}";
+}
+
 #ifdef __APPLE__
 std::string msl_neural_mean_source() {
     return "#include <metal_stdlib>\nusing namespace metal;\n"
@@ -561,6 +625,17 @@ bool compute_mean_to(Buffer* output, const Buffer* input, int dtype,
         return launch(module,"q_kernel",LaunchDimensions{1,1,1},
                       LaunchDimensions{1,1,1},args,error);
     }
+    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+        auto source=hip_neural_mean_source(dtype);
+        auto out_ptr=output->pointer,in_ptr=input->pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&in_ptr,&n};
+        auto* module=cached_hip_module(
+            output->global_index,"neural-mean-"+std::to_string(dtype),source,error);
+        if(!module)return false;
+        return launch(module,"q_kernel",LaunchDimensions{1,1,1},
+                      LaunchDimensions{1,1,1},args,error);
+    }
 #ifdef __APPLE__
     if(dtype==10 && output->backend==Backend::Metal){
         auto source=msl_neural_mean_source();
@@ -605,6 +680,15 @@ bool compute_last_reduce_broadcast(Buffer* output, const Buffer* input, int dtyp
             "neural-last-"+std::to_string(dtype)+"-"+std::to_string(operation),
             ptx,count,args,error);
     }
+    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+        auto source=hip_neural_last_source(dtype,operation);
+        auto out_ptr=output->pointer,in_ptr=input->pointer;
+        auto n=static_cast<std::uint64_t>(count),w=static_cast<std::uint64_t>(width);
+        void* args[]={&out_ptr,&in_ptr,&n,&w};
+        return launch_hip_1d(output,
+            "neural-last-"+std::to_string(dtype)+"-"+std::to_string(operation),
+            source,count,args,error);
+    }
 #ifdef __APPLE__
     if(dtype==10&&output->backend==Backend::Metal){
         auto source=msl_last_reduce_source(operation);
@@ -648,6 +732,17 @@ bool compute_affine(Buffer* output, const Buffer* input, const Buffer* weight,
         auto total64=static_cast<std::uint64_t>(total),in64=static_cast<std::uint64_t>(features_in),out64=static_cast<std::uint64_t>(features_out);
         void* args[]={&out_ptr,&in_ptr,&w_ptr,&b_ptr,&total64,&in64,&out64};
         return launch_ptx_1d(output,"neural-affine-"+std::to_string(dtype),ptx,total,args,error);
+    }
+    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+        auto source=hip_neural_affine_source(dtype);
+        auto out_ptr=output->pointer,in_ptr=input->pointer,
+             w_ptr=weight->pointer,b_ptr=bias->pointer;
+        auto total64=static_cast<std::uint64_t>(total),
+             in64=static_cast<std::uint64_t>(features_in),
+             out64=static_cast<std::uint64_t>(features_out);
+        void* args[]={&out_ptr,&in_ptr,&w_ptr,&b_ptr,&total64,&in64,&out64};
+        return launch_hip_1d(
+            output,"neural-affine-"+std::to_string(dtype),source,total,args,error);
     }
 #ifdef __APPLE__
     if(dtype==10&&output->backend==Backend::Metal){
@@ -699,6 +794,21 @@ bool compute_conv2d(Buffer* output, const Buffer* input, const Buffer* weight,
         void* args[]={&out_ptr,&in_ptr,&w_ptr,&b_ptr,&total64,&ci,&hh,&ww,&co,&kh,&kw,&oh,&ow,&st,&pa};
         return launch_ptx_1d(output,"neural-conv2d-"+std::to_string(dtype),ptx,total,args,error);
     }
+    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+        auto source=hip_neural_conv2d_source(dtype);
+        auto out_ptr=output->pointer,in_ptr=input->pointer,
+             w_ptr=weight->pointer,b_ptr=bias->pointer;
+        auto total64=static_cast<std::uint64_t>(total),
+             ci=static_cast<std::uint64_t>(channels_in),
+             hh=static_cast<std::uint64_t>(height),ww=static_cast<std::uint64_t>(width),
+             co=static_cast<std::uint64_t>(channels_out),
+             kh=static_cast<std::uint64_t>(kernel_h),kw=static_cast<std::uint64_t>(kernel_w),
+             oh=static_cast<std::uint64_t>(output_h),ow=static_cast<std::uint64_t>(output_w),
+             st=static_cast<std::uint64_t>(stride),pa=static_cast<std::uint64_t>(padding);
+        void* args[]={&out_ptr,&in_ptr,&w_ptr,&b_ptr,&total64,&ci,&hh,&ww,&co,&kh,&kw,&oh,&ow,&st,&pa};
+        return launch_hip_1d(
+            output,"neural-conv2d-"+std::to_string(dtype),source,total,args,error);
+    }
 #ifdef __APPLE__
     if(dtype==10&&output->backend==Backend::Metal){
         auto source=msl_conv2d_source();
@@ -744,6 +854,18 @@ bool compute_normalize_inference(
         double eps=epsilon;
         void* args[]={&out_ptr,&in_ptr,&s_ptr,&b_ptr,&m_ptr,&v_ptr,&n,&f,&in,&eps};
         return launch_ptx_1d(output,"neural-normalize-inference-"+std::to_string(dtype),ptx,count,args,error);
+    }
+    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+        auto source=hip_neural_normalize_source(dtype);
+        auto out_ptr=output->pointer,in_ptr=input->pointer,s_ptr=scale->pointer,
+             b_ptr=bias->pointer,m_ptr=mean->pointer,v_ptr=variance->pointer;
+        auto n=static_cast<std::uint64_t>(count),f=static_cast<std::uint64_t>(features),
+             in=static_cast<std::uint64_t>(inner);
+        double eps=epsilon;
+        void* args[]={&out_ptr,&in_ptr,&s_ptr,&b_ptr,&m_ptr,&v_ptr,&n,&f,&in,&eps};
+        return launch_hip_1d(
+            output,"neural-normalize-inference-"+std::to_string(dtype),
+            source,count,args,error);
     }
 #ifdef __APPLE__
     if(dtype==10&&output->backend==Backend::Metal){

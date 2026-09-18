@@ -416,7 +416,7 @@ Numeric interpolation supports a compact format after `:`: `int=N` sets the mini
 
 The immutable built-in `string` values `enter`, `tab`, `home`, `quote`, `backspace`, `page`, `vtab`, and `bell` denote LF, HT, CR, `"`, BS, FF, VT, and BEL respectively. They are ordinary expressions, so both `"A{tab}B"` and `string separator = tab` use the same value. Literal `{{` and `}}` continue to represent braces in an interpolated string. NUL remains forbidden in source strings.
 
-Numeric arithmetic requires matching operand types. An implicit numeric conversion is permitted in a typed conversion context only when every value of the source type is exactly representable by the destination type. For example, `int8 -> int16`, `uint8 -> int16`, `uint32 -> int`, `int16 -> float32`, and `float32 -> float` are lossless; `int8 -> uint8`, `uint64 -> int`, `int32 -> float32`, and `int -> float` are not implicit.
+Numeric arithmetic requires matching operand types. An already-typed numeric value never changes representation implicitly, even when the conversion would be lossless. Numeric literals may be contextually typed directly when the literal is representable in that type. Representation changes require an explicit cast or an API operation whose arguments explicitly request that conversion.
 
 Explicit numeric casts use the destination type directly: `int8(value)`, `uint32(value)`, or `float32(value)`. Integer-to-integer casts are allowed only when the runtime value is in the destination range; an out-of-range conversion fails deterministically and never wraps or clamps. Integer-to-float and float-to-float casts are explicit practical conversions and may use the destination IEEE-754 rounding. Generic float-to-integer casts are forbidden because they hide a rounding choice; use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` instead.
 
@@ -440,9 +440,19 @@ A rejected compile-time submission does not become part of the session. EOF exit
 
 ## Tensor
 
-`tensor<T>` is a first-class dense numeric N-dimensional value type. `T` must be numeric. Dtype is always static. Rank may be left runtime-known as `tensor<T>` or strengthened with an exact compile-time contract as `tensor<T, N>`, where `N` is a nonnegative integer literal. Shape extents remain runtime values in both forms. Static rank is erased before runtime representation, so `tensor<T>` and `tensor<T, N>` use the same TensorStorage/LLVM ABI.
+`tensor<T>` is a first-class dense numeric N-dimensional value type. `T` must be numeric and is always static. Tensor rank is not written as a type argument: the compiler infers rank and known shape facts from construction, reshape/index operations, control flow, and APIs such as `image.read`.
 
-A statically known rank may be forgotten (`tensor<T, 2>` to `tensor<T>`), but an unknown rank is never implicitly asserted to be known. The same safe information erasure is valid when injecting a ranked tensor into a union alternative such as `tensor<T> | error`, and when widening a union whose ranked tensor alternative maps uniquely to that rank-erased alternative. Tensor construction infers rank when its shape expression has a statically known array length; a dynamic `int[]` shape produces unknown rank. The rank annotation is a type refinement, not a second runtime tensor kind. In a union `match`, a rank-erased case such as `tensor<T>` may select a single compatible `tensor<T, N>` alternative; the case binder is narrowed to that exact ranked alternative. If multiple ranked alternatives would match the same rank-erased case, the case is ambiguous and rejected rather than guessed.
+Optional numeric suffixes are consecutive leading shape constraints:
+
+```quidra
+tensor<float32> any
+tensor<float32, 3> first_axis_is_three
+tensor<float32, 3, 224, 224> chw_224
+```
+
+`tensor<T, A, B>` means `shape[0] == A` and `shape[1] == B`; it does **not** mean rank 2. Unwritten trailing axes are unconstrained. Empty slots such as `tensor<float, , 3>` and wildcard dimensions are invalid. Shape constraints and inferred rank/shape metadata are erased before runtime representation, so all tensor forms use the same TensorStorage/LLVM ABI.
+
+A tensor expression whose shape is statically known may satisfy a constrained destination. An unconstrained tensor whose required extents cannot be proven does not implicitly assert a shape constraint. API boundaries that explicitly produce runtime data may validate such constraints and return their existing `error` alternative; `image.read` is the primary example.
 
 ```quidra
 tensor<float32> a = tensor<float32>([3, 224, 224])
@@ -450,11 +460,12 @@ a[0, 0, 0] = 1.0
 
 tensor<float32> z = tensor.zeros<float32>([3, 224, 224])
 tensor<float32> o = tensor.ones<float32>([1, 224, 224])
+tensor<float32, 3> first_axis_three = z
 ```
 
-The direct `tensor<T>(shape)` form creates uninitialized tensor storage. Scalar indexed assignment such as `a[0, 0, 0] = 1.0` initializes that element. `tensor.zeros<T>` and `tensor.ones<T>` create fully initialized tensors. Initialization is tracked independently from numeric contents; reading an element before it is initialized is a deterministic safety failure.
+The direct `tensor<T>(shape)` form creates uninitialized tensor storage. Scalar indexed assignment initializes an element. `tensor.zeros<T>` and `tensor.ones<T>` create fully initialized tensors. Initialization is tracked independently from numeric contents; reading an uninitialized element is a deterministic safety failure.
 
-Tensor storage is row-major, with the last dimension contiguous. Indexing is comma-based. Integer indices remove dimensions; slices retain dimensions; omitted trailing dimensions mean full slices. Indexing preserves and refines static rank when available. Each integer index removes one dimension, each slice retains one dimension, and omitted trailing dimensions are retained. Fully indexing a rank-`N` tensor with `N` integer indices yields `tensor<T, 0>`, not a scalar. `.item()` is the explicit scalar extraction operation; it is rejected statically for a tensor whose known rank is nonzero and remains runtime-checked when rank is unknown.
+Tensor storage is row-major, with the last dimension contiguous. Integer indices remove axes, slices retain axes, and omitted trailing dimensions mean full slices. Inferred rank and known shape facts are projected accordingly. Fully indexing a known rank-N tensor with N integer indices yields an internal rank-0 tensor, not a scalar; `.item()` is the explicit scalar extraction operation.
 
 ```quidra
 tensor<float32> z = tensor.zeros<float32>([3, 224, 224])
@@ -463,13 +474,13 @@ auto crop = z[:, 10:20, 30:40]
 float32 value = z[0, 10, 20].item()
 ```
 
-Slices may share internal storage, but source semantics remain value-oriented. Mutating a copied tensor or slice triggers copy-on-write when needed, so another value cannot observe the write. Slice assignment and writable `&` references to tensor elements are intentionally not exposed.
+Slices may share internal storage, but source semantics remain value-oriented. Mutating a copied tensor or slice triggers copy-on-write when needed. Slice assignment and writable `&` references to tensor elements are intentionally not exposed.
 
-`.reshape(shape)` requires contiguous storage and never performs a hidden copy. Use `.contiguous()` explicitly before reshaping a non-contiguous view. When the shape array has a statically known length, the result rank is known to that length; otherwise the result rank is unknown. For `tensor<T, N>`, `.shape()` has static type `int[N]`; for unknown-rank `tensor<T>`, it has type `int[]`. The known-rank result uses ordinary fixed-array storage and the unknown-rank result uses ordinary runtime-sized array storage, preserving the language's existing array-layout invariants. This does not change TensorStorage or the tensor value LLVM ABI. `.is_contiguous()` reports layout state. `linear.dot` requires rank 1 and `linear.matmul` requires rank 2 when rank is statically known; unknown-rank inputs retain the existing runtime validation. Image values decoded by `image.read` carry rank 3, and `image.write` rejects a statically known non-3 rank.
+`.reshape(shape)` requires contiguous storage and never performs a hidden copy. Use `.contiguous()` explicitly before reshaping a non-contiguous view. A statically known shape establishes inferred result rank and extents. `.shape()` returns `int[N]` when rank N is inferred at that program point and `int[]` when rank is unknown. `.is_contiguous()` reports layout state. `linear.dot` requires rank 1 and `linear.matmul` requires rank 2; statically known mismatches are rejected and unknown rank retains runtime validation. Image values decoded by `image.read` always carry inferred rank 3.
 
-Tensor `+`, `-`, `*`, `/`, and integer `%` are elementwise. Tensor-to-tensor implicit broadcasting requires identical rank; each axis must either match or have size 1 on one side. Rank-changing broadcasting is not implicit. Scalars are the one exception and broadcast to any tensor rank.
+Tensor `+`, `-`, `*`, `/`, and integer `%` are elementwise. Tensor-to-tensor implicit broadcasting requires identical rank; each axis must match or have size 1 on one side. Rank-changing broadcasting is not implicit. Scalars are the one exception and broadcast to any tensor rank.
 
-`tensor.cast<T>()` follows the same explicit numeric conversion policy as scalar casts. Integer narrowing is range-checked for every element and fails atomically if any element is out of range; integer-to-float and float-to-float conversions may deterministically round to the destination IEEE-754 format. Generic float-to-integer tensor casts are forbidden; make the rounding operation explicit first.
+`tensor.cast<T>()` follows the explicit numeric conversion policy elementwise. Integer narrowing is range-checked; integer-to-float and float-to-float conversion may use destination IEEE-754 rounding. Generic float-to-integer tensor casts are forbidden because they hide a rounding choice.
 
 ## Implementation scope
 
@@ -669,11 +680,27 @@ The v0.1 implementation uses libcurl directly in the native runtime. It permits 
 
 ### image
 
-`image.read(path)` preserves the decoded sample dtype whenever that dtype is representable by Quidra and the source codec. With no expected type its result is `tensor<int8> | tensor<int16> | tensor<int32> | tensor<int> | tensor<uint8> | tensor<uint16> | tensor<uint32> | tensor<uint64> | tensor<float32> | tensor<float> | error`. The decoded tensor uses CHW layout: grayscale is `[1, H, W]`, RGB is `[3, H, W]`, and RGBA is `[4, H, W]`. PNG decodes to `uint8` or `uint16`; TIFF supports all built-in numeric tensor dtypes; JPEG, BMP, and WebP decode to `uint8`. Decoding does not normalize values, change RGB to BGR, silently convert dtype, or discard alpha.
+`image.read(path)` decodes to CHW and preserves both source channel count and every sample dtype representable by Quidra and the codec. Its successful tensor alternative has inferred rank 3. Grayscale is `[1,H,W]`, RGB is `[3,H,W]`, and RGBA is `[4,H,W]`. PNG decodes to `uint8` or `uint16`; TIFF supports every built-in numeric tensor dtype; JPEG, BMP, and WebP decode to `uint8`.
 
-An expected result type may intentionally narrow the accepted dtype. For example, `tensor<uint16> | error loaded = image.read(path)` accepts a matching 16-bit image and returns `error` for a different decoded dtype. The mismatch never converts the pixels. `try image.read(path)` uses the surrounding expected tensor type in the same way.
+The expected tensor type is an acceptance constraint, never an implicit conversion request. For example:
 
-`image.write(path, image, quality = 95)` accepts a fully initialized CHW numeric tensor and returns `void | error`. The codec is selected from the filename extension and the write succeeds only when that codec can represent the tensor dtype without conversion: PNG supports `uint8` and `uint16`, TIFF supports every built-in numeric tensor dtype, and JPEG/BMP/WebP require `uint8`. JPEG and WebP quality is an integer from 1 through 100. JPEG rejects RGBA input rather than silently discarding alpha. Callers must make intentional layout, dtype, range, and channel changes before the write call.
+```quidra
+tensor<uint16, 3> | error loaded = image.read(path)
+```
+
+accepts only a uint16 image whose decoded CHW first axis is 3. A dtype or constrained-shape mismatch returns `error`.
+
+Conversion is performed only by explicit named arguments:
+
+```quidra
+image.read(path, channels = 1)
+image.read(path, channels = 3, dtype = float32)
+```
+
+`channels` accepts only literal 1, 3, or 4. 1→3 replicates gray; 3/4→1 uses `0.299R + 0.587G + 0.114B` and ignores alpha; 4→3 explicitly discards alpha; 1/3→4 adds opaque alpha (integer maximum or 1.0 for floating point). `dtype = T` explicitly changes numeric representation without normalizing ranges. Integer-to-integer conversion fails if any value is out of range; integer-to-float and float-to-float use the explicit numeric rounding policy; float-to-integer remains forbidden without an explicit rounding operation. A conversion argument that conflicts with the surrounding expected output type is a compile-time error.
+
+`image.write(path, image, quality = 95)` accepts a fully initialized CHW numeric tensor and returns `void | error`. The codec is selected from the filename extension and writing succeeds only when that codec can represent the tensor dtype without conversion: PNG supports `uint8` and `uint16`, TIFF supports every built-in numeric tensor dtype, and JPEG/BMP/WebP require `uint8`. JPEG and WebP quality is 1 through 100. JPEG rejects RGBA input unless the caller explicitly converts channels first.
+
 
 Higher-level tensor image processing is provided by the official `vision`
 source package through `import vision`. It is resolved by the ordinary package
@@ -708,7 +735,7 @@ The left `&state` identifies the writable parameter and the right `&state` forms
 
 ## Explicit numeric conversion
 
-Implicit numeric conversion remains lossless-only. Explicit conversion is practical:
+Already-typed numeric values are never converted implicitly. Explicit conversion is practical:
 
 - integer to integer is allowed when the runtime value is in range and never wraps,
 - integer to floating point is allowed and uses destination IEEE-754 rounding,

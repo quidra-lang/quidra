@@ -93,8 +93,8 @@ int | none | error read_count(string path)
 void increment(int &value)
     value += 1
 
-float32 first_sample(const tensor<float32><3, _, _> &image)
-    return image[0, 0, 0].item()
+float32 first_sample(const tensor<float32><3, _, _> &pixels)
+    return pixels[0, 0, 0].item()
 
 int count = 7
 increment(&count)
@@ -108,7 +108,7 @@ The point is not that every line is as short as possible. The point is that the 
 - `int | none | error` distinguishes a value, normal absence, and failure without a sentinel or hidden exception convention.
 - `try` has one job: propagate `error`. It does not also mean absence, early return for arbitrary values, or exception catching.
 - `int &value` states that the function may write caller-visible storage, and `&count` makes that authority explicit at the call site.
-- `const tensor<float32><3, _, _> &image` says that the function observes existing tensor storage without write authority. `float32` fixes the element representation; the three written axis slots require rank 3; the first extent is exactly 3; each `_` leaves that existing axis extent unrestricted.
+- `const tensor<float32><3, _, _> &pixels` says that the function observes existing tensor storage without write authority. `float32` fixes the element representation; the three written axis slots require rank 3; the first extent is exactly 3; each `_` leaves that existing axis extent unrestricted.
 - `AND` is fixed-width integer bitwise AND. Lowercase `and` remains boolean logic, `&` remains storage access, and `|` remains union syntax.
 
 This is what Quidra means by **semantic compression**: do not spend tokens repeating facts the compiler can prove, and do spend tokens where removing them would blur authority, representation, failure, state, shape, or behavior.
@@ -407,6 +407,8 @@ bigreal
 Fixed-width integers use explicit bitwise syntax:
 
 ```quidra
+uint8 flags = 240
+uint8 mask = 15
 uint8 selected = flags AND mask
 uint8 toggled = flags XOR mask
 uint8 inverted = NOT flags

@@ -1818,13 +1818,27 @@ struct FunctionEmitter {
                 }
             }
             if(image_cases.empty()) throw std::logic_error("image.read result has no tensor case");
-            const int expected_dtype=image_cases.size()==1?image_cases.front().first:0;
+            const int target_dtype=n.target_dtype?tensor_dtype_code(*n.target_dtype):0;
+            const int expected_dtype=
+                target_dtype==0 && image_cases.size()==1?image_cases.front().first:0;
+            const long long expected_channels=
+                n.expected_shape_prefix.size()>0?n.expected_shape_prefix[0]:-1;
+            const long long expected_height=
+                n.expected_shape_prefix.size()>1?n.expected_shape_prefix[1]:-1;
+            const long long expected_width=
+                n.expected_shape_prefix.size()>2?n.expected_shape_prefix[2]:-1;
             const auto dtype_slot=temp("image.read.dtype.slot");
             const auto raw=temp("image.read.raw"),ok=temp("image.read.ok"),result=value(n.out);
             out<<"  "<<dtype_slot<<" = alloca i32\n";
             out<<"  store i32 0, ptr "<<dtype_slot<<"\n";
             out<<"  "<<raw<<" = call ptr @quidra_image_read(ptr "<<value(n.path)
-               <<", i32 "<<expected_dtype<<", ptr "<<dtype_slot<<")\n";
+               <<", i32 "<<expected_dtype
+               <<", i32 "<<target_dtype
+               <<", i32 "<<n.target_channels
+               <<", i64 "<<expected_channels
+               <<", i64 "<<expected_height
+               <<", i64 "<<expected_width
+               <<", ptr "<<dtype_slot<<")\n";
             out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
             out<<"  "<<ok<<" = icmp ne ptr "<<raw<<", null\n";
             const auto yes=unique_label("image.read.ok"),bad=unique_label("image.read.error"),done=unique_label("image.read.done");
@@ -2830,7 +2844,7 @@ declare ptr @quidra_http_last_error_copy()
 declare ptr @quidra_http_header(ptr, ptr)
 declare ptr @quidra_http_response_clone(ptr)
 declare void @quidra_http_response_drop(ptr)
-declare ptr @quidra_image_read(ptr, i32, ptr)
+declare ptr @quidra_image_read(ptr, i32, i32, i32, i64, i64, i64, ptr)
 declare i1 @quidra_image_write(ptr, ptr, i32, i64)
 declare ptr @quidra_image_last_error_copy()
 declare i32 @printf(ptr, ...)

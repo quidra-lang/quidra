@@ -81,7 +81,14 @@ struct NeuralLoad { ValueId path; std::string schema; std::vector<NeuralStateTar
 struct StatsMean { ValueId out; ValueId tensor; Type tensor_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct LinearMatmul { ValueId out; ValueId left; ValueId right; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct LinearDot { ValueId out; ValueId left; ValueId right; Type element_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct ImageRead { ValueId out; ValueId path; Type result_type; };
+struct ImageRead {
+    ValueId out;
+    ValueId path;
+    Type result_type;
+    std::optional<Type> target_dtype;
+    int target_channels{};
+    std::vector<long long> expected_shape_prefix;
+};
 struct ImageWrite { ValueId out; ValueId path; ValueId image; ValueId quality; Type result_type; };
 struct TensorBinary {
     ValueId out;

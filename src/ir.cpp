@@ -1909,7 +1909,32 @@ struct Lowerer {
                 }
                 case BuiltinCallable::ImageRead: {
                     auto path=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(ImageRead{out,path,checked.raw_types.at(&e)});
+                    std::optional<Type> target_dtype;
+                    int target_channels=0;
+                    for(std::size_t i=1;i<n.args.size();++i){
+                        if(!n.args[i].name) continue;
+                        if(*n.args[i].name=="channels"){
+                            if(const auto* value=std::get_if<IntegerExpr>(&n.args[i].value->data))
+                                target_channels=static_cast<int>(value->value);
+                        }else if(*n.args[i].name=="dtype"){
+                            if(const auto* name=std::get_if<NameExpr>(&n.args[i].value->data))
+                                target_dtype=builtin_scalar_type(name->name);
+                        }
+                    }
+                    const auto result_type=checked.raw_types.at(&e);
+                    std::vector<long long> expected_shape_prefix;
+                    if(result_type.kind==TypeKind::Union){
+                        for(const auto& candidate:result_type.cases){
+                            if(candidate.kind!=TypeKind::Tensor) continue;
+                            if(expected_shape_prefix.empty())
+                                expected_shape_prefix=candidate.tensor_shape_prefix;
+                            else if(expected_shape_prefix!=candidate.tensor_shape_prefix)
+                                expected_shape_prefix.clear();
+                        }
+                    }
+                    block->instructions.push_back(
+                        ImageRead{out,path,result_type,target_dtype,target_channels,
+                                  std::move(expected_shape_prefix)});
                     release_arg(0,path);
                     return out;
                 }
@@ -2652,7 +2677,12 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,StatsMean>)out<<"%"<<n.out<<" = stats.mean %"<<n.tensor;
     if constexpr(std::is_same_v<T,LinearMatmul>)out<<"%"<<n.out<<" = linear.matmul %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,LinearDot>)out<<"%"<<n.out<<" = linear.dot %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.element_type);
-    if constexpr(std::is_same_v<T,ImageRead>)out<<"%"<<n.out<<" = image.read %"<<n.path<<" : "<<type_name(n.result_type);
+    if constexpr(std::is_same_v<T,ImageRead>){
+        out<<"%"<<n.out<<" = image.read %"<<n.path;
+        if(n.target_channels) out<<", channels="<<n.target_channels;
+        if(n.target_dtype) out<<", dtype="<<type_name(*n.target_dtype);
+        out<<" : "<<type_name(n.result_type);
+    }
     if constexpr(std::is_same_v<T,ImageWrite>)out<<"%"<<n.out<<" = image.write %"<<n.path<<", %"<<n.image<<", quality %"<<n.quality<<" : "<<type_name(n.result_type);
     if constexpr(std::is_same_v<T,TensorBinary>)out<<"%"<<n.out<<" = tensor.binary "<<n.op<<" %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.result_type);
     if constexpr(std::is_same_v<T,TensorIndex>){

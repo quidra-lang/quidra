@@ -3175,43 +3175,93 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         error("GENERIC_TARGET",
                               "image.read does not take type arguments.", expression.span);
                     }
-                    if (node->args.size() != 1) {
+                    if (node->args.empty() || node->args.size() > 3) {
                         error("ARGUMENT_MISMATCH",
-                              "image.read requires one path string.", expression.span);
+                              "image.read requires path and optional channels/dtype conversions.",
+                              expression.span);
                         type = simple(TypeKind::Invalid);
                         break;
                     }
+
                     auto string_type = simple(TypeKind::String);
+                    auto int_type = simple(TypeKind::Int);
                     auto path_type = check_expr(*node->args[0].value, &string_type);
+                    bool bad = poisoned(path_type);
                     if (node->args[0].writable ||
                         (node->args[0].name && *node->args[0].name != "path")) {
                         error("ARGUMENT_MISMATCH",
                               "image.read path has an invalid label or write capability.",
                               node->args[0].span);
+                        bad = true;
                     }
-                    if (poisoned(path_type)) {
+
+                    std::optional<long long> target_channels;
+                    std::optional<Type> target_dtype;
+                    for (std::size_t i = 1; i < node->args.size(); ++i) {
+                        const auto& argument = node->args[i];
+                        if (argument.writable || !argument.name) {
+                            error("ARGUMENT_MISMATCH",
+                                  "image.read conversion options must be named.",
+                                  argument.span);
+                            bad = true;
+                            continue;
+                        }
+                        if (*argument.name == "channels") {
+                            if (target_channels) {
+                                error("DUPLICATE_ARGUMENT",
+                                      "image.read channels is specified more than once.",
+                                      argument.span);
+                                bad = true;
+                                continue;
+                            }
+                            const auto channel_type = check_expr(*argument.value, &int_type);
+                            const auto channels = constant_integer_value(*argument.value);
+                            if (poisoned(channel_type) || !channels ||
+                                (*channels != 1 && *channels != 3 && *channels != 4)) {
+                                error("ARGUMENT_MISMATCH",
+                                      "image.read channels must be the literal 1, 3, or 4.",
+                                      argument.span);
+                                bad = true;
+                            } else {
+                                target_channels = *channels;
+                            }
+                            continue;
+                        }
+                        if (*argument.name == "dtype") {
+                            if (target_dtype) {
+                                error("DUPLICATE_ARGUMENT",
+                                      "image.read dtype is specified more than once.",
+                                      argument.span);
+                                bad = true;
+                                continue;
+                            }
+                            const auto* name = std::get_if<NameExpr>(&argument.value->data);
+                            const auto dtype = name ? builtin_scalar_type(name->name)
+                                                    : std::optional<Type>{};
+                            if (!dtype || !is_numeric(*dtype)) {
+                                error("ARGUMENT_MISMATCH",
+                                      "image.read dtype must name a numeric built-in type.",
+                                      argument.span);
+                                bad = true;
+                            } else {
+                                target_dtype = *dtype;
+                                raw_types_[argument.value.get()] = *dtype;
+                                expr_types_[argument.value.get()] = *dtype;
+                            }
+                            continue;
+                        }
+                        error("ARGUMENT_MISMATCH",
+                              "image.read supports only channels = 1|3|4 and dtype = numeric_type.",
+                              argument.span);
+                        bad = true;
+                    }
+                    if (bad) {
                         type = simple(TypeKind::Invalid);
                         break;
                     }
 
                     const auto error_type = simple(TypeKind::Error);
-                    const auto full_result = Type::union_of({
-                        Type::tensor(simple(TypeKind::Int8), 3),
-                        Type::tensor(simple(TypeKind::Int16), 3),
-                        Type::tensor(simple(TypeKind::Int32), 3),
-                        Type::tensor(simple(TypeKind::Int), 3),
-                        Type::tensor(simple(TypeKind::UInt8), 3),
-                        Type::tensor(simple(TypeKind::UInt16), 3),
-                        Type::tensor(simple(TypeKind::UInt32), 3),
-                        Type::tensor(simple(TypeKind::UInt64), 3),
-                        Type::tensor(simple(TypeKind::Float32), 3),
-                        Type::tensor(simple(TypeKind::Float), 3),
-                        error_type});
-                    type = full_result;
-
-                    // An expected tensor<T> | error context selects a dtype without
-                    // converting it. Runtime image decoding validates the exact dtype;
-                    // a mismatch is the error alternative.
+                    std::optional<Type> expected_tensor;
                     if (expected && expected->kind == TypeKind::Union &&
                         case_index(*expected, error_type) >= 0) {
                         std::vector<Type> non_error;
@@ -3220,11 +3270,74 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         }
                         if (non_error.size() == 1 &&
                             non_error.front().kind == TypeKind::Tensor &&
-                            non_error.front().first && is_numeric(*non_error.front().first) &&
-                            (non_error.front().length < 0 || non_error.front().length == 3)) {
-                            type = *expected;
+                            non_error.front().first &&
+                            is_numeric(*non_error.front().first)) {
+                            expected_tensor = non_error.front();
                         }
                     }
+
+                    if (expected_tensor &&
+                        expected_tensor->tensor_shape_prefix.size() > 3) {
+                        error("TYPE_MISMATCH",
+                              "image.read returns rank-3 CHW tensors; the expected shape prefix has more than three axes.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
+                    }
+                    if (target_dtype && expected_tensor &&
+                        *expected_tensor->first != *target_dtype) {
+                        error("TYPE_MISMATCH",
+                              "image.read dtype conversion conflicts with the expected tensor dtype.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
+                    }
+                    if (target_channels && expected_tensor &&
+                        !expected_tensor->tensor_shape_prefix.empty() &&
+                        expected_tensor->tensor_shape_prefix.front() != *target_channels) {
+                        error("TYPE_MISMATCH",
+                              "image.read channel conversion conflicts with the expected tensor shape.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
+                    }
+
+                    std::vector<Type> result_cases;
+                    const auto append_case = [&](Type element) {
+                        std::vector<long long> shape_contract;
+                        std::vector<long long> known_shape;
+                        if (expected_tensor) {
+                            shape_contract = expected_tensor->tensor_shape_prefix;
+                            known_shape = expected_tensor->tensor_shape_prefix;
+                        }
+                        if (target_channels) {
+                            if (known_shape.empty()) known_shape.push_back(*target_channels);
+                            else known_shape.front() = *target_channels;
+                        }
+                        result_cases.push_back(Type::tensor(
+                            element, 3, std::move(shape_contract), std::move(known_shape)));
+                    };
+
+                    if (target_dtype) {
+                        append_case(*target_dtype);
+                    } else if (expected_tensor) {
+                        // The expected dtype is a source/output constraint, not permission
+                        // to convert the decoded samples.
+                        append_case(*expected_tensor->first);
+                    } else {
+                        append_case(simple(TypeKind::Int8));
+                        append_case(simple(TypeKind::Int16));
+                        append_case(simple(TypeKind::Int32));
+                        append_case(simple(TypeKind::Int));
+                        append_case(simple(TypeKind::UInt8));
+                        append_case(simple(TypeKind::UInt16));
+                        append_case(simple(TypeKind::UInt32));
+                        append_case(simple(TypeKind::UInt64));
+                        append_case(simple(TypeKind::Float32));
+                        append_case(simple(TypeKind::Float));
+                    }
+                    result_cases.push_back(error_type);
+                    type = Type::union_of(std::move(result_cases));
                     break;
                 }
                 case BuiltinCallable::ImageWrite: {
@@ -3251,11 +3364,25 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                               "image.write requires a numeric CHW tensor.",
                               node->args[1].span);
                     }
-                    if (!poisoned(value_type) && value_type.kind == TypeKind::Tensor &&
-                        value_type.length >= 0 && value_type.length != 3) {
-                        error("TYPE_MISMATCH",
-                              "image.write requires a rank-3 CHW tensor.",
-                              node->args[1].span);
+                    if (!poisoned(value_type) && value_type.kind == TypeKind::Tensor) {
+                        if (value_type.length >= 0 && value_type.length != 3) {
+                            error("TYPE_MISMATCH",
+                                  "image.write requires a rank-3 CHW tensor.",
+                                  node->args[1].span);
+                        }
+                        if (value_type.tensor_shape_prefix.size() > 3) {
+                            error("TYPE_MISMATCH",
+                                  "image.write cannot accept a tensor shape constraint beyond CHW rank 3.",
+                                  node->args[1].span);
+                        }
+                        if (!value_type.tensor_shape_prefix.empty()) {
+                            const auto channels = value_type.tensor_shape_prefix.front();
+                            if (channels != 1 && channels != 3 && channels != 4) {
+                                error("TYPE_MISMATCH",
+                                      "image.write requires CHW channel count 1, 3, or 4.",
+                                      node->args[1].span);
+                            }
+                        }
                     }
                     if (node->args[0].writable || node->args[1].writable ||
                         (node->args[0].name && *node->args[0].name != "path") ||

@@ -206,6 +206,7 @@ if(BUILD_TESTING)
       add_test(NAME quidra_device_backend_tests COMMAND quidra_device_backend_tests)
       add_test(NAME quidra_gpu_contracts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/gpu_contract_tests.sh $<TARGET_FILE:quidra>)
     endif()
+    add_test(NAME quidra_real_gpu_integration COMMAND bash ${CMAKE_SOURCE_DIR}/tests/real_gpu_integration.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_native_smoke COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/native-smoke.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_performance_regressions COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/performance_regressions.py $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     find_program(QUIDRA_LLVM_OPT NAMES opt opt-20 opt-19 opt-18 opt-17 opt-16 opt-15)
@@ -264,6 +265,12 @@ if(BUILD_TESTING)
     if(TEST quidra_device_backend_tests)
       set_tests_properties(
         quidra_device_backend_tests
+        PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
+      )
+    endif()
+    if(TEST quidra_real_gpu_integration)
+      set_tests_properties(
+        quidra_real_gpu_integration
         PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
       )
     endif()

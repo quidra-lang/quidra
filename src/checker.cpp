@@ -893,10 +893,13 @@ Type Checker::check_address_target(const Expr& expression, bool allow_tensor_ele
             if (base.kind == TypeKind::Array) {
                 type = *base.first;
             } else if (base.kind == TypeKind::Bytes) {
+                error("WRITE_CAPABILITY",
+                      "bin elements do not expose addressable references; assign through bin[index].",
+                      expression.span);
                 type = simple(TypeKind::Bytes);
             } else {
                 error("TYPE_MISMATCH",
-                      "Element address requires an array, bin, or tensor.", expression.span);
+                      "Element address requires an array or tensor.", expression.span);
             }
         }
     } else {

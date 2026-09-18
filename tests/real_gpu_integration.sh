@@ -75,6 +75,8 @@ tensor<int32> cpu_i = tensor.ones<int32>([4]) * int32(7)
 tensor<int32> gpu_i = cpu_i.gpu($GPU_INDEX)
 tensor<int32> gpu_i_result = (gpu_i + int32(2)).cpu()
 print(gpu_i_result[3].item() == int32(9))
+tensor<int32> gpu_i_remainder = (gpu_i % int32(4)).cpu()
+print(gpu_i_remainder[3].item() == int32(3))
 
 tensor<float32> casted = float32(gpu_i)
 print(casted.cpu()[0].item() == float32(7))
@@ -148,7 +150,7 @@ print(direct[0].item() == int32(4) and direct[1].item() == int32(5))
 QUI
 
 output="$("$QUIDRA" run "$TMP/real-gpu.qui")"
-expected="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue')"
+expected="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue')"
 if [[ "$output" != "$expected" ]]; then
     echo "real GPU numerical equivalence failed on gpu($GPU_INDEX)" >&2
     printf '%s\n' "$output" >&2

@@ -267,7 +267,9 @@ void collect_rebound_references(
     }
 }
 
-std::optional<long long> constant_integer_value(const Expr& expression) {
+std::optional<long long> constant_integer_value(
+    const Expr& expression,
+    const std::unordered_map<std::string, long long>* names = nullptr) {
     if (const auto* literal = std::get_if<IntegerExpr>(&expression.data)) {
         if (literal->value > static_cast<unsigned long long>(std::numeric_limits<long long>::max())) {
             return std::nullopt;
@@ -275,9 +277,16 @@ std::optional<long long> constant_integer_value(const Expr& expression) {
         return static_cast<long long>(literal->value);
     }
 
+    if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+        if (!names) return std::nullopt;
+        const auto found = names->find(name->name);
+        return found == names->end() ? std::nullopt
+                                     : std::optional<long long>{found->second};
+    }
+
     if (const auto* unary = std::get_if<UnaryExpr>(&expression.data)) {
         if (unary->op != "-") return std::nullopt;
-        const auto value = constant_integer_value(*unary->operand);
+        const auto value = constant_integer_value(*unary->operand, names);
         if (!value || *value == std::numeric_limits<long long>::min()) return std::nullopt;
         return -*value;
     }
@@ -286,15 +295,15 @@ std::optional<long long> constant_integer_value(const Expr& expression) {
         if (call->args.size() != 1 || call->args[0].writable || call->args[0].name) return std::nullopt;
         const auto target = builtin_scalar_type(call->callee);
         if (!target || !is_integer(*target)) return std::nullopt;
-        const auto value = constant_integer_value(*call->args[0].value);
+        const auto value = constant_integer_value(*call->args[0].value, names);
         if (!value || !integer_value_fits(*value, *target)) return std::nullopt;
         return value;
     }
 
     const auto* binary = std::get_if<BinaryExpr>(&expression.data);
     if (!binary) return std::nullopt;
-    const auto left = constant_integer_value(*binary->left);
-    const auto right = constant_integer_value(*binary->right);
+    const auto left = constant_integer_value(*binary->left, names);
+    const auto right = constant_integer_value(*binary->right, names);
     if (!left || !right) return std::nullopt;
 
     if ((binary->op == "/" || binary->op == "%") && *right == 0) return std::nullopt;
@@ -3509,18 +3518,56 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                 case BuiltinCallable::TensorCreate:
                 case BuiltinCallable::TensorZeros:
                 case BuiltinCallable::TensorOnes: {
-                    if (node->type_arguments.size() != 1) {
+                    Type element = simple(TypeKind::Invalid);
+                    if (node->type_arguments.size() == 1) {
+                        element = resolve_type(node->type_arguments.front());
+                    } else if (node->type_arguments.empty() && expected &&
+                               expected->kind == TypeKind::Tensor && expected->first) {
+                        element = *expected->first;
+                    } else {
                         error("GENERIC_ARITY",
-                              "tensor construction requires exactly one numeric element type.",
+                              "tensor construction requires one numeric element type unless the expected tensor type supplies it.",
                               expression.span);
-                        type = simple(TypeKind::Invalid);
+                    }
+                    if (!poisoned(element) && !is_numeric(element)) {
+                        error("INVALID_TYPE", "tensor element type must be numeric.",
+                              expression.span);
+                    }
+
+                    const bool contextual_shape = node->args.empty();
+                    if (contextual_shape) {
+                        if (builtin == BuiltinCallable::TensorCreate) {
+                            error("ARGUMENT_MISMATCH",
+                                  "Uninitialized tensor construction requires an explicit shape array.",
+                                  expression.span);
+                        }
+                        if (!expected || expected->kind != TypeKind::Tensor ||
+                            expected->tensor_shape_prefix.empty()) {
+                            error("ARGUMENT_MISMATCH",
+                                  "Contextual tensor.zeros()/tensor.ones() requires an exact-rank expected tensor shape.",
+                                  expression.span);
+                        }
+                        if (expected &&
+                            std::any_of(expected->tensor_shape_prefix.begin(),
+                                        expected->tensor_shape_prefix.end(),
+                                        [](long long extent) { return extent == -1; })) {
+                            error("ARGUMENT_MISMATCH",
+                                  "Contextual tensor allocation cannot infer '_' extents.",
+                                  expression.span);
+                        }
+                        type = expected ? Type::tensor(
+                            element, expected->length, {},
+                            expected->tensor_known_shape_prefix)
+                                        : simple(TypeKind::Invalid);
+                        if (expected) {
+                            for (const auto extent : expected->tensor_shape_prefix) {
+                                if (extent >= 0) type.tensor_known_shape_prefix.push_back(extent);
+                                else if (extent == -2) type.tensor_known_shape_prefix.clear();
+                            }
+                        }
                         break;
                     }
-                    auto element = resolve_type(node->type_arguments.front());
-                    if (!is_numeric(element)) {
-                        error("INVALID_TYPE", "tensor element type must be numeric.",
-                              node->type_arguments.front().span);
-                    }
+
                     if (node->args.size() != 1 || node->args[0].writable ||
                         (node->args[0].name && *node->args[0].name != "shape")) {
                         error("ARGUMENT_MISMATCH",
@@ -3548,7 +3595,8 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                                 std::get_if<ArrayExpr>(&node->args[0].value->data)) {
                             bool known = true;
                             for (const auto& item : literal->elements) {
-                                const auto extent = constant_integer_value(*item);
+                                const auto extent =
+                                    constant_integer_value(*item, &const_integer_values_);
                                 if (!extent || *extent < 0) {
                                     known = false;
                                     break;
@@ -3562,8 +3610,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         ? simple(TypeKind::Invalid)
                         : Type::tensor(element, rank, {}, std::move(known_shape));
                     break;
-                }
-            }
+                }            }
             call_resolutions_[&expression].type = type;
 
     return type;
@@ -3736,6 +3783,13 @@ Type Checker::check_call_expr(const Expr& expression,
                                             current.tensor_shape_prefix,
                                             current.tensor_known_shape_prefix);
                     }
+                    if (current.kind == TypeKind::Neural && current.first &&
+                        is_float(*current.first) && is_float(*target) &&
+                        explicit_numeric_cast_supported(*current.first, *target)) {
+                        return Type::neural(*target, current.length,
+                                            current.tensor_shape_prefix,
+                                            current.tensor_known_shape_prefix);
+                    }
                     return std::nullopt;
                 };
 
@@ -3748,7 +3802,8 @@ Type Checker::check_call_expr(const Expr& expression,
                 if (!result) {
                     Type leaf = source;
                     while (leaf.kind == TypeKind::Array && leaf.first) leaf = *leaf.first;
-                    if (leaf.kind == TypeKind::Tensor && leaf.first) leaf = *leaf.first;
+                    if ((leaf.kind == TypeKind::Tensor || leaf.kind == TypeKind::Neural) &&
+                        leaf.first) leaf = *leaf.first;
                     const std::string detail = is_float(leaf) && is_integer(*target)
                         ? " Floating-point to integer conversion requires math.trunc, math.round, math.floor, or math.ceil."
                         : "";
@@ -4289,6 +4344,51 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
 
         auto type = resolve_type(node.declared_type, true);
 
+        const auto resolve_extent = [&](const std::shared_ptr<Expr>& expression,
+                                        SourceSpan span) -> long long {
+            if (!expression) return -1;
+            const auto extent_type = check_expr(*expression);
+            if (!poisoned(extent_type) && !is_integer(extent_type)) {
+                error("INVALID_TYPE", "Array/tensor extents require integer expressions.", span);
+            }
+            if (const auto known =
+                    constant_integer_value(*expression, &const_integer_values_)) {
+                if (*known < 0) {
+                    error("INVALID_TYPE", "Array/tensor extents cannot be negative.", span);
+                }
+                return *known;
+            }
+            return -2;
+        };
+
+        if (type.kind == TypeKind::Tensor || type.kind == TypeKind::Neural) {
+            for (std::size_t axis = 0;
+                 axis < node.declared_type.tensor_shape_expressions.size(); ++axis) {
+                if (axis >= type.tensor_shape_prefix.size()) break;
+                const auto& expression =
+                    node.declared_type.tensor_shape_expressions[axis];
+                if (!expression) {
+                    type.tensor_shape_prefix[axis] = -1;
+                    continue;
+                }
+                type.tensor_shape_prefix[axis] =
+                    resolve_extent(expression, expression->span);
+            }
+        }
+
+        Type* array_axis = &type;
+        for (std::size_t axis = 0;
+             axis < node.declared_type.dimension_expressions.size() &&
+             array_axis && array_axis->kind == TypeKind::Array;
+             ++axis) {
+            const auto& expression =
+                node.declared_type.dimension_expressions[axis];
+            array_axis->length = expression
+                ? resolve_extent(expression, expression->span)
+                : -1;
+            array_axis = array_axis->first.get();
+        }
+
         if (node.is_const && !node.value) {
             error("CONST_INITIALIZATION", "const bindings require an initializer.", statement.span);
         }
@@ -4381,7 +4481,15 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             error("INVALID_TYPE", "Binding requires a storable type.", statement.span);
         }
         variables_[node.name] = type;
-        if (node.is_const) const_bindings_.insert(node.name);
+        if (node.is_const) {
+            const_bindings_.insert(node.name);
+            if (node.value && is_integer(type)) {
+                if (const auto known =
+                        constant_integer_value(*node.value, &const_integer_values_)) {
+                    const_integer_values_[node.name] = *known;
+                }
+            }
+        }
         binding_types_[&statement] = type;
         if (node.value) {
             initialized_.insert(node.name);
@@ -5361,6 +5469,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     case_types_.clear();
     initialized_.clear();
     const_bindings_.clear();
+    const_integer_values_.clear();
     class_initialized_paths_.clear();
     class_expr_initialized_paths_.clear();
     reset_current_effect_state();
@@ -5640,6 +5749,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     unknown_reference_targets_.clear();
     initialized_.clear();
     const_bindings_.clear();
+    const_integer_values_.clear();
     class_initialized_paths_.clear();
     in_function_ = false;
     for (auto& class_decl : program.classes) {
@@ -5665,6 +5775,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         unknown_reference_targets_.clear();
         initialized_.clear();
         const_bindings_.clear();
+    const_integer_values_.clear();
         in_function_ = false;
         for (auto& parameter : functions_.at(function.name).parameters) {
             if (!parameter.default_value) continue;
@@ -5696,6 +5807,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             unknown_reference_targets_.clear();
             initialized_.clear();
             const_bindings_.clear();
+    const_integer_values_.clear();
             current_class_.clear();
             in_function_ = false;
             for (std::size_t i = 1; i < signature.parameters.size(); ++i) {
@@ -5762,6 +5874,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 unknown_reference_targets_.clear();
                 initialized_.clear();
                 const_bindings_.clear();
+    const_integer_values_.clear();
                 class_initialized_paths_.clear();
                 reset_current_effect_state();
 
@@ -5810,6 +5923,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                     unknown_reference_targets_.clear();
                     initialized_.clear();
                     const_bindings_.clear();
+    const_integer_values_.clear();
                     class_initialized_paths_.clear();
                     reset_current_effect_state();
 
@@ -5878,6 +5992,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         unknown_reference_targets_.clear();
         initialized_.clear();
         const_bindings_.clear();
+    const_integer_values_.clear();
         class_initialized_paths_.clear();
         reset_current_effect_state();
 
@@ -5926,6 +6041,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             unknown_reference_targets_.clear();
             initialized_.clear();
             const_bindings_.clear();
+    const_integer_values_.clear();
             class_initialized_paths_.clear();
             reset_current_effect_state();
 
@@ -5970,6 +6086,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     unknown_reference_targets_.clear();
     initialized_.clear();
     const_bindings_.clear();
+    const_integer_values_.clear();
     class_initialized_paths_.clear();
     reset_current_effect_state();
 

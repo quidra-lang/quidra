@@ -1,5 +1,6 @@
 #include "quidra/checker.hpp"
 #include "quidra/language.hpp"
+#include "operator_policy.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include <cctype>
@@ -51,10 +52,7 @@ NumericLiteralFamily numeric_literal_family(const Expr& expression) {
         return numeric_literal_family(*unary->operand);
     }
     if (const auto* binary = std::get_if<BinaryExpr>(&expression.data);
-        binary && (binary->op == "+" || binary->op == "-" || binary->op == "*" ||
-                   binary->op == "/" || binary->op == "%" ||
-                   binary->op == "AND" || binary->op == "OR" || binary->op == "XOR" ||
-                   binary->op == "<<" || binary->op == ">>")) {
+        binary && operator_policy::participates_in_numeric_literal_family(binary->op)) {
         const auto left = numeric_literal_family(*binary->left);
         const auto right = numeric_literal_family(*binary->right);
         if (left == NumericLiteralFamily::None || right == NumericLiteralFamily::None) {
@@ -5071,14 +5069,13 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                     error("TYPE_MISMATCH", "Logical operands must be bool.", expression.span);
                 }
                 type = left;
-            } else if (node->op == "AND" || node->op == "OR" || node->op == "XOR" ||
-                       node->op == "<<" || node->op == ">>") {
+            } else if (operator_policy::is_fixed_width_bitwise_binary(node->op)) {
                 if (!is_integer(left)) {
                     error("TYPE_MISMATCH",
                           "Bitwise operators require identical fixed-width integer operands.",
                           expression.span);
                 }
-                if (node->op == "<<" || node->op == ">>") {
+                if (operator_policy::is_shift(node->op)) {
                     const auto count = constant_integer_value(*node->right);
                     if (count && (*count < 0 ||
                                   static_cast<unsigned long long>(*count) >= integer_width(left))) {

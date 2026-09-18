@@ -361,7 +361,8 @@ The same principle appears throughout the language:
 ```quidra
 int initialized = 5
 int later
-auto inferred = 10
+int source = 10
+auto inferred = source
 ```
 
 `auto` requires an initializer. Visible names cannot be shadowed. Disjoint sibling scopes may reuse a name when neither binding is visible from the other.
@@ -478,7 +479,7 @@ Class equality is value equality and requires compared fields to be definitely i
 Standard namespaces are always visible and cannot be imported or aliased:
 
 ```quidra
-print(math.sqrt(16.0))
+print(math.sqrt(float(16.0)))
 auto home_path = environment.get("HOME")
 ```
 
@@ -930,7 +931,7 @@ bool configured = environment.has("HOME")
 `test` reuses normal Quidra semantics:
 
 ```quidra
-test.check(2 + 2 == 4)
+test.check(int(2) + 2 == 4)
 test.equal("Quidra", "Quidra")
 ```
 

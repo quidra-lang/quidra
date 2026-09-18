@@ -2169,9 +2169,10 @@ const NeuralGradient* neural_gradient_for_parameter(
     const auto found=gradients->data->values.find(id);
     if(found==gradients->data->values.end()) return nullptr;
     const auto& gradient=found->second;
-    if(gradient.dtype!=tensor->storage->dtype||gradient.shape!=tensor->shape||
+    if((gradient.dtype!=9&&gradient.dtype!=10)||
+       gradient.shape!=tensor->shape||
        gradient.data.size()!=tensor_logical_count(*tensor))
-        neural_fail("gradient and Parameter shape/dtype mismatch",line,column);
+        neural_fail("gradient and Parameter shape mismatch",line,column);
     return &gradient;
 }
 
@@ -2657,8 +2658,6 @@ bool neural_update_parameter_t(
     unsigned long long line,unsigned long long column) {
     auto* tensor=neural_parameter_tensor(parameter);
     if(!tensor) neural_fail("invalid neural Parameter",line,column);
-    if(tensor->storage->dtype!=gradient.dtype)
-        neural_fail("gradient and Parameter dtype mismatch",line,column);
     const auto& values=gradient.data.typed<T>();
     if(values.size()!=tensor_logical_count(*tensor))
         neural_fail("optimizer update size mismatch",line,column);

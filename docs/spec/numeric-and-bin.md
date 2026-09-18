@@ -123,6 +123,8 @@ uint8 right = flags >> 2
 
 `AND`, `OR`, `XOR`, and `NOT` are uppercase deliberately. Lowercase `and`, `or`, and `not` are bool-only logical operations; `&` remains explicit storage access and `|` remains union syntax. The language therefore does not reuse one spelling for unrelated meanings.
 
+Bitwise operations bind more tightly than comparison, equality, and lowercase boolean logic. Therefore `flags AND mask == expected` means `(flags AND mask) == expected`, avoiding a comparison-first interpretation.
+
 Binary bitwise operands have the same concrete fixed-width integer type. A bare integer-family literal may materialize from that operator context in the normal way. `float32`, `float`, `bigint`, `bigreal`, `bool`, `bin`, tensor, and neural values do not accept these operators.
 
 Signed fixed-width integers use a two's-complement bit representation; unsigned integers use the ordinary modulo-`2^N` N-bit representation. `NOT` flips every bit of that fixed-width representation. `AND`, `OR`, and `XOR` operate on it directly. `<<` shifts the N-bit representation left and discards bits shifted beyond the width; it is a representation operation and does not raise arithmetic overflow. `>>` is arithmetic with sign extension for signed integer types and logical with zero fill for unsigned integer types. Shift counts must be nonnegative and smaller than the operand width; a provably invalid constant count is a compile-time `SHIFT_COUNT` error and a dynamic invalid count is a deterministic runtime `SHIFT_COUNT` failure.

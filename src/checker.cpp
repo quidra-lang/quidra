@@ -4720,7 +4720,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 expr_types_[node->operand.get()] = *expected;
                 materialized_signed_minimum = true;
             }
-        } else if (node->op == "-") {
+        } else if (node->op == "-" || node->op == "NOT") {
             const auto family = numeric_literal_family(*node->operand);
             if (family == NumericLiteralFamily::Mixed) {
                 error("NUMERIC_FAMILY",

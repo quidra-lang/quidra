@@ -1087,12 +1087,12 @@ ExprPtr Parser::make_binary(ExprPtr left, const Token& op, ExprPtr right) {
     expr->data = BinaryExpr{op.text, std::move(left), std::move(right)}; return expr;
 }
 ExprPtr Parser::or_expr() { auto e=and_expr(); while(match(TokenKind::KwOr)){auto op=previous(); e=make_binary(std::move(e),op,and_expr());} return e; }
-ExprPtr Parser::and_expr() { auto e=bit_or_expr(); while(match(TokenKind::KwAnd)){auto op=previous(); e=make_binary(std::move(e),op,bit_or_expr());} return e; }
+ExprPtr Parser::and_expr() { auto e=equality(); while(match(TokenKind::KwAnd)){auto op=previous(); e=make_binary(std::move(e),op,equality());} return e; }
+ExprPtr Parser::equality() { auto e=comparison(); while(match(TokenKind::EqEq)||match(TokenKind::NotEq)){auto op=previous(); e=make_binary(std::move(e),op,comparison());} return e; }
+ExprPtr Parser::comparison() { auto e=bit_or_expr(); while(match(TokenKind::Less)||match(TokenKind::LessEq)||match(TokenKind::Greater)||match(TokenKind::GreaterEq)){auto op=previous(); e=make_binary(std::move(e),op,bit_or_expr());} return e; }
 ExprPtr Parser::bit_or_expr() { auto e=bit_xor_expr(); while(match(TokenKind::KwBitOr)){auto op=previous(); e=make_binary(std::move(e),op,bit_xor_expr());} return e; }
 ExprPtr Parser::bit_xor_expr() { auto e=bit_and_expr(); while(match(TokenKind::KwBitXor)){auto op=previous(); e=make_binary(std::move(e),op,bit_and_expr());} return e; }
-ExprPtr Parser::bit_and_expr() { auto e=equality(); while(match(TokenKind::KwBitAnd)){auto op=previous(); e=make_binary(std::move(e),op,equality());} return e; }
-ExprPtr Parser::equality() { auto e=comparison(); while(match(TokenKind::EqEq)||match(TokenKind::NotEq)){auto op=previous(); e=make_binary(std::move(e),op,comparison());} return e; }
-ExprPtr Parser::comparison() { auto e=shift_expr(); while(match(TokenKind::Less)||match(TokenKind::LessEq)||match(TokenKind::Greater)||match(TokenKind::GreaterEq)){auto op=previous(); e=make_binary(std::move(e),op,shift_expr());} return e; }
+ExprPtr Parser::bit_and_expr() { auto e=shift_expr(); while(match(TokenKind::KwBitAnd)){auto op=previous(); e=make_binary(std::move(e),op,shift_expr());} return e; }
 ExprPtr Parser::shift_expr() {
     auto e=term();
     for (;;) {

@@ -46,7 +46,7 @@ A Quidra program should make the facts that affect correctness visible:
 - which operations can fail,
 - when a conversion changes representation,
 - which alternatives a value may contain,
-- what shape or rank a tensor is required to have,
+- which axis and extent constraints a tensor must satisfy,
 - and which effects a call can have on existing state.
 
 The compiler should infer what is safely provable. Source syntax should state what cannot be inferred without changing meaning.

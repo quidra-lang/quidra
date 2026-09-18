@@ -301,6 +301,9 @@ print(signed_right)
 )");
  llvm_contains("uint8 a = 3\nuint8 b = a << 2\n", "shl i8");
  llvm_contains("uint8 a = 3\nuint8 b = NOT a\n", "xor i8");
+ good("uint8 inverted = NOT 1\n");
+ good("uint8 flags = 12\nuint8 mask = 10\nbool selected = flags AND mask == 8\n");
+ good("uint8 flags = 1\nuint8 mask = 2\nbool selected = flags OR mask == 3\n");
  bad_code("bool a = true\nbool b = false\nbool c = a AND b\n", "TYPE_MISMATCH");
  bad_code("float a = 1.0\nfloat b = 2.0\nfloat c = a OR b\n", "TYPE_MISMATCH");
  bad_code("bigint a = 1\nbigint b = 2\nbigint c = a XOR b\n", "TYPE_MISMATCH");

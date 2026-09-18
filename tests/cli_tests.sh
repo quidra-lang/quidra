@@ -2572,7 +2572,8 @@ QUI
 "$QUIDRA" run "$TMP/tensor-shape-runtime.qui" > "$TMP/tensor-shape-runtime.out"
 python3 - "$TMP/tensor-shape-runtime.out" <<'PY'
 import sys
-text=open(sys.argv[1]).read()\nassert text.splitlines() == ["2","3","2","3"], repr(text)
+text=open(sys.argv[1]).read()
+assert text.splitlines() == ["2","3","2","3"], repr(text)
 PY
 
 "$QUIDRA" inspect "$ROOT/examples/classes.qui" --no-source --no-effects --kind integer > "$TMP/inspect-compact.json"

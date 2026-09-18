@@ -5859,9 +5859,10 @@ extern "C" void* quidra_linear_matmul(void* left_raw, void* right_raw,
     if (left_vector) {
         const auto stride = left.strides[0];
         left_view.shape = {1, left.shape[0]};
-        left_view.strides = {
-            static_cast<long long>(left.shape[0]) * stride,
-            stride};
+        // The synthetic row stride is never observed because the virtual
+        // matrix has exactly one row. Keep it zero instead of multiplying
+        // an extent by a runtime stride and risking signed overflow.
+        left_view.strides = {0, stride};
     }
     if (right_vector) {
         const auto stride = right.strides[0];

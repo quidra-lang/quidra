@@ -1521,6 +1521,29 @@ extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
                              tensor_contiguous_strides(source->shape), 0);
 }
 
+extern "C" void quidra_tensor_rank_check(
+    void* raw, long long expected_rank,
+    unsigned long long line, unsigned long long column) {
+    if(!raw) tensor_fail("null tensor",line,column);
+    const auto* tensor=static_cast<TensorValue*>(raw);
+    if(expected_rank<0 ||
+       tensor->shape.size()!=static_cast<std::size_t>(expected_rank))
+        tensor_fail("tensor rank does not satisfy captured shape constraint",line,column);
+}
+
+extern "C" void quidra_tensor_extent_check(
+    void* raw, long long axis, long long expected,
+    unsigned long long line, unsigned long long column) {
+    if(!raw) tensor_fail("null tensor",line,column);
+    const auto* tensor=static_cast<TensorValue*>(raw);
+    if(axis<0 || static_cast<std::size_t>(axis)>=tensor->shape.size())
+        tensor_fail("tensor shape axis is outside rank",line,column);
+    if(expected<0)
+        tensor_fail("captured tensor extent cannot be negative",line,column);
+    if(tensor->shape[static_cast<std::size_t>(axis)]!=expected)
+        tensor_fail("tensor extent does not satisfy captured shape constraint",line,column);
+}
+
 
 namespace {
 
@@ -1926,6 +1949,53 @@ void neural_topological(const std::shared_ptr<NeuralNode>& node,
         order.push_back(frame.node);
         stack.pop_back();
     }
+}
+
+NeuralBuffer neural_cast_buffer(const NeuralBuffer& source,int target_dtype) {
+    if(target_dtype!=9&&target_dtype!=10)
+        runtime_text_failure("invalid neural cast dtype");
+    NeuralBuffer result(target_dtype);
+    result.resize(source.size());
+    if(target_dtype==10){
+        auto& values=result.typed<float>();
+        for(std::size_t i=0;i<values.size();++i)
+            values[i]=static_cast<float>(source.scalar_as_double(i));
+    }else{
+        auto& values=result.typed<double>();
+        for(std::size_t i=0;i<values.size();++i)
+            values[i]=source.scalar_as_double(i);
+    }
+    return result;
+}
+
+std::shared_ptr<NeuralNode> neural_cast_graph(
+    const std::shared_ptr<NeuralNode>& root,int target_dtype) {
+    if(!root) runtime_text_failure("null neural cast root");
+    if(root->dtype==target_dtype) return root;
+    std::unordered_set<const NeuralNode*> seen;
+    std::vector<std::shared_ptr<NeuralNode>> order;
+    neural_topological(root,seen,order);
+    std::unordered_map<const NeuralNode*,std::shared_ptr<NeuralNode>> converted;
+    converted.reserve(order.size());
+    for(const auto& source:order){
+        auto node=std::make_shared<NeuralNode>(target_dtype);
+        node->dtype=target_dtype;
+        node->shape=source->shape;
+        node->data=neural_cast_buffer(source->data,target_dtype);
+        node->op=source->op;
+        node->aux=neural_cast_buffer(source->aux,target_dtype);
+        node->aux_index=source->aux_index;
+        node->parameter_id=source->parameter_id;
+        node->parents.reserve(source->parents.size());
+        for(const auto& parent:source->parents){
+            const auto found=converted.find(parent.get());
+            if(found==converted.end())
+                runtime_text_failure("neural cast graph order is invalid");
+            node->parents.push_back(found->second);
+        }
+        converted.emplace(source.get(),std::move(node));
+    }
+    return converted.at(root.get());
 }
 
 struct NeuralMomentRecord {
@@ -3248,6 +3318,35 @@ extern "C" void quidra_neural_state_load_finish(
 extern "C" void* quidra_neural_untrack(void* raw) {
     if(!raw)runtime_text_failure("null neural value");
     return neural_tensor_from_node(*static_cast<NeuralValue*>(raw)->node);
+}
+extern "C" void* quidra_neural_cast(
+    void* raw,int target_dtype,
+    unsigned long long line,unsigned long long column) {
+    if(!raw) neural_fail("null neural value",line,column);
+    if(target_dtype!=9&&target_dtype!=10)
+        neural_fail("neural cast target must be float32 or float",line,column);
+    auto root=static_cast<NeuralValue*>(raw)->node;
+    return neural_descriptor(neural_cast_graph(root,target_dtype));
+}
+extern "C" void quidra_neural_rank_check(
+    void* raw,long long expected_rank,
+    unsigned long long line,unsigned long long column) {
+    if(!raw) neural_fail("null neural value",line,column);
+    const auto& shape=static_cast<NeuralValue*>(raw)->node->shape;
+    if(expected_rank<0 || shape.size()!=static_cast<std::size_t>(expected_rank))
+        neural_fail("neural rank does not satisfy captured shape constraint",line,column);
+}
+extern "C" void quidra_neural_extent_check(
+    void* raw,long long axis,long long expected,
+    unsigned long long line,unsigned long long column) {
+    if(!raw) neural_fail("null neural value",line,column);
+    const auto& shape=static_cast<NeuralValue*>(raw)->node->shape;
+    if(axis<0 || static_cast<std::size_t>(axis)>=shape.size())
+        neural_fail("neural shape axis is outside rank",line,column);
+    if(expected<0)
+        neural_fail("captured neural extent cannot be negative",line,column);
+    if(shape[static_cast<std::size_t>(axis)]!=expected)
+        neural_fail("neural extent does not satisfy captured shape constraint",line,column);
 }
 extern "C" void* quidra_neural_clone(void* raw) {
     if(!raw)return nullptr;

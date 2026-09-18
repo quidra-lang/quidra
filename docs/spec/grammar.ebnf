@@ -94,9 +94,11 @@ statement_end    = NEWLINE | EOF ;
    - import cycles and alias collisions are invalid;
    - cli_decl is root-only, occurs at most once, and its
      fields use argument(), option(default = value), or flag();
-   - `tensor<T, A, B, ...>` may constrain consecutive leading shape axes with
-     nonnegative integer literals; omitted suffix axes remain unconstrained, and empty
-     slots or wildcard dimensions are not syntax; tensor rank is inferred internally;
+   - `tensor<T><D0, D1, ...>` uses a mandatory numeric element type plus an
+     optional exact-rank shape pattern; each shape axis is a nonnegative integer or `_`,
+     and the number of axes is the required rank;
+   - `neural<D0, D1, ...>` means `neural<float32><D0, D1, ...>`; an explicit
+     floating dtype is written `neural<T><D0, D1, ...>`;
    - generic class uses require explicit type arguments; generic function/method
      type arguments may be omitted when every generic parameter is uniquely inferred
      from call arguments; all concrete uses are monomorphized before ordinary static checking;

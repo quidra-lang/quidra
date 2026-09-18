@@ -210,7 +210,11 @@ void usage(std::ostream& out) {
         << "  quidra                            start REPL when stdin is a TTY\n"
         << "  quidra repl                       start REPL explicitly\n"
         << "  quidra lsp                        start Language Server Protocol server on stdio\n"
-        << "  quidra package ...                manage local installed packages\n"
+        << "  quidra install PACKAGE[@VERSION] install latest compatible tagged package release\n"
+        << "  quidra remove NAME                remove an installed package\n"
+        << "  quidra list                       list installed packages and versions\n"
+        << "  quidra lock FILE.qui [--check]    write or verify quidra.lock\n"
+        << "  quidra package-path               print the default package store path\n"
         << "  quidra FILE.qui [ARGS...]         compile and run with program arguments\n"
         << "  quidra run FILE.qui [-- ARGS...]  compile and run; '--' separates program arguments\n"
         << "  quidra check FILE.qui [--json] [--max-errors N]\n"
@@ -307,6 +311,18 @@ int main(int argc, char** argv) {
         return 2;
     }
 
+    if (argc >= 2) {
+        const std::string package_command = argv[1];
+        if (package_command == "install" ||
+            package_command == "remove" ||
+            package_command == "list" ||
+            package_command == "lock" ||
+            package_command == "package-path") {
+            return quidra::cli::run_package_cli(argc - 1, argv + 1);
+        }
+    }
+
+    // Legacy alias retained for projects/scripts written before the short CLI.
     if (argc >= 2 && std::string(argv[1]) == "package") {
         return quidra::cli::run_package_cli(argc - 2, argv + 2);
     }

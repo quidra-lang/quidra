@@ -1106,6 +1106,23 @@ ExprPtr Parser::unary() {
 ExprPtr Parser::postfix() {
     auto e = primary();
     for (;;) {
+        if (at(TokenKind::LBracket) && peek(1).kind == TokenKind::RBracket &&
+            peek(2).kind == TokenKind::LParen) {
+            auto* name = std::get_if<NameExpr>(&e->data);
+            if (name && name->name != "super") {
+                const auto start = e->span.start;
+                consume(TokenKind::LBracket, "Expected '['.");
+                consume(TokenKind::RBracket, "Expected ']'.");
+                auto args = call_arguments();
+                const auto end = previous().span.end;
+                auto call = std::make_unique<Expr>();
+                call->span = SourceSpan{start, end};
+                call->data = CallExpr{name->name + "[]", std::move(args), {}};
+                e = std::move(call);
+                continue;
+            }
+        }
+
         if (looks_like_type_argument_call()) {
             auto* name = std::get_if<NameExpr>(&e->data);
             if (!name || name->name == "super") {

@@ -199,6 +199,11 @@ if(BUILD_TESTING)
     add_test(NAME quidra_neural_foundation COMMAND bash ${CMAKE_SOURCE_DIR}/tests/neural_foundation_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_image_dtype COMMAND bash ${CMAKE_SOURCE_DIR}/tests/image_dtype_tests.sh $<TARGET_FILE:quidra>)
     if(QUIDRA_ENABLE_TEST_GPU_BACKEND)
+      add_executable(quidra_device_backend_tests tests/device_backend_tests.cpp)
+      target_include_directories(quidra_device_backend_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+      target_compile_definitions(quidra_device_backend_tests PRIVATE QUIDRA_ENABLE_TEST_GPU_BACKEND=1)
+      target_link_libraries(quidra_device_backend_tests PRIVATE quidra_runtime)
+      add_test(NAME quidra_device_backend_tests COMMAND quidra_device_backend_tests)
       add_test(NAME quidra_gpu_contracts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/gpu_contract_tests.sh $<TARGET_FILE:quidra>)
     endif()
     add_test(NAME quidra_native_smoke COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/native-smoke.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
@@ -253,6 +258,12 @@ if(BUILD_TESTING)
     if(TEST quidra_gpu_contracts)
       set_tests_properties(
         quidra_gpu_contracts
+        PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
+      )
+    endif()
+    if(TEST quidra_device_backend_tests)
+      set_tests_properties(
+        quidra_device_backend_tests
         PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
       )
     endif()

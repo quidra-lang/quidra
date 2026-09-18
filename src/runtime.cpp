@@ -1119,14 +1119,25 @@ extern "C" void* quidra_array_sorted(void* raw, int kind,
             break;
         case 12: {
             auto** begin = reinterpret_cast<char**>(data);
+            struct SortableString {
+                char* value{};
+                std::string_view view;
+            };
+            std::vector<SortableString> strings;
+            strings.reserve(count);
             for (std::size_t i = 0; i < count; ++i) {
                 if (!begin[i]) runtime_text_failure("null string in sorted array");
-                validate_utf8(begin[i]);
+                ManagedAllocation* allocation = nullptr;
+                const auto view = validated_string_view(begin[i], allocation);
                 quidra_managed_retain(begin[i]);
+                strings.push_back(SortableString{begin[i], view});
             }
-            std::stable_sort(begin, begin + count, [](const char* left, const char* right) {
-                return std::string_view(left) < std::string_view(right);
-            });
+            std::stable_sort(strings.begin(), strings.end(),
+                             [](const SortableString& left,
+                                const SortableString& right) {
+                                 return left.view < right.view;
+                             });
+            for (std::size_t i = 0; i < count; ++i) begin[i] = strings[i].value;
             break;
         }
         default:

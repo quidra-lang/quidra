@@ -440,27 +440,28 @@ A rejected compile-time submission does not become part of the session. EOF exit
 
 ## Tensor
 
-`tensor<T>` is a first-class dense numeric N-dimensional value type. `T` must be numeric and is always static. Tensor rank is not written as a type argument: the compiler infers rank and known shape facts from construction, reshape/index operations, control flow, and APIs such as `image.read`.
+`tensor<T>` is a first-class dense numeric N-dimensional value type. `T` must be numeric and is always static; Quidra does not have a dtype-unknown tensor type. Without a shape pattern, rank and known extents are compiler-inferred flow facts obtained from construction, reshape/index operations, control flow, and APIs such as `image.read`.
 
-Optional numeric suffixes are consecutive leading shape constraints:
+An optional second angle group is an **exact-rank shape pattern**:
 
 ```quidra
-tensor<float32> any
-tensor<float32, 3> first_axis_is_three
-tensor<float32, 3, 224, 224> chw_224
+tensor<float32> any_rank
+tensor<float32><3> vector_of_three
+tensor<float32><3, _> rank_two_first_axis_three
+tensor<float32><3, 224, 224> chw_224
+tensor<float32><_, _, _> any_rank_three
 ```
 
-`tensor<T, A, B>` means `shape[0] == A` and `shape[1] == B`; it does **not** mean rank 2. Unwritten trailing axes are unconstrained. Empty slots such as `tensor<float, , 3>` and wildcard dimensions are invalid. Shape constraints and inferred rank/shape metadata are erased before runtime representation, so all tensor forms use the same TensorStorage/LLVM ABI.
+The number of shape entries is the required rank. A nonnegative integer fixes that axis extent; `_` requires the axis to exist but leaves its extent unrestricted. Therefore `tensor<float32><3, _, _>` accepts `[3,H,W]` but rejects `[3,H]`, `[3,H,W,D]`, and `[1,H,W]`. Dtype and shape are intentionally separated: `tensor<float32, 3>` and dtype-free `tensor<3, _, _>` are invalid. Empty slots and trailing commas are invalid.
 
-A tensor expression whose shape is statically known may satisfy a constrained destination. An unconstrained tensor whose required extents cannot be proven does not implicitly assert a shape constraint. API boundaries that explicitly produce runtime data may validate such constraints and return their existing `error` alternative; `image.read` is the primary example.
+A tensor expression whose rank and fixed extents are statically known may satisfy a shape-pattern destination. An unconstrained tensor whose required facts cannot be proven does not implicitly assert a pattern. APIs that produce runtime data may validate an expected pattern and return their existing `error` alternative; `image.read` is the primary example. Shape patterns and inferred rank/shape metadata are erased before runtime representation, so they do not alter TensorStorage or the LLVM ABI.
 
 ```quidra
 tensor<float32> a = tensor<float32>([3, 224, 224])
 a[0, 0, 0] = 1.0
 
-tensor<float32> z = tensor.zeros<float32>([3, 224, 224])
-tensor<float32> o = tensor.ones<float32>([1, 224, 224])
-tensor<float32, 3> first_axis_three = z
+tensor<float32><3, _, _> z = tensor.zeros<float32>([3, 224, 224])
+tensor<float32><1, _, _> o = tensor.ones<float32>([1, 224, 224])
 ```
 
 The direct `tensor<T>(shape)` form creates uninitialized tensor storage. Scalar indexed assignment initializes an element. `tensor.zeros<T>` and `tensor.ones<T>` create fully initialized tensors. Initialization is tracked independently from numeric contents; reading an uninitialized element is a deterministic safety failure.
@@ -480,7 +481,7 @@ Slices may share internal storage, but source semantics remain value-oriented. M
 
 Tensor `+`, `-`, `*`, `/`, and integer `%` are elementwise. Tensor-to-tensor implicit broadcasting requires identical rank; each axis must match or have size 1 on one side. Rank-changing broadcasting is not implicit. Scalars are the one exception and broadcast to any tensor rank.
 
-`tensor.cast<T>()` follows the explicit numeric conversion policy elementwise. Integer narrowing is range-checked; integer-to-float and float-to-float conversion may use destination IEEE-754 rounding. Generic float-to-integer tensor casts are forbidden because they hide a rounding choice.
+Explicit numeric casts use the destination scalar type as the operation: `float(value)`, `float32(value)`, `int8(value)`, and so on. Applied to a tensor, the cast preserves rank, shape pattern, known extents, and value semantics while converting every initialized numeric element. Integer narrowing is range-checked; integer-to-float and float-to-float conversion may use destination IEEE-754 rounding. Generic float-to-integer casts are forbidden because they hide a rounding choice. `tensor.cast<T>()` is not part of the surface language.
 
 ## Implementation scope
 
@@ -686,10 +687,10 @@ The expected tensor type is an acceptance constraint, never an implicit conversi
 
 ```quidra
 string path = "input.png"
-tensor<uint16, 3> | error loaded = image.read(path)
+tensor<uint16><3, _, _> | error loaded = image.read(path)
 ```
 
-accepts only a uint16 image whose decoded CHW first axis is 3. A dtype or constrained-shape mismatch returns `error`.
+accepts only a rank-3 uint16 image whose decoded CHW channel axis is 3. A dtype, rank, or fixed-extent mismatch returns `error`.
 
 Conversion is performed only by explicit named arguments:
 
@@ -737,21 +738,22 @@ The left `&state` identifies the writable parameter and the right `&state` forms
 
 ## Explicit numeric conversion
 
-Already-typed numeric values are never converted implicitly. Explicit conversion is practical:
+Already-typed numeric values are never converted implicitly. The one generic numeric cast syntax is `T(value)`, where `T` is the destination scalar numeric type:
 
-- integer to integer is allowed when the runtime value is in range and never wraps,
-- integer to floating point is allowed and uses destination IEEE-754 rounding,
-- floating point to floating point is allowed and may reduce precision deterministically,
-- floating point to integer is not a generic cast because it requires a rounding choice.
+- for a scalar, it converts that scalar;
+- for a numeric array of any nesting, it preserves every fixed/dynamic array dimension and recursively converts numeric leaves;
+- for a tensor, it preserves rank/shape facts and converts the element dtype.
 
-Use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` for floating-point to `int`. They reject non-finite and out-of-range results deterministically. `math.round` rounds halfway cases away from zero.
+For example, `float(values)` maps `int[][]` to `float[][]`, while `float32(image)` maps `tensor<uint8><3, _, _>` to `tensor<float32><3, _, _>`. A container cast is a whole-value operation: every source leaf is read, so an uninitialized element fails deterministically, and no partial converted value is observable.
 
-`tensor<T>.cast<U>()` follows the same explicit conversion policy elementwise. Integer narrowing is range checked and floating-point precision reduction is allowed; floating-point tensor to integer tensor conversion requires a dedicated rounding operation rather than `cast`.
+The admissibility rule is exactly the scalar rule applied to every leaf: integer-to-integer is allowed when the runtime value is in range and never wraps; integer-to-floating point is allowed with destination IEEE-754 rounding; floating-point to floating-point may reduce precision deterministically; floating-point to integer is not a generic cast because it requires a rounding choice. Use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` for floating-point to `int`. They reject non-finite and out-of-range results deterministically. `math.round` rounds halfway cases away from zero.
+
+Container syntax is not duplicated at the cast site: `float[][](values)`, `tensor<float>(image)` as a dtype-conversion spelling, and `tensor.cast<T>()` are not cast forms. `tensor<T>(shape)` remains the tensor storage constructor.
 
 
 ## Neural values and training state
 
-`neural` is shorthand for `neural<float32>`; another floating dtype is written explicitly. `neural.track(tensor)` creates an immutable value in a dynamic graph and `.untrack()` returns an ordinary tensor. `neural.grad(loss)` traverses the executed graph and returns an independent `neural.Gradients` value without hidden accumulation.
+`neural` is shorthand for `neural<float32>`; another floating dtype is written explicitly. Neural uses the same exact-rank integer/`_` shape patterns as tensor. `neural<3, _, _>` is shorthand for `neural<float32><3, _, _>`, while `neural<float><_, 768>` explicitly selects float64 and rank 2. `neural.track(tensor)` creates an immutable value in a dynamic graph while preserving rank/shape facts, and `.untrack()` returns ordinary tensor storage with those facts restored. `neural.grad(loss)` traverses the executed graph and returns an independent `neural.Gradients` value without hidden accumulation.
 
 Learnable storage is represented by `neural.Parameter<T>` and persistent non-gradient storage by `neural.State<T>`. A model is an ordinary class containing these values. Parameters have opaque persistent identities used to match gradients; user code cannot replace or index-write `Parameter.value`.
 

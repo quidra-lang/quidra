@@ -125,7 +125,7 @@ uint8 right = flags >> 2
 
 Binary bitwise operands have the same concrete fixed-width integer type. A bare integer-family literal may materialize from that operator context in the normal way. `float32`, `float`, `bigint`, `bigreal`, `bool`, `bin`, tensor, and neural values do not accept these operators.
 
-`NOT` flips every bit of the fixed-width representation. `AND`, `OR`, and `XOR` operate on that representation directly. `<<` discards bits shifted beyond the fixed width. `>>` is arithmetic for signed integer types and logical for unsigned integer types. Shift counts must be nonnegative and smaller than the operand width; a provably invalid constant count is a compile-time `SHIFT_COUNT` error and a dynamic invalid count is a deterministic runtime `SHIFT_COUNT` failure.
+Signed fixed-width integers use a two's-complement bit representation; unsigned integers use the ordinary modulo-`2^N` N-bit representation. `NOT` flips every bit of that fixed-width representation. `AND`, `OR`, and `XOR` operate on it directly. `<<` shifts the N-bit representation left and discards bits shifted beyond the width; it is a representation operation and does not raise arithmetic overflow. `>>` is arithmetic with sign extension for signed integer types and logical with zero fill for unsigned integer types. Shift counts must be nonnegative and smaller than the operand width; a provably invalid constant count is a compile-time `SHIFT_COUNT` error and a dynamic invalid count is a deterministic runtime `SHIFT_COUNT` failure.
 
 These operations are representation operations rather than arithmetic conversions. They never change the operand type and never imply a cast.
 
@@ -235,7 +235,7 @@ bin raw32 = bin(int32(3567446)) // 32-bit representation
 bin raw64 = bin(int(3567446))   // 64-bit representation
 ```
 
-`bin(integer)` preserves the integer type's fixed-width representation. `intN(bin)` and `uintN(bin)` require an exact bit-length match. `bin(bool)` produces one bit; `bool(bin)` requires exactly one bit.
+`bin(integer)` preserves the integer type's fixed-width representation, including the defined two's-complement representation of signed fixed-width integers. `intN(bin)` and `uintN(bin)` require an exact bit-length match. `bin(bool)` produces one bit; `bool(bin)` requires exactly one bit.
 
 Flat integer and bool arrays use the same rule:
 

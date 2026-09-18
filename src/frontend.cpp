@@ -6,6 +6,8 @@
 #include "quidra/lexer.hpp"
 #include "quidra/parser.hpp"
 #include "quidra/package_lock.hpp"
+#include "quidra/package_manifest.hpp"
+#include "quidra/version.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -906,7 +908,7 @@ public:
                         "PACKAGE_LOCK_UNUSED",
                         "Package '" + name +
                             "' is recorded in quidra.lock but is not reached by the current import graph. "
-                            "Regenerate it with 'quidra package lock FILE.qui'.");
+                            "Regenerate it with 'quidra lock FILE.qui'.");
                 }
             }
         }
@@ -939,6 +941,39 @@ private:
         if (resolved_packages_) {
             resolved_packages_->emplace(name, normalized);
         }
+
+        std::optional<PackageManifest> manifest;
+        try {
+            manifest = try_read_package_manifest(normalized.parent_path());
+            if (manifest) {
+                if (manifest->name != name) {
+                    frontend_error(
+                        "PACKAGE_MANIFEST",
+                        "Package '" + name + "' has manifest name '" +
+                            manifest->name + "'.",
+                        span);
+                }
+
+                if (const auto requirement =
+                        manifest->requirements.find("quidra");
+                    requirement != manifest->requirements.end() &&
+                    !requirement->second.matches(
+                        parse_semantic_version(compiler_version))) {
+                    frontend_error(
+                        "PACKAGE_COMPATIBILITY",
+                        "Package '" + name + "' " + manifest->version.str() +
+                            " requires Quidra " + requirement->second.text +
+                            "; current compiler is " +
+                            std::string(compiler_version) + ".",
+                        span);
+                }
+            }
+        } catch (const CompileError&) {
+            throw;
+        } catch (const std::exception& error) {
+            frontend_error("PACKAGE_MANIFEST", error.what(), span);
+        }
+
         if (!enforce_package_lock_) return;
 
         if (!package_lock_loaded_) {
@@ -957,8 +992,21 @@ private:
                 "PACKAGE_LOCK_MISSING",
                 "Package '" + name +
                     "' is imported but is not recorded in quidra.lock. "
-                    "Regenerate it with 'quidra package lock FILE.qui'.",
+                    "Regenerate it with 'quidra lock FILE.qui'.",
                 span);
+        }
+
+        if (expected->second.version != "-") {
+            if (!manifest ||
+                manifest->version.str() != expected->second.version) {
+                frontend_error(
+                    "PACKAGE_LOCK_VERSION",
+                    "Installed package '" + name +
+                        "' does not match version " +
+                        expected->second.version +
+                        " recorded in quidra.lock.",
+                    span);
+            }
         }
 
         const auto cache_key = normalized.string();
@@ -972,7 +1020,8 @@ private:
                 frontend_error("PACKAGE_LOCK", error.what(), span);
             }
         }
-        if (actual->second != expected->second) {
+
+        if (actual->second != expected->second.sha256) {
             frontend_error(
                 "PACKAGE_LOCK_MISMATCH",
                 "Installed package '" + name +

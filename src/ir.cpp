@@ -31,6 +31,8 @@ struct Lowerer {
     std::unordered_map<std::string, std::vector<std::optional<std::string>>> shaped_constraints;
     std::unordered_map<std::string, std::vector<std::optional<std::string>>> array_constraints;
     std::unordered_map<const Expr*, std::vector<std::optional<std::string>>> contextual_tensor_shapes;
+    std::vector<std::optional<std::string>> return_shaped_constraints;
+    std::vector<std::optional<std::string>> return_array_constraints;
 
     explicit Lowerer(
         const CheckedProgram& c, const Expr* repl = nullptr,
@@ -2650,6 +2652,14 @@ struct Lowerer {
         }
         if(const auto* n=std::get_if<ReturnStmt>(&s.data)){
             auto v=destination_value(*n->value,fn->result);
+            if(!return_shaped_constraints.empty()){
+                emit_shaped_constraint(
+                    v,fn->result.kind,return_shaped_constraints,s.span);
+            }
+            if(!return_array_constraints.empty()){
+                emit_array_constraints(
+                    v,fn->result,return_array_constraints,0,s.span);
+            }
             block->instructions.push_back(Return{v,fn->result});
             return;
         }
@@ -2804,8 +2814,57 @@ struct Lowerer {
         else fully_initialized_array_locals.clear();
     }
 
+    void capture_signature_constraints(
+        const FunctionDecl& source, std::size_t parameter_offset) {
+        for (std::size_t i = 0; i < source.parameters.size(); ++i) {
+            const auto ir_index = i + parameter_offset;
+            if (ir_index >= fn->parameters.size()) {
+                throw std::logic_error("signature parameter offset mismatch");
+            }
+            const auto& parameter = fn->parameters[ir_index];
+            const auto& syntax = source.parameters[i].type;
+
+            if ((parameter.type.kind == TypeKind::Tensor ||
+                 parameter.type.kind == TypeKind::Neural) &&
+                !syntax.tensor_shape_expressions.empty()) {
+                auto captured =
+                    capture_extents(syntax.tensor_shape_expressions, "param.shape");
+                shaped_constraints[parameter.name] = captured;
+                auto value = fresh();
+                block->instructions.push_back(
+                    LoadLocal{value, parameter.name, parameter.type});
+                emit_shaped_constraint(
+                    value, parameter.type.kind, captured, source.parameters[i].span);
+            }
+
+            if (parameter.type.kind == TypeKind::Array &&
+                !syntax.dimension_expressions.empty()) {
+                auto captured =
+                    capture_extents(syntax.dimension_expressions, "param.array");
+                array_constraints[parameter.name] = captured;
+                auto value = fresh();
+                block->instructions.push_back(
+                    LoadLocal{value, parameter.name, parameter.type});
+                emit_array_constraints(
+                    value, parameter.type, captured, 0, source.parameters[i].span);
+            }
+        }
+
+        if ((fn->result.kind == TypeKind::Tensor ||
+             fn->result.kind == TypeKind::Neural) &&
+            !source.return_type.tensor_shape_expressions.empty()) {
+            return_shaped_constraints = capture_extents(
+                source.return_type.tensor_shape_expressions, "return.shape");
+        }
+        if (fn->result.kind == TypeKind::Array &&
+            !source.return_type.dimension_expressions.empty()) {
+            return_array_constraints = capture_extents(
+                source.return_type.dimension_expressions, "return.array");
+        }
+    }
+
     void begin_function(Function out) {
-        module.functions.push_back(std::move(out));fn=&module.functions.back();next_value=1;next_label=0;next_hidden=0;locals.clear();local_names.clear();reference_names.clear();references.clear();fully_initialized_array_locals.clear();shaped_constraints.clear();array_constraints.clear();contextual_tensor_shapes.clear();fn->blocks.push_back(Block{"entry",{}});block=&fn->blocks.back();
+        module.functions.push_back(std::move(out));fn=&module.functions.back();next_value=1;next_label=0;next_hidden=0;locals.clear();local_names.clear();reference_names.clear();references.clear();fully_initialized_array_locals.clear();shaped_constraints.clear();array_constraints.clear();contextual_tensor_shapes.clear();return_shaped_constraints.clear();return_array_constraints.clear();fn->blocks.push_back(Block{"entry",{}});block=&fn->blocks.back();
         for(const auto& p:fn->parameters){locals[p.name]=p.type;local_names[p.name]=p.name;}
         for(const auto& p:fn->parameters){
             if((p.type.kind!=TypeKind::Tensor&&p.type.kind!=TypeKind::Neural)||
@@ -2830,6 +2889,7 @@ struct Lowerer {
             p.name, p.type, p.writable, parameter_is_borrowed(source.name, i), p.is_const});}
         if(out.external_symbol){module.functions.push_back(std::move(out));return;}
         current_class.clear();begin_function(std::move(out));
+        capture_signature_constraints(source,0);
         for(const auto& s:source.body){stmt(*s);if(terminated())break;}
         if(!terminated()&&fn->result.kind==TypeKind::Void)block->instructions.push_back(ReturnVoid{});
     }
@@ -2841,6 +2901,7 @@ struct Lowerer {
             p.name, p.type, p.writable,
             p.name=="$receiver"||parameter_is_borrowed(internal,i), p.is_const});}
         current_class=class_name;begin_function(std::move(out));
+        capture_signature_constraints(source,1);
         for(const auto& s:source.body){stmt(*s);if(terminated())break;}
         if(!terminated()&&fn->result.kind==TypeKind::Void)block->instructions.push_back(ReturnVoid{});
         current_class.clear();

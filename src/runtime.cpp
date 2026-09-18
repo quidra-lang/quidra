@@ -1907,6 +1907,27 @@ TensorValue* neural_parameter_tensor(void* parameter_raw) {
     return static_cast<TensorValue*>(tensor_raw);
 }
 
+void neural_require_same_tensor_device(
+    const char* operation, const TensorValue& input,
+    std::initializer_list<const TensorValue*> others,
+    unsigned long long line, unsigned long long column) {
+    const int device = input.storage->device;
+    for (const auto* tensor : others) {
+        if (!tensor) neural_fail("null neural tensor", line, column);
+        if (tensor->storage->device != device) {
+            const auto message = std::string(operation) +
+                " input and Parameter/state tensors must be on the same device; transfer them explicitly";
+            neural_fail(message.c_str(), line, column);
+        }
+    }
+    if (device >= 0) {
+        const auto message = std::string(operation) +
+            " is not supported on gpu(" + std::to_string(device) +
+            ") by the current neural backend";
+        neural_fail(message.c_str(), line, column);
+    }
+}
+
 double neural_tensor_value(const TensorValue& tensor,std::size_t logical,
                            unsigned long long line,unsigned long long column) {
     tensor_require_cpu(*tensor.storage, "neural parameter access", line, column);
@@ -2467,6 +2488,9 @@ void* neural_normalize_inference(
        input.storage->dtype!=mean->storage->dtype||
        input.storage->dtype!=variance->storage->dtype)
         neural_fail("normalization input and state dtypes must match",line,column);
+    neural_require_same_tensor_device(
+        "neural.normalize_inference", input,
+        {scale, bias, mean, variance}, line, column);
     const auto values=neural_normalize_values(
         tensor_float_values(input,line,column),input.shape,
         tensor_float_values(*scale,line,column),tensor_float_values(*bias,line,column),
@@ -2738,6 +2762,8 @@ extern "C" void* quidra_neural_tensor_convolve2d(
     if(!weight||!bias) neural_fail("null convolution Parameter",line,column);
     if(input.storage->dtype!=weight->storage->dtype||input.storage->dtype!=bias->storage->dtype)
         neural_fail("convolution input and Parameter dtypes must match",line,column);
+    neural_require_same_tensor_device(
+        "neural.convolve2d", input, {weight, bias}, line, column);
     std::vector<long long> output_shape;
     const auto values=neural_conv2d_values(
         tensor_float_values(input,line,column),input.shape,
@@ -2781,6 +2807,8 @@ extern "C" void* quidra_neural_tensor_affine(
        input.storage->dtype!=bias->storage->dtype) {
         neural_fail("affine input and Parameter dtypes must match",line,column);
     }
+    neural_require_same_tensor_device(
+        "neural.affine", input, {weight, bias}, line, column);
     const auto input_values=tensor_float_values(input,line,column);
     const auto weight_values=tensor_float_values(*weight,line,column);
     const auto bias_values=tensor_float_values(*bias,line,column);

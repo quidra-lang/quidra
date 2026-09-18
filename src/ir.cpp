@@ -28,6 +28,9 @@ struct Lowerer {
     std::size_t repl_replay_prefix_offset{};
     std::unordered_map<std::string, std::unordered_set<std::size_t>> borrowed_parameters;
     std::unordered_set<std::string> fully_initialized_array_locals;
+    std::unordered_map<std::string, std::vector<std::optional<std::string>>> shaped_constraints;
+    std::unordered_map<std::string, std::vector<std::optional<std::string>>> array_constraints;
+    std::unordered_map<const Expr*, std::vector<std::optional<std::string>>> contextual_tensor_shapes;
 
     explicit Lowerer(
         const CheckedProgram& c, const Expr* repl = nullptr,
@@ -330,6 +333,179 @@ struct Lowerer {
     ValueId const_int(long long n) { auto v=fresh(); block->instructions.push_back(ConstantInt{v,std::to_string(n),Type::simple(TypeKind::Int)}); return v; }
     ValueId const_float(double x) { auto v=fresh(); block->instructions.push_back(ConstantFloat{v,x,Type::simple(TypeKind::Float)}); return v; }
     ValueId const_bool(bool b) { auto v=fresh(); block->instructions.push_back(ConstantBool{v,b}); return v; }
+
+    ValueId extent_value(const Expr& expression) {
+        auto value = expr(expression);
+        const auto source = type_of(expression);
+        const auto target = Type::simple(TypeKind::Int);
+        if (source == target) return value;
+        auto out = fresh();
+        const bool checked_range =
+            numeric_conversion_policy(source, target) ==
+            NumericConversionPolicy::ExplicitRangeCheck;
+        block->instructions.push_back(NumericConvert{
+            out, value, source, target, checked_range,
+            static_cast<std::uint32_t>(expression.span.start.line),
+            static_cast<std::uint32_t>(expression.span.start.column)});
+        return out;
+    }
+
+    std::vector<std::optional<std::string>> capture_extents(
+        const std::vector<std::shared_ptr<Expr>>& expressions,
+        std::string_view prefix) {
+        std::vector<std::optional<std::string>> captured;
+        captured.reserve(expressions.size());
+        for (const auto& expression : expressions) {
+            if (!expression) {
+                captured.push_back(std::nullopt);
+                continue;
+            }
+            const auto name = hidden(prefix);
+            locals[name] = Type::simple(TypeKind::Int);
+            block->instructions.push_back(
+                DeclareLocal{name, Type::simple(TypeKind::Int)});
+            const auto value = extent_value(*expression);
+            block->instructions.push_back(
+                StoreLocal{name, value, Type::simple(TypeKind::Int)});
+            captured.push_back(name);
+        }
+        return captured;
+    }
+
+    std::vector<std::optional<ValueId>> load_captured_extents(
+        const std::vector<std::optional<std::string>>& captured) {
+        std::vector<std::optional<ValueId>> values;
+        values.reserve(captured.size());
+        for (const auto& name : captured) {
+            if (!name) {
+                values.push_back(std::nullopt);
+                continue;
+            }
+            auto value = fresh();
+            block->instructions.push_back(
+                LoadLocal{value, *name, Type::simple(TypeKind::Int)});
+            values.push_back(value);
+        }
+        return values;
+    }
+
+    void emit_shaped_constraint(
+        ValueId value, TypeKind kind,
+        const std::vector<std::optional<std::string>>& captured,
+        SourceSpan span) {
+        if (captured.empty()) return;
+        block->instructions.push_back(ShapedConstraintCheck{
+            value, kind, load_captured_extents(captured),
+            static_cast<std::uint32_t>(span.start.line),
+            static_cast<std::uint32_t>(span.start.column)});
+    }
+
+    bool deeper_array_constraint(
+        const std::vector<std::optional<std::string>>& captured,
+        std::size_t axis) const {
+        for (std::size_t i = axis; i < captured.size(); ++i) {
+            if (captured[i]) return true;
+        }
+        return false;
+    }
+
+    void emit_array_constraints(
+        ValueId array, const Type& array_type,
+        const std::vector<std::optional<std::string>>& captured,
+        std::size_t axis, SourceSpan span) {
+        if (axis >= captured.size() || array_type.kind != TypeKind::Array) return;
+
+        if (captured[axis]) {
+            auto actual = fresh();
+            block->instructions.push_back(ArrayLength{actual, array});
+            auto expected = fresh();
+            block->instructions.push_back(
+                LoadLocal{expected, *captured[axis], Type::simple(TypeKind::Int)});
+            block->instructions.push_back(ExtentEqualCheck{
+                actual, expected,
+                static_cast<std::uint32_t>(span.start.line),
+                static_cast<std::uint32_t>(span.start.column)});
+        }
+
+        if (axis + 1 >= captured.size() || !array_type.first ||
+            array_type.first->kind != TypeKind::Array ||
+            !deeper_array_constraint(captured, axis + 1)) {
+            return;
+        }
+
+        auto count = fresh();
+        block->instructions.push_back(ArrayLength{count, array});
+        const auto index_name = hidden("shape.index");
+        locals[index_name] = Type::simple(TypeKind::Int);
+        block->instructions.push_back(
+            DeclareLocal{index_name, Type::simple(TypeKind::Int)});
+        block->instructions.push_back(
+            StoreLocal{index_name, const_int(0), Type::simple(TypeKind::Int)});
+
+        const auto cond = label("shape.cond");
+        const auto body = label("shape.body");
+        const auto done = label("shape.done");
+        block->instructions.push_back(Jump{cond});
+
+        block = &add_block(cond);
+        auto index = fresh();
+        block->instructions.push_back(
+            LoadLocal{index, index_name, Type::simple(TypeKind::Int)});
+        auto cmp = fresh();
+        block->instructions.push_back(Binary{
+            cmp, "<", index, count, Type::simple(TypeKind::Int),
+            Type::simple(TypeKind::Bool),
+            static_cast<std::uint32_t>(span.start.line),
+            static_cast<std::uint32_t>(span.start.column)});
+        block->instructions.push_back(Branch{cmp, body, done});
+
+        block = &add_block(body);
+        auto child = fresh();
+        block->instructions.push_back(ArrayGet{
+            child, array, index, *array_type.first,
+            static_cast<std::uint32_t>(span.start.line),
+            static_cast<std::uint32_t>(span.start.column),
+            false, true});
+        emit_array_constraints(
+            child, *array_type.first, captured, axis + 1, span);
+        auto next = fresh();
+        block->instructions.push_back(Binary{
+            next, "+", index, const_int(1), Type::simple(TypeKind::Int),
+            Type::simple(TypeKind::Int),
+            static_cast<std::uint32_t>(span.start.line),
+            static_cast<std::uint32_t>(span.start.column)});
+        block->instructions.push_back(
+            StoreLocal{index_name, next, Type::simple(TypeKind::Int)});
+        block->instructions.push_back(Jump{cond});
+
+        block = &add_block(done);
+    }
+
+    ValueId generated_shape_array(
+        const std::vector<std::optional<std::string>>& captured,
+        SourceSpan span) {
+        const auto shape_type = Type::array(Type::simple(TypeKind::Int));
+        auto storage = fresh();
+        auto length = const_int(static_cast<long long>(captured.size()));
+        block->instructions.push_back(
+            ArrayAlloc{storage, length, shape_type, false});
+        for (std::size_t i = 0; i < captured.size(); ++i) {
+            if (!captured[i]) {
+                throw std::logic_error(
+                    "contextual tensor allocation contains an unconstrained axis");
+            }
+            auto extent = fresh();
+            block->instructions.push_back(
+                LoadLocal{extent, *captured[i], Type::simple(TypeKind::Int)});
+            block->instructions.push_back(ArraySet{
+                storage, const_int(static_cast<long long>(i)), extent,
+                Type::simple(TypeKind::Int),
+                static_cast<std::uint32_t>(span.start.line),
+                static_cast<std::uint32_t>(span.start.column),
+                false, true});
+        }
+        return storage;
+    }
     void collect_neural_parameters(
         ValueId object,const Type& type,const std::string& path,
         std::vector<NeuralParameterRef>& out,
@@ -1271,6 +1447,11 @@ struct Lowerer {
                     out,value,source,target,
                     static_cast<std::uint32_t>(e.span.start.line),
                     static_cast<std::uint32_t>(e.span.start.column)});
+            }else if(source.kind==TypeKind::Neural){
+                block->instructions.push_back(NeuralNumericCast{
+                    out,value,source,target,
+                    static_cast<std::uint32_t>(e.span.start.line),
+                    static_cast<std::uint32_t>(e.span.start.column)});
             }else if(source.kind==TypeKind::Array){
                 block->instructions.push_back(ArrayNumericCast{
                     out,value,source,target,
@@ -1576,7 +1757,18 @@ struct Lowerer {
                 case BuiltinCallable::TensorZeros:
                 case BuiltinCallable::TensorOnes: {
                     const auto shape_type=Type::array(Type::simple(TypeKind::Int));
-                    auto shape=destination_value(*n.args[0].value,shape_type),out=fresh();
+                    ValueId shape{};
+                    bool generated=false;
+                    if(n.args.empty()){
+                        const auto found=contextual_tensor_shapes.find(&e);
+                        if(found==contextual_tensor_shapes.end())
+                            throw std::logic_error("missing contextual tensor shape capture");
+                        shape=generated_shape_array(found->second,e.span);
+                        generated=true;
+                    }else{
+                        shape=destination_value(*n.args[0].value,shape_type);
+                    }
+                    auto out=fresh();
                     const auto type=checked.raw_types.at(&e);
                     const int fill_mode=
                         *resolution.builtin==BuiltinCallable::TensorZeros ? 1 :
@@ -1585,7 +1777,8 @@ struct Lowerer {
                         out,shape,type,fill_mode,
                         static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,shape);
+                    if(generated) block->instructions.push_back(Release{shape,shape_type});
+                    else release_arg(0,shape);
                     return out;
                 }
                 case BuiltinCallable::Array: {
@@ -2086,23 +2279,65 @@ struct Lowerer {
                 block->instructions.push_back(BindReference{ir_name,address});
                 return;
             }
-            const auto ir_name=bind_source_local(n->name,t);block->instructions.push_back(DeclareLocal{ir_name,t});
+            const auto ir_name=bind_source_local(n->name,t);
+            block->instructions.push_back(DeclareLocal{ir_name,t});
+
+            if(t.kind==TypeKind::Tensor || t.kind==TypeKind::Neural){
+                auto captured=capture_extents(
+                    n->declared_type.tensor_shape_expressions,"shape.extent");
+                if(!captured.empty()) shaped_constraints[ir_name]=captured;
+                if(n->value && !captured.empty()){
+                    if(const auto* call=std::get_if<CallExpr>(&n->value->data)){
+                        const auto found=checked.call_resolutions.find(n->value.get());
+                        if(call->args.empty() && found!=checked.call_resolutions.end() &&
+                           found->second.kind==CallKind::Builtin &&
+                           (found->second.builtin==BuiltinCallable::TensorZeros ||
+                            found->second.builtin==BuiltinCallable::TensorOnes)){
+                            contextual_tensor_shapes[n->value.get()]=captured;
+                        }
+                    }
+                }
+            }else if(t.kind==TypeKind::Array){
+                auto captured=capture_extents(
+                    n->declared_type.dimension_expressions,"array.extent");
+                if(!captured.empty()) array_constraints[ir_name]=captured;
+            }
+
             if(n->value){
                 const bool array_full =
                     t.kind == TypeKind::Array &&
                     array_expression_fully_initialized(*n->value);
                 auto v=destination_value(*n->value,t);
+                if(const auto found=shaped_constraints.find(ir_name);
+                   found!=shaped_constraints.end()){
+                    emit_shaped_constraint(v,t.kind,found->second,s.span);
+                }
+                if(const auto found=array_constraints.find(ir_name);
+                   found!=array_constraints.end()){
+                    emit_array_constraints(v,t,found->second,0,s.span);
+                }
                 block->instructions.push_back(StoreLocal{ir_name,v,t});
                 if (t.kind == TypeKind::Array) {
                     if (array_full) fully_initialized_array_locals.insert(n->name);
                     else fully_initialized_array_locals.erase(n->name);
                 }
-            } else if(t.kind==TypeKind::Array && t.length>=0) {
-                auto length=const_int(t.length);
-                auto storage=fresh();
-                block->instructions.push_back(ArrayAlloc{storage,length,t});
-                block->instructions.push_back(StoreLocal{ir_name,storage,t});
-                fully_initialized_array_locals.erase(n->name);
+            } else if(t.kind==TypeKind::Array) {
+                const auto captured=array_constraints.find(ir_name);
+                if(t.length>=0 || (t.length==-2 && captured!=array_constraints.end() &&
+                                   !captured->second.empty() && captured->second[0])){
+                    ValueId length{};
+                    if(t.length>=0){
+                        length=const_int(t.length);
+                    }else{
+                        length=fresh();
+                        block->instructions.push_back(LoadLocal{
+                            length,*captured->second[0],Type::simple(TypeKind::Int)});
+                    }
+                    auto storage=fresh();
+                    block->instructions.push_back(ArrayAlloc{storage,length,t,false});
+                    block->instructions.push_back(StoreLocal{ir_name,storage,t});
+                    fully_initialized_array_locals.erase(n->name);
+                }
             }
             return;
         }

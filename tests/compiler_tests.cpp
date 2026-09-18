@@ -248,7 +248,7 @@ int main(){
  llvm_contains("extern int32 c_text(const string &text) = \"c_text\"\nstring value = \"abc\"\nint32 result = c_text(&value)\n", "call i64 @strlen(ptr");
  llvm_contains("extern int32 c_bin(const bin &data) = \"c_bin\"\nbin value = bin.fill(24, 1)\nint32 result = c_bin(&value)\n", "ffi.bin.length");
  llvm_contains("extern int32 c_bin(const bin &data) = \"c_bin\"\nbin value = bin.fill(24, 1)\nint32 result = c_bin(&value)\n", "call i32 @c_bin(ptr nocapture nonnull readonly");
- llvm_file_contains("tensor<float> source = tensor.ones<float>([1])\nneural<float> value = neural.track(source)\nneural<float> next = value + 1\n", "@quidra_neural_binary_scalar");
+ llvm_file_contains("tensor<float> source = tensor.ones<float>([1])\nneural<float> value = neural.track(source)\nneural<float> next = value + 1.0\n", "@quidra_neural_binary_scalar");
  llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nuint8 scalar = 255\nneural<float32> next = value + float32(scalar)\n", "uitofp i8");
  llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nint8 scalar = -1\nneural<float32> next = value + float32(scalar)\n", "sitofp i8");
 
@@ -1319,6 +1319,10 @@ class B : A
  bad_code("int f(bool yes)\n    if yes\n        return 1\n", "MISSING_RETURN");
  bad_code("int8 x = int8(300)\n", "NUMERIC_CAST");
  bad_code("int x = int(3.5)\n", "NUMERIC_CAST");
+ good("int8 minimum = -128\nint minimum64 = -9223372036854775808\n");
+ bad_code("int8 too_small = -129\n", "INTEGER_RANGE");
+ good("int8 minimum = int8(-128)\n");
+ bad_code("int8 too_small = int8(-129)\n", "NUMERIC_CAST");
 
  // Numeric literals carry families, not default concrete types.
  good("int32 x = 3\nfloat32 y = 3.0\nfloat32 z = 0.1\n");

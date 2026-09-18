@@ -553,6 +553,20 @@ float32 value = result[0, 10, 20].item()
 
 `tensor<T>(shape)` creates storage whose elements are initially uninitialized; individual scalar elements can be initialized with `tensor[i, j, ...] = value`. `tensor.zeros<T>(shape)` and `tensor.ones<T>(shape)` create fully initialized tensors. When every extent is supplied by the expected exact shape, `tensor.zeros()` / `tensor.ones()` may omit both dtype and shape arguments; an expected `_` axis or an unconstrained `tensor<T>` is insufficient for allocation, so an explicit shape array is required. Reading an element that is not definitely initialized remains a deterministic safety failure.
 
+CPU is the default tensor device. GPU placement and transfer are explicit and do not change the nominal tensor type:
+
+```quidra
+tensor<float32> cpu = tensor.zeros<float32>([1024])
+tensor<float32> direct = tensor.zeros<float32>([1024], gpu = 0)
+
+tensor<float32> copied_to_gpu = cpu.gpu(0)
+tensor<float32> copied_back = copied_to_gpu.cpu()
+```
+
+`gpu = n` must be a named, non-negative integer argument; there is no public negative CPU sentinel. `.gpu(n)` requires an index and `.gpu()` is invalid. Quidra never inserts CPU↔GPU or GPU↔GPU transfers and never falls back to CPU when a requested GPU/backend is unavailable. A later transfer is not permission to move preceding computation: `tensor.zeros<float32>([1]).gpu(0)` remains CPU creation followed by an explicit copy.
+
+Tensor operations require tensor operands on the same device. Scalar operands are allowed as kernel arguments/constants. A GPU operation that the active backend does not yet implement fails explicitly instead of secretly executing over CPU memory. Use `quidra gpu` to inspect the zero-based device index space and active backend. NVIDIA placement uses the OS NVIDIA Driver API without depending on a user CUDA Toolkit, `nvcc`, `CUDA_HOME`, or `/usr/local/cuda`; Apple Silicon uses Metal.
+
 Array dimensions accept the same integer-expression form. `float[n * m]` captures `n * m` when that array binding is created, while `float[][n * m]` keeps the outer dimension runtime-sized and captures the inner extent. Captured array and tensor constraints remain fixed across later reassignment.
 
 Tensor-to-tensor broadcasting is intentionally strict: ranks must match and each axis must match or be singleton on one side. Scalars broadcast to tensors. Slices may use internal views, but mutation preserves value semantics through copy-on-write. `.reshape(shape)` never hides a copy; call `.contiguous()` explicitly first when needed.

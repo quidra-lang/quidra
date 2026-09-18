@@ -1357,6 +1357,87 @@ QUI
 practical_cast_output="$("$QUIDRA" "$TMP/practical-casts.qui")"
 [[ "$practical_cast_output" == "$(printf '1.6777216e+07\n1.75\n1\n2\n-2\n-1\n1.25')" ]]
 
+cat > "$TMP/captured-shapes.qui" <<'QUI'
+int n = 3
+int m = 2
+tensor<float><n, 4> first = tensor.ones<float>([3, 4])
+n = 5
+first = tensor.ones<float>([3, 4])
+tensor<float><n, 4> second = tensor.zeros()
+tensor<float><n * m, 2> product = tensor.ones<float>([10, 2])
+tensor<float><_, 4> explicit_shape = tensor.zeros([5, 4])
+print(first.shape()[0])
+print(second.shape()[0])
+print(product.shape()[0])
+print(explicit_shape.shape()[0])
+QUI
+captured_shapes_output="$("$QUIDRA" "$TMP/captured-shapes.qui")"
+[[ "$captured_shapes_output" == "$(printf '3\n5\n10\n5')" ]]
+
+cat > "$TMP/captured-shape-reassign-fail.qui" <<'QUI'
+int n = 3
+tensor<float><n, 4> value = tensor.ones<float>([3, 4])
+n = 5
+value = tensor.ones<float>([5, 4])
+QUI
+set +e
+"$QUIDRA" "$TMP/captured-shape-reassign-fail.qui" >"$TMP/captured-shape-reassign-fail.out" 2>"$TMP/captured-shape-reassign-fail.err"
+captured_shape_reassign_rc=$?
+set -e
+[[ "$captured_shape_reassign_rc" -eq 101 ]]
+grep -q 'captured shape constraint' "$TMP/captured-shape-reassign-fail.err"
+
+cat > "$TMP/captured-arrays.qui" <<'QUI'
+int n = 2
+int m = 2
+int[n * m] values
+values[3] = 7
+print(len(values))
+print(values[3])
+int[][n] rows = [[1, 2], [3, 4]]
+n = 3
+rows = [[5, 6], [7, 8]]
+print(rows[1][1])
+QUI
+captured_arrays_output="$("$QUIDRA" "$TMP/captured-arrays.qui")"
+[[ "$captured_arrays_output" == "$(printf '4\n7\n8')" ]]
+
+cat > "$TMP/captured-array-reassign-fail.qui" <<'QUI'
+int n = 2
+int[n] values = [1, 2]
+n = 3
+values = [1, 2, 3]
+QUI
+set +e
+"$QUIDRA" "$TMP/captured-array-reassign-fail.qui" >"$TMP/captured-array-reassign-fail.out" 2>"$TMP/captured-array-reassign-fail.err"
+captured_array_reassign_rc=$?
+set -e
+[[ "$captured_array_reassign_rc" -eq 101 ]]
+grep -q 'SHAPE_MISMATCH' "$TMP/captured-array-reassign-fail.err"
+
+cat > "$TMP/captured-nested-array-fail.qui" <<'QUI'
+int n = 2
+int[][n] rows = [[1, 2], [3, 4]]
+n = 3
+rows = [[1, 2, 3], [4, 5, 6]]
+QUI
+set +e
+"$QUIDRA" "$TMP/captured-nested-array-fail.qui" >"$TMP/captured-nested-array-fail.out" 2>"$TMP/captured-nested-array-fail.err"
+captured_nested_array_rc=$?
+set -e
+[[ "$captured_nested_array_rc" -eq 101 ]]
+grep -q 'SHAPE_MISMATCH' "$TMP/captured-nested-array-fail.err"
+
+cat > "$TMP/contextual-wildcard-zero.qui" <<'QUI'
+tensor<float><_, 4> value = tensor.zeros()
+QUI
+set +e
+"$QUIDRA" check "$TMP/contextual-wildcard-zero.qui" --json >"$TMP/contextual-wildcard-zero.json"
+contextual_wildcard_rc=$?
+set -e
+[[ "$contextual_wildcard_rc" -eq 1 ]]
+grep -q 'Contextual tensor allocation cannot infer' "$TMP/contextual-wildcard-zero.json"
+
 cat > "$TMP/container-casts.qui" <<'QUI'
 int[][] dynamic = [[1, 2], [3, 4]]
 float[][] dynamic_float = float(dynamic)

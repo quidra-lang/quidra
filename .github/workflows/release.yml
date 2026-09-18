@@ -9,7 +9,21 @@ permissions:
   contents: write
 
 jobs:
+  validate-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate tag, version, and main ancestry
+        run: |
+          version="$(python3 -c 'import json; print(json.load(open("quidra.manifest.json"))["compiler_version"])')"
+          test "$GITHUB_REF_NAME" = "v$version"
+          git fetch origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+
   linux-x86_64:
+    needs: validate-release
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -45,6 +59,7 @@ jobs:
             dist/quidra-linux-x86_64.tar.gz
 
   macos:
+    needs: validate-release
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -72,6 +87,7 @@ jobs:
           files: dist/quidra-macos-*.tar.gz
 
   windows-x86_64:
+    needs: validate-release
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4

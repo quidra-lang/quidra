@@ -305,6 +305,9 @@ print(signed_right)
  bad_code("float a = 1.0\nfloat b = 2.0\nfloat c = a OR b\n", "TYPE_MISMATCH");
  bad_code("bigint a = 1\nbigint b = 2\nbigint c = a XOR b\n", "TYPE_MISMATCH");
  bad_code("uint8 a = 1\nuint8 b = a << 8\n", "SHIFT_COUNT");
+ good(R"(class NestedState
+    neural.State<tensor<float32>> value
+)");
 
  good("extern void scalar_abi(int8 a, int16 b, int32 c, int d, uint8 e, uint16 f, uint32 g, uint64 h, float32 i, float j, bool k) = \"scalar_abi\"\n");
  llvm_contains("extern bool c_bool(bool value) = \"c_bool\"\n", "declare zeroext i1 @c_bool(i1 zeroext)");

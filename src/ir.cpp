@@ -534,7 +534,7 @@ struct Lowerer {
 
     static bool neural_state_leaf(const Type& type) {
         return is_numeric(type) || type.kind==TypeKind::Bool ||
-               type.kind==TypeKind::String || type.kind==TypeKind::Bytes ||
+               type.kind==TypeKind::String || type.kind==TypeKind::Bin ||
                type.kind==TypeKind::Tensor;
     }
 
@@ -824,11 +824,11 @@ struct Lowerer {
                 throw std::logic_error("tensor elements do not expose raw addresses");
             }
             auto array=expr(*n->base),index=expr(*n->items.front().index),out=fresh();
-            const auto element_type=array_type.kind==TypeKind::Bytes
+            const auto element_type=array_type.kind==TypeKind::Bin
                 ? Type::simple(TypeKind::UInt8)
                 : *array_type.first;
             block->instructions.push_back(AddressElement{
-                out,array,index,array_type,element_type,array_type.kind==TypeKind::Bytes,
+                out,array,index,array_type,element_type,array_type.kind==TypeKind::Bin,
                 static_cast<std::uint32_t>(e.span.start.line),
                 static_cast<std::uint32_t>(e.span.start.column)});
             return out;
@@ -996,17 +996,17 @@ struct Lowerer {
                     static_cast<std::uint32_t>(e.span.start.line),
                     static_cast<std::uint32_t>(e.span.start.column)});
             }else{
-                if(base_type.kind==TypeKind::Bytes) {
+                if(base_type.kind==TypeKind::Bin) {
                     const auto& item=n->items.front();
                     if(item.slice){
                         auto start=item.start?expr(*item.start):const_int(0);
                         ValueId stop;
                         if(item.stop) stop=expr(*item.stop);
-                        else { stop=fresh(); block->instructions.push_back(BytesLength{stop,a}); }
-                        block->instructions.push_back(BytesSlice{out,a,start,stop});
+                        else { stop=fresh(); block->instructions.push_back(BinLength{stop,a}); }
+                        block->instructions.push_back(BinSlice{out,a,start,stop});
                     }else{
                         auto i=expr(*item.index);
-                        block->instructions.push_back(BytesGet{
+                        block->instructions.push_back(BinGet{
                             out,a,i,static_cast<std::uint32_t>(e.span.start.line),
                             static_cast<std::uint32_t>(e.span.start.column),
                             checked.bounds_proven.contains(item.index.get())});
@@ -1220,7 +1220,7 @@ struct Lowerer {
                     release_temporary(*n->args[0].value,text);
                     return out;
                 }
-                if(target && target->kind==TypeKind::Bytes){
+                if(target && target->kind==TypeKind::Bin){
                     auto text=expr(*n->args[0].value),out=fresh();
                     block->instructions.push_back(ParseBin{out,text,checked.raw_types.at(&e)});
                     release_temporary(*n->args[0].value,text);
@@ -1229,7 +1229,7 @@ struct Lowerer {
             }
             if(receiver_name && receiver_name->name=="bin" && n->method=="fill"){
                 auto length=expr(*n->args[0].value),fill=expr(*n->args[1].value),out=fresh();
-                block->instructions.push_back(BytesAlloc{out,length,fill});
+                block->instructions.push_back(BinAlloc{out,length,fill});
                 return out;
             }
             if(receiver_name && receiver_name->name=="string" && n->method=="repeat"){
@@ -1498,7 +1498,7 @@ struct Lowerer {
             auto value=expr(*n.args[0].value),out=fresh();
             const auto source=type_of(*n.args[0].value);
             const auto& target=resolution.type;
-            if(source.kind==TypeKind::Bytes){
+            if(source.kind==TypeKind::Bin){
                 block->instructions.push_back(BinConvert{
                     out,value,source,target,
                     static_cast<std::uint32_t>(e.span.start.line),
@@ -1539,11 +1539,11 @@ struct Lowerer {
                 release_temporary(*n.args[1].value,fill);
                 return out;
             }
-            if(resolution.type.kind==TypeKind::Bytes){
+            if(resolution.type.kind==TypeKind::Bin){
                 if(resolution.target=="bin.cast"){
                     auto value=expr(*n.args[0].value),out=fresh();
                     block->instructions.push_back(BinConvert{
-                        out,value,type_of(*n.args[0].value),Type::simple(TypeKind::Bytes),
+                        out,value,type_of(*n.args[0].value),Type::simple(TypeKind::Bin),
                         static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column)});
                     return out;
@@ -1551,7 +1551,7 @@ struct Lowerer {
                 auto length=expr(*n.args[0].value);
                 auto fill=expr(*n.args[1].value);
                 auto out=fresh();
-                block->instructions.push_back(BytesAlloc{out,length,fill});
+                block->instructions.push_back(BinAlloc{out,length,fill});
                 return out;
             }
             if(resolution.type.kind==TypeKind::Class){
@@ -1918,7 +1918,7 @@ struct Lowerer {
                 case BuiltinCallable::Len: {
                     auto value=expr(*n.args[0].value),out=fresh();
                     const auto kind=type_of(*n.args[0].value).kind;
-                    if(kind==TypeKind::Bytes)block->instructions.push_back(BytesLength{out,value});
+                    if(kind==TypeKind::Bin)block->instructions.push_back(BinLength{out,value});
                     else if(kind==TypeKind::String)block->instructions.push_back(StringLength{out,value});
                     else block->instructions.push_back(ArrayLength{out,value});
                     release_arg(0,value);
@@ -1995,9 +1995,9 @@ struct Lowerer {
                     release_arg(0,path);
                     return out;
                 }
-                case BuiltinCallable::FileReadBytes: {
+                case BuiltinCallable::FileReadBin: {
                     auto path=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(FileReadBytes{out,path,checked.raw_types.at(&e)});
+                    block->instructions.push_back(FileReadBin{out,path,checked.raw_types.at(&e)});
                     release_arg(0,path);
                     return out;
                 }
@@ -2015,11 +2015,11 @@ struct Lowerer {
                     release_arg(1,text);
                     return out;
                 }
-                case BuiltinCallable::FileWriteBytes: {
-                    auto path=expr(*n.args[0].value),bytes=expr(*n.args[1].value),out=fresh();
-                    block->instructions.push_back(FileWriteBytes{out,path,bytes,checked.raw_types.at(&e)});
+                case BuiltinCallable::FileWriteBin: {
+                    auto path=expr(*n.args[0].value),bin=expr(*n.args[1].value),out=fresh();
+                    block->instructions.push_back(FileWriteBin{out,path,bin,checked.raw_types.at(&e)});
                     release_arg(0,path);
-                    release_arg(1,bytes);
+                    release_arg(1,bin);
                     return out;
                 }
                 case BuiltinCallable::FileExists: {
@@ -2337,19 +2337,19 @@ struct Lowerer {
             array_type.kind == TypeKind::Array &&
             array_expression_fully_initialized(*n.iterable);
         auto array=expr(*n.iterable);
-        const auto item=array_type.kind==TypeKind::Bytes?Type::simple(TypeKind::Bytes):*array_type.first;
+        const auto item=array_type.kind==TypeKind::Bin?Type::simple(TypeKind::Bin):*array_type.first;
         const bool iterable_temporary=expression_owns_result(*n.iterable);
         const auto idx_name=hidden("for.index"), len_name=hidden("for.length"); locals[idx_name]=locals[len_name]=Type::simple(TypeKind::Int); const auto iter_name=bind_source_local(n.name,item);
         auto len=fresh();
-        if(array_type.kind==TypeKind::Bytes) block->instructions.push_back(BytesLength{len,array}); else block->instructions.push_back(ArrayLength{len,array});
+        if(array_type.kind==TypeKind::Bin) block->instructions.push_back(BinLength{len,array}); else block->instructions.push_back(ArrayLength{len,array});
         auto zero=const_int(0); block->instructions.push_back(StoreLocal{idx_name,zero,locals[idx_name]}); block->instructions.push_back(StoreLocal{len_name,len,locals[len_name]});
         const auto cond=label("for.cond"), body_name=label("for.body"),
                    step_label=label("for.step"), break_label=label("for.break"),
                    done=label("for.end"); block->instructions.push_back(Jump{cond});
         auto& cb=add_block(cond); block=&cb; auto idx=fresh(), l=fresh(), cmp=fresh(); block->instructions.push_back(LoadLocal{idx,idx_name,locals[idx_name]}); block->instructions.push_back(LoadLocal{l,len_name,locals[len_name]}); block->instructions.push_back(Binary{cmp,"<",idx,l,Type::simple(TypeKind::Int),Type::simple(TypeKind::Bool)}); block->instructions.push_back(Branch{cmp,body_name,done});
         auto& bb=add_block(body_name); block=&bb; auto ix=fresh(), element=fresh(); block->instructions.push_back(LoadLocal{ix,idx_name,locals[idx_name]});
-        if(array_type.kind==TypeKind::Bytes) {
-            block->instructions.push_back(BytesGet{element,array,ix,0,0,true});
+        if(array_type.kind==TypeKind::Bin) {
+            block->instructions.push_back(BinGet{element,array,ix,0,0,true});
         } else {
             block->instructions.push_back(ArrayGet{
                 element,array,ix,item,
@@ -2369,7 +2369,7 @@ struct Lowerer {
             block->instructions.push_back(LoadLocal{ix2,idx_name,locals[idx_name]});
             block->instructions.push_back(LoadLocal{val,iter_name,item});
             val=copy_value(val,item);
-            if(array_type.kind==TypeKind::Bytes) block->instructions.push_back(BytesSet{array,ix2,val,0,0,true});
+            if(array_type.kind==TypeKind::Bin) block->instructions.push_back(BinSet{array,ix2,val,0,0,true});
             else block->instructions.push_back(ArraySet{
                 array,ix2,val,item,
                 static_cast<std::uint32_t>(n.iterable->span.start.line),
@@ -2750,7 +2750,7 @@ struct Lowerer {
                         static_cast<std::uint32_t>(n->target->span.start.column)});
                 }else{
                     auto i=expr(*ix.items.front().index);
-                    if(base_type.kind==TypeKind::Bytes) block->instructions.push_back(BytesSet{
+                    if(base_type.kind==TypeKind::Bin) block->instructions.push_back(BinSet{
                         a,i,v,static_cast<std::uint32_t>(n->target->span.start.line),
                         static_cast<std::uint32_t>(n->target->span.start.column),
                         checked.bounds_proven.contains(ix.items.front().index.get())});
@@ -3092,10 +3092,10 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,StringConcat>){out<<"%"<<n.out<<" = string.concat";for(const auto value:n.values)out<<" %"<<value;}
     if constexpr(std::is_same_v<T,StringCanAppendMove>)out<<"%"<<n.out<<" = string.can_append_move %"<<n.text;
     if constexpr(std::is_same_v<T,StringAppendMove>){out<<"%"<<n.out<<" = string.append_move %"<<n.text;for(const auto value:n.suffixes)out<<" %"<<value;}
-    if constexpr(std::is_same_v<T,BytesAlloc>)out<<"%"<<n.out<<" = bin.alloc %"<<n.length<<", %"<<n.fill;
-    if constexpr(std::is_same_v<T,BytesLength>)out<<"%"<<n.out<<" = bin.length %"<<n.bytes;
-    if constexpr(std::is_same_v<T,BytesGet>)out<<"%"<<n.out<<" = bin.get %"<<n.bytes<<", %"<<n.index;
-    if constexpr(std::is_same_v<T,BytesSet>)out<<"bin.set %"<<n.bytes<<", %"<<n.index<<", %"<<n.value;
+    if constexpr(std::is_same_v<T,BinAlloc>)out<<"%"<<n.out<<" = bin.alloc %"<<n.length<<", %"<<n.fill;
+    if constexpr(std::is_same_v<T,BinLength>)out<<"%"<<n.out<<" = bin.length %"<<n.bin;
+    if constexpr(std::is_same_v<T,BinGet>)out<<"%"<<n.out<<" = bin.get %"<<n.bin<<", %"<<n.index;
+    if constexpr(std::is_same_v<T,BinSet>)out<<"bin.set %"<<n.bin<<", %"<<n.index<<", %"<<n.value;
     if constexpr(std::is_same_v<T,MathRoundInt>)out<<"%"<<n.out<<" = math.round-int %"<<n.value;
     if constexpr(std::is_same_v<T,NumericConvert>)out<<"%"<<n.out<<" = convert %"<<n.value<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type)<<(n.checked_range?" checked":"");
     if constexpr(std::is_same_v<T,TensorCreate>)out<<"%"<<n.out<<" = tensor.create %"<<n.shape<<" : "<<type_name(n.type)<<" init="<<(n.fill_mode==0?"uninitialized":n.fill_mode==1?"zeros":"ones")<<(n.gpu?" gpu=%"+std::to_string(*n.gpu):" cpu");
@@ -3165,9 +3165,9 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,CliFlag>)out<<"%"<<n.out<<" = cli.flag %"<<n.name;
     if constexpr(std::is_same_v<T,CliFinish>)out<<"cli.finish";
     if constexpr(std::is_same_v<T,FileRead>)out<<"%"<<n.out<<" = file.read %"<<n.path;
-    if constexpr(std::is_same_v<T,FileReadBytes>)out<<"%"<<n.out<<" = file.read_bin %"<<n.path;
+    if constexpr(std::is_same_v<T,FileReadBin>)out<<"%"<<n.out<<" = file.read_bin %"<<n.path;
     if constexpr(std::is_same_v<T,FileWrite>)out<<"%"<<n.out<<" = file.write %"<<n.path<<", %"<<n.text;
-    if constexpr(std::is_same_v<T,FileWriteBytes>)out<<"%"<<n.out<<" = file.write_bin %"<<n.path<<", %"<<n.bytes;
+    if constexpr(std::is_same_v<T,FileWriteBin>)out<<"%"<<n.out<<" = file.write_bin %"<<n.path<<", %"<<n.bin;
     if constexpr(std::is_same_v<T,FileExists>)out<<"%"<<n.out<<" = file.exists %"<<n.path;
     if constexpr(std::is_same_v<T,FileIsDirectory>)out<<"%"<<n.out<<" = file.is_directory %"<<n.path;
     if constexpr(std::is_same_v<T,FileRemove>)out<<"%"<<n.out<<" = file.remove %"<<n.path;

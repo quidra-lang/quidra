@@ -51,11 +51,11 @@ struct StringConcat { ValueId out; std::vector<ValueId> values; };
 struct StringCanAppendMove { ValueId out; ValueId text; };
 struct StringAppendMove { ValueId out; ValueId text; std::vector<ValueId> suffixes; };
 struct StringRepeat { ValueId out; ValueId count; ValueId fill; };
-struct BytesAlloc { ValueId out; ValueId length; ValueId fill; };
-struct BytesLength { ValueId out; ValueId bytes; };
-struct BytesGet { ValueId out; ValueId bytes; ValueId index; std::uint32_t line{}; std::uint32_t column{}; bool bounds_proven{}; };
-struct BytesSet { ValueId bytes; ValueId index; ValueId value; std::uint32_t line{}; std::uint32_t column{}; bool bounds_proven{}; };
-struct BytesSlice { ValueId out; ValueId bytes; ValueId start; ValueId end; };
+struct BinAlloc { ValueId out; ValueId length; ValueId fill; };
+struct BinLength { ValueId out; ValueId bin; };
+struct BinGet { ValueId out; ValueId bin; ValueId index; std::uint32_t line{}; std::uint32_t column{}; bool bounds_proven{}; };
+struct BinSet { ValueId bin; ValueId index; ValueId value; std::uint32_t line{}; std::uint32_t column{}; bool bounds_proven{}; };
+struct BinSlice { ValueId out; ValueId bin; ValueId start; ValueId end; };
 struct ParseBin { ValueId out; ValueId text; Type result_type; };
 struct BinConvert { ValueId out; ValueId value; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct NumericConvert { ValueId out; ValueId value; Type source_type; Type target_type; bool checked_range{}; std::uint32_t line{}; std::uint32_t column{}; };
@@ -166,9 +166,9 @@ struct CliOption { ValueId out; ValueId name; ValueId default_value; Type type; 
 struct CliFlag { ValueId out; ValueId name; };
 struct CliFinish {};
 struct FileRead { ValueId out; ValueId path; Type result_type; };
-struct FileReadBytes { ValueId out; ValueId path; Type result_type; };
+struct FileReadBin { ValueId out; ValueId path; Type result_type; };
 struct FileWrite { ValueId out; ValueId path; ValueId text; Type result_type; };
-struct FileWriteBytes { ValueId out; ValueId path; ValueId bytes; Type result_type; };
+struct FileWriteBin { ValueId out; ValueId path; ValueId bin; Type result_type; };
 struct FileExists { ValueId out; ValueId path; Type result_type; };
 struct FileIsDirectory { ValueId out; ValueId path; Type result_type; };
 struct FileRemove { ValueId out; ValueId path; Type result_type; };
@@ -257,7 +257,7 @@ using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantBool, Const
                                  StringEndsWith, StringFind, StringSlice, StringTrim, StringSplit,
                                  StringUtf8, StringCodepoints, StringJoin, StringConcat,
                                  StringCanAppendMove, StringAppendMove, StringRepeat,
-                                 BytesAlloc, BytesLength, BytesGet, BytesSet, BytesSlice,
+                                 BinAlloc, BinLength, BinGet, BinSet, BinSlice,
                                  ParseBin, BinConvert,
                                  NumericConvert, ArrayNumericCast, TensorCreate, TensorTransfer, TensorReshape, TensorTranspose, TensorContiguous,
                                  TensorShape, TensorIsContiguous, TensorItem, TensorCast,
@@ -268,7 +268,7 @@ using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantBool, Const
                                  NeuralSave, NeuralLoad,
                                  StatsMean, StatsReduce, LinearMatmul, LinearDot, ImageRead, ImageWrite, ImageTensorOp, TensorBinary, TensorIndex, TensorSet, ParseNumber, NumericAbs, Sqrt, MathUnary, MathRoundInt, MathPow,
                                  CliArgument, CliOption, CliFlag, CliFinish,
-                                 FileRead, FileReadBytes, FileWrite, FileWriteBytes, FileExists, FileIsDirectory, FileRemove, FileCopy, FileMove, FileMkdir, FileList,
+                                 FileRead, FileReadBin, FileWrite, FileWriteBin, FileExists, FileIsDirectory, FileRemove, FileCopy, FileMove, FileMkdir, FileList,
                                  EnvironmentGet, EnvironmentHas, TestAssert,
                                  TimeNow, TimeSince, TimeSeconds, TimeSleep,
                                  RandomGenerator, RandomInt, RandomFloat, RandomBool, ProcessRun,

@@ -22,7 +22,7 @@ std::string llvm_type(const Type& t) {
         case TypeKind::Float: return "double";
         case TypeKind::Float32: return "float";
         case TypeKind::Bool: return "i1";
-        case TypeKind::String: case TypeKind::Bytes: case TypeKind::Error:
+        case TypeKind::String: case TypeKind::Bin: case TypeKind::Error:
         case TypeKind::Array: case TypeKind::Tensor: case TypeKind::Neural:
         case TypeKind::Gradients: case TypeKind::Union: case TypeKind::Class: return "ptr";
         case TypeKind::None: case TypeKind::Void: case TypeKind::Never: return "void";
@@ -55,7 +55,7 @@ std::string c_abi_parameter_attribute(const Type& type) {
         case TypeKind::Bool:
             return " zeroext";
         case TypeKind::String:
-        case TypeKind::Bytes:
+        case TypeKind::Bin:
             return " nocapture nonnull readonly";
         default:
             return "";
@@ -104,7 +104,7 @@ int neural_state_kind_code(const Type& type) {
     if (is_numeric(type)) return tensor_dtype_code(type);
     if (type.kind == TypeKind::Bool) return 11;
     if (type.kind == TypeKind::String) return 12;
-    if (type.kind == TypeKind::Bytes) return 13;
+    if (type.kind == TypeKind::Bin) return 13;
     if (type.kind == TypeKind::Tensor) return 14;
     throw std::logic_error("unsupported .quistate leaf type");
 }
@@ -321,7 +321,7 @@ struct FunctionEmitter {
     }
 
     bool has_drop_helper(const Type& type) const {
-        if (type.kind == TypeKind::Bytes || type.kind == TypeKind::Array ||
+        if (type.kind == TypeKind::Bin || type.kind == TypeKind::Array ||
             type.kind == TypeKind::Tensor || type.kind == TypeKind::Neural ||
             type.kind == TypeKind::Gradients || type.kind == TypeKind::Union) return true;
         return type.kind == TypeKind::Class && layouts.contains(type.class_name);
@@ -420,7 +420,7 @@ struct FunctionEmitter {
             emit_repl_text("none");
             return;
         }
-        if (type.kind == TypeKind::Bytes) {
+        if (type.kind == TypeKind::Bin) {
             const auto text = temp("repl.bin");
             out << "  " << text << " = call ptr @quidra_bin_string(ptr " << raw_value << ")\n";
             out << "  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr " << text << ")\n";
@@ -726,7 +726,7 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::StringSlice>){values[n.out]=Type::simple(TypeKind::String);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_slice(ptr "<<value(n.text)<<", i64 "<<value(n.start)<<", i64 "<<value(n.end)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringTrim>){values[n.out]=Type::simple(TypeKind::String);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_trim(ptr "<<value(n.text)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringSplit>){values[n.out]=Type::array(Type::simple(TypeKind::String));out<<"  "<<value(n.out)<<" = call ptr @quidra_string_split(ptr "<<value(n.text)<<", ptr "<<value(n.separator)<<")\n";}
-        if constexpr(std::is_same_v<T,ir::StringUtf8>){values[n.out]=Type::simple(TypeKind::Bytes);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_utf8(ptr "<<value(n.text)<<")\n";}
+        if constexpr(std::is_same_v<T,ir::StringUtf8>){values[n.out]=Type::simple(TypeKind::Bin);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_utf8(ptr "<<value(n.text)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringCodepoints>){values[n.out]=Type::array(Type::simple(TypeKind::Int));out<<"  "<<value(n.out)<<" = call ptr @quidra_string_codepoints(ptr "<<value(n.text)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringJoin>){values[n.out]=Type::simple(TypeKind::String);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_join(ptr "<<value(n.values)<<", ptr "<<value(n.separator)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringConcat>){
@@ -761,27 +761,27 @@ struct FunctionEmitter {
             out<<"  "<<value(n.out)<<" = call ptr @quidra_string_repeat(i64 "<<value(n.count)
                <<", ptr "<<value(n.fill)<<")\n";
         }
-        if constexpr(std::is_same_v<T,ir::BytesAlloc>){
-            values[n.out]=Type::simple(TypeKind::Bytes);
+        if constexpr(std::is_same_v<T,ir::BinAlloc>){
+            values[n.out]=Type::simple(TypeKind::Bin);
             out<<"  "<<value(n.out)<<" = call ptr @quidra_bin_alloc(i64 "<<value(n.length)
                <<", i64 "<<value(n.fill)<<")\n";
         }
-        if constexpr(std::is_same_v<T,ir::BytesLength>){
+        if constexpr(std::is_same_v<T,ir::BinLength>){
             values[n.out]=Type::simple(TypeKind::Int);
-            out<<"  "<<value(n.out)<<" = load i64, ptr "<<value(n.bytes)<<", align 1\n";
+            out<<"  "<<value(n.out)<<" = load i64, ptr "<<value(n.bin)<<", align 1\n";
         }
-        if constexpr(std::is_same_v<T,ir::BytesGet>){
-            values[n.out]=Type::simple(TypeKind::Bytes);
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_bin_index(ptr "<<value(n.bytes)
+        if constexpr(std::is_same_v<T,ir::BinGet>){
+            values[n.out]=Type::simple(TypeKind::Bin);
+            out<<"  "<<value(n.out)<<" = call ptr @quidra_bin_index(ptr "<<value(n.bin)
                <<", i64 "<<value(n.index)<<")\n";
         }
-        if constexpr(std::is_same_v<T,ir::BytesSet>){
-            out<<"  call void @quidra_bin_set(ptr "<<value(n.bytes)<<", i64 "<<value(n.index)
+        if constexpr(std::is_same_v<T,ir::BinSet>){
+            out<<"  call void @quidra_bin_set(ptr "<<value(n.bin)<<", i64 "<<value(n.index)
                <<", ptr "<<value(n.value)<<")\n";
         }
-        if constexpr(std::is_same_v<T,ir::BytesSlice>){
-            values[n.out]=Type::simple(TypeKind::Bytes);
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_bin_slice(ptr "<<value(n.bytes)
+        if constexpr(std::is_same_v<T,ir::BinSlice>){
+            values[n.out]=Type::simple(TypeKind::Bin);
+            out<<"  "<<value(n.out)<<" = call ptr @quidra_bin_slice(ptr "<<value(n.bin)
                <<", i64 "<<value(n.start)<<", i64 "<<value(n.end)<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::ArrayNumericCast>){
@@ -1040,7 +1040,7 @@ struct FunctionEmitter {
                 out<<"  "<<leaf_ptr<<" = getelementptr inbounds ["<<(leaf.path.size()+1)
                    <<" x i8], ptr @"<<leaf_name<<", i64 0, i64 0\n";
                 std::string raw;
-                if(leaf.type.kind==TypeKind::String || leaf.type.kind==TypeKind::Bytes ||
+                if(leaf.type.kind==TypeKind::String || leaf.type.kind==TypeKind::Bin ||
                    leaf.type.kind==TypeKind::Tensor){
                     raw=value(leaf.value);
                 }else{
@@ -1275,7 +1275,7 @@ struct FunctionEmitter {
             values[n.out]=n.result_type;
             const auto parsed=temp("bin.parse.value");
             out<<"  "<<parsed<<" = call ptr @quidra_bin_parse(ptr "<<value(n.text)<<")\n";
-            if(n.result_type.kind==TypeKind::Bytes){
+            if(n.result_type.kind==TypeKind::Bin){
                 out<<"  "<<value(n.out)<<" = getelementptr i8, ptr "<<parsed<<", i64 0\n";
             }else{
                 const auto result=value(n.out);
@@ -1287,7 +1287,7 @@ struct FunctionEmitter {
                 out<<"  "<<ok<<" = icmp ne ptr "<<parsed<<", null\n";
                 out<<"  br i1 "<<ok<<", label %"<<ok_label<<", label %"<<fail_label<<"\n";
                 out<<ok_label<<":\n";
-                out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Bytes))<<", ptr "<<result<<"\n";
+                out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Bin))<<", ptr "<<result<<"\n";
                 const auto ok_payload=temp("bin.parse.payload");
                 out<<"  "<<ok_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n";
                 out<<"  store ptr "<<parsed<<", ptr "<<ok_payload<<"\n";
@@ -1303,7 +1303,7 @@ struct FunctionEmitter {
         }
         if constexpr(std::is_same_v<T,ir::BinConvert>){
             values[n.out]=n.target_type;
-            if(n.source_type.kind==TypeKind::Bytes){
+            if(n.source_type.kind==TypeKind::Bin){
                 if(n.target_type.kind==TypeKind::Array){
                     const auto width=n.target_type.first->kind==TypeKind::Bool?1:integer_width(*n.target_type.first);
                     const auto stride=runtime_storage_bytes(*n.target_type.first);
@@ -1322,7 +1322,7 @@ struct FunctionEmitter {
                         out<<"  "<<value(n.out)<<" = add i64 "<<raw<<", 0\n";
                     }
                 }
-            }else if(n.target_type.kind==TypeKind::Bytes){
+            }else if(n.target_type.kind==TypeKind::Bin){
                 if(n.source_type.kind==TypeKind::Array){
                     const auto width=n.source_type.first->kind==TypeKind::Bool?1:integer_width(*n.source_type.first);
                     const auto stride=runtime_storage_bytes(*n.source_type.first);
@@ -1533,21 +1533,21 @@ struct FunctionEmitter {
             out<<"  "<<raw<<" = call ptr @quidra_file_read_raw(ptr "<<value(n.path)<<")\n";
             emit_string_error_result(n.out,n.result_type,raw,"file.read");
         }
-        if constexpr(std::is_same_v<T,ir::FileReadBytes>){
+        if constexpr(std::is_same_v<T,ir::FileReadBin>){
             values[n.out]=n.result_type;
-            const auto raw=temp("file.read_bytes.raw"),present=temp("file.read_bytes.present");
+            const auto raw=temp("file.read_bin.raw"),present=temp("file.read_bin.present");
             const auto result=value(n.out);
-            out<<"  "<<raw<<" = call ptr @quidra_file_read_bytes_raw(ptr "<<value(n.path)<<")\n";
+            out<<"  "<<raw<<" = call ptr @quidra_file_read_bin_raw(ptr "<<value(n.path)<<")\n";
             out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
             out<<"  "<<present<<" = icmp ne ptr "<<raw<<", null\n";
-            const auto ok=unique_label("file.read_bytes.ok"),bad=unique_label("file.read_bytes.error"),done=unique_label("file.read_bytes.done");
+            const auto ok=unique_label("file.read_bin.ok"),bad=unique_label("file.read_bin.error"),done=unique_label("file.read_bin.done");
             out<<"  br i1 "<<present<<", label %"<<ok<<", label %"<<bad<<"\n";
-            out<<ok<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Bytes))<<", ptr "<<result<<"\n";
-            const auto payload=temp("file.read_bytes.payload");
+            out<<ok<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Bin))<<", ptr "<<result<<"\n";
+            const auto payload=temp("file.read_bin.payload");
             out<<"  "<<payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
                <<"  store ptr "<<raw<<", ptr "<<payload<<"\n  br label %"<<done<<"\n";
             out<<bad<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
-            const auto error_payload=temp("file.read_bytes.error.payload");
+            const auto error_payload=temp("file.read_bin.error.payload");
             out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
                <<"  store ptr @.err.file, ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
             out<<done<<":\n";
@@ -1557,10 +1557,10 @@ struct FunctionEmitter {
             out<<"  "<<ok<<" = call i1 @quidra_file_write_raw(ptr "<<value(n.path)<<", ptr "<<value(n.text)<<")\n";
             emit_void_error_result(n.out,n.result_type,ok,"file.write");
         }
-        if constexpr(std::is_same_v<T,ir::FileWriteBytes>){
-            const auto ok=temp("file.write_bytes.ok");
-            out<<"  "<<ok<<" = call i1 @quidra_file_write_bytes_raw(ptr "<<value(n.path)<<", ptr "<<value(n.bytes)<<")\n";
-            emit_void_error_result(n.out,n.result_type,ok,"file.write_bytes");
+        if constexpr(std::is_same_v<T,ir::FileWriteBin>){
+            const auto ok=temp("file.write_bin.ok");
+            out<<"  "<<ok<<" = call i1 @quidra_file_write_bin_raw(ptr "<<value(n.path)<<", ptr "<<value(n.bin)<<")\n";
+            emit_void_error_result(n.out,n.result_type,ok,"file.write_bin");
         }
         if constexpr(std::is_same_v<T,ir::FileExists>){
             values[n.out]=n.result_type;
@@ -2181,7 +2181,7 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::Binary>){values[n.out]=n.result_type;const auto&ot=n.operand_type;
             if(n.op=="+"&&ot.kind==TypeKind::String){auto l="%str.l."+std::to_string(n.out),r="%str.r."+std::to_string(n.out),total="%str.t."+std::to_string(n.out),alloc="%str.a."+std::to_string(n.out),dest="%str.d."+std::to_string(n.out),term="%str.z."+std::to_string(n.out);out<<"  "<<l<<" = call i64 @strlen(ptr "<<value(n.left)<<")\n  "<<r<<" = call i64 @strlen(ptr "<<value(n.right)<<")\n  "<<total<<" = add i64 "<<l<<", "<<r<<"\n  "<<alloc<<" = add i64 "<<total<<", 1\n  "<<value(n.out)<<" = call ptr @quidra_alloc(i64 "<<alloc<<")\n  call ptr @memcpy(ptr "<<value(n.out)<<", ptr "<<value(n.left)<<", i64 "<<l<<")\n  "<<dest<<" = getelementptr inbounds i8, ptr "<<value(n.out)<<", i64 "<<l<<"\n  call ptr @memcpy(ptr "<<dest<<", ptr "<<value(n.right)<<", i64 "<<r<<")\n  "<<term<<" = getelementptr inbounds i8, ptr "<<value(n.out)<<", i64 "<<total<<"\n  store i8 0, ptr "<<term<<"\n";return;}
             if((n.op=="=="||n.op=="!=")&&(ot.kind==TypeKind::String||ot.kind==TypeKind::Error)){auto c="%str.cmp."+std::to_string(n.out);out<<"  "<<c<<" = call i32 @strcmp(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n  "<<value(n.out)<<" = icmp "<<(n.op=="=="?"eq":"ne")<<" i32 "<<c<<", 0\n";return;}
-            if((n.op=="=="||n.op=="!=")&&(ot.kind==TypeKind::Bytes||ot.kind==TypeKind::Array||ot.kind==TypeKind::Class)){auto eq="%deep.eq."+std::to_string(n.out);out<<"  "<<eq<<" = call i1 "<<equality_name(ot)<<"(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n";if(n.op=="==")out<<"  "<<value(n.out)<<" = xor i1 "<<eq<<", false\n";else out<<"  "<<value(n.out)<<" = xor i1 "<<eq<<", true\n";return;}
+            if((n.op=="=="||n.op=="!=")&&(ot.kind==TypeKind::Bin||ot.kind==TypeKind::Array||ot.kind==TypeKind::Class)){auto eq="%deep.eq."+std::to_string(n.out);out<<"  "<<eq<<" = call i1 "<<equality_name(ot)<<"(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n";if(n.op=="==")out<<"  "<<value(n.out)<<" = xor i1 "<<eq<<", false\n";else out<<"  "<<value(n.out)<<" = xor i1 "<<eq<<", true\n";return;}
             if(is_integer(ot)){
                 const auto ty=llvm_type(ot);
                 const auto width=integer_width(ot);
@@ -2249,7 +2249,7 @@ struct FunctionEmitter {
                 out<<"  "<<value(n.out)<<" = call ptr @quidra_float_text(double "<<widened<<")\n";
             }else if(n.source_type.kind==TypeKind::Bool){
                 out<<"  "<<value(n.out)<<" = select i1 "<<value(n.value)<<", ptr @.bool.true, ptr @.bool.false\n";
-            }else if(n.source_type.kind==TypeKind::Bytes){
+            }else if(n.source_type.kind==TypeKind::Bin){
                 out<<"  "<<value(n.out)<<" = call ptr @quidra_bin_string(ptr "<<value(n.value)<<")\n";
             }else if(n.source_type.kind==TypeKind::String||n.source_type.kind==TypeKind::Error){
                 out<<"  "<<value(n.out)<<" = getelementptr i8, ptr "<<value(n.value)<<", i64 0\n";
@@ -2288,7 +2288,7 @@ struct FunctionEmitter {
             for(std::size_t i=0;i<n.args.size();++i){
                 const auto& parameter=sig.parameters[i];
                 const bool ffi_borrowed_buffer=external&&
-                    (parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bytes);
+                    (parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin);
                 std::string argument;
                 if(ffi_borrowed_buffer){
                     if(!n.args[i].writable_address)
@@ -2299,7 +2299,7 @@ struct FunctionEmitter {
                 }else{
                     argument=value(n.args[i].value);
                 }
-                if(ffi_borrowed_buffer&&parameter.type.kind==TypeKind::Bytes){
+                if(ffi_borrowed_buffer&&parameter.type.kind==TypeKind::Bin){
                     const auto length=temp("ffi.bin.length");
                     const auto data=temp("ffi.bin.data");
                     out<<"  "<<length<<" = call i64 @quidra_bin_byte_length(ptr "<<argument<<")\n";
@@ -2327,7 +2327,7 @@ struct FunctionEmitter {
                 if(i) out<<", ";
                 const auto& parameter=sig.parameters[i];
                 const bool ffi_borrowed_buffer=external&&
-                    (parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bytes);
+                    (parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin);
                 if(ffi_borrowed_buffer){
                     out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type)
                        <<" "<<call_values[i]<<", i64 "<<ffi_lengths[i];
@@ -2371,7 +2371,7 @@ struct FunctionEmitter {
             }else if(n.type.kind==TypeKind::Bool){
                 auto t=temp("print.bool");out<<"  "<<t<<" = select i1 "<<value(n.value)<<", ptr @.bool.true, ptr @.bool.false\n";
                 if(newline)out<<"  call i32 @puts(ptr "<<t<<")\n";else out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr "<<t<<")\n";
-            }else if(n.type.kind==TypeKind::Bytes){
+            }else if(n.type.kind==TypeKind::Bin){
                 auto text=temp("print.bin");
                 out<<"  "<<text<<" = call ptr @quidra_bin_string(ptr "<<value(n.value)<<")\n";
                 if(newline)out<<"  call i32 @puts(ptr "<<text<<")\n";
@@ -2438,7 +2438,7 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::Branch>)out<<"  br i1 "<<value(n.condition)<<", label %"<<n.if_true<<", label %"<<n.if_false<<"\n";
     },ins);}
 
-    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bytes)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<") {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";return out.str();}
+    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<") {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";return out.str();}
 };
 
 
@@ -2609,7 +2609,7 @@ std::string emit_clone_helper(const Type&t,const std::unordered_map<std::string,
      <<"  ret ptr %dst\n}\n\n";
     return o.str();
  }
- if(t.kind==TypeKind::Bytes){
+ if(t.kind==TypeKind::Bin){
     std::ostringstream o;
     o<<"define ptr "<<clone_name(t)<<"(ptr %src) {\nentry:\n"
      <<"  %dst = call ptr @quidra_bin_clone(ptr %src)\n"
@@ -2767,7 +2767,7 @@ std::string drop_callback_for(const Type& type,
     if (type.kind == TypeKind::Class && type.class_name == "$std.http.Response") {
         return "@quidra_http_response_drop";
     }
-    if (type.kind == TypeKind::Bytes || type.kind == TypeKind::Array ||
+    if (type.kind == TypeKind::Bin || type.kind == TypeKind::Array ||
         type.kind == TypeKind::Tensor || type.kind == TypeKind::Neural ||
         type.kind == TypeKind::Gradients || type.kind == TypeKind::Union ||
         (type.kind == TypeKind::Class && layouts.contains(type.class_name))) {
@@ -2782,7 +2782,7 @@ std::string emit_drop_helper(const Type& type,
     std::ostringstream out;
     out << "define void " << drop_name(type) << "(ptr %src) {\nentry:\n";
 
-    if (type.kind == TypeKind::Bytes) {
+    if (type.kind == TypeKind::Bin) {
         out << "  ret void\n}\n\n";
         return out.str();
     }
@@ -2891,11 +2891,11 @@ std::string emit_drop_helper(const Type& type,
 
 void collect_equality_type(const Type& t, std::map<std::string,Type>& types,
                            const std::unordered_map<std::string,ir::ClassLayout>& layouts) {
-    if (t.kind != TypeKind::Bytes && t.kind != TypeKind::Array && t.kind != TypeKind::Class) return;
+    if (t.kind != TypeKind::Bin && t.kind != TypeKind::Array && t.kind != TypeKind::Class) return;
     const auto id = type_id(t);
     if (types.contains(id)) return;
     types[id] = t;
-    if (t.kind == TypeKind::Bytes) return;
+    if (t.kind == TypeKind::Bin) return;
     if (t.kind == TypeKind::Array) {
         collect_equality_type(*t.first, types, layouts);
         return;
@@ -2911,7 +2911,7 @@ void collect_equality_types(const ir::Module& module, std::map<std::string,Type>
             for (const auto& instruction : block.instructions) {
                 if (const auto* binary = std::get_if<ir::Binary>(&instruction);
                     binary && (binary->op == "==" || binary->op == "!=") &&
-                    (binary->operand_type.kind == TypeKind::Bytes ||
+                    (binary->operand_type.kind == TypeKind::Bin ||
                      binary->operand_type.kind == TypeKind::Array ||
                      binary->operand_type.kind == TypeKind::Class)) {
                     collect_equality_type(binary->operand_type, types, layouts);
@@ -2933,7 +2933,7 @@ std::string equality_value_ir(const Type& type, const std::string& left,
     } else if (type.kind == TypeKind::String || type.kind == TypeKind::Error) {
         out << "  %" << id << ".cmp = call i32 @strcmp(ptr " << left << ", ptr " << right << ")\n"
             << "  %" << id << " = icmp eq i32 %" << id << ".cmp, 0\n";
-    } else if (type.kind == TypeKind::Bytes || type.kind == TypeKind::Array || type.kind == TypeKind::Class) {
+    } else if (type.kind == TypeKind::Bin || type.kind == TypeKind::Array || type.kind == TypeKind::Class) {
         out << "  %" << id << " = call i1 " << equality_name(type) << "(ptr "
             << left << ", ptr " << right << ")\n";
     }
@@ -2955,7 +2955,7 @@ std::string emit_equality_helper(
         << "  %any.null = or i1 %left.null, %right.null\n"
         << "  br i1 %any.null, label %different, label %compare\n";
 
-    if (type.kind == TypeKind::Bytes) {
+    if (type.kind == TypeKind::Bin) {
         out << "compare:\n"
             << "  %bin.equal = call i1 @quidra_bin_equal(ptr %left, ptr %right)\n"
             << "  br i1 %bin.equal, label %equal, label %different\n";
@@ -3088,9 +3088,9 @@ declare i64 @quidra_cli_parse_int(ptr)
 declare double @quidra_cli_parse_float(ptr)
 declare i1 @quidra_cli_parse_bool(ptr)
 declare ptr @quidra_file_read_raw(ptr)
-declare ptr @quidra_file_read_bytes_raw(ptr)
+declare ptr @quidra_file_read_bin_raw(ptr)
 declare i1 @quidra_file_write_raw(ptr, ptr)
-declare i1 @quidra_file_write_bytes_raw(ptr, ptr)
+declare i1 @quidra_file_write_bin_raw(ptr, ptr)
 declare i32 @quidra_file_exists_raw(ptr)
 declare i32 @quidra_file_is_directory_raw(ptr)
 declare i1 @quidra_file_remove_raw(ptr)

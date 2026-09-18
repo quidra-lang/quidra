@@ -26,7 +26,7 @@ enum class TypeKind {
     Float32,
     Bool,
     String,
-    Bytes,
+    Bin,
     Void,
     Never,
     Error,
@@ -128,7 +128,7 @@ inline std::string type_name(const Type& type) {
         case TypeKind::Float32: return "float32";
         case TypeKind::Bool: return "bool";
         case TypeKind::String: return "string";
-        case TypeKind::Bytes: return "bin";
+        case TypeKind::Bin: return "bin";
         case TypeKind::Void: return "void";
         case TypeKind::Never: return "never";
         case TypeKind::Error: return "error";
@@ -453,12 +453,12 @@ inline std::optional<Type> builtin_scalar_type(std::string_view name) {
     if (name == "float32") return Type::simple(TypeKind::Float32);
     if (name == "bool") return Type::simple(TypeKind::Bool);
     if (name == "string") return Type::simple(TypeKind::String);
-    if (name == "bin") return Type::simple(TypeKind::Bytes);
+    if (name == "bin") return Type::simple(TypeKind::Bin);
     return std::nullopt;
 }
 
 inline bool is_pointer_runtime_type(const Type& type) {
-    return type.kind == TypeKind::String || type.kind == TypeKind::Bytes ||
+    return type.kind == TypeKind::String || type.kind == TypeKind::Bin ||
            type.kind == TypeKind::Error || type.kind == TypeKind::Array ||
            type.kind == TypeKind::Tensor || type.kind == TypeKind::Neural ||
            type.kind == TypeKind::Gradients || type.kind == TypeKind::Union ||
@@ -478,7 +478,7 @@ inline ValueStoragePolicy value_storage_policy(const Type& type) {
     }
     if (type.kind == TypeKind::Array || type.kind == TypeKind::Tensor ||
         type.kind == TypeKind::Neural || type.kind == TypeKind::Gradients ||
-        type.kind == TypeKind::Bytes || type.kind == TypeKind::Class ||
+        type.kind == TypeKind::Bin || type.kind == TypeKind::Class ||
         type.kind == TypeKind::Union) {
         return ValueStoragePolicy::IndependentStorage;
     }

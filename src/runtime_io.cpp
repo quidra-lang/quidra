@@ -32,7 +32,7 @@ extern "C" char* quidra_file_read_raw(const char* path) {
     return copy_text(data);
 }
 
-extern "C" void* quidra_file_read_bytes_raw(const char* path) {
+extern "C" void* quidra_file_read_bin_raw(const char* path) {
     if (!path) return nullptr;
     std::ifstream in(path, std::ios::binary);
     if (!in) return nullptr;
@@ -58,10 +58,10 @@ extern "C" bool quidra_file_write_raw(const char* path,const char* text) {
     return static_cast<bool>(out);
 }
 
-extern "C" bool quidra_file_write_bytes_raw(const char* path,const void* bytes_raw) {
-    if(!path||!bytes_raw) return false;
+extern "C" bool quidra_file_write_bin_raw(const char* path,const void* bin_raw) {
+    if(!path||!bin_raw) return false;
     long long bit_count=0;
-    std::memcpy(&bit_count,bytes_raw,sizeof(bit_count));
+    std::memcpy(&bit_count,bin_raw,sizeof(bit_count));
     if(bit_count<0 || bit_count%8!=0) return false;
     const auto byte_count=static_cast<unsigned long long>(bit_count/8);
     const auto size=static_cast<std::size_t>(byte_count);
@@ -69,7 +69,7 @@ extern "C" bool quidra_file_write_bytes_raw(const char* path,const void* bytes_r
        size>static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max())) return false;
     std::ofstream out(path,std::ios::binary|std::ios::trunc);
     if(!out) return false;
-    if(size) out.write(static_cast<const char*>(bytes_raw)+8,static_cast<std::streamsize>(size));
+    if(size) out.write(static_cast<const char*>(bin_raw)+8,static_cast<std::streamsize>(size));
     out.close();
     return static_cast<bool>(out);
 }

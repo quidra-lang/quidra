@@ -5078,7 +5078,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 if (operator_policy::is_shift(node->op)) {
                     const auto count = constant_integer_value(*node->right);
                     if (count && (*count < 0 ||
-                                  static_cast<unsigned long long>(*count) >= integer_width(left))) {
+                                  *count >= static_cast<long long>(integer_width(left)))) {
                         error("SHIFT_COUNT",
                               "Shift count must be between zero and one less than the integer width.",
                               node->right->span);

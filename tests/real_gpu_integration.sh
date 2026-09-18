@@ -84,10 +84,41 @@ tensor<float32> view = view_source[0:2, 1:3]
 tensor<float32> dense = view.contiguous().cpu()
 print(dense.shape()[0] == 2 and dense.shape()[1] == 2)
 print(dense[1, 1].item() == float32(1))
+
+tensor<int8> ri8 = tensor.ones<int8>([2], gpu = $GPU_INDEX) + int8(2)
+tensor<int16> ri16 = tensor.ones<int16>([2], gpu = $GPU_INDEX) * int16(3)
+tensor<int32> ri32 = tensor.ones<int32>([2], gpu = $GPU_INDEX) - int32(4)
+tensor<int> ri64 = tensor.ones<int>([2], gpu = $GPU_INDEX) + 5
+tensor<uint8> ru8 = tensor.ones<uint8>([2], gpu = $GPU_INDEX) + uint8(6)
+tensor<uint16> ru16 = tensor.ones<uint16>([2], gpu = $GPU_INDEX) * uint16(7)
+tensor<uint32> ru32 = tensor.ones<uint32>([2], gpu = $GPU_INDEX) + uint32(8)
+tensor<uint64> ru64 = tensor.ones<uint64>([2], gpu = $GPU_INDEX) + uint64(9)
+print(ri8.cpu()[0].item() == int8(3))
+print(ri16.cpu()[0].item() == int16(3))
+print(ri32.cpu()[0].item() == int32(-3))
+print(ri64.cpu()[0].item() == 6)
+print(ru8.cpu()[0].item() == uint8(7))
+print(ru16.cpu()[0].item() == uint16(7))
+print(ru32.cpu()[0].item() == uint32(9))
+print(ru64.cpu()[0].item() == uint64(10))
+
+tensor<uint16> rcast = uint16(tensor.ones<int8>([2], gpu = $GPU_INDEX))
+print(rcast.cpu()[1].item() == uint16(1))
+tensor<int16> rdot_a = tensor.ones<int16>([3], gpu = $GPU_INDEX)
+tensor<int16> rdot_b = tensor.ones<int16>([3], gpu = $GPU_INDEX)
+print(linear.dot(rdot_a, rdot_b) == int16(3))
+tensor<int32> rmm_a = tensor.ones<int32>([2, 2], gpu = $GPU_INDEX)
+tensor<int32> rmm_b = tensor.ones<int32>([2, 2], gpu = $GPU_INDEX)
+tensor<int32> rmm_c = linear.matmul(rmm_a, rmm_b).cpu()
+print(rmm_c[1, 1].item() == int32(2))
+print(stats.sum(ru32) == uint32(18))
+print(stats.min(ri32) == int32(-3))
+print(stats.max(ru64) == uint64(10))
+print(stats.mean(ri16) == 3.0)
 QUI
 
 output="$("$QUIDRA" run "$TMP/real-gpu.qui")"
-expected="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue')"
+expected="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue')"
 if [[ "$output" != "$expected" ]]; then
     echo "real GPU numerical equivalence failed on gpu($GPU_INDEX)" >&2
     printf '%s\n' "$output" >&2

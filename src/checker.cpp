@@ -4186,13 +4186,16 @@ Type Checker::check_call_expr(const Expr& expression,
 
             std::function<std::optional<Type>(const Type&)> cast_result =
                 [&](const Type& current) -> std::optional<Type> {
+                    if (current.kind == TypeKind::Bytes) {
+                        return is_integer(*target) ? std::optional<Type>{*target} : std::nullopt;
+                    }
                     if (is_numeric(current)) {
                         if (!explicit_numeric_cast_supported(current, *target)) return std::nullopt;
                         return *target;
                     }
                     if (current.kind == TypeKind::Array && current.first) {
                         const auto child = cast_result(*current.first);
-                        if (!child) return std::nullopt;
+                        if (!child || current.first->kind == TypeKind::Bytes) return std::nullopt;
                         return Type::array(*child, current.length);
                     }
                     if (current.kind == TypeKind::Tensor && current.first &&
@@ -4251,40 +4254,85 @@ Type Checker::check_call_expr(const Expr& expression,
                 call_resolutions_[&expression] =
                     CallResolution{CallKind::NumericCast, name, std::nullopt, type};
             }
-        } else if (name == "bytes") {
-            call_resolutions_[&expression] =
-                CallResolution{CallKind::Constructor, "bytes", std::nullopt, simple(TypeKind::Bytes)};
-            if (node->args.size() > 2) {
-                error("ARGUMENT_MISMATCH", "bytes takes zero, one, or two arguments.", expression.span);
+        } else if (name == "bool") {
+            if (node->args.size() != 1 || node->args[0].writable || node->args[0].name) {
+                error("ARGUMENT_MISMATCH", "bool conversion requires one positional bin value.", expression.span);
             }
-            auto int_type = simple(TypeKind::Int);
-            auto byte_type = simple(TypeKind::UInt8);
+            auto source = check_expr(*node->args[0].value);
+            if (!poisoned(source) && source.kind != TypeKind::Bytes) {
+                error("TYPE_MISMATCH", "bool(value) accepts bin only.", expression.span);
+            }
+            type = poisoned(source) ? source : simple(TypeKind::Bool);
+            call_resolutions_[&expression] =
+                CallResolution{CallKind::NumericCast, name, std::nullopt, type};
+        } else if (name == "bin") {
             bool any_poison = false;
-            if (!node->args.empty()) {
-                if (node->args[0].writable || (node->args[0].name && *node->args[0].name != "n")) {
-                    error("ARGUMENT_MISMATCH", "bytes length must be positional or n = value.", node->args[0].span);
+            if (node->args.size() == 1 && !node->args[0].writable && !node->args[0].name) {
+                const auto source = check_expr(*node->args[0].value);
+                bool valid = is_integer(source) || source.kind == TypeKind::Bool;
+                if (source.kind == TypeKind::Array && source.first)
+                    valid = is_integer(*source.first) || source.first->kind == TypeKind::Bool;
+                if (!poisoned(source) && !valid) {
+                    error("TYPE_MISMATCH",
+                          "bin(value) accepts an integer, bool, or a flat integer/bool array.",
+                          node->args[0].span);
+                }
+                any_poison = poisoned(source);
+                call_resolutions_[&expression] =
+                    CallResolution{CallKind::Constructor, "bin.cast", std::nullopt,
+                                   simple(TypeKind::Bytes)};
+            } else if (node->args.size() == 2) {
+                auto int_type = simple(TypeKind::Int);
+                if (node->args[0].writable ||
+                    (node->args[0].name && *node->args[0].name != "n")) {
+                    error("ARGUMENT_MISMATCH",
+                          "bin length must be positional or n = value.", node->args[0].span);
                 }
                 any_poison |= poisoned(check_expr(*node->args[0].value, &int_type));
-                bool negative_length = false;
-                if (std::holds_alternative<IntegerExpr>(node->args[0].value->data)) {
-                    negative_length = false;
-                } else if (const auto* unary = std::get_if<UnaryExpr>(&node->args[0].value->data);
-                           unary && unary->op == "-") {
-                    if (const auto* literal = std::get_if<IntegerExpr>(&unary->operand->data)) {
-                        negative_length = literal->value > 0;
-                    }
+                if (node->args[1].writable || !node->args[1].name ||
+                    *node->args[1].name != "fill") {
+                    error("ARGUMENT_MISMATCH",
+                          "bin construction requires fill = 0 or fill = 1.",
+                          node->args[1].span);
                 }
-                if (negative_length) {
-                    error("ARGUMENT_MISMATCH", "bytes length cannot be negative.", node->args[0].span);
+                any_poison |= poisoned(check_expr(*node->args[1].value, &int_type));
+                if (const auto fill = constant_integer_value(*node->args[1].value);
+                    fill && *fill != 0 && *fill != 1) {
+                    error("ARGUMENT_MISMATCH", "bin fill must be 0 or 1.",
+                          node->args[1].span);
                 }
-            }
-            if (node->args.size() == 2) {
-                if (node->args[1].writable || !node->args[1].name || *node->args[1].name != "fill") {
-                    error("ARGUMENT_MISMATCH", "bytes second argument must be fill = value.", node->args[1].span);
-                }
-                any_poison |= poisoned(check_expr(*node->args[1].value, &byte_type));
+                call_resolutions_[&expression] =
+                    CallResolution{CallKind::Constructor, "bin.alloc", std::nullopt,
+                                   simple(TypeKind::Bytes)};
+            } else {
+                error("ARGUMENT_MISMATCH",
+                      "bin requires bin(value) or bin(n, fill = 0|1).", expression.span);
             }
             type = any_poison ? simple(TypeKind::Invalid) : simple(TypeKind::Bytes);
+        } else if (name == "string") {
+            if (node->args.size() != 2) {
+                error("ARGUMENT_MISMATCH",
+                      "string construction requires string(n, fill = value).", expression.span);
+            }
+            auto int_type = simple(TypeKind::Int);
+            auto string_type = simple(TypeKind::String);
+            bool any_poison = false;
+            if (node->args[0].writable ||
+                (node->args[0].name && *node->args[0].name != "n")) {
+                error("ARGUMENT_MISMATCH",
+                      "string length must be positional or n = value.", node->args[0].span);
+            }
+            any_poison |= poisoned(check_expr(*node->args[0].value, &int_type));
+            if (node->args[1].writable || !node->args[1].name ||
+                *node->args[1].name != "fill") {
+                error("ARGUMENT_MISMATCH",
+                      "string construction requires fill = value.", node->args[1].span);
+            }
+            any_poison |= poisoned(check_expr(*node->args[1].value, &string_type));
+            call_resolutions_[&expression] =
+                CallResolution{CallKind::Constructor, "string.repeat", std::nullopt,
+                               string_type};
+            type = any_poison ? simple(TypeKind::Invalid) : string_type;
         } else if (classes_.contains(name)) {
             call_resolutions_[&expression] =
                 CallResolution{CallKind::Constructor, name, std::nullopt, Type::class_type(name)};

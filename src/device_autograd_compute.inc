@@ -390,6 +390,48 @@ std::string ptx_affine_backward_source(int dtype, int target) {
     return out.str();
 }
 
+
+std::string hip_abs_backward_source(int dtype) {
+    const auto type=dtype==10?"float":"double";
+    return "extern \"C\" __global__ void q_kernel("+std::string(type)+
+      "* out,const "+type+"* grad,const "+type+"* input,unsigned long long count){"
+      "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;if(i>=count)return;"
+      +type+" x=input[i],g=grad[i];out[i]=x>("+type+")0?g:(x<("+type+")0?-g:("+type+")0);}";
+}
+std::string hip_mean_backward_source(int dtype) {
+    const auto type=dtype==10?"float":"double";
+    return "extern \"C\" __global__ void q_kernel("+std::string(type)+
+      "* out,const "+type+"* grad,unsigned long long count){"
+      "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+      "if(i<count)out[i]=grad[0]/("+type+")count;}";
+}
+std::string hip_max_last_backward_source(int dtype) {
+    const auto type=dtype==10?"float":"double";
+    return "extern \"C\" __global__ void q_kernel("+std::string(type)+
+      "* out,const "+type+"* grad,const "+type+"* input,unsigned long long count,unsigned long long width){"
+      "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;if(i>=count)return;"
+      "unsigned long long base=(i/width)*width,selected=0;"+type+" total=("+type+")0;"
+      "for(unsigned long long j=0;j<width;++j){total+=grad[base+j];if(j&&input[base+j]>input[base+selected])selected=j;}"
+      "out[i]=(i==base+selected)?total:("+type+")0;}";
+}
+std::string hip_affine_backward_source(int dtype,int target) {
+    const auto type=dtype==10?"float":"double";
+    std::ostringstream out;
+    out<<"extern \"C\" __global__ void q_kernel("<<type<<"* out,const "<<type
+       <<"* grad,const "<<type<<"* input,const "<<type
+       <<"* weight,unsigned long long count,unsigned long long batches,"
+         "unsigned long long fin,unsigned long long fout){"
+         "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;if(i>=count)return;";
+    if(target==1) out<<"unsigned long long b=i/fin,f=i%fin;"<<type<<" total=("<<type<<")0;"
+                       "for(unsigned long long o=0;o<fout;++o)total+=grad[b*fout+o]*weight[o*fin+f];out[i]=total;";
+    else if(target==2) out<<"unsigned long long o=i/fin,f=i%fin;"<<type<<" total=("<<type<<")0;"
+                            "for(unsigned long long b=0;b<batches;++b)total+=grad[b*fout+o]*input[b*fin+f];out[i]=total;";
+    else out<<"unsigned long long o=i;"<<type<<" total=("<<type<<")0;"
+              "for(unsigned long long b=0;b<batches;++b)total+=grad[b*fout+o];out[i]=total;";
+    out<<"}";
+    return out.str();
+}
+
 #ifdef __APPLE__
 
 std::string msl_abs_backward_source() {
@@ -490,6 +532,13 @@ bool compute_abs_backward(Buffer* output, const Buffer* gradient,
         void* args[]={&out_ptr,&g_ptr,&in_ptr,&n};
         return launch_ptx_1d(output,"neural-abs-backward-"+std::to_string(dtype),ptx,count,args,error);
     }
+    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+        auto source=hip_abs_backward_source(dtype);
+        auto out_ptr=output->pointer,g_ptr=gradient->pointer,in_ptr=input->pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&g_ptr,&in_ptr,&n};
+        return launch_hip_1d(output,"neural-abs-backward-"+std::to_string(dtype),source,count,args,error);
+    }
 #ifdef __APPLE__
     if(dtype==10&&output->backend==Backend::Metal){
         auto source=msl_abs_backward_source();
@@ -527,6 +576,13 @@ bool compute_mean_backward(Buffer* output, const Buffer* gradient_scalar,
         auto n=static_cast<std::uint64_t>(count);
         void* args[]={&out_ptr,&g_ptr,&n};
         return launch_ptx_1d(output,"neural-mean-backward-"+std::to_string(dtype),ptx,count,args,error);
+    }
+    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+        auto source=hip_mean_backward_source(dtype);
+        auto out_ptr=output->pointer,g_ptr=gradient_scalar->pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&g_ptr,&n};
+        return launch_hip_1d(output,"neural-mean-backward-"+std::to_string(dtype),source,count,args,error);
     }
 #ifdef __APPLE__
     if(dtype==10&&output->backend==Backend::Metal){
@@ -568,6 +624,13 @@ bool compute_max_last_backward(Buffer* output, const Buffer* gradient,
         auto n=static_cast<std::uint64_t>(count),w=static_cast<std::uint64_t>(width);
         void* args[]={&out_ptr,&g_ptr,&in_ptr,&n,&w};
         return launch_ptx_1d(output,"neural-max-last-backward-"+std::to_string(dtype),ptx,count,args,error);
+    }
+    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+        auto source=hip_max_last_backward_source(dtype);
+        auto out_ptr=output->pointer,g_ptr=gradient->pointer,in_ptr=input->pointer;
+        auto n=static_cast<std::uint64_t>(count),w=static_cast<std::uint64_t>(width);
+        void* args[]={&out_ptr,&g_ptr,&in_ptr,&n,&w};
+        return launch_hip_1d(output,"neural-max-last-backward-"+std::to_string(dtype),source,count,args,error);
     }
 #ifdef __APPLE__
     if(dtype==10&&output->backend==Backend::Metal){
@@ -634,6 +697,21 @@ bool compute_affine_backward(
         };
         return launch_target(input_gradient,1,input_count) &&
                launch_target(weight_gradient,2,weight_count) &&
+               launch_target(bias_gradient,3,features_out);
+    }
+    if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Amd){
+        auto launch_target=[&](Buffer* target,int kind,std::size_t target_count)->bool{
+            auto source=hip_affine_backward_source(dtype,kind);
+            auto out_ptr=target->pointer,g_ptr=gradient->pointer,in_ptr=input->pointer,w_ptr=weight->pointer;
+            auto count64=static_cast<std::uint64_t>(target_count),b64=static_cast<std::uint64_t>(batches),
+                 fin64=static_cast<std::uint64_t>(features_in),fout64=static_cast<std::uint64_t>(features_out);
+            void* args[]={&out_ptr,&g_ptr,&in_ptr,&w_ptr,&count64,&b64,&fin64,&fout64};
+            return launch_hip_1d(target,
+                "neural-affine-backward-"+std::to_string(dtype)+"-"+std::to_string(kind),
+                source,target_count,args,error);
+        };
+        return launch_target(input_gradient,1,input_count)&&
+               launch_target(weight_gradient,2,weight_count)&&
                launch_target(bias_gradient,3,features_out);
     }
 #ifdef __APPLE__

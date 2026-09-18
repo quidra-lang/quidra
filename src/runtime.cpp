@@ -3805,8 +3805,9 @@ extern "C" void* quidra_neural_tensor_unary(void* raw,int op,unsigned long long 
         tensor_storage_release(output);
         neural_fail(backend_error.c_str(),line,column);
     }
+    auto output_strides=tensor_contiguous_strides(output_shape);
     return tensor_descriptor(
-        output,std::move(output_shape),tensor_contiguous_strides(output_shape),0);
+        output,std::move(output_shape),std::move(output_strides),0);
 }
 template <typename T>
 void* neural_binary_t(

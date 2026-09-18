@@ -1498,6 +1498,36 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
 }
 
 
+void Checker::check_type_extent_expressions(const TypeName& source) {
+    const auto check_extent = [&](const std::shared_ptr<Expr>& expression) {
+        if (!expression) return;
+        const auto type = check_expr(*expression);
+        if (!poisoned(type) && !is_integer(type)) {
+            error("INVALID_TYPE",
+                  "Array/tensor extents require integer expressions.",
+                  expression->span);
+        }
+        if (const auto known =
+                constant_integer_value(*expression, &const_integer_values_);
+            known && *known < 0) {
+            error("INVALID_TYPE",
+                  "Array/tensor extents cannot be negative.",
+                  expression->span);
+        }
+    };
+
+    for (const auto& expression : source.dimension_expressions) {
+        check_extent(expression);
+    }
+    for (const auto& expression : source.tensor_shape_expressions) {
+        check_extent(expression);
+    }
+    for (const auto& argument : source.arguments) {
+        check_type_extent_expressions(argument);
+    }
+}
+
+
 Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value) {
     Type type = simple(TypeKind::Void);
     const auto* node = &node_value;
@@ -6023,6 +6053,14 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         current_return_ = signature.result;
         current_class_.clear();
         in_function_ = true;
+        try {
+            for (const auto& parameter : function.parameters) {
+                check_type_extent_expressions(parameter.type);
+            }
+            check_type_extent_expressions(function.return_type);
+        } catch (const CompileError& compile_error) {
+            record(compile_error);
+        }
         check_block(function.body);
         finalize_reference_effects(signature, !block_always_terminates(function.body));
         signature.return_initialized_fields =
@@ -6073,6 +6111,14 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             current_return_ = signature.result;
             current_class_ = class_decl.name;
             in_function_ = true;
+            try {
+                for (const auto& parameter : method.parameters) {
+                    check_type_extent_expressions(parameter.type);
+                }
+                check_type_extent_expressions(method.return_type);
+            } catch (const CompileError& compile_error) {
+                record(compile_error);
+            }
             check_block(method.body);
             finalize_receiver_effects(signature, !block_always_terminates(method.body));
             finalize_reference_effects(signature, !block_always_terminates(method.body));

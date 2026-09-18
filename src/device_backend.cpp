@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <cstring>
 #include <memory>
 #include <mutex>
@@ -258,6 +259,9 @@ struct BufferImpl {
     void* pointer{};
     std::uint64_t cuda_pointer{};
     void* cuda_context{};
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    std::vector<unsigned char> test_data;
+#endif
 #ifdef __APPLE__
     id<MTLBuffer> metal_buffer{nil};
 #endif
@@ -271,6 +275,23 @@ struct ModuleImpl {
 
 std::vector<Info> enumerate_devices() {
     std::vector<Info> result;
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    if (const char* configured = std::getenv("QUIDRA_TEST_FAKE_GPU_COUNT")) {
+        char* end = nullptr;
+        const long count = std::strtol(configured, &end, 10);
+        if (end == configured || (end && *end != '\0') || count < 0 || count > 16) {
+            return result;
+        }
+        for (long i = 0; i < count; ++i) {
+            result.push_back(Info{
+                static_cast<int>(result.size()), Backend::Test,
+                static_cast<int>(i),
+                "Quidra Fake GPU " + std::to_string(i),
+                "test-only", "host-backed test backend"});
+        }
+        return result;
+    }
+#endif
 #ifdef __APPLE__
     @autoreleasepool {
         NSArray<id<MTLDevice>>* metal_devices = MTLCopyAllDevices();
@@ -357,6 +378,9 @@ std::string backend_name(Backend backend) {
         case Backend::Nvidia: return "NVIDIA";
         case Backend::Amd: return "AMD";
         case Backend::Metal: return "Metal";
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+        case Backend::Test: return "TEST";
+#endif
     }
     return "unknown";
 }
@@ -373,6 +397,18 @@ Buffer* allocate(int index, std::size_t bytes, std::string& error) {
     buffer->backend_index = info->backend_index;
     buffer->bytes = bytes;
     const auto physical_bytes = std::max<std::size_t>(bytes, 1);
+
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    if (info->backend == Backend::Test) {
+        try {
+            buffer->test_data.resize(physical_bytes);
+        } catch (...) {
+            error = "test GPU memory allocation failed";
+            return nullptr;
+        }
+        return buffer.release();
+    }
+#endif
 
     if (info->backend == Backend::Nvidia) {
         auto& api = cuda();
@@ -461,6 +497,12 @@ bool copy_from_host(Buffer* raw, std::size_t offset, const void* source,
         return false;
     }
     if (bytes == 0) return true;
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    if (raw->backend == Backend::Test) {
+        std::memcpy(raw->test_data.data() + offset, source, bytes);
+        return true;
+    }
+#endif
     if (raw->backend == Backend::Nvidia) {
         auto& api = cuda();
         CudaApi::CUcontext context = nullptr;
@@ -499,6 +541,12 @@ bool copy_to_host(const Buffer* raw, std::size_t offset, void* destination,
         return false;
     }
     if (bytes == 0) return true;
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    if (raw->backend == Backend::Test) {
+        std::memcpy(destination, raw->test_data.data() + offset, bytes);
+        return true;
+    }
+#endif
     if (raw->backend == Backend::Nvidia) {
         auto& api = cuda();
         CudaApi::CUcontext context = nullptr;
@@ -548,6 +596,14 @@ bool copy_device_to_device(
         error = "direct GPU device copy requires the same gpu(n); cross-device transfers are staged explicitly";
         return false;
     }
+
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    if (destination->backend == Backend::Test) {
+        std::memmove(destination->test_data.data() + destination_offset,
+                     source->test_data.data() + source_offset, bytes);
+        return true;
+    }
+#endif
 
     if (destination->backend == Backend::Nvidia) {
         auto& api = cuda();
@@ -599,6 +655,12 @@ bool zero(Buffer* raw, std::size_t offset, std::size_t bytes,
         return false;
     }
     if (bytes == 0) return true;
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    if (raw->backend == Backend::Test) {
+        std::memset(raw->test_data.data() + offset, 0, bytes);
+        return true;
+    }
+#endif
     if (raw->backend == Backend::Nvidia) {
         auto& api = cuda();
         CudaApi::CUcontext context = nullptr;

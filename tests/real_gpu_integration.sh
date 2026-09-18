@@ -125,4 +125,46 @@ if [[ "$output" != "$expected" ]]; then
     exit 1
 fi
 
+if grep -Fq "backend: Metal" <<<"$gpu_info"; then
+    cat > "$TMP/metal-float64.qui" <<QUI
+tensor<float> value = tensor.ones<float>([2], gpu = $GPU_INDEX)
+tensor<float> invalid = value + value
+print(invalid[0].item())
+QUI
+    set +e
+    "$QUIDRA" run "$TMP/metal-float64.qui" >"$TMP/metal-float64.out" 2>"$TMP/metal-float64.err"
+    float64_status=$?
+    set -e
+    if [[ $float64_status -ne 101 ]]; then
+        echo "Metal float64 arithmetic should fail explicitly, got status $float64_status" >&2
+        cat "$TMP/metal-float64.out" >&2 || true
+        cat "$TMP/metal-float64.err" >&2 || true
+        exit 1
+    fi
+    if ! grep -Fq "not supported on Metal" "$TMP/metal-float64.err"; then
+        echo "missing explicit Metal float64 unsupported diagnostic" >&2
+        cat "$TMP/metal-float64.err" >&2
+        exit 1
+    fi
+else
+    cat > "$TMP/float64-real-gpu.qui" <<QUI
+tensor<float> a = tensor.ones<float>([2], gpu = $GPU_INDEX)
+tensor<float> b = tensor.ones<float>([2], gpu = $GPU_INDEX) * 3.0
+tensor<float> c = (a + b) / 2.0
+print(c.cpu()[0].item() == 2.0)
+print(stats.sum(b) == 6.0)
+tensor<float> left = tensor.ones<float>([2, 2], gpu = $GPU_INDEX)
+tensor<float> right = tensor.ones<float>([2, 2], gpu = $GPU_INDEX)
+tensor<float> product = linear.matmul(left, right).cpu()
+print(product[1, 1].item() == 2.0)
+QUI
+    float64_output="$("$QUIDRA" run "$TMP/float64-real-gpu.qui")"
+    float64_expected="$(printf 'true\ntrue\ntrue')"
+    if [[ "$float64_output" != "$float64_expected" ]]; then
+        echo "real GPU float64 equivalence failed on gpu($GPU_INDEX)" >&2
+        printf '%s\n' "$float64_output" >&2
+        exit 1
+    fi
+fi
+
 echo "real GPU integration: ok on gpu($GPU_INDEX)"

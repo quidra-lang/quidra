@@ -742,7 +742,9 @@ string small_text = small.string()
 string flag_text = true.string()
 int | error parsed = int.parse("123")
 float32 | error parsed_float = float32.parse("1.5")
-bin allocated = bin.fill(8, 0)\nstring repeated = string.repeat("a", 3)\nbin data = bin.parse("0000000111111110")
+bin allocated = bin.fill(8, 0)
+string repeated = string.repeat("a", 3)
+bin data = bin.parse("0000000111111110")
 bin first = data[0]
 bin slice = data[0:8]
 uint8[] decoded = uint8[](data)

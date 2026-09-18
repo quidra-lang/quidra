@@ -1362,69 +1362,46 @@ print(value.missing<int>(1))
 )", "UNKNOWN_GENERIC_METHOD");
  bad_code("int[] values = [1]\nvalues.missing<int>()\n", "GENERIC_RECEIVER");
 
- // Static tensor rank is an optional compile-time contract. Runtime tensor ABI is unchanged.
- good(R"(tensor<float32, 2> matrix = tensor.zeros<float32>([2, 3])
-tensor<float32> erased = matrix
+ // Tensor suffix dimensions constrain leading shape axes; rank is inferred internally.
+ good(R"(tensor<float32, 2, 3> matrix = tensor.zeros<float32>([2, 3])
 int[2] dimensions = matrix.shape()
-auto inferred_dimensions = matrix.shape()
-int[2] preserved_dimensions = inferred_dimensions
-int[] dynamic_dimensions = erased.shape()
-tensor<float32, 1> row = matrix[0]
-tensor<float32, 1> column = matrix[:, 0]
-tensor<float32, 0> cell = matrix[0, 0]
+tensor<float32> erased = matrix
+int[2] inferred_dimensions = erased.shape()
+tensor<float32, 3> row = matrix[0]
+tensor<float32, 2> column = matrix[:, 0]
+tensor<float32> cell = matrix[0, 0]
 float32 value = cell.item()
-tensor<float32, 1> reshaped = matrix.reshape([6])
-tensor<float32, 2> contiguous = matrix.contiguous()
-tensor<float, 2> converted = matrix.cast<float>()
-tensor<float32, 2> product = linear.matmul(matrix, tensor.ones<float32>([3, 2]))
+tensor<float32, 6> reshaped = matrix.reshape([6])
+tensor<float32, 2, 3> contiguous = matrix.contiguous()
+tensor<float, 2, 3> converted = matrix.cast<float>()
+tensor<float32> product = linear.matmul(matrix, tensor.ones<float32>([3, 2]))
 float32 dot = linear.dot(reshaped, tensor.ones<float32>([6]))
-void consume(tensor<float32> value)
-    auto shape = value.shape()
-consume(matrix)
 )");
- good(R"(tensor<T> erase_rank<T>(tensor<T> value)
+ good(R"(tensor<T, 3> first_three<T>(tensor<T, 3> value)
     return value
-tensor<T, 2> keep_rank<T>(tensor<T, 2> value)
-    return value
-tensor<float32, 2> source = tensor.ones<float32>([2, 2])
-tensor<float32> erased = erase_rank(source)
-tensor<float32, 2> kept = keep_rank(source)
+tensor<float32> source = tensor.ones<float32>([3, 2])
+tensor<float32, 3> constrained = first_three(source)
 )");
  good(R"(tensor<float32> | error direct = tensor.zeros<float32>([2, 2])
-tensor<float32, 2> | error ranked = tensor.ones<float32>([2, 2])
-tensor<float32> | error widened = ranked
+tensor<float32, 2> | error constrained = tensor.ones<float32>([2, 2])
+tensor<float32> | error widened = constrained
 match widened
     tensor<float32> pixels
-        int[] dimensions = pixels.shape()
-        print(dimensions[0])
-    error problem
-        print(problem)
-)");
- good(R"(tensor<float32, 3> | error loaded = tensor.ones<float32>([1, 2, 3])
-match loaded
-    tensor<float32> pixels
-        tensor<float32, 2> plane = pixels[0]
-        print(plane.shape()[0])
-    error problem
-        print(problem)
-)");
- bad_code(R"(tensor<float32, 2> | tensor<float32, 3> value = tensor.ones<float32>([2, 2])
-match value
-    tensor<float32> pixels
         print(pixels.shape()[0])
-    tensor<float32, 3> cube
-        print(cube.shape()[0])
-)", "MATCH_CASE");
+    error problem
+        print(problem)
+)");
  bad_code("tensor<float32, 3> wrong = tensor.zeros<float32>([2, 2])\n", "TYPE_MISMATCH");
- bad_code("tensor<float32, 2> value = tensor.zeros<float32>([2, 2])\nint[3] wrong_shape = value.shape()\n", "TYPE_MISMATCH");
+ bad_code("tensor<float32, 2, 4> wrong = tensor.zeros<float32>([2, 3])\n", "TYPE_MISMATCH");
+ bad_code("tensor<float32, 2, 3> value = tensor.ones<float32>([2, 3])\nint[3] wrong_shape = value.shape()\n", "TYPE_MISMATCH");
  bad_code(R"(tensor<float32> erase(tensor<float32> value)
     return value
 tensor<float32, 2> known = erase(tensor.zeros<float32>([2, 2]))
 )", "TYPE_MISMATCH");
- bad_code("tensor<float32, 1> value = tensor.ones<float32>([1])\nfloat32 scalar = value.item()\n", "TYPE_MISMATCH");
- bad_code("tensor<float32, 2> value = tensor.ones<float32>([2, 2])\nauto bad = value[0, 0, 0]\n", "INDEX_ARITY");
- bad_code("tensor<float32, 2> value = tensor.ones<float32>([2, 2])\nfloat32 bad = linear.dot(value, value)\n", "TYPE_MISMATCH");
- bad_code("tensor<float32, 1> value = tensor.ones<float32>([2])\nauto bad = linear.matmul(value, value)\n", "TYPE_MISMATCH");
+ bad_code("tensor<float32> value = tensor.ones<float32>([1])\nfloat32 scalar = value.item()\n", "TYPE_MISMATCH");
+ bad_code("tensor<float32, 2, 2> value = tensor.ones<float32>([2, 2])\nauto bad = value[0, 0, 0]\n", "INDEX_ARITY");
+ bad_code("tensor<float32> value = tensor.ones<float32>([2, 2])\nfloat32 bad = linear.dot(value, value)\n", "TYPE_MISMATCH");
+ bad_code("tensor<float32> value = tensor.ones<float32>([2])\nauto bad = linear.matmul(value, value)\n", "TYPE_MISMATCH");
  bad_code("tensor<uint8, 2> value = tensor.zeros<uint8>([2, 2])\nauto result = image.write(home, value)\n", "TYPE_MISMATCH");
 
  std::string deep = "print(";

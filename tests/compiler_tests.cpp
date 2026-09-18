@@ -1404,6 +1404,42 @@ tensor<float32, 2> known = erase(tensor.zeros<float32>([2, 2]))
  bad_code("tensor<float32> value = tensor.ones<float32>([2])\nauto bad = linear.matmul(value, value)\n", "TYPE_MISMATCH");
  bad_code("tensor<uint8, 2> value = tensor.zeros<uint8>([2, 2])\nauto result = image.write(home, value)\n", "TYPE_MISMATCH");
 
+ // Tensor flow facts must weaken at control-flow joins when paths disagree.
+ bad_code(R"(void branch_shape(bool flag)
+    tensor<float32> value = tensor.zeros<float32>([3, 4])
+    if flag
+        value = tensor.zeros<float32>([3, 5])
+    tensor<float32, 3, 4> exact = value
+)", "TYPE_MISMATCH");
+ bad_code(R"(void branch_rank(bool flag)
+    tensor<float32> value = tensor.zeros<float32>([2, 2])
+    if flag
+        value = tensor.zeros<float32>([2, 2, 2])
+    int[2] dimensions = value.shape()
+)", "TYPE_MISMATCH");
+ bad_code(R"(void while_rank(bool flag)
+    tensor<float32> value = tensor.zeros<float32>([2, 2])
+    while flag
+        value = tensor.zeros<float32>([2, 2, 2])
+        flag = false
+    int[2] dimensions = value.shape()
+)", "TYPE_MISMATCH");
+ bad_code(R"(void for_rank(int[] items)
+    tensor<float32> value = tensor.zeros<float32>([2, 2])
+    for item in items
+        value = tensor.zeros<float32>([2, 2, 2])
+    int[2] dimensions = value.shape()
+)", "TYPE_MISMATCH");
+ bad_code(R"(void match_rank(int | string choice)
+    tensor<float32> value = tensor.zeros<float32>([2, 2])
+    match choice
+        int
+            value = tensor.zeros<float32>([2, 2, 2])
+        string
+            value = tensor.zeros<float32>([2, 2])
+    int[2] dimensions = value.shape()
+)", "TYPE_MISMATCH");
+
  std::string deep = "print(";
  deep.append(5000, '(');
  deep += "1";

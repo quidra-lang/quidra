@@ -148,6 +148,52 @@ ReferenceTargetJoin join_reference_targets(
     return result;
 }
 
+Type merge_tensor_flow_facts(
+    const Type& base, const std::vector<Type>& continuing) {
+    if (base.kind != TypeKind::Tensor || continuing.empty()) return base;
+
+    auto merged = base;
+    merged.length = continuing.front().kind == TypeKind::Tensor
+        ? continuing.front().length
+        : -1;
+    for (const auto& state : continuing) {
+        if (state.kind != TypeKind::Tensor || state.length != merged.length) {
+            merged.length = -1;
+            break;
+        }
+    }
+
+    merged.tensor_known_shape_prefix.clear();
+    for (std::size_t axis = 0;; ++axis) {
+        if (merged.length >= 0 &&
+            axis >= static_cast<std::size_t>(merged.length)) {
+            break;
+        }
+        std::optional<long long> extent;
+        bool known_on_every_path = true;
+        for (const auto& state : continuing) {
+            if (state.kind != TypeKind::Tensor) {
+                known_on_every_path = false;
+                break;
+            }
+            const auto current = tensor_known_extent(state, axis);
+            if (!current) {
+                known_on_every_path = false;
+                break;
+            }
+            if (!extent) {
+                extent = current;
+            } else if (*extent != *current) {
+                known_on_every_path = false;
+                break;
+            }
+        }
+        if (!known_on_every_path) break;
+        merged.tensor_known_shape_prefix.push_back(*extent);
+    }
+    return merged;
+}
+
 void collect_rebound_references(
     const std::vector<StmtPtr>& body, std::unordered_set<std::string>& names) {
     for (const auto& statement : body) {
@@ -4521,6 +4567,7 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         auto before_reference_effects = current_reference_effects_;
 
         check_block(node.then_body);
+        auto yes_variables = variables_;
         auto yes = initialized_;
         auto yes_paths = class_initialized_paths_;
         auto yes_method = current_receiver_effect_.initializes;
@@ -4542,6 +4589,7 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         current_receiver_effect_.invalidates = before_method_invalidated;
         current_reference_effects_ = before_reference_effects;
         check_block(node.else_body);
+        auto no_variables = variables_;
         auto no = initialized_;
         auto no_paths = class_initialized_paths_;
         auto no_method = current_receiver_effect_.initializes;
@@ -4562,7 +4610,24 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         current_receiver_effect_.writes = before_method_written;
         current_receiver_effect_.invalidates = before_method_invalidated;
         current_reference_effects_ = before_reference_effects;
-        for (const auto& [name, _] : variables) {
+        for (const auto& [name, base_type] : variables) {
+            if (base_type.kind == TypeKind::Tensor) {
+                std::vector<Type> continuing_types;
+                if (!yes_terminates) {
+                    if (const auto it = yes_variables.find(name); it != yes_variables.end()) {
+                        continuing_types.push_back(it->second);
+                    }
+                }
+                if (!no_terminates) {
+                    if (const auto it = no_variables.find(name); it != no_variables.end()) {
+                        continuing_types.push_back(it->second);
+                    }
+                }
+                if (!continuing_types.empty()) {
+                    variables_[name] =
+                        merge_tensor_flow_facts(base_type, continuing_types);
+                }
+            }
             if ((yes_terminates || yes.contains(name)) && (no_terminates || no.contains(name))) {
                 initialized_.insert(name);
             } else if (reference_paths.contains(name)) {
@@ -4639,6 +4704,7 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         ++loop_depth_;
         check_block(node.body);
         --loop_depth_;
+        auto body_variables = variables_;
         auto body_written = current_receiver_effect_.writes;
         auto body_invalidated = current_receiver_effect_.invalidates;
         variables_ = variables;
@@ -4648,6 +4714,13 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         const_bindings_ = const_bindings;
         initialized_ = initialized;
         class_initialized_paths_ = paths;
+        for (const auto& [name, base_type] : variables) {
+            if (base_type.kind != TypeKind::Tensor) continue;
+            const auto it = body_variables.find(name);
+            if (it == body_variables.end()) continue;
+            variables_[name] =
+                merge_tensor_flow_facts(base_type, {base_type, it->second});
+        }
         current_receiver_effect_.initializes = method_initialized;
         current_receiver_effect_.writes = method_written;
         current_receiver_effect_.writes.insert(body_written.begin(), body_written.end());
@@ -4725,6 +4798,13 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         const_bindings_ = const_bindings;
         initialized_ = initialized;
         class_initialized_paths_ = class_paths;
+        for (const auto& [name, base_type] : variables) {
+            if (base_type.kind != TypeKind::Tensor) continue;
+            const auto it = body_variables.find(name);
+            if (it == body_variables.end()) continue;
+            variables_[name] =
+                merge_tensor_flow_facts(base_type, {base_type, it->second});
+        }
         current_receiver_effect_.initializes = method_initialized;
         current_receiver_effect_.writes = method_written;
         current_receiver_effect_.writes.insert(body_written.begin(), body_written.end());
@@ -4764,6 +4844,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
     auto reference_before = current_reference_effects_;
     auto narrowed = narrowed_;
     std::unordered_set<int> seen;
+    std::vector<std::unordered_map<std::string, Type>> continuing_variables;
     std::vector<std::unordered_set<std::string>> continuing_initialized;
     std::vector<std::unordered_map<std::string, std::unordered_set<std::string>>>
         continuing_class_paths;
@@ -4853,6 +4934,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
         }
 
         if (!block_always_terminates(match_case.body)) {
+            continuing_variables.push_back(variables_);
             continuing_initialized.push_back(initialized_);
             continuing_class_paths.push_back(class_initialized_paths_);
             continuing_receiver_initialized.push_back(current_receiver_effect_.initializes);
@@ -4877,6 +4959,19 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
 
     if (!continuing_initialized.empty()) {
         for (const auto& [name, variable_type] : variables) {
+            if (variable_type.kind == TypeKind::Tensor) {
+                std::vector<Type> continuing_types;
+                continuing_types.reserve(continuing_variables.size());
+                for (const auto& state : continuing_variables) {
+                    if (const auto it = state.find(name); it != state.end()) {
+                        continuing_types.push_back(it->second);
+                    }
+                }
+                if (!continuing_types.empty()) {
+                    variables_[name] =
+                        merge_tensor_flow_facts(variable_type, continuing_types);
+                }
+            }
             if (std::all_of(continuing_initialized.begin(), continuing_initialized.end(),
                             [&](const auto& state) { return state.contains(name); })) {
                 initialized_.insert(name);

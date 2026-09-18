@@ -8,7 +8,7 @@ Blocks use four spaces per indentation level; tabs are invalid as indentation. A
 
 ## Types
 
-Numeric built-ins are `int8`, `int16`, `int32`, `int`/`int64`, `uint8`, `uint16`, `uint32`, `uint64`, `float32`, and `float`/`float64`. `int` and `int64` are the same signed 64-bit type; `float` and `float64` are the same IEEE-754 binary64 type; `float32` is IEEE-754 binary32. Integer literal magnitudes are accepted through the full `uint64` range; magnitudes above signed `int` maximum require an explicit `uint64` context. `bool`, `string`, `bytes`, and `error` hold booleans, immutable text, mutable raw binary data, and error information. There is no `char`: text uses `string`, a one-byte numeric value uses `uint8`, and byte sequences use `bytes`. `void` denotes normal completion without data, and `never` denotes no normal continuation. `auto` requests inference for a binding with an initializer.
+Numeric built-ins are `int8`, `int16`, `int32`, `int`/`int64`, `uint8`, `uint16`, `uint32`, `uint64`, `float32`, and `float`/`float64`. `int` and `int64` are the same signed 64-bit type; `float` and `float64` are the same IEEE-754 binary64 type; `float32` is IEEE-754 binary32. Integer literal magnitudes are accepted through the full `uint64` range; magnitudes above signed `int` maximum require an explicit `uint64` context. `bool`, `string`, `bin`, and `error` hold booleans, immutable text, packed raw binary data, and error information. There is no `char`: text uses `string`, a one-byte numeric value uses `uint8`, and arbitrary raw bit sequences use `bin`. `void` denotes normal completion without data, and `never` denotes no normal continuation. `auto` requests inference for a binding with an initializer.
 
 `T | U` is an untagged surface description of a runtime tagged union: exactly one alternative is active. Union types flatten nested alternatives, remove duplicates, and have deterministic canonical representation independent of spelling order. A union with one distinct member is that member. Values and smaller unions can flow to compatible larger unions without wrapper calls; the runtime discriminator is adjusted to the destination type.
 
@@ -44,25 +44,27 @@ A fixed declaration such as `int[10] values` allocates its fixed storage immedia
 
 `[]` requires enough contextual element-type information. An `auto` binding initialized directly from an array literal infers runtime-sized `T[]`, preserving the normal appendable-array behavior. When `auto` receives an array-valued expression whose static type is already fixed, such as `.shape()` on a tensor whose rank is compiler-known, that fixed dimension is preserved rather than erased. A trailing comma does not add an element. Indexing requires `int`, starts at zero, and checks bounds. Assignment to an element does not append or resize an array. `len(array)` returns the runtime length as `int`.
 
-## Bytes
+## Bin
 
-`bytes` is a mutable binary value with compact contiguous `uint8` elements.
+`bin` is a mutable packed raw bit sequence. It is not an array type and has no separate `bit`, `byte`, or `bytes` element type.
 
 ```quidra
-bytes empty = bytes()
-bytes zeros = bytes(4)
-bytes data = bytes(4, fill = 7)
+bin zeros = bin(8, fill = 0)
+bin ones = bin(5, fill = 1)
+bin pattern = bin.parse("01010000")
 
-data[0] = 255
-uint8 first = data[0]
-uint8 &second = &data[1]
-second = 9
+pattern[0] = bin.parse("1")
+bin first = pattern[0]
+bin nibble = pattern[0:4]
 ```
 
-`bytes(n)` uses zero fill; `bytes(n, fill = value)` requires a `uint8`-compatible fill value. Length is an `int`, zero is valid, and negative or invalid allocation sizes are rejected. `len(data)` returns the byte count. Indexing checks bounds and yields `uint8`. Value iteration and writable iteration are supported.
+`bin(n, fill = 0|1)` allocates exactly `n` bits. Length zero is valid. Negative lengths, invalid allocation sizes, and fill values other than 0 or 1 are rejected. `len(value)` returns the bit count. Indexing is zero-based and returns a one-bit `bin`; slicing uses a half-open bit range and returns `bin`. `print(bin)` and `bin.string()` expose the exact 0/1 sequence.
 
-Ordinary bytes assignment has independent value semantics. A later write to one copy cannot change another copy. The implementation may share backing storage or use copy-on-write only when that sharing cannot be observed. An explicit `&` reference is the mechanism that intentionally exposes shared writable storage. The same general rule permits unobservable copy elision or storage sharing for other value types. `string` is immutable, so its backing text may be shared without detachment.
+Written bit patterns use parsing rather than a separate literal grammar. `bin.parse(text)` accepts only `0` and `1`. A statically known valid string is accepted directly as `bin`; a runtime string produces `bin | error`.
 
+Conversions between `bin` and other concrete types are always explicit. `bin(integer)` preserves the integer type's fixed-width bit representation, and `intN(bin)` / `uintN(bin)` require the bit length to equal the destination width exactly. `bin(bool)` produces one bit and `bool(bin)` requires exactly one bit. Flat integer/bool arrays convert explicitly with `bin(values)`; the reverse uses `T[](bits)` and requires the bit length to be exactly divisible by the element width. No conversion pads, truncates, wraps, or silently changes bit count.
+
+Ordinary `bin` assignment has independent value semantics. A later write to one copy cannot change another copy. The implementation stores the sequence packed into bytes internally, but storage packing is not a source-level element model.
 
 
 ## Bindings and definite initialization
@@ -104,7 +106,7 @@ When a function or method returns a class value, the checker records the field p
 
 ## Text and dynamic array operations
 
-`string` is immutable UTF-8 text. `len(text)` counts Unicode code points rather than UTF-8 bytes. `text[index]` returns a one-code-point `string`, using the same code-point indexing model and deterministic bounds failure as other indexed values. `text.find(needle)` returns the code-point index or `none`; `text.slice(start, end)` uses a half-open code-point range and rejects invalid bounds at runtime. `trim()` removes Unicode whitespace at both ends. `split(separator)` preserves empty fields and requires a nonempty separator. `contains`, `starts_with`, and `ends_with` perform exact text matching. `text.utf8()` explicitly returns the UTF-8 encoding as `bytes`; `text.codepoints()` explicitly returns Unicode scalar values as `int[]`. These conversions keep byte-oriented and text-oriented operations distinct rather than introducing a `char` type.
+`string` is immutable UTF-8 text. `len(text)` counts Unicode code points rather than UTF-8 bytes. `text[index]` returns a one-code-point `string`, using the same code-point indexing model and deterministic bounds failure as other indexed values. `text.find(needle)` returns the code-point index or `none`; `text.slice(start, end)` uses a half-open code-point range and rejects invalid bounds at runtime. `trim()` removes Unicode whitespace at both ends. `split(separator)` preserves empty fields and requires a nonempty separator. `contains`, `starts_with`, and `ends_with` perform exact text matching. `text.utf8()` explicitly returns the UTF-8 encoding as `bin`; `text.codepoints()` explicitly returns Unicode scalar values as `int[]`. These conversions keep byte-oriented and text-oriented operations distinct rather than introducing a `char` type.
 
 Runtime-sized `T[]` arrays support `append(value) -> T[]` and `concat(other) -> T[]`. Numeric, `bool`, and `string` arrays of either fixed or runtime size support `sorted() -> T[]`; sorting is non-mutating and returns an independent runtime-sized value. Floating-point sorting places finite/non-NaN values in numeric order, preserves equal-value order, orders `-0.0` before `0.0`, and places NaNs last. String sorting uses deterministic Unicode-code-point-compatible UTF-8 lexical order. Any string array additionally supports `join(separator) -> string`, which constructs the result in one operation. Repeated `text = text + piece` is linear overall rather than quadratic: `string` is an immutable value, so when the assignment target is the sole owner of its storage the implementation may append into that storage with geometric growth, and neither the reuse nor the spare capacity is observable. `append`, `concat`, and `sorted` return new array values. They do not resize the receiver's backing storage in place, so an existing safe address such as `&values[i]` is never invalidated by the operation itself. A later implementation may use capacity, moves, or copy-on-write internally only when that optimization is unobservable.
 
@@ -381,7 +383,7 @@ for &value in values
 
 `range(stop)` starts at zero. `range(start, stop)` defaults to step one. `range(start, stop, step)` accepts positive or negative nonzero steps and excludes the stop. `step = expression` names the third argument. A range is an iteration construct, not a storable value.
 
-`for value in values` iterates an array or `bytes` by value. `for &value in values` writes through to the original element. A `bytes` iteration variable has type `uint8`. A writable iterable must designate initialized storage. Writes may not invalidate the active iteration's storage or shape.
+`for value in values` iterates an array or `bin` by value. `for &value in values` writes through to the original element. A `bin` iteration variable has type `bin`, with each value containing exactly one bit. A writable iterable must designate initialized storage. Writes may not invalidate the active iteration's storage or shape.
 
 ## Error propagation and match
 
@@ -424,7 +426,7 @@ Numeric types expose `Type.parse(text) -> T | error`. Scalar values expose `.str
 
 `print(value)` writes a scalar followed by a newline; `write(value)` writes without adding a newline. `input()` returns `string | none | error`: a valid UTF-8 line without embedded NUL produces a string with the trailing LF removed, EOF produces `none`, and an input or text-validation failure produces `error`. Runtime `string` values are always valid UTF-8 text and cannot contain embedded NUL; raw bytes belong in `bytes`.
 
-Integer division or remainder whose divisor is statically known to be zero is a compile-time error. Otherwise integer overflow at every integer width, dynamically determined integer division/remainder by zero, array and bytes bounds failures, invalid allocation sizes, out-of-range explicit integer casts, zero range steps, and exceeding the native call-depth safety limit are deterministic runtime errors with exit status 101. The call-depth guard fails before host stack exhaustion rather than allowing a segmentation fault. Floating-point exceptional values follow the corresponding IEEE-754 binary32 or binary64 behavior. Text formatting is canonical: NaN is `nan`, positive infinity is `inf`, and negative infinity is `-inf`.
+Integer division or remainder whose divisor is statically known to be zero is a compile-time error. Otherwise integer overflow at every integer width, dynamically determined integer division/remainder by zero, array and bin bounds failures, invalid allocation sizes, out-of-range explicit integer casts, zero range steps, and exceeding the native call-depth safety limit are deterministic runtime errors with exit status 101. The call-depth guard fails before host stack exhaustion rather than allowing a segmentation fault. Floating-point exceptional values follow the corresponding IEEE-754 binary32 or binary64 behavior. Text formatting is canonical: NaN is `nan`, positive infinity is `inf`, and negative infinity is `-inf`.
 
 Float text uses the shortest decimal representation that round-trips to the same binary floating-point value. If that shortest representation would look integral, at least one fractional digit is retained, so `0.6` stays `0.6`, `1.0 / 3.0` is `0.3333333333333333`, and `4.0` remains `4.0`. The same canonical form is used by print, write, interpolation, REPL display, and `.string()`. Fractional literals continue to require a leading zero; `.5` is invalid and `0.5` is the canonical form.
 
@@ -505,7 +507,7 @@ Explicit numeric casts use the destination scalar type as the operation: `float(
 
 ## Implementation scope
 
-The native core supports fixed-width numeric types, no implicit representation-changing numeric conversion, and practical explicit casts, numeric parsing and scalar text conversion, compact mutable bytes, initialized/uninitialized arrays, first-class dense tensors, tensor statistics and vector/matrix multiplication, PNG/JPEG/BMP/TIFF/WebP image I/O through `image`, console I/O, automatic standard namespaces, explicit package/local-module resolution, monomorphized generics with unambiguous function/method inference, user-defined classes, single inheritance, and the mechanisms described here. Concurrency, WASM, self-hosting, broader signal-processing APIs, and broader package distribution remain development areas.
+The native core supports fixed-width numeric types, no implicit representation-changing numeric conversion, and practical explicit casts, numeric parsing and scalar text conversion, packed mutable bin, initialized/uninitialized arrays, first-class dense tensors, tensor statistics and vector/matrix multiplication, PNG/JPEG/BMP/TIFF/WebP image I/O through `image`, console I/O, automatic standard namespaces, explicit package/local-module resolution, monomorphized generics with unambiguous function/method inference, user-defined classes, single inheritance, and the mechanisms described here. Concurrency, WASM, self-hosting, broader signal-processing APIs, and broader package distribution remain development areas.
 
 
 ## Standard namespaces and imports
@@ -564,12 +566,12 @@ quidra run app.qui -- input.png --count 5 --verbose
 
 ```quidra
 auto text = file.read("input.txt")              // string | error
-auto raw = file.read_bytes("input.bin")          // bytes | error
+auto raw = file.read_bin("input.bin")            // bin | error
 auto saved = file.write("out.txt", "x")          // void | error
 auto present = file.exists("out.txt")            // bool | error
 ```
 
-It also exports `remove`, `copy`, `move`, and `mkdir`, each returning `void | error`. `file.list(path)` returns `string[] | error`: on success it contains the direct child paths of the directory, non-recursively, sorted lexicographically so enumeration order is deterministic. Returned paths preserve the directory prefix supplied by the caller. I/O failure is typed data rather than an implicit process abort. `read` and `write` are text-oriented whole-file operations. `read` accepts only valid UTF-8 without embedded NUL and returns `error` for invalid text. `read_bytes(path) -> bytes | error` and `write_bytes(path, bytes) -> void | error` are binary whole-file operations and preserve arbitrary byte values, including NUL and invalid UTF-8, exactly. `file.list` converts host paths to UTF-8 and returns `error` if a path cannot be represented as Quidra text. Text and binary I/O are separate so arbitrary bytes never enter `string` storage implicitly.
+It also exports `remove`, `copy`, `move`, and `mkdir`, each returning `void | error`. `file.list(path)` returns `string[] | error`: on success it contains the direct child paths of the directory, non-recursively, sorted lexicographically so enumeration order is deterministic. Returned paths preserve the directory prefix supplied by the caller. I/O failure is typed data rather than an implicit process abort. `read` and `write` are text-oriented whole-file operations. `read` accepts only valid UTF-8 without embedded NUL and returns `error` for invalid text. `read_bin(path) -> bin | error` and `write_bin(path, bin) -> void | error` are binary whole-file operations. File input produces a byte-aligned `bin`; file output requires `len(value) % 8 == 0` and otherwise fails deterministically. Arbitrary byte values, including NUL and invalid UTF-8, are preserved exactly. `file.list` converts host paths to UTF-8 and returns `error` if a path cannot be represented as Quidra text. Text and binary I/O are separate so arbitrary bytes never enter `string` storage implicitly.
 
 ### environment
 
@@ -681,12 +683,12 @@ Ordinary source-level `==` is intentionally not defined for `json.Value`; use `e
 `http.Response` exposes:
 
 - `status: int`: the HTTP response status code.
-- `body: bytes`: the complete response body as raw bytes.
+- `body: bin`: the complete response body as byte-aligned raw binary data.
 - `header(name) -> string | none`: the first matching response header, using ASCII case-insensitive field-name comparison. Absence is `none`. Header values are exposed as Quidra text, so a returned value must be valid UTF-8 without embedded NUL; malformed host text fails deterministically rather than entering `string` storage.
 
 HTTP status is not transport success. Any response received through HTTP, including 4xx and 5xx, is represented as `Response`. DNS resolution failure, connection failure, TLS verification failure, unsupported protocol, redirect failure, or timeout returns `error`.
 
-The v0.1 implementation uses libcurl directly in the native runtime. It permits only HTTP and HTTPS URLs and redirects, follows at most ten redirects, enables content decoding supported by libcurl, uses a 5-second connection timeout and a 30-second total timeout, and leaves normal TLS certificate and hostname verification enabled. The runtime buffers the complete response body in memory. The body is deliberately `bytes`; text decoding is not implicit.
+The v0.1 implementation uses libcurl directly in the native runtime. It permits only HTTP and HTTPS URLs and redirects, follows at most ten redirects, enables content decoding supported by libcurl, uses a 5-second connection timeout and a 30-second total timeout, and leaves normal TLS certificate and hostname verification enabled. The runtime buffers the complete response body in memory. The body is deliberately `bin`; text decoding is not implicit.
 
 `http.Response` contains immutable internal header metadata which is not source-visible. Ordinary assignment preserves independent observable value behavior; header metadata may be shared because it is immutable. Source-level `==` is not defined for `http.Response`.
 
@@ -825,4 +827,4 @@ extern int c_abs(int value) = "llabs"
 print(c_abs(-42))
 ```
 
-The declaration is top-level only and binds a Quidra function name to an explicit C symbol. Results are restricted to `void` or ABI-stable by-value scalars: all fixed-width signed/unsigned integer types, `int`/`int64`, `float32`, `float`/`float64`, and `bool`. Scalar and bool parameters are also by value. Managed `string` and `bytes` inputs are admitted only as explicit call-scoped read-only storage borrows: declare them as `const string &name` or `const bytes &name` and pass `&storage` at the call. This reuses the normal Quidra read-authority/lifetime syntax rather than hiding a borrow behind value syntax. Each borrowed parameter expands at the C ABI boundary to two adjacent C parameters: a non-null read-only data pointer followed by a `uint64` byte length. For `string`, the bytes are the existing validated UTF-8 representation; for `bytes`, they are the exact binary payload. No encoding conversion is performed, the foreign contract does not depend on NUL termination, and foreign code must neither mutate nor retain the pointer after the call. This deliberately means a one-pointer C-string API such as `puts(const char*)` is not directly compatible with a Quidra `string` parameter; use a small C wrapper with an explicit pointer+length signature instead. The LLVM pointer parameters are marked `nocapture nonnull readonly`. Integer ABI extension contracts are explicit: signed 8/16-bit values use `signext`, unsigned 8/16-bit values use `zeroext`, and `bool` uses `zeroext`, on both declarations and call sites. Mutable references, by-value/const-value managed buffers, scalar references, default arguments, generics, managed-value results, arrays, tensors, neural values, unions, and classes remain rejected. Foreign failure is never inferred from `errno`, a null pointer, or ownership convention: expose an explicit scalar status/result and handle it in Quidra. C symbols must be ordinary C identifiers. The generated entrypoint `main`, the compiler-owned `n_*` function-mangling namespace, the implementation-owned `quidra_*` / `__quidra_*` symbol namespaces, and symbols already owned by the generated runtime prelude cannot be rebound through `extern`; use a distinct C wrapper symbol instead. A C symbol may be bound by only one source `extern` declaration per compilation; duplicate aliases are rejected during checking rather than producing conflicting LLVM declarations. External calls are treated as potentially effectful by the REPL, so accumulated-source replay never silently re-executes them. The core declaration does not load libraries or run foreign initialization code; the symbol must be available to the native link environment.
+The declaration is top-level only and binds a Quidra function name to an explicit C symbol. Results are restricted to `void` or ABI-stable by-value scalars: all fixed-width signed/unsigned integer types, `int`/`int64`, `float32`, `float`/`float64`, and `bool`. Scalar and bool parameters are also by value. Managed `string` and `bin` inputs are admitted only as explicit call-scoped read-only storage borrows: declare them as `const string &name` or `const bin &name` and pass `&storage` at the call. This reuses the normal Quidra read-authority/lifetime syntax rather than hiding a borrow behind value syntax. Each borrowed parameter expands at the C ABI boundary to two adjacent C parameters: a non-null read-only data pointer followed by a `uint64` byte length. For `string`, the bytes are the existing validated UTF-8 representation; for `bin`, the payload is passed only when its bit length is byte-aligned, and the adjacent length is the resulting byte count. No encoding conversion is performed, the foreign contract does not depend on NUL termination, and foreign code must neither mutate nor retain the pointer after the call. This deliberately means a one-pointer C-string API such as `puts(const char*)` is not directly compatible with a Quidra `string` parameter; use a small C wrapper with an explicit pointer+length signature instead. The LLVM pointer parameters are marked `nocapture nonnull readonly`. Integer ABI extension contracts are explicit: signed 8/16-bit values use `signext`, unsigned 8/16-bit values use `zeroext`, and `bool` uses `zeroext`, on both declarations and call sites. Mutable references, by-value/const-value managed buffers, scalar references, default arguments, generics, managed-value results, arrays, tensors, neural values, unions, and classes remain rejected. Foreign failure is never inferred from `errno`, a null pointer, or ownership convention: expose an explicit scalar status/result and handle it in Quidra. C symbols must be ordinary C identifiers. The generated entrypoint `main`, the compiler-owned `n_*` function-mangling namespace, the implementation-owned `quidra_*` / `__quidra_*` symbol namespaces, and symbols already owned by the generated runtime prelude cannot be rebound through `extern`; use a distinct C wrapper symbol instead. A C symbol may be bound by only one source `extern` declaration per compilation; duplicate aliases are rejected during checking rather than producing conflicting LLVM declarations. External calls are treated as potentially effectful by the REPL, so accumulated-source replay never silently re-executes them. The core declaration does not load libraries or run foreign initialization code; the symbol must be available to the native link environment.

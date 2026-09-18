@@ -1,4 +1,5 @@
 #include "quidra/llvm_backend.hpp"
+#include "operator_policy.hpp"
 #include <stdexcept>
 #include <cctype>
 #include <iomanip>
@@ -2446,13 +2447,13 @@ struct FunctionEmitter {
             if(is_integer(ot)){
                 const auto ty=llvm_type(ot);
                 const auto width=integer_width(ot);
-                if(n.op=="AND"||n.op=="OR"||n.op=="XOR"){
+                if(operator_policy::is_bitwise_logic(n.op)){
                     const auto instruction=n.op=="AND"?"and":n.op=="OR"?"or":"xor";
                     out<<"  "<<value(n.out)<<" = "<<instruction<<" "<<ty<<" "
                        <<value(n.left)<<", "<<value(n.right)<<"\n";
                     return;
                 }
-                if(n.op=="<<"||n.op==">>"){
+                if(operator_policy::is_shift(n.op)){
                     std::string invalid;
                     const auto high=temp("shift.high");
                     if(is_signed_integer(ot)){

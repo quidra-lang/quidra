@@ -967,6 +967,60 @@ private:
                             std::string(compiler_version) + ".",
                         span);
                 }
+
+                for (const auto& [dependency_name, requirement] :
+                     manifest->requirements) {
+                    if (dependency_name == "quidra") continue;
+
+                    std::optional<fs::path> dependency_main;
+                    try {
+                        dependency_main =
+                            resolve_installed_package_path(dependency_name);
+                    } catch (const std::exception& error) {
+                        frontend_error("PACKAGE_DEPENDENCY", error.what(), span);
+                    }
+                    if (!dependency_main) {
+                        frontend_error(
+                            "PACKAGE_DEPENDENCY",
+                            "Package '" + name + "' " + manifest->version.str() +
+                                " requires package '" + dependency_name + "' " +
+                                requirement.text + ", but it is not installed.",
+                            span);
+                    }
+
+                    try {
+                        const auto dependency_manifest =
+                            try_read_package_manifest(
+                                dependency_main->parent_path());
+                        if (!dependency_manifest) {
+                            frontend_error(
+                                "PACKAGE_DEPENDENCY",
+                                "Package '" + name + "' " +
+                                    manifest->version.str() +
+                                    " requires versioned package '" +
+                                    dependency_name + "' " + requirement.text +
+                                    ", but the installed dependency has no "
+                                    "quidra.package manifest.",
+                                span);
+                        }
+                        if (!requirement.matches(
+                                dependency_manifest->version)) {
+                            frontend_error(
+                                "PACKAGE_DEPENDENCY",
+                                "Package '" + name + "' " +
+                                    manifest->version.str() +
+                                    " requires package '" + dependency_name +
+                                    "' " + requirement.text +
+                                    "; installed version is " +
+                                    dependency_manifest->version.str() + ".",
+                                span);
+                        }
+                    } catch (const CompileError&) {
+                        throw;
+                    } catch (const std::exception& error) {
+                        frontend_error("PACKAGE_DEPENDENCY", error.what(), span);
+                    }
+                }
             }
         } catch (const CompileError&) {
             throw;

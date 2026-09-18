@@ -434,8 +434,8 @@ grep -q 'WRITE_CAPABILITY' "$TMP/parameter-reference.json"
 
 for guarded in \
     "momentum = 5.0, epsilon = 0.00001" \
-    "momentum = 0 - 2.0, epsilon = 0.00001" \
-    "momentum = 0.1, epsilon = 0 - 1.0"; do
+    "momentum = 0.0 - 2.0, epsilon = 0.00001" \
+    "momentum = 0.1, epsilon = 0.0 - 1.0"; do
     cat > "$TMP/normalize-range.qui" <<QUI
 neural.Parameter<float32> scale = neural.Parameter<float32>(
     value = tensor.ones<float32>([2])

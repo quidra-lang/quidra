@@ -6,7 +6,28 @@
 #include <filesystem>
 #include <fstream>
 #include <vector>
-static void good(const std::string& s) { try { auto c=quidra::compile(s); (void)quidra::inspect_source_json(s,c.checked,"test.qui"); } catch(const std::exception& e){std::cerr<<"unexpected rejection: "<<e.what()<<"\n"<<s;std::exit(1);} }
+static void good(const std::string& s) {
+    try {
+        auto c=quidra::compile(s);
+        (void)quidra::inspect_source_json(s,c.checked,"test.qui");
+    } catch(const quidra::CompileErrors& e) {
+        std::cerr<<"unexpected rejection: "<<e.what()<<"\n";
+        for(const auto& d:e.diagnostics()) {
+            std::cerr<<d.span.start.line<<":"<<d.span.start.column
+                     <<" ["<<d.code<<"] "<<d.message<<"\n";
+        }
+        std::cerr<<s;
+        std::exit(1);
+    } catch(const quidra::CompileError& e) {
+        const auto& d=e.diagnostic();
+        std::cerr<<"unexpected rejection: "<<d.span.start.line<<":"<<d.span.start.column
+                 <<" ["<<d.code<<"] "<<d.message<<"\n"<<s;
+        std::exit(1);
+    } catch(const std::exception& e){
+        std::cerr<<"unexpected rejection: "<<e.what()<<"\n"<<s;
+        std::exit(1);
+    }
+}
 static void bad(const std::string& s) { try {(void)quidra::compile(s);}catch(const quidra::CompileErrors&){return;}catch(const quidra::CompileError&){return;}std::cerr<<"unexpected acceptance:\n"<<s;std::exit(1); }
 static void inspect_contains(const std::string& s, const std::string& expected) {
     try {

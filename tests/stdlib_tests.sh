@@ -1433,11 +1433,11 @@ n = 3
 values = [1, 2, 3]
 QUI
 set +e
-"$QUIDRA" "$TMP/captured-array-reassign-fail.qui" >"$TMP/captured-array-reassign-fail.out" 2>"$TMP/captured-array-reassign-fail.err"
+"$QUIDRA" "$TMP/captured-array-reassign-fail.qui" >"$TMP/captured-array-reassign-fail.out" 2>&1
 captured_array_reassign_rc=$?
 set -e
 [[ "$captured_array_reassign_rc" -eq 101 ]]
-grep -q 'Quidra runtime error' "$TMP/captured-array-reassign-fail.err"
+grep -q 'Quidra runtime error' "$TMP/captured-array-reassign-fail.out"
 
 cat > "$TMP/captured-nested-array-fail.qui" <<'QUI'
 int n = 2
@@ -1446,11 +1446,11 @@ n = 3
 rows = [[1, 2, 3], [4, 5, 6]]
 QUI
 set +e
-"$QUIDRA" "$TMP/captured-nested-array-fail.qui" >"$TMP/captured-nested-array-fail.out" 2>"$TMP/captured-nested-array-fail.err"
+"$QUIDRA" "$TMP/captured-nested-array-fail.qui" >"$TMP/captured-nested-array-fail.out" 2>&1
 captured_nested_array_rc=$?
 set -e
 [[ "$captured_nested_array_rc" -eq 101 ]]
-grep -q 'Quidra runtime error' "$TMP/captured-nested-array-fail.err"
+grep -q 'Quidra runtime error' "$TMP/captured-nested-array-fail.out"
 
 cat > "$TMP/contextual-wildcard-zero.qui" <<'QUI'
 tensor<float><_, 4> value = tensor.zeros()

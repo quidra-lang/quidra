@@ -2536,9 +2536,11 @@ x=json.load(open(sys.argv[1]))
 tensor=x["inspection"]["type_contracts"]["tensor"]
 rank=x["inspection"]["type_contracts"]["tensor_rank"]
 assert tensor == "tensor<T> | tensor<T><D0, D1, ...>"
+assert "exact-rank" in rank
 assert "compiler-inferred" in rank
-assert "never written" in rank
-assert "exact rank" in x["inspection"]["type_contracts"]["tensor_shape"]
+shape=x["inspection"]["type_contracts"]["tensor_shape"]
+assert "integer expression" in shape
+assert "captured" in shape
 calls=x["calls"]
 assert calls["argument_order"] == "positional_then_named"
 assert calls["named_syntax"] == "name = value"

@@ -281,6 +281,31 @@ print(reals[1])
  bad_code("map.Map<bigreal, int> values = map.Map<bigreal, int>()\n", "STANDARD_KEY_TYPE");
  bad_code("set.Set<bigreal> values = set.Set<bigreal>()\n", "STANDARD_KEY_TYPE");
 
+ good(R"(uint8 a = 240
+uint8 b = 204
+uint8 both = a AND b
+uint8 either = a OR b
+uint8 different = a XOR b
+uint8 inverted = NOT a
+uint8 left = a << 1
+uint8 right = a >> 2
+int8 signed_value = -8
+int8 signed_right = signed_value >> 2
+print(both)
+print(either)
+print(different)
+print(inverted)
+print(left)
+print(right)
+print(signed_right)
+)");
+ llvm_contains("uint8 a = 3\nuint8 b = a << 2\n", "shl i8");
+ llvm_contains("uint8 a = 3\nuint8 b = NOT a\n", "xor i8");
+ bad_code("bool a = true\nbool b = false\nbool c = a AND b\n", "TYPE_MISMATCH");
+ bad_code("float a = 1.0\nfloat b = 2.0\nfloat c = a OR b\n", "TYPE_MISMATCH");
+ bad_code("bigint a = 1\nbigint b = 2\nbigint c = a XOR b\n", "TYPE_MISMATCH");
+ bad_code("uint8 a = 1\nuint8 b = a << 8\n", "SHIFT_COUNT");
+
  good("extern void scalar_abi(int8 a, int16 b, int32 c, int d, uint8 e, uint16 f, uint32 g, uint64 h, float32 i, float j, bool k) = \"scalar_abi\"\n");
  llvm_contains("extern bool c_bool(bool value) = \"c_bool\"\n", "declare zeroext i1 @c_bool(i1 zeroext)");
  llvm_contains("extern int8 c_i8(int8 value) = \"c_i8\"\n", "declare signext i8 @c_i8(i8 signext)");

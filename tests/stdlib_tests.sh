@@ -115,7 +115,7 @@ QUI
 [[ -d "$TMP/new-directory" ]]
 
 cat > "$TMP/bin-string.qui" <<'QUI'
-bin allocated = bin(5, fill = 1)
+bin allocated = bin.fill(5, 1)
 print(len(allocated))
 print(allocated)
 
@@ -132,7 +132,7 @@ print(restored)
 bool flag = bool(bin.parse("1"))
 print(flag)
 
-string repeated = string(3, fill = "a")
+string repeated = string.repeat("a", 3)
 print(repeated)
 QUI
 [[ "$("$QUIDRA" "$TMP/bin-string.qui")" == $'5\n11111\n0\n1\n11111111\n-1\ntrue\naaa' ]]

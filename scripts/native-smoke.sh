@@ -27,6 +27,9 @@ test "$("$QUIDRA" run "$ROOT/examples/strings.qui")" = $'Hello, Quidra\nn = 42; 
 
 test "$("$QUIDRA" run "$ROOT/examples/while.qui")" = "6"
 test "$("$QUIDRA" run "$ROOT/examples/generics.qui")" = "7"
-test "$("$QUIDRA" run "$ROOT/examples/bytes.qui")" = $'3\n66'
+test "$("$QUIDRA" run "$ROOT/examples/bin.qui")" = 
+test "$("$QUIDRA" run "$ROOT/examples/modules/main.qui")" = "42"
+test "$("$QUIDRA" "$ROOT/examples/cli.qui" image.jpg --count 2 --verbose)" = $'image.jpg\n2\ntrue'
+8\n01000000'
 test "$("$QUIDRA" run "$ROOT/examples/modules/main.qui")" = "42"
 test "$("$QUIDRA" "$ROOT/examples/cli.qui" image.jpg --count 2 --verbose)" = $'image.jpg\n2\ntrue'

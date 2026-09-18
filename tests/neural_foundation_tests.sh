@@ -153,7 +153,7 @@ class MomentState
     float beta2
     float epsilon
     neural.State<int> step
-    neural.State<bytes> moments
+    neural.State<bin> moments
 
 Model model = Model(
     value = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
@@ -164,7 +164,7 @@ MomentState state = MomentState(
     beta2 = 0.999,
     epsilon = 0.00000001,
     step = neural.State<int>(value = 0),
-    moments = neural.State<bytes>(value = bytes())
+    moments = neural.State<bin>(value = bin.fill(0, 0))
 )
 neural<float32> tracked = model.value.track()
 neural<float32> loss = neural.mean(tracked * tracked)

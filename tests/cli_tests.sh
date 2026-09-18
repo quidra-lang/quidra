@@ -54,7 +54,7 @@ assert x["lsp"] is True
 assert x["package_management"] is True
 assert x["c_ffi"] is True
 assert x["debug_build"] is True
-for name in ["int8","int16","int32","int64 (= int)","uint8","uint16","uint32","uint64","float32","float64 (= float)","bytes"]:
+for name in ["int8","int16","int32","int64 (= int)","uint8","uint16","uint32","uint64","float32","float64 (= float)","bin"]:
     assert name in x["current_types"], name
 for name in ["print","write","input","range","array","len","abs","sqrt","min","max","error"]:
     assert name in x["current_builtins"], name
@@ -277,20 +277,20 @@ grep -q 'call i64 @llabs(i64' "$TMP/ffi-scalar.ll"
 
 cat > "$TMP/ffi-borrowed-inputs.qui" <<'QUI'
 extern int32 c_text(const string &text) = "foreign_test_text"
-extern int32 c_bytes(const bytes &data) = "foreign_test_bytes"
+extern int32 c_bin(const bin &data) = "foreign_test_bin"
 
 string text = "ffi-string"
-bytes payload = bytes(3, fill = 65)
+bin payload = bin.fill(24, 1)
 int32 text_status = c_text(&text)
-int32 bytes_status = c_bytes(&payload)
+int32 bin_status = c_bin(&payload)
 QUI
 "$QUIDRA" llvm "$TMP/ffi-borrowed-inputs.qui" > "$TMP/ffi-borrowed-inputs.ll"
 grep -q 'declare i32 @foreign_test_text(ptr nocapture nonnull readonly, i64)' "$TMP/ffi-borrowed-inputs.ll"
-grep -q 'declare i32 @foreign_test_bytes(ptr nocapture nonnull readonly, i64)' "$TMP/ffi-borrowed-inputs.ll"
+grep -q 'declare i32 @foreign_test_bin(ptr nocapture nonnull readonly, i64)' "$TMP/ffi-borrowed-inputs.ll"
 grep -q 'ffi.borrowed.value' "$TMP/ffi-borrowed-inputs.ll"
 grep -q 'call i64 @strlen(ptr' "$TMP/ffi-borrowed-inputs.ll"
-grep -q 'ffi.bytes.length' "$TMP/ffi-borrowed-inputs.ll"
-grep -q 'ffi.bytes.data' "$TMP/ffi-borrowed-inputs.ll"
+grep -q 'ffi.bin.length' "$TMP/ffi-borrowed-inputs.ll"
+grep -q 'ffi.bin.data' "$TMP/ffi-borrowed-inputs.ll"
 
 "$QUIDRA" build "$ROOT/examples/hello.qui" --debug -o "$TMP/hello-debug"
 [[ "$("$TMP/hello-debug")" == "Hello from Quidra" ]]
@@ -413,7 +413,7 @@ print(len(parts))
 print(parts[0])
 print(parts[2] == "")
 print(parts.join("|"))
-bytes encoded = "A日本".utf8()
+bin encoded = "A日本".utf8()
 print(len(encoded))
 print(encoded[0])
 int[] points = "A日本".codepoints()
@@ -444,7 +444,7 @@ else
     print("other")
 QUI
 text_array_output=$("$QUIDRA" run "$TMP/text-and-array.qui")
-text_array_expected=$(printf 'ABCD\n8\nA日本B\ntrue\ntrue\ntrue\n3\nA日本B\n日\n本\n4\na\ntrue\na|b||c\n7\n65\n3\n26085\n-1\n3\na\nあ\n9\n1\n3\n5\n5\ntwo')
+text_array_expected=$(printf 'ABCD\n8\nA日本B\ntrue\ntrue\ntrue\n3\nA日本B\n日\n本\n4\na\ntrue\na|b||c\n56\n0\n3\n26085\n-1\n3\na\nあ\n9\n1\n3\n5\n5\ntwo')
 [[ "$text_array_output" == "$text_array_expected" ]]
 
 cat > "$TMP/unicode-boundaries.qui" <<'QUI'
@@ -452,7 +452,7 @@ string text = "A😀é"
 print(len(text))
 print(text[1] == "😀")
 print(text.slice(1, 4) == "😀é")
-bytes encoded = text.utf8()
+bin encoded = text.utf8()
 print(len(encoded))
 int[] points = text.codepoints()
 print(points[1])
@@ -461,7 +461,7 @@ print(len(""))
 print("".slice(0, 0) == "")
 QUI
 unicode_boundary_output=$("$QUIDRA" run "$TMP/unicode-boundaries.qui")
-unicode_boundary_expected=$(printf '4\ntrue\ntrue\n8\n128512\n769\n0\ntrue')
+unicode_boundary_expected=$(printf '4\ntrue\ntrue\n64\n128512\n769\n0\ntrue')
 [[ "$unicode_boundary_output" == "$unicode_boundary_expected" ]]
 
 cat > "$TMP/string-negative-index.qui" <<'QUI'
@@ -1827,7 +1827,7 @@ grep -q 'INDEX_BOUNDS' "$TMP/out-of-bounds.out"
 grep -q 'index 1 outside length 1' "$TMP/out-of-bounds.out"
 
 cat > "$TMP/negative-index.qui" <<'QUI'
-bytes values = bytes(1, fill = 0)
+bin values = bin.fill(1, 0)
 int index = -1
 print(values[index])
 QUI
@@ -1921,13 +1921,11 @@ if b"Quidra CLI error:" not in result.stderr:
     raise SystemExit(f"missing CLI diagnostic: {result.stderr!r}")
 PY
 
-cat > "$TMP/bytes.qui" <<'QUI'
-bytes data = bytes(4, fill = 7)
-data[0] = 255
-uint8 &second = &data[1]
-second = 9
-bytes copy = data
-copy[2] = 11
+cat > "$TMP/bin-value.qui" <<'QUI'
+bin data = bin.fill(4, 0)
+data[0] = bin.parse("1")
+bin copy = data
+copy[2] = bin.parse("1")
 print(len(data))
 print(data[0])
 print(data[1])
@@ -1939,21 +1937,21 @@ print(data == copy)
 for value in data
     print(value)
 for &value in copy
-    value = 1
+    value = bin.parse("1")
 print(copy[0])
 print(data[0])
 QUI
-bytes_output="$($QUIDRA run "$TMP/bytes.qui")"
-[[ "$bytes_output" == "$(printf '4\n255\n9\n7\n11\nfalse\ntrue\n255\n9\n7\n7\n1\n255')" ]]
+bin_output="$($QUIDRA run "$TMP/bin-value.qui")"
+[[ "$bin_output" == "$(printf '4\n1\n0\n0\n1\nfalse\ntrue\n1\n0\n0\n0\n1\n1')" ]]
 
-cat > "$TMP/bytes-default-fill.qui" <<'QUI'
-bytes empty = bytes()
-bytes zeros = bytes(4)
+cat > "$TMP/bin-fill.qui" <<'QUI'
+bin empty = bin.fill(0, 0)
+bin zeros = bin.fill(4, 0)
 print(len(empty))
 print(len(zeros))
 print(zeros[0])
 QUI
-[[ "$("$QUIDRA" run "$TMP/bytes-default-fill.qui")" == "$(printf '0\n4\n0')" ]]
+[[ "$("$QUIDRA" run "$TMP/bin-fill.qui")" == "$(printf '0\n4\n0')" ]]
 
 cat > "$TMP/interpolation-span.qui" <<'QUI'
 void show()
@@ -2058,7 +2056,7 @@ T identity<T>(T value)
 
 identity<int>(7)
 [1, 2, 3]
-bytes(3, fill = 7)
+bin.fill(3, 1)
 box
 Box partial = Box()
 partial
@@ -2084,7 +2082,7 @@ out=open(sys.argv[1]).read()
 err=open(sys.argv[2]).read()
 expected=[
     "3","5","8","36","9","7",
-    "[1, 2, 3]","bytes[7, 7, 7]","Box(value = 9)",
+    "[1, 2, 3]","111","Box(value = 9)",
     "Box(value = <uninitialized>)","none","\"hello\"",
     "8","8","4.0","float"
 ]

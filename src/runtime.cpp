@@ -337,13 +337,6 @@ void validate_utf8(std::string_view text) {
     if (!valid_utf8(text)) runtime_text_failure("invalid UTF-8 string");
 }
 
-void validate_runtime_text(std::string_view text) {
-    bool contains_nul = false;
-    if (!valid_utf8(text, nullptr, &contains_nul))
-        runtime_text_failure("string text is not valid UTF-8");
-    if (contains_nul) runtime_text_failure("string text cannot contain NUL");
-}
-
 void mark_managed_string(char* value, std::size_t byte_length,
                          std::optional<std::size_t> codepoints = std::nullopt) {
     const auto it =
@@ -420,16 +413,6 @@ std::size_t utf8_prefix_length(std::string_view text, std::size_t byte_end) {
     }
     if (index != byte_end) runtime_text_failure("invalid UTF-8 boundary");
     return count;
-}
-
-std::vector<std::size_t> utf8_offsets(std::string_view text) {
-    std::vector<std::size_t> offsets{0};
-    std::size_t index = 0;
-    while (index < text.size()) {
-        (void)utf8_next(text,index);
-        offsets.push_back(index);
-    }
-    return offsets;
 }
 
 struct StringIndexBounds {

@@ -19,13 +19,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: quidra-lang/vision
-          ref: main
+          ref: develop
           path: packages/vision
       - name: Check out dnn
         uses: actions/checkout@v4
         with:
           repository: quidra-lang/dnn
-          ref: main
+          ref: develop
           path: packages/dnn
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y llvm libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev

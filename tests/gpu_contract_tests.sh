@@ -146,4 +146,23 @@ print(result)
 QUI
 expect_runtime_error "$TMP/mean-no-fallback.qui" "stats.mean is not supported on gpu(0)"
 
+cat > "$TMP/image-write-no-fallback.qui" <<'QUI'
+tensor<uint8> value = tensor.ones<uint8>([1, 1, 1], gpu = 0)
+auto written = image.write("should-not-exist.png", value)
+match written
+    void
+        print("unexpected success")
+    error problem
+        print(problem)
+QUI
+image_write_output="$(cd "$TMP" && "$QUIDRA" run "$TMP/image-write-no-fallback.qui")"
+if [[ "$image_write_output" != "image.write is not supported on gpu(0)" ]]; then
+    echo "unexpected GPU image.write diagnostic: $image_write_output" >&2
+    exit 1
+fi
+if [[ -e "$TMP/should-not-exist.png" ]]; then
+    echo "GPU image.write unexpectedly produced a CPU-fallback file" >&2
+    exit 1
+fi
+
 echo "fake GPU placement contracts: ok"

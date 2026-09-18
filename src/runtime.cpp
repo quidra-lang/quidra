@@ -2517,10 +2517,14 @@ std::vector<NeuralMomentRecord> neural_decode_moments(
     const auto allocation=managed_allocations.find(reinterpret_cast<std::uintptr_t>(raw));
     if(allocation==managed_allocations.end()||allocation->second.size<8)
         neural_fail("invalid moment state",line,column);
-    std::int64_t signed_length{};
-    std::memcpy(&signed_length,raw,sizeof(signed_length));
-    if(signed_length<0) neural_fail("invalid moment state",line,column);
-    const auto length=static_cast<std::size_t>(signed_length);
+    std::int64_t signed_bit_length{};
+    std::memcpy(&signed_bit_length,raw,sizeof(signed_bit_length));
+    if(signed_bit_length<0 || signed_bit_length%8!=0)
+        neural_fail("invalid moment state",line,column);
+    const auto byte_length=static_cast<unsigned long long>(signed_bit_length/8);
+    if(byte_length>static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()))
+        neural_fail("moment state size overflow",line,column);
+    const auto length=static_cast<std::size_t>(byte_length);
     if(length>allocation->second.size-8)
         neural_fail("corrupt moment state",line,column);
     if(length==0) return {};
@@ -2614,7 +2618,9 @@ void* neural_encode_moments(
     if(payload>static_cast<std::size_t>(std::numeric_limits<std::int64_t>::max()))
         neural_fail("moment state too large",line,column);
     auto* raw=static_cast<unsigned char*>(managed_allocate(neural_checked_add(8,payload,line,column)));
-    const auto signed_length=static_cast<std::int64_t>(payload);
+    if(payload>static_cast<std::size_t>(std::numeric_limits<std::int64_t>::max()/8))
+        neural_fail("moment state too large",line,column);
+    const auto signed_length=static_cast<std::int64_t>(payload*8);
     std::memcpy(raw,&signed_length,8);
     auto* bytes=raw+8;
     std::size_t cursor=0;
@@ -6599,15 +6605,150 @@ extern "C" char* quidra_string_concat_many(const char* const* values,
     return result;
 }
 
+namespace {
+std::size_t bin_payload_bytes(long long bit_count) {
+    if (bit_count < 0) runtime_text_failure("bin length cannot be negative");
+    const auto bits = static_cast<unsigned long long>(bit_count);
+    if (bits > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()) * 8ULL)
+        runtime_allocation_failure();
+    const auto bytes = (bits + 7ULL) / 8ULL;
+    if (bytes > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()))
+        runtime_allocation_failure();
+    return static_cast<std::size_t>(bytes);
+}
+
+long long bin_length(const void* raw) {
+    if (!raw) runtime_text_failure("null bin");
+    long long bit_count = 0;
+    std::memcpy(&bit_count, raw, sizeof(bit_count));
+    if (bit_count < 0) runtime_text_failure("invalid bin length");
+    return bit_count;
+}
+
+bool bin_bit_at(const void* raw, long long index) {
+    const auto length = bin_length(raw);
+    if (index < 0 || index >= length) runtime_text_failure("bin index out of bounds");
+    const auto* data = static_cast<const unsigned char*>(raw) + 8;
+    const auto byte_index = static_cast<std::size_t>(index / 8);
+    const auto shift = static_cast<unsigned>(7 - (index % 8));
+    return ((data[byte_index] >> shift) & 1U) != 0;
+}
+
+void bin_set_bit(void* raw, long long index, bool value) {
+    const auto length = bin_length(raw);
+    if (index < 0 || index >= length) runtime_text_failure("bin index out of bounds");
+    auto* data = static_cast<unsigned char*>(raw) + 8;
+    const auto byte_index = static_cast<std::size_t>(index / 8);
+    const auto shift = static_cast<unsigned>(7 - (index % 8));
+    const auto mask = static_cast<unsigned char>(1U << shift);
+    if (value) data[byte_index] = static_cast<unsigned char>(data[byte_index] | mask);
+    else data[byte_index] = static_cast<unsigned char>(data[byte_index] & static_cast<unsigned char>(~mask));
+}
+}
+
+extern "C" void* quidra_bin_alloc(long long bit_count, long long fill) {
+    if (fill != 0 && fill != 1) runtime_text_failure("bin fill must be 0 or 1");
+    const auto bytes = bin_payload_bytes(bit_count);
+    if (bytes > std::numeric_limits<std::size_t>::max() - 8) runtime_allocation_failure();
+    auto* result = static_cast<unsigned char*>(managed_allocate(8 + bytes));
+    std::memcpy(result, &bit_count, sizeof(bit_count));
+    if (bytes != 0) std::memset(result + 8, fill ? 0xff : 0x00, bytes);
+    if (fill && bit_count % 8 != 0 && bytes != 0) {
+        const auto used = static_cast<unsigned>(bit_count % 8);
+        result[8 + bytes - 1] &= static_cast<unsigned char>(0xffU << (8U - used));
+    }
+    return result;
+}
+
+extern "C" void* quidra_bin_index(void* raw, long long index) {
+    auto* result = quidra_bin_alloc(1, 0);
+    bin_set_bit(result, 0, bin_bit_at(raw, index));
+    return result;
+}
+
+extern "C" void quidra_bin_set(void* raw, long long index, void* bit) {
+    if (bin_length(bit) != 1) runtime_text_failure("bin element assignment requires exactly one bit");
+    bin_set_bit(raw, index, bin_bit_at(bit, 0));
+}
+
+extern "C" void* quidra_bin_slice(void* raw, long long start, long long end) {
+    const auto length = bin_length(raw);
+    if (start < 0 || end < start || end > length) runtime_text_failure("bin slice out of bounds");
+    auto* result = quidra_bin_alloc(end - start, 0);
+    for (long long i = start; i < end; ++i) bin_set_bit(result, i - start, bin_bit_at(raw, i));
+    return result;
+}
+
+extern "C" void* quidra_bin_parse(const char* text) {
+    if (!text) return nullptr;
+    const auto length_size = std::strlen(text);
+    if (length_size > static_cast<std::size_t>(std::numeric_limits<long long>::max())) return nullptr;
+    for (std::size_t i = 0; i < length_size; ++i)
+        if (text[i] != '0' && text[i] != '1') return nullptr;
+    auto* result = quidra_bin_alloc(static_cast<long long>(length_size), 0);
+    for (std::size_t i = 0; i < length_size; ++i)
+        if (text[i] == '1') bin_set_bit(result, static_cast<long long>(i), true);
+    return result;
+}
+
+extern "C" char* quidra_bin_string(void* raw) {
+    const auto bit_count = bin_length(raw);
+    const auto count = static_cast<unsigned long long>(bit_count);
+    if (count > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()) - 1ULL)
+        runtime_allocation_failure();
+    auto* result = static_cast<char*>(managed_allocate(static_cast<std::size_t>(count) + 1));
+    for (long long i = 0; i < bit_count; ++i) result[i] = bin_bit_at(raw, i) ? '1' : '0';
+    result[bit_count] = '\0';
+    return result;
+}
+
+extern "C" void* quidra_bin_from_u64(unsigned long long value, int width) {
+    if (width <= 0 || width > 64) runtime_text_failure("unsupported bin scalar width");
+    auto* result = quidra_bin_alloc(width, 0);
+    for (int i = 0; i < width; ++i) {
+        const auto shift = static_cast<unsigned>(width - 1 - i);
+        bin_set_bit(result, i, ((value >> shift) & 1ULL) != 0);
+    }
+    return result;
+}
+
+extern "C" unsigned long long quidra_bin_to_u64(void* raw, int width) {
+    if (width <= 0 || width > 64) runtime_text_failure("unsupported bin scalar width");
+    if (bin_length(raw) != width) runtime_text_failure("bin length does not match destination type width");
+    unsigned long long value = 0;
+    for (int i = 0; i < width; ++i)
+        value = (value << 1U) | (bin_bit_at(raw, i) ? 1ULL : 0ULL);
+    return value;
+}
+
+extern "C" char* quidra_string_repeat(long long count, const char* fill) {
+    if (count < 0) runtime_text_failure("string length cannot be negative");
+    if (!fill) runtime_text_failure("null string fill");
+    const std::string_view unit(fill);
+    validate_utf8(unit);
+    if (utf8_length(unit) != 1) runtime_text_failure("string fill must contain exactly one Unicode code point");
+    const auto n = static_cast<std::size_t>(count);
+    if (count != static_cast<long long>(n) ||
+        (!unit.empty() && n > (std::numeric_limits<std::size_t>::max() - 1) / unit.size()))
+        runtime_allocation_failure();
+    const auto bytes = n * unit.size();
+    auto* result = static_cast<char*>(managed_allocate(bytes + 1));
+    for (std::size_t i = 0; i < n; ++i)
+        if (!unit.empty()) std::memcpy(result + i * unit.size(), unit.data(), unit.size());
+    result[bytes] = '\0';
+    return result;
+}
+
 extern "C" void* quidra_string_utf8(const char* text) {
     if (!text) runtime_text_failure("null string");
     const std::string_view source(text);
     validate_utf8(source);
-    if (source.size() > (std::numeric_limits<std::size_t>::max() - 8)) {
+    if (source.size() > (std::numeric_limits<std::size_t>::max() - 8) ||
+        source.size() > static_cast<std::size_t>(std::numeric_limits<long long>::max() / 8)) {
         runtime_allocation_failure();
     }
     auto* result = static_cast<unsigned char*>(managed_allocate(8 + source.size()));
-    const auto count = static_cast<long long>(source.size());
+    const auto count = static_cast<long long>(source.size() * 8);
     std::memcpy(result, &count, sizeof(count));
     if (!source.empty()) std::memcpy(result + 8, source.data(), source.size());
     return result;

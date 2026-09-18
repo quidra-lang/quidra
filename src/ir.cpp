@@ -2316,7 +2316,11 @@ struct Lowerer {
                 if(n->value && !captured.empty()){
                     if(const auto* call=std::get_if<CallExpr>(&n->value->data)){
                         const auto found=checked.call_resolutions.find(n->value.get());
-                        if(call->args.empty() && found!=checked.call_resolutions.end() &&
+                        const bool has_explicit_shape=std::any_of(
+                            call->args.begin(),call->args.end(),[](const auto& argument){
+                                return !argument.name || *argument.name!="gpu";
+                            });
+                        if(!has_explicit_shape && found!=checked.call_resolutions.end() &&
                            found->second.kind==CallKind::Builtin &&
                            (found->second.builtin==BuiltinCallable::TensorZeros ||
                             found->second.builtin==BuiltinCallable::TensorOnes)){

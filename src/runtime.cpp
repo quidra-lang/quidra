@@ -4453,9 +4453,6 @@ void validate_linear_dot(const TensorValue& left, const TensorValue& right,
         tensor_fail("linear.dot operands are on different devices; transfer them explicitly",
                     line, column);
     }
-    if (!tensor_on_cpu(*left.storage)) {
-        tensor_gpu_unsupported("linear.dot", *left.storage, line, column);
-    }
     if (left.shape.size() != 1 || right.shape.size() != 1) {
         tensor_fail("linear.dot requires rank-1 tensors", line, column);
     }
@@ -4474,6 +4471,50 @@ extern "C" unsigned long long quidra_linear_dot_integer(
     auto& left = *static_cast<TensorValue*>(left_raw);
     auto& right = *static_cast<TensorValue*>(right_raw);
     validate_linear_dot(left, right, dtype, line, column);
+    if (!tensor_on_cpu(*left.storage)) {
+        tensor_require_initialized(left, line, column);
+        tensor_require_initialized(right, line, column);
+        TensorStorage* left_materialized = nullptr;
+        TensorStorage* right_materialized = nullptr;
+        const TensorStorage* left_storage = left.storage;
+        const TensorStorage* right_storage = right.storage;
+        if (!tensor_is_contiguous_value(left) || left.offset != 0) {
+            left_materialized = tensor_gpu_materialize_storage(left, line, column);
+            left_storage = left_materialized;
+        }
+        if (!tensor_is_contiguous_value(right) || right.offset != 0) {
+            right_materialized = tensor_gpu_materialize_storage(right, line, column);
+            right_storage = right_materialized;
+        }
+        std::array<unsigned char, 8> scalar{};
+        std::string backend_error;
+        const bool ok = quidra::device::compute_dot(
+            left_storage->gpu_buffer, right_storage->gpu_buffer,
+            dtype, static_cast<std::size_t>(left.shape[0]),
+            scalar.data(), backend_error);
+        if (left_materialized) tensor_storage_release(left_materialized);
+        if (right_materialized) tensor_storage_release(right_materialized);
+        if (!ok) tensor_fail(backend_error.c_str(), line, column);
+        switch (dtype) {
+            case 1: { std::int64_t v{}; std::memcpy(&v, scalar.data(), 8);
+                      return static_cast<unsigned long long>(v); }
+            case 2: { std::int8_t v{}; std::memcpy(&v, scalar.data(), 1);
+                      return static_cast<unsigned long long>(v); }
+            case 3: { std::int16_t v{}; std::memcpy(&v, scalar.data(), 2);
+                      return static_cast<unsigned long long>(v); }
+            case 4: { std::int32_t v{}; std::memcpy(&v, scalar.data(), 4);
+                      return static_cast<unsigned long long>(v); }
+            case 5: { std::uint8_t v{}; std::memcpy(&v, scalar.data(), 1);
+                      return static_cast<unsigned long long>(v); }
+            case 6: { std::uint16_t v{}; std::memcpy(&v, scalar.data(), 2);
+                      return static_cast<unsigned long long>(v); }
+            case 7: { std::uint32_t v{}; std::memcpy(&v, scalar.data(), 4);
+                      return static_cast<unsigned long long>(v); }
+            case 8: { std::uint64_t v{}; std::memcpy(&v, scalar.data(), 8); return v; }
+            default:
+                tensor_fail("linear.dot integer runtime received a non-integer dtype", line, column);
+        }
+    }
     switch (dtype) {
         case 1: return static_cast<unsigned long long>(
             tensor_dot_typed<std::int64_t>(left, right, line, column));
@@ -4502,6 +4543,31 @@ extern "C" float quidra_linear_dot_float32(
     auto& left = *static_cast<TensorValue*>(left_raw);
     auto& right = *static_cast<TensorValue*>(right_raw);
     validate_linear_dot(left, right, 10, line, column);
+    if (!tensor_on_cpu(*left.storage)) {
+        tensor_require_initialized(left, line, column);
+        tensor_require_initialized(right, line, column);
+        TensorStorage* left_materialized = nullptr;
+        TensorStorage* right_materialized = nullptr;
+        const TensorStorage* left_storage = left.storage;
+        const TensorStorage* right_storage = right.storage;
+        if (!tensor_is_contiguous_value(left) || left.offset != 0) {
+            left_materialized = tensor_gpu_materialize_storage(left, line, column);
+            left_storage = left_materialized;
+        }
+        if (!tensor_is_contiguous_value(right) || right.offset != 0) {
+            right_materialized = tensor_gpu_materialize_storage(right, line, column);
+            right_storage = right_materialized;
+        }
+        float result{};
+        std::string backend_error;
+        const bool ok = quidra::device::compute_dot(
+            left_storage->gpu_buffer, right_storage->gpu_buffer,
+            10, static_cast<std::size_t>(left.shape[0]), &result, backend_error);
+        if (left_materialized) tensor_storage_release(left_materialized);
+        if (right_materialized) tensor_storage_release(right_materialized);
+        if (!ok) tensor_fail(backend_error.c_str(), line, column);
+        return result;
+    }
     return tensor_dot_typed<float>(left, right, line, column);
 }
 
@@ -4512,6 +4578,31 @@ extern "C" double quidra_linear_dot_float64(
     auto& left = *static_cast<TensorValue*>(left_raw);
     auto& right = *static_cast<TensorValue*>(right_raw);
     validate_linear_dot(left, right, 9, line, column);
+    if (!tensor_on_cpu(*left.storage)) {
+        tensor_require_initialized(left, line, column);
+        tensor_require_initialized(right, line, column);
+        TensorStorage* left_materialized = nullptr;
+        TensorStorage* right_materialized = nullptr;
+        const TensorStorage* left_storage = left.storage;
+        const TensorStorage* right_storage = right.storage;
+        if (!tensor_is_contiguous_value(left) || left.offset != 0) {
+            left_materialized = tensor_gpu_materialize_storage(left, line, column);
+            left_storage = left_materialized;
+        }
+        if (!tensor_is_contiguous_value(right) || right.offset != 0) {
+            right_materialized = tensor_gpu_materialize_storage(right, line, column);
+            right_storage = right_materialized;
+        }
+        double result{};
+        std::string backend_error;
+        const bool ok = quidra::device::compute_dot(
+            left_storage->gpu_buffer, right_storage->gpu_buffer,
+            9, static_cast<std::size_t>(left.shape[0]), &result, backend_error);
+        if (left_materialized) tensor_storage_release(left_materialized);
+        if (right_materialized) tensor_storage_release(right_materialized);
+        if (!ok) tensor_fail(backend_error.c_str(), line, column);
+        return result;
+    }
     return tensor_dot_typed<double>(left, right, line, column);
 }
 
@@ -4520,9 +4611,24 @@ extern "C" double quidra_stats_mean(void* raw,
                                       unsigned long long column) {
     if (!raw) tensor_fail("stats.mean received a null tensor", line, column);
     auto& value = *static_cast<TensorValue*>(raw);
-    tensor_require_cpu(*value.storage, "stats.mean", line, column);
     const auto count = tensor_logical_count(value);
     if (count == 0) tensor_fail("stats.mean is undefined for an empty tensor", line, column);
+    if (!tensor_on_cpu(*value.storage)) {
+        tensor_require_initialized(value, line, column);
+        TensorStorage* materialized = nullptr;
+        const TensorStorage* input = value.storage;
+        if (!tensor_is_contiguous_value(value) || value.offset != 0) {
+            materialized = tensor_gpu_materialize_storage(value, line, column);
+            input = materialized;
+        }
+        double result{};
+        std::string backend_error;
+        const bool ok = quidra::device::compute_mean(
+            input->gpu_buffer, value.storage->dtype, count, result, backend_error);
+        if (materialized) tensor_storage_release(materialized);
+        if (!ok) tensor_fail(backend_error.c_str(), line, column);
+        return result;
+    }
     long double sum = 0.0L;
     switch (value.storage->dtype) {
         case 1: sum=tensor_sum_typed<std::int64_t>(value,line,column); break;
@@ -4553,9 +4659,6 @@ extern "C" void* quidra_linear_matmul(void* left_raw, void* right_raw,
         tensor_fail("linear.matmul operands are on different devices; transfer them explicitly",
                     line, column);
     }
-    if (!tensor_on_cpu(*left.storage)) {
-        tensor_gpu_unsupported("linear.matmul", *left.storage, line, column);
-    }
     if (left.shape.size() != 2 || right.shape.size() != 2) {
         tensor_fail("linear.matmul currently requires rank-2 tensors", line, column);
     }
@@ -4564,6 +4667,39 @@ extern "C" void* quidra_linear_matmul(void* left_raw, void* right_raw,
     }
     std::vector<long long> shape{left.shape[0], right.shape[1]};
     const auto count = tensor_element_count(shape, line, column);
+    if (!tensor_on_cpu(*left.storage)) {
+        tensor_require_initialized(left, line, column);
+        tensor_require_initialized(right, line, column);
+        TensorStorage* left_materialized = nullptr;
+        TensorStorage* right_materialized = nullptr;
+        const TensorStorage* left_storage = left.storage;
+        const TensorStorage* right_storage = right.storage;
+        if (!tensor_is_contiguous_value(left) || left.offset != 0) {
+            left_materialized = tensor_gpu_materialize_storage(left, line, column);
+            left_storage = left_materialized;
+        }
+        if (!tensor_is_contiguous_value(right) || right.offset != 0) {
+            right_materialized = tensor_gpu_materialize_storage(right, line, column);
+            right_storage = right_materialized;
+        }
+        auto* output = tensor_storage_create(
+            left.storage->dtype, count, 1, left.storage->device, line, column);
+        std::string backend_error;
+        const bool ok = quidra::device::compute_matmul(
+            output->gpu_buffer, left_storage->gpu_buffer, right_storage->gpu_buffer,
+            left.storage->dtype,
+            static_cast<std::size_t>(left.shape[0]),
+            static_cast<std::size_t>(left.shape[1]),
+            static_cast<std::size_t>(right.shape[1]), backend_error);
+        if (left_materialized) tensor_storage_release(left_materialized);
+        if (right_materialized) tensor_storage_release(right_materialized);
+        if (!ok) {
+            tensor_storage_release(output);
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+        auto strides = tensor_contiguous_strides(shape);
+        return tensor_descriptor(output, std::move(shape), std::move(strides), 0);
+    }
     auto* output = tensor_storage_create(left.storage->dtype, count, 1);
     switch (left.storage->dtype) {
         case 1: tensor_matmul_typed<std::int64_t>(left,right,*output,line,column); break;

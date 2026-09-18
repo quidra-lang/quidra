@@ -530,9 +530,13 @@ int[] ordered = values.sorted()
 
 `append`, `concat`, and `sorted` return new array values. `sorted()` is available for numeric, `bool`, and `string` arrays of either fixed or runtime size and returns a runtime-sized sorted copy; it is deterministic and non-mutating. The implementation may use copy-on-write or spare capacity only when that optimization is unobservable, so source-level value semantics remain unchanged. For fully initialized local arrays, typed IR can carry that proof into LLVM and omit redundant per-element initialization checks. Forming a read/write whole-array reference restores the check automatically; forming a `const T &` read-only reference preserves the proof. Control-flow joins that cannot preserve the proof also restore the check, and bounds safety is unaffected.
 
-Dense numeric tensors use the dedicated `tensor<T>` type. The element dtype is always static. An optional second angle group is an exact-rank shape pattern: each entry is either a nonnegative extent or `_`, meaning that axis exists but its extent is unrestricted.
+Dense numeric tensors use the dedicated `tensor<T>` type. The element dtype is always static. An optional second angle group is an exact-rank shape pattern: each entry is either `_`, meaning that axis exists but its extent is unrestricted, or an integer expression. The number of entries is the exact required rank. A non-constant extent expression is evaluated once when the binding is created and its value is captured; later mutations of variables used by that expression do not change the binding's shape contract.
 
 ```quidra
+int batch = input()
+tensor<float32><batch * 2, 224> contextual = tensor.zeros()
+batch = 8 // contextual keeps the extent captured above
+
 tensor<float32><3, _, _> pixels = tensor.zeros<float32>([3, 224, 224])
 tensor<float32><1, _, _> bias = tensor.ones<float32>([1, 224, 224])
 tensor<float32><3, _, _> result = pixels + bias
@@ -547,7 +551,9 @@ auto crop = result[:, 10:20, 30:40]
 float32 value = result[0, 10, 20].item()
 ```
 
-`tensor<T>(shape)` creates storage whose elements are initially uninitialized; individual scalar elements can be initialized with `tensor[i, j, ...] = value`. `tensor.zeros<T>(shape)` and `tensor.ones<T>(shape)` create fully initialized tensors. Reading an element that is not definitely initialized remains a deterministic safety failure.
+`tensor<T>(shape)` creates storage whose elements are initially uninitialized; individual scalar elements can be initialized with `tensor[i, j, ...] = value`. `tensor.zeros<T>(shape)` and `tensor.ones<T>(shape)` create fully initialized tensors. When every extent is supplied by the expected exact shape, `tensor.zeros()` / `tensor.ones()` may omit both dtype and shape arguments; an expected `_` axis or an unconstrained `tensor<T>` is insufficient for allocation, so an explicit shape array is required. Reading an element that is not definitely initialized remains a deterministic safety failure.
+
+Array dimensions accept the same integer-expression form. `float[n * m]` captures `n * m` when that array binding is created, while `float[][n * m]` keeps the outer dimension runtime-sized and captures the inner extent. Captured array and tensor constraints remain fixed across later reassignment.
 
 Tensor-to-tensor broadcasting is intentionally strict: ranks must match and each axis must match or be singleton on one side. Scalars broadcast to tensors. Slices may use internal views, but mutation preserves value semantics through copy-on-write. `.reshape(shape)` never hides a copy; call `.contiguous()` explicitly first when needed.
 

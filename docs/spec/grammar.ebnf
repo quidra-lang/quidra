@@ -32,12 +32,16 @@ parameters       = parameter, { ",", parameter }, [ "," ] ;
 parameter        = [ "const" ], type, [ "&" ], identifier, [ "=", expression ] ;
 
 type             = array_type, { "|", array_type } ;
-array_type       = type_atom, { "[", [ integer ], "]" } ;
+array_type       = type_atom, { "[", [ integer_expression ], "]" } ;
 type_atom        = tensor_type | neural_type | qualified_identifier, [ type_arguments ] ;
 tensor_type      = "tensor", "<", type, ">", [ shape_pattern ] ;
 neural_type      = "neural", [ ( type_arguments, [ shape_pattern ] ) | shape_pattern ] ;
 shape_pattern    = "<", shape_axis, { ",", shape_axis }, ">" ;
-shape_axis       = integer | "_" ;
+shape_axis       = integer_expression | "_" ;
+integer_expression = integer_term, { ( "+" | "-" ), integer_term } ;
+integer_term     = integer_factor, { ( "*" | "/" | "%" ), integer_factor } ;
+integer_factor   = ( "+" | "-" ), integer_factor
+                 | integer | identifier | "(", integer_expression, ")" ;
 type_arguments   = "<", type, { ",", type }, ">" ;
 qualified_identifier = identifier, { ".", identifier } ;
 
@@ -95,10 +99,15 @@ statement_end    = NEWLINE | EOF ;
    - cli_decl is root-only, occurs at most once, and its
      fields use argument(), option(default = value), or flag();
    - `tensor<T><D0, D1, ...>` uses a mandatory numeric element type plus an
-     optional exact-rank shape pattern; each shape axis is a nonnegative integer or `_`,
-     and the number of axes is the required rank;
+     optional exact-rank shape pattern; each shape axis is `_` or an integer
+     expression, and the number of axes is the required rank. Integer expressions
+     that are not compile-time constants are evaluated once when the binding is
+     created and their nonnegative results are captured for that binding;
+   - array dimensions use the same integer-expression rule. `[]` remains a
+     runtime-sized dimension, while `[expr]` captures expr once for the binding;
    - `neural<D0, D1, ...>` means `neural<float32><D0, D1, ...>`; an explicit
-     floating dtype is written `neural<T><D0, D1, ...>`;
+     floating dtype is written `neural<T><D0, D1, ...>` and uses the same
+     exact-rank/captured-extent semantics as tensor;
    - generic class uses require explicit type arguments; generic function/method
      type arguments may be omitted when every generic parameter is uniquely inferred
      from call arguments; all concrete uses are monomorphized before ordinary static checking;

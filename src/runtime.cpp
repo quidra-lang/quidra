@@ -96,6 +96,7 @@ struct ManagedAllocation {
     std::size_t owners{1};
     std::size_t pins{};
     std::size_t array_capacity{};
+    bool interior_range_tracked{true};
     // Strings are immutable at the source level. The only internal mutation is
     // unique-owner suffix append, so a cursor into the existing prefix remains
     // valid across that optimization. This avoids a retained O(n) offset table.
@@ -193,6 +194,7 @@ void* managed_allocate_impl(std::size_t bytes, bool track_interior_range) {
     allocation.base = memory;
     allocation.size = bytes;
     allocation.identity = next_managed_identity++;
+    allocation.interior_range_tracked = track_interior_range;
     managed_allocations.emplace(key, std::move(allocation));
 
     // std::unordered_map rehash invalidates iterators, not references or pointers
@@ -757,8 +759,10 @@ extern "C" void quidra_managed_release(void* value, void* drop_function) {
         const auto key = reinterpret_cast<std::uintptr_t>(allocation.base);
         const ManagedFinalization finalization{allocation.base, allocation.drop};
         neural_moment_cache_release(allocation.base);
-        clear_managed_range_cache(&allocation);
-        managed_ranges.erase(key);
+        if (allocation.interior_range_tracked) {
+            clear_managed_range_cache(&allocation);
+            managed_ranges.erase(key);
+        }
         managed_allocations.erase(it);
         finalize_managed(finalization);
     }
@@ -792,8 +796,10 @@ extern "C" void quidra_managed_unpin(void* address) {
         const auto key = reinterpret_cast<std::uintptr_t>(allocation->base);
         const ManagedFinalization finalization{allocation->base, allocation->drop};
         neural_moment_cache_release(allocation->base);
-        clear_managed_range_cache(allocation);
-        managed_ranges.erase(key);
+        if (allocation->interior_range_tracked) {
+            clear_managed_range_cache(allocation);
+            managed_ranges.erase(key);
+        }
         managed_allocations.erase(key);
         finalize_managed(finalization);
     }

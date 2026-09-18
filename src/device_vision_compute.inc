@@ -465,6 +465,91 @@ std::string ptx_image_filter_source() {
         "DONE:\n ret;\n}\n";
 }
 
+
+std::string hip_image_geometry_source(std::size_t bytes,int operation) {
+    const auto type=hip_raw_type(bytes);
+    std::ostringstream out;
+    out<<"extern \"C\" __global__ void q_kernel("<<type<<"* out,const "<<type
+       <<"* in,unsigned long long count,unsigned long long ih,unsigned long long iw,"
+         "unsigned long long oh,unsigned long long ow,unsigned long long p0,unsigned long long p1){"
+         "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+         "if(i>=count)return;unsigned long long x=i%ow,t=i/ow,y=t%oh,c=t/oh,sy=0,sx=0;";
+    if(operation==1) out<<"sy=p0+y;sx=p1+x;";
+    else if(operation==2) out<<"sy=y*ih/oh;sx=x*iw/ow;";
+    else if(operation==3) out<<"sy=y;sx=iw-1-x;";
+    else if(operation==4) out<<"sy=ih-1-y;sx=x;";
+    else if(operation==5) out<<"sy=ih-1-x;sx=y;";
+    else out<<"sy=x;sx=iw-1-y;";
+    out<<"out[i]=in[(c*ih+sy)*iw+sx];}";
+    return out.str();
+}
+
+std::string hip_image_grayscale_source() {
+    return
+      "extern \"C\" __global__ void q_kernel(unsigned char* out,const unsigned char* in,"
+      "unsigned long long pixels,unsigned long long channels){"
+      "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+      "if(i>=pixels)return;if(channels==1){out[i]=in[i];return;}"
+      "double v=0.299*(double)in[i]+0.587*(double)in[pixels+i]+0.114*(double)in[2*pixels+i];"
+      "long long q=(long long)__builtin_round(v);if(q<0)q=0;if(q>255)q=255;out[i]=(unsigned char)q;}";
+}
+
+std::string hip_image_threshold_source() {
+    return
+      "extern \"C\" __global__ void q_kernel(unsigned char* out,const unsigned char* in,"
+      "unsigned long long count,unsigned char cutoff,unsigned char low,unsigned char high){"
+      "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+      "if(i<count)out[i]=in[i]>=cutoff?high:low;}";
+}
+
+std::string hip_image_blur_source() {
+    return
+      "extern \"C\" __global__ void q_kernel(unsigned char* out,const unsigned char* in,"
+      "unsigned long long count,unsigned long long h,unsigned long long w,unsigned long long radius){"
+      "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+      "if(i>=count)return;unsigned long long x=i%w,t=i/w,y=t%h,c=t/h,total=0,n=0;"
+      "long long r=(long long)radius;"
+      "for(long long dy=-r;dy<=r;++dy){long long sy=(long long)y+dy;if(sy<0||sy>=(long long)h)continue;"
+      "for(long long dx=-r;dx<=r;++dx){long long sx=(long long)x+dx;if(sx<0||sx>=(long long)w)continue;"
+      "total+=(unsigned long long)in[(c*h+(unsigned long long)sy)*w+(unsigned long long)sx];++n;}}"
+      "out[i]=(unsigned char)(total/n);}";
+}
+
+std::string hip_image_filter_source() {
+    return
+      "extern \"C\" __global__ void q_kernel(unsigned char* out,const unsigned char* in,"
+      "const long long* kernel,unsigned int* status,unsigned long long count,"
+      "unsigned long long h,unsigned long long w,unsigned long long kh,unsigned long long kw,"
+      "long long divisor,long long offset){"
+      "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+      "if(i>=count)return;unsigned long long x=i%w,t=i/w,y=t%h,c=t/h;"
+      "long long total=0,cy=(long long)(kh/2),cx=(long long)(kw/2);"
+      "for(unsigned long long ky=0;ky<kh;++ky){long long sy=(long long)y+(long long)ky-cy;"
+      "if(sy<0||sy>=(long long)h)continue;"
+      "for(unsigned long long kx=0;kx<kw;++kx){long long sx=(long long)x+(long long)kx-cx;"
+      "if(sx<0||sx>=(long long)w)continue;long long p=(long long)in[(c*h+(unsigned long long)sy)*w+(unsigned long long)sx];"
+      "long long product=0,next=0;"
+      "if(__builtin_mul_overflow(p,kernel[ky*kw+kx],&product)||__builtin_add_overflow(total,product,&next)){status[0]=1u;return;}"
+      "total=next;}}"
+      "if(total==(-9223372036854775807ll-1ll)&&divisor==-1ll){status[0]=1u;return;}"
+      "long long value=total/divisor,next=0;if(__builtin_add_overflow(value,offset,&next)){status[0]=1u;return;}"
+      "if(next<0)next=0;if(next>255)next=255;out[i]=(unsigned char)next;}";
+}
+
+std::string hip_image_morph_source(int dtype,bool dilate) {
+    const auto type=hip_dtype_type(dtype);
+    std::ostringstream out;
+    out<<"extern \"C\" __global__ void q_kernel("<<type<<"* out,const "<<type
+       <<"* in,unsigned long long count,unsigned long long h,unsigned long long w,unsigned long long radius){"
+         "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+         "if(i>=count)return;unsigned long long x=i%w,t=i/w,y=t%h,c=t/h;"<<type<<" best=in[i];"
+         "long long r=(long long)radius;for(long long dy=-r;dy<=r;++dy){long long sy=(long long)y+dy;"
+         "if(sy<0||sy>=(long long)h)continue;for(long long dx=-r;dx<=r;++dx){long long sx=(long long)x+dx;"
+         "if(sx<0||sx>=(long long)w)continue;"<<type<<" v=in[(c*h+(unsigned long long)sy)*w+(unsigned long long)sx];"
+         "if(v"<<(dilate?">":"<")<<"best)best=v;}}out[i]=best;}";
+    return out.str();
+}
+
 #ifdef __APPLE__
 std::string msl_image_geometry_source(std::size_t bytes,int operation) {
     const auto type=msl_raw_type(bytes);
@@ -581,6 +666,18 @@ bool compute_image_geometry(
         return launch_ptx_1d(output,"image-geometry-"+std::to_string(bytes)+"-"+std::to_string(operation),
                              ptx,output_count,args,error);
     }
+    if(output->backend==Backend::Amd){
+        auto source=hip_image_geometry_source(bytes,operation);
+        auto out_ptr=output->pointer,in_ptr=input->pointer;
+        auto n=static_cast<std::uint64_t>(output_count),ih=static_cast<std::uint64_t>(input_height),
+             iw=static_cast<std::uint64_t>(input_width),oh=static_cast<std::uint64_t>(output_height),
+             ow=static_cast<std::uint64_t>(output_width),p0=static_cast<std::uint64_t>(parameter0),
+             p1=static_cast<std::uint64_t>(parameter1);
+        void* args[]={&out_ptr,&in_ptr,&n,&ih,&iw,&oh,&ow,&p0,&p1};
+        return launch_hip_1d(output,
+            "image-geometry-"+std::to_string(bytes)+"-"+std::to_string(operation),
+            source,output_count,args,error);
+    }
 #ifdef __APPLE__
     if(output->backend==Backend::Metal){
         auto source=msl_image_geometry_source(bytes,operation);
@@ -621,6 +718,13 @@ bool compute_image_grayscale(
         void* args[]={&out_ptr,&in_ptr,&n,&c};
         return launch_ptx_1d(output,"image-grayscale-u8",ptx,pixels,args,error);
     }
+    if(output->backend==Backend::Amd){
+        auto source=hip_image_grayscale_source();
+        auto out_ptr=output->pointer,in_ptr=input->pointer;
+        auto n=static_cast<std::uint64_t>(pixels),c=static_cast<std::uint64_t>(channels);
+        void* args[]={&out_ptr,&in_ptr,&n,&c};
+        return launch_hip_1d(output,"image-grayscale-u8",source,pixels,args,error);
+    }
 #ifdef __APPLE__
     if(output->backend==Backend::Metal){
         auto source=msl_image_grayscale_source();
@@ -653,6 +757,14 @@ bool compute_image_threshold(
         std::uint32_t c=cutoff,l=low,h=high;
         void* args[]={&out_ptr,&in_ptr,&n,&c,&l,&h};
         return launch_ptx_1d(output,"image-threshold-u8",ptx,count,args,error);
+    }
+    if(output->backend==Backend::Amd){
+        auto source=hip_image_threshold_source();
+        auto out_ptr=output->pointer,in_ptr=input->pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        auto c=cutoff,l=low,h=high;
+        void* args[]={&out_ptr,&in_ptr,&n,&c,&l,&h};
+        return launch_hip_1d(output,"image-threshold-u8",source,count,args,error);
     }
 #ifdef __APPLE__
     if(output->backend==Backend::Metal){
@@ -687,6 +799,14 @@ bool compute_image_blur(
              w=static_cast<std::uint64_t>(width),r=static_cast<std::uint64_t>(radius);
         void* args[]={&out_ptr,&in_ptr,&n,&h,&w,&r};
         return launch_ptx_1d(output,"image-blur-u8",ptx,count,args,error);
+    }
+    if(output->backend==Backend::Amd){
+        auto source=hip_image_blur_source();
+        auto out_ptr=output->pointer,in_ptr=input->pointer;
+        auto n=static_cast<std::uint64_t>(count),h=static_cast<std::uint64_t>(height),
+             w=static_cast<std::uint64_t>(width),r=static_cast<std::uint64_t>(radius);
+        void* args[]={&out_ptr,&in_ptr,&n,&h,&w,&r};
+        return launch_hip_1d(output,"image-blur-u8",source,count,args,error);
     }
 #ifdef __APPLE__
     if(output->backend==Backend::Metal){
@@ -737,6 +857,17 @@ bool compute_image_filter(
         auto div=divisor,off=offset;
         void* args[]={&out_ptr,&in_ptr,&k_ptr,&status_ptr,&n,&hh,&ww,&kh64,&kw64,&div,&off};
         if(!launch_ptx_1d(output,"image-filter-u8-i64",ptx,count,args,error))return false;
+    }
+    else if(output->backend==Backend::Amd){
+        auto source=hip_image_filter_source();
+        auto out_ptr=output->pointer,in_ptr=input->pointer,
+             k_ptr=kernel->pointer,status_ptr=status->pointer;
+        auto n=static_cast<std::uint64_t>(count),
+             hh=static_cast<std::uint64_t>(height),ww=static_cast<std::uint64_t>(width),
+             kh64=static_cast<std::uint64_t>(kh),kw64=static_cast<std::uint64_t>(kw);
+        auto div=divisor,off=offset;
+        void* args[]={&out_ptr,&in_ptr,&k_ptr,&status_ptr,&n,&hh,&ww,&kh64,&kw64,&div,&off};
+        if(!launch_hip_1d(output,"image-filter-u8-i64",source,count,args,error))return false;
     }
 #ifdef __APPLE__
     else if(output->backend==Backend::Metal){
@@ -807,6 +938,16 @@ bool compute_image_morphology(
         return launch_ptx_1d(output,
             "image-morph-"+std::to_string(dtype)+"-"+(dilate?"d":"e"),
             ptx,count,args,error);
+    }
+    if(output->backend==Backend::Amd){
+        auto source=hip_image_morph_source(dtype,dilate);
+        auto out_ptr=output->pointer,in_ptr=input->pointer;
+        auto n=static_cast<std::uint64_t>(count),h=static_cast<std::uint64_t>(height),
+             w=static_cast<std::uint64_t>(width),r=static_cast<std::uint64_t>(radius);
+        void* args[]={&out_ptr,&in_ptr,&n,&h,&w,&r};
+        return launch_hip_1d(output,
+            "image-morph-"+std::to_string(dtype)+"-"+(dilate?"d":"e"),
+            source,count,args,error);
     }
 #ifdef __APPLE__
     if(output->backend==Backend::Metal){

@@ -189,6 +189,7 @@ std::string float_literal(double v){std::ostringstream out;out<<std::scientific<
 struct StringPool{std::vector<std::pair<std::string,std::string>>entries;std::unordered_map<std::string,std::string>names;std::string intern(const std::string&v){if(auto it=names.find(v);it!=names.end())return it->second;auto n=".str."+std::to_string(entries.size());entries.emplace_back(n,v);names.emplace(v,n);return n;}};
 
 std::string clone_name(const Type&t){return "@quidra_clone_"+type_id(t);}
+std::string array_cast_name(const Type&from,const Type&to){return "@quidra_array_cast_"+type_id(from)+"_to_"+type_id(to);}
 std::string drop_name(const Type&t){return "@quidra_drop_"+type_id(t);}
 std::string equality_name(const Type&t){return "@quidra_equal_"+type_id(t);}
 
@@ -816,6 +817,11 @@ struct FunctionEmitter {
             else
                 out<<"  "<<slot<<" = call ptr @quidra_array_slot(ptr "<<value(n.bytes)<<", i64 "<<value(n.index)<<", i64 1, i64 "<<n.line<<", i64 "<<n.column<<")\n";
             out<<"  store i8 "<<value(n.value)<<", ptr "<<slot<<", align 1\n";
+        }
+        if constexpr(std::is_same_v<T,ir::ArrayNumericCast>){
+            values[n.out]=n.target_type;
+            out<<"  "<<value(n.out)<<" = call ptr "<<array_cast_name(n.source_type,n.target_type)
+               <<"(ptr "<<value(n.array)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::TensorCreate>){
             values[n.out]=n.type;
@@ -2866,6 +2872,7 @@ declare void @quidra_init_clone(ptr, ptr, i64, i64, i64)
 declare i1 @quidra_array_can_append_move(ptr)
 declare ptr @quidra_array_grow_move(ptr, i64)
 declare ptr @quidra_array_sorted(ptr, i32, i64, i64, i64)
+declare void @quidra_numeric_cast_element(ptr, ptr, i32, i32, i64, i64)
 declare ptr @quidra_tensor_create(ptr, i32, i32, i64, i64)
 declare ptr @quidra_tensor_clone(ptr)
 declare void @quidra_tensor_drop(ptr)

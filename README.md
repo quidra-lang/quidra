@@ -742,7 +742,7 @@ The current implementation includes:
 - explicit safe storage references with pinned substorage lifetime,
 - monotonic bare-name resolution and always-visible standard namespaces,
 - local modules, installed-package resolution, explicit generics, and monomorphization,
-- dense tensors with views, copy-on-write, strict broadcasting, explicit numeric casting, statistics, and rank-2 matrix multiplication,
+- dense tensors with views, copy-on-write, strict broadcasting, explicit numeric casting, reductions, transpose views, and vector/matrix multiplication,
 - PNG/JPEG/BMP/TIFF/WebP image I/O through `image`,
 - typed Quidra IR followed by direct LLVM IR/native lowering,
 - Linux, macOS, and Windows native execution/packaging,
@@ -1043,9 +1043,9 @@ match result
 
 ### Tensor numerics and image I/O
 
-`stats.mean(value)` computes the arithmetic mean of a numeric tensor and returns `float`. Empty or partially uninitialized tensors fail deterministically rather than inventing missing values.
+`stats.sum(value)`, `stats.min(value)`, and `stats.max(value)` reduce a numeric tensor to a same-dtype scalar; integer `sum` remains overflow-checked. `stats.mean(value)` returns `float`. Empty `min`/`max`/`mean` and partially uninitialized inputs fail deterministically rather than inventing missing values. GPU reductions execute on the selected device and transfer only the explicit scalar result to the host.
 
-`linear.dot(a, b)` computes a scalar dot product for same-length rank-1 numeric tensors. `linear.matmul(a, b)` performs rank-2 matrix multiplication for compatible `[m, k]` / `[k, n]` tensors. Both require identical element types, preserve that numeric type, and keep integer multiplication and accumulation overflow-checked.
+`linear.dot(a, b)` computes a scalar dot product for same-length rank-1 numeric tensors. `linear.matmul(a, b)` supports `[k] × [k,n] -> [n]`, `[m,k] × [k] -> [m]`, and `[m,k] × [k,n] -> [m,n]`. All forms require identical element types, preserve that numeric type and tensor device placement, and keep integer multiplication and accumulation overflow-checked.
 
 Image I/O is explicit and tensor-native:
 

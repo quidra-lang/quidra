@@ -91,8 +91,9 @@ statement_end    = NEWLINE | EOF ;
    - import cycles and alias collisions are invalid;
    - cli_decl is root-only, occurs at most once, and its
      fields use argument(), option(default = value), or flag();
-   - `tensor<T, N>` may add a nonnegative integer-literal static-rank contract `N`;
-     the rank literal is tensor-specific syntax, not a general non-type generic argument;
+   - `tensor<T, A, B, ...>` may constrain consecutive leading shape axes with
+     nonnegative integer literals; omitted suffix axes remain unconstrained, and empty
+     slots or wildcard dimensions are not syntax; tensor rank is inferred internally;
    - generic class uses require explicit type arguments; generic function/method
      type arguments may be omitted when every generic parameter is uniquely inferred
      from call arguments; all concrete uses are monomorphized before ordinary static checking;

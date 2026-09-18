@@ -118,6 +118,8 @@ struct ManagedFinalization {
 using ManagedAllocations = std::unordered_map<std::uintptr_t, ManagedAllocation>;
 thread_local ManagedAllocations managed_allocations;
 thread_local std::uint64_t next_managed_identity = 1;
+
+void neural_moment_cache_release(void* value);
 // Interior references need an ordered range index, but exact owner operations do not.
 // Generated element accesses cluster in a small working set of allocations, so cache
 // those ranges and avoid a tree lookup on every initialization check. The set holds
@@ -658,6 +660,7 @@ extern "C" void quidra_managed_release(void* value, void* drop_function) {
     if (allocation.owners == 0 && allocation.pins == 0) {
         const auto key = reinterpret_cast<std::uintptr_t>(allocation.base);
         const ManagedFinalization finalization{allocation.base, allocation.drop};
+        neural_moment_cache_release(allocation.base);
         clear_managed_range_cache(&allocation);
         managed_ranges.erase(key);
         managed_allocations.erase(it);
@@ -684,6 +687,7 @@ extern "C" void quidra_managed_unpin(void* address) {
     if (allocation->owners == 0 && allocation->pins == 0) {
         const auto key = reinterpret_cast<std::uintptr_t>(allocation->base);
         const ManagedFinalization finalization{allocation->base, allocation->drop};
+        neural_moment_cache_release(allocation->base);
         clear_managed_range_cache(allocation);
         managed_ranges.erase(key);
         managed_allocations.erase(key);
@@ -2495,6 +2499,40 @@ struct NeuralMomentRecord {
     std::vector<double> second;
 };
 
+struct NeuralMomentDeviceRecord {
+    int dtype{};
+    int device{-1};
+    std::size_t count{};
+    quidra::device::Buffer* first{};
+    quidra::device::Buffer* second{};
+
+    NeuralMomentDeviceRecord() = default;
+    NeuralMomentDeviceRecord(const NeuralMomentDeviceRecord&) = delete;
+    NeuralMomentDeviceRecord& operator=(const NeuralMomentDeviceRecord&) = delete;
+    ~NeuralMomentDeviceRecord() {
+        if(first) quidra::device::release(first);
+        if(second) quidra::device::release(second);
+    }
+};
+
+struct NeuralMomentDeviceCache {
+    std::vector<std::unique_ptr<NeuralMomentDeviceRecord>> records;
+};
+
+thread_local std::unordered_map<std::uintptr_t,NeuralMomentDeviceCache>
+    neural_moment_device_caches;
+
+void neural_moment_cache_release(void* value) {
+    if(!value) return;
+    neural_moment_device_caches.erase(reinterpret_cast<std::uintptr_t>(value));
+}
+
+std::size_t neural_managed_owner_count(void* value) {
+    if(!value) return 0;
+    const auto found=managed_allocations.find(reinterpret_cast<std::uintptr_t>(value));
+    return found==managed_allocations.end()?0:found->second.owners;
+}
+
 constexpr std::uint64_t neural_moment_state_magic = 0x4e4f554144414d33ULL;
 
 std::size_t neural_checked_add(std::size_t a,std::size_t b,
@@ -2644,10 +2682,150 @@ void* neural_encode_moments(
     return raw;
 }
 
+void neural_sync_moment_cache_to_host(
+    void* raw,unsigned long long line,unsigned long long column) {
+    if(!raw) return;
+    const auto key=reinterpret_cast<std::uintptr_t>(raw);
+    const auto found=neural_moment_device_caches.find(key);
+    if(found==neural_moment_device_caches.end()) return;
+
+    auto records=neural_decode_moments(raw,line,column);
+    auto& cache=found->second;
+    if(cache.records.size()>records.size())
+        neural_fail("moment device cache does not match encoded state",line,column);
+
+    for(std::size_t index=0;index<cache.records.size();++index){
+        auto* device_record=cache.records[index].get();
+        if(!device_record) continue;
+        auto& record=records[index];
+        if(device_record->dtype!=record.dtype ||
+           device_record->count!=record.first.size() ||
+           record.first.size()!=record.second.size())
+            neural_fail("moment device cache does not match encoded state",line,column);
+
+        std::string backend_error;
+        if(record.dtype==10){
+            std::vector<float> first(device_record->count),second(device_record->count);
+            const auto bytes=neural_checked_mul(
+                device_record->count,sizeof(float),line,column);
+            if(!quidra::device::copy_to_host(
+                   device_record->first,0,first.data(),bytes,backend_error) ||
+               !quidra::device::copy_to_host(
+                   device_record->second,0,second.data(),bytes,backend_error))
+                neural_fail(backend_error.c_str(),line,column);
+            for(std::size_t i=0;i<device_record->count;++i){
+                record.first[i]=static_cast<double>(first[i]);
+                record.second[i]=static_cast<double>(second[i]);
+            }
+        }else if(record.dtype==9){
+            const auto bytes=neural_checked_mul(
+                device_record->count,sizeof(double),line,column);
+            if(!quidra::device::copy_to_host(
+                   device_record->first,0,record.first.data(),bytes,backend_error) ||
+               !quidra::device::copy_to_host(
+                   device_record->second,0,record.second.data(),bytes,backend_error))
+                neural_fail(backend_error.c_str(),line,column);
+        }else{
+            neural_fail("invalid moment device cache dtype",line,column);
+        }
+    }
+
+    auto* encoded=neural_encode_moments(records,line,column);
+    const auto raw_it=managed_allocations.find(reinterpret_cast<std::uintptr_t>(raw));
+    const auto encoded_it=managed_allocations.find(reinterpret_cast<std::uintptr_t>(encoded));
+    if(raw_it==managed_allocations.end() || encoded_it==managed_allocations.end() ||
+       raw_it->second.size!=encoded_it->second.size){
+        quidra_managed_release(encoded,nullptr);
+        neural_fail("moment state size changed during GPU synchronization",line,column);
+    }
+    std::memcpy(raw,encoded,raw_it->second.size);
+    quidra_managed_release(encoded,nullptr);
+}
+
+NeuralMomentDeviceRecord* neural_moment_device_record(
+    void* raw,std::size_t index,const NeuralMomentRecord& record,
+    TensorValue& parameter,unsigned long long line,unsigned long long column) {
+    if(neural_managed_owner_count(raw)!=1) return nullptr;
+    const auto count=tensor_logical_count(parameter);
+    if(record.first.size()!=count || record.second.size()!=count)
+        neural_fail("moment device cache size mismatch",line,column);
+    auto& cache=neural_moment_device_caches[
+        reinterpret_cast<std::uintptr_t>(raw)];
+    if(cache.records.size()<=index) cache.records.resize(index+1);
+    auto& slot=cache.records[index];
+    if(slot){
+        if(slot->dtype!=record.dtype || slot->device!=parameter.storage->device ||
+           slot->count!=count)
+            neural_fail("GPU Adam moment state device/dtype changed",line,column);
+        return slot.get();
+    }
+
+    const auto width=tensor_dtype_bytes(record.dtype);
+    const auto bytes=neural_checked_mul(count,width,line,column);
+    std::string backend_error;
+    auto created=std::make_unique<NeuralMomentDeviceRecord>();
+    created->dtype=record.dtype;
+    created->device=parameter.storage->device;
+    created->count=count;
+    created->first=quidra::device::allocate(parameter.storage->device,bytes,backend_error);
+    if(!created->first) neural_fail(backend_error.c_str(),line,column);
+    created->second=quidra::device::allocate(parameter.storage->device,bytes,backend_error);
+    if(!created->second) neural_fail(backend_error.c_str(),line,column);
+
+    if(record.dtype==10){
+        std::vector<float> first(count),second(count);
+        bool all_zero=true;
+        for(std::size_t i=0;i<count;++i){
+            first[i]=static_cast<float>(record.first[i]);
+            second[i]=static_cast<float>(record.second[i]);
+            all_zero=all_zero && first[i]==0.0F && second[i]==0.0F;
+        }
+        if(all_zero){
+            if(!quidra::device::zero(created->first,0,bytes,backend_error) ||
+               !quidra::device::zero(created->second,0,bytes,backend_error))
+                neural_fail(backend_error.c_str(),line,column);
+        }else if(!quidra::device::copy_from_host(
+                      created->first,0,first.data(),bytes,backend_error) ||
+                  !quidra::device::copy_from_host(
+                      created->second,0,second.data(),bytes,backend_error)){
+            neural_fail(backend_error.c_str(),line,column);
+        }
+    }else if(record.dtype==9){
+        const bool all_zero=
+            std::all_of(record.first.begin(),record.first.end(),
+                        [](double value){return value==0.0;}) &&
+            std::all_of(record.second.begin(),record.second.end(),
+                        [](double value){return value==0.0;});
+        if(all_zero){
+            if(!quidra::device::zero(created->first,0,bytes,backend_error) ||
+               !quidra::device::zero(created->second,0,bytes,backend_error))
+                neural_fail(backend_error.c_str(),line,column);
+        }else if(!quidra::device::copy_from_host(
+                      created->first,0,record.first.data(),bytes,backend_error) ||
+                  !quidra::device::copy_from_host(
+                      created->second,0,record.second.data(),bytes,backend_error)){
+            neural_fail(backend_error.c_str(),line,column);
+        }
+    }else{
+        neural_fail("invalid moment device cache dtype",line,column);
+    }
+
+    auto* result=created.get();
+    slot=std::move(created);
+    return result;
+}
+
 void neural_replace_moments(void* optimizer,void* encoded) {
     auto* state=neural_object_pointer_field(optimizer,40);
     if(!state) runtime_text_failure("null moment State");
     auto* old=neural_object_pointer_field(state,0);
+    const auto old_key=reinterpret_cast<std::uintptr_t>(old);
+    const auto new_key=reinterpret_cast<std::uintptr_t>(encoded);
+    auto cache=neural_moment_device_caches.extract(old_key);
+    if(!cache.empty()){
+        cache.key()=new_key;
+        neural_moment_device_caches.insert(std::move(cache));
+    }
     std::memcpy(state,&encoded,sizeof(encoded));
     quidra_managed_release(old,nullptr);
 }
@@ -3575,8 +3753,18 @@ extern "C" bool quidra_neural_moment_update_parameter(
     if(!tensor) neural_fail("invalid neural Parameter",line,column);
     auto* moments_state=neural_object_pointer_field(optimizer,40);
     if(!moments_state) neural_fail("invalid moment update moments State",line,column);
-    auto records=neural_decode_moments(
-        neural_object_pointer_field(moments_state,0),line,column);
+    auto* moments_raw=neural_object_pointer_field(moments_state,0);
+    const auto* gradient=neural_gradient_for_parameter(parameter,gradients_raw,line,column);
+
+    const auto moment_key=reinterpret_cast<std::uintptr_t>(moments_raw);
+    const bool cached=neural_moment_device_caches.contains(moment_key);
+    if(cached && gradient &&
+       (neural_managed_owner_count(moments_raw)>1 || !gradient->device_tensor)){
+        neural_sync_moment_cache_to_host(moments_raw,line,column);
+        neural_moment_device_caches.erase(moment_key);
+    }
+
+    auto records=neural_decode_moments(moments_raw,line,column);
     if(index>records.size()) neural_fail("moment update Parameter traversal changed",line,column);
     const auto logical_count=tensor_logical_count(*tensor);
     if(index==records.size()){
@@ -3595,7 +3783,6 @@ extern "C" bool quidra_neural_moment_update_parameter(
        record.first.size()!=logical_count||record.second.size()!=logical_count)
         neural_fail("moment update state does not match Parameter dtype/shape",line,column);
 
-    const auto* gradient=neural_gradient_for_parameter(parameter,gradients_raw,line,column);
     bool matched=gradient!=nullptr;
     if(matched){
         if(record.step==std::numeric_limits<std::uint64_t>::max())
@@ -3634,61 +3821,72 @@ extern "C" bool quidra_neural_moment_update_parameter(
             }
             const auto buffer_bytes=logical_count*bytes;
             std::string backend_error;
-            std::unique_ptr<quidra::device::Buffer,void(*)(quidra::device::Buffer*)> first_buffer(
-                quidra::device::allocate(tensor->storage->device,buffer_bytes,backend_error),
-                [](quidra::device::Buffer* value){quidra::device::release(value);});
-            if(!first_buffer){
-                if(gradient_mat) tensor_storage_release(gradient_mat);
-                neural_fail(backend_error.c_str(),line,column);
-            }
-            std::unique_ptr<quidra::device::Buffer,void(*)(quidra::device::Buffer*)> second_buffer(
-                quidra::device::allocate(tensor->storage->device,buffer_bytes,backend_error),
-                [](quidra::device::Buffer* value){quidra::device::release(value);});
-            if(!second_buffer){
-                if(gradient_mat) tensor_storage_release(gradient_mat);
-                neural_fail(backend_error.c_str(),line,column);
-            }
-
             bool ok=false;
-            if(tensor->storage->dtype==10){
-                std::vector<float> first(logical_count),second(logical_count);
-                for(std::size_t i=0;i<logical_count;++i){
-                    first[i]=static_cast<float>(record.first[i]);
-                    second[i]=static_cast<float>(record.second[i]);
-                }
-                ok=quidra::device::copy_from_host(
-                       first_buffer.get(),0,first.data(),buffer_bytes,backend_error)&&
-                   quidra::device::copy_from_host(
-                       second_buffer.get(),0,second.data(),buffer_bytes,backend_error)&&
-                   quidra::device::compute_moment_update(
-                       tensor->storage->gpu_buffer,gradient_store->gpu_buffer,
-                       first_buffer.get(),second_buffer.get(),10,logical_count,
-                       rate,beta1,beta2,epsilon,correction1,correction2,backend_error)&&
-                   quidra::device::copy_to_host(
-                       first_buffer.get(),0,first.data(),buffer_bytes,backend_error)&&
-                   quidra::device::copy_to_host(
-                       second_buffer.get(),0,second.data(),buffer_bytes,backend_error);
-                if(ok)
-                    for(std::size_t i=0;i<logical_count;++i){
-                        record.first[i]=static_cast<double>(first[i]);
-                        record.second[i]=static_cast<double>(second[i]);
-                    }
-            }else if(tensor->storage->dtype==9){
-                ok=quidra::device::copy_from_host(
-                       first_buffer.get(),0,record.first.data(),buffer_bytes,backend_error)&&
-                   quidra::device::copy_from_host(
-                       second_buffer.get(),0,record.second.data(),buffer_bytes,backend_error)&&
-                   quidra::device::compute_moment_update(
-                       tensor->storage->gpu_buffer,gradient_store->gpu_buffer,
-                       first_buffer.get(),second_buffer.get(),9,logical_count,
-                       rate,beta1,beta2,epsilon,correction1,correction2,backend_error)&&
-                   quidra::device::copy_to_host(
-                       first_buffer.get(),0,record.first.data(),buffer_bytes,backend_error)&&
-                   quidra::device::copy_to_host(
-                       second_buffer.get(),0,record.second.data(),buffer_bytes,backend_error);
+
+            auto* cached_record=neural_moment_device_record(
+                moments_raw,static_cast<std::size_t>(index),record,*tensor,line,column);
+            if(cached_record){
+                ok=quidra::device::compute_moment_update(
+                    tensor->storage->gpu_buffer,gradient_store->gpu_buffer,
+                    cached_record->first,cached_record->second,
+                    tensor->storage->dtype,logical_count,
+                    rate,beta1,beta2,epsilon,correction1,correction2,backend_error);
             }else{
-                if(gradient_mat) tensor_storage_release(gradient_mat);
-                neural_fail("invalid neural gradient dtype",line,column);
+                std::unique_ptr<quidra::device::Buffer,void(*)(quidra::device::Buffer*)> first_buffer(
+                    quidra::device::allocate(tensor->storage->device,buffer_bytes,backend_error),
+                    [](quidra::device::Buffer* value){quidra::device::release(value);});
+                if(!first_buffer){
+                    if(gradient_mat) tensor_storage_release(gradient_mat);
+                    neural_fail(backend_error.c_str(),line,column);
+                }
+                std::unique_ptr<quidra::device::Buffer,void(*)(quidra::device::Buffer*)> second_buffer(
+                    quidra::device::allocate(tensor->storage->device,buffer_bytes,backend_error),
+                    [](quidra::device::Buffer* value){quidra::device::release(value);});
+                if(!second_buffer){
+                    if(gradient_mat) tensor_storage_release(gradient_mat);
+                    neural_fail(backend_error.c_str(),line,column);
+                }
+
+                if(tensor->storage->dtype==10){
+                    std::vector<float> first(logical_count),second(logical_count);
+                    for(std::size_t i=0;i<logical_count;++i){
+                        first[i]=static_cast<float>(record.first[i]);
+                        second[i]=static_cast<float>(record.second[i]);
+                    }
+                    ok=quidra::device::copy_from_host(
+                           first_buffer.get(),0,first.data(),buffer_bytes,backend_error)&&
+                       quidra::device::copy_from_host(
+                           second_buffer.get(),0,second.data(),buffer_bytes,backend_error)&&
+                       quidra::device::compute_moment_update(
+                           tensor->storage->gpu_buffer,gradient_store->gpu_buffer,
+                           first_buffer.get(),second_buffer.get(),10,logical_count,
+                           rate,beta1,beta2,epsilon,correction1,correction2,backend_error)&&
+                       quidra::device::copy_to_host(
+                           first_buffer.get(),0,first.data(),buffer_bytes,backend_error)&&
+                       quidra::device::copy_to_host(
+                           second_buffer.get(),0,second.data(),buffer_bytes,backend_error);
+                    if(ok)
+                        for(std::size_t i=0;i<logical_count;++i){
+                            record.first[i]=static_cast<double>(first[i]);
+                            record.second[i]=static_cast<double>(second[i]);
+                        }
+                }else if(tensor->storage->dtype==9){
+                    ok=quidra::device::copy_from_host(
+                           first_buffer.get(),0,record.first.data(),buffer_bytes,backend_error)&&
+                       quidra::device::copy_from_host(
+                           second_buffer.get(),0,record.second.data(),buffer_bytes,backend_error)&&
+                       quidra::device::compute_moment_update(
+                           tensor->storage->gpu_buffer,gradient_store->gpu_buffer,
+                           first_buffer.get(),second_buffer.get(),9,logical_count,
+                           rate,beta1,beta2,epsilon,correction1,correction2,backend_error)&&
+                       quidra::device::copy_to_host(
+                           first_buffer.get(),0,record.first.data(),buffer_bytes,backend_error)&&
+                       quidra::device::copy_to_host(
+                           second_buffer.get(),0,record.second.data(),buffer_bytes,backend_error);
+                }else{
+                    if(gradient_mat) tensor_storage_release(gradient_mat);
+                    neural_fail("invalid neural gradient dtype",line,column);
+                }
             }
             if(gradient_mat) tensor_storage_release(gradient_mat);
             if(!ok) neural_fail(backend_error.c_str(),line,column);
@@ -4043,6 +4241,7 @@ extern "C" void quidra_neural_state_write(
     }
     if(kind==13){
         if(!raw) neural_state_fail("null bytes in .quistate",line,column);
+        neural_sync_moment_cache_to_host(raw,line,column);
         std::int64_t signed_length{};
         std::memcpy(&signed_length,raw,8);
         if(signed_length<0) neural_state_fail("invalid bytes length in .quistate",line,column);

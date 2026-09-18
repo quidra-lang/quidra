@@ -55,6 +55,7 @@ struct BytesLength { ValueId out; ValueId bytes; };
 struct BytesGet { ValueId out; ValueId bytes; ValueId index; std::uint32_t line{}; std::uint32_t column{}; bool bounds_proven{}; };
 struct BytesSet { ValueId bytes; ValueId index; ValueId value; std::uint32_t line{}; std::uint32_t column{}; bool bounds_proven{}; };
 struct NumericConvert { ValueId out; ValueId value; Type source_type; Type target_type; bool checked_range{}; std::uint32_t line{}; std::uint32_t column{}; };
+struct ArrayNumericCast { ValueId out; ValueId array; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorCreate { ValueId out; ValueId shape; Type type; int fill_mode{}; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorReshape { ValueId out; ValueId tensor; ValueId shape; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorContiguous { ValueId out; ValueId tensor; Type type; };
@@ -227,7 +228,7 @@ using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantBool, Const
                                  StringUtf8, StringCodepoints, StringJoin, StringConcat,
                                  StringCanAppendMove, StringAppendMove,
                                  BytesAlloc, BytesLength, BytesGet, BytesSet,
-                                 NumericConvert, TensorCreate, TensorReshape, TensorContiguous,
+                                 NumericConvert, ArrayNumericCast, TensorCreate, TensorReshape, TensorContiguous,
                                  TensorShape, TensorIsContiguous, TensorItem, TensorCast,
                                  NeuralTrack, NeuralUntrack, NeuralUnary, NeuralBinary, NeuralGrad,
                                  NeuralAffine, NeuralConvolve2D, NeuralUpdate, NeuralNormalize,

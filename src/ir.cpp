@@ -1140,14 +1140,6 @@ struct Lowerer {
                         static_cast<std::uint32_t>(e.span.start.column)});
                     return finish(out);
                 }
-                if(n->method=="cast"){
-                    auto out=fresh();
-                    block->instructions.push_back(TensorCast{
-                        out,receiver,receiver_type,type_of(e),
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    return finish(out);
-                }
             }
             if(receiver_type.kind==TypeKind::Error && n->method=="string"){
                 return expr(*n->receiver);
@@ -1274,9 +1266,24 @@ struct Lowerer {
             auto value=expr(*n.args[0].value),out=fresh();
             const auto source=type_of(*n.args[0].value);
             const auto& target=resolution.type;
-            const bool checked_range=
-                numeric_conversion_policy(source,target)==NumericConversionPolicy::ExplicitRangeCheck;
-            block->instructions.push_back(NumericConvert{out,value,source,target,checked_range,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+            if(source.kind==TypeKind::Tensor){
+                block->instructions.push_back(TensorCast{
+                    out,value,source,target,
+                    static_cast<std::uint32_t>(e.span.start.line),
+                    static_cast<std::uint32_t>(e.span.start.column)});
+            }else if(source.kind==TypeKind::Array){
+                block->instructions.push_back(ArrayNumericCast{
+                    out,value,source,target,
+                    static_cast<std::uint32_t>(e.span.start.line),
+                    static_cast<std::uint32_t>(e.span.start.column)});
+            }else{
+                const bool checked_range=
+                    numeric_conversion_policy(source,target)==NumericConversionPolicy::ExplicitRangeCheck;
+                block->instructions.push_back(NumericConvert{
+                    out,value,source,target,checked_range,
+                    static_cast<std::uint32_t>(e.span.start.line),
+                    static_cast<std::uint32_t>(e.span.start.column)});
+            }
             return out;
         }
 
@@ -2673,7 +2680,8 @@ if constexpr(std::is_same_v<T,NeuralRandomMask>)out<<"%"<<n.out<<" = neural.rand
 if constexpr(std::is_same_v<T,NeuralMomentUpdate>)out<<"neural.moment_update params="<<n.parameters.size();
 if constexpr(std::is_same_v<T,NeuralSave>)out<<"neural.save leaves="<<n.values.size();
 if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.size();
-    if constexpr(std::is_same_v<T,TensorCast>)out<<"%"<<n.out<<" = tensor.cast %"<<n.tensor<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
+    if constexpr(std::is_same_v<T,ArrayNumericCast>)out<<"%"<<n.out<<" = array.numeric_cast %"<<n.array<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
+    if constexpr(std::is_same_v<T,TensorCast>)out<<"%"<<n.out<<" = tensor.numeric_cast %"<<n.tensor<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
     if constexpr(std::is_same_v<T,StatsMean>)out<<"%"<<n.out<<" = stats.mean %"<<n.tensor;
     if constexpr(std::is_same_v<T,LinearMatmul>)out<<"%"<<n.out<<" = linear.matmul %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,LinearDot>)out<<"%"<<n.out<<" = linear.dot %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.element_type);

@@ -1258,14 +1258,20 @@ struct FunctionEmitter {
                 if(n.source_type.kind==TypeKind::Float32&&n.target_type.kind==TypeKind::Float){
                     out<<"  "<<value(n.out)<<" = fpext float "<<value(n.value)<<" to double\n";
                 }else if(n.source_type.kind==TypeKind::Float&&n.target_type.kind==TypeKind::Float32){
-                    out<<"  "<<value(n.out)<<" = fptrunc double "<<value(n.value)<<" to float\n";
                     if(n.checked_range){
-                        const auto back=temp("cast.back"),same=temp("cast.same"),bad=temp("cast.bad");
-                        out<<"  "<<back<<" = fpext float "<<value(n.out)<<" to double\n";
-                        out<<"  "<<same<<" = fcmp oeq double "<<back<<", "<<value(n.value)<<"\n";
-                        out<<"  "<<bad<<" = xor i1 "<<same<<", true\n";
+                        const auto finite=temp("cast.finite");
+                        const auto high=temp("cast.high");
+                        const auto low=temp("cast.low");
+                        const auto outside=temp("cast.outside");
+                        const auto bad=temp("cast.bad");
+                        out<<"  "<<finite<<" = fcmp ord double "<<value(n.value)<<", "<<value(n.value)<<"\n";
+                        out<<"  "<<high<<" = fcmp ogt double "<<value(n.value)<<", 0x47EFFFFFE0000000\n";
+                        out<<"  "<<low<<" = fcmp olt double "<<value(n.value)<<", 0xC7EFFFFFE0000000\n";
+                        out<<"  "<<outside<<" = or i1 "<<high<<", "<<low<<"\n";
+                        out<<"  "<<bad<<" = and i1 "<<finite<<", "<<outside<<"\n";
                         emit_fail_check({bad});
                     }
+                    out<<"  "<<value(n.out)<<" = fptrunc double "<<value(n.value)<<" to float\n";
                 }else{
                     out<<"  "<<value(n.out)<<" = fadd "<<target_ty<<" "<<value(n.value)<<", 0.000000e+00\n";
                 }

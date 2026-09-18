@@ -92,7 +92,6 @@ const char* token_name(TokenKind kind) {
         case TokenKind::PercentAssign: return "%="; case TokenKind::Plus: return "+";
         case TokenKind::Minus: return "-"; case TokenKind::Star: return "*";
         case TokenKind::Slash: return "/"; case TokenKind::Percent: return "%";
-        case TokenKind::ShiftLeft: return "<<"; case TokenKind::ShiftRight: return ">>";
         case TokenKind::EqEq: return "=="; case TokenKind::NotEq: return "!=";
         case TokenKind::Less: return "<"; case TokenKind::LessEq: return "<=";
         case TokenKind::Greater: return ">"; case TokenKind::GreaterEq: return ">=";
@@ -309,16 +308,8 @@ std::vector<Token> Lexer::scan() {
             case '!':
                 if (!match('=')) error("LEX_ERROR", "Expected '=' after '!'.", start);
                 tokens.push_back(make(TokenKind::NotEq, start_index, start)); break;
-            case '<':
-                tokens.push_back(make(match('<') ? TokenKind::ShiftLeft
-                                                  : (match('=') ? TokenKind::LessEq : TokenKind::Less),
-                                      start_index, start));
-                break;
-            case '>':
-                tokens.push_back(make(match('>') ? TokenKind::ShiftRight
-                                                  : (match('=') ? TokenKind::GreaterEq : TokenKind::Greater),
-                                      start_index, start));
-                break;
+            case '<': tokens.push_back(make(match('=') ? TokenKind::LessEq : TokenKind::Less, start_index, start)); break;
+            case '>': tokens.push_back(make(match('=') ? TokenKind::GreaterEq : TokenKind::Greater, start_index, start)); break;
             default: error("LEX_ERROR", "Unexpected character in source.", start);
         }
     }

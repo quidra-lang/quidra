@@ -1767,6 +1767,30 @@ extern "C" void* quidra_tensor_reshape(void* raw, void* shape_array,
     return tensor_descriptor(source->storage, std::move(shape), std::move(strides), source->offset);
 }
 
+extern "C" void* quidra_tensor_transpose(
+    void* raw, long long axis0, long long axis1,
+    unsigned long long line, unsigned long long column) {
+    if (!raw) tensor_fail("null tensor", line, column);
+    auto* source = static_cast<TensorValue*>(raw);
+    const auto rank = static_cast<long long>(source->shape.size());
+    if (axis0 < 0 || axis1 < 0 || axis0 >= rank || axis1 >= rank) {
+        tensor_fail("tensor.transpose axis is outside the tensor rank", line, column);
+    }
+    if (!source->storage ||
+        source->storage->owners == std::numeric_limits<std::size_t>::max()) {
+        runtime_text_failure("invalid tensor storage");
+    }
+    ++source->storage->owners;
+    auto shape = source->shape;
+    auto strides = source->strides;
+    const auto a0 = static_cast<std::size_t>(axis0);
+    const auto a1 = static_cast<std::size_t>(axis1);
+    std::swap(shape[a0], shape[a1]);
+    std::swap(strides[a0], strides[a1]);
+    return tensor_descriptor(
+        source->storage, std::move(shape), std::move(strides), source->offset);
+}
+
 extern "C" void* quidra_tensor_contiguous(void* raw) {
     if (!raw) runtime_text_failure("null tensor");
     auto* source = static_cast<TensorValue*>(raw);

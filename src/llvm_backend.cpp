@@ -845,6 +845,12 @@ struct FunctionEmitter {
             out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_reshape(ptr "<<value(n.tensor)
                <<", ptr "<<value(n.shape)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
         }
+        if constexpr(std::is_same_v<T,ir::TensorTranspose>){
+            values[n.out]=n.type;
+            out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_transpose(ptr "<<value(n.tensor)
+               <<", i64 "<<value(n.axis0)<<", i64 "<<value(n.axis1)
+               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+        }
         if constexpr(std::is_same_v<T,ir::TensorContiguous>){
             values[n.out]=n.type;
             out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_contiguous(ptr "<<value(n.tensor)<<")\n";
@@ -3112,6 +3118,7 @@ declare ptr @quidra_tensor_to_cpu(ptr, i64, i64)
 declare ptr @quidra_tensor_clone(ptr)
 declare void @quidra_tensor_drop(ptr)
 declare ptr @quidra_tensor_reshape(ptr, ptr, i64, i64)
+declare ptr @quidra_tensor_transpose(ptr, i64, i64, i64, i64)
 declare ptr @quidra_tensor_contiguous(ptr)
 declare ptr @quidra_tensor_shape(ptr)
 declare ptr @quidra_tensor_shape_fixed(ptr, i64)

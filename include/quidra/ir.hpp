@@ -59,6 +59,7 @@ struct ArrayNumericCast { ValueId out; ValueId array; Type source_type; Type tar
 struct TensorCreate { ValueId out; ValueId shape; std::optional<ValueId> gpu; Type type; int fill_mode{}; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorTransfer { ValueId out; ValueId tensor; std::optional<ValueId> gpu; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorReshape { ValueId out; ValueId tensor; ValueId shape; Type type; std::uint32_t line{}; std::uint32_t column{}; };
+struct TensorTranspose { ValueId out; ValueId tensor; ValueId axis0; ValueId axis1; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorContiguous { ValueId out; ValueId tensor; Type type; };
 struct TensorShape { ValueId out; ValueId tensor; Type type; };
 struct TensorIsContiguous { ValueId out; ValueId tensor; };
@@ -253,7 +254,7 @@ using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantBool, Const
                                  StringUtf8, StringCodepoints, StringJoin, StringConcat,
                                  StringCanAppendMove, StringAppendMove,
                                  BytesAlloc, BytesLength, BytesGet, BytesSet,
-                                 NumericConvert, ArrayNumericCast, TensorCreate, TensorTransfer, TensorReshape, TensorContiguous,
+                                 NumericConvert, ArrayNumericCast, TensorCreate, TensorTransfer, TensorReshape, TensorTranspose, TensorContiguous,
                                  TensorShape, TensorIsContiguous, TensorItem, TensorCast,
                                  ShapedConstraintCheck, ExtentEqualCheck, NeuralNumericCast,
                                  NeuralTrack, NeuralUntrack, NeuralUnary, NeuralBinary, NeuralGrad,

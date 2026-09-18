@@ -1841,6 +1841,67 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         type = poisoned(shape)
                             ? simple(TypeKind::Invalid)
                             : Type::tensor(*receiver.first, rank, {}, std::move(known_shape));
+                    } else if (node->method == "transpose") {
+                        const auto int_type = simple(TypeKind::Int);
+                        if (!node->type_arguments.empty() || node->args.size() != 2 ||
+                            node->args[0].writable || node->args[1].writable ||
+                            node->args[0].name || node->args[1].name) {
+                            error("ARGUMENT_MISMATCH",
+                                  "tensor.transpose(axis0, axis1) requires exactly two positional integer axes.",
+                                  expression.span);
+                        }
+                        auto axis0 = node->args.size() > 0
+                            ? check_expr(*node->args[0].value, &int_type)
+                            : simple(TypeKind::Invalid);
+                        auto axis1 = node->args.size() > 1
+                            ? check_expr(*node->args[1].value, &int_type)
+                            : simple(TypeKind::Invalid);
+                        type = poisoned(axis0) || poisoned(axis1)
+                            ? simple(TypeKind::Invalid)
+                            : Type::tensor(*receiver.first, receiver.length);
+                        if (!poisoned(type)) {
+                            const auto constant_axis = [&](std::size_t index)
+                                -> std::optional<long long> {
+                                if (index >= node->args.size()) return std::nullopt;
+                                return constant_integer_value(
+                                    *node->args[index].value, &const_integer_values_);
+                            };
+                            const auto a0 = constant_axis(0);
+                            const auto a1 = constant_axis(1);
+                            const auto check_axis = [&](const std::optional<long long>& axis,
+                                                        const SourceSpan& span) {
+                                if (!axis) return;
+                                if (*axis < 0 ||
+                                    (receiver.length >= 0 && *axis >= receiver.length)) {
+                                    error("ARGUMENT_MISMATCH",
+                                          "tensor.transpose axis is outside the tensor rank.",
+                                          span);
+                                }
+                            };
+                            check_axis(a0, node->args[0].span);
+                            check_axis(a1, node->args[1].span);
+                            if (a0 && a1 && *a0 >= 0 && *a1 >= 0 &&
+                                (receiver.length < 0 ||
+                                 (*a0 < receiver.length && *a1 < receiver.length))) {
+                                auto pattern = receiver.tensor_shape_prefix;
+                                auto known = receiver.tensor_known_shape_prefix;
+                                const auto x = static_cast<std::size_t>(*a0);
+                                const auto y = static_cast<std::size_t>(*a1);
+                                if (x < pattern.size() && y < pattern.size()) {
+                                    std::swap(pattern[x], pattern[y]);
+                                } else {
+                                    pattern.clear();
+                                }
+                                if (x < known.size() && y < known.size()) {
+                                    std::swap(known[x], known[y]);
+                                } else {
+                                    known.clear();
+                                }
+                                type = Type::tensor(
+                                    *receiver.first, receiver.length,
+                                    std::move(pattern), std::move(known));
+                            }
+                        }
                     } else if (node->method == "contiguous") {
                         if (!node->type_arguments.empty() || !node->args.empty()) {
                             error("ARGUMENT_MISMATCH",

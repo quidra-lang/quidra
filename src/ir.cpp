@@ -1311,6 +1311,16 @@ struct Lowerer {
                     release_temporary(*n->args[0].value,shape);
                     return finish(out);
                 }
+                if(n->method=="transpose"){
+                    auto axis0=expr(*n->args[0].value);
+                    auto axis1=expr(*n->args[1].value);
+                    auto out=fresh();
+                    block->instructions.push_back(TensorTranspose{
+                        out,receiver,axis0,axis1,type_of(e),
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    return finish(out);
+                }
                 if(n->method=="contiguous"){
                     auto out=fresh();
                     block->instructions.push_back(TensorContiguous{out,receiver,receiver_type});
@@ -3052,6 +3062,7 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,TensorCreate>)out<<"%"<<n.out<<" = tensor.create %"<<n.shape<<" : "<<type_name(n.type)<<" init="<<(n.fill_mode==0?"uninitialized":n.fill_mode==1?"zeros":"ones")<<(n.gpu?" gpu=%"+std::to_string(*n.gpu):" cpu");
     if constexpr(std::is_same_v<T,TensorTransfer>)out<<"%"<<n.out<<" = tensor."<<(n.gpu?"gpu":"cpu")<<" %"<<n.tensor<<(n.gpu?", %"+std::to_string(*n.gpu):"")<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorReshape>)out<<"%"<<n.out<<" = tensor.reshape %"<<n.tensor<<", %"<<n.shape<<" : "<<type_name(n.type);
+    if constexpr(std::is_same_v<T,TensorTranspose>)out<<"%"<<n.out<<" = tensor.transpose %"<<n.tensor<<", %"<<n.axis0<<", %"<<n.axis1<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorContiguous>)out<<"%"<<n.out<<" = tensor.contiguous %"<<n.tensor<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorShape>)out<<"%"<<n.out<<" = tensor.shape %"<<n.tensor<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorIsContiguous>)out<<"%"<<n.out<<" = tensor.is_contiguous %"<<n.tensor;

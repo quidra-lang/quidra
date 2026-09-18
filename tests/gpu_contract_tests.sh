@@ -194,9 +194,17 @@ tensor<int> cross_gpu = view.gpu(1)
 tensor<int> cross_cpu = cross_gpu.cpu()
 print(cross_cpu[0, 0].item())
 print(cross_cpu[1, 1].item())
+
+tensor<int><3, 2> transposed = value.transpose(0, 1)
+print(transposed.shape()[0])
+print(transposed.shape()[1])
+print(transposed[2, 1].item())
+print(transposed.is_contiguous())
+tensor<int> transpose_dense = transposed.contiguous()
+print(transpose_dense[2, 1].item())
 QUI
 gpu_view_output="$("$QUIDRA" run "$TMP/gpu-view.qui")"
-gpu_view_expected="$(printf '2\n2\n2\n6\n2\n6\n2\n6')"
+gpu_view_expected="$(printf '2\n2\n2\n6\n2\n6\n2\n6\n3\n2\n6\nfalse\n6')"
 if [[ "$gpu_view_output" != "$gpu_view_expected" ]]; then
     echo "unexpected fake-GPU view output:" >&2
     printf '%s\n' "$gpu_view_output" >&2

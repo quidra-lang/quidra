@@ -119,7 +119,9 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
         exports.functions.emplace("zeros", std::string(*standard_function_target(module, "zeros")));
         exports.functions.emplace("ones", std::string(*standard_function_target(module, "ones")));
     } else if (module == "stats") {
-        exports.functions.emplace("mean", std::string(*standard_function_target(module, "mean")));
+        for (const auto name : {"sum", "mean", "min", "max"}) {
+            exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
+        }
     } else if (module == "linear") {
         exports.functions.emplace("dot", std::string(*standard_function_target(module, "dot")));
         exports.functions.emplace("matmul", std::string(*standard_function_target(module, "matmul")));

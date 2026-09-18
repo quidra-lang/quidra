@@ -64,6 +64,7 @@ Codes are contracts for the category of failure. Message wording may become more
 | `REFERENCE_BINDING` | An address/reference target or binding form is invalid. | Use an addressable binding, field, or element with the required `&`. |
 | `RESERVED_MAIN` | Source declares the compiler-reserved native entrypoint name. | Rename it; top-level statements define program entry. |
 | `RETURN_OUTSIDE_FUNCTION` | `return` appears at top level. | Return only from a function/method. |
+| `SHIFT_COUNT` | A statically known shift count is negative or not smaller than the fixed-width integer operand. | Use a shift count in `[0, width)`. |
 | `SHADOWING` | A user declaration reuses a reserved identifier, hides a visible name, or conflicts with a visible class member. | Choose a distinct non-reserved name; qualification does not make a reserved identifier reusable. |
 | `STANDARD_KEY_TYPE` | A standard-library keyed container uses an unsupported key/element type. | Use one of the documented deterministic key types. |
 | `STALE_REVISION` | Patch base revision does not match current source. | Re-inspect and regenerate the patch. |
@@ -105,6 +106,7 @@ Deterministic runtime safety failures terminate with status `101`. They include:
 
 - integer overflow at every supported signed or unsigned width;
 - dynamically determined integer division or remainder by zero;
+- dynamically determined fixed-width integer shift counts outside `[0, width)`;
 - array or bin index bounds violations (array failures include the offending index and current length);
 - reads from runtime-tracked array or tensor storage that has not been initialized;
 - invalid allocation sizes;
@@ -130,7 +132,7 @@ Coded runtime safety failures use status 101 and the stable text shape:
 
 Current coded runtime failure codes include `INDEX_BOUNDS`, `UNINITIALIZED`, `TENSOR`,
 `NEURAL`, `NEURAL_STATE`, `INTEGER_OVERFLOW`, `DIVISION_BY_ZERO`, `RANGE_STEP_ZERO`,
-`CALL_DEPTH_LIMIT`, `NUMERIC_CAST_RANGE`, `NUMERIC_CONVERSION`, `INVALID_SLEEP_DURATION`,
+`CALL_DEPTH_LIMIT`, `NUMERIC_CAST_RANGE`, `NUMERIC_CONVERSION`, `SHIFT_COUNT`, `INVALID_SLEEP_DURATION`,
 and `INVALID_RANDOM_RANGE`.
 Source-bearing coded operations report their source location.
 

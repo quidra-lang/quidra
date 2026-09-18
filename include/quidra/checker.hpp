@@ -130,6 +130,7 @@ private:
     Type current_return_{Type::simple(TypeKind::Void)};
     bool in_function_{};
     std::size_t loop_depth_{};
+    bool explicit_numeric_literal_context_{};
     std::string current_class_;
 
     Type resolve_type(const TypeName& type, bool allow_auto = false);

@@ -734,7 +734,7 @@ int16 wider = int16(small)
 uint8 byte_value = 255
 uint32 count = 100
 int total = int(count)
-float exact_float = 1
+float exact_float = 1.0
 float32 exact_small_float = 1.5
 int8 casted = int8(100)
 int exact_from_float = 3
@@ -765,7 +765,7 @@ int x = 7
 print(local_name())
 print(x)
 )",
- "int x\nx = 4\nprint(x)\n", "auto x = 41\nprint(x)\n", "int end = 7\nprint(end)\n", "// comment only\nint x = 1 // trailing comment\nprint(x)\n"}) good(s);
+ "int x\nx = 4\nprint(x)\n", "auto x = int(41)\nprint(x)\n", "int end = 7\nprint(end)\n", "// comment only\nint x = 1 // trailing comment\nprint(x)\n"}) good(s);
  good("int exit = 7\nprint(exit)\n");
 
  ir_contains(R"(bin bits = bin.parse("01")
@@ -783,16 +783,16 @@ for bit in bits
     print(bit)
 )", "bin.get");
 
- good(R"(float scalar = 3
-float32 scalar32 = 2
-float[] values = [1, 2, 3]
+ good(R"(float scalar = 3.0
+float32 scalar32 = 2.0
+float[] values = [1.0, 2.0, 3.0]
 
 float half(float value)
     return value / 2.0
 
-float negative = -3
-float product = 2.0 * 3
-float argument = half(3)
+float negative = -3.0
+float product = 2.0 * 3.0
+float argument = half(3.0)
 int8 small = 5
 int8 sum = small + 100
 

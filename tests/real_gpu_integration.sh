@@ -220,6 +220,79 @@ if ! grep -Fq "invalid tensor division/remainder or integer overflow" "$TMP/inte
     exit 1
 fi
 
+cat > "$TMP/unsigned-underflow.qui" <<QUI
+tensor<uint8> value = tensor.zeros<uint8>([1], gpu = $GPU_INDEX)
+tensor<uint8> invalid = value - uint8(1)
+print(invalid[0].item())
+QUI
+set +e
+"$QUIDRA" run "$TMP/unsigned-underflow.qui" >"$TMP/unsigned-underflow.out" 2>"$TMP/unsigned-underflow.err"
+underflow_status=$?
+set -e
+if [[ $underflow_status -ne 101 ]]; then
+    echo "real GPU unsigned underflow should fail with status 101, got $underflow_status" >&2
+    cat "$TMP/unsigned-underflow.out" >&2 || true
+    cat "$TMP/unsigned-underflow.err" >&2 || true
+    exit 1
+fi
+if ! grep -Fq "tensor integer arithmetic overflow" "$TMP/unsigned-underflow.err"; then
+    echo "missing real GPU unsigned-underflow diagnostic" >&2
+    cat "$TMP/unsigned-underflow.err" >&2
+    exit 1
+fi
+
+cat > "$TMP/integer-min-div-negative-one.qui" <<QUI
+tensor<int8> value = tensor.ones<int8>([1], gpu = $GPU_INDEX) * int8(-128)
+tensor<int8> invalid = value / int8(-1)
+print(invalid[0].item())
+QUI
+set +e
+"$QUIDRA" run "$TMP/integer-min-div-negative-one.qui" >"$TMP/integer-min-div-negative-one.out" 2>"$TMP/integer-min-div-negative-one.err"
+min_div_status=$?
+set -e
+if [[ $min_div_status -ne 101 ]]; then
+    echo "real GPU signed min / -1 should fail with status 101, got $min_div_status" >&2
+    cat "$TMP/integer-min-div-negative-one.out" >&2 || true
+    cat "$TMP/integer-min-div-negative-one.err" >&2 || true
+    exit 1
+fi
+if ! grep -Fq "invalid tensor division/remainder or integer overflow" "$TMP/integer-min-div-negative-one.err"; then
+    echo "missing real GPU signed min / -1 diagnostic" >&2
+    cat "$TMP/integer-min-div-negative-one.err" >&2
+    exit 1
+fi
+
+cat > "$TMP/integer-min-remainder-negative-one.qui" <<QUI
+tensor<int8> value = tensor.ones<int8>([1], gpu = $GPU_INDEX) * int8(-128)
+tensor<int8> remainder = value % int8(-1)
+print(remainder[0].item())
+QUI
+if [[ "$("$QUIDRA" run "$TMP/integer-min-remainder-negative-one.qui")" != "0" ]]; then
+    echo "real GPU signed min % -1 must match CPU semantics" >&2
+    exit 1
+fi
+
+cat > "$TMP/integer-cast-range.qui" <<QUI
+tensor<int16> source = tensor.ones<int16>([1], gpu = $GPU_INDEX) * int16(300)
+tensor<int8> invalid = int8(source)
+print(invalid[0].item())
+QUI
+set +e
+"$QUIDRA" run "$TMP/integer-cast-range.qui" >"$TMP/integer-cast-range.out" 2>"$TMP/integer-cast-range.err"
+cast_status=$?
+set -e
+if [[ $cast_status -ne 101 ]]; then
+    echo "real GPU out-of-range cast should fail with status 101, got $cast_status" >&2
+    cat "$TMP/integer-cast-range.out" >&2 || true
+    cat "$TMP/integer-cast-range.err" >&2 || true
+    exit 1
+fi
+if ! grep -Fq "tensor cast is unsupported or a value is outside the target range" "$TMP/integer-cast-range.err"; then
+    echo "missing real GPU cast-range diagnostic" >&2
+    cat "$TMP/integer-cast-range.err" >&2
+    exit 1
+fi
+
 if grep -Fq "backend: Metal" <<<"$gpu_info"; then
     cat > "$TMP/metal-float64.qui" <<QUI
 tensor<float> value = tensor.ones<float>([2], gpu = $GPU_INDEX)

@@ -2566,12 +2566,43 @@ void* neural_normalize_inference(
     neural_require_same_tensor_device(
         "neural.normalize_inference", input,
         {scale, bias, mean, variance}, line, column);
-    const auto values=neural_normalize_values(
-        tensor_float_values(input,line,column),input.shape,
-        tensor_float_values(*scale,line,column),tensor_float_values(*bias,line,column),
-        tensor_float_values(*mean,line,column),tensor_float_values(*variance,line,column),
-        epsilon,line,column);
-    return neural_tensor_from_values(input.storage->dtype,input.shape,values);
+    if(tensor_on_cpu(*input.storage)){
+        const auto values=neural_normalize_values(
+            tensor_float_values(input,line,column),input.shape,
+            tensor_float_values(*scale,line,column),tensor_float_values(*bias,line,column),
+            tensor_float_values(*mean,line,column),tensor_float_values(*variance,line,column),
+            epsilon,line,column);
+        return neural_tensor_from_values(input.storage->dtype,input.shape,values);
+    }
+    tensor_require_initialized(*scale,line,column);
+    tensor_require_initialized(*bias,line,column);
+    tensor_require_initialized(*mean,line,column);
+    tensor_require_initialized(*variance,line,column);
+    const auto count=tensor_logical_count(input);
+    const auto layout=neural_normalize_layout(input.shape,count,line,column);
+    if(tensor_logical_count(*scale)!=layout.features||
+       tensor_logical_count(*bias)!=layout.features||
+       tensor_logical_count(*mean)!=layout.features||
+       tensor_logical_count(*variance)!=layout.features)
+        neural_fail("normalization feature dimensions do not match",line,column);
+
+    TensorStorage* in_mat=nullptr;TensorStorage* s_mat=nullptr;TensorStorage* b_mat=nullptr;TensorStorage* m_mat=nullptr;TensorStorage* v_mat=nullptr;
+    const TensorStorage* in_store=input.storage;const TensorStorage* s_store=scale->storage;const TensorStorage* b_store=bias->storage;const TensorStorage* m_store=mean->storage;const TensorStorage* v_store=variance->storage;
+    if(!tensor_is_contiguous_value(input)||input.offset!=0){in_mat=tensor_gpu_materialize_storage(input,line,column);in_store=in_mat;}
+    if(!tensor_is_contiguous_value(*scale)||scale->offset!=0){s_mat=tensor_gpu_materialize_storage(*scale,line,column);s_store=s_mat;}
+    if(!tensor_is_contiguous_value(*bias)||bias->offset!=0){b_mat=tensor_gpu_materialize_storage(*bias,line,column);b_store=b_mat;}
+    if(!tensor_is_contiguous_value(*mean)||mean->offset!=0){m_mat=tensor_gpu_materialize_storage(*mean,line,column);m_store=m_mat;}
+    if(!tensor_is_contiguous_value(*variance)||variance->offset!=0){v_mat=tensor_gpu_materialize_storage(*variance,line,column);v_store=v_mat;}
+    auto* output=tensor_storage_create(input.storage->dtype,count,1,input.storage->device,line,column);
+    std::string backend_error;
+    const bool ok=quidra::device::compute_normalize_inference(
+        output->gpu_buffer,in_store->gpu_buffer,s_store->gpu_buffer,b_store->gpu_buffer,
+        m_store->gpu_buffer,v_store->gpu_buffer,input.storage->dtype,count,
+        layout.features,layout.inner,epsilon,backend_error);
+    if(in_mat)tensor_storage_release(in_mat);if(s_mat)tensor_storage_release(s_mat);if(b_mat)tensor_storage_release(b_mat);
+    if(m_mat)tensor_storage_release(m_mat);if(v_mat)tensor_storage_release(v_mat);
+    if(!ok){tensor_storage_release(output);neural_fail(backend_error.c_str(),line,column);}
+    return tensor_descriptor(output,input.shape,tensor_contiguous_strides(input.shape),0);
 }
 
 template <typename T>
@@ -2839,12 +2870,61 @@ extern "C" void* quidra_neural_tensor_convolve2d(
         neural_fail("convolution input and Parameter dtypes must match",line,column);
     neural_require_same_tensor_device(
         "neural.convolve2d", input, {weight, bias}, line, column);
-    std::vector<long long> output_shape;
-    const auto values=neural_conv2d_values(
-        tensor_float_values(input,line,column),input.shape,
-        tensor_float_values(*weight,line,column),weight->shape,
-        tensor_float_values(*bias,line,column),stride,padding,output_shape,line,column);
-    return neural_tensor_from_values(input.storage->dtype,output_shape,values);
+    if(tensor_on_cpu(*input.storage)){
+        std::vector<long long> output_shape;
+        const auto values=neural_conv2d_values(
+            tensor_float_values(input,line,column),input.shape,
+            tensor_float_values(*weight,line,column),weight->shape,
+            tensor_float_values(*bias,line,column),stride,padding,output_shape,line,column);
+        return neural_tensor_from_values(input.storage->dtype,output_shape,values);
+    }
+    tensor_require_initialized(*weight,line,column);
+    tensor_require_initialized(*bias,line,column);
+    if(input.shape.size()!=4||weight->shape.size()!=4)
+        neural_fail("convolution requires NCHW rank-4 input and OIHW rank-4 weight",line,column);
+    if(stride<=0||padding<0)
+        neural_fail("convolution requires stride > 0 and padding >= 0",line,column);
+    const auto n=input.shape[0],in_c=input.shape[1],height=input.shape[2],width=input.shape[3];
+    const auto out_c=weight->shape[0],weight_in=weight->shape[1],kh=weight->shape[2],kw=weight->shape[3];
+    if(n<0||in_c<=0||height<0||width<0||out_c<=0||weight_in!=in_c||kh<=0||kw<=0||kh!=kw||
+       static_cast<long long>(tensor_logical_count(*bias))!=out_c)
+        neural_fail("convolution dimensions do not match",line,column);
+    if(padding>(std::numeric_limits<long long>::max()-height)/2||
+       padding>(std::numeric_limits<long long>::max()-width)/2)
+        neural_fail("convolution padded shape overflow",line,column);
+    const auto padded_h=height+2*padding,padded_w=width+2*padding;
+    if(padded_h<kh||padded_w<kw)
+        neural_fail("convolution kernel is larger than padded input",line,column);
+    const auto out_h=(padded_h-kh)/stride+1;
+    const auto out_w=(padded_w-kw)/stride+1;
+    std::vector<long long> output_shape{n,out_c,out_h,out_w};
+    const auto safe_mul=[&](std::size_t a,std::size_t b){
+        if(a!=0&&b>std::numeric_limits<std::size_t>::max()/a)
+            neural_fail("convolution output size overflow",line,column);
+        return a*b;
+    };
+    auto output_count=safe_mul(static_cast<std::size_t>(n),static_cast<std::size_t>(out_c));
+    output_count=safe_mul(output_count,static_cast<std::size_t>(out_h));
+    output_count=safe_mul(output_count,static_cast<std::size_t>(out_w));
+
+    TensorStorage* in_mat=nullptr; TensorStorage* w_mat=nullptr; TensorStorage* b_mat=nullptr;
+    const TensorStorage* in_store=input.storage; const TensorStorage* w_store=weight->storage; const TensorStorage* b_store=bias->storage;
+    if(!tensor_is_contiguous_value(input)||input.offset!=0){in_mat=tensor_gpu_materialize_storage(input,line,column);in_store=in_mat;}
+    if(!tensor_is_contiguous_value(*weight)||weight->offset!=0){w_mat=tensor_gpu_materialize_storage(*weight,line,column);w_store=w_mat;}
+    if(!tensor_is_contiguous_value(*bias)||bias->offset!=0){b_mat=tensor_gpu_materialize_storage(*bias,line,column);b_store=b_mat;}
+
+    auto* output=tensor_storage_create(input.storage->dtype,output_count,1,input.storage->device,line,column);
+    std::string backend_error;
+    const bool ok=quidra::device::compute_conv2d(
+        output->gpu_buffer,in_store->gpu_buffer,w_store->gpu_buffer,b_store->gpu_buffer,
+        input.storage->dtype,static_cast<std::size_t>(n),static_cast<std::size_t>(in_c),
+        static_cast<std::size_t>(height),static_cast<std::size_t>(width),
+        static_cast<std::size_t>(out_c),static_cast<std::size_t>(kh),static_cast<std::size_t>(kw),
+        static_cast<std::size_t>(out_h),static_cast<std::size_t>(out_w),
+        static_cast<std::size_t>(stride),static_cast<std::size_t>(padding),backend_error);
+    if(in_mat)tensor_storage_release(in_mat);if(w_mat)tensor_storage_release(w_mat);if(b_mat)tensor_storage_release(b_mat);
+    if(!ok){tensor_storage_release(output);neural_fail(backend_error.c_str(),line,column);}
+    return tensor_descriptor(output,output_shape,tensor_contiguous_strides(output_shape),0);
 }
 
 extern "C" void* quidra_neural_convolve2d(

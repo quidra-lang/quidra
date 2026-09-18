@@ -1771,7 +1771,36 @@ Type Checker::check_method_call_expr(const Expr& expression,
                     }
                 } else if (receiver.kind == TypeKind::Tensor) {
                     const auto shape_type = Type::array(simple(TypeKind::Int));
-                    if (node->method == "reshape") {
+                    if (node->method == "gpu") {
+                        const auto int_type = simple(TypeKind::Int);
+                        if (!node->type_arguments.empty() || node->args.size() != 1 ||
+                            node->args[0].writable || node->args[0].name) {
+                            error("ARGUMENT_MISMATCH",
+                                  "tensor.gpu(index) requires exactly one positional integer GPU index.",
+                                  expression.span);
+                        }
+                        auto gpu = node->args.empty()
+                            ? simple(TypeKind::Invalid)
+                            : check_expr(*node->args[0].value, &int_type);
+                        if (!node->args.empty()) {
+                            if (const auto index =
+                                    constant_integer_value(*node->args[0].value,
+                                                           &const_integer_values_);
+                                index && *index < 0) {
+                                error("ARGUMENT_MISMATCH",
+                                      "tensor.gpu(index) requires a non-negative GPU index.",
+                                      node->args[0].span);
+                                gpu = simple(TypeKind::Invalid);
+                            }
+                        }
+                        type = poisoned(gpu) ? simple(TypeKind::Invalid) : receiver;
+                    } else if (node->method == "cpu") {
+                        if (!node->type_arguments.empty() || !node->args.empty()) {
+                            error("ARGUMENT_MISMATCH",
+                                  "tensor.cpu() takes no arguments.", expression.span);
+                        }
+                        type = receiver;
+                    } else if (node->method == "reshape") {
                         if (!node->type_arguments.empty() || node->args.size() != 1 ||
                             node->args[0].writable ||
                             (node->args[0].name && *node->args[0].name != "shape")) {
@@ -3564,7 +3593,66 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                               expression.span);
                     }
 
-                    const bool contextual_shape = node->args.empty();
+                    std::optional<std::size_t> shape_index;
+                    std::optional<std::size_t> gpu_index;
+                    for (std::size_t i = 0; i < node->args.size(); ++i) {
+                        const auto& argument = node->args[i];
+                        if (argument.writable) {
+                            error("ARGUMENT_MISMATCH",
+                                  "tensor construction arguments are values, not writable references.",
+                                  argument.span);
+                            continue;
+                        }
+                        if (!argument.name) {
+                            if (shape_index) {
+                                error("ARGUMENT_MISMATCH",
+                                      "tensor construction accepts at most one positional shape argument; gpu must be named.",
+                                      argument.span);
+                            } else {
+                                shape_index = i;
+                            }
+                            continue;
+                        }
+                        if (*argument.name == "shape") {
+                            if (shape_index) {
+                                error("ARGUMENT_MISMATCH",
+                                      "tensor shape is supplied more than once.",
+                                      argument.span);
+                            } else {
+                                shape_index = i;
+                            }
+                        } else if (*argument.name == "gpu") {
+                            if (gpu_index) {
+                                error("ARGUMENT_MISMATCH",
+                                      "tensor gpu is supplied more than once.",
+                                      argument.span);
+                            } else {
+                                gpu_index = i;
+                            }
+                        } else {
+                            error("ARGUMENT_MISMATCH",
+                                  "tensor construction supports only shape and gpu named arguments.",
+                                  argument.span);
+                        }
+                    }
+
+                    bool bad_gpu = false;
+                    if (gpu_index) {
+                        const auto int_type = simple(TypeKind::Int);
+                        auto gpu = check_expr(*node->args[*gpu_index].value, &int_type);
+                        bad_gpu = poisoned(gpu);
+                        if (const auto index =
+                                constant_integer_value(*node->args[*gpu_index].value,
+                                                       &const_integer_values_);
+                            index && *index < 0) {
+                            error("ARGUMENT_MISMATCH",
+                                  "tensor gpu index must be non-negative.",
+                                  node->args[*gpu_index].span);
+                            bad_gpu = true;
+                        }
+                    }
+
+                    const bool contextual_shape = !shape_index;
                     if (contextual_shape) {
                         if (builtin == BuiltinCallable::TensorCreate) {
                             error("ARGUMENT_MISMATCH",
@@ -3585,10 +3673,10 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                                   "Contextual tensor allocation cannot infer '_' extents.",
                                   expression.span);
                         }
-                        type = expected
+                        type = expected && !bad_gpu
                             ? Type::tensor(element, expected->length)
                             : simple(TypeKind::Invalid);
-                        if (expected) {
+                        if (expected && !bad_gpu) {
                             bool prefix_known=true;
                             for (const auto extent : expected->tensor_shape_prefix) {
                                 if (extent < 0) {
@@ -3602,20 +3690,16 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         break;
                     }
 
-                    if (node->args.size() != 1 || node->args[0].writable ||
-                        (node->args[0].name && *node->args[0].name != "shape")) {
-                        error("ARGUMENT_MISMATCH",
-                              "tensor construction requires one shape array.", expression.span);
-                    }
                     const auto shape_type = Type::array(simple(TypeKind::Int));
-                    auto shape = check_expr(*node->args[0].value, &shape_type);
+                    auto shape = check_expr(*node->args[*shape_index].value, &shape_type);
                     long long rank = -1;
                     if (!poisoned(shape)) {
                         if (const auto* literal =
-                                std::get_if<ArrayExpr>(&node->args[0].value->data)) {
+                                std::get_if<ArrayExpr>(&node->args[*shape_index].value->data)) {
                             rank = static_cast<long long>(literal->elements.size());
                         } else {
-                            const auto raw = raw_types_.find(node->args[0].value.get());
+                            const auto raw =
+                                raw_types_.find(node->args[*shape_index].value.get());
                             if (raw != raw_types_.end() &&
                                 raw->second.kind == TypeKind::Array &&
                                 raw->second.length >= 0) {
@@ -3626,7 +3710,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     std::vector<long long> known_shape;
                     if (!poisoned(shape)) {
                         if (const auto* literal =
-                                std::get_if<ArrayExpr>(&node->args[0].value->data)) {
+                                std::get_if<ArrayExpr>(&node->args[*shape_index].value->data)) {
                             bool known = true;
                             for (const auto& item : literal->elements) {
                                 const auto extent =
@@ -3640,7 +3724,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                             if (!known) known_shape.clear();
                         }
                     }
-                    type = poisoned(shape)
+                    type = poisoned(shape) || bad_gpu
                         ? simple(TypeKind::Invalid)
                         : Type::tensor(element, rank, {}, std::move(known_shape));
                     break;

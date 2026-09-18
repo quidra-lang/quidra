@@ -180,7 +180,7 @@ cat > "$TMP/gpu-neural-unary.qui" <<'QUI'
 tensor<float> value = tensor.ones<float>([1], gpu = 0)
 neural<float> exponential = neural.exponential(neural.track(value))
 neural<float> restored = neural.logarithm(exponential)
-float result = restored.untrack()[0].item()
+float result = restored.untrack().reshape([]).item()
 print(result > 0.999999999 and result < 1.000000001)
 QUI
 if [[ "$("$QUIDRA" run "$TMP/gpu-neural-unary.qui")" != "true" ]]; then
@@ -191,7 +191,7 @@ fi
 cat > "$TMP/gpu-log-domain.qui" <<'QUI'
 tensor<float32> value = tensor.zeros<float32>([1], gpu = 0)
 neural<float32> invalid = neural.logarithm(neural.track(value))
-print(invalid.untrack()[0].item())
+print(invalid.untrack().reshape([]).item())
 QUI
 expect_runtime_error "$TMP/gpu-log-domain.qui" "logarithm requires finite positive values"
 

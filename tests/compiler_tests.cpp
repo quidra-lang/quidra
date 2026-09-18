@@ -1362,35 +1362,35 @@ print(value.missing<int>(1))
 )", "UNKNOWN_GENERIC_METHOD");
  bad_code("int[] values = [1]\nvalues.missing<int>()\n", "GENERIC_RECEIVER");
 
- // Tensor suffix dimensions constrain leading shape axes; rank is inferred internally.
- good(R"(tensor<float32, 2, 3> matrix = tensor.zeros<float32>([2, 3])
+ // Tensor shape patterns fix rank exactly; '_' keeps only that extent unconstrained.
+ good(R"(tensor<float32><2, 3> matrix = tensor.zeros<float32>([2, 3])
 int[2] dimensions = matrix.shape()
 tensor<float32> erased = matrix
 int[2] inferred_dimensions = erased.shape()
-tensor<float32, 3> row = matrix[0]
-tensor<float32, 2> column = matrix[:, 0]
+tensor<float32><3> row = matrix[0]
+tensor<float32><2> column = matrix[:, 0]
 tensor<float32> cell = matrix[0, 0]
 float32 value = cell.item()
-tensor<float32, 6> reshaped = matrix.reshape([6])
-tensor<float32, 2, 3> contiguous = matrix.contiguous()
-tensor<float, 2, 3> converted = matrix.cast<float>()
+tensor<float32><6> reshaped = matrix.reshape([6])
+tensor<float32><2, 3> contiguous = matrix.contiguous()
+tensor<float><2, 3> converted = float(matrix)
 tensor<float32> product = linear.matmul(matrix, tensor.ones<float32>([3, 2]))
 float32 dot = linear.dot(reshaped, tensor.ones<float32>([6]))
 )");
- good(R"(tensor<T, 3> first_three<T>(tensor<T, 3> value)
+ good(R"(tensor<T><3, _> first_three<T>(tensor<T><3, _> value)
     return value
 tensor<float32> source = tensor.ones<float32>([3, 2])
-tensor<float32, 3> constrained = first_three(source)
+tensor<float32><3, _> constrained = first_three(source)
 )");
  // Generic dtype inference may proceed through an unknown shape, but the
- // specialized call still enforces the tensor shape constraint.
- bad_code(R"(tensor<T, 3> first_three<T>(tensor<T, 3> value)
+ // specialized call still enforces the exact-rank shape pattern.
+ bad_code(R"(tensor<T><3, _> first_three<T>(tensor<T><3, _> value)
     return value
 tensor<float32> source = tensor.ones<float32>([2, 2])
-tensor<float32, 3> constrained = first_three(source)
+tensor<float32><3, _> constrained = first_three(source)
 )", "TYPE_MISMATCH");
  good(R"(tensor<float32> | error direct = tensor.zeros<float32>([2, 2])
-tensor<float32, 2> | error constrained = tensor.ones<float32>([2, 2])
+tensor<float32><2, _> | error constrained = tensor.ones<float32>([2, 2])
 tensor<float32> | error widened = constrained
 match widened
     tensor<float32> pixels
@@ -1398,43 +1398,71 @@ match widened
     error problem
         print(problem)
 )");
- bad_code("tensor<float32, 3> wrong = tensor.zeros<float32>([2, 2])\n", "TYPE_MISMATCH");
- bad_code("tensor<float32, 2, 4> wrong = tensor.zeros<float32>([2, 3])\n", "TYPE_MISMATCH");
- bad_code("tensor<float32, 2, 3> value = tensor.ones<float32>([2, 3])\nint[3] wrong_shape = value.shape()\n", "TYPE_MISMATCH");
+ bad_code("tensor<float32><3, _> wrong = tensor.zeros<float32>([2, 2])\n", "TYPE_MISMATCH");
+ bad_code("tensor<float32><2, 4> wrong = tensor.zeros<float32>([2, 3])\n", "TYPE_MISMATCH");
+ bad_code("tensor<float32><3, _> wrong_rank = tensor.zeros<float32>([3, 4, 5])\n", "TYPE_MISMATCH");
+ good("tensor<float32><3, _, _> exact_rank = tensor.zeros<float32>([3, 4, 5])\n");
+ bad_code("tensor<float32><2, 3> value = tensor.ones<float32>([2, 3])\nint[3] wrong_shape = value.shape()\n", "TYPE_MISMATCH");
  bad_code(R"(tensor<float32> erase(tensor<float32> value)
     return value
-tensor<float32, 2> known = erase(tensor.zeros<float32>([2, 2]))
+tensor<float32><2, _> known = erase(tensor.zeros<float32>([2, 2]))
 )", "TYPE_MISMATCH");
  bad_code("tensor<float32> value = tensor.ones<float32>([1])\nfloat32 scalar = value.item()\n", "TYPE_MISMATCH");
- bad_code("tensor<float32, 2, 2> value = tensor.ones<float32>([2, 2])\nauto bad = value[0, 0, 0]\n", "INDEX_ARITY");
+ bad_code("tensor<float32><2, 2> value = tensor.ones<float32>([2, 2])\nauto bad = value[0, 0, 0]\n", "INDEX_ARITY");
  bad_code("tensor<float32> value = tensor.ones<float32>([2, 2])\nfloat32 bad = linear.dot(value, value)\n", "TYPE_MISMATCH");
  bad_code("tensor<float32> value = tensor.ones<float32>([2])\nauto bad = linear.matmul(value, value)\n", "TYPE_MISMATCH");
- bad_code("tensor<uint8, 2> value = tensor.zeros<uint8>([2, 2])\nauto result = image.write(home, value)\n", "TYPE_MISMATCH");
+ bad_code("tensor<uint8><2, _> value = tensor.zeros<uint8>([2, 2])\nauto result = image.write(home, value)\n", "TYPE_MISMATCH");
 
- // Shape-prefix match cases select only compatible tensor alternatives.
- good(R"(void classify(tensor<float32, 3, 4> | tensor<float32, 1, 4> value)
+ // Shape-pattern match cases select only exact-rank compatible tensor alternatives.
+ good(R"(void classify(tensor<float32><3, 4> | tensor<float32><1, 4> value)
     match value
-        tensor<float32, 3> rgb
+        tensor<float32><3, _> rgb
             print(rgb.shape()[0])
-        tensor<float32, 1> gray
+        tensor<float32><1, _> gray
             print(gray.shape()[0])
 )");
- bad_code(R"(void invalid_case(tensor<float32, 1, 4> | tensor<float32, 4, 4> value)
+ bad_code(R"(void invalid_case(tensor<float32><1, 4> | tensor<float32><4, 4> value)
     match value
-        tensor<float32, 3> impossible
+        tensor<float32><3, _> impossible
             print(impossible.shape()[0])
-        tensor<float32, 1> gray
+        tensor<float32><1, _> gray
             print(gray.shape()[0])
-        tensor<float32, 4> rgba
+        tensor<float32><4, _> rgba
             print(rgba.shape()[0])
 )", "MATCH_CASE");
+
+ // neural shares the same exact shape pattern; shape-only neural defaults to float32.
+ good(R"(tensor<float32> source = tensor.ones<float32>([3, 8, 8])
+neural<3, _, _> value = neural.track(source)
+tensor<float32><3, _, _> restored = value.untrack()
+)");
+ good(R"(tensor<float> source = tensor.ones<float>([2, 4])
+neural<float><2, _> value = neural.track(source)
+tensor<float><2, _> restored = value.untrack()
+)");
+ bad_code(R"(tensor<float32> source = tensor.ones<float32>([3, 8, 8])
+neural<3, _> wrong = neural.track(source)
+)", "TYPE_MISMATCH");
+
+ // Numeric container casts preserve array structure and tensor shape facts.
+ good(R"(int[][] values = [[1, 2], [3, 4]]
+float[][] converted = float(values)
+int[2][2] fixed = [[1, 2], [3, 4]]
+float[2][2] fixed_converted = float(fixed)
+tensor<int><2, 2> matrix = tensor.ones<int>([2, 2])
+tensor<float><2, 2> tensor_converted = float(matrix)
+)");
+ bad_code("int[] values = [1, 2]\nfloat[] converted = values\n", "TYPE_MISMATCH");
+ bad_code("float[] values = [1.0, 2.0]\nint[] converted = int(values)\n", "NUMERIC_CAST");
+ bad_code("tensor<float> values = tensor.ones<float>([2])\nauto converted = int(values)\n", "NUMERIC_CAST");
+ bad_code("tensor<int> values = tensor.ones<int>([2])\nauto converted = values.cast<float>()\n", "UNKNOWN_MEMBER");
 
  // Tensor flow facts must weaken at control-flow joins when paths disagree.
  bad_code(R"(void branch_shape(bool flag)
     tensor<float32> value = tensor.zeros<float32>([3, 4])
     if flag
         value = tensor.zeros<float32>([3, 5])
-    tensor<float32, 3, 4> exact = value
+    tensor<float32><3, 4> exact = value
 )", "TYPE_MISMATCH");
  bad_code(R"(void branch_rank(bool flag)
     tensor<float32> value = tensor.zeros<float32>([2, 2])

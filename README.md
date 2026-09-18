@@ -165,23 +165,11 @@ Methods are summarized by their observable receiver effects. The checker records
 
 Those summaries compose across method calls and control flow. The goal is to make mutation analyzable without forcing programmers to manually annotate every effect.
 
-### 4. Implicit operations must preserve meaning
+### 4. Representation changes are explicit
 
-Quidra distinguishes **representation change** from **value change**.
+Quidra distinguishes **type compatibility** from **conversion intent**.
 
-An implicit numeric conversion is allowed only when every source value is exactly representable by the destination type.
-
-```text
-int8   → int16    allowed
-uint8  → int16    allowed
-uint32 → int      allowed
-float32 → float   allowed
-
-int8   → uint8    not implicit
-uint64 → int      not implicit
-int32  → float32  not implicit
-int    → float    not implicit
-```
+An already-typed numeric value never changes representation implicitly, even when the conversion would be lossless. Numeric literals may take a contextual numeric type when the literal itself is representable.
 
 Explicit casts use the destination type:
 
@@ -190,13 +178,13 @@ int value = 100
 int8 small = int8(value)
 ```
 
-Explicit casts are practical rather than exact-only. Integer narrowing is range checked and never wraps. Integer-to-floating-point and floating-point-to-floating-point casts use deterministic destination IEEE-754 rounding, so precision may be reduced when the programmer explicitly requests that destination type.
+Integer narrowing is range checked and never wraps. Integer-to-floating-point and floating-point-to-floating-point casts use deterministic destination IEEE-754 rounding, so precision may be reduced when the programmer explicitly requests that representation.
 
 Floating-point to integer is intentionally not a generic cast because the rounding meaning is ambiguous. Use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` to state that intent explicitly. Casts never request wrapping or clamping.
 
 The general rule is:
 
-> **Implicit behavior may remove boilerplate, but it may not silently change meaning.**
+> **A required result type is a constraint, not permission to convert. Representation or semantic conversion happens only when the source explicitly requests it.**
 
 ### 5. Absence, failure, completion, and impossibility are different
 
@@ -542,7 +530,7 @@ int[] ordered = values.sorted()
 
 `append`, `concat`, and `sorted` return new array values. `sorted()` is available for numeric, `bool`, and `string` arrays of either fixed or runtime size and returns a runtime-sized sorted copy; it is deterministic and non-mutating. The implementation may use copy-on-write or spare capacity only when that optimization is unobservable, so source-level value semantics remain unchanged. For fully initialized local arrays, typed IR can carry that proof into LLVM and omit redundant per-element initialization checks. Forming a read/write whole-array reference restores the check automatically; forming a `const T &` read-only reference preserves the proof. Control-flow joins that cannot preserve the proof also restore the check, and bounds safety is unaffected.
 
-Dense numeric tensors use the dedicated `tensor<T>` type:
+Dense numeric tensors use the dedicated `tensor<T>` type. Optional suffix dimensions constrain consecutive leading shape axes rather than rank; rank itself is inferred by the compiler:
 
 ```quidra
 tensor<float32> pixels = tensor.zeros<float32>([3, 224, 224])
@@ -978,7 +966,7 @@ match loaded
         print(problem)
 ```
 
-Decoded images use CHW layout: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample dtype that Quidra and the codec can represent: PNG yields `uint8` or `uint16`, TIFF can yield any built-in numeric tensor dtype, and JPEG/BMP/WebP yield `uint8`. With no expected type, `auto loaded = image.read(path)` therefore has the union of all numeric tensor alternatives plus `error`; use exhaustive `match` when the dtype is genuinely unknown. When the expected union names one tensor dtype, such as `tensor<uint16> | error`, a file with a different dtype produces `error` rather than an implicit conversion. `image.write` likewise writes only when the target format can represent the tensor dtype exactly. There is no implicit normalization, BGR conversion, dtype conversion, or alpha discard; JPEG rejects RGBA input.
+Decoded images use CHW layout and have compiler-known rank 3: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample dtype and channel count by default. An expected type such as `tensor<uint8, 3> | error` is an acceptance constraint: it accepts only uint8 RGB and does not convert a mismatch. Use `channels = 1|3|4` to request channel conversion and `dtype = float32` (or another numeric built-in type) to request dtype conversion. Dtype conversion never normalizes sample ranges. RGB-to-gray uses the fixed `0.299R + 0.587G + 0.114B` rule. `image.write` writes only when the target codec can represent the tensor dtype exactly; alpha is removed only when an explicit channel conversion requests that result.
 
 The library boundary is intentionally small:
 

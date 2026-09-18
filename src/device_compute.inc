@@ -1029,6 +1029,14 @@ bool compute_fill_ones(Buffer* output, int dtype, std::size_t count,
         return launch_ptx_1d(
             output, "fill-one-" + std::to_string(dtype), ptx, count, args, error);
     }
+    if (output->backend == Backend::Amd) {
+        auto source=hip_fill_source(width,bits);
+        auto out_ptr=output->pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&n};
+        return launch_hip_1d(
+            output,"fill-one-"+std::to_string(dtype),source,count,args,error);
+    }
 #ifdef __APPLE__
     if (output->backend == Backend::Metal) {
         auto source = msl_fill_source(width, bits);
@@ -1095,6 +1103,16 @@ bool compute_gather(Buffer* output, const Buffer* source, int dtype,
         void* args[] = {&out_ptr, &src_ptr, &idx_ptr, &n};
         return launch_ptx_1d(
             output, "gather-" + std::to_string(width), ptx, count, args, error);
+    }
+    if (output->backend == Backend::Amd) {
+        auto source_code=hip_gather_source(width);
+        auto out_ptr=output->pointer;
+        auto src_ptr=source->pointer;
+        auto idx_ptr=indices->pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&src_ptr,&idx_ptr,&n};
+        return launch_hip_1d(
+            output,"gather-"+std::to_string(width),source_code,count,args,error);
     }
 #ifdef __APPLE__
     if (output->backend == Backend::Metal) {
@@ -1168,6 +1186,22 @@ bool compute_binary(Buffer* output, const Buffer* left, std::size_t left_offset,
             "binary-" + std::to_string(dtype) + "-" +
                 std::to_string(operation) + "-" + std::to_string(scalar_side),
             ptx, count, args, error);
+    }
+    if ((dtype==9||dtype==10) && operation!=5 &&
+        output->backend==Backend::Amd) {
+        auto source_code=hip_float_binary_source(dtype,operation,scalar_side);
+        auto out_ptr=output->pointer;
+        auto left_ptr=static_cast<unsigned char*>(left->pointer)+left_offset;
+        void* right_ptr=scalar_side==0
+            ? static_cast<void*>(static_cast<unsigned char*>(right->pointer)+right_offset)
+            : left_ptr;
+        auto n=static_cast<std::uint64_t>(count);
+        void* scalar_storage=const_cast<void*>(scalar);
+        void* args[]={&out_ptr,&left_ptr,&right_ptr,scalar_storage,&n};
+        return launch_hip_1d(
+            output,"binary-"+std::to_string(dtype)+"-"+
+                std::to_string(operation)+"-"+std::to_string(scalar_side),
+            source_code,count,args,error);
     }
 #ifdef __APPLE__
     if (dtype == 10 && operation != 5 && output->backend == Backend::Metal) {
@@ -1247,6 +1281,16 @@ bool compute_unary(Buffer* output, const Buffer* input, std::size_t input_offset
             output,"unary-"+std::to_string(dtype)+"-"+std::to_string(operation),
             ptx,count,args,error);
     }
+    if ((dtype==9||dtype==10) && output->backend==Backend::Amd) {
+        auto source_code=hip_float_unary_source(dtype,operation);
+        auto out_ptr=output->pointer;
+        auto in_ptr=static_cast<unsigned char*>(input->pointer)+input_offset;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&in_ptr,&n};
+        return launch_hip_1d(
+            output,"unary-"+std::to_string(dtype)+"-"+std::to_string(operation),
+            source_code,count,args,error);
+    }
 #ifdef __APPLE__
     if (dtype==10 && output->backend==Backend::Metal) {
         auto source_code=msl_float_unary_source(operation);
@@ -1304,6 +1348,18 @@ bool compute_cast(Buffer* output, const Buffer* input, std::size_t input_offset,
         return launch_ptx_1d(
             output,"cast-"+std::to_string(source_dtype)+"-"+std::to_string(target_dtype),
             ptx,count,args,error);
+    }
+    if ((source_dtype==9||source_dtype==10) &&
+        (target_dtype==9||target_dtype==10) &&
+        output->backend==Backend::Amd) {
+        auto source_code=hip_float_cast_source(source_dtype,target_dtype);
+        auto out_ptr=output->pointer;
+        auto in_ptr=static_cast<unsigned char*>(input->pointer)+input_offset;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&in_ptr,&n};
+        return launch_hip_1d(
+            output,"cast-"+std::to_string(source_dtype)+"-"+std::to_string(target_dtype),
+            source_code,count,args,error);
     }
     return real_compute_unavailable(output,"tensor.cast",source_dtype,error);
 }
@@ -1365,6 +1421,18 @@ bool compute_matmul(Buffer* output, const Buffer* left, const Buffer* right,
         void* args[]={&out_ptr,&left_ptr,&right_ptr,&mm,&kk,&nn};
         return launch_ptx_1d(
             output,"matmul-"+std::to_string(dtype),ptx,out_count,args,error);
+    }
+    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+        auto source_code=hip_float_matmul_source(dtype);
+        auto out_ptr=output->pointer;
+        auto left_ptr=left->pointer;
+        auto right_ptr=right->pointer;
+        auto mm=static_cast<std::uint64_t>(m);
+        auto kk=static_cast<std::uint64_t>(k);
+        auto nn=static_cast<std::uint64_t>(n);
+        void* args[]={&out_ptr,&left_ptr,&right_ptr,&mm,&kk,&nn};
+        return launch_hip_1d(
+            output,"matmul-"+std::to_string(dtype),source_code,out_count,args,error);
     }
 #ifdef __APPLE__
     if(dtype==10&&output->backend==Backend::Metal){
@@ -1445,6 +1513,24 @@ bool compute_dot(const Buffer* left, const Buffer* right, int dtype,
         void* args[]={&out_ptr,&left_ptr,&right_ptr,&n};
         auto* module=cached_ptx_module(
             left->global_index,"dot-"+std::to_string(dtype),ptx,error);
+        if(!module)return false;
+        if(!launch(module,"q_kernel",LaunchDimensions{1,1,1},
+                   LaunchDimensions{1,1,1},args,error))return false;
+        return copy_to_host(result.get(),0,host_result,width,error);
+    }
+    if((dtype==9||dtype==10)&&left->backend==Backend::Amd){
+        std::unique_ptr<Buffer,void(*)(Buffer*)> result(
+            allocate(left->global_index,width,error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!result)return false;
+        auto source_code=hip_float_dot_source(dtype);
+        auto out_ptr=result->pointer;
+        auto left_ptr=left->pointer;
+        auto right_ptr=right->pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&left_ptr,&right_ptr,&n};
+        auto* module=cached_hip_module(
+            left->global_index,"dot-"+std::to_string(dtype),source_code,error);
         if(!module)return false;
         if(!launch(module,"q_kernel",LaunchDimensions{1,1,1},
                    LaunchDimensions{1,1,1},args,error))return false;
@@ -1581,6 +1667,25 @@ bool compute_reduce(const Buffer* input, int dtype, int operation,
         return copy_to_host(output.get(), 0, host_result, width, error);
     }
 
+    if ((dtype==9||dtype==10) && input->backend==Backend::Amd) {
+        std::unique_ptr<Buffer,void(*)(Buffer*)> output(
+            allocate(input->global_index,width,error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!output)return false;
+        auto source_code=hip_float_reduce_source(dtype,operation);
+        auto out_ptr=output->pointer;
+        auto in_ptr=input->pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&in_ptr,&n};
+        auto* module=cached_hip_module(
+            input->global_index,
+            "reduce-"+std::to_string(dtype)+"-"+std::to_string(operation),
+            source_code,error);
+        if(!module)return false;
+        if(!launch(module,"q_kernel",LaunchDimensions{1,1,1},
+                   LaunchDimensions{1,1,1},args,error))return false;
+        return copy_to_host(output.get(),0,host_result,width,error);
+    }
 #ifdef __APPLE__
     if (dtype == 10 && input->backend == Backend::Metal) {
         const char* init = operation == 1 ? "0.0f" : "in[0]";
@@ -1671,6 +1776,23 @@ bool compute_mean(const Buffer* input, int dtype, std::size_t count,
         void* args[]={&out_ptr,&in_ptr,&n};
         auto* module=cached_ptx_module(
             input->global_index,"mean-"+std::to_string(dtype),ptx,error);
+        if(!module)return false;
+        if(!launch(module,"q_kernel",LaunchDimensions{1,1,1},
+                   LaunchDimensions{1,1,1},args,error))return false;
+        return copy_to_host(output.get(),0,&result,sizeof(result),error);
+    }
+    if(input->backend==Backend::Amd){
+        std::unique_ptr<Buffer,void(*)(Buffer*)> output(
+            allocate(input->global_index,sizeof(double),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!output)return false;
+        auto source_code=hip_mean_source(dtype);
+        auto out_ptr=output->pointer;
+        auto in_ptr=input->pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        void* args[]={&out_ptr,&in_ptr,&n};
+        auto* module=cached_hip_module(
+            input->global_index,"mean-"+std::to_string(dtype),source_code,error);
         if(!module)return false;
         if(!launch(module,"q_kernel",LaunchDimensions{1,1,1},
                    LaunchDimensions{1,1,1},args,error))return false;

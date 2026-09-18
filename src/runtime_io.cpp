@@ -39,14 +39,13 @@ extern "C" void* quidra_file_read_bytes_raw(const char* path) {
     std::vector<unsigned char> data(
         (std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
     if (!in.good() && !in.eof()) return nullptr;
-    if (data.size() > static_cast<std::size_t>(std::numeric_limits<long long>::max()) ||
+    if (data.size() > static_cast<std::size_t>(std::numeric_limits<long long>::max() / 8) ||
         data.size() > std::numeric_limits<std::size_t>::max() - 8) return nullptr;
     auto* result=static_cast<unsigned char*>(
         quidra_managed_alloc(static_cast<unsigned long long>(8+data.size())));
-    const auto count=static_cast<long long>(data.size());
-    std::memcpy(result,&count,sizeof(count));
+    const auto bit_count=static_cast<long long>(data.size() * 8);
+    std::memcpy(result,&bit_count,sizeof(bit_count));
     if(!data.empty()) std::memcpy(result+8,data.data(),data.size());
-    quidra_init_create(result,static_cast<unsigned long long>(data.size()),1,8,1);
     return result;
 }
 
@@ -61,11 +60,12 @@ extern "C" bool quidra_file_write_raw(const char* path,const char* text) {
 
 extern "C" bool quidra_file_write_bytes_raw(const char* path,const void* bytes_raw) {
     if(!path||!bytes_raw) return false;
-    long long count=0;
-    std::memcpy(&count,bytes_raw,sizeof(count));
-    if(count<0) return false;
-    const auto size=static_cast<std::size_t>(count);
-    if(static_cast<unsigned long long>(size)!=static_cast<unsigned long long>(count) ||
+    long long bit_count=0;
+    std::memcpy(&bit_count,bytes_raw,sizeof(bit_count));
+    if(bit_count<0 || bit_count%8!=0) return false;
+    const auto byte_count=static_cast<unsigned long long>(bit_count/8);
+    const auto size=static_cast<std::size_t>(byte_count);
+    if(static_cast<unsigned long long>(size)!=byte_count ||
        size>static_cast<std::size_t>(std::numeric_limits<std::streamsize>::max())) return false;
     std::ofstream out(path,std::ios::binary|std::ios::trunc);
     if(!out) return false;

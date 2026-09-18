@@ -219,7 +219,13 @@ CudaApi& cuda() {
 }
 
 struct HipApi {
+    using Module = void*;
+    using Function = void*;
+    using Stream = void*;
+    using RtcProgram = void*;
+
     DynamicLibrary library;
+    DynamicLibrary rtc_library;
     int (*get_count)(int*){};
     int (*get_name)(char*, int, int){};
     int (*set_device)(int){};
@@ -228,15 +234,39 @@ struct HipApi {
     int (*memcpy_fn)(void*, const void*, std::size_t, int){};
     int (*memset_fn)(void*, int, std::size_t){};
     int (*runtime_version)(int*){};
+    int (*module_load_data)(Module*, const void*){};
+    int (*module_unload)(Module){};
+    int (*module_get_function)(Function*, Module, const char*){};
+    int (*module_launch_kernel)(Function, unsigned, unsigned, unsigned,
+                                unsigned, unsigned, unsigned, unsigned,
+                                Stream, void**, void**){};
+    int (*device_synchronize)(){};
+
+    int (*rtc_create_program)(RtcProgram*, const char*, const char*,
+                              int, const char**, const char**){};
+    int (*rtc_compile_program)(RtcProgram, int, const char**){};
+    int (*rtc_get_code_size)(RtcProgram, std::size_t*){};
+    int (*rtc_get_code)(RtcProgram, char*){};
+    int (*rtc_get_log_size)(RtcProgram, std::size_t*){};
+    int (*rtc_get_log)(RtcProgram, char*){};
+    int (*rtc_destroy_program)(RtcProgram*){};
+
     bool ready{};
+    bool compute_ready{};
 
     HipApi() {
 #ifdef _WIN32
         if (!library.open("amdhip64.dll")) return;
+        (void)rtc_library.open("hiprtc.dll");
 #else
         if (!library.open("libamdhip64.so") &&
             !library.open("libamdhip64.so.7") &&
             !library.open("libamdhip64.so.6")) return;
+        if (!rtc_library.open("libhiprtc.so") &&
+            !rtc_library.open("libhiprtc.so.7") &&
+            !rtc_library.open("libhiprtc.so.6")) {
+            // Memory/transfer support remains usable; compute_ready stays false.
+        }
 #endif
         get_count = load_symbol<decltype(get_count)>(library, "hipGetDeviceCount");
         get_name = load_symbol<decltype(get_name)>(library, "hipDeviceGetName");
@@ -247,9 +277,42 @@ struct HipApi {
         memset_fn = load_symbol<decltype(memset_fn)>(library, "hipMemset");
         runtime_version =
             load_symbol<decltype(runtime_version)>(library, "hipRuntimeGetVersion");
+        module_load_data =
+            load_symbol<decltype(module_load_data)>(library, "hipModuleLoadData");
+        module_unload =
+            load_symbol<decltype(module_unload)>(library, "hipModuleUnload");
+        module_get_function =
+            load_symbol<decltype(module_get_function)>(library, "hipModuleGetFunction");
+        module_launch_kernel =
+            load_symbol<decltype(module_launch_kernel)>(library, "hipModuleLaunchKernel");
+        device_synchronize =
+            load_symbol<decltype(device_synchronize)>(library, "hipDeviceSynchronize");
+
+        if (rtc_library) {
+            rtc_create_program =
+                load_symbol<decltype(rtc_create_program)>(rtc_library, "hiprtcCreateProgram");
+            rtc_compile_program =
+                load_symbol<decltype(rtc_compile_program)>(rtc_library, "hiprtcCompileProgram");
+            rtc_get_code_size =
+                load_symbol<decltype(rtc_get_code_size)>(rtc_library, "hiprtcGetCodeSize");
+            rtc_get_code =
+                load_symbol<decltype(rtc_get_code)>(rtc_library, "hiprtcGetCode");
+            rtc_get_log_size =
+                load_symbol<decltype(rtc_get_log_size)>(rtc_library, "hiprtcGetProgramLogSize");
+            rtc_get_log =
+                load_symbol<decltype(rtc_get_log)>(rtc_library, "hiprtcGetProgramLog");
+            rtc_destroy_program =
+                load_symbol<decltype(rtc_destroy_program)>(rtc_library, "hiprtcDestroyProgram");
+        }
+
         int count = 0;
         ready = get_count && set_device && malloc_fn && free_fn && memcpy_fn &&
                 memset_fn && get_count(&count) == 0;
+        compute_ready = ready && module_load_data && module_unload &&
+                        module_get_function && module_launch_kernel &&
+                        device_synchronize && rtc_create_program &&
+                        rtc_compile_program && rtc_get_code_size &&
+                        rtc_get_code && rtc_destroy_program;
     }
 };
 
@@ -275,9 +338,11 @@ struct BufferImpl {
 };
 
 struct ModuleImpl {
+    Backend backend{Backend::Nvidia};
     int global_index{-1};
     int backend_index{-1};
     void* cuda_module{};
+    void* hip_module{};
 };
 
 std::vector<Info> enumerate_devices() {
@@ -728,66 +793,193 @@ Module* load_ptx(int index, const std::string& ptx, std::string& error) {
         return nullptr;
     }
     auto result = std::make_unique<Module>();
+    result->backend = Backend::Nvidia;
     result->global_index = index;
     result->backend_index = info->backend_index;
     result->cuda_module = module;
     return result.release();
 }
 
+
+Module* load_hip_source(int index, const std::string& source, std::string& error) {
+    const auto* info = find(index);
+    if (!info) {
+        error = "gpu(" + std::to_string(index) + ") is not available";
+        return nullptr;
+    }
+    if (info->backend != Backend::Amd) {
+        error = "HIP source modules are only supported by the AMD backend";
+        return nullptr;
+    }
+    auto& api = hip();
+    if (!api.compute_ready || api.set_device(info->backend_index) != 0) {
+        error = "AMD HIP runtime compilation/launch API is unavailable";
+        return nullptr;
+    }
+
+    HipApi::RtcProgram program = nullptr;
+    if (api.rtc_create_program(
+            &program, source.c_str(), "quidra_kernel.hip", 0, nullptr, nullptr) != 0 ||
+        !program) {
+        error = "failed to create Quidra HIP runtime compilation program";
+        return nullptr;
+    }
+
+    const auto destroy_program = [&] {
+        if (program) {
+            (void)api.rtc_destroy_program(&program);
+            program = nullptr;
+        }
+    };
+    const char* options[] = {"--std=c++14"};
+    const int compile_status = api.rtc_compile_program(program, 1, options);
+    if (compile_status != 0) {
+        error = "HIP runtime compilation failed";
+        if (api.rtc_get_log_size && api.rtc_get_log) {
+            std::size_t log_size = 0;
+            if (api.rtc_get_log_size(program, &log_size) == 0 && log_size > 1) {
+                std::string log(log_size, '\0');
+                if (api.rtc_get_log(program, log.data()) == 0) {
+                    while (!log.empty() && log.back() == '\0') log.pop_back();
+                    if (!log.empty()) error += ": " + log;
+                }
+            }
+        }
+        destroy_program();
+        return nullptr;
+    }
+
+    std::size_t code_size = 0;
+    if (api.rtc_get_code_size(program, &code_size) != 0 || code_size == 0) {
+        destroy_program();
+        error = "HIP runtime compilation produced no code object";
+        return nullptr;
+    }
+    std::vector<char> code(code_size);
+    if (api.rtc_get_code(program, code.data()) != 0) {
+        destroy_program();
+        error = "failed to retrieve HIP runtime code object";
+        return nullptr;
+    }
+    destroy_program();
+
+    HipApi::Module module = nullptr;
+    if (api.module_load_data(&module, code.data()) != 0 || !module) {
+        error = "failed to load Quidra HIP module";
+        return nullptr;
+    }
+    auto result = std::make_unique<Module>();
+    result->backend = Backend::Amd;
+    result->global_index = index;
+    result->backend_index = info->backend_index;
+    result->hip_module = module;
+    return result.release();
+}
+
 void release(Module* raw) {
     if (!raw) return;
     std::unique_ptr<Module> module(raw);
-    auto& api = cuda();
-    std::string ignored;
-    CudaApi::CUcontext context = nullptr;
-    if (module->cuda_module &&
-        api.current(module->backend_index, context, ignored) &&
-        api.module_unload) {
-        (void)api.module_unload(
-            static_cast<CudaApi::CUmodule>(module->cuda_module));
+    if (module->backend == Backend::Nvidia) {
+        auto& api = cuda();
+        std::string ignored;
+        CudaApi::CUcontext context = nullptr;
+        if (module->cuda_module &&
+            api.current(module->backend_index, context, ignored) &&
+            api.module_unload) {
+            (void)api.module_unload(
+                static_cast<CudaApi::CUmodule>(module->cuda_module));
+        }
+        return;
+    }
+    if (module->backend == Backend::Amd && module->hip_module) {
+        auto& api = hip();
+        if (api.ready && api.set_device(module->backend_index) == 0 &&
+            api.module_unload) {
+            (void)api.module_unload(
+                static_cast<HipApi::Module>(module->hip_module));
+        }
     }
 }
-
 bool launch(Module* module, const char* kernel,
             LaunchDimensions grid, LaunchDimensions block,
             void** arguments, std::string& error) {
-    if (!module || !module->cuda_module || !kernel || !*kernel) {
-        error = "invalid NVIDIA kernel launch";
+    if (!module || !kernel || !*kernel) {
+        error = "invalid GPU kernel launch";
         return false;
     }
     if (grid.x == 0 || grid.y == 0 || grid.z == 0 ||
         block.x == 0 || block.y == 0 || block.z == 0) {
-        error = "NVIDIA kernel launch dimensions must be nonzero";
+        error = "GPU kernel launch dimensions must be nonzero";
         return false;
     }
 
-    auto& api = cuda();
-    if (!api.module_get_function || !api.launch_kernel || !api.ctx_synchronize) {
-        error = "NVIDIA PTX module/launch API is unavailable";
-        return false;
-    }
-    CudaApi::CUcontext context = nullptr;
-    if (!api.current(module->backend_index, context, error)) return false;
+    if (module->backend == Backend::Nvidia) {
+        if (!module->cuda_module) {
+            error = "invalid NVIDIA kernel module";
+            return false;
+        }
+        auto& api = cuda();
+        if (!api.module_get_function || !api.launch_kernel || !api.ctx_synchronize) {
+            error = "NVIDIA PTX module/launch API is unavailable";
+            return false;
+        }
+        CudaApi::CUcontext context = nullptr;
+        if (!api.current(module->backend_index, context, error)) return false;
 
-    CudaApi::CUfunction function = nullptr;
-    if (api.module_get_function(
-            &function, static_cast<CudaApi::CUmodule>(module->cuda_module),
-            kernel) != 0 || !function) {
-        error = std::string("NVIDIA PTX kernel not found: ") + kernel;
-        return false;
+        CudaApi::CUfunction function = nullptr;
+        if (api.module_get_function(
+                &function, static_cast<CudaApi::CUmodule>(module->cuda_module),
+                kernel) != 0 || !function) {
+            error = std::string("NVIDIA PTX kernel not found: ") + kernel;
+            return false;
+        }
+        if (api.launch_kernel(function,
+                              grid.x, grid.y, grid.z,
+                              block.x, block.y, block.z,
+                              0, nullptr, arguments, nullptr) != 0) {
+            error = std::string("NVIDIA kernel launch failed: ") + kernel;
+            return false;
+        }
+        if (api.ctx_synchronize() != 0) {
+            error = std::string("NVIDIA kernel synchronization failed: ") + kernel;
+            return false;
+        }
+        return true;
     }
-    if (api.launch_kernel(function,
-                          grid.x, grid.y, grid.z,
-                          block.x, block.y, block.z,
-                          0, nullptr, arguments, nullptr) != 0) {
-        error = std::string("NVIDIA kernel launch failed: ") + kernel;
-        return false;
+
+    if (module->backend == Backend::Amd) {
+        if (!module->hip_module) {
+            error = "invalid AMD HIP kernel module";
+            return false;
+        }
+        auto& api = hip();
+        if (!api.compute_ready || api.set_device(module->backend_index) != 0) {
+            error = "AMD HIP runtime compilation/launch API is unavailable";
+            return false;
+        }
+        HipApi::Function function = nullptr;
+        if (api.module_get_function(
+                &function, static_cast<HipApi::Module>(module->hip_module),
+                kernel) != 0 || !function) {
+            error = std::string("AMD HIP kernel not found: ") + kernel;
+            return false;
+        }
+        if (api.module_launch_kernel(
+                function, grid.x, grid.y, grid.z,
+                block.x, block.y, block.z, 0, nullptr,
+                arguments, nullptr) != 0) {
+            error = std::string("AMD HIP kernel launch failed: ") + kernel;
+            return false;
+        }
+        if (api.device_synchronize() != 0) {
+            error = std::string("AMD HIP kernel synchronization failed: ") + kernel;
+            return false;
+        }
+        return true;
     }
-    if (api.ctx_synchronize() != 0) {
-        error = std::string("NVIDIA kernel synchronization failed: ") + kernel;
-        return false;
-    }
-    return true;
+
+    error = "kernel module backend is not launchable";
+    return false;
 }
 
 #include "device_compute.inc"

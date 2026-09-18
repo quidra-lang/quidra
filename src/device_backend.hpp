@@ -52,6 +52,7 @@ bool zero(Buffer* buffer, std::size_t offset, std::size_t bytes,
 int buffer_device(const Buffer* buffer);
 
 Module* load_ptx(int index, const std::string& ptx, std::string& error);
+Module* load_hip_source(int index, const std::string& source, std::string& error);
 void release(Module* module);
 bool launch(Module* module, const char* kernel,
             LaunchDimensions grid, LaunchDimensions block,

@@ -1834,12 +1834,16 @@ private:
             if (call->callee == "$std.neural.grad") {
                 return simple_type("$std.neural.Gradients");
             }
-            if (const auto scalar = builtin_scalar_type(call->callee);
-                scalar && is_numeric(*scalar)) {
-                TypeName result;
-                result.name = type_name(*scalar);
-                result.span = expression.span;
-                return result;
+            static const std::unordered_map<std::string, std::string>
+                numeric_cast_result_types{
+                    {"int8", "int8"}, {"int16", "int16"}, {"int32", "int32"},
+                    {"int", "int"}, {"int64", "int"},
+                    {"uint8", "uint8"}, {"uint16", "uint16"},
+                    {"uint32", "uint32"}, {"uint64", "uint64"},
+                    {"float32", "float32"}, {"float", "float"}, {"float64", "float"}};
+            if (const auto scalar = numeric_cast_result_types.find(call->callee);
+                scalar != numeric_cast_result_types.end()) {
+                return simple_type(scalar->second);
             }
             if (class_index_.contains(call->callee)) {
                 TypeName result;

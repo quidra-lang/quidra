@@ -257,6 +257,44 @@ match png16_written
     error problem
         print(problem)
 
+// Explicit channel conversion and source/output shape constraints.
+tensor<uint8> rgb = tensor.zeros<uint8>([3, 1, 1])
+rgb[0, 0, 0] = uint8(255)
+rgb[1, 0, 0] = uint8(0)
+rgb[2, 0, 0] = uint8(0)
+auto rgb_written = image.write("$TMP/rgb.png", rgb)
+match rgb_written
+    void
+        tensor<uint8, 3> | error exact_rgb = image.read("$TMP/rgb.png")
+        match exact_rgb
+            tensor<uint8, 3> pixels
+                print(pixels.shape()[0])
+            error problem
+                print(problem)
+
+        tensor<uint8, 1> | error rejected_gray = image.read("$TMP/rgb.png")
+        match rejected_gray
+            tensor<uint8, 1> pixels
+                print("unexpected")
+            error problem
+                print("shape-error")
+
+        tensor<uint8, 1> | error gray = image.read("$TMP/rgb.png", channels = 1)
+        match gray
+            tensor<uint8, 1> pixels
+                print(pixels[0, 0, 0].item())
+            error problem
+                print(problem)
+
+        tensor<float32, 3> | error float_rgb = image.read("$TMP/rgb.png", dtype = float32)
+        match float_rgb
+            tensor<float32, 3> pixels
+                print(pixels[0, 0, 0].item())
+            error problem
+                print(problem)
+    error problem
+        print(problem)
+
 // A target format must reject a dtype it cannot represent instead of narrowing.
 auto bad_jpeg = image.write("$TMP/u16.jpg", png16)
 match bad_jpeg
@@ -267,7 +305,7 @@ match bad_jpeg
 QUI
 
 tiff_output="$("$QUIDRA" "$TMP/tiff-dtypes.qui")"
-tiff_expected="$(printf '%s\n' -8 -1600 -320000 -640000 8 1600 320000 640000 1.5 2.5 4660 rejected)"
+tiff_expected="$(printf '%s\n' -8 -1600 -320000 -640000 8 1600 320000 640000 1.5 2.5 4660 3 shape-error 76 255.0 rejected)"
 if [[ "$tiff_output" != "$tiff_expected" ]]; then
     echo "unexpected image dtype round-trip output:" >&2
     printf '%s\n' "$tiff_output" >&2

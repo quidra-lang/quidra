@@ -172,6 +172,28 @@ int main() {
     require(error.find("overflow") != std::string::npos,
             "checked integer overflow diagnostic missing");
 
+    auto wide_float = buffer(gpu0, sizeof(double), error);
+    auto narrow_float = buffer(gpu0, sizeof(float), error);
+    require(wide_float && narrow_float, error);
+    upload<double>(wide_float.get(), {1.0e100}, error);
+    error.clear();
+    require(
+        !quidra::device::compute_cast(
+            narrow_float.get(), wide_float.get(), 0, 9, 10, 1, error),
+        "out-of-range float64 to float32 GPU cast unexpectedly succeeded");
+    require(error.find("target range") != std::string::npos,
+            "float narrowing range diagnostic missing");
+
+    upload<double>(wide_float.get(), {0.1}, error);
+    error.clear();
+    require(
+        quidra::device::compute_cast(
+            narrow_float.get(), wide_float.get(), 0, 9, 10, 1, error),
+        error);
+    const float rounded = download<float>(narrow_float.get(), 1, error)[0];
+    require(rounded > 0.099F && rounded < 0.101F,
+            "float narrowing should allow deterministic precision loss");
+
     auto other_device = buffer(gpu1, 4 * sizeof(float), error);
     require(static_cast<bool>(other_device), error);
     upload<float>(other_device.get(), {1.0F, 1.0F, 1.0F, 1.0F}, error);

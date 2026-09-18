@@ -68,54 +68,48 @@ Quidra tries to give common forms one stable job:
 | `T | error` | failure is part of the type |
 | `try` | propagate `error`, not every non-value state |
 | `T(value)` | explicit representation conversion |
-| `tensor<T><3, _, _>` | dtype, exact rank, and shape constraints |
+| `tensor<T><3, _, _>` | element type plus three axis slots: first extent is 3, the other extents are unrestricted, and three slots require rank 3 |
+| `and / or / not` | boolean logic only |
+| `AND / OR / XOR / NOT / << / >>` | fixed-width integer bit operations, without reusing `&` or `|` |
 | `match` | alternatives must be handled explicitly and exhaustively |
 
 The same principle applies beyond individual tokens. Visible names cannot be shadowed, so adding nearby code cannot silently redirect an earlier reference. Numeric values do not change representation merely because a destination type would accept them. Mutable storage is not created implicitly from ordinary value assignment. CPU/GPU movement is explicit rather than inferred from later operations.
 
 These choices deliberately spend syntax where the syntax carries important meaning, and remove syntax where the compiler can recover the same fact unambiguously.
 
-## The language in one example
+## Semantic compression in one program
+
+A Quidra example is most useful when it shows how much meaning can be recovered directly from the source, not merely how the syntax looks.
 
 ```quidra
-class Counter
-    int value
-
-    void reset()
-        value = 0
-
-    void increment()
-        value = value + 1
-
-int | error parse_count(string text)
+int | none | error read_count(string path)
+    auto text = try file.read(path)
+    if text == ""
+        return none
     return int.parse(text)
 
-Counter counter = Counter()
-counter.reset()
-counter.increment()
+void increment(int &value)
+    value += 1
 
-int | error parsed = parse_count("41")
-match parsed
-    int count
-        int &alias = &count
-        alias = alias + counter.value
-        print("count: {count}")
-    error problem
-        print(problem)
+float32 first_sample(const tensor<float32><3, _, _> &image)
+    return image[0, 0, 0].item()
+
+int count = 7
+increment(&count)
+
+uint8 flags = 240
+uint8 selected = flags AND 15
 ```
 
-Several core ideas appear here:
+The point is not that every line is as short as possible. The point is that the tokens that remain carry stable semantic information:
 
-- `Counter()` may initially be partial; reading an uninitialized field is rejected.
-- `reset()` is understood by the checker as initializing `value`.
-- ordinary assignment is value-oriented;
-- `&` explicitly introduces observable access to storage, while `const` removes write authority from an access path;
-- `int.parse` may fail, so failure appears in the type;
-- `try` propagates only `error`;
-- string interpolation exposes intent directly instead of requiring formatting boilerplate.
+- `int | none | error` distinguishes a value, normal absence, and failure without a sentinel or hidden exception convention.
+- `try` has one job: propagate `error`. It does not also mean absence, early return for arbitrary values, or exception catching.
+- `int &value` states that the function may write caller-visible storage, and `&count` makes that authority explicit at the call site.
+- `const tensor<float32><3, _, _> &image` says that the function observes existing tensor storage without write authority. `float32` fixes the element representation; the three written axis slots require rank 3; the first extent is exactly 3; each `_` leaves that existing axis extent unrestricted.
+- `AND` is fixed-width integer bitwise AND. Lowercase `and` remains boolean logic, `&` remains storage access, and `|` remains union syntax.
 
-These are not independent features. They follow from a common semantic model.
-
+This is what Quidra means by **semantic compression**: do not spend tokens repeating facts the compiler can prove, and do spend tokens where removing them would blur authority, representation, failure, state, shape, or behavior.
 ## Design laws derived from semantic compression
 
 ### 1. Values are the default; storage is explicit
@@ -354,7 +348,9 @@ The same principle appears throughout the language:
 
 > **Make intent machine-readable, then validate it before execution.**
 
-## Surface model
+## Semantics carried by the surface
+
+The following syntax is not intended as an inventory of unrelated features. Each form exists to expose a semantic distinction that matters to humans, language models, or static checking while leaving mechanically provable facts to the compiler.
 
 ### Bindings
 
@@ -394,7 +390,25 @@ float32
 float / float64
 ```
 
-`int` is signed 64-bit. `float` is IEEE-754 binary64. `float32` is IEEE-754 binary32.
+Exact numeric values:
+
+```text
+bigint
+bigreal
+```
+
+`int` is signed 64-bit. `float` is IEEE-754 binary64. `float32` is IEEE-754 binary32. `bigint` is an exact arbitrary-precision integer; `bigreal` represents exact rational and symbolic real values rather than a configurable floating-point precision.
+
+Fixed-width integers use explicit bitwise syntax:
+
+```quidra
+uint8 selected = flags AND mask
+uint8 toggled = flags XOR mask
+uint8 inverted = NOT flags
+uint8 shifted = flags << 2
+```
+
+Uppercase bitwise words are intentionally distinct from boolean `and` / `or` / `not`, safe storage `&`, and union `|`. This is a small example of Quidra preferring one stable semantic role per spelling over familiar overloads.
 
 There is no `char` type:
 
@@ -715,7 +729,7 @@ Internal allocation identity is intentionally not part of the source-language mo
 
 ## Native implementation
 
-Semantic compression is a source-language goal, not a request for a lightweight or interpreted implementation. Quidra preserves the meaning established by the source through a typed native compilation pipeline:
+Semantic compression is a source-language goal, not a request for a lightweight or interpreted implementation. Native execution serves the semantic model rather than defining it: Quidra first makes meaning explicit and statically resolved, then preserves those decisions through a typed native compilation pipeline:
 
 ```text
 Quidra source

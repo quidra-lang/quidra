@@ -134,10 +134,16 @@ print(scalar_div_left[0].item() == float32(4))
 tensor<float32><3, 2> transposed = gpu_left.transpose(0, 1)
 print(transposed.shape()[0] == 3 and transposed.shape()[1] == 2)
 print(transposed[2, 1].item() == float32(1))
+
+tensor<int32> cow_original = tensor.ones<int32>([2], gpu = $GPU_INDEX)
+tensor<int32> cow_copy = cow_original
+cow_copy[0] = int32(9)
+print(cow_original[0].item() == int32(1))
+print(cow_copy[0].item() == int32(9))
 QUI
 
 output="$("$QUIDRA" run "$TMP/real-gpu.qui")"
-expected="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue')"
+expected="$(printf 'true\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue\ntrue')"
 if [[ "$output" != "$expected" ]]; then
     echo "real GPU numerical equivalence failed on gpu($GPU_INDEX)" >&2
     printf '%s\n' "$output" >&2

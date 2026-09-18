@@ -101,6 +101,10 @@ jobs:
         run: cmake --build build --parallel
       - name: Tests
         run: ctest --test-dir build --output-on-failure
+      - name: Real Metal GPU numerical integration
+        env:
+          QUIDRA_REQUIRE_REAL_GPU: "1"
+        run: ctest --test-dir build -R quidra_real_gpu_integration --output-on-failure
       - name: Native smoke
         run: |
           printf 'print("Hello from macOS")\n' > build/platform-smoke.qui

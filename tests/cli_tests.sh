@@ -63,7 +63,7 @@ assert x["array_growth_model"].startswith("append(value)")
 assert "Unicode code-point" in x["string_operation_model"]
 assert "tensor<T><D0, D1, ...>" in x["current_types"]
 assert "exact-rank shape pattern" in x["tensor_model"]
-assert "rank and known shape are inferred" in x["tensor_model"]
+assert "inferred rank and known shape facts" in x["tensor_model"]
 PY
 $QUIDRA check "$ROOT/examples/hello.qui" --json > "$TMP/check-version.json"
 python3 - "$TMP/check-version.json" "$ROOT/quidra.manifest.json" <<'PY'

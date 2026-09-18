@@ -1468,8 +1468,33 @@ bool compute_unary(Buffer* output, const Buffer* input, std::size_t input_offset
         !compute_buffer_range(input,input_offset,count,width,error)) return false;
 #ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
     if (output->backend == Backend::Test) {
+        if (operation == 1 && gpu_integer_signed(dtype)) {
+            auto run = [&](auto tag) -> bool {
+                using T = decltype(tag);
+                const auto* source = input->test_data.data() + input_offset;
+                auto* destination = output->test_data.data();
+                for (std::size_t i=0;i<count;++i) {
+                    T value{};
+                    std::memcpy(&value,source+i*sizeof(T),sizeof(T));
+                    T result{};
+                    if (!fake_sub(T{},value,result)) {
+                        error = "tensor integer negation overflow";
+                        return false;
+                    }
+                    std::memcpy(destination+i*sizeof(T),&result,sizeof(T));
+                }
+                return true;
+            };
+            switch (dtype) {
+                case 1: return run(std::int64_t{});
+                case 2: return run(std::int8_t{});
+                case 3: return run(std::int16_t{});
+                case 4: return run(std::int32_t{});
+                default: break;
+            }
+        }
         if (dtype != 9 && dtype != 10) {
-            error = "GPU neural unary test path currently requires a floating dtype";
+            error = "GPU neural unary operation requires a floating dtype";
             return false;
         }
         if (dtype == 10) {

@@ -38,27 +38,50 @@ QUI
 verify_and_run short-circuit "$(printf 'mod\narith\nor')"
 
 cat > "$TMP/contextual-literals.qui" <<'QUI'
-float x = 3
-float32 y = 2
-float[] xs = [1, 2, 3]
+float x = float(3)
+float32 y = float32(2)
+float[] xs = [1.0, 2.0, 3.0]
 
 float half(float value)
     return value / 2.0
 
-float negative = -3
-float mixed = 2.0 * 3
+float negative = -3.0
+float mixed = 2.0 * 3.0
 int8 small = 5
 int8 sum = small + 100
 
 print(x)
 print(y)
 print(xs[2])
-print(half(3))
+print(half(3.0))
 print(negative)
 print(mixed)
 print(sum)
 QUI
 verify_and_run contextual-literals "$(printf '3.0\n2.0\n3.0\n1.5\n-3.0\n6.0\n105')"
+
+cat > "$TMP/float32-rounding.qui" <<'QUI'
+float32 rounded = 0.000001
+float source = 0.1
+float32 narrowed = float32(source)
+print(rounded)
+print(narrowed)
+QUI
+verify_and_run float32-rounding "$(printf '0.000001000000
+0.100000001490116')"
+
+cat > "$TMP/float32-range-error.qui" <<'QUI'
+float source = 1.0e100
+float32 narrowed = float32(source)
+print(narrowed)
+QUI
+"$QUIDRA" build "$TMP/float32-range-error.qui" -o "$TMP/float32-range-error"
+set +e
+"$TMP/float32-range-error" >"$TMP/float32-range-error.out" 2>"$TMP/float32-range-error.err"
+status=$?
+set -e
+[[ "$status" -eq 101 ]]
+grep -q "NUMERIC_CAST_RANGE" "$TMP/float32-range-error.err"
 
 cat > "$TMP/try-class.qui" <<'QUI'
 class Pair

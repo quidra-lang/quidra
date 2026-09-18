@@ -532,6 +532,15 @@ std::string hip_float_unary_source(int dtype,int operation) {
         "if(i<count){"+type+" v=in[i];out[i]="+expr+";}}";
 }
 
+std::string hip_log_validate_source(int dtype) {
+    const auto type=dtype==10?"float":"double";
+    return "#include <math.h>\nextern \"C\" __global__ void q_kernel(const "+
+        std::string(type)+"* in,unsigned long long count,unsigned int* status){"
+        "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+        "if(i<count){"+type+" v=in[i];if(!(v>("+type+")0)||!isfinite(v))"
+        "atomicExch(status,1u);}}";
+}
+
 std::string hip_float_cast_source(int source_dtype,int target_dtype) {
     const auto src=source_dtype==10?"float":"double";
     const auto dst=target_dtype==10?"float":"double";
@@ -697,6 +706,42 @@ std::string ptx_float_binary_kernel(int dtype, int operation, int scalar_side) {
     return out.str();
 }
 
+std::string ptx_log_validate_kernel(int dtype) {
+    const bool f32=dtype==10;
+    const auto width=f32?4:8;
+    std::ostringstream out;
+    out<<ptx_thread_prologue(
+        "  .param .u64 p_in,\n  .param .u64 p_count,\n  .param .u64 p_status\n",
+        f32
+          ? "  .reg .pred %p<5>;\n  .reg .b32 %r<12>;\n  .reg .b64 %rd<20>;\n  .reg .f32 %f<4>;\n"
+          : "  .reg .pred %p<5>;\n  .reg .b32 %r<12>;\n  .reg .b64 %rd<24>;\n  .reg .f64 %fd<4>;\n");
+    out<<"  ld.param.u64 %rd1, [p_in];\n"
+          "  ld.param.u64 %rd5, [p_count];\n"
+          "  ld.param.u64 %rd4, [p_status];\n"
+          "  setp.ge.u64 %p1, %rd7, %rd5;\n"
+          "  @%p1 bra DONE;\n"
+       <<"  mul.lo.u64 %rd8, %rd7, "<<width<<";\n"
+          "  add.u64 %rd9, %rd1, %rd8;\n";
+    if(f32){
+        out<<"  ld.global.f32 %f1, [%rd9];\n"
+              "  setp.le.f32 %p2, %f1, 0f00000000;\n"
+              "  ld.global.u32 %r5, [%rd9];\n"
+              "  and.b32 %r6, %r5, 0x7fffffff;\n"
+              "  setp.ge.u32 %p3, %r6, 0x7f800000;\n";
+    }else{
+        out<<"  ld.global.f64 %fd1, [%rd9];\n"
+              "  setp.le.f64 %p2, %fd1, 0d0000000000000000;\n"
+              "  ld.global.u64 %rd10, [%rd9];\n"
+              "  and.b64 %rd11, %rd10, 0x7fffffffffffffff;\n"
+              "  setp.ge.u64 %p3, %rd11, 0x7ff0000000000000;\n";
+    }
+    out<<"  or.pred %p4, %p2, %p3;\n"
+          "  @!%p4 bra DONE;\n"
+          "  atom.global.exch.b32 %r7, [%rd4], 1;\n"
+          "DONE:\n  ret;\n}\n";
+    return out.str();
+}
+
 std::string ptx_float_unary_kernel(int dtype, int operation) {
     const bool f32 = dtype == 10;
     const auto width = f32 ? 4 : 8;
@@ -704,8 +749,8 @@ std::string ptx_float_unary_kernel(int dtype, int operation) {
     out << ptx_thread_prologue(
         "  .param .u64 p_out,\n  .param .u64 p_in,\n  .param .u64 p_count\n",
         f32
-          ? "  .reg .pred %p<4>;\n  .reg .b32 %r<12>;\n  .reg .b64 %rd<20>;\n  .reg .f32 %f<8>;\n"
-          : "  .reg .pred %p<4>;\n  .reg .b32 %r<12>;\n  .reg .b64 %rd<20>;\n  .reg .f64 %fd<8>;\n");
+          ? "  .reg .pred %p<6>;\n  .reg .b32 %r<16>;\n  .reg .b64 %rd<24>;\n  .reg .f32 %f<12>;\n"
+          : "  .reg .pred %p<8>;\n  .reg .b32 %r<16>;\n  .reg .b64 %rd<40>;\n  .reg .f64 %fd<24>;\n");
     out << "  ld.param.u64 %rd1, [p_out];\n"
            "  ld.param.u64 %rd2, [p_in];\n"
            "  ld.param.u64 %rd5, [p_count];\n"
@@ -728,13 +773,133 @@ std::string ptx_float_unary_kernel(int dtype, int operation) {
         out << "  st.global.f32 [%rd10], %f2;\n";
     } else {
         out << "  ld.global.f64 %fd1, [%rd9];\n";
-        if (operation == 1) out << "  neg.f64 %fd2, %fd1;\n";
-        else if (operation == 2) out << "  abs.f64 %fd2, %fd1;\n";
-        else {
-            out << "  // f64 exp/log require a device math library; caller rejects them.\n"
-                   "  mov.f64 %fd2, %fd1;\n";
+        if (operation == 1) {
+            out << "  neg.f64 %fd2, %fd1;\n";
+        } else if (operation == 2) {
+            out << "  abs.f64 %fd2, %fd1;\n";
+        } else if (operation == 3) {
+            out <<
+                "  setp.nan.f64 %p2, %fd1, %fd1;\n"
+                "  @%p2 mov.f64 %fd2, %fd1;\n"
+                "  @%p2 bra F64_STORE;\n"
+                "  setp.gt.f64 %p2, %fd1, 0d40862e42fefa39ef;\n"
+                "  @%p2 mov.u64 %rd20, 0x7ff0000000000000;\n"
+                "  @%p2 mov.b64 %fd2, %rd20;\n"
+                "  @%p2 bra F64_STORE;\n"
+                "  setp.lt.f64 %p2, %fd1, 0dc0874910d52d3051;\n"
+                "  @%p2 mov.f64 %fd2, 0d0000000000000000;\n"
+                "  @%p2 bra F64_STORE;\n"
+                "  mul.f64 %fd3, %fd1, 0d3ff71547652b82fe;\n"
+                "  cvt.rni.s64.f64 %rd11, %fd3;\n"
+                "  setp.lt.s64 %p3, %rd11, -1074;\n"
+                "  @%p3 mov.s64 %rd11, -1074;\n"
+                "  cvt.rn.f64.s64 %fd4, %rd11;\n"
+                "  mul.f64 %fd5, %fd4, 0d3fe62e42fefa39ef;\n"
+                "  sub.f64 %fd6, %fd1, %fd5;\n"
+                "  mul.f64 %fd5, %fd4, 0d3c7abc9e3b39803f;\n"
+                "  sub.f64 %fd6, %fd6, %fd5;\n"
+                "  mov.f64 %fd7, 0d3d6ae7f3e733b81f;\n"
+                "  mul.f64 %fd7, %fd7, %fd6;\n"
+                "  add.f64 %fd7, %fd7, 0d3da93974a8c07c9d;\n"
+                "  mul.f64 %fd7, %fd7, %fd6;\n"
+                "  add.f64 %fd7, %fd7, 0d3de6124613a86d09;\n"
+                "  mul.f64 %fd7, %fd7, %fd6;\n"
+                "  add.f64 %fd7, %fd7, 0d3e21eed8eff8d898;\n"
+                "  mul.f64 %fd7, %fd7, %fd6;\n"
+                "  add.f64 %fd7, %fd7, 0d3e5ae64567f544e4;\n"
+                "  mul.f64 %fd7, %fd7, %fd6;\n"
+                "  add.f64 %fd7, %fd7, 0d3e927e4fb7789f5c;\n"
+                "  mul.f64 %fd7, %fd7, %fd6;\n"
+                "  add.f64 %fd7, %fd7, 0d3ec71de3a556c734;\n"
+                "  mul.f64 %fd7, %fd7, %fd6;\n"
+                "  add.f64 %fd7, %fd7, 0d3efa01a01a01a01a;\n"
+                "  mul.f64 %fd7, %fd7, %fd6;\n"
+                "  add.f64 %fd7, %fd7, 0d3f2a01a01a01a01a;\n"
+                "  mul.f64 %fd7, %fd7, %fd6;\n"
+                "  add.f64 %fd7, %fd7, 0d3f56c16c16c16c17;\n"
+                "  mul.f64 %fd7, %fd7, %fd6;\n"
+                "  add.f64 %fd7, %fd7, 0d3f81111111111111;\n"
+                "  mul.f64 %fd7, %fd7, %fd6;\n"
+                "  add.f64 %fd7, %fd7, 0d3fa5555555555555;\n"
+                "  mul.f64 %fd7, %fd7, %fd6;\n"
+                "  add.f64 %fd7, %fd7, 0d3fc5555555555555;\n"
+                "  mul.f64 %fd7, %fd7, %fd6;\n"
+                "  add.f64 %fd7, %fd7, 0d3fe0000000000000;\n"
+                "  mul.f64 %fd7, %fd7, %fd6;\n"
+                "  add.f64 %fd7, %fd7, 0d3ff0000000000000;\n"
+                "  mul.f64 %fd7, %fd7, %fd6;\n"
+                "  add.f64 %fd7, %fd7, 0d3ff0000000000000;\n"
+                "  setp.ge.s64 %p3, %rd11, -1022;\n"
+                "  @!%p3 bra F64_EXP_SUBNORMAL;\n"
+                "  add.s64 %rd12, %rd11, 1023;\n"
+                "  shl.b64 %rd13, %rd12, 52;\n"
+                "  mov.b64 %fd8, %rd13;\n"
+                "  mul.f64 %fd2, %fd7, %fd8;\n"
+                "  bra F64_STORE;\n"
+                "F64_EXP_SUBNORMAL:\n"
+                "  add.s64 %rd12, %rd11, 1074;\n"
+                "  cvt.u32.u64 %r5, %rd12;\n"
+                "  mov.u64 %rd13, 1;\n"
+                "  shl.b64 %rd13, %rd13, %r5;\n"
+                "  mov.b64 %fd8, %rd13;\n"
+                "  mul.f64 %fd2, %fd7, %fd8;\n"
+                "  bra F64_STORE;\n";
+        } else {
+            out <<
+                "  mov.b64 %rd11, %fd1;\n"
+                "  shr.u64 %rd12, %rd11, 52;\n"
+                "  and.b64 %rd12, %rd12, 0x7ff;\n"
+                "  setp.ne.u64 %p2, %rd12, 0;\n"
+                "  @%p2 bra F64_LOG_NORMAL;\n"
+                "  mul.f64 %fd1, %fd1, 0d4350000000000000;\n"
+                "  mov.b64 %rd11, %fd1;\n"
+                "  shr.u64 %rd12, %rd11, 52;\n"
+                "  and.b64 %rd12, %rd12, 0x7ff;\n"
+                "  sub.s64 %rd13, %rd12, 1077;\n"
+                "  bra F64_LOG_MANT;\n"
+                "F64_LOG_NORMAL:\n"
+                "  sub.s64 %rd13, %rd12, 1023;\n"
+                "F64_LOG_MANT:\n"
+                "  and.b64 %rd14, %rd11, 0x000fffffffffffff;\n"
+                "  or.b64 %rd14, %rd14, 0x3ff0000000000000;\n"
+                "  mov.b64 %fd3, %rd14;\n"
+                "  setp.gt.f64 %p3, %fd3, 0d3ff6a09e667f3bcd;\n"
+                "  @!%p3 bra F64_LOG_REDUCED;\n"
+                "  mul.f64 %fd3, %fd3, 0d3fe0000000000000;\n"
+                "  add.s64 %rd13, %rd13, 1;\n"
+                "F64_LOG_REDUCED:\n"
+                "  sub.f64 %fd4, %fd3, 0d3ff0000000000000;\n"
+                "  add.f64 %fd5, %fd3, 0d3ff0000000000000;\n"
+                "  div.f64 %fd6, %fd4, %fd5;\n"
+                "  mul.f64 %fd7, %fd6, %fd6;\n"
+                "  mov.f64 %fd8, 0d3faaf286bca1af28;\n"
+                "  mul.f64 %fd8, %fd8, %fd7;\n"
+                "  add.f64 %fd8, %fd8, 0d3fae1e1e1e1e1e1e;\n"
+                "  mul.f64 %fd8, %fd8, %fd7;\n"
+                "  add.f64 %fd8, %fd8, 0d3fb1111111111111;\n"
+                "  mul.f64 %fd8, %fd8, %fd7;\n"
+                "  add.f64 %fd8, %fd8, 0d3fb3b13b13b13b14;\n"
+                "  mul.f64 %fd8, %fd8, %fd7;\n"
+                "  add.f64 %fd8, %fd8, 0d3fb745d1745d1746;\n"
+                "  mul.f64 %fd8, %fd8, %fd7;\n"
+                "  add.f64 %fd8, %fd8, 0d3fbc71c71c71c71c;\n"
+                "  mul.f64 %fd8, %fd8, %fd7;\n"
+                "  add.f64 %fd8, %fd8, 0d3fc2492492492492;\n"
+                "  mul.f64 %fd8, %fd8, %fd7;\n"
+                "  add.f64 %fd8, %fd8, 0d3fc999999999999a;\n"
+                "  mul.f64 %fd8, %fd8, %fd7;\n"
+                "  add.f64 %fd8, %fd8, 0d3fd5555555555555;\n"
+                "  mul.f64 %fd8, %fd8, %fd7;\n"
+                "  add.f64 %fd8, %fd8, 0d3ff0000000000000;\n"
+                "  mul.f64 %fd8, %fd8, %fd6;\n"
+                "  add.f64 %fd8, %fd8, %fd8;\n"
+                "  cvt.rn.f64.s64 %fd9, %rd13;\n"
+                "  mul.f64 %fd9, %fd9, 0d3fe62e42fefa39ef;\n"
+                "  add.f64 %fd2, %fd9, %fd8;\n"
+                "  bra F64_STORE;\n";
         }
-        out << "  st.global.f64 [%rd10], %fd2;\n";
+        out << "F64_STORE:\n"
+               "  st.global.f64 [%rd10], %fd2;\n";
     }
     out << "DONE:\n  ret;\n}\n";
     return out.str();
@@ -1095,6 +1260,18 @@ std::string msl_float_unary_source(int operation) {
            "  if (ulong(gid) >= count) return;\n"
            "  float value = in[gid];\n"
            "  out[gid] = " + expr + ";\n"
+           "}\n";
+}
+
+std::string msl_log_validate_source() {
+    return "#include <metal_stdlib>\nusing namespace metal;\n"
+           "kernel void q_kernel(const device float* in [[buffer(0)]], "
+           "constant ulong& count [[buffer(1)]], "
+           "device atomic_uint* status [[buffer(2)]], "
+           "uint gid [[thread_position_in_grid]]) {\n"
+           "  ulong i=ulong(gid); if(i>=count) return; float value=in[i];\n"
+           "  if(!(value>0.0f) || !isfinite(value)) "
+           "atomic_store_explicit(status,1u,memory_order_relaxed);\n"
            "}\n";
 }
 
@@ -1516,7 +1693,13 @@ bool compute_unary(Buffer* output, const Buffer* input, std::size_t input_offset
                 if (operation==1) value=-value;
                 else if (operation==2) value=std::fabs(value);
                 else if (operation==3) value=std::exp(value);
-                else value=std::log(value);
+                else {
+                    if (!(value>0.0F) || !std::isfinite(value)) {
+                        error="logarithm requires finite positive values";
+                        return false;
+                    }
+                    value=std::log(value);
+                }
                 std::memcpy(destination+i*4,&value,4);
             }
             return true;
@@ -1529,12 +1712,72 @@ bool compute_unary(Buffer* output, const Buffer* input, std::size_t input_offset
             if (operation==1) value=-value;
             else if (operation==2) value=std::fabs(value);
             else if (operation==3) value=std::exp(value);
-            else value=std::log(value);
+            else {
+                if (!(value>0.0) || !std::isfinite(value)) {
+                    error="logarithm requires finite positive values";
+                    return false;
+                }
+                value=std::log(value);
+            }
             std::memcpy(destination+i*8,&value,8);
         }
         return true;
     }
 #endif
+    if (operation==4 && (dtype==9 || dtype==10)) {
+        std::unique_ptr<Buffer,void(*)(Buffer*)> status(
+            allocate(output->global_index,sizeof(std::uint32_t),error),
+            [](Buffer* value){quidra::device::release(value);});
+        if(!status||!zero(status.get(),0,sizeof(std::uint32_t),error))return false;
+        bool launched=false;
+        if(output->backend==Backend::Nvidia){
+            auto ptx=ptx_log_validate_kernel(dtype);
+            auto in_ptr=input->cuda_pointer+input_offset;
+            auto status_ptr=status->cuda_pointer;
+            auto n=static_cast<std::uint64_t>(count);
+            void* args[]={&in_ptr,&n,&status_ptr};
+            launched=launch_ptx_1d(
+                status.get(),"log-domain-"+std::to_string(dtype),ptx,count,args,error);
+        } else if(output->backend==Backend::Amd){
+            auto source=hip_log_validate_source(dtype);
+            auto in_ptr=static_cast<unsigned char*>(input->pointer)+input_offset;
+            auto status_ptr=status->pointer;
+            auto n=static_cast<std::uint64_t>(count);
+            void* args[]={&in_ptr,&n,&status_ptr};
+            launched=launch_hip_1d(
+                status.get(),"log-domain-"+std::to_string(dtype),source,count,args,error);
+#ifdef __APPLE__
+        } else if(dtype==10 && output->backend==Backend::Metal){
+            auto source=msl_log_validate_source();
+            auto pipeline=cached_metal_pipeline(
+                [status->metal_buffer device],"log-domain-f32",source,error);
+            if(pipeline){
+                const auto n=static_cast<std::uint64_t>(count);
+                launched=dispatch_metal_1d(status.get(),pipeline,count,
+                    [&](id<MTLComputeCommandEncoder> encoder){
+                        [encoder setBuffer:input->metal_buffer offset:input_offset atIndex:0];
+                        [encoder setBytes:&n length:sizeof(n) atIndex:1];
+                        [encoder setBuffer:status->metal_buffer offset:0 atIndex:2];
+                    },error);
+            }
+#endif
+        } else {
+            launched=true;
+        }
+        if(!launched)return false;
+        if(output->backend==Backend::Nvidia || output->backend==Backend::Amd
+#ifdef __APPLE__
+           || (dtype==10 && output->backend==Backend::Metal)
+#endif
+        ){
+            std::uint32_t failed=0;
+            if(!copy_to_host(status.get(),0,&failed,sizeof(failed),error))return false;
+            if(failed){
+                error="logarithm requires finite positive values";
+                return false;
+            }
+        }
+    }
     if (gpu_integer_signed(dtype) && output->backend==Backend::Nvidia) {
         std::unique_ptr<Buffer,void(*)(Buffer*)> status(
             allocate(output->global_index,sizeof(std::uint32_t),error),
@@ -1593,7 +1836,7 @@ bool compute_unary(Buffer* output, const Buffer* input, std::size_t input_offset
         if(failed){error="tensor integer negation overflow";return false;}
         return true;
     }
-    if ((dtype==9 || dtype==10) && (dtype==10 || operation<=2) &&
+    if ((dtype==9 || dtype==10) &&
         output->backend==Backend::Nvidia) {
         auto ptx=ptx_float_unary_kernel(dtype,operation);
         auto out_ptr=output->cuda_pointer;

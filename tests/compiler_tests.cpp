@@ -1480,11 +1480,9 @@ int[][] checked_rows = keep_rows(2, dynamic_rows)
  // Runtime extent expressions are captured per binding; mutable sources remain legal.
  good(R"(int n = 3
 int m = 4
-tensor<float><n * 2 + 1, 224> captured =
-    tensor.ones<float>([7, 224])
+tensor<float><n * 2 + 1, 224> captured = tensor.ones<float>([7, 224])
 n = 10
-tensor<float><n, 224> later =
-    tensor.ones<float>([10, 224])
+tensor<float><n, 224> later = tensor.ones<float>([10, 224])
 float[n * m] dynamic_fixed
 dynamic_fixed[0] = 1.0
 tensor<float><3, 224> contextual = tensor.zeros()

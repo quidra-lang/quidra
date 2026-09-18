@@ -3455,10 +3455,6 @@ for (const auto& [name, value] : pool.entries) {
 }
 out << "\n";
 for (const auto& [_, pair] : array_cast_pairs)
-    out << "declare ptr " << array_cast_name(pair.source,pair.target)
-        << "(ptr, i64, i64)\n";
-out << "\n";
-for (const auto& [_, pair] : array_cast_pairs)
     out << emit_array_cast_helper(pair.source,pair.target,array_layout);
 for (const auto& [_, type] : clone_types) out << emit_clone_helper(type, layouts, array_layout);
 std::map<std::string, Type> drop_types;

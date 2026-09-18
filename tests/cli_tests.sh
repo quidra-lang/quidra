@@ -404,7 +404,7 @@ match found
     int index
         print(index)
     none
-        print(-1)
+        print(int(-1))
 print(text.slice(2, 6))
 print(text[3])
 print("A日本"[2])
@@ -1641,7 +1641,7 @@ QUI
 [[ "$($QUIDRA run "$TMP/class-init-summary.qui")" == $'2.0\n3.0' ]]
 
 cat > "$TMP/constant-zero.qui" <<'QUI'
-print(1 / 0)
+print(int(1) / 0)
 QUI
 set +e
 $QUIDRA check "$TMP/constant-zero.qui" --json > "$TMP/constant-zero.json"
@@ -1691,23 +1691,23 @@ cat > "$TMP/builtins.qui" <<'QUI'
 int[] values = [1, 2, 3]
 print(len(values))
 print(float(3))
-print(abs(-5))
-print(abs(-2.5))
+print(abs(int(-5)))
+print(abs(float(-2.5)))
 print(sqrt(9.0))
-print(min(4, 2))
-print(max(4, 2))
+print(min(int(4), 2))
+print(max(int(4), 2))
 QUI
 [[ "$($QUIDRA run "$TMP/builtins.qui")" == $'3\n3.0\n5\n2.5\n3.0\n2\n4' ]]
 
 cat > "$TMP/float-format.qui" <<'QUI'
-print(4.0)
+print(float(4.0))
 print(float32(4.0))
-print(4.5)
-print(-2.0)
-print("value={4.0}")
-write(6.0)
+print(float(4.5))
+print(float(-2.0))
+print("value={float(4.0)}")
+write(float(6.0))
 write("|")
-print(7.0.string())
+print(float(7.0).string())
 QUI
 [[ "$($QUIDRA run "$TMP/float-format.qui")" == $'4.0\n4.0\n4.5\n-2.0\nvalue=4.0\n6.0|7.0' ]]
 
@@ -1717,16 +1717,16 @@ print("{value:frac=2}")
 print("{value:int=4,frac=2,zero}")
 print("{value:int=4,frac=2}")
 print("{value:sig=4}")
-print("{12345:sig=4}")
-print("{0.00123456:sig=3}")
-print("{12:sig=4}")
+print("{int(12345):sig=4}")
+print("{float(0.00123456):sig=3}")
+print("{int(12):sig=4}")
 QUI
 expected_format="$(printf '12.35\n0012.35\n  12.35\n12.35\n12350\n0.00123\n12.00')"
 [[ "$($QUIDRA run "$TMP/interpolation-format.qui")" == "$expected_format" ]]
 
 cat > "$TMP/interpolation-format-invalid.qui" <<'QUI'
-print("{12.3:frac=2,sig=3}")
-print("{12:zero}")
+print("{float(12.3):frac=2,sig=3}")
+print("{int(12):zero}")
 QUI
 set +e
 $QUIDRA check "$TMP/interpolation-format-invalid.qui" > "$TMP/interpolation-format-invalid.out" 2>&1
@@ -2697,17 +2697,17 @@ QUI
 
 
 cat > "$TMP/float-canonical-text.qui" <<'QUI'
-print(0.6)
-print(1.0 / 3.0)
-print(1.0)
-print(-0.0)
-print(1.0e20)
+print(float(0.6))
+print(float(1.0 / 3.0))
+print(float(1.0))
+print(float(-0.0))
+print(float(1.0e20))
 QUI
 [[ "$("$QUIDRA" run "$TMP/float-canonical-text.qui")" == $'0.6\n0.3333333333333333\n1.0\n-0.0\n1.0e+20' ]]
 
 cat > "$TMP/float-exception-text.qui" <<'QUI'
-print(0.0 / 0.0)
-print(1.0 / 0.0)
-print(-1.0 / 0.0)
+print(float(0.0 / 0.0))
+print(float(1.0 / 0.0))
+print(float(-1.0 / 0.0))
 QUI
 [[ "$("$QUIDRA" run "$TMP/float-exception-text.qui")" == $'nan\ninf\n-inf' ]]

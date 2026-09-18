@@ -1404,6 +1404,24 @@ tensor<float32, 2> known = erase(tensor.zeros<float32>([2, 2]))
  bad_code("tensor<float32> value = tensor.ones<float32>([2])\nauto bad = linear.matmul(value, value)\n", "TYPE_MISMATCH");
  bad_code("tensor<uint8, 2> value = tensor.zeros<uint8>([2, 2])\nauto result = image.write(home, value)\n", "TYPE_MISMATCH");
 
+ // Shape-prefix match cases select only compatible tensor alternatives.
+ good(R"(void classify(tensor<float32, 3, 4> | tensor<float32, 1, 4> value)
+    match value
+        tensor<float32, 3> rgb
+            print(rgb.shape()[0])
+        tensor<float32, 1> gray
+            print(gray.shape()[0])
+)");
+ bad_code(R"(void invalid_case(tensor<float32, 1, 4> | tensor<float32, 4, 4> value)
+    match value
+        tensor<float32, 3> impossible
+            print(impossible.shape()[0])
+        tensor<float32, 1> gray
+            print(gray.shape()[0])
+        tensor<float32, 4> rgba
+            print(rgba.shape()[0])
+)", "MATCH_CASE");
+
  // Tensor flow facts must weaken at control-flow joins when paths disagree.
  bad_code(R"(void branch_shape(bool flag)
     tensor<float32> value = tensor.zeros<float32>([3, 4])

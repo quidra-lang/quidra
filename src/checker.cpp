@@ -4864,7 +4864,8 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
             for (std::size_t i = 0; i < type.cases.size(); ++i) {
                 const auto& candidate = type.cases[i];
                 if (candidate.kind != TypeKind::Tensor || !candidate.first ||
-                    *candidate.first != *requested_case_type.first) {
+                    *candidate.first != *requested_case_type.first ||
+                    !tensor_satisfies_shape_prefix(candidate, requested_case_type)) {
                     continue;
                 }
                 if (compatible_tag >= 0) {

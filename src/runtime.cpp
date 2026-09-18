@@ -1265,17 +1265,8 @@ TensorStorage* tensor_storage_create(
             tensor_fail(backend_error.c_str(), line, column);
         }
     } else if (fill_mode == 2) {
-        std::vector<unsigned char> host;
-        try {
-            fill_ones(host);
-        } catch (...) {
-            quidra::device::release(storage->gpu_buffer);
-            storage->gpu_buffer = nullptr;
-            delete storage;
-            runtime_allocation_failure();
-        }
-        if (!quidra::device::copy_from_host(
-                storage->gpu_buffer, 0, host.data(), host.size(), backend_error)) {
+        if (!quidra::device::compute_fill_ones(
+                storage->gpu_buffer, dtype, count, backend_error)) {
             quidra::device::release(storage->gpu_buffer);
             storage->gpu_buffer = nullptr;
             delete storage;
@@ -1296,6 +1287,44 @@ void tensor_require_initialized(const TensorValue& tensor,
             runtime_uninitialized_failure(line, column);
         }
     }
+}
+
+TensorStorage* tensor_gpu_materialize_storage(
+    const TensorValue& source,
+    unsigned long long line,
+    unsigned long long column) {
+    if (tensor_on_cpu(*source.storage)) {
+        tensor_fail("internal GPU materialization received a CPU tensor", line, column);
+    }
+    const auto count = tensor_logical_count(source);
+    auto* output = tensor_storage_create(
+        source.storage->dtype, count, 0, source.storage->device, line, column);
+    std::vector<std::uint64_t> indices;
+    try {
+        indices.resize(count);
+    } catch (...) {
+        tensor_storage_release(output);
+        runtime_allocation_failure();
+    }
+    for (std::size_t logical = 0; logical < count; ++logical) {
+        const auto source_index = tensor_storage_index(source, logical);
+        if (source_index >= source.storage->count) {
+            tensor_storage_release(output);
+            tensor_fail("tensor view exceeds storage", line, column);
+        }
+        indices[logical] = static_cast<std::uint64_t>(source_index);
+        if (tracker_bit(source.storage->initialization, source_index)) {
+            tracker_set(output->initialization, logical);
+        }
+    }
+    std::string backend_error;
+    if (!quidra::device::compute_gather(
+            output->gpu_buffer, source.storage->gpu_buffer,
+            source.storage->dtype, indices.data(), count, backend_error)) {
+        tensor_storage_release(output);
+        tensor_fail(backend_error.c_str(), line, column);
+    }
+    return output;
 }
 
 TensorStorage* tensor_transfer_storage(
@@ -1638,18 +1667,20 @@ extern "C" void* quidra_tensor_contiguous(void* raw) {
     if (!raw) runtime_text_failure("null tensor");
     auto* source = static_cast<TensorValue*>(raw);
     if (tensor_is_contiguous_value(*source)) return quidra_tensor_clone(raw);
-    if (!tensor_on_cpu(*source->storage)) {
-        tensor_gpu_unsupported("tensor.contiguous", *source->storage, 0, 0);
-    }
     const auto count = tensor_logical_count(*source);
-    auto* storage = tensor_storage_create(source->storage->dtype, count, 0);
-    const auto width = tensor_dtype_bytes(source->storage->dtype);
-    for (std::size_t i = 0; i < count; ++i) {
-        const auto source_index = tensor_storage_index(*source, i);
-        std::memcpy(storage->data.data() + i * width,
-                    source->storage->data.data() + source_index * width, width);
-        if (tracker_bit(source->storage->initialization, source_index)) {
-            tracker_set(storage->initialization, i);
+    TensorStorage* storage = nullptr;
+    if (!tensor_on_cpu(*source->storage)) {
+        storage = tensor_gpu_materialize_storage(*source, 0, 0);
+    } else {
+        storage = tensor_storage_create(source->storage->dtype, count, 0);
+        const auto width = tensor_dtype_bytes(source->storage->dtype);
+        for (std::size_t i = 0; i < count; ++i) {
+            const auto source_index = tensor_storage_index(*source, i);
+            std::memcpy(storage->data.data() + i * width,
+                        source->storage->data.data() + source_index * width, width);
+            if (tracker_bit(source->storage->initialization, source_index)) {
+                tracker_set(storage->initialization, i);
+            }
         }
     }
     return tensor_descriptor(storage, source->shape,
@@ -1667,9 +1698,18 @@ extern "C" void* quidra_tensor_item_ptr(void* raw, unsigned long long line,
         !tracker_bit(tensor->storage->initialization, tensor->offset)) {
         runtime_uninitialized_failure(line, column);
     }
-    tensor_require_cpu(*tensor->storage, "tensor.item", line, column);
     const auto width = tensor_dtype_bytes(tensor->storage->dtype);
-    return tensor->storage->data.data() + tensor->offset * width;
+    if (tensor_on_cpu(*tensor->storage)) {
+        return tensor->storage->data.data() + tensor->offset * width;
+    }
+    static thread_local std::array<unsigned char, 8> scalar{};
+    std::string backend_error;
+    if (!quidra::device::copy_to_host(
+            tensor->storage->gpu_buffer, tensor->offset * width,
+            scalar.data(), width, backend_error)) {
+        tensor_fail(backend_error.c_str(), line, column);
+    }
+    return scalar.data();
 }
 
 extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
@@ -1677,9 +1717,31 @@ extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
                                       unsigned long long column) {
     if (!raw) tensor_fail("null tensor", line, column);
     auto* source = static_cast<TensorValue*>(raw);
-    tensor_require_cpu(*source->storage, "tensor.cast", line, column);
     tensor_require_initialized(*source, line, column);
     const auto count = tensor_logical_count(*source);
+    if (!tensor_on_cpu(*source->storage)) {
+        TensorStorage* materialized = nullptr;
+        const TensorStorage* input_storage = source->storage;
+        std::size_t input_offset = source->offset * tensor_dtype_bytes(source->storage->dtype);
+        if (!tensor_is_contiguous_value(*source)) {
+            materialized = tensor_gpu_materialize_storage(*source, line, column);
+            input_storage = materialized;
+            input_offset = 0;
+        }
+        auto* output = tensor_storage_create(
+            target_dtype, count, 1, source->storage->device, line, column);
+        std::string backend_error;
+        const bool ok = quidra::device::compute_cast(
+            output->gpu_buffer, input_storage->gpu_buffer, input_offset,
+            source->storage->dtype, target_dtype, count, backend_error);
+        if (materialized) tensor_storage_release(materialized);
+        if (!ok) {
+            tensor_storage_release(output);
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+        return tensor_descriptor(output, source->shape,
+                                 tensor_contiguous_strides(source->shape), 0);
+    }
     auto* output = tensor_storage_create(target_dtype, count, 1);
     bool exact = false;
     switch (source->storage->dtype) {
@@ -1696,7 +1758,7 @@ extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
         default: break;
     }
     if (!exact) {
-        delete output;
+        tensor_storage_release(output);
         tensor_fail("tensor cast is unsupported or a value is outside the target range", line, column);
     }
     return tensor_descriptor(output, source->shape,

@@ -2131,7 +2131,7 @@ Store detailed evidence under benchmark/.
 
 # 35. Final Objective
 
-Evaluate the Quidra implementation exactly as it exists on the local develop branch.
+Evaluate the Quidra implementation exactly as it exists in the current benchmarked checkout, and record the evaluated HEAD SHA.
 
 Compare it against the fixed set of Python, C++, Rust, Go, Java, TypeScript, Kotlin, Swift, and Zig under reproducible and fair conditions.
 

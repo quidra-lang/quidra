@@ -3639,7 +3639,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     bool bad_gpu = false;
                     if (gpu_index) {
                         const auto int_type = simple(TypeKind::Int);
-                        auto gpu = check_expr(*node->args[*gpu_index].value, &int_type);
+                        auto gpu = check_expr(*node->args[*gpu_index].value);
                         bad_gpu = poisoned(gpu);
                         if (!bad_gpu && gpu != int_type) {
                             error("TYPE_MISMATCH",

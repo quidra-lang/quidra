@@ -1,113 +1,138 @@
 # Development and release workflow
 
 This document is the canonical workflow for developing and releasing Quidra.
+It is intentionally operational: an engineer or LLM given an instruction such
+as "release Quidra", "follow the release procedure", or
+"本体をリリースして" should execute the complete procedure below rather than
+only describing it.
 
-## Branch roles
+## Permanent branch roles
 
-- `main` is always the latest released, stable version.
-- `develop` is the integration branch for normal development. New language features, compiler work, runtime changes, documentation changes, and tests land here first.
-- `release/vX.Y.Z` is a temporary stabilization branch created from `develop` only after the scope for a release is frozen.
-- `hotfix/vX.Y.Z` is used only when an already released version needs an urgent fix based on `main`.
+The normal repository has two permanent branches:
 
-Do not develop new features directly on `main`.
+- `main` is the latest published stable release.
+- `develop` is the integration branch for the next release.
 
-A released version is identified canonically by its immutable Git tag and GitHub Release, not by a long-lived version branch. Release branches may be deleted after the release is complete.
+Temporary work branches may exist, but they are not release sources and are not
+installation targets. The current historical `feature` branch is an
+exceptional integration branch for the present development cycle. Work on it
+must be intentionally merged into `develop` before normal development and
+release continue. Do not tag or publish `feature` directly.
+
+Do not delete and recreate `develop` after a release. It remains the
+long-lived development branch.
 
 ## Versioning
 
-Quidra uses Semantic Versioning.
+Quidra uses Semantic Versioning. While the language is below 1.0:
 
-While the project is below 1.0:
-
-- `0.X.0` is used for a release that adds language features, syntax, standard-library capabilities, or materially changes semantics.
-- `0.X.Y` is used for backwards-compatible fixes and maintenance of the corresponding minor line.
+- `0.X.0` is appropriate for new language features, standard-library
+  capabilities, or material semantic changes.
+- `0.X.Y` is appropriate for compatible fixes and maintenance of the same
+  minor line.
 - `1.0.0` is reserved for the first explicitly stable language contract.
 
-Examples:
-
-- bug fixes only after v0.1.0 -> v0.1.1
-- adding `elif`, new string operations, or new array operations after v0.1.0 -> v0.2.0
-
-Do not reuse an existing released version number for different source.
+A version number in a development branch is not itself a release. Only an
+immutable `vX.Y.Z` tag on `main` is a released version.
 
 ## Normal development
 
-Normal work happens on `develop`.
+1. Fetch the current remote `develop` HEAD. Never start from a remembered SHA.
+2. Implement and test changes on `develop` or on a temporary branch that will
+   be merged into `develop`.
+3. Keep source, language specification, tests, examples, manifest data, and
+   packaging behavior consistent.
+4. Do not merge ordinary unfinished development into `main`.
+5. Do not create release tags from `develop` or temporary branches.
 
-1. Start from the latest `develop`.
-2. Implement the change completely across the relevant layers: grammar/parser, checker, IR, backend/runtime, tests, examples, documentation, manifest, and packaging when applicable.
-3. Add regression tests for both accepted and rejected behavior.
-4. Run the full test suite.
-5. Keep `develop` buildable. A temporary failing commit is acceptable during active work, but do not treat a change as complete until CI is green.
+## Releasing Quidra
 
-The working version remains the last released version until a release is prepared. Development commits do not create tags or GitHub Releases.
+When explicitly instructed to release the core repository, perform these steps
+in order.
 
-## Preparing a release
+1. Fetch the latest remote `develop` and `main` HEADs immediately before
+   release work. Inspect their actual difference. Never overwrite newer remote
+   work with an older checkout or remembered SHA.
+2. Confirm that all work intended for the release is already present in
+   `develop`. A temporary branch such as the exceptional `feature` branch
+   must have been merged into `develop` before this point.
+3. Determine the release version from the actual compatibility/feature delta
+   and make every authoritative version field agree, including
+   `quidra.manifest.json`, CLI version output, packaging metadata, and release
+   documentation.
+4. Run the complete test suite on `develop` and require green CI. Fix release
+   blockers on `develop`; do not bypass failing checks.
+5. Merge `develop` into `main` while preserving both branches' valid history.
+   If `main` contains changes not already in `develop`, reconcile them
+   explicitly; never replace one branch wholesale merely to make the histories
+   match.
+6. Fetch/verify the resulting remote `main` HEAD and run or wait for the
+   `main` CI checks. The exact commit that passes is the release commit.
+7. Create the immutable annotated tag `vX.Y.Z` on that exact `main` commit
+   and push the tag. Never tag `develop`, `feature`, or an unverified commit.
+8. The tag-triggered release workflow must finish successfully and create the
+   GitHub Release and all supported platform artifacts. A release is not
+   complete while that workflow is failing or incomplete.
+9. Verify that the GitHub Release tag, `main` version metadata, packaged
+   `quidra --version`, and published assets all report the same `X.Y.Z`.
+10. Bring any release-time `main` changes back into `develop` if necessary.
+    Then advance `develop` to the next intended development version and
+    commit/push that change. During normal pre-1.0 feature development, use the
+    next minor version by default; use the next patch only when intentionally
+    continuing maintenance of the current minor line.
+11. Leave `main` at the released version. Continue ordinary work on
+    `develop`.
 
-When the next version is ready to stabilize:
-
-1. Decide the version number from the actual compatibility and feature delta.
-2. Create `release/vX.Y.Z` from the tested `develop` commit.
-3. Freeze features on that branch. Only release blockers, tests, documentation, packaging fixes, and version metadata changes belong there.
-4. Update every authoritative version field and generated/package metadata that depends on it.
-5. Verify that README, language/spec documents, the manifest, examples, CLI help/describe output, and release notes describe the version that is actually being shipped.
-6. Run all release checks below.
-7. Merge the release branch into `main`.
-8. Create an annotated tag `vX.Y.Z` on that exact `main` commit.
-9. Create the GitHub Release from that tag and attach the release artifacts.
-10. Merge any stabilization-only fixes/version changes back into `develop` if they are not already present.
-11. The release branch may then be deleted. The tag and GitHub Release are the permanent historical record.
-
-Never tag a commit that has not passed the release checks.
+The release tag is immutable. Never force-move, delete/recreate, or reuse a
+published `vX.Y.Z` tag for different source.
 
 ## Release checks
 
-A release is not complete until all of the following pass:
+A core release is not complete until the applicable checks pass:
 
-- GCC release build
-- Clang release build
-- macOS build/tests/native smoke
-- Windows build/tests/native smoke
-- sanitizer build/tests, including the runtime archive used by generated native programs
-- warnings-as-errors builds on GCC, Clang, macOS, and MSVC
-- `ctest --output-on-failure`
-- native smoke tests
-- parser/checker negative tests
-- standard-library tests
-- import/module tests
-- REPL/CLI tests
-- packaging tests for supported artifacts
-- version output verification
-- `quidra describe` / manifest consistency
-- examples execute with their documented output
+- GCC and Clang release builds;
+- Linux, macOS, and Windows CI;
+- sanitizer and warnings-as-errors builds;
+- `ctest --output-on-failure`;
+- parser/checker negative tests;
+- native runtime smoke tests;
+- standard-library and module/import tests;
+- package/version/lockfile tests;
+- REPL/CLI tests;
+- packaging tests;
+- `quidra --version` and `quidra describe` consistency;
+- documented examples.
 
-When language semantics or performance-sensitive runtime behavior changes, also run the relevant benchmarks and record unexpected regressions before release.
+When semantics or performance-sensitive behavior changes, run the relevant
+benchmarks as well.
 
-## Hotfixes
+## Core and first-party library release order
 
-For an urgent fix to the currently released version:
+Quidra core and first-party libraries do not have to share the same version.
 
-1. Create `hotfix/vX.Y.Z` from `main`.
-2. Make only the minimal compatible fix.
-3. Run the same release checks.
-4. Merge into `main`.
-5. Tag and publish the patch release.
-6. Merge the hotfix into `develop`.
-7. Delete the hotfix branch after the tag and release exist.
-
-## History rules
-
-- `main` must never point to unreleased experimental work.
-- Released tags are immutable.
-- Do not force-move or recreate a published release tag.
-- Do not silently rewrite a published release's source while retaining the same version.
-- `develop` is allowed to move ahead of `main`.
-- Release/hotfix branches exist for stabilization, not as permanent version archives.
-
-This keeps one simple interpretation:
+Release order is:
 
 ```text
-main       = what users can download as the latest stable release
-develop    = what Quidra is becoming
-vX.Y.Z tag = exactly what version X.Y.Z was
+Quidra core
+    -> immutable core release tag
+    -> update DNN/Vision against that released core
+    -> release DNN/Vision independently
 ```
+
+Do not publish a library whose `requires.quidra` refers only to an unreleased
+`develop` or `feature` state. After a core release exists, each library
+updates its own version and `requires.quidra` range, tests against the tagged
+core release, and then follows its own release procedure.
+
+The package installer consumes library release tags only. It never installs a
+library from `main` or `develop`.
+
+## History invariant
+
+```text
+main       = latest released stable source
+develop    = next release development
+vX.Y.Z     = immutable released source
+```
+
+Temporary branches can help integration, but they never change that invariant.

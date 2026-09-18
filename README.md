@@ -399,7 +399,7 @@ There is no `char` type:
 
 - text is `string`,
 - one byte as a number is `uint8`,
-- binary sequences are `bytes`.
+- raw binary sequences are `bin`.
 
 Numeric parsing and standard text conversion use methods:
 
@@ -410,28 +410,29 @@ int number = 123
 string text = number.string()
 ```
 
-### Arrays and bytes
+### Arrays and bin
 
 ```quidra
 int[] dynamic = [1, 2, 3]
 int[3] fixed = [4, 5, 6]
 int[] zeros = array(5, fill = 0)
 
-bytes data = bytes(4, fill = 0)
-data[0] = 255
-uint8 first = data[0]
+bin data = bin(8, fill = 0)
+data[0] = bin.parse("1")
+bin first = data[0]
 ```
 
 Fixed array lengths are part of the type. Arrays have value semantics, including nested arrays.
 
-`bytes` is mutable raw binary data with compact contiguous `uint8` elements. It supports indexing, mutation, length, value equality, iteration, writable iteration, and safe element references.
+`bin` is mutable packed raw binary data. `len(data)` is the number of bits, `data[i]` returns a one-bit `bin`, and `data[start:end]` returns a `bin` slice. `bin(n, fill = 0|1)` allocates exactly `n` bits; `bin.parse("0101")` parses a written bit pattern. Binary-to-numeric interpretation is always explicit, for example `uint8(bits)`, and the bit length must match the destination width exactly.
 
 ### Strings
 
-Strings are immutable values.
+Strings are immutable values. Repeated initialization uses `string(n, fill = value)`, where `value` is exactly one Unicode code point.
 
 ```quidra
 string name = "Quidra"
+string repeated = string(6, fill = "a")
 print("Hello, {name}")
 print("first{enter}second")
 ```
@@ -548,7 +549,7 @@ string | none | error line = input()
 
 ## Text, arrays, and conditional chains
 
-Strings are immutable UTF-8 text. `len(text)` counts Unicode code points, `text[index]` returns a one-code-point string, and text supports `contains`, `starts_with`, `ends_with`, `find`, `slice`, `trim`, and `split`. `text.utf8()` explicitly exposes encoded bytes, `text.codepoints()` explicitly exposes Unicode scalar values, and `string[]` uses `join(separator)` for efficient assembly.
+Strings are immutable UTF-8 text. `len(text)` counts Unicode code points, `text[index]` returns a one-code-point string, and text supports `contains`, `starts_with`, `ends_with`, `find`, `slice`, `trim`, and `split`. `text.utf8()` explicitly exposes the UTF-8 encoding as `bin`, `text.codepoints()` explicitly exposes Unicode scalar values, and `string[]` uses `join(separator)` for efficient assembly.
 
 Runtime-sized arrays can be fully initialized or explicitly created with uninitialized elements:
 
@@ -826,7 +827,7 @@ extern int c_abs(int value) = "llabs"
 print(c_abs(-42))
 ```
 
-Results are limited to ABI-stable scalar values or `void`. Scalar/bool parameters cross by value. Managed text/binary input must instead be an explicit read-only storage borrow, written `const string &` or `const bytes &` and passed with `&storage`. Each borrow lowers to a `(data pointer, uint64 byte length)` C ABI pair only for the duration of the call. Quidra does not expose a pointer-only C-string contract, infer ownership transfer, or infer foreign failure from `errno`/null. Foreign code must not mutate or retain a borrowed pointer; APIs with a different contract need an explicit C wrapper. Each external C symbol may be bound by only one `extern` declaration in a compilation. `main`, the compiler-owned `n_*` mangling namespace, and the implementation-owned `quidra_*` / `__quidra_*` C symbol namespaces are reserved.
+Results are limited to ABI-stable scalar values or `void`. Scalar/bool parameters cross by value. Managed text/binary input must instead be an explicit read-only storage borrow, written `const string &` or `const bin &` and passed with `&storage`. Each borrow lowers to a `(data pointer, uint64 byte length)` C ABI pair only for the duration of the call. A borrowed `bin` must be byte-aligned (`len(value) % 8 == 0`); otherwise the call fails deterministically. Quidra does not expose a pointer-only C-string contract, infer ownership transfer, or infer foreign failure from `errno`/null. Foreign code must not mutate or retain a borrowed pointer; APIs with a different contract need an explicit C wrapper. Each external C symbol may be bound by only one `extern` declaration in a compilation. `main`, the compiler-owned `n_*` mangling namespace, and the implementation-owned `quidra_*` / `__quidra_*` C symbol namespaces are reserved.
 
 ## CLI
 
@@ -879,7 +880,7 @@ Quidra chooses the newest released tag compatible with the running compiler.
 - [Development and release workflow](docs/development.md)
 - [Package management](docs/packages.md)
 - [Language semantics](docs/spec/language.md)
-- [Numeric types and bytes](docs/spec/numeric-and-bytes.md)
+- [Numeric types and bin](docs/spec/numeric-and-bin.md)
 - [Grammar](docs/spec/grammar.ebnf)
 - [LLM guide](docs/spec/llm-guide.md)
 - [Architecture](docs/spec/architecture.md)
@@ -917,7 +918,7 @@ print(args.count)
 
 The field name is also the CLI name: `count` becomes `--count`, without repeating `"count"`. The CLI binding is a root top-level value and is not implicitly captured by functions; pass CLI-derived values explicitly when reusable code needs them. Direct execution accepts program arguments after the source path; `quidra run FILE.qui -- ARGS...` uses `--` as the compiler/program boundary.
 
-`file` provides text `read` / `write`, binary `read_bytes` / `write_bytes`, `exists`, `is_directory`, `remove`, `copy`, `move`, `mkdir`, and deterministic `list`. `file.is_directory(path)` returns `bool | error` (a missing path is `false`). `file.list(path)` returns sorted direct child paths as `string[] | error`; `file.list(path, recursive = true)` returns the full sorted descendant list. Filesystem failures are represented with `error` unions rather than silent fallback.
+`file` provides text `read` / `write`, binary `read_bin` / `write_bin`, `exists`, `is_directory`, `remove`, `copy`, `move`, `mkdir`, and deterministic `list`. `file.is_directory(path)` returns `bool | error` (a missing path is `false`). `file.list(path)` returns sorted direct child paths as `string[] | error`; `file.list(path, recursive = true)` returns the full sorted descendant list. Filesystem failures are represented with `error` unions rather than silent fallback.
 
 `environment` treats an unset host variable as absence rather than failure:
 
@@ -1039,7 +1040,7 @@ match result
         print(problem)
 ```
 
-`http.Response.body` is `bytes`, not `string`, because an HTTP body is not necessarily text. Header lookup is ASCII case-insensitive and a missing header is `none`. HTTP status codes such as 404 and 500 still produce a `Response`; DNS, TLS, connection, redirect, timeout, and protocol failures produce `error`. The v0.1 runtime supports only `http://` and `https://`, follows at most 10 redirects, keeps TLS certificate verification enabled, and captures the complete response body in memory.
+`http.Response.body` is `bin`, not `string`, because an HTTP body is not necessarily text. Header lookup is ASCII case-insensitive and a missing header is `none`. HTTP status codes such as 404 and 500 still produce a `Response`; DNS, TLS, connection, redirect, timeout, and protocol failures produce `error`. The v0.1 runtime supports only `http://` and `https://`, follows at most 10 redirects, keeps TLS certificate verification enabled, and captures the complete response body in memory.
 
 ### Tensor numerics and image I/O
 

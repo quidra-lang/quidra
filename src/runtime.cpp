@@ -1,3 +1,4 @@
+#include "device_backend.hpp"
 #include <algorithm>
 #include <atomic>
 #include <cctype>
@@ -1043,7 +1044,9 @@ struct TensorStorage {
     std::size_t owners{1};
     int dtype{};
     std::size_t count{};
+    int device{-1}; // -1 is an internal CPU representation; public gpu indices are >= 0.
     std::vector<unsigned char> data;
+    quidra::device::Buffer* gpu_buffer{};
     InitializationTracker initialization;
 };
 
@@ -1151,20 +1154,50 @@ void tensor_storage_release(TensorStorage* storage) {
     if (!storage) return;
     if (storage->owners == 0) runtime_text_failure("tensor storage owner underflow");
     --storage->owners;
-    if (storage->owners == 0) delete storage;
+    if (storage->owners == 0) {
+        quidra::device::release(storage->gpu_buffer);
+        storage->gpu_buffer = nullptr;
+        delete storage;
+    }
 }
 
-TensorStorage* tensor_storage_create(int dtype, std::size_t count, int fill_mode) {
+bool tensor_on_cpu(const TensorStorage& storage) {
+    return storage.device < 0;
+}
+
+[[noreturn]] void tensor_gpu_unsupported(
+    const char* operation, const TensorStorage& storage,
+    unsigned long long line, unsigned long long column) {
+    const auto message = std::string(operation) +
+        " is not supported on gpu(" + std::to_string(storage.device) + ")";
+    tensor_fail(message.c_str(), line, column);
+}
+
+void tensor_require_cpu(
+    const TensorStorage& storage, const char* operation,
+    unsigned long long line, unsigned long long column) {
+    if (!tensor_on_cpu(storage)) {
+        tensor_gpu_unsupported(operation, storage, line, column);
+    }
+}
+
+TensorStorage* tensor_storage_create(
+    int dtype, std::size_t count, int fill_mode, int device_index = -1,
+    unsigned long long line = 0, unsigned long long column = 0) {
     const auto width = tensor_dtype_bytes(dtype);
     if (count != 0 && width > std::numeric_limits<std::size_t>::max() / count) {
         runtime_allocation_failure();
+    }
+    if (device_index < -1) {
+        tensor_fail("invalid internal tensor device", line, column);
     }
     auto* storage = new (std::nothrow) TensorStorage;
     if (!storage) runtime_allocation_failure();
     storage->dtype = dtype;
     storage->count = count;
+    storage->device = device_index;
+    const auto bytes = count * width;
     try {
-        storage->data.resize(count * width);
         storage->initialization.count = count;
         storage->initialization.unit_bytes = width;
         storage->initialization.fully_initialized = fill_mode != 0 || count == 0;
@@ -1173,15 +1206,19 @@ TensorStorage* tensor_storage_create(int dtype, std::size_t count, int fill_mode
         if (!storage->initialization.fully_initialized) {
             storage->initialization.bits.assign((count + 7) / 8, 0);
         }
+
+        if (device_index < 0) {
+            storage->data.resize(bytes);
+        }
     } catch (...) {
         delete storage;
         runtime_allocation_failure();
     }
-    if (fill_mode == 1) {
-        std::fill(storage->data.begin(), storage->data.end(), 0);
-    } else if (fill_mode == 2) {
+
+    auto fill_ones = [&](std::vector<unsigned char>& target) {
+        target.resize(bytes);
         for (std::size_t i = 0; i < count; ++i) {
-            auto* slot = storage->data.data() + i * width;
+            auto* slot = target.data() + i * width;
             switch (dtype) {
                 case 1: { std::int64_t v=1; std::memcpy(slot,&v,8); break; }
                 case 2: { std::int8_t v=1; std::memcpy(slot,&v,1); break; }
@@ -1193,8 +1230,54 @@ TensorStorage* tensor_storage_create(int dtype, std::size_t count, int fill_mode
                 case 8: { std::uint64_t v=1; std::memcpy(slot,&v,8); break; }
                 case 9: { double v=1.0; std::memcpy(slot,&v,8); break; }
                 case 10:{ float v=1.0F; std::memcpy(slot,&v,4); break; }
-                default: delete storage; runtime_text_failure("invalid tensor dtype");
+                default: tensor_fail("invalid tensor dtype", line, column);
             }
+        }
+    };
+
+    if (device_index < 0) {
+        if (fill_mode == 1) {
+            std::fill(storage->data.begin(), storage->data.end(), 0);
+        } else if (fill_mode == 2) {
+            try {
+                fill_ones(storage->data);
+            } catch (...) {
+                delete storage;
+                runtime_allocation_failure();
+            }
+        }
+        return storage;
+    }
+
+    std::string backend_error;
+    storage->gpu_buffer = quidra::device::allocate(device_index, bytes, backend_error);
+    if (!storage->gpu_buffer) {
+        delete storage;
+        tensor_fail(backend_error.c_str(), line, column);
+    }
+    if (fill_mode == 1) {
+        if (!quidra::device::zero(storage->gpu_buffer, 0, bytes, backend_error)) {
+            quidra::device::release(storage->gpu_buffer);
+            storage->gpu_buffer = nullptr;
+            delete storage;
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+    } else if (fill_mode == 2) {
+        std::vector<unsigned char> host;
+        try {
+            fill_ones(host);
+        } catch (...) {
+            quidra::device::release(storage->gpu_buffer);
+            storage->gpu_buffer = nullptr;
+            delete storage;
+            runtime_allocation_failure();
+        }
+        if (!quidra::device::copy_from_host(
+                storage->gpu_buffer, 0, host.data(), host.size(), backend_error)) {
+            quidra::device::release(storage->gpu_buffer);
+            storage->gpu_buffer = nullptr;
+            delete storage;
+            tensor_fail(backend_error.c_str(), line, column);
         }
     }
     return storage;

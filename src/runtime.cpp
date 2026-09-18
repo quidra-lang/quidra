@@ -4612,6 +4612,13 @@ extern "C" void* quidra_tensor_from_chw(const void* data,
     return tensor_descriptor(storage, std::move(shape), std::move(strides), 0);
 }
 
+extern "C" long long quidra_tensor_device_index(void* raw) {
+    if (!raw) return -2;
+    const auto* tensor = static_cast<TensorValue*>(raw);
+    if (!tensor->storage) return -2;
+    return static_cast<long long>(tensor->storage->device);
+}
+
 extern "C" int quidra_tensor_chw_info(void* raw,
                                         unsigned long long* channels,
                                         unsigned long long* height,

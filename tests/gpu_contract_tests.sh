@@ -175,9 +175,18 @@ print(dense.shape()[0])
 print(dense.shape()[1])
 print(dense[0, 0].item())
 print(dense[1, 1].item())
+
+tensor<int> direct_cpu = view.cpu()
+print(direct_cpu[0, 0].item())
+print(direct_cpu[1, 1].item())
+
+tensor<int> cross_gpu = view.gpu(1)
+tensor<int> cross_cpu = cross_gpu.cpu()
+print(cross_cpu[0, 0].item())
+print(cross_cpu[1, 1].item())
 QUI
 gpu_view_output="$("$QUIDRA" run "$TMP/gpu-view.qui")"
-gpu_view_expected="$(printf '2\n2\n2\n6')"
+gpu_view_expected="$(printf '2\n2\n2\n6\n2\n6\n2\n6')"
 if [[ "$gpu_view_output" != "$gpu_view_expected" ]]; then
     echo "unexpected fake-GPU view output:" >&2
     printf '%s\n' "$gpu_view_output" >&2

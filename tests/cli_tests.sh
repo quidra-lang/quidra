@@ -66,6 +66,44 @@ assert "exact-rank shape pattern" in x["tensor_model"]
 assert "runtime expressions are evaluated once" in x["tensor_model"]
 assert "captured constraints survive reassignment" in x["tensor_model"]
 PY
+# GPU discovery is always safe, including on hosts with no supported GPU.
+"$QUIDRA" gpu > "$TMP/gpu-info.out"
+[[ -s "$TMP/gpu-info.out" ]]
+
+# CPU remains the default placement and explicit CPU copies preserve values.
+cat > "$TMP/tensor-device-cpu.qui" <<'QUI'
+tensor<float32> source = tensor.ones<float32>([2])
+tensor<float32> copied = source.cpu()
+print(copied[0].item())
+QUI
+[[ "$("$QUIDRA" run "$TMP/tensor-device-cpu.qui")" == "1.0" ]]
+
+# An unavailable GPU must fail explicitly. It must never run the allocation on CPU.
+cat > "$TMP/tensor-device-unavailable.qui" <<'QUI'
+auto value = tensor.zeros<float32>([1], gpu = 2147483647)
+print(value[0].item())
+QUI
+set +e
+"$QUIDRA" run "$TMP/tensor-device-unavailable.qui"     > "$TMP/tensor-device-unavailable.out"     2> "$TMP/tensor-device-unavailable.err"
+tensor_device_unavailable_rc=$?
+set -e
+[[ "$tensor_device_unavailable_rc" -eq 101 ]]
+grep -q 'gpu(2147483647) is not available' "$TMP/tensor-device-unavailable.err"
+[[ ! -s "$TMP/tensor-device-unavailable.out" ]]
+
+cat > "$TMP/tensor-transfer-unavailable.qui" <<'QUI'
+auto source = tensor.ones<float32>([1])
+auto moved = source.gpu(2147483647)
+print(moved[0].item())
+QUI
+set +e
+"$QUIDRA" run "$TMP/tensor-transfer-unavailable.qui"     > "$TMP/tensor-transfer-unavailable.out"     2> "$TMP/tensor-transfer-unavailable.err"
+tensor_transfer_unavailable_rc=$?
+set -e
+[[ "$tensor_transfer_unavailable_rc" -eq 101 ]]
+grep -q 'gpu(2147483647) is not available' "$TMP/tensor-transfer-unavailable.err"
+[[ ! -s "$TMP/tensor-transfer-unavailable.out" ]]
+
 $QUIDRA check "$ROOT/examples/hello.qui" --json > "$TMP/check-version.json"
 python3 - "$TMP/check-version.json" "$ROOT/quidra.manifest.json" <<'PY'
 import json,sys

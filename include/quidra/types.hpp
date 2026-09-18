@@ -524,12 +524,14 @@ inline std::optional<long long> tensor_known_extent(const Type& type, std::size_
 inline bool tensor_satisfies_shape_prefix(const Type& from, const Type& to) {
     if (to.tensor_shape_prefix.empty()) return true;
     const auto required_rank = static_cast<long long>(to.tensor_shape_prefix.size());
-    if (from.length < 0 || from.length != required_rank) return false;
+    // Unknown rank/extent is not a contradiction: constrained bindings and calls
+    // validate it at runtime. Known conflicts are still rejected immediately.
+    if (from.length >= 0 && from.length != required_rank) return false;
     for (std::size_t axis = 0; axis < to.tensor_shape_prefix.size(); ++axis) {
         const auto required = to.tensor_shape_prefix[axis];
         if (required < 0) continue;
         const auto extent = tensor_known_extent(from, axis);
-        if (!extent || *extent != required) return false;
+        if (extent && *extent != required) return false;
     }
     return true;
 }

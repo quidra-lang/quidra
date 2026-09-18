@@ -1535,6 +1535,7 @@ bool exact_numeric_cast(Src source, Dst& destination) {
         return false;
     } else {
         destination = static_cast<Dst>(source);
+        if (std::isfinite(source) && !std::isfinite(destination)) return false;
         return true;
     }
 }
@@ -2450,8 +2451,13 @@ NeuralBuffer neural_cast_buffer(const NeuralBuffer& source,int target_dtype) {
     result.resize(source.size());
     if(target_dtype==10){
         auto& values=result.typed<float>();
-        for(std::size_t i=0;i<values.size();++i)
-            values[i]=static_cast<float>(source.scalar_as_double(i));
+        for(std::size_t i=0;i<values.size();++i){
+            const auto original=source.scalar_as_double(i);
+            const auto narrowed=static_cast<float>(original);
+            if(std::isfinite(original)&&!std::isfinite(narrowed))
+                runtime_text_failure("neural cast value is outside the destination range");
+            values[i]=narrowed;
+        }
     }else{
         auto& values=result.typed<double>();
         for(std::size_t i=0;i<values.size();++i)

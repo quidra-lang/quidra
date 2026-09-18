@@ -530,12 +530,12 @@ int[] ordered = values.sorted()
 
 `append`, `concat`, and `sorted` return new array values. `sorted()` is available for numeric, `bool`, and `string` arrays of either fixed or runtime size and returns a runtime-sized sorted copy; it is deterministic and non-mutating. The implementation may use copy-on-write or spare capacity only when that optimization is unobservable, so source-level value semantics remain unchanged. For fully initialized local arrays, typed IR can carry that proof into LLVM and omit redundant per-element initialization checks. Forming a read/write whole-array reference restores the check automatically; forming a `const T &` read-only reference preserves the proof. Control-flow joins that cannot preserve the proof also restore the check, and bounds safety is unaffected.
 
-Dense numeric tensors use the dedicated `tensor<T>` type. Optional suffix dimensions constrain consecutive leading shape axes rather than rank; rank itself is inferred by the compiler:
+Dense numeric tensors use the dedicated `tensor<T>` type. The element dtype is always static. An optional second angle group is an exact-rank shape pattern: each entry is either a nonnegative extent or `_`, meaning that axis exists but its extent is unrestricted.
 
 ```quidra
-tensor<float32> pixels = tensor.zeros<float32>([3, 224, 224])
-tensor<float32> bias = tensor.ones<float32>([1, 224, 224])
-tensor<float32> result = pixels + bias
+tensor<float32><3, _, _> pixels = tensor.zeros<float32>([3, 224, 224])
+tensor<float32><1, _, _> bias = tensor.ones<float32>([1, 224, 224])
+tensor<float32><3, _, _> result = pixels + bias
 
 tensor<float32> manual = tensor<float32>([2, 2])
 manual[0, 0] = 1.0
@@ -549,7 +549,9 @@ float32 value = result[0, 10, 20].item()
 
 `tensor<T>(shape)` creates storage whose elements are initially uninitialized; individual scalar elements can be initialized with `tensor[i, j, ...] = value`. `tensor.zeros<T>(shape)` and `tensor.ones<T>(shape)` create fully initialized tensors. Reading an element that is not definitely initialized remains a deterministic safety failure.
 
-Tensor-to-tensor broadcasting is intentionally strict: ranks must match and each axis must match or be singleton on one side. Scalars broadcast to tensors. Slices may use internal views, but mutation preserves value semantics through copy-on-write. `.reshape(shape)` never hides a copy; call `.contiguous()` explicitly first when needed. `.cast<T>()` follows the explicit numeric-conversion policy: integer narrowing is range-checked, integer-to-float and float-to-float may deterministically reduce precision, and float-to-integer requires an explicit rounding operation.
+Tensor-to-tensor broadcasting is intentionally strict: ranks must match and each axis must match or be singleton on one side. Scalars broadcast to tensors. Slices may use internal views, but mutation preserves value semantics through copy-on-write. `.reshape(shape)` never hides a copy; call `.contiguous()` explicitly first when needed.
+
+Numeric representation changes use the same `T(value)` syntax for scalars, arrays, and tensors. For arrays, every dimension is preserved and numeric leaves are converted recursively; for tensors, rank and shape facts are preserved while only the element dtype changes. For example, `float(values)` maps `int[][]` to `float[][]`, and `float32(pixels)` maps a numeric tensor to the same-shaped `tensor<float32>`. Integer narrowing is range-checked; integer-to-float and float-to-float may deterministically reduce precision; float-to-integer still requires an explicit rounding operation. There is no `tensor.cast<T>()` surface API.
 
 Compound assignment supports `+=`, `-=`, `*=`, `/=`, and `%=`. Its target is evaluated exactly once, avoiding duplicated side effects in indexed or member targets.
 
@@ -584,8 +586,12 @@ neural.Gradients gradients = neural.grad(loss)
 neural.update(&model, gradients, rate = 0.01)
 ```
 
-`neural` means `neural<float32>`. `neural.track(tensor)` enters the dynamic
-graph, `.untrack()` returns ordinary tensor storage, and `neural.grad(loss)`
+`neural` means `neural<float32>`. Neural values use the same exact-rank shape
+pattern syntax as tensors: `neural<3, _, _>` means
+`neural<float32><3, _, _>`, while `neural<float><_, 768>` explicitly selects
+float64 plus a rank-2 pattern. `neural.track(tensor)` preserves known shape facts
+when entering the dynamic graph, `.untrack()` restores them to ordinary tensor
+storage, and `neural.grad(loss)`
 returns an explicit `neural.Gradients` value. There is no hidden gradient
 accumulation or parameter registry. Operand-level primitives such as `affine`,
 `convolve2d`, `normalize`, reductions, and safe update operations allow ordinary
@@ -966,7 +972,7 @@ match loaded
         print(problem)
 ```
 
-Decoded images use CHW layout and have compiler-known rank 3: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample dtype and channel count by default. An expected type such as `tensor<uint8, 3> | error` is an acceptance constraint: it accepts only uint8 RGB and does not convert a mismatch. Use `channels = 1|3|4` to request channel conversion and `dtype = float32` (or another numeric built-in type) to request dtype conversion. Dtype conversion never normalizes sample ranges. RGB-to-gray uses the fixed `0.299R + 0.587G + 0.114B` rule. `image.write` writes only when the target codec can represent the tensor dtype exactly; alpha is removed only when an explicit channel conversion requests that result.
+Decoded images use CHW layout and have compiler-known rank 3: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample dtype and channel count by default. An expected type such as `tensor<uint8><3, _, _> | error` is an acceptance constraint: it accepts only rank-3 uint8 RGB and does not convert a mismatch. Use `channels = 1|3|4` to request channel conversion and `dtype = float32` (or another numeric built-in type) to request dtype conversion. Dtype conversion never normalizes sample ranges. RGB-to-gray uses the fixed `0.299R + 0.587G + 0.114B` rule. `image.write` writes only when the target codec can represent the tensor dtype exactly; alpha is removed only when an explicit channel conversion requests that result.
 
 The library boundary is intentionally small:
 

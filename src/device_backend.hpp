@@ -107,4 +107,19 @@ bool compute_normalize_inference(
     int dtype, std::size_t count, std::size_t features,
     std::size_t inner, double epsilon, std::string& error);
 
+bool compute_abs_backward(Buffer* output, const Buffer* gradient,
+                          const Buffer* input, int dtype,
+                          std::size_t count, std::string& error);
+bool compute_mean_backward(Buffer* output, const Buffer* gradient_scalar,
+                           int dtype, std::size_t count, std::string& error);
+bool compute_max_last_backward(Buffer* output, const Buffer* gradient,
+                               const Buffer* input, int dtype,
+                               std::size_t count, std::size_t width,
+                               std::string& error);
+bool compute_affine_backward(
+    Buffer* input_gradient, Buffer* weight_gradient, Buffer* bias_gradient,
+    const Buffer* gradient, const Buffer* input, const Buffer* weight,
+    int dtype, std::size_t batches, std::size_t features_in,
+    std::size_t features_out, std::string& error);
+
 } // namespace quidra::device

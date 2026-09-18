@@ -2290,6 +2290,135 @@ struct FunctionEmitter {
     std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bytes)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<") {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";return out.str();}
 };
 
+
+struct ArrayCastPair {
+    Type source;
+    Type target;
+};
+
+void collect_array_cast_pair(const Type& source, const Type& target,
+                             std::map<std::string,ArrayCastPair>& pairs) {
+    if (source.kind != TypeKind::Array || target.kind != TypeKind::Array ||
+        source.length != target.length) {
+        throw std::logic_error("array numeric cast must preserve array structure");
+    }
+    if (source.first->kind == TypeKind::Array) {
+        if (target.first->kind != TypeKind::Array)
+            throw std::logic_error("array numeric cast nesting mismatch");
+        collect_array_cast_pair(*source.first, *target.first, pairs);
+    } else if (target.first->kind == TypeKind::Array) {
+        throw std::logic_error("array numeric cast nesting mismatch");
+    }
+    pairs.emplace(type_id(source) + "_to_" + type_id(target),
+                  ArrayCastPair{source,target});
+}
+
+std::map<std::string,ArrayCastPair> collect_array_cast_pairs(const ir::Module& module) {
+    std::map<std::string,ArrayCastPair> pairs;
+    for (const auto& function : module.functions)
+        for (const auto& block : function.blocks)
+            for (const auto& instruction : block.instructions)
+                if (const auto* cast = std::get_if<ir::ArrayNumericCast>(&instruction))
+                    collect_array_cast_pair(cast->source_type, cast->target_type, pairs);
+    return pairs;
+}
+
+std::string emit_array_cast_helper(const Type& source, const Type& target,
+                                   const ArrayLayoutPolicy& array_layout) {
+    if (source.kind != TypeKind::Array || target.kind != TypeKind::Array ||
+        source.length != target.length) {
+        throw std::logic_error("invalid array numeric cast helper types");
+    }
+    const auto& source_element = *source.first;
+    const auto& target_element = *target.first;
+    const bool nested = source_element.kind == TypeKind::Array;
+    if (nested != (target_element.kind == TypeKind::Array))
+        throw std::logic_error("array numeric cast helper nesting mismatch");
+
+    const bool source_fixed = is_fixed_array(source);
+    const bool target_fixed = is_fixed_array(target);
+    if (source_fixed != target_fixed)
+        throw std::logic_error("array numeric cast must preserve static dimensions");
+
+    const auto source_stride = array_element_stride(source,array_layout);
+    const auto target_stride = array_element_stride(target,array_layout);
+    const auto source_offset = source_fixed ? 0 : 8;
+    const auto target_offset = target_fixed ? 0 : 8;
+    std::ostringstream o;
+    o << "define ptr " << array_cast_name(source,target)
+      << "(ptr %src, i64 %line, i64 %column) {\n"
+      << "entry:\n"
+      << "  %null = icmp eq ptr %src, null\n"
+      << "  br i1 %null, label %null.ret, label %cast.body\n"
+      << "null.ret:\n  ret ptr null\n"
+      << "cast.body:\n";
+    if (source_fixed) o << "  %len = add i64 0, " << source.length << "\n";
+    else o << "  %len = load i64, ptr %src, align 1\n";
+
+    if (target_fixed) {
+        const auto storage = fixed_array_storage(target,array_layout);
+        const auto bytes = fixed_array_storage_bytes(target,array_layout);
+        const auto unit = runtime_storage_bytes(storage.leaf);
+        o << "  %dst = call ptr @quidra_alloc(i64 " << bytes << ")\n"
+          << "  call void @quidra_init_create(ptr %dst, i64 " << storage.count
+          << ", i64 " << unit << ", i64 0, i32 1)\n";
+    } else {
+        o << "  %dst = call ptr @quidra_array_alloc(i64 %len, i64 "
+          << target_stride << ", i32 1)\n";
+    }
+
+    o << "  br label %cond\n"
+      << "cond:\n"
+      << "  %i = phi i64 [ 0, %cast.body ], [ %next, %body ]\n"
+      << "  %more = icmp slt i64 %i, %len\n"
+      << "  br i1 %more, label %body, label %done\n"
+      << "body:\n"
+      << "  %src.off0 = mul i64 %i, " << source_stride << "\n"
+      << "  %src.off = add i64 %src.off0, " << source_offset << "\n"
+      << "  %src.slot = getelementptr inbounds i8, ptr %src, i64 %src.off\n"
+      << "  %dst.off0 = mul i64 %i, " << target_stride << "\n"
+      << "  %dst.off = add i64 %dst.off0, " << target_offset << "\n"
+      << "  %dst.slot = getelementptr inbounds i8, ptr %dst, i64 %dst.off\n";
+
+    if (nested) {
+        const bool source_inline =
+            source_fixed && array_layout.inline_fixed_child(source);
+        const bool target_inline =
+            target_fixed && array_layout.inline_fixed_child(target);
+        if (source_inline) {
+            o << "  %child.src = getelementptr inbounds i8, ptr %src.slot, i64 0\n";
+        } else {
+            o << "  call void @quidra_init_check(ptr %src.slot, i64 %line, i64 %column)\n"
+              << "  %child.src = load ptr, ptr %src.slot, align 1\n";
+        }
+        o << "  %child.dst = call ptr "
+          << array_cast_name(source_element,target_element)
+          << "(ptr %child.src, i64 %line, i64 %column)\n";
+        if (target_inline) {
+            const auto child_bytes =
+                fixed_array_storage_bytes(target_element,array_layout);
+            o << "  call ptr @memcpy(ptr %dst.slot, ptr %child.dst, i64 "
+              << child_bytes << ")\n"
+              << "  call void @quidra_managed_release(ptr %child.dst, ptr null)\n";
+        } else {
+            o << "  store ptr %child.dst, ptr %dst.slot, align 1\n";
+        }
+    } else {
+        if (!is_numeric(source_element) || !is_numeric(target_element))
+            throw std::logic_error("array numeric cast leaf must be numeric");
+        o << "  call void @quidra_numeric_cast_element(ptr %dst.slot, ptr %src.slot, i32 "
+          << tensor_dtype_code(source_element) << ", i32 "
+          << tensor_dtype_code(target_element)
+          << ", i64 %line, i64 %column)\n";
+    }
+
+    o << "  %next = add i64 %i, 1\n"
+      << "  br label %cond\n"
+      << "done:\n  ret ptr %dst\n"
+      << "}\n\n";
+    return o.str();
+}
+
 void collect_clone_type(const Type&t,std::map<std::string,Type>&types,const std::unordered_map<std::string,ir::ClassLayout>&layouts){
  if(!requires_value_clone(t))return;
  const auto id=type_id(t);if(types.contains(id))return;

@@ -38,27 +38,48 @@ QUI
 verify_and_run short-circuit "$(printf 'mod\narith\nor')"
 
 cat > "$TMP/contextual-literals.qui" <<'QUI'
-float x = 3
-float32 y = 2
-float[] xs = [1, 2, 3]
+float x = float(3)
+float32 y = float32(2)
+float[] xs = [1.0, 2.0, 3.0]
 
 float half(float value)
     return value / 2.0
 
-float negative = -3
-float mixed = 2.0 * 3
+float negative = -3.0
+float mixed = 2.0 * 3.0
 int8 small = 5
 int8 sum = small + 100
 
 print(x)
 print(y)
 print(xs[2])
-print(half(3))
+print(half(3.0))
 print(negative)
 print(mixed)
 print(sum)
 QUI
 verify_and_run contextual-literals "$(printf '3.0\n2.0\n3.0\n1.5\n-3.0\n6.0\n105')"
+
+cat > "$TMP/float32-rounding.qui" <<'QUI'
+float32 rounded = 0.000001
+float source = 0.1
+float32 narrowed = float32(source)
+print(rounded > 0.0000009 and rounded < 0.0000011)
+print(narrowed > 0.099 and narrowed < 0.101)
+QUI
+verify_and_run float32-rounding "$(printf 'true\ntrue')"
+
+cat > "$TMP/float32-range-error.qui" <<'QUI'
+float source = 1.0e100
+float32 narrowed = float32(source)
+print(narrowed)
+QUI
+set +e
+"$QUIDRA" run "$TMP/float32-range-error.qui" >"$TMP/float32-range-error.out" 2>"$TMP/float32-range-error.err"
+status=$?
+set -e
+[[ "$status" -eq 101 ]]
+cat "$TMP/float32-range-error.out" "$TMP/float32-range-error.err" | grep -q "NUMERIC_CAST_RANGE"
 
 cat > "$TMP/try-class.qui" <<'QUI'
 class Pair
@@ -130,7 +151,7 @@ neural prediction = neural.affine(
 neural loss = neural.mean(prediction * prediction)
 neural.Gradients gradients = neural.grad(loss)
 neural.State<int> iteration = neural.State<int>(value = 0)
-neural.State<bytes> moments = neural.State<bytes>(value = bytes())
+neural.State<bin> moments = neural.State<bin>(value = bin.fill(0, 0))
 neural.moment_update(
     &model, 0.01, 0.9, 0.999, 0.00000001,
     &iteration, &moments, gradients

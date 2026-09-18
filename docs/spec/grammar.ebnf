@@ -1,6 +1,8 @@
 (* Quidra 0.1. INDENT/DEDENT use four spaces per level.
    Bracketed newlines are insignificant. String backslashes are literal;
-   control characters use enter, tab, home, quote, backspace, page, vtab, and bell. *)
+   physical CRLF inside a string literal is normalized to LF, so checkout
+   line-ending style does not change string data. Control characters use
+   enter, tab, home, quote, backspace, page, vtab, and bell. *)
 
 program          = { NEWLINE | import_decl | extern_decl | cli_decl | class_decl | function | statement }, EOF ;
 
@@ -30,8 +32,16 @@ parameters       = parameter, { ",", parameter }, [ "," ] ;
 parameter        = [ "const" ], type, [ "&" ], identifier, [ "=", expression ] ;
 
 type             = array_type, { "|", array_type } ;
-array_type       = type_atom, { "[", [ integer ], "]" } ;
-type_atom        = qualified_identifier, [ type_arguments ] ;
+array_type       = type_atom, { "[", [ integer_expression ], "]" } ;
+type_atom        = tensor_type | neural_type | qualified_identifier, [ type_arguments ] ;
+tensor_type      = "tensor", "<", type, ">", [ shape_pattern ] ;
+neural_type      = "neural", [ ( type_arguments, [ shape_pattern ] ) | shape_pattern ] ;
+shape_pattern    = "<", shape_axis, { ",", shape_axis }, ">" ;
+shape_axis       = integer_expression | "_" ;
+integer_expression = integer_term, { ( "+" | "-" ), integer_term } ;
+integer_term     = integer_factor, { ( "*" | "/" | "%" ), integer_factor } ;
+integer_factor   = ( "+" | "-" ), integer_factor
+                 | integer | identifier | "(", integer_expression, ")" ;
 type_arguments   = "<", type, { ",", type }, ">" ;
 qualified_identifier = identifier, { ".", identifier } ;
 
@@ -80,6 +90,14 @@ argument         = "&", identifier, "=", "&", expression
                  | [ "&" ], expression ;
 statement_end    = NEWLINE | EOF ;
 
+(* Numeric lexical constraints:
+   - integer literals are decimal digits only; 0x/0b/0o-style base prefixes do not exist;
+   - floating literals contain a decimal point;
+   - exponent notation is available only after that decimal point, e.g. 1.0e8;
+   - numeric literals carry integer/real families rather than default concrete types;
+   - an integer-family literal has no implementation-width ceiling when its unique
+     context is bigint; fixed-width contexts retain their normal range limits. *)
+
 (* Static/frontend constraints:
    - import is top-level only; imported modules contain declarations only;
    - standard namespaces are always visible and cannot be imported;
@@ -88,6 +106,16 @@ statement_end    = NEWLINE | EOF ;
    - import cycles and alias collisions are invalid;
    - cli_decl is root-only, occurs at most once, and its
      fields use argument(), option(default = value), or flag();
+   - `tensor<T><D0, D1, ...>` uses a mandatory fixed-width native numeric element type plus an
+     optional exact-rank shape pattern; each shape axis is `_` or an integer
+     expression, and the number of axes is the required rank. Integer expressions
+     that are not compile-time constants are evaluated once when the binding is
+     created and their nonnegative results are captured for that binding;
+   - array dimensions use the same integer-expression rule. `[]` remains a
+     runtime-sized dimension, while `[expr]` captures expr once for the binding;
+   - `neural<D0, D1, ...>` means `neural<float32><D0, D1, ...>`; an explicit
+     floating dtype is written `neural<T><D0, D1, ...>` and uses the same
+     exact-rank/captured-extent semantics as tensor;
    - generic class uses require explicit type arguments; generic function/method
      type arguments may be omitted when every generic parameter is uniquely inferred
      from call arguments; all concrete uses are monomorphized before ordinary static checking;

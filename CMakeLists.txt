@@ -1,14 +1,22 @@
 cmake_minimum_required(VERSION 3.20)
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/quidra.manifest.json" QUIDRA_MANIFEST_JSON)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/docs/spec/grammar.ebnf" QUIDRA_GRAMMAR_EBNF)
 string(JSON QUIDRA_PROJECT_VERSION GET "${QUIDRA_MANIFEST_JSON}" compiler_version)
 project(quidra VERSION ${QUIDRA_PROJECT_VERSION} LANGUAGES CXX)
+
+if(APPLE)
+  enable_language(OBJCXX)
+  set_source_files_properties(src/device_backend.cpp PROPERTIES LANGUAGE OBJCXX)
+endif()
 
 # The manifest supplies both the project version and the text `quidra describe`
 # prints, but file(READ) creates no dependency on its own: editing the manifest
 # would otherwise leave a stale copy compiled in until the next reconfigure.
+# The machine-readable grammar is embedded for the same reason.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/quidra.manifest.json")
+    "${CMAKE_CURRENT_SOURCE_DIR}/quidra.manifest.json"
+    "${CMAKE_CURRENT_SOURCE_DIR}/docs/spec/grammar.ebnf")
 
 include(GNUInstallDirs)
 
@@ -23,6 +31,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(QUIDRA_WARNINGS_AS_ERRORS "Treat compiler warnings as errors for Quidra targets" OFF)
 option(QUIDRA_SANITIZE_RUNTIME "Instrument the generated-program runtime archive in sanitizer builds" OFF)
+option(QUIDRA_ENABLE_TEST_GPU_BACKEND "Compile the deterministic test-only fake GPU backend" OFF)
 
 if(QUIDRA_WARNINGS_AS_ERRORS)
   if(MSVC)
@@ -44,6 +53,12 @@ configure_file(
     @ONLY
 )
 
+configure_file(
+    include/quidra/tooling.hpp.in
+    ${CMAKE_CURRENT_BINARY_DIR}/generated/quidra/tooling.hpp
+    @ONLY
+)
+
 add_library(quidra_core
     src/lexer.cpp
     src/parser.cpp
@@ -55,6 +70,7 @@ add_library(quidra_core
     src/source_tools.cpp
     src/source_patch.cpp
     src/formatter.cpp
+    src/package_manifest.cpp
     src/package_lock.cpp
 )
 target_include_directories(quidra_core PUBLIC include ${CMAKE_CURRENT_BINARY_DIR}/generated)
@@ -71,15 +87,26 @@ endif()
 
 add_library(quidra_runtime STATIC
     src/runtime.cpp
+    src/runtime_exact.cpp
     src/runtime_io.cpp
     src/runtime_system.cpp
     src/runtime_process.cpp
     src/runtime_json.cpp
     src/runtime_http.cpp
     src/runtime_image.cpp
+    src/device_backend.cpp
 )
 target_include_directories(quidra_runtime PRIVATE ${CURL_INCLUDE_DIRS} ${WEBP_INCLUDE_DIR})
 target_link_libraries(quidra_runtime PRIVATE PNG::PNG JPEG::JPEG TIFF::TIFF ${WEBP_LIBRARY})
+if(CMAKE_DL_LIBS)
+  target_link_libraries(quidra_runtime PRIVATE ${CMAKE_DL_LIBS})
+endif()
+if(APPLE)
+  target_link_libraries(quidra_runtime PRIVATE "-framework Foundation" "-framework Metal")
+endif()
+if(QUIDRA_ENABLE_TEST_GPU_BACKEND)
+  target_compile_definitions(quidra_runtime PRIVATE QUIDRA_ENABLE_TEST_GPU_BACKEND=1)
+endif()
 set_target_properties(quidra_runtime PROPERTIES POSITION_INDEPENDENT_CODE ON)
 if(WIN32)
   target_compile_definitions(quidra_runtime PRIVATE NOMINMAX)
@@ -97,8 +124,25 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU" AND
   target_compile_options(quidra_runtime PRIVATE -fno-sanitize=all)
 endif()
 
-add_executable(quidra src/main.cpp src/repl_cli.cpp src/lsp_server.cpp src/package_cli.cpp src/native_build.cpp)
+add_executable(quidra
+    src/main.cpp
+    src/repl_cli.cpp
+    src/lsp_server.cpp
+    src/package_cli.cpp
+    src/device_cli.cpp
+    src/device_backend.cpp
+    src/native_build.cpp
+)
 target_link_libraries(quidra PRIVATE quidra_core)
+if(CMAKE_DL_LIBS)
+  target_link_libraries(quidra PRIVATE ${CMAKE_DL_LIBS})
+endif()
+if(APPLE)
+  target_link_libraries(quidra PRIVATE "-framework Foundation" "-framework Metal")
+endif()
+if(QUIDRA_ENABLE_TEST_GPU_BACKEND)
+  target_compile_definitions(quidra PRIVATE QUIDRA_ENABLE_TEST_GPU_BACKEND=1)
+endif()
 add_dependencies(quidra quidra_runtime)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU" AND CMAKE_CXX_FLAGS MATCHES "sanitize")
@@ -144,11 +188,26 @@ if(BUILD_TESTING)
   target_link_libraries(quidra_type_policy_tests PRIVATE quidra_core)
   add_test(NAME quidra_type_policy_tests COMMAND quidra_type_policy_tests)
 
+  add_executable(quidra_package_manifest_tests tests/package_manifest_tests.cpp)
+  target_link_libraries(quidra_package_manifest_tests PRIVATE quidra_core)
+  add_test(NAME quidra_package_manifest_tests COMMAND quidra_package_manifest_tests)
+
   if(UNIX)
     add_test(NAME quidra_cli COMMAND bash ${CMAKE_SOURCE_DIR}/tests/cli_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_package_names COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_name_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_package_releases COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_release_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_stdlib COMMAND bash ${CMAKE_SOURCE_DIR}/tests/stdlib_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_neural_foundation COMMAND bash ${CMAKE_SOURCE_DIR}/tests/neural_foundation_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_image_dtype COMMAND bash ${CMAKE_SOURCE_DIR}/tests/image_dtype_tests.sh $<TARGET_FILE:quidra>)
+    if(QUIDRA_ENABLE_TEST_GPU_BACKEND)
+      add_executable(quidra_device_backend_tests tests/device_backend_tests.cpp)
+      target_include_directories(quidra_device_backend_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
+      target_compile_definitions(quidra_device_backend_tests PRIVATE QUIDRA_ENABLE_TEST_GPU_BACKEND=1)
+      target_link_libraries(quidra_device_backend_tests PRIVATE quidra_runtime)
+      add_test(NAME quidra_device_backend_tests COMMAND quidra_device_backend_tests)
+      add_test(NAME quidra_gpu_contracts COMMAND bash ${CMAKE_SOURCE_DIR}/tests/gpu_contract_tests.sh $<TARGET_FILE:quidra>)
+    endif()
+    add_test(NAME quidra_real_gpu_integration COMMAND bash ${CMAKE_SOURCE_DIR}/tests/real_gpu_integration.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_native_smoke COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/native-smoke.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_performance_regressions COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/performance_regressions.py $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     find_program(QUIDRA_LLVM_OPT NAMES opt opt-20 opt-19 opt-18 opt-17 opt-16 opt-15)
@@ -162,6 +221,11 @@ if(BUILD_TESTING)
   endif()
   add_test(NAME quidra_documentation_examples COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/documentation_examples.py $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
   add_test(NAME quidra_manifest_registry COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/manifest_registry_tests.py $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
+  add_test(
+    NAME quidra_generic_specialization_benchmark_smoke
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/benchmark/generic_specialization_scaling.py
+            $<TARGET_FILE:quidra> --sizes 2,4 --repeats 1
+  )
 
   # A parser/compiler/runtime regression must fail rather than leave a CI host
   # waiting indefinitely. Sanitizer builds intentionally instrument both the
@@ -176,19 +240,41 @@ if(BUILD_TESTING)
     quidra_import_path_tests
     quidra_parser_tests
     quidra_type_policy_tests
+    quidra_package_manifest_tests
     quidra_documentation_examples
     quidra_manifest_registry
+    quidra_generic_specialization_benchmark_smoke
     PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
   )
   if(UNIX)
     set_tests_properties(
       quidra_cli
       quidra_package_names
+      quidra_package_releases
       quidra_stdlib
       quidra_neural_foundation
+      quidra_image_dtype
       quidra_native_smoke
       PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
     )
+    if(TEST quidra_gpu_contracts)
+      set_tests_properties(
+        quidra_gpu_contracts
+        PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
+      )
+    endif()
+    if(TEST quidra_device_backend_tests)
+      set_tests_properties(
+        quidra_device_backend_tests
+        PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
+      )
+    endif()
+    if(TEST quidra_real_gpu_integration)
+      set_tests_properties(
+        quidra_real_gpu_integration
+        PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
+      )
+    endif()
     if(TEST quidra_backend_regressions)
       set_tests_properties(
         quidra_backend_regressions

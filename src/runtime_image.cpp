@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cctype>
 #include <csetjmp>
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -21,6 +22,8 @@
 #include <stdexcept>
 #include <string>
 #include <tiffio.h>
+#include <type_traits>
+#include <utility>
 #include <vector>
 #include <webp/decode.h>
 #include <webp/encode.h>
@@ -32,6 +35,7 @@ extern "C" void* quidra_tensor_from_chw(
     unsigned long long channels,
     unsigned long long height,
     unsigned long long width);
+extern "C" long long quidra_tensor_device_index(void* raw);
 extern "C" int quidra_tensor_chw_info(
     void* raw,
     unsigned long long* channels,
@@ -180,6 +184,11 @@ Image tensor_to_image(void* raw, int expected_dtype) {
         throw std::invalid_argument(
             "image.write requires a numeric CHW tensor with shape [1|3|4, H, W]");
     }
+    const auto device = quidra_tensor_device_index(raw);
+    if (device >= 0) {
+        throw std::invalid_argument(
+            "image.write is not supported on gpu(" + std::to_string(device) + ")");
+    }
     if (channels > std::numeric_limits<std::size_t>::max() ||
         height > std::numeric_limits<std::size_t>::max() ||
         width > std::numeric_limits<std::size_t>::max()) {
@@ -207,6 +216,200 @@ void* image_to_tensor(const Image& image) {
         static_cast<unsigned long long>(image.channels),
         static_cast<unsigned long long>(image.height),
         static_cast<unsigned long long>(image.width));
+}
+
+
+template <typename T>
+T read_sample(const std::uint8_t* data) {
+    T value{};
+    std::memcpy(&value, data, sizeof(T));
+    return value;
+}
+
+template <typename T>
+void write_sample(std::uint8_t* data, T value) {
+    std::memcpy(data, &value, sizeof(T));
+}
+
+template <typename T>
+T grayscale_sample(T red, T green, T blue) {
+    const double value =
+        0.299 * static_cast<double>(red) +
+        0.587 * static_cast<double>(green) +
+        0.114 * static_cast<double>(blue);
+    if constexpr (std::is_integral_v<T>) {
+        const double rounded = std::round(value);
+        const double low = static_cast<double>(std::numeric_limits<T>::lowest());
+        const double high = static_cast<double>(std::numeric_limits<T>::max());
+        return static_cast<T>(std::clamp(rounded, low, high));
+    } else {
+        return static_cast<T>(value);
+    }
+}
+
+template <typename T>
+T opaque_alpha() {
+    if constexpr (std::is_integral_v<T>) {
+        return std::numeric_limits<T>::max();
+    } else {
+        return static_cast<T>(1);
+    }
+}
+
+template <typename T>
+Image convert_channels_t(const Image& source, std::size_t target_channels) {
+    if (source.channels == target_channels) return source;
+    Image output;
+    output.dtype = source.dtype;
+    output.channels = target_channels;
+    output.height = source.height;
+    output.width = source.width;
+    output.chw.resize(image_bytes(output));
+    const auto pixels = checked_product(source.height, source.width, "image size overflow");
+    const auto source_at = [&](std::size_t channel, std::size_t index) {
+        return read_sample<T>(
+            source.chw.data() + (channel * pixels + index) * sizeof(T));
+    };
+    const auto write_at = [&](std::size_t channel, std::size_t index, T value) {
+        write_sample<T>(
+            output.chw.data() + (channel * pixels + index) * sizeof(T), value);
+    };
+    for (std::size_t index = 0; index < pixels; ++index) {
+        if (target_channels == 1) {
+            if (source.channels == 1) {
+                write_at(0, index, source_at(0, index));
+            } else {
+                write_at(0, index, grayscale_sample(
+                    source_at(0, index), source_at(1, index), source_at(2, index)));
+            }
+            continue;
+        }
+        if (source.channels == 1) {
+            const auto gray = source_at(0, index);
+            write_at(0, index, gray);
+            write_at(1, index, gray);
+            write_at(2, index, gray);
+        } else {
+            write_at(0, index, source_at(0, index));
+            write_at(1, index, source_at(1, index));
+            write_at(2, index, source_at(2, index));
+        }
+        if (target_channels == 4) {
+            write_at(3, index,
+                     source.channels == 4 ? source_at(3, index) : opaque_alpha<T>());
+        }
+    }
+    return output;
+}
+
+Image convert_channels(const Image& source, int target_channels) {
+    if (target_channels == 0 || static_cast<std::size_t>(target_channels) == source.channels) {
+        return source;
+    }
+    if (target_channels != 1 && target_channels != 3 && target_channels != 4) {
+        throw std::invalid_argument("image channels must be 1, 3, or 4");
+    }
+    switch (source.dtype) {
+        case dtype_int8: return convert_channels_t<std::int8_t>(source, target_channels);
+        case dtype_int16: return convert_channels_t<std::int16_t>(source, target_channels);
+        case dtype_int32: return convert_channels_t<std::int32_t>(source, target_channels);
+        case dtype_int64: return convert_channels_t<std::int64_t>(source, target_channels);
+        case dtype_uint8: return convert_channels_t<std::uint8_t>(source, target_channels);
+        case dtype_uint16: return convert_channels_t<std::uint16_t>(source, target_channels);
+        case dtype_uint32: return convert_channels_t<std::uint32_t>(source, target_channels);
+        case dtype_uint64: return convert_channels_t<std::uint64_t>(source, target_channels);
+        case dtype_float32: return convert_channels_t<float>(source, target_channels);
+        case dtype_float64: return convert_channels_t<double>(source, target_channels);
+        default: throw std::invalid_argument("unsupported image dtype");
+    }
+}
+
+template <typename Source, typename Target>
+Image convert_dtype_t(const Image& source, int target_dtype) {
+    Image output;
+    output.dtype = target_dtype;
+    output.channels = source.channels;
+    output.height = source.height;
+    output.width = source.width;
+    output.chw.resize(image_bytes(output));
+    const auto count = sample_count(source.channels, source.height, source.width);
+    for (std::size_t index = 0; index < count; ++index) {
+        const auto value =
+            read_sample<Source>(source.chw.data() + index * sizeof(Source));
+        Target converted{};
+        if constexpr (std::is_floating_point_v<Source> &&
+                      std::is_integral_v<Target>) {
+            throw std::invalid_argument(
+                "image dtype conversion from floating point to integer requires an explicit rounding operation");
+        } else if constexpr (std::is_integral_v<Source> &&
+                             std::is_integral_v<Target>) {
+            if (!std::in_range<Target>(value)) {
+                throw std::range_error(
+                    "image dtype conversion would change an integer value");
+            }
+            converted = static_cast<Target>(value);
+        } else {
+            // Integer-to-float and float-to-float conversion explicitly permits
+            // the destination IEEE-754 rounding required by its representation.
+            converted = static_cast<Target>(value);
+        }
+        write_sample<Target>(
+            output.chw.data() + index * sizeof(Target), converted);
+    }
+    return output;
+}
+
+template <typename Source>
+Image convert_dtype_from(const Image& source, int target_dtype) {
+    switch (target_dtype) {
+        case dtype_int8: return convert_dtype_t<Source, std::int8_t>(source, target_dtype);
+        case dtype_int16: return convert_dtype_t<Source, std::int16_t>(source, target_dtype);
+        case dtype_int32: return convert_dtype_t<Source, std::int32_t>(source, target_dtype);
+        case dtype_int64: return convert_dtype_t<Source, std::int64_t>(source, target_dtype);
+        case dtype_uint8: return convert_dtype_t<Source, std::uint8_t>(source, target_dtype);
+        case dtype_uint16: return convert_dtype_t<Source, std::uint16_t>(source, target_dtype);
+        case dtype_uint32: return convert_dtype_t<Source, std::uint32_t>(source, target_dtype);
+        case dtype_uint64: return convert_dtype_t<Source, std::uint64_t>(source, target_dtype);
+        case dtype_float32: return convert_dtype_t<Source, float>(source, target_dtype);
+        case dtype_float64: return convert_dtype_t<Source, double>(source, target_dtype);
+        default: throw std::invalid_argument("unsupported image target dtype");
+    }
+}
+
+Image convert_dtype(const Image& source, int target_dtype) {
+    if (target_dtype == 0 || source.dtype == target_dtype) return source;
+    switch (source.dtype) {
+        case dtype_int8: return convert_dtype_from<std::int8_t>(source, target_dtype);
+        case dtype_int16: return convert_dtype_from<std::int16_t>(source, target_dtype);
+        case dtype_int32: return convert_dtype_from<std::int32_t>(source, target_dtype);
+        case dtype_int64: return convert_dtype_from<std::int64_t>(source, target_dtype);
+        case dtype_uint8: return convert_dtype_from<std::uint8_t>(source, target_dtype);
+        case dtype_uint16: return convert_dtype_from<std::uint16_t>(source, target_dtype);
+        case dtype_uint32: return convert_dtype_from<std::uint32_t>(source, target_dtype);
+        case dtype_uint64: return convert_dtype_from<std::uint64_t>(source, target_dtype);
+        case dtype_float32: return convert_dtype_from<float>(source, target_dtype);
+        case dtype_float64: return convert_dtype_from<double>(source, target_dtype);
+        default: throw std::invalid_argument("unsupported image source dtype");
+    }
+}
+
+void require_image_shape(const Image& image,
+                         long long channels,
+                         long long height,
+                         long long width) {
+    const auto require_extent = [](std::size_t actual, long long expected,
+                                   const char* axis) {
+        if (expected < 0) return;
+        if (static_cast<unsigned long long>(expected) !=
+            static_cast<unsigned long long>(actual)) {
+            throw std::invalid_argument(
+                std::string("image ") + axis +
+                " does not match the expected tensor shape constraint");
+        }
+    };
+    require_extent(image.channels, channels, "channels");
+    require_extent(image.height, height, "height");
+    require_extent(image.width, width, "width");
 }
 
 struct PngError {
@@ -834,7 +1037,13 @@ void write_image(const std::string& path, const Image& image, int quality) {
 
 } // namespace
 
-extern "C" void* quidra_image_read(const char* path, int expected_dtype,
+extern "C" void* quidra_image_read(const char* path,
+                                     int expected_dtype,
+                                     int target_dtype,
+                                     int target_channels,
+                                     long long expected_channels,
+                                     long long expected_height,
+                                     long long expected_width,
                                      int* actual_dtype) {
     image_last_error.clear();
     if (actual_dtype) *actual_dtype = 0;
@@ -845,6 +1054,10 @@ extern "C" void* quidra_image_read(const char* path, int expected_dtype,
             throw std::invalid_argument(
                 "image dtype does not match the statically expected tensor dtype");
         }
+        image = convert_channels(image, target_channels);
+        image = convert_dtype(image, target_dtype);
+        require_image_shape(
+            image, expected_channels, expected_height, expected_width);
         auto* tensor = image_to_tensor(image);
         if (!tensor) throw std::runtime_error("cannot allocate image tensor");
         if (actual_dtype) *actual_dtype = image.dtype;

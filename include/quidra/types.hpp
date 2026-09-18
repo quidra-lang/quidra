@@ -22,11 +22,13 @@ enum class TypeKind {
     UInt16,
     UInt32,
     UInt64,
+    BigInt,
     Float,
     Float32,
+    BigReal,
     Bool,
     String,
-    Bytes,
+    Bin,
     Void,
     Never,
     Error,
@@ -46,7 +48,11 @@ struct Type {
     TypeKind kind{TypeKind::Void};
     std::shared_ptr<Type> first;
     std::vector<Type> cases;
+    // Arrays use length as their static length. Tensor/neural values use it
+    // for compiler-known rank; a source shape pattern fixes rank exactly.
     long long length{-1};
+    std::vector<long long> tensor_shape_prefix;
+    std::vector<long long> tensor_known_shape_prefix;
     std::string class_name;
 
     static Type simple(TypeKind kind) {
@@ -68,24 +74,43 @@ struct Type {
         return type;
     }
 
-    static Type tensor(Type element) {
+    static Type tensor(Type element, long long rank = -1,
+                       std::vector<long long> shape_prefix = {},
+                       std::vector<long long> known_shape_prefix = {}) {
         auto type = simple(TypeKind::Tensor);
         type.first = std::make_shared<Type>(std::move(element));
+        type.length = rank;
+        type.tensor_shape_prefix = std::move(shape_prefix);
+        type.tensor_known_shape_prefix = std::move(known_shape_prefix);
         return type;
     }
 
-    static Type neural(Type element = simple(TypeKind::Float32)) {
+    static Type neural(Type element = simple(TypeKind::Float32), long long rank = -1,
+                       std::vector<long long> shape_pattern = {},
+                       std::vector<long long> known_shape = {}) {
         auto type = simple(TypeKind::Neural);
         type.first = std::make_shared<Type>(std::move(element));
+        type.length = rank;
+        type.tensor_shape_prefix = std::move(shape_pattern);
+        type.tensor_known_shape_prefix = std::move(known_shape);
         return type;
     }
 
     static Type union_of(std::vector<Type>);
 
     bool operator==(const Type& other) const {
-        return kind == other.kind && length == other.length && class_name == other.class_name &&
-               cases == other.cases && bool(first) == bool(other.first) &&
-               (!first || *first == *other.first);
+        if (kind != other.kind || class_name != other.class_name ||
+            cases != other.cases || bool(first) != bool(other.first) ||
+            (first && *first != *other.first)) {
+            return false;
+        }
+        if (kind == TypeKind::Array) return length == other.length;
+        if (kind == TypeKind::Tensor || kind == TypeKind::Neural) {
+            // Inferred rank/shape facts are flow facts. Only an explicit source
+            // shape pattern participates in static type identity.
+            return tensor_shape_prefix == other.tensor_shape_prefix;
+        }
+        return true;
     }
 
     bool operator!=(const Type& other) const { return !(*this == other); }
@@ -101,11 +126,13 @@ inline std::string type_name(const Type& type) {
         case TypeKind::UInt16: return "uint16";
         case TypeKind::UInt32: return "uint32";
         case TypeKind::UInt64: return "uint64";
+        case TypeKind::BigInt: return "bigint";
         case TypeKind::Float: return "float";
         case TypeKind::Float32: return "float32";
+        case TypeKind::BigReal: return "bigreal";
         case TypeKind::Bool: return "bool";
         case TypeKind::String: return "string";
-        case TypeKind::Bytes: return "bytes";
+        case TypeKind::Bin: return "bin";
         case TypeKind::Void: return "void";
         case TypeKind::Never: return "never";
         case TypeKind::Error: return "error";
@@ -114,12 +141,34 @@ inline std::string type_name(const Type& type) {
         case TypeKind::Range: return "range";
         case TypeKind::Invalid: return "<invalid>";
         case TypeKind::Class: return type.class_name;
-        case TypeKind::Tensor:
-            return "tensor<" + type_name(*type.first) + ">";
-        case TypeKind::Neural:
-            return *type.first == Type::simple(TypeKind::Float32)
+        case TypeKind::Tensor: {
+            std::string result = "tensor<" + type_name(*type.first) + ">";
+            if (!type.tensor_shape_prefix.empty()) {
+                result += "<";
+                for (std::size_t i = 0; i < type.tensor_shape_prefix.size(); ++i) {
+                    if (i) result += ", ";
+                    result += type.tensor_shape_prefix[i] < 0
+                        ? "_" : std::to_string(type.tensor_shape_prefix[i]);
+                }
+                result += ">";
+            }
+            return result;
+        }
+        case TypeKind::Neural: {
+            std::string result = *type.first == Type::simple(TypeKind::Float32)
                 ? "neural"
                 : "neural<" + type_name(*type.first) + ">";
+            if (!type.tensor_shape_prefix.empty()) {
+                result += "<";
+                for (std::size_t i = 0; i < type.tensor_shape_prefix.size(); ++i) {
+                    if (i) result += ", ";
+                    result += type.tensor_shape_prefix[i] < 0
+                        ? "_" : std::to_string(type.tensor_shape_prefix[i]);
+                }
+                result += ">";
+            }
+            return result;
+        }
         case TypeKind::Gradients:
             return "neural.Gradients";
         case TypeKind::Array: {
@@ -191,11 +240,31 @@ inline bool is_signed_integer(const Type& type) {
            type.kind == TypeKind::Int16 || type.kind == TypeKind::Int32;
 }
 
+inline bool is_bigint(const Type& type) {
+    return type.kind == TypeKind::BigInt;
+}
+
+inline bool is_integer_family_type(const Type& type) {
+    return is_integer(type) || is_bigint(type);
+}
+
 inline bool is_float(const Type& type) {
     return type.kind == TypeKind::Float || type.kind == TypeKind::Float32;
 }
 
+inline bool is_bigreal(const Type& type) {
+    return type.kind == TypeKind::BigReal;
+}
+
+inline bool is_real(const Type& type) {
+    return is_float(type) || is_bigreal(type);
+}
+
 inline bool is_numeric(const Type& type) {
+    return is_integer_family_type(type) || is_real(type);
+}
+
+inline bool is_tensor_numeric(const Type& type) {
     return is_integer(type) || is_float(type);
 }
 
@@ -278,11 +347,26 @@ inline bool integer_literal_value_fits(unsigned long long value, const Type& typ
     }
 }
 
+inline bool negative_integer_literal_value_fits(unsigned long long magnitude, const Type& type) {
+    if (!is_signed_integer(type)) return false;
+    const auto width = integer_width(type);
+    if (width <= 0) return false;
+    const auto limit = 1ULL << (width - 1);
+    return magnitude <= limit;
+}
+
 inline bool float_value_fits_exactly(double value, const Type& type) {
     if (type.kind == TypeKind::Float) return true;
     if (type.kind != TypeKind::Float32) return false;
     const auto narrowed = static_cast<float>(value);
     return static_cast<double>(narrowed) == value;
+}
+
+inline bool float_value_fits_range(double value, const Type& type) {
+    if (!is_float(type) || !std::isfinite(value)) return false;
+    if (type.kind == TypeKind::Float) return true;
+    if (type.kind != TypeKind::Float32) return false;
+    return std::isfinite(static_cast<float>(value));
 }
 
 inline bool float_value_fits_exactly_in_integer(double value, const Type& type) {
@@ -373,27 +457,18 @@ inline bool integer_range_exact_in_float(const Type& from, const Type& to) {
     return float_precision_bits(to) >= required_bits;
 }
 
-inline bool lossless_implicit_numeric_conversion(const Type& from, const Type& to) {
-    if (!is_numeric(from) || !is_numeric(to)) return false;
-    if (from == to) return true;
-
-    if (is_integer(from) && is_integer(to)) return integer_range_contained(from, to);
-    if (is_integer(from) && is_float(to)) return integer_range_exact_in_float(from, to);
-    if (is_float(from) && is_float(to)) {
-        return from.kind == TypeKind::Float32 && to.kind == TypeKind::Float;
-    }
-    return false;
-}
 
 inline bool explicit_numeric_cast_supported(const Type& from, const Type& to) {
     if (!is_numeric(from) || !is_numeric(to)) return false;
-    if (is_float(from) && is_integer(to)) return false;
+    // IEEE real -> integer is a rounding operation, not a representation
+    // conversion. Exact bigreal -> integer is allowed only when runtime proof
+    // establishes that the mathematical value is integral.
+    if (is_float(from) && is_integer_family_type(to)) return false;
     return true;
 }
 
 enum class NumericConversionPolicy {
     Identity,
-    ImplicitLossless,
     ExplicitRangeCheck,
     ExplicitDeterministic,
     Forbidden
@@ -401,9 +476,15 @@ enum class NumericConversionPolicy {
 
 inline NumericConversionPolicy numeric_conversion_policy(const Type& from, const Type& to) {
     if (from == to) return NumericConversionPolicy::Identity;
-    if (lossless_implicit_numeric_conversion(from, to)) return NumericConversionPolicy::ImplicitLossless;
     if (!explicit_numeric_cast_supported(from, to)) return NumericConversionPolicy::Forbidden;
-    if (is_integer(from) && is_integer(to)) return NumericConversionPolicy::ExplicitRangeCheck;
+    if ((is_integer(from) && is_integer(to)) ||
+        (is_bigint(from) && is_integer(to)) ||
+        (is_bigreal(from) && is_integer_family_type(to))) {
+        return NumericConversionPolicy::ExplicitRangeCheck;
+    }
+    if (from.kind == TypeKind::Float && to.kind == TypeKind::Float32) {
+        return NumericConversionPolicy::ExplicitRangeCheck;
+    }
     return NumericConversionPolicy::ExplicitDeterministic;
 }
 
@@ -417,16 +498,19 @@ inline std::optional<Type> builtin_scalar_type(std::string_view name) {
     if (name == "uint16") return Type::simple(TypeKind::UInt16);
     if (name == "uint32") return Type::simple(TypeKind::UInt32);
     if (name == "uint64") return Type::simple(TypeKind::UInt64);
+    if (name == "bigint") return Type::simple(TypeKind::BigInt);
     if (name == "float") return Type::simple(TypeKind::Float);
     if (name == "float32") return Type::simple(TypeKind::Float32);
+    if (name == "bigreal") return Type::simple(TypeKind::BigReal);
     if (name == "bool") return Type::simple(TypeKind::Bool);
     if (name == "string") return Type::simple(TypeKind::String);
-    if (name == "bytes") return Type::simple(TypeKind::Bytes);
+    if (name == "bin") return Type::simple(TypeKind::Bin);
     return std::nullopt;
 }
 
 inline bool is_pointer_runtime_type(const Type& type) {
-    return type.kind == TypeKind::String || type.kind == TypeKind::Bytes ||
+    return type.kind == TypeKind::BigInt || type.kind == TypeKind::BigReal ||
+           type.kind == TypeKind::String || type.kind == TypeKind::Bin ||
            type.kind == TypeKind::Error || type.kind == TypeKind::Array ||
            type.kind == TypeKind::Tensor || type.kind == TypeKind::Neural ||
            type.kind == TypeKind::Gradients || type.kind == TypeKind::Union ||
@@ -440,13 +524,14 @@ enum class ValueStoragePolicy {
 };
 
 inline ValueStoragePolicy value_storage_policy(const Type& type) {
-    if (type.kind == TypeKind::String || type.kind == TypeKind::Error ||
+    if (type.kind == TypeKind::BigInt || type.kind == TypeKind::BigReal ||
+        type.kind == TypeKind::String || type.kind == TypeKind::Error ||
         (type.kind == TypeKind::Class && type.class_name == "$std.json.Value")) {
         return ValueStoragePolicy::ImmutableShared;
     }
     if (type.kind == TypeKind::Array || type.kind == TypeKind::Tensor ||
         type.kind == TypeKind::Neural || type.kind == TypeKind::Gradients ||
-        type.kind == TypeKind::Bytes || type.kind == TypeKind::Class ||
+        type.kind == TypeKind::Bin || type.kind == TypeKind::Class ||
         type.kind == TypeKind::Union) {
         return ValueStoragePolicy::IndependentStorage;
     }
@@ -479,28 +564,75 @@ inline int case_index(const Type& type, const Type& current) {
     return it == type.cases.end() ? -1 : static_cast<int>(it - type.cases.begin());
 }
 
+inline std::optional<long long> tensor_known_extent(const Type& type, std::size_t axis) {
+    if (axis < type.tensor_known_shape_prefix.size()) {
+        return type.tensor_known_shape_prefix[axis];
+    }
+    if (axis < type.tensor_shape_prefix.size() && type.tensor_shape_prefix[axis] >= 0) {
+        return type.tensor_shape_prefix[axis];
+    }
+    return std::nullopt;
+}
+
+inline bool tensor_satisfies_shape_prefix(const Type& from, const Type& to) {
+    if (to.tensor_shape_prefix.empty()) return true;
+    const auto required_rank = static_cast<long long>(to.tensor_shape_prefix.size());
+    // Unknown rank/extent is not a contradiction: constrained bindings and calls
+    // validate it at runtime. Known conflicts are still rejected immediately.
+    if (from.length >= 0 && from.length != required_rank) return false;
+    for (std::size_t axis = 0; axis < to.tensor_shape_prefix.size(); ++axis) {
+        const auto required = to.tensor_shape_prefix[axis];
+        if (required < 0) continue;
+        const auto extent = tensor_known_extent(from, axis);
+        if (extent && *extent != required) return false;
+    }
+    return true;
+}
+
+inline bool representation_erasure_compatible(const Type& from, const Type& to) {
+    if (from == to) return true;
+    if ((from.kind == TypeKind::Tensor && to.kind == TypeKind::Tensor) ||
+        (from.kind == TypeKind::Neural && to.kind == TypeKind::Neural)) {
+        return from.first && to.first && *from.first == *to.first &&
+               tensor_satisfies_shape_prefix(from, to);
+    }
+    return false;
+}
+
+inline int compatible_case_index(const Type& type, const Type& current) {
+    if (const int exact = case_index(type, current); exact >= 0) return exact;
+
+    int match = -1;
+    for (std::size_t i = 0; i < type.cases.size(); ++i) {
+        if (!representation_erasure_compatible(current, type.cases[i])) continue;
+        if (match >= 0) return -1;
+        match = static_cast<int>(i);
+    }
+    return match;
+}
+
 inline bool assignable(const Type& from, const Type& to) {
     if (from.kind == TypeKind::Invalid || to.kind == TypeKind::Invalid || from == to ||
         from.kind == TypeKind::Never) {
         return true;
     }
-    if (lossless_implicit_numeric_conversion(from, to)) return true;
     if (to.kind == TypeKind::Union) {
         if (from.kind == TypeKind::Union) {
-            return std::all_of(from.cases.begin(), from.cases.end(),
-                               [&](const auto& current) { return case_index(to, current) >= 0; });
+            return std::all_of(
+                from.cases.begin(), from.cases.end(),
+                [&](const auto& current) { return compatible_case_index(to, current) >= 0; });
         }
-        return case_index(to, from) >= 0;
+        return compatible_case_index(to, from) >= 0;
     }
     if (from.kind == TypeKind::Array && to.kind == TypeKind::Array) {
         return (to.length < 0 || to.length == from.length) &&
                assignable(*from.first, *to.first);
     }
     if (from.kind == TypeKind::Tensor && to.kind == TypeKind::Tensor) {
-        return *from.first == *to.first;
+        return *from.first == *to.first && tensor_satisfies_shape_prefix(from, to);
     }
     if (from.kind == TypeKind::Neural && to.kind == TypeKind::Neural) {
-        return *from.first == *to.first;
+        return *from.first == *to.first && tensor_satisfies_shape_prefix(from, to);
     }
     return false;
 }

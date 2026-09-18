@@ -13,6 +13,7 @@ using ValueId = std::uint32_t;
 
 struct ConstantInt { ValueId out; std::string value; Type type; };
 struct ConstantFloat { ValueId out; double value; Type type; };
+struct ConstantExact { ValueId out; std::string spelling; Type type; };
 struct ConstantBool { ValueId out; bool value; };
 struct ConstantString { ValueId out; std::string value; };
 struct ArrayMake { ValueId out; std::vector<ValueId> elements; Type type; };
@@ -24,7 +25,7 @@ struct DeclareLocal { std::string name; Type type; };
 struct DeclareReference { std::string name; Type type; bool is_const{}; };
 struct AddressLocal { ValueId out; std::string name; };
 struct AddressField { ValueId out; ValueId object; std::size_t index; };
-struct AddressElement { ValueId out; ValueId array; ValueId index; Type array_type; Type element_type; bool byte_element{}; std::uint32_t line{}; std::uint32_t column{}; };
+struct AddressElement { ValueId out; ValueId array; ValueId index; Type array_type; Type element_type; bool bin_element{}; std::uint32_t line{}; std::uint32_t column{}; };
 struct LoadAddress { ValueId out; ValueId address; Type type; };
 struct StoreAddress { ValueId address; ValueId value; Type type; };
 struct BindReference { std::string name; ValueId address; };
@@ -50,18 +51,39 @@ struct StringJoin { ValueId out; ValueId values; ValueId separator; std::uint32_
 struct StringConcat { ValueId out; std::vector<ValueId> values; };
 struct StringCanAppendMove { ValueId out; ValueId text; };
 struct StringAppendMove { ValueId out; ValueId text; std::vector<ValueId> suffixes; };
-struct BytesAlloc { ValueId out; ValueId length; ValueId fill; };
-struct BytesLength { ValueId out; ValueId bytes; };
-struct BytesGet { ValueId out; ValueId bytes; ValueId index; std::uint32_t line{}; std::uint32_t column{}; bool bounds_proven{}; };
-struct BytesSet { ValueId bytes; ValueId index; ValueId value; std::uint32_t line{}; std::uint32_t column{}; bool bounds_proven{}; };
+struct StringRepeat { ValueId out; ValueId count; ValueId fill; };
+struct BinAlloc { ValueId out; ValueId length; ValueId fill; };
+struct BinLength { ValueId out; ValueId bin; };
+struct BinGet { ValueId out; ValueId bin; ValueId index; std::uint32_t line{}; std::uint32_t column{}; bool bounds_proven{}; };
+struct BinSet { ValueId bin; ValueId index; ValueId value; std::uint32_t line{}; std::uint32_t column{}; bool bounds_proven{}; };
+struct BinSlice { ValueId out; ValueId bin; ValueId start; ValueId end; };
+struct ParseBin { ValueId out; ValueId text; Type result_type; };
+struct BinConvert { ValueId out; ValueId value; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct NumericConvert { ValueId out; ValueId value; Type source_type; Type target_type; bool checked_range{}; std::uint32_t line{}; std::uint32_t column{}; };
-struct TensorCreate { ValueId out; ValueId shape; Type type; int fill_mode{}; std::uint32_t line{}; std::uint32_t column{}; };
+struct ArrayNumericCast { ValueId out; ValueId array; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
+struct TensorCreate { ValueId out; ValueId shape; std::optional<ValueId> gpu; Type type; int fill_mode{}; std::uint32_t line{}; std::uint32_t column{}; };
+struct TensorTransfer { ValueId out; ValueId tensor; std::optional<ValueId> gpu; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorReshape { ValueId out; ValueId tensor; ValueId shape; Type type; std::uint32_t line{}; std::uint32_t column{}; };
+struct TensorTranspose { ValueId out; ValueId tensor; ValueId axis0; ValueId axis1; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorContiguous { ValueId out; ValueId tensor; Type type; };
-struct TensorShape { ValueId out; ValueId tensor; };
+struct TensorShape { ValueId out; ValueId tensor; Type type; };
 struct TensorIsContiguous { ValueId out; ValueId tensor; };
 struct TensorItem { ValueId out; ValueId tensor; Type element_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct TensorCast { ValueId out; ValueId tensor; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
+struct ShapedConstraintCheck {
+    ValueId value;
+    TypeKind kind{TypeKind::Tensor};
+    std::vector<std::optional<ValueId>> extents;
+    std::uint32_t line{};
+    std::uint32_t column{};
+};
+struct ExtentEqualCheck {
+    ValueId actual;
+    ValueId expected;
+    std::uint32_t line{};
+    std::uint32_t column{};
+};
+struct NeuralNumericCast { ValueId out; ValueId value; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct NeuralTrack { ValueId out; ValueId tensor; Type type; bool parameter{}; std::uint32_t line{}; std::uint32_t column{}; };
 struct NeuralUntrack { ValueId out; ValueId value; Type type; };
 struct NeuralUnary { ValueId out; ValueId value; Type type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
@@ -79,10 +101,27 @@ struct NeuralStateTarget { std::string path; ValueId address; Type type; };
 struct NeuralSave { ValueId path; std::string schema; std::vector<NeuralStateValue> values; std::uint32_t line{}; std::uint32_t column{}; };
 struct NeuralLoad { ValueId path; std::string schema; std::vector<NeuralStateTarget> targets; std::uint32_t line{}; std::uint32_t column{}; };
 struct StatsMean { ValueId out; ValueId tensor; Type tensor_type; std::uint32_t line{}; std::uint32_t column{}; };
+struct StatsReduce { ValueId out; ValueId tensor; Type element_type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
 struct LinearMatmul { ValueId out; ValueId left; ValueId right; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct LinearDot { ValueId out; ValueId left; ValueId right; Type element_type; std::uint32_t line{}; std::uint32_t column{}; };
-struct ImageRead { ValueId out; ValueId path; Type result_type; };
+struct ImageRead {
+    ValueId out;
+    ValueId path;
+    Type result_type;
+    std::optional<Type> target_dtype;
+    int target_channels{};
+    std::vector<long long> expected_shape_prefix;
+};
 struct ImageWrite { ValueId out; ValueId path; ValueId image; ValueId quality; Type result_type; };
+struct ImageTensorOp {
+    ValueId out;
+    BuiltinCallable operation;
+    std::vector<ValueId> args;
+    Type result_type;
+    Type element_type;
+    std::uint32_t line{};
+    std::uint32_t column{};
+};
 struct TensorBinary {
     ValueId out;
     std::string op;
@@ -119,18 +158,18 @@ struct TensorSet {
 };
 struct ParseNumber { ValueId out; ValueId text; Type target_type; Type result_type; };
 struct NumericAbs { ValueId out; ValueId value; Type type; std::uint32_t line{}; std::uint32_t column{}; };
-struct Sqrt { ValueId out; ValueId value; };
+struct Sqrt { ValueId out; ValueId value; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct MathUnary { ValueId out; ValueId value; Type type; BuiltinCallable operation; };
-struct MathRoundInt { ValueId out; ValueId value; Type source_type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
+struct MathRoundInt { ValueId out; ValueId value; Type source_type; Type result_type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
 struct MathPow { ValueId out; ValueId base; ValueId exponent; Type type; };
 struct CliArgument { ValueId out; ValueId name; ValueId index; Type type; };
 struct CliOption { ValueId out; ValueId name; ValueId default_value; Type type; };
 struct CliFlag { ValueId out; ValueId name; };
 struct CliFinish {};
 struct FileRead { ValueId out; ValueId path; Type result_type; };
-struct FileReadBytes { ValueId out; ValueId path; Type result_type; };
+struct FileReadBin { ValueId out; ValueId path; Type result_type; };
 struct FileWrite { ValueId out; ValueId path; ValueId text; Type result_type; };
-struct FileWriteBytes { ValueId out; ValueId path; ValueId bytes; Type result_type; };
+struct FileWriteBin { ValueId out; ValueId path; ValueId bin; Type result_type; };
 struct FileExists { ValueId out; ValueId path; Type result_type; };
 struct FileIsDirectory { ValueId out; ValueId path; Type result_type; };
 struct FileRemove { ValueId out; ValueId path; Type result_type; };
@@ -158,6 +197,8 @@ struct JsonAt { ValueId out; ValueId value; ValueId index; Type result_type; };
 struct JsonText { ValueId out; ValueId value; Type result_type; };
 struct JsonInteger { ValueId out; ValueId value; Type result_type; };
 struct JsonNumber { ValueId out; ValueId value; Type result_type; };
+struct JsonBigInt { ValueId out; ValueId value; Type result_type; };
+struct JsonBigReal { ValueId out; ValueId value; Type result_type; };
 struct JsonBoolean { ValueId out; ValueId value; Type result_type; };
 struct JsonEncode { ValueId out; ValueId value; };
 struct JsonEqual { ValueId out; ValueId left; ValueId right; };
@@ -210,7 +251,7 @@ struct ReturnVoid {};
 struct Jump { std::string target; };
 struct Branch { ValueId condition; std::string if_true; std::string if_false; };
 
-using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantBool, ConstantString,
+using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantExact, ConstantBool, ConstantString,
                                  ArrayMake, ArrayAlloc, ClassMake, FieldGet, FieldSet,
                                  DeclareLocal, DeclareReference, AddressLocal, AddressField, AddressElement,
                                  LoadAddress, StoreAddress, BindReference, ReferenceAddress, LoadReference, StoreReference,
@@ -218,22 +259,24 @@ using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantBool, Const
                                  StringIndex, StringLength, StringContains, StringStartsWith,
                                  StringEndsWith, StringFind, StringSlice, StringTrim, StringSplit,
                                  StringUtf8, StringCodepoints, StringJoin, StringConcat,
-                                 StringCanAppendMove, StringAppendMove,
-                                 BytesAlloc, BytesLength, BytesGet, BytesSet,
-                                 NumericConvert, TensorCreate, TensorReshape, TensorContiguous,
+                                 StringCanAppendMove, StringAppendMove, StringRepeat,
+                                 BinAlloc, BinLength, BinGet, BinSet, BinSlice,
+                                 ParseBin, BinConvert,
+                                 NumericConvert, ArrayNumericCast, TensorCreate, TensorTransfer, TensorReshape, TensorTranspose, TensorContiguous,
                                  TensorShape, TensorIsContiguous, TensorItem, TensorCast,
+                                 ShapedConstraintCheck, ExtentEqualCheck, NeuralNumericCast,
                                  NeuralTrack, NeuralUntrack, NeuralUnary, NeuralBinary, NeuralGrad,
                                  NeuralAffine, NeuralConvolve2D, NeuralUpdate, NeuralNormalize,
                                  NeuralRandomMask, NeuralMomentUpdate,
                                  NeuralSave, NeuralLoad,
-                                 StatsMean, LinearMatmul, LinearDot, ImageRead, ImageWrite, TensorBinary, TensorIndex, TensorSet, ParseNumber, NumericAbs, Sqrt, MathUnary, MathRoundInt, MathPow,
+                                 StatsMean, StatsReduce, LinearMatmul, LinearDot, ImageRead, ImageWrite, ImageTensorOp, TensorBinary, TensorIndex, TensorSet, ParseNumber, NumericAbs, Sqrt, MathUnary, MathRoundInt, MathPow,
                                  CliArgument, CliOption, CliFlag, CliFinish,
-                                 FileRead, FileReadBytes, FileWrite, FileWriteBytes, FileExists, FileIsDirectory, FileRemove, FileCopy, FileMove, FileMkdir, FileList,
+                                 FileRead, FileReadBin, FileWrite, FileWriteBin, FileExists, FileIsDirectory, FileRemove, FileCopy, FileMove, FileMkdir, FileList,
                                  EnvironmentGet, EnvironmentHas, TestAssert,
                                  TimeNow, TimeSince, TimeSeconds, TimeSleep,
                                  RandomGenerator, RandomInt, RandomFloat, RandomBool, ProcessRun,
                                  JsonParse, JsonKind, JsonSize, JsonGet, JsonAt, JsonText,
-                                 JsonInteger, JsonNumber, JsonBoolean, JsonEncode, JsonEqual,
+                                 JsonInteger, JsonNumber, JsonBigInt, JsonBigReal, JsonBoolean, JsonEncode, JsonEqual,
                                  HttpGet, HttpHeader,
                                  NumericMinMax, ArrayGet, ArraySet, Clone, Retain, Release,
                                  Unary, Binary, ToString, FormatNumber, LoadLocal, StoreLocal,

@@ -54,14 +54,56 @@ assert x["lsp"] is True
 assert x["package_management"] is True
 assert x["c_ffi"] is True
 assert x["debug_build"] is True
-for name in ["int8","int16","int32","int64 (= int)","uint8","uint16","uint32","uint64","float32","float64 (= float)","bytes"]:
+for name in ["int8","int16","int32","int64 (= int)","uint8","uint16","uint32","uint64","bigint","float32","float64 (= float)","bigreal","bin"]:
     assert name in x["current_types"], name
 for name in ["print","write","input","range","array","len","abs","sqrt","min","max","error"]:
     assert name in x["current_builtins"], name
 assert x["standard_modules"] == ["math","cli","file","environment","test","time","random","process","map","set","json","http","stats","linear","signal","image","tensor","neural"]
 assert x["array_growth_model"].startswith("append(value)")
 assert "Unicode code-point" in x["string_operation_model"]
+assert "tensor<T><D0, D1, ...>" in x["current_types"]
+assert "exact-rank shape pattern" in x["tensor_model"]
+assert "runtime expressions are evaluated once" in x["tensor_model"]
+assert "captured constraints survive reassignment" in x["tensor_model"]
 PY
+# GPU discovery is always safe, including on hosts with no supported GPU.
+"$QUIDRA" gpu > "$TMP/gpu-info.out"
+[[ -s "$TMP/gpu-info.out" ]]
+
+# CPU remains the default placement and explicit CPU copies preserve values.
+cat > "$TMP/tensor-device-cpu.qui" <<'QUI'
+tensor<float32> source = tensor.ones<float32>([2])
+tensor<float32> copied = source.cpu()
+print(copied[0].item())
+QUI
+[[ "$("$QUIDRA" run "$TMP/tensor-device-cpu.qui")" == "1.0" ]]
+
+# An unavailable GPU must fail explicitly. It must never run the allocation on CPU.
+cat > "$TMP/tensor-device-unavailable.qui" <<'QUI'
+auto value = tensor.zeros<float32>([1], gpu = 2147483647)
+print(value[0].item())
+QUI
+set +e
+"$QUIDRA" run "$TMP/tensor-device-unavailable.qui"     > "$TMP/tensor-device-unavailable.out"     2> "$TMP/tensor-device-unavailable.err"
+tensor_device_unavailable_rc=$?
+set -e
+[[ "$tensor_device_unavailable_rc" -eq 101 ]]
+grep -q 'gpu(2147483647) is not available' "$TMP/tensor-device-unavailable.err"
+[[ ! -s "$TMP/tensor-device-unavailable.out" ]]
+
+cat > "$TMP/tensor-transfer-unavailable.qui" <<'QUI'
+auto source = tensor.ones<float32>([1])
+auto moved = source.gpu(2147483647)
+print(moved[0].item())
+QUI
+set +e
+"$QUIDRA" run "$TMP/tensor-transfer-unavailable.qui"     > "$TMP/tensor-transfer-unavailable.out"     2> "$TMP/tensor-transfer-unavailable.err"
+tensor_transfer_unavailable_rc=$?
+set -e
+[[ "$tensor_transfer_unavailable_rc" -eq 101 ]]
+grep -q 'gpu(2147483647) is not available' "$TMP/tensor-transfer-unavailable.err"
+[[ ! -s "$TMP/tensor-transfer-unavailable.out" ]]
+
 $QUIDRA check "$ROOT/examples/hello.qui" --json > "$TMP/check-version.json"
 python3 - "$TMP/check-version.json" "$ROOT/quidra.manifest.json" <<'PY'
 import json,sys
@@ -179,7 +221,7 @@ QUI
 (
     cd "$TMP/package-project"
     HOME="$TMP/package-home" "$QUIDRA" package lock main.qui
-    grep -Eq '^local_math [0-9a-f]{64}$' quidra.lock
+    grep -Eq '^local_math - [0-9a-f]{64}$' quidra.lock
     HOME="$TMP/package-home" "$QUIDRA" package lock main.qui --check
     HOME="$TMP/package-home" "$QUIDRA" check main.qui
 )
@@ -204,7 +246,7 @@ grep -q 'PACKAGE_LOCK_MISMATCH' "$TMP/package-lock-check.err"
     HOME="$TMP/package-home" "$QUIDRA" package lock main.qui >/dev/null
     HOME="$TMP/package-home" "$QUIDRA" package lock main.qui --check
     HOME="$TMP/package-home" "$QUIDRA" check main.qui
-    printf 'unused_package %064d\n' 0 >> quidra.lock
+    printf 'unused_package - %064d\n' 0 >> quidra.lock
     set +e
     HOME="$TMP/package-home" "$QUIDRA" check main.qui >"$TMP/package-lock-unused.out" 2>"$TMP/package-lock-unused.err"
     package_lock_unused_rc=$?
@@ -235,20 +277,20 @@ grep -q 'call i64 @llabs(i64' "$TMP/ffi-scalar.ll"
 
 cat > "$TMP/ffi-borrowed-inputs.qui" <<'QUI'
 extern int32 c_text(const string &text) = "foreign_test_text"
-extern int32 c_bytes(const bytes &data) = "foreign_test_bytes"
+extern int32 c_bin(const bin &data) = "foreign_test_bin"
 
 string text = "ffi-string"
-bytes payload = bytes(3, fill = 65)
+bin payload = bin.fill(24, 1)
 int32 text_status = c_text(&text)
-int32 bytes_status = c_bytes(&payload)
+int32 bin_status = c_bin(&payload)
 QUI
 "$QUIDRA" llvm "$TMP/ffi-borrowed-inputs.qui" > "$TMP/ffi-borrowed-inputs.ll"
 grep -q 'declare i32 @foreign_test_text(ptr nocapture nonnull readonly, i64)' "$TMP/ffi-borrowed-inputs.ll"
-grep -q 'declare i32 @foreign_test_bytes(ptr nocapture nonnull readonly, i64)' "$TMP/ffi-borrowed-inputs.ll"
+grep -q 'declare i32 @foreign_test_bin(ptr nocapture nonnull readonly, i64)' "$TMP/ffi-borrowed-inputs.ll"
 grep -q 'ffi.borrowed.value' "$TMP/ffi-borrowed-inputs.ll"
 grep -q 'call i64 @strlen(ptr' "$TMP/ffi-borrowed-inputs.ll"
-grep -q 'ffi.bytes.length' "$TMP/ffi-borrowed-inputs.ll"
-grep -q 'ffi.bytes.data' "$TMP/ffi-borrowed-inputs.ll"
+grep -q 'ffi.bin.length' "$TMP/ffi-borrowed-inputs.ll"
+grep -q 'ffi.bin.data' "$TMP/ffi-borrowed-inputs.ll"
 
 "$QUIDRA" build "$ROOT/examples/hello.qui" --debug -o "$TMP/hello-debug"
 [[ "$("$TMP/hello-debug")" == "Hello from Quidra" ]]
@@ -362,7 +404,7 @@ match found
     int index
         print(index)
     none
-        print(-1)
+        print(int(-1))
 print(text.slice(2, 6))
 print(text[3])
 print("A日本"[2])
@@ -371,13 +413,14 @@ print(len(parts))
 print(parts[0])
 print(parts[2] == "")
 print(parts.join("|"))
-bytes encoded = "A日本".utf8()
+bin encoded = "A日本".utf8()
 print(len(encoded))
 print(encoded[0])
 int[] points = "A日本".codepoints()
 print(len(points))
 print(points[1])
-int[] ordered = [3, -1, 2].sorted()
+int[] unordered = [3, -1, 2]
+int[] ordered = unordered.sorted()
 print(ordered[0])
 print(ordered[2])
 string[] ordered_text = ["b", "あ", "a"].sorted()
@@ -402,7 +445,7 @@ else
     print("other")
 QUI
 text_array_output=$("$QUIDRA" run "$TMP/text-and-array.qui")
-text_array_expected=$(printf 'ABCD\n8\nA日本B\ntrue\ntrue\ntrue\n3\nA日本B\n日\n本\n4\na\ntrue\na|b||c\n7\n65\n3\n26085\n-1\n3\na\nあ\n9\n1\n3\n5\n5\ntwo')
+text_array_expected=$(printf 'ABCD\n8\nA日本B\ntrue\ntrue\ntrue\n3\nA日本B\n日\n本\n4\na\ntrue\na|b||c\n56\n0\n3\n26085\n-1\n3\na\nあ\n9\n1\n3\n5\n5\ntwo')
 [[ "$text_array_output" == "$text_array_expected" ]]
 
 cat > "$TMP/unicode-boundaries.qui" <<'QUI'
@@ -410,7 +453,7 @@ string text = "A😀é"
 print(len(text))
 print(text[1] == "😀")
 print(text.slice(1, 4) == "😀é")
-bytes encoded = text.utf8()
+bin encoded = text.utf8()
 print(len(encoded))
 int[] points = text.codepoints()
 print(points[1])
@@ -419,7 +462,7 @@ print(len(""))
 print("".slice(0, 0) == "")
 QUI
 unicode_boundary_output=$("$QUIDRA" run "$TMP/unicode-boundaries.qui")
-unicode_boundary_expected=$(printf '4\ntrue\ntrue\n8\n128512\n769\n0\ntrue')
+unicode_boundary_expected=$(printf '4\ntrue\ntrue\n64\n128512\n769\n0\ntrue')
 [[ "$unicode_boundary_output" == "$unicode_boundary_expected" ]]
 
 cat > "$TMP/string-negative-index.qui" <<'QUI'
@@ -1006,7 +1049,7 @@ set -e
 grep -q 'REFERENCE_BINDING' "$TMP/temporary-reference.json"
 
 cat > "$TMP/temporary-write.qui" <<'QUI'
-array(1, fill = 1)[0] = 2
+array(1, fill = int(1))[0] = 2
 QUI
 set +e
 "$QUIDRA" check "$TMP/temporary-write.qui" --json > "$TMP/temporary-write.json"
@@ -1452,11 +1495,13 @@ QUI
 [[ "$(cd "$TMP/project" && "$QUIDRA" run src/generic-inference.qui)" == $'7\n7' ]]
 
 cat > "$TMP/project/src/stdlib-math.qui" <<'QUI'
-print(math.pi)
-print(math.e)
-print(math.sin(0.0))
-print(math.cos(0.0))
-print(math.pow(2.0, 3.0))
+float pi_value = math.pi
+float e_value = math.e
+print(pi_value)
+print(e_value)
+print(math.sin(float(0.0)))
+print(math.cos(float(0.0)))
+print(math.pow(float(2.0), 3.0))
 QUI
 stdlib_math_output="$(cd "$TMP/project" && "$QUIDRA" run src/stdlib-math.qui)"
 python3 - "$stdlib_math_output" <<'PY'
@@ -1599,7 +1644,7 @@ QUI
 [[ "$($QUIDRA run "$TMP/class-init-summary.qui")" == $'2.0\n3.0' ]]
 
 cat > "$TMP/constant-zero.qui" <<'QUI'
-print(1 / 0)
+print(int(1) / 0)
 QUI
 set +e
 $QUIDRA check "$TMP/constant-zero.qui" --json > "$TMP/constant-zero.json"
@@ -1649,23 +1694,23 @@ cat > "$TMP/builtins.qui" <<'QUI'
 int[] values = [1, 2, 3]
 print(len(values))
 print(float(3))
-print(abs(-5))
-print(abs(-2.5))
-print(sqrt(9.0))
-print(min(4, 2))
-print(max(4, 2))
+print(abs(int(-5)))
+print(abs(float(-2.5)))
+print(sqrt(float(9.0)))
+print(min(int(4), 2))
+print(max(int(4), 2))
 QUI
 [[ "$($QUIDRA run "$TMP/builtins.qui")" == $'3\n3.0\n5\n2.5\n3.0\n2\n4' ]]
 
 cat > "$TMP/float-format.qui" <<'QUI'
-print(4.0)
+print(float(4.0))
 print(float32(4.0))
-print(4.5)
-print(-2.0)
-print("value={4.0}")
-write(6.0)
+print(float(4.5))
+print(float(-2.0))
+print("value={float(4.0)}")
+write(float(6.0))
 write("|")
-print(7.0.string())
+print(float(7.0).string())
 QUI
 [[ "$($QUIDRA run "$TMP/float-format.qui")" == $'4.0\n4.0\n4.5\n-2.0\nvalue=4.0\n6.0|7.0' ]]
 
@@ -1675,16 +1720,16 @@ print("{value:frac=2}")
 print("{value:int=4,frac=2,zero}")
 print("{value:int=4,frac=2}")
 print("{value:sig=4}")
-print("{12345:sig=4}")
-print("{0.00123456:sig=3}")
-print("{12:sig=4}")
+print("{int(12345):sig=4}")
+print("{float(0.00123456):sig=3}")
+print("{int(12):sig=4}")
 QUI
 expected_format="$(printf '12.35\n0012.35\n  12.35\n12.35\n12350\n0.00123\n12.00')"
 [[ "$($QUIDRA run "$TMP/interpolation-format.qui")" == "$expected_format" ]]
 
 cat > "$TMP/interpolation-format-invalid.qui" <<'QUI'
-print("{12.3:frac=2,sig=3}")
-print("{12:zero}")
+print("{float(12.3):frac=2,sig=3}")
+print("{int(12):zero}")
 QUI
 set +e
 $QUIDRA check "$TMP/interpolation-format-invalid.qui" > "$TMP/interpolation-format-invalid.out" 2>&1
@@ -1699,9 +1744,9 @@ int8 a = 10
 int8 b = 12
 uint8 u = 200
 uint8 v = 20
-int16 widened = a
+int16 widened = int16(a)
 uint32 count = 100
-int total = count
+int total = int(count)
 float exact = float(a)
 float32 compact = float32(1.5)
 print(a + b)
@@ -1785,7 +1830,7 @@ grep -q 'INDEX_BOUNDS' "$TMP/out-of-bounds.out"
 grep -q 'index 1 outside length 1' "$TMP/out-of-bounds.out"
 
 cat > "$TMP/negative-index.qui" <<'QUI'
-bytes values = bytes(1, fill = 0)
+bin values = bin.fill(1, 0)
 int index = -1
 print(values[index])
 QUI
@@ -1860,6 +1905,28 @@ cli args
 
 print(args.value)
 QUI
+cat > "$TMP/cli-exact.qui" <<'QUI'
+cli args
+    bigint count = argument()
+    bigreal ratio = option(default = 0.1)
+
+print(args.count)
+print(args.ratio == bigreal(0.125))
+QUI
+[[ "$("$QUIDRA" run "$TMP/cli-exact.qui" -- 123456789012345678901234567890 --ratio 0.125)" == "$(printf '123456789012345678901234567890\ntrue')" ]]
+[[ "$("$QUIDRA" run "$TMP/cli-exact.qui" -- 7)" == "$(printf '7\nfalse')" ]]
+
+set +e
+"$QUIDRA" run "$TMP/cli-exact.qui" -- nope >"$TMP/cli-exact-bigint.out" 2>"$TMP/cli-exact-bigint.err"
+cli_exact_bigint_rc=$?
+"$QUIDRA" run "$TMP/cli-exact.qui" -- 7 --ratio nope >"$TMP/cli-exact-bigreal.out" 2>"$TMP/cli-exact-bigreal.err"
+cli_exact_bigreal_rc=$?
+set -e
+[[ "$cli_exact_bigint_rc" -eq 2 ]]
+[[ "$cli_exact_bigreal_rc" -eq 2 ]]
+grep -q 'Quidra CLI error: invalid bigint value' "$TMP/cli-exact-bigint.err"
+grep -q 'Quidra CLI error: invalid bigreal value' "$TMP/cli-exact-bigreal.err"
+
 python3 - "$QUIDRA" "$TMP/cli-text.qui" <<'PY'
 import os
 import subprocess
@@ -1879,13 +1946,11 @@ if b"Quidra CLI error:" not in result.stderr:
     raise SystemExit(f"missing CLI diagnostic: {result.stderr!r}")
 PY
 
-cat > "$TMP/bytes.qui" <<'QUI'
-bytes data = bytes(4, fill = 7)
-data[0] = 255
-uint8 &second = &data[1]
-second = 9
-bytes copy = data
-copy[2] = 11
+cat > "$TMP/bin-value.qui" <<'QUI'
+bin data = bin.fill(4, 0)
+data[0] = bin.parse("1")
+bin copy = data
+copy[2] = bin.parse("1")
 print(len(data))
 print(data[0])
 print(data[1])
@@ -1897,21 +1962,21 @@ print(data == copy)
 for value in data
     print(value)
 for &value in copy
-    value = 1
+    value = bin.parse("1")
 print(copy[0])
 print(data[0])
 QUI
-bytes_output="$($QUIDRA run "$TMP/bytes.qui")"
-[[ "$bytes_output" == "$(printf '4\n255\n9\n7\n11\nfalse\ntrue\n255\n9\n7\n7\n1\n255')" ]]
+bin_output="$($QUIDRA run "$TMP/bin-value.qui")"
+[[ "$bin_output" == "$(printf '4\n1\n0\n0\n1\nfalse\ntrue\n1\n0\n0\n0\n1\n1')" ]]
 
-cat > "$TMP/bytes-default-fill.qui" <<'QUI'
-bytes empty = bytes()
-bytes zeros = bytes(4)
+cat > "$TMP/bin-fill.qui" <<'QUI'
+bin empty = bin.fill(0, 0)
+bin zeros = bin.fill(4, 0)
 print(len(empty))
 print(len(zeros))
 print(zeros[0])
 QUI
-[[ "$("$QUIDRA" run "$TMP/bytes-default-fill.qui")" == "$(printf '0\n4\n0')" ]]
+[[ "$("$QUIDRA" run "$TMP/bin-fill.qui")" == "$(printf '0\n4\n0')" ]]
 
 cat > "$TMP/interpolation-span.qui" <<'QUI'
 void show()
@@ -1997,7 +2062,7 @@ PY
 
 
 cat > "$TMP/repl-input.txt" <<'QUI'
-1 + 2
+int(1) + 2
 int x = 5
 x
 x = 8
@@ -2015,16 +2080,18 @@ T identity<T>(T value)
     return value
 
 identity<int>(7)
-[1, 2, 3]
-bytes(3, fill = 7)
+int[] repl_values = [1, 2, 3]
+repl_values
+bin.fill(3, 1)
 box
 Box partial = Box()
 partial
 none
 "hello"
 bool broken = 1
+1 + 2
 x
-10 / 0
+int(10) / 0
 x
 float y = 4.0
 y
@@ -2042,7 +2109,7 @@ out=open(sys.argv[1]).read()
 err=open(sys.argv[2]).read()
 expected=[
     "3","5","8","36","9","7",
-    "[1, 2, 3]","bytes[7, 7, 7]","Box(value = 9)",
+    "[1, 2, 3]","111","Box(value = 9)",
     "Box(value = <uninitialized>)","none","\"hello\"",
     "8","8","4.0","float"
 ]
@@ -2052,6 +2119,7 @@ for value in expected:
     assert found >= 0, (value, out, err)
     position=found+len(value)
 assert "TYPE_MISMATCH" in err
+assert "AMBIGUOUS_NUMERIC_LITERAL" in err
 assert "DIVIDE_BY_ZERO" in err
 PY
 
@@ -2094,9 +2162,9 @@ int plus_one(int value)
     return value + 1
 
 :type plus_one(1)
-1 + 2
+int(1) + 2
 :reset
-1 + 2
+int(1) + 2
 :exit
 QUI
 (
@@ -2124,7 +2192,7 @@ void effect_then_fail(string path)
 effect_then_fail("effect.txt")
 effect_then_fail("effect.txt")
 :reset
-1 + 2
+int(1) + 2
 :exit
 QUI
 (
@@ -2145,7 +2213,7 @@ binary=sys.argv[1]
 pid, fd=pty.fork()
 if pid == 0:
     os.execl(binary, binary)
-os.write(fd, b"1 + 2\n:exit\n")
+os.write(fd, b"int(1) + 2\n:exit\n")
 chunks=[]
 while True:
     try:
@@ -2175,7 +2243,7 @@ os.write(fd, b"int interrupted(int x)\n")
 time.sleep(0.2)
 os.kill(pid, signal.SIGINT)
 time.sleep(0.2)
-os.write(fd, b"1 + 2\n:exit\n")
+os.write(fd, b"int(1) + 2\n:exit\n")
 chunks=[]
 while True:
     try:
@@ -2525,6 +2593,52 @@ assert describe["repl"] is True
 PY
 
 
+"$QUIDRA" describe llm > "$TMP/describe-llm.json"
+python3 - "$TMP/describe-llm.json" <<'PY'
+import json,sys
+x=json.load(open(sys.argv[1]))
+tensor=x["inspection"]["type_contracts"]["tensor"]
+rank=x["inspection"]["type_contracts"]["tensor_rank"]
+assert tensor == "tensor<T> | tensor<T><D0, D1, ...>"
+assert "exact-rank" in rank
+assert "compiler-inferred" in rank
+shape=x["inspection"]["type_contracts"]["tensor_shape"]
+assert "integer expression" in shape
+assert "captured" in shape
+calls=x["calls"]
+assert calls["argument_order"] == "positional_then_named"
+assert calls["named_syntax"] == "name = value"
+assert "duplicate_parameter" in calls["rejected"]
+PY
+
+cat > "$TMP/inspect-tensor-shape.qui" <<'QUI'
+tensor<float32><2, 3> matrix = tensor.zeros<float32>([2, 3])
+auto row = matrix[0]
+auto dimensions = matrix.shape()
+QUI
+"$QUIDRA" inspect "$TMP/inspect-tensor-shape.qui" --no-source --no-effects > "$TMP/inspect-tensor-shape.json"
+python3 - "$TMP/inspect-tensor-shape.json" <<'PY'
+import json,sys
+x=json.load(open(sys.argv[1]))
+types={n["inferred_type"] for n in x["nodes"] if n["inferred_type"]}
+assert "tensor<float32><2, 3>" in types, types
+assert "tensor<float32><3>" in types, types
+assert "int[2]" in types, types
+PY
+
+cat > "$TMP/tensor-rank-inference.qui" <<'QUI'
+tensor<float32> matrix = tensor.zeros<float32>([2, 3])
+auto shape = matrix.shape()
+print(shape[0])
+print(shape[1])
+QUI
+"$QUIDRA" run "$TMP/tensor-rank-inference.qui" > "$TMP/tensor-rank-inference.out"
+python3 - "$TMP/tensor-rank-inference.out" <<'PY'
+import sys
+text=open(sys.argv[1]).read()
+assert text.splitlines() == ["2","3"], repr(text)
+PY
+
 "$QUIDRA" inspect "$ROOT/examples/classes.qui" --no-source --no-effects --kind integer > "$TMP/inspect-compact.json"
 python3 - "$TMP/inspect-compact.json" <<'PY'
 import json,sys
@@ -2585,7 +2699,7 @@ set -e
 python3 - "$TMP/default-int-too-large.json" <<'PY'
 import json,sys
 x=json.load(open(sys.argv[1]))
-assert any(d["code"] == "INTEGER_RANGE" for d in x["diagnostics"])
+assert any(d["code"] == "AMBIGUOUS_NUMERIC_LITERAL" for d in x["diagnostics"])
 PY
 
 cat > "$TMP/deep-recursion.qui" <<'QUI'
@@ -2611,17 +2725,17 @@ QUI
 
 
 cat > "$TMP/float-canonical-text.qui" <<'QUI'
-print(0.6)
-print(1.0 / 3.0)
-print(1.0)
-print(-0.0)
-print(1.0e20)
+print(float(0.6))
+print(float(1.0 / 3.0))
+print(float(1.0))
+print(float(-0.0))
+print(float(1.0e20))
 QUI
 [[ "$("$QUIDRA" run "$TMP/float-canonical-text.qui")" == $'0.6\n0.3333333333333333\n1.0\n-0.0\n1.0e+20' ]]
 
 cat > "$TMP/float-exception-text.qui" <<'QUI'
-print(0.0 / 0.0)
-print(1.0 / 0.0)
-print(-1.0 / 0.0)
+print(float(0.0 / 0.0))
+print(float(1.0 / 0.0))
+print(float(-1.0 / 0.0))
 QUI
 [[ "$("$QUIDRA" run "$TMP/float-exception-text.qui")" == $'nan\ninf\n-inf' ]]

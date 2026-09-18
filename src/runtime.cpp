@@ -1,4 +1,6 @@
+#include "device_backend.hpp"
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cctype>
 #include <bit>
@@ -12,6 +14,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <initializer_list>
 #include <iterator>
 #include <limits>
 #include <map>
@@ -40,6 +43,9 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
+
+extern "C" void* quidra_bigint_parse(const char*);
+extern "C" void* quidra_bigreal_parse(const char*);
 
 namespace {
 int runtime_argc = 0;
@@ -115,6 +121,8 @@ struct ManagedFinalization {
 using ManagedAllocations = std::unordered_map<std::uintptr_t, ManagedAllocation>;
 thread_local ManagedAllocations managed_allocations;
 thread_local std::uint64_t next_managed_identity = 1;
+
+void neural_moment_cache_release(void* value);
 // Interior references need an ordered range index, but exact owner operations do not.
 // Generated element accesses cluster in a small working set of allocations, so cache
 // those ranges and avoid a tree lookup on every initialization check. The set holds
@@ -449,6 +457,7 @@ bool unicode_space(std::uint32_t v){return(v>=0x09U&&v<=0x0dU)||v==0x20U||v==0x8
 extern "C" char* quidra_format_float(double value) {
     if (std::isnan(value)) return runtime_copy_string("nan");
     if (std::isinf(value)) return runtime_copy_string(value < 0.0 ? "-inf" : "inf");
+    if (value == 0.0) return runtime_copy_string(std::signbit(value) ? "-0.0" : "0.0");
 
     char buffer[64];
     const auto result =
@@ -549,6 +558,7 @@ std::string format_float_significant(double value, int significant) {
 std::string canonical_float_text(double value) {
     if (std::isnan(value)) return "nan";
     if (std::isinf(value)) return value < 0.0 ? "-inf" : "inf";
+    if (value == 0.0) return std::signbit(value) ? "-0.0" : "0.0";
     char buffer[64];
     const auto result = std::to_chars(std::begin(buffer), std::end(buffer), value, std::chars_format::general);
     if (result.ec != std::errc{}) runtime_text_failure("float formatting failed");
@@ -655,6 +665,7 @@ extern "C" void quidra_managed_release(void* value, void* drop_function) {
     if (allocation.owners == 0 && allocation.pins == 0) {
         const auto key = reinterpret_cast<std::uintptr_t>(allocation.base);
         const ManagedFinalization finalization{allocation.base, allocation.drop};
+        neural_moment_cache_release(allocation.base);
         clear_managed_range_cache(&allocation);
         managed_ranges.erase(key);
         managed_allocations.erase(it);
@@ -681,6 +692,7 @@ extern "C" void quidra_managed_unpin(void* address) {
     if (allocation->owners == 0 && allocation->pins == 0) {
         const auto key = reinterpret_cast<std::uintptr_t>(allocation->base);
         const ManagedFinalization finalization{allocation->base, allocation->drop};
+        neural_moment_cache_release(allocation->base);
         clear_managed_range_cache(allocation);
         managed_ranges.erase(key);
         managed_allocations.erase(key);
@@ -1043,7 +1055,9 @@ struct TensorStorage {
     std::size_t owners{1};
     int dtype{};
     std::size_t count{};
+    int device{-1}; // -1 is an internal CPU representation; public gpu indices are >= 0.
     std::vector<unsigned char> data;
+    quidra::device::Buffer* gpu_buffer{};
     InitializationTracker initialization;
 };
 
@@ -1151,20 +1165,50 @@ void tensor_storage_release(TensorStorage* storage) {
     if (!storage) return;
     if (storage->owners == 0) runtime_text_failure("tensor storage owner underflow");
     --storage->owners;
-    if (storage->owners == 0) delete storage;
+    if (storage->owners == 0) {
+        quidra::device::release(storage->gpu_buffer);
+        storage->gpu_buffer = nullptr;
+        delete storage;
+    }
 }
 
-TensorStorage* tensor_storage_create(int dtype, std::size_t count, int fill_mode) {
+bool tensor_on_cpu(const TensorStorage& storage) {
+    return storage.device < 0;
+}
+
+[[noreturn]] void tensor_gpu_unsupported(
+    const char* operation, const TensorStorage& storage,
+    unsigned long long line, unsigned long long column) {
+    const auto message = std::string(operation) +
+        " is not supported on gpu(" + std::to_string(storage.device) + ")";
+    tensor_fail(message.c_str(), line, column);
+}
+
+void tensor_require_cpu(
+    const TensorStorage& storage, const char* operation,
+    unsigned long long line, unsigned long long column) {
+    if (!tensor_on_cpu(storage)) {
+        tensor_gpu_unsupported(operation, storage, line, column);
+    }
+}
+
+TensorStorage* tensor_storage_create(
+    int dtype, std::size_t count, int fill_mode, int device_index = -1,
+    unsigned long long line = 0, unsigned long long column = 0) {
     const auto width = tensor_dtype_bytes(dtype);
     if (count != 0 && width > std::numeric_limits<std::size_t>::max() / count) {
         runtime_allocation_failure();
+    }
+    if (device_index < -1) {
+        tensor_fail("invalid internal tensor device", line, column);
     }
     auto* storage = new (std::nothrow) TensorStorage;
     if (!storage) runtime_allocation_failure();
     storage->dtype = dtype;
     storage->count = count;
+    storage->device = device_index;
+    const auto bytes = count * width;
     try {
-        storage->data.resize(count * width);
         storage->initialization.count = count;
         storage->initialization.unit_bytes = width;
         storage->initialization.fully_initialized = fill_mode != 0 || count == 0;
@@ -1173,15 +1217,19 @@ TensorStorage* tensor_storage_create(int dtype, std::size_t count, int fill_mode
         if (!storage->initialization.fully_initialized) {
             storage->initialization.bits.assign((count + 7) / 8, 0);
         }
+
+        if (device_index < 0) {
+            storage->data.resize(bytes);
+        }
     } catch (...) {
         delete storage;
         runtime_allocation_failure();
     }
-    if (fill_mode == 1) {
-        std::fill(storage->data.begin(), storage->data.end(), 0);
-    } else if (fill_mode == 2) {
+
+    auto fill_ones = [&](std::vector<unsigned char>& target) {
+        target.resize(bytes);
         for (std::size_t i = 0; i < count; ++i) {
-            auto* slot = storage->data.data() + i * width;
+            auto* slot = target.data() + i * width;
             switch (dtype) {
                 case 1: { std::int64_t v=1; std::memcpy(slot,&v,8); break; }
                 case 2: { std::int8_t v=1; std::memcpy(slot,&v,1); break; }
@@ -1193,8 +1241,45 @@ TensorStorage* tensor_storage_create(int dtype, std::size_t count, int fill_mode
                 case 8: { std::uint64_t v=1; std::memcpy(slot,&v,8); break; }
                 case 9: { double v=1.0; std::memcpy(slot,&v,8); break; }
                 case 10:{ float v=1.0F; std::memcpy(slot,&v,4); break; }
-                default: delete storage; runtime_text_failure("invalid tensor dtype");
+                default: tensor_fail("invalid tensor dtype", line, column);
             }
+        }
+    };
+
+    if (device_index < 0) {
+        if (fill_mode == 1) {
+            std::fill(storage->data.begin(), storage->data.end(), 0);
+        } else if (fill_mode == 2) {
+            try {
+                fill_ones(storage->data);
+            } catch (...) {
+                delete storage;
+                runtime_allocation_failure();
+            }
+        }
+        return storage;
+    }
+
+    std::string backend_error;
+    storage->gpu_buffer = quidra::device::allocate(device_index, bytes, backend_error);
+    if (!storage->gpu_buffer) {
+        delete storage;
+        tensor_fail(backend_error.c_str(), line, column);
+    }
+    if (fill_mode == 1) {
+        if (!quidra::device::zero(storage->gpu_buffer, 0, bytes, backend_error)) {
+            quidra::device::release(storage->gpu_buffer);
+            storage->gpu_buffer = nullptr;
+            delete storage;
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+    } else if (fill_mode == 2) {
+        if (!quidra::device::compute_fill_ones(
+                storage->gpu_buffer, dtype, count, backend_error)) {
+            quidra::device::release(storage->gpu_buffer);
+            storage->gpu_buffer = nullptr;
+            delete storage;
+            tensor_fail(backend_error.c_str(), line, column);
         }
     }
     return storage;
@@ -1211,6 +1296,207 @@ void tensor_require_initialized(const TensorValue& tensor,
             runtime_uninitialized_failure(line, column);
         }
     }
+}
+
+TensorStorage* tensor_gpu_materialize_storage(
+    const TensorValue& source,
+    unsigned long long line,
+    unsigned long long column) {
+    if (tensor_on_cpu(*source.storage)) {
+        tensor_fail("internal GPU materialization received a CPU tensor", line, column);
+    }
+    const auto count = tensor_logical_count(source);
+    auto* output = tensor_storage_create(
+        source.storage->dtype, count, 0, source.storage->device, line, column);
+    std::vector<std::uint64_t> indices;
+    try {
+        indices.resize(count);
+    } catch (...) {
+        tensor_storage_release(output);
+        runtime_allocation_failure();
+    }
+    for (std::size_t logical = 0; logical < count; ++logical) {
+        const auto source_index = tensor_storage_index(source, logical);
+        if (source_index >= source.storage->count) {
+            tensor_storage_release(output);
+            tensor_fail("tensor view exceeds storage", line, column);
+        }
+        indices[logical] = static_cast<std::uint64_t>(source_index);
+        if (tracker_bit(source.storage->initialization, source_index)) {
+            tracker_set(output->initialization, logical);
+        }
+    }
+    std::string backend_error;
+    if (!quidra::device::compute_gather(
+            output->gpu_buffer, source.storage->gpu_buffer,
+            source.storage->dtype, indices.data(), count, backend_error)) {
+        tensor_storage_release(output);
+        tensor_fail(backend_error.c_str(), line, column);
+    }
+    return output;
+}
+
+TensorStorage* tensor_transfer_storage(
+    const TensorValue& source, int target_device,
+    unsigned long long line, unsigned long long column) {
+    const auto count = tensor_logical_count(source);
+    auto* output = tensor_storage_create(
+        source.storage->dtype, count, 0, target_device, line, column);
+    const auto width = tensor_dtype_bytes(source.storage->dtype);
+    if (count != 0 && width > std::numeric_limits<std::size_t>::max() / count) {
+        tensor_storage_release(output);
+        tensor_fail("tensor transfer size overflow", line, column);
+    }
+    const auto bytes = count * width;
+    std::array<unsigned char, 8> element{};
+    std::string backend_error;
+
+    const auto mark_fully_initialized = [&] {
+        output->initialization.fully_initialized = true;
+        output->initialization.initialized_count = count;
+        output->initialization.bits.clear();
+    };
+
+    // The common explicit-transfer case is fully initialized. Preserve the
+    // logical transfer boundary while moving the payload in one bulk operation.
+    // Non-contiguous GPU views are first gathered on the source GPU, so an
+    // explicit .cpu() or .gpu(other) never degenerates into one transfer per
+    // element.
+    if (source.storage->initialization.fully_initialized) {
+        TensorStorage* gpu_materialized = nullptr;
+        const TensorStorage* dense_gpu_source = nullptr;
+        std::vector<unsigned char> host_materialized;
+        const unsigned char* dense_host_source = nullptr;
+
+        if (tensor_on_cpu(*source.storage)) {
+            if (tensor_is_contiguous_value(source)) {
+                if (source.offset > source.storage->count ||
+                    count > source.storage->count - source.offset) {
+                    tensor_storage_release(output);
+                    tensor_fail("tensor view exceeds storage", line, column);
+                }
+                dense_host_source =
+                    source.storage->data.data() + source.offset * width;
+            } else {
+                try {
+                    host_materialized.resize(bytes);
+                } catch (...) {
+                    tensor_storage_release(output);
+                    runtime_allocation_failure();
+                }
+                for (std::size_t logical = 0; logical < count; ++logical) {
+                    const auto source_index = tensor_storage_index(source, logical);
+                    if (source_index >= source.storage->count) {
+                        tensor_storage_release(output);
+                        tensor_fail("tensor view exceeds storage", line, column);
+                    }
+                    std::memcpy(
+                        host_materialized.data() + logical * width,
+                        source.storage->data.data() + source_index * width,
+                        width);
+                }
+                dense_host_source = host_materialized.data();
+            }
+        } else {
+            if (tensor_is_contiguous_value(source)) {
+                if (source.offset > source.storage->count ||
+                    count > source.storage->count - source.offset) {
+                    tensor_storage_release(output);
+                    tensor_fail("tensor view exceeds storage", line, column);
+                }
+                dense_gpu_source = source.storage;
+            } else {
+                gpu_materialized =
+                    tensor_gpu_materialize_storage(source, line, column);
+                dense_gpu_source = gpu_materialized;
+            }
+        }
+
+        bool ok = true;
+        if (dense_host_source) {
+            if (tensor_on_cpu(*output)) {
+                if (bytes != 0) {
+                    std::memcpy(output->data.data(), dense_host_source, bytes);
+                }
+            } else {
+                ok = quidra::device::copy_from_host(
+                    output->gpu_buffer, 0, dense_host_source, bytes,
+                    backend_error);
+            }
+        } else if (dense_gpu_source) {
+            const auto source_offset =
+                gpu_materialized ? std::size_t{0} : source.offset * width;
+            if (tensor_on_cpu(*output)) {
+                ok = quidra::device::copy_to_host(
+                    dense_gpu_source->gpu_buffer, source_offset,
+                    output->data.data(), bytes, backend_error);
+            } else if (dense_gpu_source->device == target_device) {
+                ok = quidra::device::copy_device_to_device(
+                    output->gpu_buffer, 0, dense_gpu_source->gpu_buffer,
+                    source_offset, bytes, backend_error);
+            } else {
+                // Cross-GPU movement is explicit at source level. Backends do
+                // not currently promise peer access across arbitrary vendors,
+                // so stage once through host memory rather than once per
+                // element.
+                try {
+                    host_materialized.resize(bytes);
+                } catch (...) {
+                    if (gpu_materialized) tensor_storage_release(gpu_materialized);
+                    tensor_storage_release(output);
+                    runtime_allocation_failure();
+                }
+                ok = quidra::device::copy_to_host(
+                         dense_gpu_source->gpu_buffer, source_offset,
+                         host_materialized.data(), bytes, backend_error) &&
+                     quidra::device::copy_from_host(
+                         output->gpu_buffer, 0, host_materialized.data(),
+                         bytes, backend_error);
+            }
+        }
+
+        if (gpu_materialized) tensor_storage_release(gpu_materialized);
+        if (!ok) {
+            tensor_storage_release(output);
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+        mark_fully_initialized();
+        return output;
+    }
+
+    // Partially initialized tensors preserve initialization at element
+    // granularity. This uncommon path intentionally copies only initialized
+    // elements so uninitialized storage is never exposed as initialized data.
+    for (std::size_t logical = 0; logical < count; ++logical) {
+        const auto source_index = tensor_storage_index(source, logical);
+        if (source_index >= source.storage->count) {
+            tensor_storage_release(output);
+            tensor_fail("tensor view exceeds storage", line, column);
+        }
+        if (!tracker_bit(source.storage->initialization, source_index)) continue;
+
+        if (tensor_on_cpu(*source.storage)) {
+            std::memcpy(element.data(),
+                        source.storage->data.data() + source_index * width, width);
+        } else if (!quidra::device::copy_to_host(
+                       source.storage->gpu_buffer, source_index * width,
+                       element.data(), width, backend_error)) {
+            tensor_storage_release(output);
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+
+        if (tensor_on_cpu(*output)) {
+            std::memcpy(output->data.data() + logical * width,
+                        element.data(), width);
+        } else if (!quidra::device::copy_from_host(
+                       output->gpu_buffer, logical * width,
+                       element.data(), width, backend_error)) {
+            tensor_storage_release(output);
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+        tracker_set(output->initialization, logical);
+    }
+    return output;
 }
 
 template <typename Int>
@@ -1298,16 +1584,103 @@ bool tensor_cast_from(const TensorValue& tensor, int target_dtype,
 
 } // namespace
 
-extern "C" void* quidra_tensor_create(void* shape_array, int dtype, int fill_mode,
-                                        unsigned long long line,
-                                        unsigned long long column) {
-    if (fill_mode < 0 || fill_mode > 2) tensor_fail("invalid tensor fill mode", line, column);
+template <typename Src>
+bool numeric_cast_element_from(const void* source_raw, void* destination_raw,
+                               int target_dtype) {
+    Src source{};
+    std::memcpy(&source, source_raw, sizeof(Src));
+    const auto write = [&](auto tag) -> bool {
+        using Dst = decltype(tag);
+        Dst destination{};
+        if (!exact_numeric_cast(source, destination)) return false;
+        std::memcpy(destination_raw, &destination, sizeof(Dst));
+        return true;
+    };
+    switch (target_dtype) {
+        case 1: return write(std::int64_t{});
+        case 2: return write(std::int8_t{});
+        case 3: return write(std::int16_t{});
+        case 4: return write(std::int32_t{});
+        case 5: return write(std::uint8_t{});
+        case 6: return write(std::uint16_t{});
+        case 7: return write(std::uint32_t{});
+        case 8: return write(std::uint64_t{});
+        case 9: return write(double{});
+        case 10:return write(float{});
+        default:return false;
+    }
+}
+
+extern "C" void quidra_numeric_cast_element(
+    void* destination, const void* source, int source_dtype, int target_dtype,
+    unsigned long long line, unsigned long long column) {
+    if (!destination || !source) runtime_text_failure("null numeric cast storage");
+    quidra_init_check(const_cast<void*>(source), line, column);
+    bool ok=false;
+    switch (source_dtype) {
+        case 1: ok=numeric_cast_element_from<std::int64_t>(source,destination,target_dtype); break;
+        case 2: ok=numeric_cast_element_from<std::int8_t>(source,destination,target_dtype); break;
+        case 3: ok=numeric_cast_element_from<std::int16_t>(source,destination,target_dtype); break;
+        case 4: ok=numeric_cast_element_from<std::int32_t>(source,destination,target_dtype); break;
+        case 5: ok=numeric_cast_element_from<std::uint8_t>(source,destination,target_dtype); break;
+        case 6: ok=numeric_cast_element_from<std::uint16_t>(source,destination,target_dtype); break;
+        case 7: ok=numeric_cast_element_from<std::uint32_t>(source,destination,target_dtype); break;
+        case 8: ok=numeric_cast_element_from<std::uint64_t>(source,destination,target_dtype); break;
+        case 9: ok=numeric_cast_element_from<double>(source,destination,target_dtype); break;
+        case 10:ok=numeric_cast_element_from<float>(source,destination,target_dtype); break;
+        default: break;
+    }
+    if (!ok) {
+        std::fprintf(stderr,
+            "Quidra runtime error[NUMERIC_CAST_RANGE] at %llu:%llu: numeric cast outside destination range\n",
+            line,column);
+        std::exit(101);
+    }
+}
+
+extern "C" void* quidra_tensor_create(
+    void* shape_array, int dtype, int fill_mode, bool has_gpu, long long gpu,
+    unsigned long long line, unsigned long long column) {
+    if (fill_mode < 0 || fill_mode > 2) {
+        tensor_fail("invalid tensor fill mode", line, column);
+    }
+    int device_index = -1;
+    if (has_gpu) {
+        if (gpu < 0 || gpu > std::numeric_limits<int>::max()) {
+            tensor_fail("gpu index must be a non-negative supported index", line, column);
+        }
+        device_index = static_cast<int>(gpu);
+    }
     auto shape = tensor_shape_from_array(shape_array, line, column);
     const auto count = tensor_element_count(shape, line, column);
     auto strides = tensor_contiguous_strides(shape);
-    auto* storage = tensor_storage_create(dtype, count, fill_mode);
+    auto* storage = tensor_storage_create(
+        dtype, count, fill_mode, device_index, line, column);
     return tensor_descriptor(
         storage, std::move(shape), std::move(strides), 0);
+}
+
+extern "C" void* quidra_tensor_to_gpu(
+    void* raw, long long gpu,
+    unsigned long long line, unsigned long long column) {
+    if (!raw) tensor_fail("null tensor", line, column);
+    if (gpu < 0 || gpu > std::numeric_limits<int>::max()) {
+        tensor_fail("gpu index must be a non-negative supported index", line, column);
+    }
+    auto* source = static_cast<TensorValue*>(raw);
+    auto* storage = tensor_transfer_storage(
+        *source, static_cast<int>(gpu), line, column);
+    return tensor_descriptor(
+        storage, source->shape, tensor_contiguous_strides(source->shape), 0);
+}
+
+extern "C" void* quidra_tensor_to_cpu(
+    void* raw, unsigned long long line, unsigned long long column) {
+    if (!raw) tensor_fail("null tensor", line, column);
+    auto* source = static_cast<TensorValue*>(raw);
+    auto* storage = tensor_transfer_storage(*source, -1, line, column);
+    return tensor_descriptor(
+        storage, source->shape, tensor_contiguous_strides(source->shape), 0);
 }
 
 extern "C" void* quidra_tensor_clone(void* raw) {
@@ -1359,6 +1732,31 @@ extern "C" void* quidra_tensor_shape(void* raw) {
     return result;
 }
 
+extern "C" void* quidra_tensor_shape_fixed(void* raw, unsigned long long expected_rank) {
+    if (!raw) runtime_text_failure("null tensor");
+    const auto& shape = static_cast<TensorValue*>(raw)->shape;
+    if (shape.size() != expected_rank) {
+        runtime_text_failure("tensor static rank does not match runtime shape");
+    }
+    if (shape.size() > std::numeric_limits<std::size_t>::max() / sizeof(long long)) {
+        runtime_allocation_failure();
+    }
+    const auto bytes = shape.size() * sizeof(long long);
+    auto* result = static_cast<unsigned char*>(managed_allocate(bytes));
+    for (std::size_t i = 0; i < shape.size(); ++i) {
+        std::memcpy(result + i * sizeof(long long), &shape[i], sizeof(long long));
+    }
+    const auto it = managed_allocations.find(reinterpret_cast<std::uintptr_t>(result));
+    auto tracker = std::make_unique<InitializationTracker>();
+    tracker->count = shape.size();
+    tracker->unit_bytes = sizeof(long long);
+    tracker->data_offset = 0;
+    tracker->initialized_count = shape.size();
+    tracker->fully_initialized = true;
+    it->second.initialization = std::move(tracker);
+    return result;
+}
+
 extern "C" void* quidra_tensor_reshape(void* raw, void* shape_array,
                                          unsigned long long line,
                                          unsigned long long column) {
@@ -1379,19 +1777,48 @@ extern "C" void* quidra_tensor_reshape(void* raw, void* shape_array,
     return tensor_descriptor(source->storage, std::move(shape), std::move(strides), source->offset);
 }
 
+extern "C" void* quidra_tensor_transpose(
+    void* raw, long long axis0, long long axis1,
+    unsigned long long line, unsigned long long column) {
+    if (!raw) tensor_fail("null tensor", line, column);
+    auto* source = static_cast<TensorValue*>(raw);
+    const auto rank = static_cast<long long>(source->shape.size());
+    if (axis0 < 0 || axis1 < 0 || axis0 >= rank || axis1 >= rank) {
+        tensor_fail("tensor.transpose axis is outside the tensor rank", line, column);
+    }
+    if (!source->storage ||
+        source->storage->owners == std::numeric_limits<std::size_t>::max()) {
+        runtime_text_failure("invalid tensor storage");
+    }
+    ++source->storage->owners;
+    auto shape = source->shape;
+    auto strides = source->strides;
+    const auto a0 = static_cast<std::size_t>(axis0);
+    const auto a1 = static_cast<std::size_t>(axis1);
+    std::swap(shape[a0], shape[a1]);
+    std::swap(strides[a0], strides[a1]);
+    return tensor_descriptor(
+        source->storage, std::move(shape), std::move(strides), source->offset);
+}
+
 extern "C" void* quidra_tensor_contiguous(void* raw) {
     if (!raw) runtime_text_failure("null tensor");
     auto* source = static_cast<TensorValue*>(raw);
     if (tensor_is_contiguous_value(*source)) return quidra_tensor_clone(raw);
     const auto count = tensor_logical_count(*source);
-    auto* storage = tensor_storage_create(source->storage->dtype, count, 0);
-    const auto width = tensor_dtype_bytes(source->storage->dtype);
-    for (std::size_t i = 0; i < count; ++i) {
-        const auto source_index = tensor_storage_index(*source, i);
-        std::memcpy(storage->data.data() + i * width,
-                    source->storage->data.data() + source_index * width, width);
-        if (tracker_bit(source->storage->initialization, source_index)) {
-            tracker_set(storage->initialization, i);
+    TensorStorage* storage = nullptr;
+    if (!tensor_on_cpu(*source->storage)) {
+        storage = tensor_gpu_materialize_storage(*source, 0, 0);
+    } else {
+        storage = tensor_storage_create(source->storage->dtype, count, 0);
+        const auto width = tensor_dtype_bytes(source->storage->dtype);
+        for (std::size_t i = 0; i < count; ++i) {
+            const auto source_index = tensor_storage_index(*source, i);
+            std::memcpy(storage->data.data() + i * width,
+                        source->storage->data.data() + source_index * width, width);
+            if (tracker_bit(source->storage->initialization, source_index)) {
+                tracker_set(storage->initialization, i);
+            }
         }
     }
     return tensor_descriptor(storage, source->shape,
@@ -1409,8 +1836,18 @@ extern "C" void* quidra_tensor_item_ptr(void* raw, unsigned long long line,
         !tracker_bit(tensor->storage->initialization, tensor->offset)) {
         runtime_uninitialized_failure(line, column);
     }
-    return tensor->storage->data.data() +
-           tensor->offset * tensor_dtype_bytes(tensor->storage->dtype);
+    const auto width = tensor_dtype_bytes(tensor->storage->dtype);
+    if (tensor_on_cpu(*tensor->storage)) {
+        return tensor->storage->data.data() + tensor->offset * width;
+    }
+    static thread_local std::array<unsigned char, 8> scalar{};
+    std::string backend_error;
+    if (!quidra::device::copy_to_host(
+            tensor->storage->gpu_buffer, tensor->offset * width,
+            scalar.data(), width, backend_error)) {
+        tensor_fail(backend_error.c_str(), line, column);
+    }
+    return scalar.data();
 }
 
 extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
@@ -1420,6 +1857,29 @@ extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
     auto* source = static_cast<TensorValue*>(raw);
     tensor_require_initialized(*source, line, column);
     const auto count = tensor_logical_count(*source);
+    if (!tensor_on_cpu(*source->storage)) {
+        TensorStorage* materialized = nullptr;
+        const TensorStorage* input_storage = source->storage;
+        std::size_t input_offset = source->offset * tensor_dtype_bytes(source->storage->dtype);
+        if (!tensor_is_contiguous_value(*source)) {
+            materialized = tensor_gpu_materialize_storage(*source, line, column);
+            input_storage = materialized;
+            input_offset = 0;
+        }
+        auto* output = tensor_storage_create(
+            target_dtype, count, 1, source->storage->device, line, column);
+        std::string backend_error;
+        const bool ok = quidra::device::compute_cast(
+            output->gpu_buffer, input_storage->gpu_buffer, input_offset,
+            source->storage->dtype, target_dtype, count, backend_error);
+        if (materialized) tensor_storage_release(materialized);
+        if (!ok) {
+            tensor_storage_release(output);
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+        return tensor_descriptor(output, source->shape,
+                                 tensor_contiguous_strides(source->shape), 0);
+    }
     auto* output = tensor_storage_create(target_dtype, count, 1);
     bool exact = false;
     switch (source->storage->dtype) {
@@ -1436,22 +1896,58 @@ extern "C" void* quidra_tensor_cast(void* raw, int target_dtype,
         default: break;
     }
     if (!exact) {
-        delete output;
+        tensor_storage_release(output);
         tensor_fail("tensor cast is unsupported or a value is outside the target range", line, column);
     }
     return tensor_descriptor(output, source->shape,
                              tensor_contiguous_strides(source->shape), 0);
 }
 
+extern "C" void quidra_tensor_rank_check(
+    void* raw, long long expected_rank,
+    unsigned long long line, unsigned long long column) {
+    if(!raw) tensor_fail("null tensor",line,column);
+    const auto* tensor=static_cast<TensorValue*>(raw);
+    if(expected_rank<0 ||
+       tensor->shape.size()!=static_cast<std::size_t>(expected_rank))
+        tensor_fail("tensor rank does not satisfy captured shape constraint",line,column);
+}
+
+extern "C" void quidra_tensor_extent_check(
+    void* raw, long long axis, long long expected,
+    unsigned long long line, unsigned long long column) {
+    if(!raw) tensor_fail("null tensor",line,column);
+    const auto* tensor=static_cast<TensorValue*>(raw);
+    if(axis<0 || static_cast<std::size_t>(axis)>=tensor->shape.size())
+        tensor_fail("tensor shape axis is outside rank",line,column);
+    if(expected<0)
+        tensor_fail("captured tensor extent cannot be negative",line,column);
+    if(tensor->shape[static_cast<std::size_t>(axis)]!=expected)
+        tensor_fail("tensor extent does not satisfy captured shape constraint",line,column);
+}
+
 
 namespace {
 
-void tensor_detach_for_write(TensorValue& tensor);
+void tensor_detach_for_write(TensorValue& tensor, unsigned long long line, unsigned long long column);
+TensorStorage* tensor_gpu_materialize_storage(
+    const TensorValue& source,
+    unsigned long long line,
+    unsigned long long column);
 
 enum class NeuralOp {
     Leaf, Add, Sub, Mul, Div, Affine, Convolution, Normalize, RandomMask,
     Absolute, Exponential, Logarithm, Mean, SumLast, MaxLast
 };
+
+extern "C" void* quidra_neural_tensor_unary(
+    void* raw,int op,unsigned long long line,unsigned long long column);
+extern "C" void* quidra_tensor_unary(
+    void* raw,int operation,unsigned long long line,unsigned long long column);
+extern "C" void* quidra_tensor_binary(
+    void* primary_raw,void* other_raw,void* scalar,int scalar_side,
+    int operation,unsigned long long line,unsigned long long column);
+
 
 class NeuralBuffer {
 public:
@@ -1524,8 +2020,18 @@ struct NeuralNode {
     NeuralBuffer aux;
     std::vector<std::size_t> aux_index;
     unsigned long long parameter_id{};
+    TensorValue* device_tensor{};
+    TensorValue* device_aux{};
 
     ~NeuralNode() noexcept {
+        if(device_tensor){
+            quidra_tensor_drop(device_tensor);
+            device_tensor=nullptr;
+        }
+        if(device_aux){
+            quidra_tensor_drop(device_aux);
+            device_aux=nullptr;
+        }
         // shared_ptr parent chains can otherwise recurse through destructors and
         // exhaust the native stack even though graph traversal itself is iterative.
         std::vector<std::shared_ptr<NeuralNode>> pending;
@@ -1547,11 +2053,37 @@ struct NeuralValue {
 
 struct NeuralGradient {
     explicit NeuralGradient(int element_dtype=10) : dtype(element_dtype), data(element_dtype) {}
+    NeuralGradient(const NeuralGradient&)=delete;
+    NeuralGradient& operator=(const NeuralGradient&)=delete;
+    NeuralGradient(NeuralGradient&& other) noexcept
+        : dtype(other.dtype),
+          shape(std::move(other.shape)),
+          data(std::move(other.data)),
+          device_tensor(std::exchange(other.device_tensor,nullptr)) {}
+    NeuralGradient& operator=(NeuralGradient&& other) noexcept {
+        if(this==&other) return *this;
+        if(device_tensor) quidra_tensor_drop(device_tensor);
+        dtype=other.dtype;
+        shape=std::move(other.shape);
+        data=std::move(other.data);
+        device_tensor=std::exchange(other.device_tensor,nullptr);
+        return *this;
+    }
+    ~NeuralGradient() {
+        if(device_tensor) quidra_tensor_drop(device_tensor);
+    }
 
     int dtype{10};
     std::vector<long long> shape;
     NeuralBuffer data;
+    TensorValue* device_tensor{};
 };
+
+std::size_t neural_gradient_count(const NeuralGradient& gradient) {
+    return gradient.device_tensor
+        ? tensor_logical_count(*gradient.device_tensor)
+        : gradient.data.size();
+}
 
 struct NeuralGradientData {
     std::unordered_map<unsigned long long, NeuralGradient> values;
@@ -1569,6 +2101,7 @@ struct NeuralGradients {
 NeuralBuffer tensor_float_values(const TensorValue& tensor,
                                  unsigned long long line,
                                  unsigned long long column) {
+    tensor_require_cpu(*tensor.storage, "neural tensor conversion", line, column);
     tensor_require_initialized(tensor,line,column);
     if(tensor.storage->dtype!=9&&tensor.storage->dtype!=10)
         neural_fail("neural values require float32 or float tensors",line,column);
@@ -1595,9 +2128,19 @@ NeuralBuffer tensor_float_values(const TensorValue& tensor,
 std::shared_ptr<NeuralNode> neural_constant_node(const TensorValue& tensor,
                                                  unsigned long long line,
                                                  unsigned long long column) {
+    tensor_require_initialized(tensor,line,column);
+    if(tensor.storage->dtype!=9&&tensor.storage->dtype!=10)
+        neural_fail("neural values require float32 or float tensors",line,column);
     auto node=std::make_shared<NeuralNode>(tensor.storage->dtype);
     node->shape=tensor.shape;
-    node->data=tensor_float_values(tensor,line,column);
+    if(tensor_on_cpu(*tensor.storage)){
+        node->data=tensor_float_values(tensor,line,column);
+    }else{
+        node->device_tensor=static_cast<TensorValue*>(
+            quidra_tensor_clone(const_cast<TensorValue*>(&tensor)));
+        if(!node->device_tensor)
+            neural_fail("failed to retain GPU tensor for neural graph",line,column);
+    }
     return node;
 }
 
@@ -1631,7 +2174,33 @@ TensorValue* neural_tensor_from_values(
 }
 
 TensorValue* neural_tensor_from_node(const NeuralNode& node) {
+    if(node.device_tensor)
+        return static_cast<TensorValue*>(quidra_tensor_clone(node.device_tensor));
     return neural_tensor_from_values(node.dtype,node.shape,node.data);
+}
+
+std::size_t neural_node_count(const NeuralNode& node) {
+    return node.device_tensor
+        ? tensor_logical_count(*node.device_tensor)
+        : node.data.size();
+}
+
+void neural_require_same_node_device(
+    const char* operation,const NeuralNode& left,const NeuralNode& right,
+    unsigned long long line,unsigned long long column) {
+    const bool left_gpu=left.device_tensor!=nullptr;
+    const bool right_gpu=right.device_tensor!=nullptr;
+    if(left_gpu!=right_gpu){
+        const auto message=std::string(operation)+
+            " operands must be on the same device; transfer them explicitly before neural.track";
+        neural_fail(message.c_str(),line,column);
+    }
+    if(left_gpu &&
+       left.device_tensor->storage->device!=right.device_tensor->storage->device){
+        const auto message=std::string(operation)+
+            " operands must use the same gpu(n)";
+        neural_fail(message.c_str(),line,column);
+    }
 }
 
 TensorValue* neural_parameter_tensor(void* parameter_raw) {
@@ -1641,8 +2210,25 @@ TensorValue* neural_parameter_tensor(void* parameter_raw) {
     return static_cast<TensorValue*>(tensor_raw);
 }
 
+void neural_require_same_tensor_device(
+    const char* operation, const TensorValue& input,
+    std::initializer_list<const TensorValue*> others,
+    unsigned long long line, unsigned long long column) {
+    const int device = input.storage->device;
+    for (const auto* tensor : others) {
+        if (!tensor) neural_fail("null neural tensor", line, column);
+        if (tensor->storage->device != device) {
+            const auto message = std::string(operation) +
+                " input and Parameter/state tensors must be on the same device; transfer them explicitly";
+            neural_fail(message.c_str(), line, column);
+        }
+    }
+    (void)operation;
+}
+
 double neural_tensor_value(const TensorValue& tensor,std::size_t logical,
                            unsigned long long line,unsigned long long column) {
+    tensor_require_cpu(*tensor.storage, "neural parameter access", line, column);
     const auto index=tensor_storage_index(tensor,logical);
     if(index>=tensor.storage->count ||
        !tracker_bit(tensor.storage->initialization,index)) {
@@ -1750,8 +2336,11 @@ void neural_set_state_u64(void* state,std::uint64_t value) {
 
 void neural_require_same_shape(const NeuralNode& a,const NeuralNode& b,
                                unsigned long long line,unsigned long long column) {
-    if(a.shape!=b.shape || a.data.size()!=b.data.size()) neural_fail("neural operand shapes must match",line,column);
-    if(a.dtype!=b.dtype) neural_fail("neural operand element types must match",line,column);
+    if(a.shape!=b.shape || neural_node_count(a)!=neural_node_count(b))
+        neural_fail("neural operand shapes must match",line,column);
+    if(a.dtype!=b.dtype)
+        neural_fail("neural operand element types must match",line,column);
+    neural_require_same_node_device("neural operation",a,b,line,column);
 }
 
 template <typename T>
@@ -1804,13 +2393,23 @@ void neural_apply_unary(NeuralBuffer& values,int dtype,int op,const std::vector<
 std::shared_ptr<NeuralNode> neural_unary_node(const std::shared_ptr<NeuralNode>& input,int op,
                                               unsigned long long line,unsigned long long column) {
     auto node=std::make_shared<NeuralNode>(input->dtype);
-    node->dtype=input->dtype;node->shape=input->shape;node->data=input->data;node->parents={input};
+    node->dtype=input->dtype;
+    node->shape=input->shape;
+    node->parents={input};
     node->op=op==1?NeuralOp::Absolute:
         op==2?NeuralOp::Exponential:
         op==3?NeuralOp::Logarithm:
         op==4?NeuralOp::Mean:
         op==5?NeuralOp::SumLast:NeuralOp::MaxLast;
-    neural_apply_unary(node->data,node->dtype,op,node->shape,line,column);
+    if(input->device_tensor){
+        node->device_tensor=static_cast<TensorValue*>(
+            quidra_neural_tensor_unary(input->device_tensor,op,line,column));
+        if(!node->device_tensor)
+            neural_fail("GPU neural unary operation returned null",line,column);
+    }else{
+        node->data=input->data;
+        neural_apply_unary(node->data,node->dtype,op,node->shape,line,column);
+    }
     if(op==4) node->shape={};
     return node;
 }
@@ -1850,6 +2449,58 @@ void neural_topological(const std::shared_ptr<NeuralNode>& node,
     }
 }
 
+NeuralBuffer neural_cast_buffer(const NeuralBuffer& source,int target_dtype) {
+    if(target_dtype!=9&&target_dtype!=10)
+        runtime_text_failure("invalid neural cast dtype");
+    NeuralBuffer result(target_dtype);
+    result.resize(source.size());
+    if(target_dtype==10){
+        auto& values=result.typed<float>();
+        for(std::size_t i=0;i<values.size();++i){
+            const auto original=source.scalar_as_double(i);
+            const auto narrowed=static_cast<float>(original);
+            if(std::isfinite(original)&&!std::isfinite(narrowed))
+                runtime_text_failure("neural cast value is outside the destination range");
+            values[i]=narrowed;
+        }
+    }else{
+        auto& values=result.typed<double>();
+        for(std::size_t i=0;i<values.size();++i)
+            values[i]=source.scalar_as_double(i);
+    }
+    return result;
+}
+
+std::shared_ptr<NeuralNode> neural_cast_graph(
+    const std::shared_ptr<NeuralNode>& root,int target_dtype) {
+    if(!root) runtime_text_failure("null neural cast root");
+    if(root->dtype==target_dtype) return root;
+    std::unordered_set<const NeuralNode*> seen;
+    std::vector<std::shared_ptr<NeuralNode>> order;
+    neural_topological(root,seen,order);
+    std::unordered_map<const NeuralNode*,std::shared_ptr<NeuralNode>> converted;
+    converted.reserve(order.size());
+    for(const auto& source:order){
+        auto node=std::make_shared<NeuralNode>(target_dtype);
+        node->dtype=target_dtype;
+        node->shape=source->shape;
+        node->data=neural_cast_buffer(source->data,target_dtype);
+        node->op=source->op;
+        node->aux=neural_cast_buffer(source->aux,target_dtype);
+        node->aux_index=source->aux_index;
+        node->parameter_id=source->parameter_id;
+        node->parents.reserve(source->parents.size());
+        for(const auto& parent:source->parents){
+            const auto found=converted.find(parent.get());
+            if(found==converted.end())
+                runtime_text_failure("neural cast graph order is invalid");
+            node->parents.push_back(found->second);
+        }
+        converted.emplace(source.get(),std::move(node));
+    }
+    return converted.at(root.get());
+}
+
 struct NeuralMomentRecord {
     std::string path;
     int dtype{10};
@@ -1858,6 +2509,40 @@ struct NeuralMomentRecord {
     std::vector<double> first;
     std::vector<double> second;
 };
+
+struct NeuralMomentDeviceRecord {
+    int dtype{};
+    int device{-1};
+    std::size_t count{};
+    quidra::device::Buffer* first{};
+    quidra::device::Buffer* second{};
+
+    NeuralMomentDeviceRecord() = default;
+    NeuralMomentDeviceRecord(const NeuralMomentDeviceRecord&) = delete;
+    NeuralMomentDeviceRecord& operator=(const NeuralMomentDeviceRecord&) = delete;
+    ~NeuralMomentDeviceRecord() {
+        if(first) quidra::device::release(first);
+        if(second) quidra::device::release(second);
+    }
+};
+
+struct NeuralMomentDeviceCache {
+    std::vector<std::unique_ptr<NeuralMomentDeviceRecord>> records;
+};
+
+thread_local std::unordered_map<std::uintptr_t,NeuralMomentDeviceCache>
+    neural_moment_device_caches;
+
+void neural_moment_cache_release(void* value) {
+    if(!value) return;
+    neural_moment_device_caches.erase(reinterpret_cast<std::uintptr_t>(value));
+}
+
+std::size_t neural_managed_owner_count(void* value) {
+    if(!value) return 0;
+    const auto found=managed_allocations.find(reinterpret_cast<std::uintptr_t>(value));
+    return found==managed_allocations.end()?0:found->second.owners;
+}
 
 constexpr std::uint64_t neural_moment_state_magic = 0x4e4f554144414d33ULL;
 
@@ -1881,10 +2566,14 @@ std::vector<NeuralMomentRecord> neural_decode_moments(
     const auto allocation=managed_allocations.find(reinterpret_cast<std::uintptr_t>(raw));
     if(allocation==managed_allocations.end()||allocation->second.size<8)
         neural_fail("invalid moment state",line,column);
-    std::int64_t signed_length{};
-    std::memcpy(&signed_length,raw,sizeof(signed_length));
-    if(signed_length<0) neural_fail("invalid moment state",line,column);
-    const auto length=static_cast<std::size_t>(signed_length);
+    std::int64_t signed_bit_length{};
+    std::memcpy(&signed_bit_length,raw,sizeof(signed_bit_length));
+    if(signed_bit_length<0 || signed_bit_length%8!=0)
+        neural_fail("invalid moment state",line,column);
+    const auto byte_length=static_cast<unsigned long long>(signed_bit_length/8);
+    if(byte_length>static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()))
+        neural_fail("moment state size overflow",line,column);
+    const auto length=static_cast<std::size_t>(byte_length);
     if(length>allocation->second.size-8)
         neural_fail("corrupt moment state",line,column);
     if(length==0) return {};
@@ -1978,7 +2667,9 @@ void* neural_encode_moments(
     if(payload>static_cast<std::size_t>(std::numeric_limits<std::int64_t>::max()))
         neural_fail("moment state too large",line,column);
     auto* raw=static_cast<unsigned char*>(managed_allocate(neural_checked_add(8,payload,line,column)));
-    const auto signed_length=static_cast<std::int64_t>(payload);
+    if(payload>static_cast<std::size_t>(std::numeric_limits<std::int64_t>::max()/8))
+        neural_fail("moment state too large",line,column);
+    const auto signed_length=static_cast<std::int64_t>(payload*8);
     std::memcpy(raw,&signed_length,8);
     auto* bytes=raw+8;
     std::size_t cursor=0;
@@ -2002,10 +2693,150 @@ void* neural_encode_moments(
     return raw;
 }
 
+void neural_sync_moment_cache_to_host(
+    void* raw,unsigned long long line,unsigned long long column) {
+    if(!raw) return;
+    const auto key=reinterpret_cast<std::uintptr_t>(raw);
+    const auto found=neural_moment_device_caches.find(key);
+    if(found==neural_moment_device_caches.end()) return;
+
+    auto records=neural_decode_moments(raw,line,column);
+    auto& cache=found->second;
+    if(cache.records.size()>records.size())
+        neural_fail("moment device cache does not match encoded state",line,column);
+
+    for(std::size_t index=0;index<cache.records.size();++index){
+        auto* device_record=cache.records[index].get();
+        if(!device_record) continue;
+        auto& record=records[index];
+        if(device_record->dtype!=record.dtype ||
+           device_record->count!=record.first.size() ||
+           record.first.size()!=record.second.size())
+            neural_fail("moment device cache does not match encoded state",line,column);
+
+        std::string backend_error;
+        if(record.dtype==10){
+            std::vector<float> first(device_record->count),second(device_record->count);
+            const auto bytes=neural_checked_mul(
+                device_record->count,sizeof(float),line,column);
+            if(!quidra::device::copy_to_host(
+                   device_record->first,0,first.data(),bytes,backend_error) ||
+               !quidra::device::copy_to_host(
+                   device_record->second,0,second.data(),bytes,backend_error))
+                neural_fail(backend_error.c_str(),line,column);
+            for(std::size_t i=0;i<device_record->count;++i){
+                record.first[i]=static_cast<double>(first[i]);
+                record.second[i]=static_cast<double>(second[i]);
+            }
+        }else if(record.dtype==9){
+            const auto bytes=neural_checked_mul(
+                device_record->count,sizeof(double),line,column);
+            if(!quidra::device::copy_to_host(
+                   device_record->first,0,record.first.data(),bytes,backend_error) ||
+               !quidra::device::copy_to_host(
+                   device_record->second,0,record.second.data(),bytes,backend_error))
+                neural_fail(backend_error.c_str(),line,column);
+        }else{
+            neural_fail("invalid moment device cache dtype",line,column);
+        }
+    }
+
+    auto* encoded=neural_encode_moments(records,line,column);
+    const auto raw_it=managed_allocations.find(reinterpret_cast<std::uintptr_t>(raw));
+    const auto encoded_it=managed_allocations.find(reinterpret_cast<std::uintptr_t>(encoded));
+    if(raw_it==managed_allocations.end() || encoded_it==managed_allocations.end() ||
+       raw_it->second.size!=encoded_it->second.size){
+        quidra_managed_release(encoded,nullptr);
+        neural_fail("moment state size changed during GPU synchronization",line,column);
+    }
+    std::memcpy(raw,encoded,raw_it->second.size);
+    quidra_managed_release(encoded,nullptr);
+}
+
+NeuralMomentDeviceRecord* neural_moment_device_record(
+    void* raw,std::size_t index,const NeuralMomentRecord& record,
+    TensorValue& parameter,unsigned long long line,unsigned long long column) {
+    if(neural_managed_owner_count(raw)!=1) return nullptr;
+    const auto count=tensor_logical_count(parameter);
+    if(record.first.size()!=count || record.second.size()!=count)
+        neural_fail("moment device cache size mismatch",line,column);
+    auto& cache=neural_moment_device_caches[
+        reinterpret_cast<std::uintptr_t>(raw)];
+    if(cache.records.size()<=index) cache.records.resize(index+1);
+    auto& slot=cache.records[index];
+    if(slot){
+        if(slot->dtype!=record.dtype || slot->device!=parameter.storage->device ||
+           slot->count!=count)
+            neural_fail("GPU Adam moment state device/dtype changed",line,column);
+        return slot.get();
+    }
+
+    const auto width=tensor_dtype_bytes(record.dtype);
+    const auto bytes=neural_checked_mul(count,width,line,column);
+    std::string backend_error;
+    auto created=std::make_unique<NeuralMomentDeviceRecord>();
+    created->dtype=record.dtype;
+    created->device=parameter.storage->device;
+    created->count=count;
+    created->first=quidra::device::allocate(parameter.storage->device,bytes,backend_error);
+    if(!created->first) neural_fail(backend_error.c_str(),line,column);
+    created->second=quidra::device::allocate(parameter.storage->device,bytes,backend_error);
+    if(!created->second) neural_fail(backend_error.c_str(),line,column);
+
+    if(record.dtype==10){
+        std::vector<float> first(count),second(count);
+        bool all_zero=true;
+        for(std::size_t i=0;i<count;++i){
+            first[i]=static_cast<float>(record.first[i]);
+            second[i]=static_cast<float>(record.second[i]);
+            all_zero=all_zero && first[i]==0.0F && second[i]==0.0F;
+        }
+        if(all_zero){
+            if(!quidra::device::zero(created->first,0,bytes,backend_error) ||
+               !quidra::device::zero(created->second,0,bytes,backend_error))
+                neural_fail(backend_error.c_str(),line,column);
+        }else if(!quidra::device::copy_from_host(
+                      created->first,0,first.data(),bytes,backend_error) ||
+                  !quidra::device::copy_from_host(
+                      created->second,0,second.data(),bytes,backend_error)){
+            neural_fail(backend_error.c_str(),line,column);
+        }
+    }else if(record.dtype==9){
+        const bool all_zero=
+            std::all_of(record.first.begin(),record.first.end(),
+                        [](double value){return value==0.0;}) &&
+            std::all_of(record.second.begin(),record.second.end(),
+                        [](double value){return value==0.0;});
+        if(all_zero){
+            if(!quidra::device::zero(created->first,0,bytes,backend_error) ||
+               !quidra::device::zero(created->second,0,bytes,backend_error))
+                neural_fail(backend_error.c_str(),line,column);
+        }else if(!quidra::device::copy_from_host(
+                      created->first,0,record.first.data(),bytes,backend_error) ||
+                  !quidra::device::copy_from_host(
+                      created->second,0,record.second.data(),bytes,backend_error)){
+            neural_fail(backend_error.c_str(),line,column);
+        }
+    }else{
+        neural_fail("invalid moment device cache dtype",line,column);
+    }
+
+    auto* result=created.get();
+    slot=std::move(created);
+    return result;
+}
+
 void neural_replace_moments(void* optimizer,void* encoded) {
     auto* state=neural_object_pointer_field(optimizer,40);
     if(!state) runtime_text_failure("null moment State");
     auto* old=neural_object_pointer_field(state,0);
+    const auto old_key=reinterpret_cast<std::uintptr_t>(old);
+    const auto new_key=reinterpret_cast<std::uintptr_t>(encoded);
+    auto cache=neural_moment_device_caches.extract(old_key);
+    if(!cache.empty()){
+        cache.key()=new_key;
+        neural_moment_device_caches.insert(std::move(cache));
+    }
     std::memcpy(state,&encoded,sizeof(encoded));
     quidra_managed_release(old,nullptr);
 }
@@ -2021,10 +2852,34 @@ const NeuralGradient* neural_gradient_for_parameter(
     const auto found=gradients->data->values.find(id);
     if(found==gradients->data->values.end()) return nullptr;
     const auto& gradient=found->second;
-    if(gradient.dtype!=tensor->storage->dtype||gradient.shape!=tensor->shape||
-       gradient.data.size()!=tensor_logical_count(*tensor))
-        neural_fail("gradient and Parameter shape/dtype mismatch",line,column);
+    if((gradient.dtype!=9&&gradient.dtype!=10)||
+       gradient.shape!=tensor->shape||
+       neural_gradient_count(gradient)!=tensor_logical_count(*tensor))
+        neural_fail("gradient and Parameter shape mismatch",line,column);
+    if((gradient.device_tensor!=nullptr)!=(!tensor_on_cpu(*tensor->storage)))
+        neural_fail("gradient and Parameter must be on the same device",line,column);
+    if(gradient.device_tensor &&
+       gradient.device_tensor->storage->device!=tensor->storage->device)
+        neural_fail("gradient and Parameter must use the same gpu(n)",line,column);
     return &gradient;
+}
+
+
+void neural_replace_tensor_value(
+    TensorValue& target,TensorValue* source,
+    unsigned long long line,unsigned long long column) {
+    if(!source||!source->storage)
+        neural_fail("invalid GPU optimizer result",line,column);
+    if(source->storage->owners==std::numeric_limits<std::size_t>::max())
+        neural_fail("GPU optimizer storage ownership overflow",line,column);
+    ++source->storage->owners;
+    auto* old=target.storage;
+    target.storage=source->storage;
+    target.shape=source->shape;
+    target.strides=source->strides;
+    target.offset=source->offset;
+    tensor_storage_release(old);
+    quidra_tensor_drop(source);
 }
 
 void neural_apply_parameter_delta(
@@ -2034,7 +2889,7 @@ void neural_apply_parameter_delta(
     if(!tensor) neural_fail("invalid neural Parameter",line,column);
     if(delta.size()!=tensor_logical_count(*tensor))
         neural_fail("optimizer update size mismatch",line,column);
-    tensor_detach_for_write(*tensor);
+    tensor_detach_for_write(*tensor, line, column);
     for(std::size_t i=0;i<delta.size();++i){
         const auto storage_index=tensor_storage_index(*tensor,i);
         const auto current=neural_tensor_value(*tensor,i,line,column);
@@ -2152,12 +3007,49 @@ void* neural_normalize_inference(
        input.storage->dtype!=mean->storage->dtype||
        input.storage->dtype!=variance->storage->dtype)
         neural_fail("normalization input and state dtypes must match",line,column);
-    const auto values=neural_normalize_values(
-        tensor_float_values(input,line,column),input.shape,
-        tensor_float_values(*scale,line,column),tensor_float_values(*bias,line,column),
-        tensor_float_values(*mean,line,column),tensor_float_values(*variance,line,column),
-        epsilon,line,column);
-    return neural_tensor_from_values(input.storage->dtype,input.shape,values);
+    neural_require_same_tensor_device(
+        "neural.normalize_inference", input,
+        {scale, bias, mean, variance}, line, column);
+    if(tensor_on_cpu(*input.storage)){
+        const auto values=neural_normalize_values(
+            tensor_float_values(input,line,column),input.shape,
+            tensor_float_values(*scale,line,column),tensor_float_values(*bias,line,column),
+            tensor_float_values(*mean,line,column),tensor_float_values(*variance,line,column),
+            epsilon,line,column);
+        return neural_tensor_from_values(input.storage->dtype,input.shape,values);
+    }
+    tensor_require_initialized(*scale,line,column);
+    tensor_require_initialized(*bias,line,column);
+    tensor_require_initialized(*mean,line,column);
+    tensor_require_initialized(*variance,line,column);
+    const auto count=tensor_logical_count(input);
+    const auto layout=neural_normalize_layout(input.shape,count,line,column);
+    if(tensor_logical_count(*scale)!=layout.features||
+       tensor_logical_count(*bias)!=layout.features||
+       tensor_logical_count(*mean)!=layout.features||
+       tensor_logical_count(*variance)!=layout.features)
+        neural_fail("normalization feature dimensions do not match",line,column);
+
+    TensorStorage* in_mat=nullptr;TensorStorage* s_mat=nullptr;TensorStorage* b_mat=nullptr;TensorStorage* m_mat=nullptr;TensorStorage* v_mat=nullptr;
+    const TensorStorage* in_store=input.storage;const TensorStorage* s_store=scale->storage;const TensorStorage* b_store=bias->storage;const TensorStorage* m_store=mean->storage;const TensorStorage* v_store=variance->storage;
+    if(!tensor_is_contiguous_value(input)||input.offset!=0){in_mat=tensor_gpu_materialize_storage(input,line,column);in_store=in_mat;}
+    if(!tensor_is_contiguous_value(*scale)||scale->offset!=0){s_mat=tensor_gpu_materialize_storage(*scale,line,column);s_store=s_mat;}
+    if(!tensor_is_contiguous_value(*bias)||bias->offset!=0){b_mat=tensor_gpu_materialize_storage(*bias,line,column);b_store=b_mat;}
+    if(!tensor_is_contiguous_value(*mean)||mean->offset!=0){m_mat=tensor_gpu_materialize_storage(*mean,line,column);m_store=m_mat;}
+    if(!tensor_is_contiguous_value(*variance)||variance->offset!=0){v_mat=tensor_gpu_materialize_storage(*variance,line,column);v_store=v_mat;}
+    auto* output=tensor_storage_create(input.storage->dtype,count,1,input.storage->device,line,column);
+    std::string backend_error;
+    const bool ok=quidra::device::compute_normalize_inference(
+        output->gpu_buffer,in_store->gpu_buffer,s_store->gpu_buffer,b_store->gpu_buffer,
+        m_store->gpu_buffer,v_store->gpu_buffer,input.storage->dtype,count,
+        layout.features,layout.inner,epsilon,backend_error);
+    if(in_mat) tensor_storage_release(in_mat);
+    if(s_mat) tensor_storage_release(s_mat);
+    if(b_mat) tensor_storage_release(b_mat);
+    if(m_mat) tensor_storage_release(m_mat);
+    if(v_mat) tensor_storage_release(v_mat);
+    if(!ok){tensor_storage_release(output);neural_fail(backend_error.c_str(),line,column);}
+    return tensor_descriptor(output,input.shape,tensor_contiguous_strides(input.shape),0);
 }
 
 template <typename T>
@@ -2196,8 +3088,8 @@ void* neural_normalize_forward_t(
     if(!running_mean||!running_variance) neural_fail("invalid normalization state",line,column);
     const T momentum=static_cast<T>(neural_object_double_field(receiver,32));
     const T epsilon=static_cast<T>(neural_object_double_field(receiver,40));
-    tensor_detach_for_write(*running_mean);
-    tensor_detach_for_write(*running_variance);
+    tensor_detach_for_write(*running_mean, line, column);
+    tensor_detach_for_write(*running_variance, line, column);
     for(std::size_t feature=0;feature<features;++feature){
         const T old_mean=static_cast<T>(neural_tensor_value(*running_mean,feature,line,column));
         const T old_variance=static_cast<T>(neural_tensor_value(*running_variance,feature,line,column));
@@ -2245,6 +3137,91 @@ void* neural_normalize_training(
        input->dtype!=running_mean->storage->dtype||
        input->dtype!=running_variance->storage->dtype)
         neural_fail("normalization input and state dtypes must match",line,column);
+
+    if(input->device_tensor){
+        if(!scale->device_tensor||!bias->device_tensor)
+            neural_fail("normalization input and Parameter/state tensors must be on the same device",line,column);
+        neural_require_same_tensor_device(
+            "neural.normalize",*input->device_tensor,
+            {scale->device_tensor,bias->device_tensor,running_mean,running_variance},
+            line,column);
+        tensor_require_initialized(*input->device_tensor,line,column);
+        tensor_require_initialized(*scale->device_tensor,line,column);
+        tensor_require_initialized(*bias->device_tensor,line,column);
+        tensor_require_initialized(*running_mean,line,column);
+        tensor_require_initialized(*running_variance,line,column);
+
+        const auto count=tensor_logical_count(*input->device_tensor);
+        const auto layout=neural_normalize_layout(input->shape,count,line,column);
+        if(layout.samples==0)
+            neural_fail("normalization training requires at least one sample per feature",line,column);
+        if(tensor_logical_count(*scale->device_tensor)!=layout.features||
+           tensor_logical_count(*bias->device_tensor)!=layout.features||
+           tensor_logical_count(*running_mean)!=layout.features||
+           tensor_logical_count(*running_variance)!=layout.features)
+            neural_fail("normalization feature dimensions do not match",line,column);
+
+        tensor_detach_for_write(*running_mean,line,column);
+        tensor_detach_for_write(*running_variance,line,column);
+        if(!tensor_is_contiguous_value(*running_mean)||running_mean->offset!=0||
+           !tensor_is_contiguous_value(*running_variance)||running_variance->offset!=0)
+            neural_fail("normalization running state must use contiguous tensor storage",line,column);
+
+        TensorStorage* in_mat=nullptr;
+        TensorStorage* scale_mat=nullptr;
+        TensorStorage* bias_mat=nullptr;
+        const TensorStorage* in_store=input->device_tensor->storage;
+        const TensorStorage* scale_store=scale->device_tensor->storage;
+        const TensorStorage* bias_store=bias->device_tensor->storage;
+        if(!tensor_is_contiguous_value(*input->device_tensor)||input->device_tensor->offset!=0){
+            in_mat=tensor_gpu_materialize_storage(*input->device_tensor,line,column);
+            in_store=in_mat;
+        }
+        if(!tensor_is_contiguous_value(*scale->device_tensor)||scale->device_tensor->offset!=0){
+            scale_mat=tensor_gpu_materialize_storage(*scale->device_tensor,line,column);
+            scale_store=scale_mat;
+        }
+        if(!tensor_is_contiguous_value(*bias->device_tensor)||bias->device_tensor->offset!=0){
+            bias_mat=tensor_gpu_materialize_storage(*bias->device_tensor,line,column);
+            bias_store=bias_mat;
+        }
+
+        auto* output=tensor_storage_create(
+            input->dtype,count,1,input->device_tensor->storage->device,line,column);
+        auto* cache=tensor_storage_create(
+            input->dtype,layout.features*2,1,input->device_tensor->storage->device,line,column);
+        const double momentum=neural_object_double_field(receiver,32);
+        const double epsilon=neural_object_double_field(receiver,40);
+        std::string backend_error;
+        const bool ok=quidra::device::compute_normalize_training(
+            output->gpu_buffer,cache->gpu_buffer,
+            running_mean->storage->gpu_buffer,running_variance->storage->gpu_buffer,
+            in_store->gpu_buffer,scale_store->gpu_buffer,bias_store->gpu_buffer,
+            input->dtype,count,layout.features,layout.inner,layout.samples,
+            momentum,epsilon,backend_error);
+        if(in_mat) tensor_storage_release(in_mat);
+        if(scale_mat) tensor_storage_release(scale_mat);
+        if(bias_mat) tensor_storage_release(bias_mat);
+        if(!ok){
+            tensor_storage_release(output);
+            tensor_storage_release(cache);
+            neural_fail(backend_error.c_str(),line,column);
+        }
+
+        auto node=std::make_shared<NeuralNode>(input->dtype);
+        node->shape=input->shape;
+        node->op=NeuralOp::Normalize;
+        node->parents={input,scale,bias};
+        node->aux_index={layout.samples};
+        node->device_tensor=tensor_descriptor(
+            output,node->shape,tensor_contiguous_strides(node->shape),0);
+        std::vector<long long> cache_shape{
+            2,static_cast<long long>(layout.features)};
+        node->device_aux=tensor_descriptor(
+            cache,cache_shape,tensor_contiguous_strides(cache_shape),0);
+        return neural_descriptor(std::move(node));
+    }
+
     if(input->dtype==10)
         return neural_normalize_forward_t<float>(receiver,input,scale,bias,line,column);
     if(input->dtype==9)
@@ -2283,6 +3260,46 @@ void* neural_random_mask_apply(
     node->shape=input->shape;
     node->parents={input};
     node->op=NeuralOp::RandomMask;
+
+    if(input->device_tensor){
+        if(input->dtype!=9&&input->dtype!=10)
+            neural_fail("invalid random mask dtype",line,column);
+        tensor_require_initialized(*input->device_tensor,line,column);
+        const auto count=tensor_logical_count(*input->device_tensor);
+        TensorStorage* materialized=nullptr;
+        const TensorStorage* source=input->device_tensor->storage;
+        if(!tensor_is_contiguous_value(*input->device_tensor)||input->device_tensor->offset!=0){
+            materialized=tensor_gpu_materialize_storage(*input->device_tensor,line,column);
+            source=materialized;
+        }
+        auto* output=tensor_storage_create(
+            input->dtype,count,1,input->device_tensor->storage->device,line,column);
+        auto* mask=tensor_storage_create(
+            input->dtype,count,1,input->device_tensor->storage->device,line,column);
+        const double scale=rate==0.0?1.0:1.0/(1.0-rate);
+        const auto cutoff=rate==0.0
+            ? std::uint64_t{0}
+            : static_cast<std::uint64_t>(std::ceil(std::ldexp(rate,53)));
+        std::string backend_error;
+        const bool ok=quidra::device::compute_random_mask(
+            output->gpu_buffer,mask->gpu_buffer,source->gpu_buffer,
+            input->dtype,count,state,cutoff,scale,backend_error);
+        if(materialized) tensor_storage_release(materialized);
+        if(!ok){
+            tensor_storage_release(output);
+            tensor_storage_release(mask);
+            neural_fail(backend_error.c_str(),line,column);
+        }
+        if(rate>0.0)
+            state+=static_cast<std::uint64_t>(count)*0x9e3779b97f4a7c15ULL;
+        neural_set_state_u64(rng_state,state);
+        node->device_tensor=tensor_descriptor(
+            output,node->shape,tensor_contiguous_strides(node->shape),0);
+        node->device_aux=tensor_descriptor(
+            mask,node->shape,tensor_contiguous_strides(node->shape),0);
+        return neural_descriptor(std::move(node));
+    }
+
     node->data.resize(input->data.size());
     node->aux.resize(input->data.size());
     if(input->dtype==10){
@@ -2423,12 +3440,65 @@ extern "C" void* quidra_neural_tensor_convolve2d(
     if(!weight||!bias) neural_fail("null convolution Parameter",line,column);
     if(input.storage->dtype!=weight->storage->dtype||input.storage->dtype!=bias->storage->dtype)
         neural_fail("convolution input and Parameter dtypes must match",line,column);
-    std::vector<long long> output_shape;
-    const auto values=neural_conv2d_values(
-        tensor_float_values(input,line,column),input.shape,
-        tensor_float_values(*weight,line,column),weight->shape,
-        tensor_float_values(*bias,line,column),stride,padding,output_shape,line,column);
-    return neural_tensor_from_values(input.storage->dtype,output_shape,values);
+    neural_require_same_tensor_device(
+        "neural.convolve2d", input, {weight, bias}, line, column);
+    if(tensor_on_cpu(*input.storage)){
+        std::vector<long long> output_shape;
+        const auto values=neural_conv2d_values(
+            tensor_float_values(input,line,column),input.shape,
+            tensor_float_values(*weight,line,column),weight->shape,
+            tensor_float_values(*bias,line,column),stride,padding,output_shape,line,column);
+        return neural_tensor_from_values(input.storage->dtype,output_shape,values);
+    }
+    tensor_require_initialized(*weight,line,column);
+    tensor_require_initialized(*bias,line,column);
+    if(input.shape.size()!=4||weight->shape.size()!=4)
+        neural_fail("convolution requires NCHW rank-4 input and OIHW rank-4 weight",line,column);
+    if(stride<=0||padding<0)
+        neural_fail("convolution requires stride > 0 and padding >= 0",line,column);
+    const auto n=input.shape[0],in_c=input.shape[1],height=input.shape[2],width=input.shape[3];
+    const auto out_c=weight->shape[0],weight_in=weight->shape[1],kh=weight->shape[2],kw=weight->shape[3];
+    if(n<0||in_c<=0||height<0||width<0||out_c<=0||weight_in!=in_c||kh<=0||kw<=0||kh!=kw||
+       static_cast<long long>(tensor_logical_count(*bias))!=out_c)
+        neural_fail("convolution dimensions do not match",line,column);
+    if(padding>(std::numeric_limits<long long>::max()-height)/2||
+       padding>(std::numeric_limits<long long>::max()-width)/2)
+        neural_fail("convolution padded shape overflow",line,column);
+    const auto padded_h=height+2*padding,padded_w=width+2*padding;
+    if(padded_h<kh||padded_w<kw)
+        neural_fail("convolution kernel is larger than padded input",line,column);
+    const auto out_h=(padded_h-kh)/stride+1;
+    const auto out_w=(padded_w-kw)/stride+1;
+    std::vector<long long> output_shape{n,out_c,out_h,out_w};
+    const auto safe_mul=[&](std::size_t a,std::size_t b){
+        if(a!=0&&b>std::numeric_limits<std::size_t>::max()/a)
+            neural_fail("convolution output size overflow",line,column);
+        return a*b;
+    };
+    auto output_count=safe_mul(static_cast<std::size_t>(n),static_cast<std::size_t>(out_c));
+    output_count=safe_mul(output_count,static_cast<std::size_t>(out_h));
+    output_count=safe_mul(output_count,static_cast<std::size_t>(out_w));
+
+    TensorStorage* in_mat=nullptr; TensorStorage* w_mat=nullptr; TensorStorage* b_mat=nullptr;
+    const TensorStorage* in_store=input.storage; const TensorStorage* w_store=weight->storage; const TensorStorage* b_store=bias->storage;
+    if(!tensor_is_contiguous_value(input)||input.offset!=0){in_mat=tensor_gpu_materialize_storage(input,line,column);in_store=in_mat;}
+    if(!tensor_is_contiguous_value(*weight)||weight->offset!=0){w_mat=tensor_gpu_materialize_storage(*weight,line,column);w_store=w_mat;}
+    if(!tensor_is_contiguous_value(*bias)||bias->offset!=0){b_mat=tensor_gpu_materialize_storage(*bias,line,column);b_store=b_mat;}
+
+    auto* output=tensor_storage_create(input.storage->dtype,output_count,1,input.storage->device,line,column);
+    std::string backend_error;
+    const bool ok=quidra::device::compute_conv2d(
+        output->gpu_buffer,in_store->gpu_buffer,w_store->gpu_buffer,b_store->gpu_buffer,
+        input.storage->dtype,static_cast<std::size_t>(n),static_cast<std::size_t>(in_c),
+        static_cast<std::size_t>(height),static_cast<std::size_t>(width),
+        static_cast<std::size_t>(out_c),static_cast<std::size_t>(kh),static_cast<std::size_t>(kw),
+        static_cast<std::size_t>(out_h),static_cast<std::size_t>(out_w),
+        static_cast<std::size_t>(stride),static_cast<std::size_t>(padding),backend_error);
+    if(in_mat) tensor_storage_release(in_mat);
+    if(w_mat) tensor_storage_release(w_mat);
+    if(b_mat) tensor_storage_release(b_mat);
+    if(!ok){tensor_storage_release(output);neural_fail(backend_error.c_str(),line,column);}
+    return tensor_descriptor(output,output_shape,tensor_contiguous_strides(output_shape),0);
 }
 
 extern "C" void* quidra_neural_convolve2d(
@@ -2442,9 +3512,18 @@ extern "C" void* quidra_neural_convolve2d(
         neural_fail("convolution input and Parameter dtypes must match",line,column);
     auto node=std::make_shared<NeuralNode>(input->dtype);
     node->dtype=input->dtype;
-    node->data=neural_conv2d_values(
-        input->data,input->shape,weight->data,weight->shape,bias->data,
-        stride,padding,node->shape,line,column);
+    if(input->device_tensor){
+        node->device_tensor=static_cast<TensorValue*>(
+            quidra_neural_tensor_convolve2d(
+                input->device_tensor,weight_raw,bias_raw,stride,padding,line,column));
+        if(!node->device_tensor)
+            neural_fail("GPU neural convolution returned null",line,column);
+        node->shape=node->device_tensor->shape;
+    }else{
+        node->data=neural_conv2d_values(
+            input->data,input->shape,weight->data,weight->shape,bias->data,
+            stride,padding,node->shape,line,column);
+    }
     node->op=NeuralOp::Convolution;
     node->parents={input,weight,bias};
     node->aux_index={
@@ -2466,14 +3545,48 @@ extern "C" void* quidra_neural_tensor_affine(
        input.storage->dtype!=bias->storage->dtype) {
         neural_fail("affine input and Parameter dtypes must match",line,column);
     }
-    const auto input_values=tensor_float_values(input,line,column);
-    const auto weight_values=tensor_float_values(*weight,line,column);
-    const auto bias_values=tensor_float_values(*bias,line,column);
-    auto output_values=neural_affine_values(
-        input_values,input.shape,weight_values,weight->shape,bias_values,line,column);
-    auto shape=input.shape;
-    shape.back()=weight->shape[0];
-    return neural_tensor_from_values(input.storage->dtype,shape,output_values);
+    neural_require_same_tensor_device(
+        "neural.affine", input, {weight, bias}, line, column);
+    if(tensor_on_cpu(*input.storage)){
+        const auto input_values=tensor_float_values(input,line,column);
+        const auto weight_values=tensor_float_values(*weight,line,column);
+        const auto bias_values=tensor_float_values(*bias,line,column);
+        auto output_values=neural_affine_values(
+            input_values,input.shape,weight_values,weight->shape,bias_values,line,column);
+        auto shape=input.shape;
+        shape.back()=weight->shape[0];
+        return neural_tensor_from_values(input.storage->dtype,shape,output_values);
+    }
+    tensor_require_initialized(*weight,line,column);
+    tensor_require_initialized(*bias,line,column);
+    if(input.shape.empty()||weight->shape.size()!=2)
+        neural_fail("affine requires input rank >= 1 and rank-2 weight",line,column);
+    const auto features_in=static_cast<std::size_t>(weight->shape[1]);
+    const auto features_out=static_cast<std::size_t>(weight->shape[0]);
+    if(input.shape.back()!=weight->shape[1]||
+       tensor_logical_count(*bias)!=features_out)
+        neural_fail("affine dimensions do not match",line,column);
+    const auto input_count=tensor_logical_count(input);
+    const auto batches=features_in==0?0:input_count/features_in;
+
+    TensorStorage* in_mat=nullptr; TensorStorage* w_mat=nullptr; TensorStorage* b_mat=nullptr;
+    const TensorStorage* in_store=input.storage; const TensorStorage* w_store=weight->storage; const TensorStorage* b_store=bias->storage;
+    if(!tensor_is_contiguous_value(input)||input.offset!=0){in_mat=tensor_gpu_materialize_storage(input,line,column);in_store=in_mat;}
+    if(!tensor_is_contiguous_value(*weight)||weight->offset!=0){w_mat=tensor_gpu_materialize_storage(*weight,line,column);w_store=w_mat;}
+    if(!tensor_is_contiguous_value(*bias)||bias->offset!=0){b_mat=tensor_gpu_materialize_storage(*bias,line,column);b_store=b_mat;}
+
+    auto shape=input.shape; shape.back()=weight->shape[0];
+    const auto output_count=batches*features_out;
+    auto* output=tensor_storage_create(input.storage->dtype,output_count,1,input.storage->device,line,column);
+    std::string backend_error;
+    const bool ok=quidra::device::compute_affine(
+        output->gpu_buffer,in_store->gpu_buffer,w_store->gpu_buffer,b_store->gpu_buffer,
+        input.storage->dtype,batches,features_in,features_out,backend_error);
+    if(in_mat) tensor_storage_release(in_mat);
+    if(w_mat) tensor_storage_release(w_mat);
+    if(b_mat) tensor_storage_release(b_mat);
+    if(!ok){tensor_storage_release(output);neural_fail(backend_error.c_str(),line,column);}
+    return tensor_descriptor(output,shape,tensor_contiguous_strides(shape),0);
 }
 
 extern "C" void* quidra_neural_affine(
@@ -2491,8 +3604,16 @@ extern "C" void* quidra_neural_affine(
     node->shape=input->shape;
     if(node->shape.empty())neural_fail("affine requires input rank >= 1",line,column);
     node->shape.back()=weight->shape[0];
-    node->data=neural_affine_values(
-        input->data,input->shape,weight->data,weight->shape,bias->data,line,column);
+    if(input->device_tensor){
+        node->device_tensor=static_cast<TensorValue*>(
+            quidra_neural_tensor_affine(
+                input->device_tensor,weight_raw,bias_raw,line,column));
+        if(!node->device_tensor)
+            neural_fail("GPU neural affine returned null",line,column);
+    }else{
+        node->data=neural_affine_values(
+            input->data,input->shape,weight->data,weight->shape,bias->data,line,column);
+    }
     node->op=NeuralOp::Affine;
     node->parents={input,weight,bias};
     return neural_descriptor(std::move(node));
@@ -2509,13 +3630,11 @@ bool neural_update_parameter_t(
     unsigned long long line,unsigned long long column) {
     auto* tensor=neural_parameter_tensor(parameter);
     if(!tensor) neural_fail("invalid neural Parameter",line,column);
-    if(tensor->storage->dtype!=gradient.dtype)
-        neural_fail("gradient and Parameter dtype mismatch",line,column);
     const auto& values=gradient.data.typed<T>();
     if(values.size()!=tensor_logical_count(*tensor))
         neural_fail("optimizer update size mismatch",line,column);
     const T rate=static_cast<T>(rate_raw);
-    tensor_detach_for_write(*tensor);
+    tensor_detach_for_write(*tensor, line, column);
     for(std::size_t i=0;i<values.size();++i){
         const auto storage_index=tensor_storage_index(*tensor,i);
         const T current=static_cast<T>(neural_tensor_value(*tensor,i,line,column));
@@ -2535,6 +3654,28 @@ extern "C" bool quidra_neural_update_parameter(
     const auto* gradient=neural_gradient_for_parameter(
         parameter,gradients_raw,line,column);
     if(!gradient) return false;
+    if(gradient->device_tensor){
+        auto* tensor=neural_parameter_tensor(parameter);
+        if(!tensor) neural_fail("invalid neural Parameter",line,column);
+        void* scaled_raw=nullptr;
+        if(gradient->dtype==10){
+            float scalar=static_cast<float>(rate);
+            scaled_raw=quidra_tensor_binary(
+                gradient->device_tensor,nullptr,&scalar,2,3,line,column);
+        }else if(gradient->dtype==9){
+            double scalar=rate;
+            scaled_raw=quidra_tensor_binary(
+                gradient->device_tensor,nullptr,&scalar,2,3,line,column);
+        }else{
+            neural_fail("invalid neural gradient dtype",line,column);
+        }
+        auto* scaled=static_cast<TensorValue*>(scaled_raw);
+        auto* next=static_cast<TensorValue*>(
+            quidra_tensor_binary(tensor,scaled,nullptr,0,2,line,column));
+        quidra_tensor_drop(scaled);
+        neural_replace_tensor_value(*tensor,next,line,column);
+        return true;
+    }
     if(gradient->dtype==10)
         return neural_update_parameter_t<float>(parameter,*gradient,rate,line,column);
     if(gradient->dtype==9)
@@ -2623,8 +3764,19 @@ extern "C" bool quidra_neural_moment_update_parameter(
     if(!tensor) neural_fail("invalid neural Parameter",line,column);
     auto* moments_state=neural_object_pointer_field(optimizer,40);
     if(!moments_state) neural_fail("invalid moment update moments State",line,column);
-    auto records=neural_decode_moments(
-        neural_object_pointer_field(moments_state,0),line,column);
+    auto* moments_raw=neural_object_pointer_field(moments_state,0);
+    const auto* gradient=neural_gradient_for_parameter(parameter,gradients_raw,line,column);
+
+    const auto moment_key=reinterpret_cast<std::uintptr_t>(moments_raw);
+    const bool cached=neural_moment_device_caches.contains(moment_key);
+    if(cached &&
+       (neural_managed_owner_count(moments_raw)>1 ||
+        (gradient && !gradient->device_tensor))){
+        neural_sync_moment_cache_to_host(moments_raw,line,column);
+        neural_moment_device_caches.erase(moment_key);
+    }
+
+    auto records=neural_decode_moments(moments_raw,line,column);
     if(index>records.size()) neural_fail("moment update Parameter traversal changed",line,column);
     const auto logical_count=tensor_logical_count(*tensor);
     if(index==records.size()){
@@ -2643,7 +3795,6 @@ extern "C" bool quidra_neural_moment_update_parameter(
        record.first.size()!=logical_count||record.second.size()!=logical_count)
         neural_fail("moment update state does not match Parameter dtype/shape",line,column);
 
-    const auto* gradient=neural_gradient_for_parameter(parameter,gradients_raw,line,column);
     bool matched=gradient!=nullptr;
     if(matched){
         if(record.step==std::numeric_limits<std::uint64_t>::max())
@@ -2657,16 +3808,112 @@ extern "C" bool quidra_neural_moment_update_parameter(
         const double correction2=1.0-std::pow(beta2,static_cast<double>(record.step));
         if(correction1<=0.0||correction2<=0.0)
             neural_fail("invalid moment update bias correction",line,column);
-        std::vector<double> delta(logical_count);
-        for(std::size_t i=0;i<logical_count;++i){
-            const double g=gradient->data.scalar_as_double(i);
-            record.first[i]=beta1*record.first[i]+(1.0-beta1)*g;
-            record.second[i]=beta2*record.second[i]+(1.0-beta2)*g*g;
-            const double mhat=record.first[i]/correction1;
-            const double vhat=record.second[i]/correction2;
-            delta[i]=rate*mhat/(std::sqrt(vhat)+epsilon);
+
+        if(gradient->device_tensor){
+            if(!tensor_is_contiguous_value(*tensor)||tensor->offset!=0){
+                auto* dense_storage=tensor_gpu_materialize_storage(*tensor,line,column);
+                auto* dense=tensor_descriptor(
+                    dense_storage,tensor->shape,tensor_contiguous_strides(tensor->shape),0);
+                neural_replace_tensor_value(*tensor,dense,line,column);
+            }
+            tensor_detach_for_write(*tensor,line,column);
+
+            TensorStorage* gradient_mat=nullptr;
+            const TensorStorage* gradient_store=gradient->device_tensor->storage;
+            if(!tensor_is_contiguous_value(*gradient->device_tensor)||
+               gradient->device_tensor->offset!=0){
+                gradient_mat=tensor_gpu_materialize_storage(
+                    *gradient->device_tensor,line,column);
+                gradient_store=gradient_mat;
+            }
+            const auto bytes=tensor_dtype_bytes(tensor->storage->dtype);
+            if(logical_count!=0&&bytes>std::numeric_limits<std::size_t>::max()/logical_count){
+                if(gradient_mat) tensor_storage_release(gradient_mat);
+                neural_fail("moment update buffer size overflow",line,column);
+            }
+            const auto buffer_bytes=logical_count*bytes;
+            std::string backend_error;
+            bool ok=false;
+
+            auto* cached_record=neural_moment_device_record(
+                moments_raw,static_cast<std::size_t>(index),record,*tensor,line,column);
+            if(cached_record){
+                ok=quidra::device::compute_moment_update(
+                    tensor->storage->gpu_buffer,gradient_store->gpu_buffer,
+                    cached_record->first,cached_record->second,
+                    tensor->storage->dtype,logical_count,
+                    rate,beta1,beta2,epsilon,correction1,correction2,backend_error);
+            }else{
+                std::unique_ptr<quidra::device::Buffer,void(*)(quidra::device::Buffer*)> first_buffer(
+                    quidra::device::allocate(tensor->storage->device,buffer_bytes,backend_error),
+                    [](quidra::device::Buffer* value){quidra::device::release(value);});
+                if(!first_buffer){
+                    if(gradient_mat) tensor_storage_release(gradient_mat);
+                    neural_fail(backend_error.c_str(),line,column);
+                }
+                std::unique_ptr<quidra::device::Buffer,void(*)(quidra::device::Buffer*)> second_buffer(
+                    quidra::device::allocate(tensor->storage->device,buffer_bytes,backend_error),
+                    [](quidra::device::Buffer* value){quidra::device::release(value);});
+                if(!second_buffer){
+                    if(gradient_mat) tensor_storage_release(gradient_mat);
+                    neural_fail(backend_error.c_str(),line,column);
+                }
+
+                if(tensor->storage->dtype==10){
+                    std::vector<float> first(logical_count),second(logical_count);
+                    for(std::size_t i=0;i<logical_count;++i){
+                        first[i]=static_cast<float>(record.first[i]);
+                        second[i]=static_cast<float>(record.second[i]);
+                    }
+                    ok=quidra::device::copy_from_host(
+                           first_buffer.get(),0,first.data(),buffer_bytes,backend_error)&&
+                       quidra::device::copy_from_host(
+                           second_buffer.get(),0,second.data(),buffer_bytes,backend_error)&&
+                       quidra::device::compute_moment_update(
+                           tensor->storage->gpu_buffer,gradient_store->gpu_buffer,
+                           first_buffer.get(),second_buffer.get(),10,logical_count,
+                           rate,beta1,beta2,epsilon,correction1,correction2,backend_error)&&
+                       quidra::device::copy_to_host(
+                           first_buffer.get(),0,first.data(),buffer_bytes,backend_error)&&
+                       quidra::device::copy_to_host(
+                           second_buffer.get(),0,second.data(),buffer_bytes,backend_error);
+                    if(ok)
+                        for(std::size_t i=0;i<logical_count;++i){
+                            record.first[i]=static_cast<double>(first[i]);
+                            record.second[i]=static_cast<double>(second[i]);
+                        }
+                }else if(tensor->storage->dtype==9){
+                    ok=quidra::device::copy_from_host(
+                           first_buffer.get(),0,record.first.data(),buffer_bytes,backend_error)&&
+                       quidra::device::copy_from_host(
+                           second_buffer.get(),0,record.second.data(),buffer_bytes,backend_error)&&
+                       quidra::device::compute_moment_update(
+                           tensor->storage->gpu_buffer,gradient_store->gpu_buffer,
+                           first_buffer.get(),second_buffer.get(),9,logical_count,
+                           rate,beta1,beta2,epsilon,correction1,correction2,backend_error)&&
+                       quidra::device::copy_to_host(
+                           first_buffer.get(),0,record.first.data(),buffer_bytes,backend_error)&&
+                       quidra::device::copy_to_host(
+                           second_buffer.get(),0,record.second.data(),buffer_bytes,backend_error);
+                }else{
+                    if(gradient_mat) tensor_storage_release(gradient_mat);
+                    neural_fail("invalid neural gradient dtype",line,column);
+                }
+            }
+            if(gradient_mat) tensor_storage_release(gradient_mat);
+            if(!ok) neural_fail(backend_error.c_str(),line,column);
+        }else{
+            std::vector<double> delta(logical_count);
+            for(std::size_t i=0;i<logical_count;++i){
+                const double g=gradient->data.scalar_as_double(i);
+                record.first[i]=beta1*record.first[i]+(1.0-beta1)*g;
+                record.second[i]=beta2*record.second[i]+(1.0-beta2)*g*g;
+                const double mhat=record.first[i]/correction1;
+                const double vhat=record.second[i]/correction2;
+                delta[i]=rate*mhat/(std::sqrt(vhat)+epsilon);
+            }
+            neural_apply_parameter_delta(parameter,delta,line,column);
         }
-        neural_apply_parameter_delta(parameter,delta,line,column);
     }
     auto* encoded=neural_encode_moments(records,line,column);
     neural_replace_moments(optimizer,encoded);
@@ -2817,6 +4064,7 @@ void neural_state_expect_path(
 void neural_state_write_tensor(
     NeuralStateContext& context,TensorValue& tensor,
     unsigned long long line,unsigned long long column) {
+    tensor_require_cpu(*tensor.storage, "neural.save", line, column);
     tensor_require_initialized(tensor,line,column);
     neural_state_append_u32(
         context.data,static_cast<std::uint32_t>(tensor.storage->dtype));
@@ -2877,7 +4125,7 @@ void neural_state_read_tensor(
         return;
     }
 
-    tensor_detach_for_write(*tensor);
+    tensor_detach_for_write(*tensor, line, column);
     for(std::size_t i=0;i<static_cast<std::size_t>(count);++i){
         const auto index=tensor_storage_index(*tensor,i);
         neural_state_read_raw(
@@ -3005,6 +4253,7 @@ extern "C" void quidra_neural_state_write(
     }
     if(kind==13){
         if(!raw) neural_state_fail("null bytes in .quistate",line,column);
+        neural_sync_moment_cache_to_host(raw,line,column);
         std::int64_t signed_length{};
         std::memcpy(&signed_length,raw,8);
         if(signed_length<0) neural_state_fail("invalid bytes length in .quistate",line,column);
@@ -3171,6 +4420,35 @@ extern "C" void* quidra_neural_untrack(void* raw) {
     if(!raw)runtime_text_failure("null neural value");
     return neural_tensor_from_node(*static_cast<NeuralValue*>(raw)->node);
 }
+extern "C" void* quidra_neural_cast(
+    void* raw,int target_dtype,
+    unsigned long long line,unsigned long long column) {
+    if(!raw) neural_fail("null neural value",line,column);
+    if(target_dtype!=9&&target_dtype!=10)
+        neural_fail("neural cast target must be float32 or float",line,column);
+    auto root=static_cast<NeuralValue*>(raw)->node;
+    return neural_descriptor(neural_cast_graph(root,target_dtype));
+}
+extern "C" void quidra_neural_rank_check(
+    void* raw,long long expected_rank,
+    unsigned long long line,unsigned long long column) {
+    if(!raw) neural_fail("null neural value",line,column);
+    const auto& shape=static_cast<NeuralValue*>(raw)->node->shape;
+    if(expected_rank<0 || shape.size()!=static_cast<std::size_t>(expected_rank))
+        neural_fail("neural rank does not satisfy captured shape constraint",line,column);
+}
+extern "C" void quidra_neural_extent_check(
+    void* raw,long long axis,long long expected,
+    unsigned long long line,unsigned long long column) {
+    if(!raw) neural_fail("null neural value",line,column);
+    const auto& shape=static_cast<NeuralValue*>(raw)->node->shape;
+    if(axis<0 || static_cast<std::size_t>(axis)>=shape.size())
+        neural_fail("neural shape axis is outside rank",line,column);
+    if(expected<0)
+        neural_fail("captured neural extent cannot be negative",line,column);
+    if(shape[static_cast<std::size_t>(axis)]!=expected)
+        neural_fail("neural extent does not satisfy captured shape constraint",line,column);
+}
 extern "C" void* quidra_neural_clone(void* raw) {
     if(!raw)return nullptr;
     return neural_descriptor(static_cast<NeuralValue*>(raw)->node);
@@ -3191,9 +4469,67 @@ extern "C" void* quidra_neural_unary(void* raw,int op,unsigned long long line,un
 }
 extern "C" void* quidra_neural_tensor_unary(void* raw,int op,unsigned long long line,unsigned long long column) {
     if(!raw)neural_fail("null tensor",line,column);
-    auto node=neural_constant_node(*static_cast<TensorValue*>(raw),line,column);
-    auto transformed=neural_unary_node(node,op,line,column);
-    return neural_tensor_from_node(*transformed);
+    auto& input=*static_cast<TensorValue*>(raw);
+    if (tensor_on_cpu(*input.storage)) {
+        auto node=neural_constant_node(input,line,column);
+        auto transformed=neural_unary_node(node,op,line,column);
+        return neural_tensor_from_node(*transformed);
+    }
+    tensor_require_initialized(input,line,column);
+    if(input.storage->dtype!=9&&input.storage->dtype!=10)
+        neural_fail("neural values require float32 or float tensors",line,column);
+
+    TensorStorage* materialized=nullptr;
+    const TensorStorage* source=input.storage;
+    std::size_t source_offset=input.offset*tensor_dtype_bytes(input.storage->dtype);
+    if(!tensor_is_contiguous_value(input)){
+        materialized=tensor_gpu_materialize_storage(input,line,column);
+        source=materialized;
+        source_offset=0;
+    }
+
+    std::vector<long long> output_shape=input.shape;
+    std::size_t output_count=tensor_logical_count(input);
+    if(op==4){
+        output_shape.clear();
+        output_count=1;
+    }
+    auto* output=tensor_storage_create(
+        input.storage->dtype,output_count,1,input.storage->device,line,column);
+    std::string backend_error;
+    bool ok=false;
+    if(op>=1&&op<=3){
+        const int compute_op=op==1?2:op==2?3:4;
+        ok=quidra::device::compute_unary(
+            output->gpu_buffer,source->gpu_buffer,source_offset,
+            input.storage->dtype,compute_op,tensor_logical_count(input),backend_error);
+    }else if(op==4){
+        ok=quidra::device::compute_mean_to(
+            output->gpu_buffer,source->gpu_buffer,input.storage->dtype,
+            tensor_logical_count(input),backend_error);
+    }else if(op==5||op==6){
+        if(input.shape.empty()||input.shape.back()<=0){
+            if(materialized)tensor_storage_release(materialized);
+            tensor_storage_release(output);
+            neural_fail("last-axis reduction requires a non-empty last axis",line,column);
+        }
+        ok=quidra::device::compute_last_reduce_broadcast(
+            output->gpu_buffer,source->gpu_buffer,input.storage->dtype,
+            tensor_logical_count(input),static_cast<std::size_t>(input.shape.back()),
+            op==5?1:2,backend_error);
+    }else{
+        if(materialized)tensor_storage_release(materialized);
+        tensor_storage_release(output);
+        neural_fail("unknown neural unary operation",line,column);
+    }
+    if(materialized)tensor_storage_release(materialized);
+    if(!ok){
+        tensor_storage_release(output);
+        neural_fail(backend_error.c_str(),line,column);
+    }
+    auto output_strides=tensor_contiguous_strides(output_shape);
+    return tensor_descriptor(
+        output,std::move(output_shape),std::move(output_strides),0);
 }
 template <typename T>
 void* neural_binary_t(
@@ -3225,6 +4561,18 @@ extern "C" void* quidra_neural_binary(void* left_raw,void* right_raw,int op,
     const auto left=static_cast<NeuralValue*>(left_raw)->node;
     const auto right=static_cast<NeuralValue*>(right_raw)->node;
     neural_require_same_shape(*left,*right,line,column);
+    if(left->device_tensor){
+        auto node=std::make_shared<NeuralNode>(left->dtype);
+        node->shape=left->shape;
+        node->parents={left,right};
+        node->op=op==1?NeuralOp::Add:op==2?NeuralOp::Sub:op==3?NeuralOp::Mul:NeuralOp::Div;
+        node->device_tensor=static_cast<TensorValue*>(
+            quidra_tensor_binary(
+                left->device_tensor,right->device_tensor,nullptr,0,op,line,column));
+        if(!node->device_tensor)
+            neural_fail("GPU neural binary operation returned null",line,column);
+        return neural_descriptor(std::move(node));
+    }
     if(left->dtype==10) return neural_binary_t<float>(left,right,op,line,column);
     if(left->dtype==9) return neural_binary_t<double>(left,right,op,line,column);
     neural_fail("invalid neural binary dtype",line,column);
@@ -3237,9 +4585,421 @@ extern "C" void* quidra_neural_binary_scalar(
     auto input=static_cast<NeuralValue*>(raw)->node;
     auto constant=std::make_shared<NeuralNode>(input->dtype);
     constant->shape=input->shape;
-    constant->data.assign(input->data.size(),scalar);
+    if(input->device_tensor){
+        void* zero_tensor=nullptr;
+        void* constant_tensor=nullptr;
+        if(input->dtype==10){
+            const float zero=0.0F;
+            const float value=static_cast<float>(scalar);
+            zero_tensor=quidra_tensor_binary(
+                input->device_tensor,nullptr,const_cast<float*>(&zero),2,3,line,column);
+            constant_tensor=quidra_tensor_binary(
+                zero_tensor,nullptr,const_cast<float*>(&value),2,1,line,column);
+        }else if(input->dtype==9){
+            const double zero=0.0;
+            const double value=scalar;
+            zero_tensor=quidra_tensor_binary(
+                input->device_tensor,nullptr,const_cast<double*>(&zero),2,3,line,column);
+            constant_tensor=quidra_tensor_binary(
+                zero_tensor,nullptr,const_cast<double*>(&value),2,1,line,column);
+        }else{
+            neural_fail("invalid neural scalar dtype",line,column);
+        }
+        quidra_tensor_drop(zero_tensor);
+        constant->device_tensor=static_cast<TensorValue*>(constant_tensor);
+        if(!constant->device_tensor)
+            neural_fail("GPU neural scalar materialization returned null",line,column);
+    }else{
+        constant->data.assign(input->data.size(),scalar);
+    }
     NeuralValue a{scalar_left?constant:input},b{scalar_left?input:constant};
     return quidra_neural_binary(&a,&b,op,line,column);
+}
+
+
+TensorValue* neural_device_dense_clone(
+    const TensorValue& value,unsigned long long line,unsigned long long column) {
+    if(tensor_on_cpu(*value.storage))
+        neural_fail("internal neural GPU path received a CPU tensor",line,column);
+    if(tensor_is_contiguous_value(value)&&value.offset==0)
+        return static_cast<TensorValue*>(
+            quidra_tensor_clone(const_cast<TensorValue*>(&value)));
+    auto* storage=tensor_gpu_materialize_storage(value,line,column);
+    auto strides=tensor_contiguous_strides(value.shape);
+    return tensor_descriptor(storage,value.shape,std::move(strides),0);
+}
+
+TensorValue* neural_device_binary_tensor(
+    TensorValue* left,TensorValue* right,int operation,
+    unsigned long long line,unsigned long long column) {
+    return static_cast<TensorValue*>(
+        quidra_tensor_binary(left,right,nullptr,0,operation,line,column));
+}
+
+TensorValue* neural_device_negate_tensor(
+    TensorValue* input,unsigned long long line,unsigned long long column) {
+    return static_cast<TensorValue*>(
+        quidra_tensor_unary(input,1,line,column));
+}
+
+void neural_add_device_gradient(
+    std::unordered_map<const NeuralNode*,TensorValue*>& gradients,
+    const std::shared_ptr<NeuralNode>& node,TensorValue* value,
+    unsigned long long line,unsigned long long column) {
+    if(!value) neural_fail("null GPU neural gradient",line,column);
+    const auto found=gradients.find(node.get());
+    if(found==gradients.end()){
+        gradients.emplace(node.get(),value);
+        return;
+    }
+    auto* combined=neural_device_binary_tensor(
+        found->second,value,1,line,column);
+    quidra_tensor_drop(found->second);
+    quidra_tensor_drop(value);
+    found->second=combined;
+}
+
+TensorValue* neural_device_filled_like(
+    const NeuralNode& node,bool ones,
+    unsigned long long line,unsigned long long column) {
+    if(!node.device_tensor)
+        neural_fail("internal neural GPU fill requires a device tensor",line,column);
+    const auto count=tensor_logical_count(*node.device_tensor);
+    auto* storage=tensor_storage_create(
+        node.dtype,count,ones?2:1,node.device_tensor->storage->device,line,column);
+    auto strides=tensor_contiguous_strides(node.shape);
+    return tensor_descriptor(storage,node.shape,std::move(strides),0);
+}
+
+void neural_store_device_parameter_gradient(
+    NeuralGradientData& output,const NeuralNode& node,TensorValue* gradient,
+    unsigned long long line,unsigned long long column) {
+    auto [it,inserted]=output.values.try_emplace(node.parameter_id,node.dtype);
+    auto& destination=it->second;
+    if(!inserted&&destination.dtype!=node.dtype)
+        neural_fail("gradient dtype mismatch",line,column);
+    destination.shape=node.shape;
+    if(!destination.device_tensor){
+        destination.device_tensor=static_cast<TensorValue*>(
+            quidra_tensor_clone(gradient));
+        return;
+    }
+    auto* combined=neural_device_binary_tensor(
+        destination.device_tensor,gradient,1,line,column);
+    quidra_tensor_drop(destination.device_tensor);
+    destination.device_tensor=combined;
+}
+
+void* neural_grad_device(
+    const std::shared_ptr<NeuralNode>& loss,
+    unsigned long long line,unsigned long long column) {
+    std::unordered_set<const NeuralNode*> seen;
+    std::vector<std::shared_ptr<NeuralNode>> order;
+    neural_topological(loss,seen,order);
+
+    if(!loss->device_tensor||tensor_logical_count(*loss->device_tensor)!=1)
+        neural_fail("grad requires a scalar GPU loss",line,column);
+
+    std::unordered_map<const NeuralNode*,TensorValue*> gradients;
+    auto* initial=neural_device_filled_like(*loss,true,line,column);
+    gradients.emplace(loss.get(),initial);
+    auto output=std::make_shared<NeuralGradientData>();
+
+    for(auto it=order.rbegin();it!=order.rend();++it){
+        const auto& node=*it;
+        if(node->dtype!=loss->dtype)
+            neural_fail("autograd graph contains mixed dtypes",line,column);
+        const auto found=gradients.find(node.get());
+        if(found==gradients.end()) continue;
+        auto* g=found->second;
+
+        if(node->parameter_id)
+            neural_store_device_parameter_gradient(
+                *output,*node,g,line,column);
+
+        if(node->parents.empty()) continue;
+
+        if(node->op==NeuralOp::Add||node->op==NeuralOp::Sub||
+           node->op==NeuralOp::Mul||node->op==NeuralOp::Div){
+            if(node->parents.size()!=2 ||
+               !node->parents[0]->device_tensor ||
+               !node->parents[1]->device_tensor)
+                neural_fail("invalid GPU neural binary graph",line,column);
+            auto* a=node->parents[0]->device_tensor;
+            auto* b=node->parents[1]->device_tensor;
+            TensorValue* left_gradient=nullptr;
+            TensorValue* right_gradient=nullptr;
+            if(node->op==NeuralOp::Add){
+                left_gradient=static_cast<TensorValue*>(quidra_tensor_clone(g));
+                right_gradient=static_cast<TensorValue*>(quidra_tensor_clone(g));
+            }else if(node->op==NeuralOp::Sub){
+                left_gradient=static_cast<TensorValue*>(quidra_tensor_clone(g));
+                right_gradient=neural_device_negate_tensor(g,line,column);
+            }else if(node->op==NeuralOp::Mul){
+                left_gradient=neural_device_binary_tensor(g,b,3,line,column);
+                right_gradient=neural_device_binary_tensor(g,a,3,line,column);
+            }else{
+                left_gradient=neural_device_binary_tensor(g,b,4,line,column);
+                auto* ga=neural_device_binary_tensor(g,a,3,line,column);
+                auto* bb=neural_device_binary_tensor(b,b,3,line,column);
+                auto* quotient=neural_device_binary_tensor(ga,bb,4,line,column);
+                right_gradient=neural_device_negate_tensor(quotient,line,column);
+                quidra_tensor_drop(ga);
+                quidra_tensor_drop(bb);
+                quidra_tensor_drop(quotient);
+            }
+            neural_add_device_gradient(
+                gradients,node->parents[0],left_gradient,line,column);
+            neural_add_device_gradient(
+                gradients,node->parents[1],right_gradient,line,column);
+        }else if(node->op==NeuralOp::Absolute){
+            const auto& input=node->parents[0];
+            auto* gd=neural_device_dense_clone(*g,line,column);
+            auto* xd=neural_device_dense_clone(*input->device_tensor,line,column);
+            const auto count=tensor_logical_count(*xd);
+            auto* storage=tensor_storage_create(
+                node->dtype,count,1,xd->storage->device,line,column);
+            auto strides=tensor_contiguous_strides(input->shape);
+            auto* result=tensor_descriptor(storage,input->shape,std::move(strides),0);
+            std::string backend_error;
+            const bool ok=quidra::device::compute_abs_backward(
+                storage->gpu_buffer,gd->storage->gpu_buffer,xd->storage->gpu_buffer,
+                node->dtype,count,backend_error);
+            quidra_tensor_drop(gd);quidra_tensor_drop(xd);
+            if(!ok){
+                quidra_tensor_drop(result);
+                neural_fail(backend_error.c_str(),line,column);
+            }
+            neural_add_device_gradient(
+                gradients,input,result,line,column);
+        }else if(node->op==NeuralOp::Exponential){
+            auto* result=neural_device_binary_tensor(
+                g,node->device_tensor,3,line,column);
+            neural_add_device_gradient(
+                gradients,node->parents[0],result,line,column);
+        }else if(node->op==NeuralOp::Logarithm){
+            auto* result=neural_device_binary_tensor(
+                g,node->parents[0]->device_tensor,4,line,column);
+            neural_add_device_gradient(
+                gradients,node->parents[0],result,line,column);
+        }else if(node->op==NeuralOp::Mean){
+            const auto& input=node->parents[0];
+            const auto count=neural_node_count(*input);
+            auto* gd=neural_device_dense_clone(*g,line,column);
+            auto* storage=tensor_storage_create(
+                node->dtype,count,1,input->device_tensor->storage->device,line,column);
+            auto strides=tensor_contiguous_strides(input->shape);
+            auto* result=tensor_descriptor(storage,input->shape,std::move(strides),0);
+            std::string backend_error;
+            const bool ok=quidra::device::compute_mean_backward(
+                storage->gpu_buffer,gd->storage->gpu_buffer,node->dtype,count,backend_error);
+            quidra_tensor_drop(gd);
+            if(!ok){
+                quidra_tensor_drop(result);
+                neural_fail(backend_error.c_str(),line,column);
+            }
+            neural_add_device_gradient(
+                gradients,input,result,line,column);
+        }else if(node->op==NeuralOp::SumLast){
+            const auto& input=node->parents[0];
+            const auto count=neural_node_count(*input);
+            const auto width=static_cast<std::size_t>(input->shape.back());
+            auto* gd=neural_device_dense_clone(*g,line,column);
+            auto* storage=tensor_storage_create(
+                node->dtype,count,1,input->device_tensor->storage->device,line,column);
+            auto strides=tensor_contiguous_strides(input->shape);
+            auto* result=tensor_descriptor(storage,input->shape,std::move(strides),0);
+            std::string backend_error;
+            const bool ok=quidra::device::compute_last_reduce_broadcast(
+                storage->gpu_buffer,gd->storage->gpu_buffer,node->dtype,
+                count,width,1,backend_error);
+            quidra_tensor_drop(gd);
+            if(!ok){
+                quidra_tensor_drop(result);
+                neural_fail(backend_error.c_str(),line,column);
+            }
+            neural_add_device_gradient(
+                gradients,input,result,line,column);
+        }else if(node->op==NeuralOp::MaxLast){
+            const auto& input=node->parents[0];
+            const auto count=neural_node_count(*input);
+            const auto width=static_cast<std::size_t>(input->shape.back());
+            auto* gd=neural_device_dense_clone(*g,line,column);
+            auto* xd=neural_device_dense_clone(*input->device_tensor,line,column);
+            auto* storage=tensor_storage_create(
+                node->dtype,count,1,input->device_tensor->storage->device,line,column);
+            auto strides=tensor_contiguous_strides(input->shape);
+            auto* result=tensor_descriptor(storage,input->shape,std::move(strides),0);
+            std::string backend_error;
+            const bool ok=quidra::device::compute_max_last_backward(
+                storage->gpu_buffer,gd->storage->gpu_buffer,xd->storage->gpu_buffer,
+                node->dtype,count,width,backend_error);
+            quidra_tensor_drop(gd);quidra_tensor_drop(xd);
+            if(!ok){
+                quidra_tensor_drop(result);
+                neural_fail(backend_error.c_str(),line,column);
+            }
+            neural_add_device_gradient(
+                gradients,input,result,line,column);
+        }else if(node->op==NeuralOp::Affine){
+            if(node->parents.size()!=3)
+                neural_fail("invalid GPU affine graph",line,column);
+            const auto& input=node->parents[0];
+            const auto& weight=node->parents[1];
+            const auto& bias=node->parents[2];
+            const auto features_in=static_cast<std::size_t>(weight->shape[1]);
+            const auto features_out=static_cast<std::size_t>(weight->shape[0]);
+            const auto batches=features_in==0?0:neural_node_count(*input)/features_in;
+            auto* gd=neural_device_dense_clone(*g,line,column);
+            auto* id=neural_device_dense_clone(*input->device_tensor,line,column);
+            auto* wd=neural_device_dense_clone(*weight->device_tensor,line,column);
+            auto* input_storage=tensor_storage_create(
+                node->dtype,neural_node_count(*input),1,
+                input->device_tensor->storage->device,line,column);
+            auto* weight_storage=tensor_storage_create(
+                node->dtype,neural_node_count(*weight),1,
+                weight->device_tensor->storage->device,line,column);
+            auto* bias_storage=tensor_storage_create(
+                node->dtype,neural_node_count(*bias),1,
+                bias->device_tensor->storage->device,line,column);
+            auto input_strides=tensor_contiguous_strides(input->shape);
+            auto weight_strides=tensor_contiguous_strides(weight->shape);
+            auto bias_strides=tensor_contiguous_strides(bias->shape);
+            auto* input_result=tensor_descriptor(
+                input_storage,input->shape,std::move(input_strides),0);
+            auto* weight_result=tensor_descriptor(
+                weight_storage,weight->shape,std::move(weight_strides),0);
+            auto* bias_result=tensor_descriptor(
+                bias_storage,bias->shape,std::move(bias_strides),0);
+            std::string backend_error;
+            const bool ok=quidra::device::compute_affine_backward(
+                input_storage->gpu_buffer,weight_storage->gpu_buffer,bias_storage->gpu_buffer,
+                gd->storage->gpu_buffer,id->storage->gpu_buffer,wd->storage->gpu_buffer,
+                node->dtype,batches,features_in,features_out,backend_error);
+            quidra_tensor_drop(gd);quidra_tensor_drop(id);quidra_tensor_drop(wd);
+            if(!ok){
+                quidra_tensor_drop(input_result);
+                quidra_tensor_drop(weight_result);
+                quidra_tensor_drop(bias_result);
+                neural_fail(backend_error.c_str(),line,column);
+            }
+            neural_add_device_gradient(
+                gradients,input,input_result,line,column);
+            neural_add_device_gradient(
+                gradients,weight,weight_result,line,column);
+            neural_add_device_gradient(
+                gradients,bias,bias_result,line,column);
+        }else if(node->op==NeuralOp::Convolution){
+            if(node->parents.size()!=3||node->aux_index.size()!=2)
+                neural_fail("invalid GPU convolution graph",line,column);
+            const auto& input=node->parents[0];
+            const auto& weight=node->parents[1];
+            const auto& bias=node->parents[2];
+            if(!input->device_tensor||!weight->device_tensor||!bias->device_tensor)
+                neural_fail("invalid GPU convolution graph storage",line,column);
+            if(input->shape.size()!=4||weight->shape.size()!=4||node->shape.size()!=4)
+                neural_fail("invalid GPU convolution graph shape",line,column);
+            auto* gd=neural_device_dense_clone(*g,line,column);
+            auto* id=neural_device_dense_clone(*input->device_tensor,line,column);
+            auto* wd=neural_device_dense_clone(*weight->device_tensor,line,column);
+            const auto input_count=tensor_logical_count(*input->device_tensor);
+            const auto weight_count=tensor_logical_count(*weight->device_tensor);
+            const auto bias_count=tensor_logical_count(*bias->device_tensor);
+            auto* input_storage=tensor_storage_create(
+                node->dtype,input_count,1,input->device_tensor->storage->device,line,column);
+            auto* weight_storage=tensor_storage_create(
+                node->dtype,weight_count,1,weight->device_tensor->storage->device,line,column);
+            auto* bias_storage=tensor_storage_create(
+                node->dtype,bias_count,1,bias->device_tensor->storage->device,line,column);
+            auto* input_result=tensor_descriptor(
+                input_storage,input->shape,tensor_contiguous_strides(input->shape),0);
+            auto* weight_result=tensor_descriptor(
+                weight_storage,weight->shape,tensor_contiguous_strides(weight->shape),0);
+            auto* bias_result=tensor_descriptor(
+                bias_storage,bias->shape,tensor_contiguous_strides(bias->shape),0);
+            std::string backend_error;
+            const bool ok=quidra::device::compute_conv2d_backward(
+                input_storage->gpu_buffer,weight_storage->gpu_buffer,bias_storage->gpu_buffer,
+                gd->storage->gpu_buffer,id->storage->gpu_buffer,wd->storage->gpu_buffer,
+                node->dtype,
+                static_cast<std::size_t>(input->shape[0]),
+                static_cast<std::size_t>(input->shape[1]),
+                static_cast<std::size_t>(input->shape[2]),
+                static_cast<std::size_t>(input->shape[3]),
+                static_cast<std::size_t>(weight->shape[0]),
+                static_cast<std::size_t>(weight->shape[2]),
+                static_cast<std::size_t>(weight->shape[3]),
+                static_cast<std::size_t>(node->shape[2]),
+                static_cast<std::size_t>(node->shape[3]),
+                node->aux_index[0],node->aux_index[1],backend_error);
+            quidra_tensor_drop(gd);quidra_tensor_drop(id);quidra_tensor_drop(wd);
+            if(!ok){
+                quidra_tensor_drop(input_result);
+                quidra_tensor_drop(weight_result);
+                quidra_tensor_drop(bias_result);
+                neural_fail(backend_error.c_str(),line,column);
+            }
+            neural_add_device_gradient(gradients,input,input_result,line,column);
+            neural_add_device_gradient(gradients,weight,weight_result,line,column);
+            neural_add_device_gradient(gradients,bias,bias_result,line,column);
+        }else if(node->op==NeuralOp::Normalize){
+            if(node->parents.size()!=3||!node->device_aux)
+                neural_fail("invalid GPU normalization graph",line,column);
+            const auto& input=node->parents[0];
+            const auto& scale=node->parents[1];
+            const auto& bias=node->parents[2];
+            if(!input->device_tensor||!scale->device_tensor||!bias->device_tensor)
+                neural_fail("invalid GPU normalization graph storage",line,column);
+            const auto count=tensor_logical_count(*input->device_tensor);
+            const auto layout=neural_normalize_layout(input->shape,count,line,column);
+            if(node->aux_index.size()!=1||node->aux_index[0]!=layout.samples)
+                neural_fail("normalization backward cache layout mismatch",line,column);
+            auto* gd=neural_device_dense_clone(*g,line,column);
+            auto* id=neural_device_dense_clone(*input->device_tensor,line,column);
+            auto* sd=neural_device_dense_clone(*scale->device_tensor,line,column);
+            auto* cd=neural_device_dense_clone(*node->device_aux,line,column);
+            auto* input_storage=tensor_storage_create(
+                node->dtype,count,1,input->device_tensor->storage->device,line,column);
+            auto* scale_storage=tensor_storage_create(
+                node->dtype,layout.features,1,scale->device_tensor->storage->device,line,column);
+            auto* bias_storage=tensor_storage_create(
+                node->dtype,layout.features,1,bias->device_tensor->storage->device,line,column);
+            auto* input_result=tensor_descriptor(
+                input_storage,input->shape,tensor_contiguous_strides(input->shape),0);
+            auto* scale_result=tensor_descriptor(
+                scale_storage,scale->shape,tensor_contiguous_strides(scale->shape),0);
+            auto* bias_result=tensor_descriptor(
+                bias_storage,bias->shape,tensor_contiguous_strides(bias->shape),0);
+            std::string backend_error;
+            const bool ok=quidra::device::compute_normalize_backward(
+                input_storage->gpu_buffer,scale_storage->gpu_buffer,bias_storage->gpu_buffer,
+                gd->storage->gpu_buffer,id->storage->gpu_buffer,sd->storage->gpu_buffer,
+                cd->storage->gpu_buffer,node->dtype,count,layout.features,layout.inner,
+                layout.samples,backend_error);
+            quidra_tensor_drop(gd);quidra_tensor_drop(id);
+            quidra_tensor_drop(sd);quidra_tensor_drop(cd);
+            if(!ok){
+                quidra_tensor_drop(input_result);
+                quidra_tensor_drop(scale_result);
+                quidra_tensor_drop(bias_result);
+                neural_fail(backend_error.c_str(),line,column);
+            }
+            neural_add_device_gradient(gradients,input,input_result,line,column);
+            neural_add_device_gradient(gradients,scale,scale_result,line,column);
+            neural_add_device_gradient(gradients,bias,bias_result,line,column);
+        }else if(node->op==NeuralOp::RandomMask){
+            if(!node->device_aux)
+                neural_fail("random mask backward mask is missing on GPU",line,column);
+            auto* result=neural_device_binary_tensor(
+                g,node->device_aux,3,line,column);
+            neural_add_device_gradient(
+                gradients,node->parents[0],result,line,column);
+        }
+    }
+
+    for(auto& [_,value]:gradients)
+        quidra_tensor_drop(value);
+    return neural_gradients_descriptor(std::move(output));
 }
 
 template <typename T>
@@ -3483,7 +5243,9 @@ extern "C" void* quidra_neural_grad(
     void* raw,unsigned long long line,unsigned long long column) {
     if(!raw) neural_fail("null loss",line,column);
     auto loss=static_cast<NeuralValue*>(raw)->node;
-    if(loss->data.size()!=1) neural_fail("grad requires a scalar loss",line,column);
+    if(neural_node_count(*loss)!=1) neural_fail("grad requires a scalar loss",line,column);
+    if(loss->device_tensor)
+        return neural_grad_device(loss,line,column);
     if(loss->dtype==10) return neural_grad_t<float>(loss,line,column);
     if(loss->dtype==9) return neural_grad_t<double>(loss,line,column);
     neural_fail("invalid neural gradient dtype",line,column);
@@ -3522,6 +5284,42 @@ std::vector<long long> tensor_broadcast_shape(const TensorValue& left,
         shape[i] = std::max(a, b);
     }
     return shape;
+}
+
+TensorStorage* tensor_gpu_expand_storage(
+    const TensorValue& source,
+    const std::vector<long long>& output_shape,
+    unsigned long long line,
+    unsigned long long column) {
+    tensor_require_initialized(source, line, column);
+    const auto count = tensor_element_count(output_shape, line, column);
+    auto* output = tensor_storage_create(
+        source.storage->dtype, count, 0, source.storage->device, line, column);
+    std::vector<std::uint64_t> indices;
+    try {
+        indices.resize(count);
+    } catch (...) {
+        tensor_storage_release(output);
+        runtime_allocation_failure();
+    }
+    for (std::size_t logical = 0; logical < count; ++logical) {
+        const auto storage_index =
+            tensor_broadcast_index(source, output_shape, logical);
+        if (storage_index >= source.storage->count) {
+            tensor_storage_release(output);
+            tensor_fail("tensor broadcast view exceeds storage", line, column);
+        }
+        indices[logical] = static_cast<std::uint64_t>(storage_index);
+        tracker_set(output->initialization, logical);
+    }
+    std::string backend_error;
+    if (!quidra::device::compute_gather(
+            output->gpu_buffer, source.storage->gpu_buffer,
+            source.storage->dtype, indices.data(), count, backend_error)) {
+        tensor_storage_release(output);
+        tensor_fail(backend_error.c_str(), line, column);
+    }
+    return output;
 }
 
 template <typename T>
@@ -3676,6 +5474,82 @@ void tensor_binary_typed(const TensorValue& primary, const TensorValue* other,
 
 } // namespace
 
+
+extern "C" void* quidra_tensor_unary(void* raw, int operation,
+                                      unsigned long long line,
+                                      unsigned long long column) {
+    if (!raw || operation != 1) {
+        tensor_fail("invalid tensor unary operation", line, column);
+    }
+    auto& source = *static_cast<TensorValue*>(raw);
+    const auto dtype = source.storage->dtype;
+    if (dtype == 5 || dtype == 6 || dtype == 7 || dtype == 8) {
+        tensor_fail("tensor negation requires a signed numeric tensor", line, column);
+    }
+    tensor_require_initialized(source, line, column);
+    const auto count = tensor_logical_count(source);
+
+    if (!tensor_on_cpu(*source.storage)) {
+        TensorStorage* materialized = nullptr;
+        const TensorStorage* input = source.storage;
+        std::size_t input_offset =
+            source.offset * tensor_dtype_bytes(source.storage->dtype);
+        if (!tensor_is_contiguous_value(source)) {
+            materialized = tensor_gpu_materialize_storage(source, line, column);
+            input = materialized;
+            input_offset = 0;
+        }
+        auto* output = tensor_storage_create(
+            dtype, count, 1, source.storage->device, line, column);
+        std::string backend_error;
+        const bool ok = quidra::device::compute_unary(
+            output->gpu_buffer, input->gpu_buffer, input_offset,
+            dtype, operation, count, backend_error);
+        if (materialized) tensor_storage_release(materialized);
+        if (!ok) {
+            tensor_storage_release(output);
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+        return tensor_descriptor(
+            output, source.shape, tensor_contiguous_strides(source.shape), 0);
+    }
+
+    auto* output = tensor_storage_create(dtype, count, 1);
+    auto run = [&](auto tag) {
+        using T = decltype(tag);
+        for (std::size_t i = 0; i < count; ++i) {
+            const auto source_index = tensor_storage_index(source, i);
+            T value{};
+            std::memcpy(&value,
+                        source.storage->data.data() + source_index * sizeof(T),
+                        sizeof(T));
+            T result{};
+            if constexpr (std::is_integral_v<T>) {
+                if (!tensor_sub_checked(T{}, value, result)) {
+                    tensor_storage_release(output);
+                    tensor_fail("tensor integer negation overflow", line, column);
+                }
+            } else {
+                result = static_cast<T>(-value);
+            }
+            std::memcpy(output->data.data() + i * sizeof(T), &result, sizeof(T));
+        }
+    };
+    switch (dtype) {
+        case 1: run(std::int64_t{}); break;
+        case 2: run(std::int8_t{}); break;
+        case 3: run(std::int16_t{}); break;
+        case 4: run(std::int32_t{}); break;
+        case 9: run(double{}); break;
+        case 10: run(float{}); break;
+        default:
+            tensor_storage_release(output);
+            tensor_fail("invalid tensor element type for negation", line, column);
+    }
+    return tensor_descriptor(
+        output, source.shape, tensor_contiguous_strides(source.shape), 0);
+}
+
 extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
                                         void* scalar, int scalar_side,
                                         int operation,
@@ -3693,10 +5567,65 @@ extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
     if (other && primary->storage->dtype != other->storage->dtype) {
         tensor_fail("tensor operands must have identical element types", line, column);
     }
-
+    if (other && primary->storage->device != other->storage->device) {
+        tensor_fail("tensor operands are on different devices; use an explicit .gpu(n) or .cpu() transfer",
+                    line, column);
+    }
     const auto output_shape =
         other ? tensor_broadcast_shape(*primary, *other, line, column) : primary->shape;
     const auto count = tensor_element_count(output_shape, line, column);
+
+    if (!tensor_on_cpu(*primary->storage)) {
+        tensor_require_initialized(*primary, line, column);
+        if (other) tensor_require_initialized(*other, line, column);
+
+        TensorStorage* primary_expanded = nullptr;
+        TensorStorage* other_expanded = nullptr;
+        const auto width = tensor_dtype_bytes(primary->storage->dtype);
+
+        const quidra::device::Buffer* primary_buffer = primary->storage->gpu_buffer;
+        std::size_t primary_offset = primary->offset * width;
+        if (!tensor_is_contiguous_value(*primary) ||
+            primary->shape != output_shape) {
+            primary_expanded =
+                tensor_gpu_expand_storage(*primary, output_shape, line, column);
+            primary_buffer = primary_expanded->gpu_buffer;
+            primary_offset = 0;
+        }
+
+        const quidra::device::Buffer* other_buffer = nullptr;
+        std::size_t other_offset = 0;
+        if (other) {
+            other_buffer = other->storage->gpu_buffer;
+            other_offset = other->offset * width;
+            if (!tensor_is_contiguous_value(*other) ||
+                other->shape != output_shape) {
+                other_expanded =
+                    tensor_gpu_expand_storage(*other, output_shape, line, column);
+                other_buffer = other_expanded->gpu_buffer;
+                other_offset = 0;
+            }
+        }
+
+        auto* output = tensor_storage_create(
+            primary->storage->dtype, count, 1,
+            primary->storage->device, line, column);
+        std::string backend_error;
+        const bool ok = quidra::device::compute_binary(
+            output->gpu_buffer, primary_buffer, primary_offset,
+            other_buffer, other_offset, scalar, scalar_side,
+            primary->storage->dtype, operation, count, backend_error);
+
+        if (primary_expanded) tensor_storage_release(primary_expanded);
+        if (other_expanded) tensor_storage_release(other_expanded);
+        if (!ok) {
+            tensor_storage_release(output);
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+        return tensor_descriptor(
+            output, output_shape, tensor_contiguous_strides(output_shape), 0);
+    }
+
     auto* output = tensor_storage_create(primary->storage->dtype, count, 1);
 
     switch (primary->storage->dtype) {
@@ -3907,6 +5836,10 @@ void validate_linear_dot(const TensorValue& left, const TensorValue& right,
     if (left.storage->dtype != dtype || right.storage->dtype != dtype) {
         tensor_fail("linear.dot requires identical expected element types", line, column);
     }
+    if (left.storage->device != right.storage->device) {
+        tensor_fail("linear.dot operands are on different devices; transfer them explicitly",
+                    line, column);
+    }
     if (left.shape.size() != 1 || right.shape.size() != 1) {
         tensor_fail("linear.dot requires rank-1 tensors", line, column);
     }
@@ -3925,6 +5858,50 @@ extern "C" unsigned long long quidra_linear_dot_integer(
     auto& left = *static_cast<TensorValue*>(left_raw);
     auto& right = *static_cast<TensorValue*>(right_raw);
     validate_linear_dot(left, right, dtype, line, column);
+    if (!tensor_on_cpu(*left.storage)) {
+        tensor_require_initialized(left, line, column);
+        tensor_require_initialized(right, line, column);
+        TensorStorage* left_materialized = nullptr;
+        TensorStorage* right_materialized = nullptr;
+        const TensorStorage* left_storage = left.storage;
+        const TensorStorage* right_storage = right.storage;
+        if (!tensor_is_contiguous_value(left) || left.offset != 0) {
+            left_materialized = tensor_gpu_materialize_storage(left, line, column);
+            left_storage = left_materialized;
+        }
+        if (!tensor_is_contiguous_value(right) || right.offset != 0) {
+            right_materialized = tensor_gpu_materialize_storage(right, line, column);
+            right_storage = right_materialized;
+        }
+        std::array<unsigned char, 8> scalar{};
+        std::string backend_error;
+        const bool ok = quidra::device::compute_dot(
+            left_storage->gpu_buffer, right_storage->gpu_buffer,
+            dtype, static_cast<std::size_t>(left.shape[0]),
+            scalar.data(), backend_error);
+        if (left_materialized) tensor_storage_release(left_materialized);
+        if (right_materialized) tensor_storage_release(right_materialized);
+        if (!ok) tensor_fail(backend_error.c_str(), line, column);
+        switch (dtype) {
+            case 1: { std::int64_t v{}; std::memcpy(&v, scalar.data(), 8);
+                      return static_cast<unsigned long long>(v); }
+            case 2: { std::int8_t v{}; std::memcpy(&v, scalar.data(), 1);
+                      return static_cast<unsigned long long>(v); }
+            case 3: { std::int16_t v{}; std::memcpy(&v, scalar.data(), 2);
+                      return static_cast<unsigned long long>(v); }
+            case 4: { std::int32_t v{}; std::memcpy(&v, scalar.data(), 4);
+                      return static_cast<unsigned long long>(v); }
+            case 5: { std::uint8_t v{}; std::memcpy(&v, scalar.data(), 1);
+                      return static_cast<unsigned long long>(v); }
+            case 6: { std::uint16_t v{}; std::memcpy(&v, scalar.data(), 2);
+                      return static_cast<unsigned long long>(v); }
+            case 7: { std::uint32_t v{}; std::memcpy(&v, scalar.data(), 4);
+                      return static_cast<unsigned long long>(v); }
+            case 8: { std::uint64_t v{}; std::memcpy(&v, scalar.data(), 8); return v; }
+            default:
+                tensor_fail("linear.dot integer runtime received a non-integer dtype", line, column);
+        }
+    }
     switch (dtype) {
         case 1: return static_cast<unsigned long long>(
             tensor_dot_typed<std::int64_t>(left, right, line, column));
@@ -3953,6 +5930,31 @@ extern "C" float quidra_linear_dot_float32(
     auto& left = *static_cast<TensorValue*>(left_raw);
     auto& right = *static_cast<TensorValue*>(right_raw);
     validate_linear_dot(left, right, 10, line, column);
+    if (!tensor_on_cpu(*left.storage)) {
+        tensor_require_initialized(left, line, column);
+        tensor_require_initialized(right, line, column);
+        TensorStorage* left_materialized = nullptr;
+        TensorStorage* right_materialized = nullptr;
+        const TensorStorage* left_storage = left.storage;
+        const TensorStorage* right_storage = right.storage;
+        if (!tensor_is_contiguous_value(left) || left.offset != 0) {
+            left_materialized = tensor_gpu_materialize_storage(left, line, column);
+            left_storage = left_materialized;
+        }
+        if (!tensor_is_contiguous_value(right) || right.offset != 0) {
+            right_materialized = tensor_gpu_materialize_storage(right, line, column);
+            right_storage = right_materialized;
+        }
+        float result{};
+        std::string backend_error;
+        const bool ok = quidra::device::compute_dot(
+            left_storage->gpu_buffer, right_storage->gpu_buffer,
+            10, static_cast<std::size_t>(left.shape[0]), &result, backend_error);
+        if (left_materialized) tensor_storage_release(left_materialized);
+        if (right_materialized) tensor_storage_release(right_materialized);
+        if (!ok) tensor_fail(backend_error.c_str(), line, column);
+        return result;
+    }
     return tensor_dot_typed<float>(left, right, line, column);
 }
 
@@ -3963,7 +5965,121 @@ extern "C" double quidra_linear_dot_float64(
     auto& left = *static_cast<TensorValue*>(left_raw);
     auto& right = *static_cast<TensorValue*>(right_raw);
     validate_linear_dot(left, right, 9, line, column);
+    if (!tensor_on_cpu(*left.storage)) {
+        tensor_require_initialized(left, line, column);
+        tensor_require_initialized(right, line, column);
+        TensorStorage* left_materialized = nullptr;
+        TensorStorage* right_materialized = nullptr;
+        const TensorStorage* left_storage = left.storage;
+        const TensorStorage* right_storage = right.storage;
+        if (!tensor_is_contiguous_value(left) || left.offset != 0) {
+            left_materialized = tensor_gpu_materialize_storage(left, line, column);
+            left_storage = left_materialized;
+        }
+        if (!tensor_is_contiguous_value(right) || right.offset != 0) {
+            right_materialized = tensor_gpu_materialize_storage(right, line, column);
+            right_storage = right_materialized;
+        }
+        double result{};
+        std::string backend_error;
+        const bool ok = quidra::device::compute_dot(
+            left_storage->gpu_buffer, right_storage->gpu_buffer,
+            9, static_cast<std::size_t>(left.shape[0]), &result, backend_error);
+        if (left_materialized) tensor_storage_release(left_materialized);
+        if (right_materialized) tensor_storage_release(right_materialized);
+        if (!ok) tensor_fail(backend_error.c_str(), line, column);
+        return result;
+    }
     return tensor_dot_typed<double>(left, right, line, column);
+}
+
+
+extern "C" void* quidra_stats_reduce_ptr(
+    void* raw, int dtype, int operation,
+    unsigned long long line, unsigned long long column) {
+    if (!raw || operation < 1 || operation > 3) {
+        tensor_fail("invalid stats reduction", line, column);
+    }
+    auto& value = *static_cast<TensorValue*>(raw);
+    if (value.storage->dtype != dtype) {
+        tensor_fail("stats reduction dtype mismatch", line, column);
+    }
+    const auto count = tensor_logical_count(value);
+    if (count == 0 && operation != 1) {
+        tensor_fail(
+            operation == 2
+                ? "stats.min is undefined for an empty tensor"
+                : "stats.max is undefined for an empty tensor",
+            line, column);
+    }
+    tensor_require_initialized(value, line, column);
+    static thread_local std::array<unsigned char, 8> result{};
+    std::fill(result.begin(), result.end(), 0);
+
+    if (!tensor_on_cpu(*value.storage)) {
+        TensorStorage* materialized = nullptr;
+        const TensorStorage* input = value.storage;
+        if (!tensor_is_contiguous_value(value) || value.offset != 0) {
+            materialized = tensor_gpu_materialize_storage(value, line, column);
+            input = materialized;
+        }
+        std::string backend_error;
+        const bool ok = quidra::device::compute_reduce(
+            input->gpu_buffer, dtype, operation, count,
+            result.data(), backend_error);
+        if (materialized) tensor_storage_release(materialized);
+        if (!ok) tensor_fail(backend_error.c_str(), line, column);
+        return result.data();
+    }
+
+    auto run = [&](auto tag) {
+        using T = decltype(tag);
+        T reduced{};
+        if (operation != 1 && count != 0) {
+            const auto first_index = tensor_storage_index(value, 0);
+            std::memcpy(
+                &reduced,
+                value.storage->data.data() + first_index * sizeof(T),
+                sizeof(T));
+        }
+        const std::size_t start = operation == 1 ? 0 : 1;
+        for (std::size_t i = start; i < count; ++i) {
+            const auto storage_index = tensor_storage_index(value, i);
+            T element{};
+            std::memcpy(
+                &element,
+                value.storage->data.data() + storage_index * sizeof(T),
+                sizeof(T));
+            if (operation == 1) {
+                T next{};
+                if (!tensor_add_checked(reduced, element, next)) {
+                    tensor_fail("stats.sum integer arithmetic overflow", line, column);
+                }
+                reduced = next;
+            } else if (operation == 2) {
+                if (element < reduced) reduced = element;
+            } else {
+                if (element > reduced) reduced = element;
+            }
+        }
+        std::memcpy(result.data(), &reduced, sizeof(T));
+    };
+
+    switch (dtype) {
+        case 1: run(std::int64_t{}); break;
+        case 2: run(std::int8_t{}); break;
+        case 3: run(std::int16_t{}); break;
+        case 4: run(std::int32_t{}); break;
+        case 5: run(std::uint8_t{}); break;
+        case 6: run(std::uint16_t{}); break;
+        case 7: run(std::uint32_t{}); break;
+        case 8: run(std::uint64_t{}); break;
+        case 9: run(double{}); break;
+        case 10:run(float{}); break;
+        default:
+            tensor_fail("stats reduction received an unsupported tensor dtype", line, column);
+    }
+    return result.data();
 }
 
 extern "C" double quidra_stats_mean(void* raw,
@@ -3973,6 +6089,22 @@ extern "C" double quidra_stats_mean(void* raw,
     auto& value = *static_cast<TensorValue*>(raw);
     const auto count = tensor_logical_count(value);
     if (count == 0) tensor_fail("stats.mean is undefined for an empty tensor", line, column);
+    if (!tensor_on_cpu(*value.storage)) {
+        tensor_require_initialized(value, line, column);
+        TensorStorage* materialized = nullptr;
+        const TensorStorage* input = value.storage;
+        if (!tensor_is_contiguous_value(value) || value.offset != 0) {
+            materialized = tensor_gpu_materialize_storage(value, line, column);
+            input = materialized;
+        }
+        double result{};
+        std::string backend_error;
+        const bool ok = quidra::device::compute_mean(
+            input->gpu_buffer, value.storage->dtype, count, result, backend_error);
+        if (materialized) tensor_storage_release(materialized);
+        if (!ok) tensor_fail(backend_error.c_str(), line, column);
+        return result;
+    }
     long double sum = 0.0L;
     switch (value.storage->dtype) {
         case 1: sum=tensor_sum_typed<std::int64_t>(value,line,column); break;
@@ -3999,26 +6131,102 @@ extern "C" void* quidra_linear_matmul(void* left_raw, void* right_raw,
     if (left.storage->dtype != right.storage->dtype) {
         tensor_fail("linear.matmul requires identical element types", line, column);
     }
-    if (left.shape.size() != 2 || right.shape.size() != 2) {
-        tensor_fail("linear.matmul currently requires rank-2 tensors", line, column);
+    if (left.storage->device != right.storage->device) {
+        tensor_fail("linear.matmul operands are on different devices; transfer them explicitly",
+                    line, column);
     }
-    if (left.shape[1] != right.shape[0]) {
+
+    const bool left_vector = left.shape.size() == 1;
+    const bool right_vector = right.shape.size() == 1;
+    const bool left_matrix = left.shape.size() == 2;
+    const bool right_matrix = right.shape.size() == 2;
+    if ((!left_vector && !left_matrix) || (!right_vector && !right_matrix) ||
+        (left_vector && right_vector)) {
+        tensor_fail(
+            "linear.matmul supports vector-matrix, matrix-vector, and matrix-matrix operands",
+            line, column);
+    }
+
+    const auto rows = left_vector ? std::size_t{1}
+                                  : static_cast<std::size_t>(left.shape[0]);
+    const auto inner = left_vector ? static_cast<std::size_t>(left.shape[0])
+                                   : static_cast<std::size_t>(left.shape[1]);
+    const auto right_inner = static_cast<std::size_t>(right.shape[0]);
+    const auto columns = right_vector ? std::size_t{1}
+                                      : static_cast<std::size_t>(right.shape[1]);
+    if (inner != right_inner) {
         tensor_fail("linear.matmul inner dimensions do not match", line, column);
     }
-    std::vector<long long> shape{left.shape[0], right.shape[1]};
+
+    std::vector<long long> shape;
+    if (left_vector) {
+        shape = {static_cast<long long>(columns)};
+    } else if (right_vector) {
+        shape = {static_cast<long long>(rows)};
+    } else {
+        shape = {static_cast<long long>(rows), static_cast<long long>(columns)};
+    }
     const auto count = tensor_element_count(shape, line, column);
+
+    if (!tensor_on_cpu(*left.storage)) {
+        tensor_require_initialized(left, line, column);
+        tensor_require_initialized(right, line, column);
+        TensorStorage* left_materialized = nullptr;
+        TensorStorage* right_materialized = nullptr;
+        const TensorStorage* left_storage = left.storage;
+        const TensorStorage* right_storage = right.storage;
+        if (!tensor_is_contiguous_value(left) || left.offset != 0) {
+            left_materialized = tensor_gpu_materialize_storage(left, line, column);
+            left_storage = left_materialized;
+        }
+        if (!tensor_is_contiguous_value(right) || right.offset != 0) {
+            right_materialized = tensor_gpu_materialize_storage(right, line, column);
+            right_storage = right_materialized;
+        }
+        auto* output = tensor_storage_create(
+            left.storage->dtype, count, 1, left.storage->device, line, column);
+        std::string backend_error;
+        const bool ok = quidra::device::compute_matmul(
+            output->gpu_buffer, left_storage->gpu_buffer, right_storage->gpu_buffer,
+            left.storage->dtype, rows, inner, columns, backend_error);
+        if (left_materialized) tensor_storage_release(left_materialized);
+        if (right_materialized) tensor_storage_release(right_materialized);
+        if (!ok) {
+            tensor_storage_release(output);
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+        auto strides = tensor_contiguous_strides(shape);
+        return tensor_descriptor(output, std::move(shape), std::move(strides), 0);
+    }
+
+    TensorValue left_view = left;
+    TensorValue right_view = right;
+    if (left_vector) {
+        const auto stride = left.strides[0];
+        left_view.shape = {1, left.shape[0]};
+        // The synthetic row stride is never observed because the virtual
+        // matrix has exactly one row. Keep it zero instead of multiplying
+        // an extent by a runtime stride and risking signed overflow.
+        left_view.strides = {0, stride};
+    }
+    if (right_vector) {
+        const auto stride = right.strides[0];
+        right_view.shape = {right.shape[0], 1};
+        right_view.strides = {stride, 1};
+    }
+
     auto* output = tensor_storage_create(left.storage->dtype, count, 1);
     switch (left.storage->dtype) {
-        case 1: tensor_matmul_typed<std::int64_t>(left,right,*output,line,column); break;
-        case 2: tensor_matmul_typed<std::int8_t>(left,right,*output,line,column); break;
-        case 3: tensor_matmul_typed<std::int16_t>(left,right,*output,line,column); break;
-        case 4: tensor_matmul_typed<std::int32_t>(left,right,*output,line,column); break;
-        case 5: tensor_matmul_typed<std::uint8_t>(left,right,*output,line,column); break;
-        case 6: tensor_matmul_typed<std::uint16_t>(left,right,*output,line,column); break;
-        case 7: tensor_matmul_typed<std::uint32_t>(left,right,*output,line,column); break;
-        case 8: tensor_matmul_typed<std::uint64_t>(left,right,*output,line,column); break;
-        case 9: tensor_matmul_typed<double>(left,right,*output,line,column); break;
-        case 10:tensor_matmul_typed<float>(left,right,*output,line,column); break;
+        case 1: tensor_matmul_typed<std::int64_t>(left_view,right_view,*output,line,column); break;
+        case 2: tensor_matmul_typed<std::int8_t>(left_view,right_view,*output,line,column); break;
+        case 3: tensor_matmul_typed<std::int16_t>(left_view,right_view,*output,line,column); break;
+        case 4: tensor_matmul_typed<std::int32_t>(left_view,right_view,*output,line,column); break;
+        case 5: tensor_matmul_typed<std::uint8_t>(left_view,right_view,*output,line,column); break;
+        case 6: tensor_matmul_typed<std::uint16_t>(left_view,right_view,*output,line,column); break;
+        case 7: tensor_matmul_typed<std::uint32_t>(left_view,right_view,*output,line,column); break;
+        case 8: tensor_matmul_typed<std::uint64_t>(left_view,right_view,*output,line,column); break;
+        case 9: tensor_matmul_typed<double>(left_view,right_view,*output,line,column); break;
+        case 10:tensor_matmul_typed<float>(left_view,right_view,*output,line,column); break;
         default:
             delete output;
             tensor_fail("linear.matmul received an unsupported tensor dtype", line, column);
@@ -4050,7 +6258,8 @@ TensorStorage* tensor_materialize_storage(const TensorValue& source) {
     return output;
 }
 
-void tensor_detach_for_write(TensorValue& tensor) {
+void tensor_detach_for_write(
+    TensorValue& tensor, unsigned long long line, unsigned long long column) {
     const auto logical_count = tensor_logical_count(tensor);
     const bool owns_full_contiguous_storage =
         tensor.offset == 0 && tensor_is_contiguous_value(tensor) &&
@@ -4058,7 +6267,9 @@ void tensor_detach_for_write(TensorValue& tensor) {
     if (tensor.storage->owners == 1 && owns_full_contiguous_storage) return;
 
     auto* old = tensor.storage;
-    auto* replacement = tensor_materialize_storage(tensor);
+    auto* replacement = tensor_on_cpu(*old)
+        ? tensor_materialize_storage(tensor)
+        : tensor_gpu_materialize_storage(tensor, line, column);
     tensor.storage = replacement;
     tensor.offset = 0;
     tensor.strides = tensor_contiguous_strides(tensor.shape);
@@ -4147,7 +6358,7 @@ extern "C" void quidra_tensor_set(void* raw, const long long* indices,
     }
     if (count != 0 && !indices) tensor_fail("missing tensor indices", line, column);
 
-    tensor_detach_for_write(*tensor);
+    tensor_detach_for_write(*tensor, line, column);
 
     std::size_t storage_index = tensor->offset;
     for (std::size_t axis = 0; axis < static_cast<std::size_t>(count); ++axis) {
@@ -4162,7 +6373,16 @@ extern "C" void quidra_tensor_set(void* raw, const long long* indices,
         tensor_fail("tensor element assignment exceeds storage", line, column);
     }
     const auto width = tensor_dtype_bytes(tensor->storage->dtype);
-    std::memcpy(tensor->storage->data.data() + storage_index * width, value, width);
+    if (tensor_on_cpu(*tensor->storage)) {
+        std::memcpy(tensor->storage->data.data() + storage_index * width, value, width);
+    } else {
+        std::string backend_error;
+        if (!quidra::device::copy_from_host(
+                tensor->storage->gpu_buffer, storage_index * width,
+                value, width, backend_error)) {
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+    }
     tracker_set(tensor->storage->initialization, storage_index);
 }
 
@@ -4199,6 +6419,13 @@ extern "C" void* quidra_tensor_from_chw(const void* data,
     return tensor_descriptor(storage, std::move(shape), std::move(strides), 0);
 }
 
+extern "C" long long quidra_tensor_device_index(void* raw) {
+    if (!raw) return -2;
+    const auto* tensor = static_cast<TensorValue*>(raw);
+    if (!tensor->storage) return -2;
+    return static_cast<long long>(tensor->storage->device);
+}
+
 extern "C" int quidra_tensor_chw_info(void* raw,
                                         unsigned long long* channels,
                                         unsigned long long* height,
@@ -4222,7 +6449,8 @@ extern "C" bool quidra_tensor_chw_copy(void* raw,
                                         unsigned long long count) {
     if (!raw) return false;
     const auto& tensor = *static_cast<TensorValue*>(raw);
-    if (!tensor.storage || tensor.storage->dtype < 1 || tensor.storage->dtype > 10 ||
+    if (!tensor.storage || !tensor_on_cpu(*tensor.storage) ||
+        tensor.storage->dtype < 1 || tensor.storage->dtype > 10 ||
         tensor.shape.size() != 3) {
         return false;
     }
@@ -4292,7 +6520,8 @@ extern "C" bool quidra_tensor_u8_chw_copy(void* raw,
                                             unsigned long long count) {
     if (!raw) return false;
     const auto& tensor = *static_cast<TensorValue*>(raw);
-    if (!tensor.storage || tensor.storage->dtype != 5 || tensor.shape.size() != 3) return false;
+    if (!tensor.storage || !tensor_on_cpu(*tensor.storage) ||
+        tensor.storage->dtype != 5 || tensor.shape.size() != 3) return false;
     std::size_t logical = 0;
     try {
         logical = tensor_logical_count(tensor);
@@ -4587,15 +6816,245 @@ extern "C" char* quidra_string_concat_many(const char* const* values,
     return result;
 }
 
+namespace {
+std::size_t bin_payload_bytes(long long bit_count) {
+    if (bit_count < 0) runtime_text_failure("bin length cannot be negative");
+    const auto bits = static_cast<unsigned long long>(bit_count);
+    if (bits > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()) * 8ULL)
+        runtime_allocation_failure();
+    const auto bytes = (bits + 7ULL) / 8ULL;
+    if (bytes > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()))
+        runtime_allocation_failure();
+    return static_cast<std::size_t>(bytes);
+}
+
+long long bin_length(const void* raw) {
+    if (!raw) runtime_text_failure("null bin");
+    long long bit_count = 0;
+    std::memcpy(&bit_count, raw, sizeof(bit_count));
+    if (bit_count < 0) runtime_text_failure("invalid bin length");
+    return bit_count;
+}
+
+bool bin_bit_at(const void* raw, long long index) {
+    const auto length = bin_length(raw);
+    if (index < 0 || index >= length) runtime_text_failure("bin index out of bounds");
+    const auto* data = static_cast<const unsigned char*>(raw) + 8;
+    const auto byte_index = static_cast<std::size_t>(index / 8);
+    const auto shift = static_cast<unsigned>(7 - (index % 8));
+    return ((data[byte_index] >> shift) & 1U) != 0;
+}
+
+void bin_set_bit(void* raw, long long index, bool value) {
+    const auto length = bin_length(raw);
+    if (index < 0 || index >= length) runtime_text_failure("bin index out of bounds");
+    auto* data = static_cast<unsigned char*>(raw) + 8;
+    const auto byte_index = static_cast<std::size_t>(index / 8);
+    const auto shift = static_cast<unsigned>(7 - (index % 8));
+    const auto mask = static_cast<unsigned char>(1U << shift);
+    if (value) data[byte_index] = static_cast<unsigned char>(data[byte_index] | mask);
+    else data[byte_index] = static_cast<unsigned char>(data[byte_index] & static_cast<unsigned char>(~mask));
+}
+}
+
+extern "C" void* quidra_bin_alloc(long long bit_count, long long fill) {
+    if (fill != 0 && fill != 1) runtime_text_failure("bin fill must be 0 or 1");
+    const auto bytes = bin_payload_bytes(bit_count);
+    if (bytes > std::numeric_limits<std::size_t>::max() - 8) runtime_allocation_failure();
+    auto* result = static_cast<unsigned char*>(managed_allocate(8 + bytes));
+    std::memcpy(result, &bit_count, sizeof(bit_count));
+    if (bytes != 0) std::memset(result + 8, fill ? 0xff : 0x00, bytes);
+    if (fill && bit_count % 8 != 0 && bytes != 0) {
+        const auto used = static_cast<unsigned>(bit_count % 8);
+        result[8 + bytes - 1] &= static_cast<unsigned char>(0xffU << (8U - used));
+    }
+    return result;
+}
+
+extern "C" void* quidra_bin_index(void* raw, long long index) {
+    auto* result = quidra_bin_alloc(1, 0);
+    bin_set_bit(result, 0, bin_bit_at(raw, index));
+    return result;
+}
+
+extern "C" void quidra_bin_set(void* raw, long long index, void* bit) {
+    if (bin_length(bit) != 1) runtime_text_failure("bin element assignment requires exactly one bit");
+    bin_set_bit(raw, index, bin_bit_at(bit, 0));
+}
+
+extern "C" void* quidra_bin_slice(void* raw, long long start, long long end) {
+    const auto length = bin_length(raw);
+    if (start < 0 || end < start || end > length) runtime_text_failure("bin slice out of bounds");
+    auto* result = quidra_bin_alloc(end - start, 0);
+    for (long long i = start; i < end; ++i) bin_set_bit(result, i - start, bin_bit_at(raw, i));
+    return result;
+}
+
+extern "C" void* quidra_bin_parse(const char* text) {
+    if (!text) return nullptr;
+    const auto length_size = std::strlen(text);
+    if (length_size > static_cast<std::size_t>(std::numeric_limits<long long>::max())) return nullptr;
+    for (std::size_t i = 0; i < length_size; ++i)
+        if (text[i] != '0' && text[i] != '1') return nullptr;
+    auto* result = quidra_bin_alloc(static_cast<long long>(length_size), 0);
+    for (std::size_t i = 0; i < length_size; ++i)
+        if (text[i] == '1') bin_set_bit(result, static_cast<long long>(i), true);
+    return result;
+}
+
+extern "C" char* quidra_bin_string(void* raw) {
+    const auto bit_count = bin_length(raw);
+    const auto count = static_cast<unsigned long long>(bit_count);
+    if (count > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()) - 1ULL)
+        runtime_allocation_failure();
+    auto* result = static_cast<char*>(managed_allocate(static_cast<std::size_t>(count) + 1));
+    for (long long i = 0; i < bit_count; ++i) result[i] = bin_bit_at(raw, i) ? '1' : '0';
+    result[bit_count] = '\0';
+    return result;
+}
+
+extern "C" void* quidra_bin_from_u64(unsigned long long value, int width) {
+    if (width <= 0 || width > 64) runtime_text_failure("unsupported bin scalar width");
+    auto* result = quidra_bin_alloc(width, 0);
+    for (int i = 0; i < width; ++i) {
+        const auto shift = static_cast<unsigned>(width - 1 - i);
+        bin_set_bit(result, i, ((value >> shift) & 1ULL) != 0);
+    }
+    return result;
+}
+
+extern "C" unsigned long long quidra_bin_to_u64(void* raw, int width) {
+    if (width <= 0 || width > 64) runtime_text_failure("unsupported bin scalar width");
+    if (bin_length(raw) != width) runtime_text_failure("bin length does not match destination type width");
+    unsigned long long value = 0;
+    for (int i = 0; i < width; ++i)
+        value = (value << 1U) | (bin_bit_at(raw, i) ? 1ULL : 0ULL);
+    return value;
+}
+
+extern "C" void* quidra_bin_clone(void* raw) {
+    const auto bit_count = bin_length(raw);
+    const auto bytes = bin_payload_bytes(bit_count);
+    auto* result = static_cast<unsigned char*>(managed_allocate(8 + bytes));
+    std::memcpy(result, raw, 8 + bytes);
+    return result;
+}
+
+extern "C" bool quidra_bin_equal(void* left, void* right) {
+    if (left == right) return true;
+    if (!left || !right) return false;
+    const auto left_bits = bin_length(left);
+    const auto right_bits = bin_length(right);
+    if (left_bits != right_bits) return false;
+    const auto bytes = bin_payload_bytes(left_bits);
+    return bytes == 0 || std::memcmp(
+        static_cast<unsigned char*>(left) + 8,
+        static_cast<unsigned char*>(right) + 8,
+        bytes) == 0;
+}
+
+extern "C" long long quidra_bin_byte_length(void* raw) {
+    const auto bits = bin_length(raw);
+    if (bits % 8 != 0)
+        runtime_text_failure("bin length is not byte-aligned for this operation");
+    return bits / 8;
+}
+
+extern "C" void* quidra_bin_from_array(void* raw, int width, int stride) {
+    if (!raw || width <= 0 || width > 64 || stride <= 0)
+        runtime_text_failure("invalid bin array conversion");
+    long long signed_count = 0;
+    std::memcpy(&signed_count, raw, sizeof(signed_count));
+    if (signed_count < 0) runtime_text_failure("invalid array length in bin conversion");
+    const auto count = static_cast<unsigned long long>(signed_count);
+    if (count != 0 && static_cast<unsigned long long>(width) >
+        static_cast<unsigned long long>(std::numeric_limits<long long>::max()) / count)
+        runtime_allocation_failure();
+    const auto total_bits = static_cast<long long>(count * static_cast<unsigned long long>(width));
+    auto* result = quidra_bin_alloc(total_bits, 0);
+    const auto* data = static_cast<const unsigned char*>(raw) + 8;
+    for (unsigned long long i = 0; i < count; ++i) {
+        unsigned long long value = 0;
+        if (width == 1) {
+            value = data[i * static_cast<unsigned long long>(stride)] ? 1ULL : 0ULL;
+        } else {
+            std::memcpy(&value, data + i * static_cast<unsigned long long>(stride),
+                        static_cast<std::size_t>(stride));
+        }
+        for (int bit = 0; bit < width; ++bit) {
+            const auto shift = static_cast<unsigned>(width - 1 - bit);
+            bin_set_bit(result,
+                        static_cast<long long>(i * static_cast<unsigned long long>(width) +
+                                               static_cast<unsigned long long>(bit)),
+                        ((value >> shift) & 1ULL) != 0);
+        }
+    }
+    return result;
+}
+
+extern "C" void* quidra_bin_to_array(void* raw, int width, int stride) {
+    if (!raw || width <= 0 || width > 64 || stride <= 0)
+        runtime_text_failure("invalid bin array conversion");
+    const auto bits = bin_length(raw);
+    if (bits % width != 0)
+        runtime_text_failure("bin length is not divisible by destination element width");
+    const auto count = bits / width;
+    const auto count_size = static_cast<std::size_t>(count);
+    if (count < 0 || static_cast<long long>(count_size) != count ||
+        (count_size != 0 &&
+         static_cast<std::size_t>(stride) >
+             (std::numeric_limits<std::size_t>::max() - 8) / count_size))
+        runtime_allocation_failure();
+    auto* result = static_cast<unsigned char*>(
+        managed_allocate(8 + count_size * static_cast<std::size_t>(stride)));
+    std::memcpy(result, &count, sizeof(count));
+    auto* data = result + 8;
+    for (long long i = 0; i < count; ++i) {
+        unsigned long long value = 0;
+        for (int bit = 0; bit < width; ++bit)
+            value = (value << 1U) |
+                    (bin_bit_at(raw, i * static_cast<long long>(width) + bit) ? 1ULL : 0ULL);
+        if (width == 1) {
+            data[static_cast<std::size_t>(i) * static_cast<std::size_t>(stride)] =
+                value ? 1 : 0;
+        } else {
+            std::memcpy(data + static_cast<std::size_t>(i) * static_cast<std::size_t>(stride),
+                        &value, static_cast<std::size_t>(stride));
+        }
+    }
+    quidra_init_create(result, static_cast<unsigned long long>(count_size),
+                       static_cast<unsigned long long>(stride), 8, 1);
+    return result;
+}
+
+extern "C" char* quidra_string_repeat(long long count, const char* fill) {
+    if (count < 0) runtime_text_failure("string length cannot be negative");
+    if (!fill) runtime_text_failure("null string fill");
+    const std::string_view unit(fill);
+    validate_utf8(unit);
+    if (utf8_length(unit) != 1) runtime_text_failure("string fill must contain exactly one Unicode code point");
+    const auto n = static_cast<std::size_t>(count);
+    if (count != static_cast<long long>(n) ||
+        (!unit.empty() && n > (std::numeric_limits<std::size_t>::max() - 1) / unit.size()))
+        runtime_allocation_failure();
+    const auto bytes = n * unit.size();
+    auto* result = static_cast<char*>(managed_allocate(bytes + 1));
+    for (std::size_t i = 0; i < n; ++i)
+        if (!unit.empty()) std::memcpy(result + i * unit.size(), unit.data(), unit.size());
+    result[bytes] = '\0';
+    return result;
+}
+
 extern "C" void* quidra_string_utf8(const char* text) {
     if (!text) runtime_text_failure("null string");
     const std::string_view source(text);
     validate_utf8(source);
-    if (source.size() > (std::numeric_limits<std::size_t>::max() - 8)) {
+    if (source.size() > (std::numeric_limits<std::size_t>::max() - 8) ||
+        source.size() > static_cast<std::size_t>(std::numeric_limits<long long>::max() / 8)) {
         runtime_allocation_failure();
     }
     auto* result = static_cast<unsigned char*>(managed_allocate(8 + source.size()));
-    const auto count = static_cast<long long>(source.size());
+    const auto count = static_cast<long long>(source.size() * 8);
     std::memcpy(result, &count, sizeof(count));
     if (!source.empty()) std::memcpy(result + 8, source.data(), source.size());
     return result;
@@ -4830,8 +7289,426 @@ extern "C" double quidra_cli_parse_float(const char* text) {
     return value;
 }
 
+extern "C" void* quidra_cli_parse_bigint(const char* text) {
+    auto* value = quidra_bigint_parse(text);
+    if (!value) cli_fail("invalid bigint value");
+    return value;
+}
+
+extern "C" void* quidra_cli_parse_bigreal(const char* text) {
+    auto* value = quidra_bigreal_parse(text);
+    if (!value) cli_fail("invalid bigreal value");
+    return value;
+}
+
 extern "C" bool quidra_cli_parse_bool(const char* text) {
     if (text && std::strcmp(text, "true") == 0) return true;
     if (text && std::strcmp(text, "false") == 0) return false;
     cli_fail("bool values must be true or false");
+}
+
+
+namespace {
+
+void image_tensor_require_chw(
+    const TensorValue& value,const char* operation,
+    unsigned long long line,unsigned long long column) {
+    if(value.shape.size()!=3)
+        tensor_fail((std::string(operation)+" requires a rank-3 CHW tensor").c_str(),line,column);
+    if(value.shape[0]<=0||value.shape[1]<=0||value.shape[2]<=0)
+        tensor_fail((std::string(operation)+" requires positive CHW dimensions").c_str(),line,column);
+    tensor_require_initialized(value,line,column);
+}
+
+TensorValue* image_tensor_output(
+    int dtype,const std::vector<long long>& shape,int device,
+    unsigned long long line,unsigned long long column) {
+    const auto count=tensor_element_count(shape,line,column);
+    auto* storage=tensor_storage_create(dtype,count,1,device,line,column);
+    auto strides=tensor_contiguous_strides(shape);
+    return tensor_descriptor(storage,shape,std::move(strides),0);
+}
+
+const TensorStorage* image_tensor_dense_gpu(
+    const TensorValue& source,TensorStorage*& materialized,
+    unsigned long long line,unsigned long long column) {
+    materialized=nullptr;
+    if(tensor_is_contiguous_value(source)&&source.offset==0)
+        return source.storage;
+    materialized=tensor_gpu_materialize_storage(source,line,column);
+    return materialized;
+}
+
+template <typename T>
+void image_morphology_cpu(
+    const TensorValue& input,TensorStorage& output,std::size_t channels,
+    std::size_t height,std::size_t width,std::size_t radius,bool dilate) {
+    for(std::size_t c=0;c<channels;++c)
+        for(std::size_t y=0;y<height;++y)
+            for(std::size_t x=0;x<width;++x){
+                const auto center=tensor_storage_index(
+                    input,(c*height+y)*width+x);
+                T best{};
+                std::memcpy(&best,input.storage->data.data()+center*sizeof(T),sizeof(T));
+                const auto y0=y>radius?y-radius:0;
+                const auto y1=std::min(height-1,y+std::min(radius,height-1-y));
+                const auto x0=x>radius?x-radius:0;
+                const auto x1=std::min(width-1,x+std::min(radius,width-1-x));
+                for(std::size_t sy=y0;sy<=y1;++sy)
+                    for(std::size_t sx=x0;sx<=x1;++sx){
+                        const auto source_index=tensor_storage_index(
+                            input,(c*height+sy)*width+sx);
+                        T candidate{};
+                        std::memcpy(&candidate,
+                            input.storage->data.data()+source_index*sizeof(T),sizeof(T));
+                        if(dilate?candidate>best:candidate<best) best=candidate;
+                    }
+                const auto out_index=(c*height+y)*width+x;
+                std::memcpy(output.data.data()+out_index*sizeof(T),&best,sizeof(T));
+            }
+}
+
+} // namespace
+
+extern "C" void* quidra_image_tensor_geometry(
+    void* raw,int dtype,int operation,
+    long long p0,long long p1,long long p2,long long p3,
+    unsigned long long line,unsigned long long column) {
+    if(!raw) tensor_fail("image tensor geometry received a null tensor",line,column);
+    auto& input=*static_cast<TensorValue*>(raw);
+    if(input.storage->dtype!=dtype)
+        tensor_fail("image tensor geometry dtype mismatch",line,column);
+    image_tensor_require_chw(input,"image tensor geometry",line,column);
+    const auto channels=static_cast<std::size_t>(input.shape[0]);
+    const auto ih=static_cast<std::size_t>(input.shape[1]);
+    const auto iw=static_cast<std::size_t>(input.shape[2]);
+    std::size_t oh=ih,ow=iw,param0=0,param1=0;
+
+    if(operation==1){
+        if(p0<0||p1<0||p2<=0||p3<=0)
+            tensor_fail("image crop requires nonnegative origin and positive size",line,column);
+        if(p0>=input.shape[1]||p1>=input.shape[2]||
+           p2>input.shape[1]-p0||p3>input.shape[2]-p1)
+            tensor_fail("image crop rectangle exceeds the image",line,column);
+        param0=static_cast<std::size_t>(p0);
+        param1=static_cast<std::size_t>(p1);
+        oh=static_cast<std::size_t>(p2);
+        ow=static_cast<std::size_t>(p3);
+    }else if(operation==2){
+        if(p0<=0||p1<=0)
+            tensor_fail("image resize requires positive output dimensions",line,column);
+        oh=static_cast<std::size_t>(p0);
+        ow=static_cast<std::size_t>(p1);
+    }else if(operation==3||operation==4){
+    }else if(operation==5||operation==6){
+        oh=iw; ow=ih;
+    }else{
+        tensor_fail("unknown image tensor geometry operation",line,column);
+    }
+
+    std::vector<long long> shape{
+        static_cast<long long>(channels),
+        static_cast<long long>(oh),
+        static_cast<long long>(ow)};
+    auto* result=image_tensor_output(dtype,shape,input.storage->device,line,column);
+
+    if(!tensor_on_cpu(*input.storage)){
+        TensorStorage* materialized=nullptr;
+        const auto* source=image_tensor_dense_gpu(input,materialized,line,column);
+        std::string backend_error;
+        const bool ok=quidra::device::compute_image_geometry(
+            result->storage->gpu_buffer,source->gpu_buffer,dtype,
+            channels,ih,iw,oh,ow,operation,param0,param1,backend_error);
+        if(materialized) tensor_storage_release(materialized);
+        if(!ok){
+            quidra_tensor_drop(result);
+            tensor_fail(backend_error.c_str(),line,column);
+        }
+        return result;
+    }
+
+    const auto bytes=tensor_dtype_bytes(dtype);
+    const auto output_count=channels*oh*ow;
+    for(std::size_t linear=0;linear<output_count;++linear){
+        const auto x=linear%ow;
+        const auto y=(linear/ow)%oh;
+        const auto c=linear/(ow*oh);
+        std::size_t sy=0,sx=0;
+        if(operation==1){sy=param0+y;sx=param1+x;}
+        else if(operation==2){sy=y*ih/oh;sx=x*iw/ow;}
+        else if(operation==3){sy=y;sx=iw-1-x;}
+        else if(operation==4){sy=ih-1-y;sx=x;}
+        else if(operation==5){sy=ih-1-x;sx=y;}
+        else {sy=x;sx=iw-1-y;}
+        const auto source_index=tensor_storage_index(input,(c*ih+sy)*iw+sx);
+        std::memcpy(
+            result->storage->data.data()+linear*bytes,
+            input.storage->data.data()+source_index*bytes,bytes);
+    }
+    return result;
+}
+
+extern "C" void* quidra_image_tensor_grayscale(
+    void* raw,unsigned long long line,unsigned long long column) {
+    if(!raw) tensor_fail("image grayscale received a null tensor",line,column);
+    auto& input=*static_cast<TensorValue*>(raw);
+    image_tensor_require_chw(input,"image grayscale",line,column);
+    if(input.storage->dtype!=5)
+        tensor_fail("image grayscale requires tensor<uint8>",line,column);
+    const auto channels=static_cast<std::size_t>(input.shape[0]);
+    const auto height=static_cast<std::size_t>(input.shape[1]);
+    const auto width=static_cast<std::size_t>(input.shape[2]);
+    if(channels!=1&&channels!=3&&channels!=4)
+        tensor_fail("image grayscale requires 1, 3, or 4 channels",line,column);
+    std::vector<long long> shape{1,input.shape[1],input.shape[2]};
+    auto* result=image_tensor_output(5,shape,input.storage->device,line,column);
+    if(!tensor_on_cpu(*input.storage)){
+        TensorStorage* materialized=nullptr;
+        const auto* source=image_tensor_dense_gpu(input,materialized,line,column);
+        std::string backend_error;
+        const bool ok=quidra::device::compute_image_grayscale(
+            result->storage->gpu_buffer,source->gpu_buffer,
+            channels,height,width,backend_error);
+        if(materialized) tensor_storage_release(materialized);
+        if(!ok){
+            quidra_tensor_drop(result);
+            tensor_fail(backend_error.c_str(),line,column);
+        }
+        return result;
+    }
+    const auto pixels=height*width;
+    for(std::size_t i=0;i<pixels;++i){
+        std::uint8_t value{};
+        if(channels==1){
+            const auto index=tensor_storage_index(input,i);
+            value=input.storage->data[index];
+        }else{
+            const auto ri=tensor_storage_index(input,i);
+            const auto gi=tensor_storage_index(input,pixels+i);
+            const auto bi=tensor_storage_index(input,2*pixels+i);
+            const double luminance=
+                0.299*input.storage->data[ri]+
+                0.587*input.storage->data[gi]+
+                0.114*input.storage->data[bi];
+            value=static_cast<std::uint8_t>(
+                std::clamp<long long>(std::llround(luminance),0,255));
+        }
+        result->storage->data[i]=value;
+    }
+    return result;
+}
+
+extern "C" void* quidra_image_tensor_threshold(
+    void* raw,std::uint8_t cutoff,std::uint8_t low,std::uint8_t high,
+    unsigned long long line,unsigned long long column) {
+    if(!raw) tensor_fail("image threshold received a null tensor",line,column);
+    auto& input=*static_cast<TensorValue*>(raw);
+    image_tensor_require_chw(input,"image threshold",line,column);
+    if(input.storage->dtype!=5)
+        tensor_fail("image threshold requires tensor<uint8>",line,column);
+    auto* result=image_tensor_output(5,input.shape,input.storage->device,line,column);
+    const auto count=tensor_logical_count(input);
+    if(!tensor_on_cpu(*input.storage)){
+        TensorStorage* materialized=nullptr;
+        const auto* source=image_tensor_dense_gpu(input,materialized,line,column);
+        std::string backend_error;
+        const bool ok=quidra::device::compute_image_threshold(
+            result->storage->gpu_buffer,source->gpu_buffer,count,
+            cutoff,low,high,backend_error);
+        if(materialized) tensor_storage_release(materialized);
+        if(!ok){
+            quidra_tensor_drop(result);
+            tensor_fail(backend_error.c_str(),line,column);
+        }
+        return result;
+    }
+    for(std::size_t i=0;i<count;++i){
+        const auto source=tensor_storage_index(input,i);
+        result->storage->data[i]=input.storage->data[source]>=cutoff?high:low;
+    }
+    return result;
+}
+
+extern "C" void* quidra_image_tensor_blur(
+    void* raw,long long radius,
+    unsigned long long line,unsigned long long column) {
+    if(!raw) tensor_fail("image blur received a null tensor",line,column);
+    auto& input=*static_cast<TensorValue*>(raw);
+    image_tensor_require_chw(input,"image blur",line,column);
+    if(input.storage->dtype!=5)
+        tensor_fail("image blur requires tensor<uint8>",line,column);
+    if(radius<0) tensor_fail("image blur radius must be nonnegative",line,column);
+    const auto channels=static_cast<std::size_t>(input.shape[0]);
+    const auto height=static_cast<std::size_t>(input.shape[1]);
+    const auto width=static_cast<std::size_t>(input.shape[2]);
+    const auto r=static_cast<std::size_t>(radius);
+    auto* result=image_tensor_output(5,input.shape,input.storage->device,line,column);
+    if(!tensor_on_cpu(*input.storage)){
+        TensorStorage* materialized=nullptr;
+        const auto* source=image_tensor_dense_gpu(input,materialized,line,column);
+        std::string backend_error;
+        const bool ok=quidra::device::compute_image_blur(
+            result->storage->gpu_buffer,source->gpu_buffer,
+            channels,height,width,r,backend_error);
+        if(materialized) tensor_storage_release(materialized);
+        if(!ok){
+            quidra_tensor_drop(result);
+            tensor_fail(backend_error.c_str(),line,column);
+        }
+        return result;
+    }
+    for(std::size_t c=0;c<channels;++c)
+        for(std::size_t y=0;y<height;++y)
+            for(std::size_t x=0;x<width;++x){
+                std::uint64_t total=0,count=0;
+                const auto y0=y>r?y-r:0;
+                const auto y1=std::min(height-1,y+std::min(r,height-1-y));
+                const auto x0=x>r?x-r:0;
+                const auto x1=std::min(width-1,x+std::min(r,width-1-x));
+                for(std::size_t sy=y0;sy<=y1;++sy)
+                    for(std::size_t sx=x0;sx<=x1;++sx){
+                        const auto source=tensor_storage_index(
+                            input,(c*height+sy)*width+sx);
+                        total+=input.storage->data[source];
+                        ++count;
+                    }
+                result->storage->data[(c*height+y)*width+x]=
+                    static_cast<std::uint8_t>(total/count);
+            }
+    return result;
+}
+
+extern "C" void* quidra_image_tensor_filter(
+    void* raw,void* kernel_raw,long long divisor,long long offset,
+    unsigned long long line,unsigned long long column) {
+    if(!raw||!kernel_raw)
+        tensor_fail("image filter received a null tensor",line,column);
+    auto& input=*static_cast<TensorValue*>(raw);
+    auto& kernel=*static_cast<TensorValue*>(kernel_raw);
+    image_tensor_require_chw(input,"image filter",line,column);
+    tensor_require_initialized(kernel,line,column);
+    if(input.storage->dtype!=5||kernel.storage->dtype!=1||kernel.shape.size()!=2)
+        tensor_fail("image filter requires tensor<uint8> pixels and a rank-2 tensor<int> kernel",line,column);
+    if(kernel.shape[0]<=0||kernel.shape[1]<=0)
+        tensor_fail("image filter requires positive kernel dimensions",line,column);
+    if(divisor==0) tensor_fail("image filter divisor must not be zero",line,column);
+    if(input.storage->device!=kernel.storage->device)
+        tensor_fail("image filter tensors must be on the same device",line,column);
+    const auto channels=static_cast<std::size_t>(input.shape[0]);
+    const auto height=static_cast<std::size_t>(input.shape[1]);
+    const auto width=static_cast<std::size_t>(input.shape[2]);
+    const auto kh=static_cast<std::size_t>(kernel.shape[0]);
+    const auto kw=static_cast<std::size_t>(kernel.shape[1]);
+    auto* result=image_tensor_output(5,input.shape,input.storage->device,line,column);
+
+    if(!tensor_on_cpu(*input.storage)){
+        TensorStorage* input_mat=nullptr;
+        TensorStorage* kernel_mat=nullptr;
+        const auto* input_store=image_tensor_dense_gpu(input,input_mat,line,column);
+        const auto* kernel_store=image_tensor_dense_gpu(kernel,kernel_mat,line,column);
+        std::string backend_error;
+        const bool ok=quidra::device::compute_image_filter(
+            result->storage->gpu_buffer,input_store->gpu_buffer,kernel_store->gpu_buffer,
+            channels,height,width,kh,kw,divisor,offset,backend_error);
+        if(input_mat) tensor_storage_release(input_mat);
+        if(kernel_mat) tensor_storage_release(kernel_mat);
+        if(!ok){
+            quidra_tensor_drop(result);
+            tensor_fail(backend_error.c_str(),line,column);
+        }
+        return result;
+    }
+
+    const auto cy=kh/2,cx=kw/2;
+    for(std::size_t c=0;c<channels;++c)
+        for(std::size_t y=0;y<height;++y)
+            for(std::size_t x=0;x<width;++x){
+                std::int64_t total=0;
+                for(std::size_t ky=0;ky<kh;++ky){
+                    const auto sy=static_cast<long long>(y)+
+                        static_cast<long long>(ky)-static_cast<long long>(cy);
+                    if(sy<0||sy>=static_cast<long long>(height)) continue;
+                    for(std::size_t kx=0;kx<kw;++kx){
+                        const auto sx=static_cast<long long>(x)+
+                            static_cast<long long>(kx)-static_cast<long long>(cx);
+                        if(sx<0||sx>=static_cast<long long>(width)) continue;
+                        const auto pi=tensor_storage_index(
+                            input,(c*height+static_cast<std::size_t>(sy))*width+
+                                  static_cast<std::size_t>(sx));
+                        const auto ki=tensor_storage_index(kernel,ky*kw+kx);
+                        std::int64_t weight{};
+                        std::memcpy(&weight,kernel.storage->data.data()+ki*8,8);
+                        std::int64_t product{},next{};
+                        if(!tensor_mul_checked(
+                               static_cast<std::int64_t>(input.storage->data[pi]),
+                               weight,product)||
+                           !tensor_add_checked(total,product,next)){
+                            quidra_tensor_drop(result);
+                            tensor_fail("image filter integer arithmetic overflow",line,column);
+                        }
+                        total=next;
+                    }
+                }
+                if(total==std::numeric_limits<std::int64_t>::min()&&divisor==-1){
+                    quidra_tensor_drop(result);
+                    tensor_fail("image filter integer arithmetic overflow",line,column);
+                }
+                const auto divided=total/divisor;
+                long long adjusted{};
+                if(!tensor_add_checked(divided,offset,adjusted)){
+                    quidra_tensor_drop(result);
+                    tensor_fail("image filter integer arithmetic overflow",line,column);
+                }
+                const auto clamped=std::clamp<std::int64_t>(adjusted,0,255);
+                result->storage->data[(c*height+y)*width+x]=
+                    static_cast<std::uint8_t>(clamped);
+            }
+    return result;
+}
+
+extern "C" void* quidra_image_tensor_morphology(
+    void* raw,int dtype,long long radius,bool dilate,
+    unsigned long long line,unsigned long long column) {
+    if(!raw) tensor_fail("image morphology received a null tensor",line,column);
+    auto& input=*static_cast<TensorValue*>(raw);
+    if(input.storage->dtype!=dtype)
+        tensor_fail("image morphology dtype mismatch",line,column);
+    image_tensor_require_chw(input,"image morphology",line,column);
+    if(radius<0)
+        tensor_fail("image morphology radius must be nonnegative",line,column);
+    const auto channels=static_cast<std::size_t>(input.shape[0]);
+    const auto height=static_cast<std::size_t>(input.shape[1]);
+    const auto width=static_cast<std::size_t>(input.shape[2]);
+    const auto r=static_cast<std::size_t>(radius);
+    auto* result=image_tensor_output(dtype,input.shape,input.storage->device,line,column);
+    if(!tensor_on_cpu(*input.storage)){
+        TensorStorage* materialized=nullptr;
+        const auto* source=image_tensor_dense_gpu(input,materialized,line,column);
+        std::string backend_error;
+        const bool ok=quidra::device::compute_image_morphology(
+            result->storage->gpu_buffer,source->gpu_buffer,dtype,
+            channels,height,width,r,dilate,backend_error);
+        if(materialized) tensor_storage_release(materialized);
+        if(!ok){
+            quidra_tensor_drop(result);
+            tensor_fail(backend_error.c_str(),line,column);
+        }
+        return result;
+    }
+    switch(dtype){
+        case 1:image_morphology_cpu<std::int64_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 2:image_morphology_cpu<std::int8_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 3:image_morphology_cpu<std::int16_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 4:image_morphology_cpu<std::int32_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 5:image_morphology_cpu<std::uint8_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 6:image_morphology_cpu<std::uint16_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 7:image_morphology_cpu<std::uint32_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 8:image_morphology_cpu<std::uint64_t>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 9:image_morphology_cpu<double>(input,*result->storage,channels,height,width,r,dilate);break;
+        case 10:image_morphology_cpu<float>(input,*result->storage,channels,height,width,r,dilate);break;
+        default:
+            quidra_tensor_drop(result);
+            tensor_fail("image morphology received an unsupported dtype",line,column);
+    }
+    return result;
 }

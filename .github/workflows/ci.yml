@@ -49,9 +49,24 @@ jobs:
           cpack --config build/CPackConfig.cmake -G DEB -B dist
           package="$(find dist -maxdepth 1 -name 'quidra_*_amd64.deb' -print -quit)"
           test -n "$package"
-          dpkg-deb --contents "$package" | grep -q '/usr/bin/quidra$'
-          dpkg-deb --contents "$package" | grep -q '/usr/lib/quidra/libquidra_runtime.a$'
-          dpkg-deb --contents "$package" | grep -q '/usr/share/doc/quidra/quidra.manifest.json$'
+          dpkg-deb --contents "$package" | grep -q '/usr/bin/quidra'
+          dpkg-deb --contents "$package" | grep -q '/usr/lib/quidra/libquidra_runtime.a'
+          dpkg-deb --contents "$package" | grep -q '/usr/share/doc/quidra/quidra.manifest.json'
+
+  gpu-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native dependencies
+        run: sudo apt-get update && sudo apt-get install -y llvm libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev
+      - name: Configure test-only fake GPU backend
+        run: cmake -S . -B build-gpu-contracts -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON -DQUIDRA_ENABLE_TEST_GPU_BACKEND=ON
+      - name: Build
+        run: cmake --build build-gpu-contracts --parallel
+      - name: GPU backend unit tests
+        run: ctest --test-dir build-gpu-contracts -R quidra_device_backend_tests --output-on-failure
+      - name: GPU placement contracts
+        run: ctest --test-dir build-gpu-contracts -R quidra_gpu_contracts --output-on-failure
 
   sanitizers:
     runs-on: ubuntu-latest
@@ -86,6 +101,10 @@ jobs:
         run: cmake --build build --parallel
       - name: Tests
         run: ctest --test-dir build --output-on-failure
+      - name: Real Metal GPU numerical integration
+        env:
+          QUIDRA_REQUIRE_REAL_GPU: "1"
+        run: ctest --test-dir build -R quidra_real_gpu_integration --output-on-failure
       - name: Native smoke
         run: |
           printf 'print("Hello from macOS")\n' > build/platform-smoke.qui

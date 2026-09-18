@@ -17,7 +17,7 @@ struct BuiltinTypeName {
     std::string_view canonical;
 };
 
-inline constexpr std::array<BuiltinTypeName, 18> builtin_type_names{{
+inline constexpr std::array<BuiltinTypeName, 20> builtin_type_names{{
     {"int", "int"},
     {"int8", "int8"},
     {"int16", "int16"},
@@ -27,12 +27,14 @@ inline constexpr std::array<BuiltinTypeName, 18> builtin_type_names{{
     {"uint16", "uint16"},
     {"uint32", "uint32"},
     {"uint64", "uint64"},
+    {"bigint", "bigint"},
     {"float", "float"},
     {"float32", "float32"},
     {"float64", "float"},
+    {"bigreal", "bigreal"},
     {"bool", "bool"},
     {"string", "string"},
-    {"bytes", "bytes"},
+    {"bin", "bin"},
     {"void", "void"},
     {"none", "none"},
     {"error", "error"},
@@ -84,9 +86,9 @@ enum class BuiltinCallable {
     CliFlag,
     CliFinish,
     FileRead,
-    FileReadBytes,
+    FileReadBin,
     FileWrite,
-    FileWriteBytes,
+    FileWriteBin,
     FileExists,
     FileIsDirectory,
     FileRemove,
@@ -115,6 +117,8 @@ enum class BuiltinCallable {
     JsonText,
     JsonInteger,
     JsonNumber,
+    JsonBigInt,
+    JsonBigReal,
     JsonBoolean,
     JsonEncode,
     JsonEqual,
@@ -123,11 +127,26 @@ enum class BuiltinCallable {
     TensorCreate,
     TensorZeros,
     TensorOnes,
+    StatsSum,
     StatsMean,
+    StatsMin,
+    StatsMax,
     LinearMatmul,
     LinearDot,
     ImageRead,
     ImageWrite,
+    ImageTensorCrop,
+    ImageTensorResize,
+    ImageTensorFlipHorizontal,
+    ImageTensorFlipVertical,
+    ImageTensorRotate90,
+    ImageTensorRotate270,
+    ImageTensorGrayscale,
+    ImageTensorThreshold,
+    ImageTensorBlur,
+    ImageTensorFilter,
+    ImageTensorDilate,
+    ImageTensorErode,
     NeuralTrack,
     NeuralParameterTrack,
     NeuralAffine,
@@ -171,7 +190,7 @@ inline constexpr std::array<BuiltinCallableInfo, 11> builtin_callables{{
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 77> intrinsic_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 94> intrinsic_callables{{
     {"$std.math.sin", BuiltinCallable::MathSin},
     {"$std.math.cos", BuiltinCallable::MathCos},
     {"$std.math.tan", BuiltinCallable::MathTan},
@@ -187,9 +206,9 @@ inline constexpr std::array<BuiltinCallableInfo, 77> intrinsic_callables{{
     {"$std.cli.flag", BuiltinCallable::CliFlag},
     {"$std.cli.finish", BuiltinCallable::CliFinish},
     {"$std.file.read", BuiltinCallable::FileRead},
-    {"$std.file.read_bytes", BuiltinCallable::FileReadBytes},
+    {"$std.file.read_bin", BuiltinCallable::FileReadBin},
     {"$std.file.write", BuiltinCallable::FileWrite},
-    {"$std.file.write_bytes", BuiltinCallable::FileWriteBytes},
+    {"$std.file.write_bin", BuiltinCallable::FileWriteBin},
     {"$std.file.exists", BuiltinCallable::FileExists},
     {"$std.file.is_directory", BuiltinCallable::FileIsDirectory},
     {"$std.file.remove", BuiltinCallable::FileRemove},
@@ -219,6 +238,8 @@ inline constexpr std::array<BuiltinCallableInfo, 77> intrinsic_callables{{
     {"$std.json.text", BuiltinCallable::JsonText},
     {"$std.json.integer", BuiltinCallable::JsonInteger},
     {"$std.json.number", BuiltinCallable::JsonNumber},
+    {"$std.json.bigint", BuiltinCallable::JsonBigInt},
+    {"$std.json.bigreal", BuiltinCallable::JsonBigReal},
     {"$std.json.boolean", BuiltinCallable::JsonBoolean},
     {"$std.json.encode", BuiltinCallable::JsonEncode},
     {"$std.json.equal", BuiltinCallable::JsonEqual},
@@ -226,11 +247,26 @@ inline constexpr std::array<BuiltinCallableInfo, 77> intrinsic_callables{{
     {"$std.http.header", BuiltinCallable::HttpHeader},
     {"$std.tensor.zeros", BuiltinCallable::TensorZeros},
     {"$std.tensor.ones", BuiltinCallable::TensorOnes},
+    {"$std.stats.sum", BuiltinCallable::StatsSum},
     {"$std.stats.mean", BuiltinCallable::StatsMean},
+    {"$std.stats.min", BuiltinCallable::StatsMin},
+    {"$std.stats.max", BuiltinCallable::StatsMax},
     {"$std.linear.matmul", BuiltinCallable::LinearMatmul},
     {"$std.linear.dot", BuiltinCallable::LinearDot},
     {"$std.image.read", BuiltinCallable::ImageRead},
     {"$std.image.write", BuiltinCallable::ImageWrite},
+    {"$std.image.tensor_crop", BuiltinCallable::ImageTensorCrop},
+    {"$std.image.tensor_resize", BuiltinCallable::ImageTensorResize},
+    {"$std.image.tensor_flip_horizontal", BuiltinCallable::ImageTensorFlipHorizontal},
+    {"$std.image.tensor_flip_vertical", BuiltinCallable::ImageTensorFlipVertical},
+    {"$std.image.tensor_rotate90", BuiltinCallable::ImageTensorRotate90},
+    {"$std.image.tensor_rotate270", BuiltinCallable::ImageTensorRotate270},
+    {"$std.image.tensor_grayscale", BuiltinCallable::ImageTensorGrayscale},
+    {"$std.image.tensor_threshold", BuiltinCallable::ImageTensorThreshold},
+    {"$std.image.tensor_blur", BuiltinCallable::ImageTensorBlur},
+    {"$std.image.tensor_filter", BuiltinCallable::ImageTensorFilter},
+    {"$std.image.tensor_dilate", BuiltinCallable::ImageTensorDilate},
+    {"$std.image.tensor_erode", BuiltinCallable::ImageTensorErode},
     {"$std.neural.track", BuiltinCallable::NeuralTrack},
     {"$std.neural.parameter_track", BuiltinCallable::NeuralParameterTrack},
     {"$std.neural.affine", BuiltinCallable::NeuralAffine},
@@ -326,7 +362,10 @@ inline constexpr std::optional<std::string_view> standard_function_target(
         return std::nullopt;
     }
     if (module == "stats") {
+        if (member == "sum") return "$std.stats.sum";
         if (member == "mean") return "$std.stats.mean";
+        if (member == "min") return "$std.stats.min";
+        if (member == "max") return "$std.stats.max";
         return std::nullopt;
     }
     if (module == "linear") {
@@ -337,6 +376,18 @@ inline constexpr std::optional<std::string_view> standard_function_target(
     if (module == "image") {
         if (member == "read") return "$std.image.read";
         if (member == "write") return "$std.image.write";
+        if (member == "tensor_crop") return "$std.image.tensor_crop";
+        if (member == "tensor_resize") return "$std.image.tensor_resize";
+        if (member == "tensor_flip_horizontal") return "$std.image.tensor_flip_horizontal";
+        if (member == "tensor_flip_vertical") return "$std.image.tensor_flip_vertical";
+        if (member == "tensor_rotate90") return "$std.image.tensor_rotate90";
+        if (member == "tensor_rotate270") return "$std.image.tensor_rotate270";
+        if (member == "tensor_grayscale") return "$std.image.tensor_grayscale";
+        if (member == "tensor_threshold") return "$std.image.tensor_threshold";
+        if (member == "tensor_blur") return "$std.image.tensor_blur";
+        if (member == "tensor_filter") return "$std.image.tensor_filter";
+        if (member == "tensor_dilate") return "$std.image.tensor_dilate";
+        if (member == "tensor_erode") return "$std.image.tensor_erode";
         return std::nullopt;
     }
     if (module == "neural") {
@@ -361,9 +412,9 @@ inline constexpr std::optional<std::string_view> standard_function_target(
     }
     if (module == "file") {
         if (member == "read") return "$std.file.read";
-        if (member == "read_bytes") return "$std.file.read_bytes";
+        if (member == "read_bin") return "$std.file.read_bin";
         if (member == "write") return "$std.file.write";
-        if (member == "write_bytes") return "$std.file.write_bytes";
+        if (member == "write_bin") return "$std.file.write_bin";
         if (member == "exists") return "$std.file.exists";
         if (member == "is_directory") return "$std.file.is_directory";
         if (member == "remove") return "$std.file.remove";
@@ -394,6 +445,10 @@ inline constexpr std::optional<std::string_view> standard_value_target(
     if (member == "pi") return "$std.math.pi";
     if (member == "e") return "$std.math.e";
     return std::nullopt;
+}
+
+inline constexpr bool is_standard_real_constant(std::string_view name) {
+    return name == "$std.math.pi" || name == "$std.math.e";
 }
 
 inline constexpr std::optional<double> standard_float_constant(std::string_view name) {

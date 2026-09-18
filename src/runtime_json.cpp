@@ -265,16 +265,17 @@ private:
         }
 
         std::string token(begin, static_cast<std::size_t>(cursor_ - begin));
-        errno = 0;
-        char* end = nullptr;
-        const double value = std::strtod(token.c_str(), &end);
-        if (errno == ERANGE || !end || *end != '\0' || !std::isfinite(value)) {
-            return fail("JSON number is outside float range");
-        }
         auto* node = make_node();
         node->kind = JsonKind::Number;
-        node->number = value;
         node->number_text = std::move(token);
+        // JSON itself has no IEEE-754 range restriction. Keep the source
+        // spelling losslessly; narrow accessors decide whether a value fits.
+        errno = 0;
+        char* end = nullptr;
+        const double value = std::strtod(node->number_text.c_str(), &end);
+        if (errno != ERANGE && end && *end == '\0' && std::isfinite(value)) {
+            node->number = value;
+        }
         return node;
     }
 
@@ -398,12 +399,64 @@ void json_encode_node(const JsonNode* node, std::string& out) {
     }
 }
 
+struct CanonicalJsonNumber {
+    bool negative{};
+    std::string digits;
+    long long exponent{};
+};
+
+CanonicalJsonNumber canonical_json_number(const std::string& source) {
+    CanonicalJsonNumber out;
+    std::size_t pos = 0;
+    if (pos < source.size() && source[pos] == '-') {
+        out.negative = true;
+        ++pos;
+    }
+    const auto exponent_pos = source.find_first_of("eE", pos);
+    const auto mantissa_end =
+        exponent_pos == std::string::npos ? source.size() : exponent_pos;
+    long long explicit_exponent = 0;
+    if (exponent_pos != std::string::npos) {
+        explicit_exponent =
+            std::strtoll(source.c_str() + exponent_pos + 1, nullptr, 10);
+    }
+    const auto dot = source.find('.', pos);
+    const bool has_dot = dot != std::string::npos && dot < mantissa_end;
+    const std::size_t fraction_digits =
+        has_dot ? mantissa_end - dot - 1 : 0;
+    out.digits.reserve(mantissa_end - pos);
+    for (std::size_t i = pos; i < mantissa_end; ++i) {
+        if (source[i] != '.') out.digits.push_back(source[i]);
+    }
+    const auto first = out.digits.find_first_not_of('0');
+    if (first == std::string::npos) {
+        out.negative = false;
+        out.digits = "0";
+        out.exponent = 0;
+        return out;
+    }
+    out.digits.erase(0, first);
+    out.exponent = explicit_exponent - static_cast<long long>(fraction_digits);
+    while (out.digits.size() > 1 && out.digits.back() == '0') {
+        out.digits.pop_back();
+        ++out.exponent;
+    }
+    return out;
+}
+
+bool json_number_equal(const std::string& left, const std::string& right) {
+    const auto a = canonical_json_number(left);
+    const auto b = canonical_json_number(right);
+    return a.negative == b.negative && a.digits == b.digits &&
+           a.exponent == b.exponent;
+}
+
 bool json_equal_node(const JsonNode* left, const JsonNode* right) {
     if (left->kind != right->kind) return false;
     switch (left->kind) {
         case JsonKind::Null: return true;
         case JsonKind::Bool: return left->boolean == right->boolean;
-        case JsonKind::Number: return left->number == right->number;
+        case JsonKind::Number: return json_number_equal(left->number_text, right->number_text);
         case JsonKind::String: return left->text == right->text;
         case JsonKind::Array:
             if (left->array.size() != right->array.size()) return false;
@@ -525,12 +578,24 @@ extern "C" long long quidra_json_integer(void* value) {
 
 extern "C" bool quidra_json_number_ok(void* value) {
     auto* node = json_node(value);
-    return node && node->kind == JsonKind::Number;
+    if (!node || node->kind != JsonKind::Number) return false;
+    errno = 0;
+    char* end = nullptr;
+    const double parsed = std::strtod(node->number_text.c_str(), &end);
+    return errno != ERANGE && end && *end == '\0' && std::isfinite(parsed);
 }
 
 extern "C" double quidra_json_number(void* value) {
     auto* node = json_node(value);
-    return node ? node->number : 0.0;
+    if (!node || node->kind != JsonKind::Number) return 0.0;
+    return std::strtod(node->number_text.c_str(), nullptr);
+}
+
+extern "C" char* quidra_json_number_text(void* value) {
+    auto* node = json_node(value);
+    return node && node->kind == JsonKind::Number
+        ? runtime_copy_string(node->number_text)
+        : nullptr;
 }
 
 extern "C" bool quidra_json_boolean_ok(void* value) {

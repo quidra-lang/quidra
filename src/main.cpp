@@ -5,11 +5,13 @@
 #include "quidra/manifest.hpp"
 #include "quidra/source_tools.hpp"
 #include "quidra/source_patch.hpp"
+#include "quidra/tooling.hpp"
 #include "quidra/version.hpp"
 #include "repl_cli.hpp"
 #include "lsp_server.hpp"
 #include "package_cli.hpp"
 #include "native_build.hpp"
+#include "device_cli.hpp"
 
 #include <chrono>
 #include <cstdlib>
@@ -94,8 +96,6 @@ void validate_patched_file(const fs::path& path, std::string_view source) {
         throw;
     }
 }
-
-
 
 std::string json_escape(const std::string& s) {
     std::ostringstream out;
@@ -211,7 +211,13 @@ void usage(std::ostream& out) {
         << "  quidra                            start REPL when stdin is a TTY\n"
         << "  quidra repl                       start REPL explicitly\n"
         << "  quidra lsp                        start Language Server Protocol server on stdio\n"
-        << "  quidra package ...                manage local installed packages\n"
+        << "  quidra install PACKAGE[@VERSION] install latest compatible tagged package release\n"
+        << "  quidra remove NAME                remove an installed package\n"
+        << "  quidra list                       list installed packages and versions\n"
+        << "  quidra lock FILE.qui [--check]    write or verify quidra.lock\n"
+        << "  quidra package-path               print the default package store path\n"
+        << "  quidra gpu                        list supported GPU devices and backends\n"
+        << "  quidra info                       print CPU/GPU backend information\n"
         << "  quidra FILE.qui [ARGS...]         compile and run with program arguments\n"
         << "  quidra run FILE.qui [-- ARGS...]  compile and run; '--' separates program arguments\n"
         << "  quidra check FILE.qui [--json] [--max-errors N]\n"
@@ -225,8 +231,9 @@ void usage(std::ostream& out) {
         << "  quidra inspect FILE.qui [--no-source] [--no-effects] [--kind KIND] [--depth N]\n"
         << "                                      print filtered typed source nodes as JSON\n"
         << "  quidra patch FILE.qui PATCH.json [--write]\n"
-        << "                                      validate/apply a revision-safe node patch\n"
-        << "  quidra describe                    print machine-readable language summary\n"
+        << "                                      validate/apply a revision-safe structural patch\n"
+        << "  quidra describe [grammar|patch-schema|llm]\n"
+        << "                                      print machine-readable language/tooling contracts\n"
         << "  quidra --version                   print compiler version\n";
 }
 
@@ -267,6 +274,33 @@ void print_compile_errors(const fs::path& input, const quidra::CompileErrors& er
     print_diagnostics(input, errors.diagnostics(), errors.truncated(), json);
 }
 
+int describe_command(int argc, char** argv) {
+    if (argc == 2) {
+        std::cout << description_json() << "\n";
+        return 0;
+    }
+    if (argc != 3) {
+        std::cerr << "quidra: usage: quidra describe [grammar|patch-schema|llm]\n";
+        return 2;
+    }
+    const std::string topic = argv[2];
+    if (topic == "grammar") {
+        std::cout << quidra::grammar_ebnf;
+        if (quidra::grammar_ebnf.empty() || quidra::grammar_ebnf.back() != '\n') std::cout << '\n';
+        return 0;
+    }
+    if (topic == "patch-schema") {
+        std::cout << quidra::patch_schema_json() << "\n";
+        return 0;
+    }
+    if (topic == "llm") {
+        std::cout << quidra::llm_interface_json << "\n";
+        return 0;
+    }
+    std::cerr << "quidra: unknown describe topic: " << topic << "\n";
+    return 2;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -280,8 +314,32 @@ int main(int argc, char** argv) {
         return 2;
     }
 
+    if (argc >= 2) {
+        const std::string package_command = argv[1];
+        if (package_command == "install" ||
+            package_command == "remove" ||
+            package_command == "list" ||
+            package_command == "lock" ||
+            package_command == "package-path") {
+            return quidra::cli::run_package_cli(argc - 1, argv + 1);
+        }
+    }
+
+    // Legacy alias retained for projects/scripts written before the short CLI.
     if (argc >= 2 && std::string(argv[1]) == "package") {
         return quidra::cli::run_package_cli(argc - 2, argv + 2);
+    }
+
+    if (argc == 2 && std::string(argv[1]) == "gpu") {
+        return quidra::cli::run_gpu_cli(false);
+    }
+
+    if (argc == 2 && std::string(argv[1]) == "info") {
+        return quidra::cli::run_gpu_cli(true);
+    }
+
+    if (argc >= 2 && std::string(argv[1]) == "describe") {
+        return describe_command(argc, argv);
     }
 
     if (argc >= 2 && fs::path(argv[1]).extension() == quidra::source_extension) {
@@ -310,10 +368,6 @@ int main(int argc, char** argv) {
         }
         if (arg == "--help" || arg == "-h") {
             usage(std::cout);
-            return 0;
-        }
-        if (arg == "describe") {
-            std::cout << description_json() << "\n";
             return 0;
         }
         if (arg == "repl") {

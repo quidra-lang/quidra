@@ -111,6 +111,7 @@ private:
     std::unordered_map<const MatchCase*, Type> case_types_;
     std::unordered_set<const Expr*> bounds_proven_;
     std::unordered_set<std::string> initialized_, narrowed_, borrowed_, const_bindings_;
+    std::unordered_map<std::string, long long> const_integer_values_;
     std::unordered_map<std::string, std::unordered_set<std::string>> class_initialized_paths_;
     std::unordered_map<const Expr*, std::unordered_set<std::string>> class_expr_initialized_paths_;
     StorageEffect current_receiver_effect_;
@@ -129,14 +130,17 @@ private:
     Type current_return_{Type::simple(TypeKind::Void)};
     bool in_function_{};
     std::size_t loop_depth_{};
+    bool explicit_numeric_literal_context_{};
     std::string current_class_;
 
     Type resolve_type(const TypeName& type, bool allow_auto = false);
+    void check_type_extent_expressions(const TypeName& source);
     Type check_expr(const Expr& expr, const Type* expected = nullptr);
     Type check_address_target(const Expr& expr, bool allow_tensor_element = false);
     bool storage_initialized(const Expr& expr) const;
     void check_static_index_bounds(const Type& base, const Expr& index);
-    Type check_name_expr(const Expr& expression, const NameExpr& node);
+    Type check_name_expr(const Expr& expression, const NameExpr& node,
+                         const Type* expected = nullptr);
     Type check_member_expr(const Expr& expression, const MemberExpr& node);
     Type check_index_expr(const Expr& expression, const IndexExpr& node);
     Type check_method_call_expr(const Expr& expression, const MethodCallExpr& node);

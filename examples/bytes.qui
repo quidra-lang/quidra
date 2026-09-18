@@ -1,4 +1,0 @@
-bytes data = bytes(3, fill = uint8(65))
-data[1] = uint8(66)
-print(len(data))
-print(data[1])

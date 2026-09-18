@@ -74,6 +74,29 @@ if [[ "$update_output" != "$(printf 'true\ntrue')" ]]; then
     exit 1
 fi
 
+cat > "$TMP/dtype-cast.qui" <<'QUI'
+class Model
+    neural.Parameter<float32> value
+
+Model model = Model(
+    value = neural.Parameter<float32>(value = tensor.ones<float32>([2]))
+)
+neural<float32><2> tracked = model.value.track()
+neural<float><2> promoted = float(tracked)
+tensor<float><2> restored = promoted.untrack()
+print(restored.shape()[0])
+print(restored[0].item())
+neural<float> loss = neural.mean(promoted * promoted)
+neural.Gradients gradients = neural.grad(loss)
+neural.update(&model, gradients, rate = 0.1)
+print(math.abs(float(model.value.raw()[0].item()) - 0.9) < 0.000001)
+QUI
+dtype_cast_output="$("$QUIDRA" "$TMP/dtype-cast.qui")"
+if [[ "$dtype_cast_output" != "$(printf '2\n1.0\ntrue')" ]]; then
+    echo "unexpected neural dtype cast output: $dtype_cast_output" >&2
+    exit 1
+fi
+
 cat > "$TMP/normalize.qui" <<'QUI'
 neural.Parameter<float32> scale = neural.Parameter<float32>(
     value = tensor.ones<float32>([2])
@@ -130,7 +153,7 @@ class MomentState
     float beta2
     float epsilon
     neural.State<int> step
-    neural.State<bytes> moments
+    neural.State<bin> moments
 
 Model model = Model(
     value = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
@@ -141,7 +164,7 @@ MomentState state = MomentState(
     beta2 = 0.999,
     epsilon = 0.00000001,
     step = neural.State<int>(value = 0),
-    moments = neural.State<bytes>(value = bytes())
+    moments = neural.State<bin>(value = bin.fill(0, 0))
 )
 neural<float32> tracked = model.value.track()
 neural<float32> loss = neural.mean(tracked * tracked)
@@ -411,8 +434,8 @@ grep -q 'WRITE_CAPABILITY' "$TMP/parameter-reference.json"
 
 for guarded in \
     "momentum = 5.0, epsilon = 0.00001" \
-    "momentum = 0 - 2.0, epsilon = 0.00001" \
-    "momentum = 0.1, epsilon = 0 - 1.0"; do
+    "momentum = 0.0 - 2.0, epsilon = 0.00001" \
+    "momentum = 0.1, epsilon = 0.0 - 1.0"; do
     cat > "$TMP/normalize-range.qui" <<QUI
 neural.Parameter<float32> scale = neural.Parameter<float32>(
     value = tensor.ones<float32>([2])

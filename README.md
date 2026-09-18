@@ -1,14 +1,42 @@
 # Quidra
 
-**Quidra — Programming with maximum meaning per token.**
+**Quidra — Maximum Meaning Per Token**
 
 Quidra is a statically typed, native general-purpose programming language designed for both humans and language models.
 
 The name **Quidra** is derived from *quid*.
 
-Its goal is not to minimize characters. Its goal is **semantic compression**: a small amount of syntax should communicate a large amount of reliable intent.
+## Why Quidra
 
-A Quidra program should make the important facts visible:
+Programming languages communicate intent through tokens, but not every token contributes equally. Ceremony, duplicated declarations, context-sensitive syntax, implicit conversions, hidden mutation, hidden failure, and unstable name resolution all consume attention and context without necessarily adding reliable meaning.
+
+Quidra treats that as a language-design problem.
+
+The goal is to make each important token carry a stable semantic role, while allowing the compiler to infer facts that can be proven safely. Humans should spend less effort reconstructing hidden behavior. Language models should need fewer tokens and less surrounding context to determine what a program means, what it may do, and what may legally change.
+
+> **Fewer meaningless tokens, not fewer meaningful distinctions.**
+
+Quidra is therefore not designed around shortest source code, familiar syntax at any cost, or compiler cleverness hidden behind the program. It is designed around **semantic compression**.
+
+## Maximum Meaning Per Token
+
+Semantic compression means expressing a large amount of reliable intent with a small amount of syntax.
+
+It is not code golf.
+
+A shorter spelling is worse when it removes a distinction the reader or compiler needs. A longer spelling is waste when it merely repeats information that is already unambiguous and mechanically provable.
+
+Quidra aims to maximize the useful semantic information carried by source tokens:
+
+```text
+semantic information
+────────────────────
+       tokens
+```
+
+This is a design target rather than a claim that every semantic property can be reduced to one numeric metric.
+
+A Quidra program should make the facts that affect correctness visible:
 
 - what is a value and what is storage,
 - who is allowed to write,
@@ -16,26 +44,36 @@ A Quidra program should make the important facts visible:
 - which operations can fail,
 - when a conversion changes representation,
 - which alternatives a value may contain,
+- what shape or rank a tensor is required to have,
 - and which effects a call can have on existing state.
 
-The compiler uses those facts aggressively. Ambiguity and hidden behavior are treated as costs, even when another language would consider them convenient.
+The compiler should infer what is safely provable. Source syntax should state what cannot be inferred without changing meaning.
 
-```text
-Quidra source
-    → AST
-    → module resolution
-    → generic specialization
-    → static checking, effect analysis, and call resolution
-    → typed Quidra IR
-    → LLVM IR
-    → native machine code
-```
+This gives Quidra two complementary rules:
 
-A central implementation rule is that later stages do not rediscover meaning from source spelling. Module resolution and generic specialization establish concrete declarations; the checker resolves calls, conversions, storage authority, initialization facts, and observable effects; typed Quidra IR carries those decisions explicitly into LLVM lowering.
+1. **Remove ceremony that carries little semantic information.**
+2. **Keep syntax that distinguishes behavior, authority, failure, state, or representation.**
 
-The compiler is implemented in C++20. Native code is produced through LLVM IR and Clang; normal execution does not transpile Quidra to another source language.
+## Semantic compression in practice
 
-The supported desktop targets are Linux, macOS, and Windows. The compiler emits platform-neutral LLVM IR and uses the host Clang toolchain for native code generation; platform-specific executable discovery, process launching, runtime packaging, and filesystem replacement are isolated behind host implementations.
+Quidra tries to give common forms one stable job:
+
+| Form | Meaning carried |
+| --- | --- |
+| `=` | independent value-oriented assignment |
+| `&x` | explicit observable access to storage |
+| `T &` | writable path to caller-visible storage |
+| `const T &` | live read-only path to storage |
+| `T | none` | normal absence is part of the type |
+| `T | error` | failure is part of the type |
+| `try` | propagate `error`, not every non-value state |
+| `T(value)` | explicit representation conversion |
+| `tensor<T><3, _, _>` | dtype, exact rank, and shape constraints |
+| `match` | alternatives must be handled explicitly and exhaustively |
+
+The same principle applies beyond individual tokens. Visible names cannot be shadowed, so adding nearby code cannot silently redirect an earlier reference. Numeric values do not change representation merely because a destination type would accept them. Mutable storage is not created implicitly from ordinary value assignment. CPU/GPU movement is explicit rather than inferred from later operations.
+
+These choices deliberately spend syntax where the syntax carries important meaning, and remove syntax where the compiler can recover the same fact unambiguously.
 
 ## The language in one example
 
@@ -78,7 +116,7 @@ Several core ideas appear here:
 
 These are not independent features. They follow from a common semantic model.
 
-## Core design laws
+## Design laws derived from semantic compression
 
 ### 1. Values are the default; storage is explicit
 
@@ -109,7 +147,7 @@ print(view) // 5
 
 `&x` is a safe abstract storage address, not a numeric pointer. `T &` is a read/write path to that storage; `const T &` is a live read-only path. `const T` is an immutable value binding. A const reference can observe changes performed through another writable path, but it cannot write, rebind, or recover write authority. Quidra does not expose pointer arithmetic, address-to-integer conversion, an explicit `*` dereference operator, or a general object-identity operator.
 
-This same model applies to bindings, class fields, array elements, and bytes elements.
+This same model applies to bindings, class fields, array elements, and bin bits.
 
 ### 2. Authority is part of the call
 
@@ -165,23 +203,11 @@ Methods are summarized by their observable receiver effects. The checker records
 
 Those summaries compose across method calls and control flow. The goal is to make mutation analyzable without forcing programmers to manually annotate every effect.
 
-### 4. Implicit operations must preserve meaning
+### 4. Representation changes are explicit
 
-Quidra distinguishes **representation change** from **value change**.
+Quidra distinguishes **type compatibility** from **conversion intent**.
 
-An implicit numeric conversion is allowed only when every source value is exactly representable by the destination type.
-
-```text
-int8   → int16    allowed
-uint8  → int16    allowed
-uint32 → int      allowed
-float32 → float   allowed
-
-int8   → uint8    not implicit
-uint64 → int      not implicit
-int32  → float32  not implicit
-int    → float    not implicit
-```
+An already-typed numeric value never changes representation implicitly, even when the conversion would be lossless. Numeric literals may take a contextual numeric type when the literal itself is representable.
 
 Explicit casts use the destination type:
 
@@ -190,13 +216,13 @@ int value = 100
 int8 small = int8(value)
 ```
 
-Explicit casts are practical rather than exact-only. Integer narrowing is range checked and never wraps. Integer-to-floating-point and floating-point-to-floating-point casts use deterministic destination IEEE-754 rounding, so precision may be reduced when the programmer explicitly requests that destination type.
+Integer narrowing is range checked and never wraps. Integer-to-floating-point and floating-point-to-floating-point casts use deterministic destination IEEE-754 rounding, so precision may be reduced when the programmer explicitly requests that representation.
 
 Floating-point to integer is intentionally not a generic cast because the rounding meaning is ambiguous. Use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` to state that intent explicitly. Casts never request wrapping or clamping.
 
 The general rule is:
 
-> **Implicit behavior may remove boilerplate, but it may not silently change meaning.**
+> **A required result type is a constraint, not permission to convert. Representation or semantic conversion happens only when the source explicitly requests it.**
 
 ### 5. Absence, failure, completion, and impossibility are different
 
@@ -335,7 +361,8 @@ The same principle appears throughout the language:
 ```quidra
 int initialized = 5
 int later
-auto inferred = 10
+int source = 10
+auto inferred = source
 ```
 
 `auto` requires an initializer. Visible names cannot be shadowed. Disjoint sibling scopes may reuse a name when neither binding is visible from the other.
@@ -373,7 +400,7 @@ There is no `char` type:
 
 - text is `string`,
 - one byte as a number is `uint8`,
-- binary sequences are `bytes`.
+- raw binary sequences are `bin`.
 
 Numeric parsing and standard text conversion use methods:
 
@@ -384,28 +411,29 @@ int number = 123
 string text = number.string()
 ```
 
-### Arrays and bytes
+### Arrays and bin
 
 ```quidra
 int[] dynamic = [1, 2, 3]
 int[3] fixed = [4, 5, 6]
 int[] zeros = array(5, fill = 0)
 
-bytes data = bytes(4, fill = 0)
-data[0] = 255
-uint8 first = data[0]
+bin data = bin.fill(8, 0)
+data[0] = bin.parse("1")
+bin first = data[0]
 ```
 
 Fixed array lengths are part of the type. Arrays have value semantics, including nested arrays.
 
-`bytes` is mutable raw binary data with compact contiguous `uint8` elements. It supports indexing, mutation, length, value equality, iteration, writable iteration, and safe element references.
+`bin` is mutable packed raw binary data. `len(data)` is the number of bits, `data[i]` returns a one-bit `bin`, and `data[start:end]` returns a `bin` slice. `bin.fill(n, bit)` allocates exactly `n` bits and requires `bit` to be `0` or `1`; `bin.parse("0101")` parses a written bit pattern. Binary-to-numeric interpretation is always explicit, for example `uint8(bits)`, and the bit length must match the destination width exactly.
 
 ### Strings
 
-Strings are immutable values.
+Strings are immutable values. Repetition uses `string.repeat(value, n)`, where `value` is exactly one Unicode code point and `n` is the repeat count.
 
 ```quidra
 string name = "Quidra"
+string repeated = string.repeat("a", 6)
 print("Hello, {name}")
 print("first{enter}second")
 ```
@@ -451,7 +479,7 @@ Class equality is value equality and requires compared fields to be definitely i
 Standard namespaces are always visible and cannot be imported or aliased:
 
 ```quidra
-print(math.sqrt(16.0))
+print(math.sqrt(float(16.0)))
 auto home_path = environment.get("HOME")
 ```
 
@@ -522,7 +550,7 @@ string | none | error line = input()
 
 ## Text, arrays, and conditional chains
 
-Strings are immutable UTF-8 text. `len(text)` counts Unicode code points, `text[index]` returns a one-code-point string, and text supports `contains`, `starts_with`, `ends_with`, `find`, `slice`, `trim`, and `split`. `text.utf8()` explicitly exposes encoded bytes, `text.codepoints()` explicitly exposes Unicode scalar values, and `string[]` uses `join(separator)` for efficient assembly.
+Strings are immutable UTF-8 text. `len(text)` counts Unicode code points, `text[index]` returns a one-code-point string, and text supports `contains`, `starts_with`, `ends_with`, `find`, `slice`, `trim`, and `split`. `text.utf8()` explicitly exposes the UTF-8 encoding as `bin`, `text.codepoints()` explicitly exposes Unicode scalar values, and `string[]` uses `join(separator)` for efficient assembly.
 
 Runtime-sized arrays can be fully initialized or explicitly created with uninitialized elements:
 
@@ -542,12 +570,16 @@ int[] ordered = values.sorted()
 
 `append`, `concat`, and `sorted` return new array values. `sorted()` is available for numeric, `bool`, and `string` arrays of either fixed or runtime size and returns a runtime-sized sorted copy; it is deterministic and non-mutating. The implementation may use copy-on-write or spare capacity only when that optimization is unobservable, so source-level value semantics remain unchanged. For fully initialized local arrays, typed IR can carry that proof into LLVM and omit redundant per-element initialization checks. Forming a read/write whole-array reference restores the check automatically; forming a `const T &` read-only reference preserves the proof. Control-flow joins that cannot preserve the proof also restore the check, and bounds safety is unaffected.
 
-Dense numeric tensors use the dedicated `tensor<T>` type:
+Dense numeric tensors use the dedicated `tensor<T>` type. The element dtype is always static. An optional second angle group is an exact-rank shape pattern: each entry is either `_`, meaning that axis exists but its extent is unrestricted, or an integer expression. The number of entries is the exact required rank. A non-constant extent expression is evaluated once when the binding is created and its value is captured; later mutations of variables used by that expression do not change the binding's shape contract.
 
 ```quidra
-tensor<float32> pixels = tensor.zeros<float32>([3, 224, 224])
-tensor<float32> bias = tensor.ones<float32>([1, 224, 224])
-tensor<float32> result = pixels + bias
+int batch = 3
+tensor<float32><batch * 2, 224> contextual = tensor.zeros()
+batch = 8 // contextual keeps the extent captured above
+
+tensor<float32><3, _, _> pixels = tensor.zeros<float32>([3, 224, 224])
+tensor<float32><1, _, _> bias = tensor.ones<float32>([1, 224, 224])
+tensor<float32><3, _, _> result = pixels + bias
 
 tensor<float32> manual = tensor<float32>([2, 2])
 manual[0, 0] = 1.0
@@ -559,9 +591,27 @@ auto crop = result[:, 10:20, 30:40]
 float32 value = result[0, 10, 20].item()
 ```
 
-`tensor<T>(shape)` creates storage whose elements are initially uninitialized; individual scalar elements can be initialized with `tensor[i, j, ...] = value`. `tensor.zeros<T>(shape)` and `tensor.ones<T>(shape)` create fully initialized tensors. Reading an element that is not definitely initialized remains a deterministic safety failure.
+`tensor<T>(shape)` creates storage whose elements are initially uninitialized; individual scalar elements can be initialized with `tensor[i, j, ...] = value`. `tensor.zeros<T>(shape)` and `tensor.ones<T>(shape)` create fully initialized tensors. When every extent is supplied by the expected exact shape, `tensor.zeros()` / `tensor.ones()` may omit both dtype and shape arguments; an expected `_` axis or an unconstrained `tensor<T>` is insufficient for allocation, so an explicit shape array is required. Reading an element that is not definitely initialized remains a deterministic safety failure.
 
-Tensor-to-tensor broadcasting is intentionally strict: ranks must match and each axis must match or be singleton on one side. Scalars broadcast to tensors. Slices may use internal views, but mutation preserves value semantics through copy-on-write. `.reshape(shape)` never hides a copy; call `.contiguous()` explicitly first when needed. `.cast<T>()` follows the explicit numeric-conversion policy: integer narrowing is range-checked, integer-to-float and float-to-float may deterministically reduce precision, and float-to-integer requires an explicit rounding operation.
+CPU is the default tensor device. GPU placement and transfer are explicit and do not change the nominal tensor type:
+
+```quidra
+tensor<float32> cpu = tensor.zeros<float32>([1024])
+tensor<float32> direct = tensor.zeros<float32>([1024], gpu = 0)
+
+tensor<float32> copied_to_gpu = cpu.gpu(0)
+tensor<float32> copied_back = copied_to_gpu.cpu()
+```
+
+`gpu = n` must be a named, non-negative integer argument; there is no public negative CPU sentinel. `.gpu(n)` requires an index and `.gpu()` is invalid. Quidra never inserts CPU↔GPU or GPU↔GPU transfers and never falls back to CPU when a requested GPU/backend is unavailable. A later transfer is not permission to move preceding computation: `tensor.zeros<float32>([1]).gpu(0)` remains CPU creation followed by an explicit copy.
+
+Tensor operations require tensor operands on the same device. Scalar operands are allowed as kernel arguments/constants. A GPU operation that the active backend does not yet implement fails explicitly instead of secretly executing over CPU memory. Use `quidra gpu` to inspect the zero-based device index space and active backend. NVIDIA placement uses the OS NVIDIA Driver API without depending on a user CUDA Toolkit, `nvcc`, `CUDA_HOME`, or `/usr/local/cuda`; Apple Silicon uses Metal; AMD uses the HIP runtime and runtime-compiled HIP kernels when a compatible ROCm/HIP runtime is present. NVIDIA and AMD compute support Quidra `float32`, `float`/`float64`, and checked integer tensor kernels where the operation is implemented. Metal compute supports `float32` and the built-in integer tensor dtypes; because Apple GPU Metal kernels do not provide the required binary64 compute semantics, `float`/`float64` device computation fails explicitly on Metal instead of narrowing precision or using CPU fallback.
+
+Array dimensions accept the same integer-expression form. `float[n * m]` captures `n * m` when that array binding is created, while `float[][n * m]` keeps the outer dimension runtime-sized and captures the inner extent. Captured array and tensor constraints remain fixed across later reassignment.
+
+Tensor-to-tensor broadcasting is intentionally strict: ranks must match and each axis must match or be singleton on one side. Scalars broadcast to tensors. Slices may use internal views, but mutation preserves value semantics through copy-on-write. `.transpose(axis0, axis1)` swaps two axes as a metadata-only view and preserves the tensor's device placement. `.reshape(shape)` never hides a copy; call `.contiguous()` explicitly first when needed.
+
+Numeric representation changes use the same `T(value)` syntax for scalars, arrays, and tensors. For arrays, every dimension is preserved and numeric leaves are converted recursively; for tensors, rank and shape facts are preserved while only the element dtype changes. For example, `float(values)` maps `int[][]` to `float[][]`, and `float32(pixels)` maps a numeric tensor to the same-shaped `tensor<float32>`. Integer narrowing is range-checked; integer-to-float and float-to-float may deterministically reduce precision; float-to-integer still requires an explicit rounding operation. There is no separate container-specific cast method.
 
 Compound assignment supports `+=`, `-=`, `*=`, `/=`, and `%=`. Its target is evaluated exactly once, avoiding duplicated side effects in indexed or member targets.
 
@@ -596,8 +646,12 @@ neural.Gradients gradients = neural.grad(loss)
 neural.update(&model, gradients, rate = 0.01)
 ```
 
-`neural` means `neural<float32>`. `neural.track(tensor)` enters the dynamic
-graph, `.untrack()` returns ordinary tensor storage, and `neural.grad(loss)`
+`neural` means `neural<float32>`. Neural values use the same exact-rank shape
+pattern syntax as tensors: `neural<3, _, _>` means
+`neural<float32><3, _, _>`, while `neural<float><_, 768>` explicitly selects
+float64 plus a rank-2 pattern. `neural.track(tensor)` preserves known shape facts
+when entering the dynamic graph, `.untrack()` restores them to ordinary tensor
+storage, and `neural.grad(loss)`
 returns an explicit `neural.Gradients` value. There is no hidden gradient
 accumulation or parameter registry. Operand-level primitives such as `affine`,
 `convolve2d`, `normalize`, reductions, and safe update operations allow ordinary
@@ -638,7 +692,7 @@ The native runtime checks cases that depend on runtime values, including:
 
 - integer overflow at each supported integer width,
 - integer division and remainder by zero,
-- array and bytes bounds,
+- array and bin bounds,
 - invalid allocation sizes,
 - zero range steps,
 - out-of-range explicit integer casts.
@@ -653,13 +707,30 @@ Floating-point arithmetic follows IEEE-754 behavior for its width.
 
 - scalars compare their values,
 - strings compare text,
-- bytes compare contents,
+- bin compares bit contents,
 - arrays compare lengths and elements recursively,
 - classes compare fields recursively when those fields are definitely initialized.
 
 Internal allocation identity is intentionally not part of the source-language model.
 
 ## Native implementation
+
+Semantic compression is a source-language goal, not a request for a lightweight or interpreted implementation. Quidra preserves the meaning established by the source through a typed native compilation pipeline:
+
+```text
+Quidra source
+    → AST
+    → module resolution
+    → generic specialization
+    → static checking, effect analysis, and call resolution
+    → typed Quidra IR
+    → LLVM IR
+    → native machine code
+```
+
+Later stages do not rediscover meaning from source spelling. Module resolution and generic specialization establish concrete declarations; the checker resolves calls, conversions, storage authority, initialization facts, shape constraints, and observable effects; typed Quidra IR carries those decisions explicitly into lowering.
+
+The compiler is implemented in C++20. Native code is produced through LLVM IR and Clang; normal execution does not transpile Quidra to another source language. The supported desktop targets are Linux, macOS, and Windows. Platform-specific executable discovery, process launching, runtime packaging, and filesystem replacement are isolated behind host implementations.
 
 The current implementation includes:
 
@@ -673,7 +744,7 @@ The current implementation includes:
 - explicit safe storage references with pinned substorage lifetime,
 - monotonic bare-name resolution and always-visible standard namespaces,
 - local modules, installed-package resolution, explicit generics, and monomorphization,
-- dense tensors with views, copy-on-write, strict broadcasting, explicit numeric casting, statistics, and rank-2 matrix multiplication,
+- dense tensors with views, copy-on-write, strict broadcasting, explicit numeric casting, reductions, transpose views, and vector/matrix multiplication,
 - PNG/JPEG/BMP/TIFF/WebP image I/O through `image`,
 - typed Quidra IR followed by direct LLVM IR/native lowering,
 - Linux, macOS, and Windows native execution/packaging,
@@ -721,7 +792,7 @@ Run `quidra` with no arguments from a terminal to start the native REPL:
 
 ```text
 $ quidra
-Quidra 0.2.0
+Quidra 0.3.0
 >>> 1 + 2
 3
 >>> int x = 5
@@ -757,7 +828,7 @@ extern int c_abs(int value) = "llabs"
 print(c_abs(-42))
 ```
 
-Results are limited to ABI-stable scalar values or `void`. Scalar/bool parameters cross by value. Managed text/binary input must instead be an explicit read-only storage borrow, written `const string &` or `const bytes &` and passed with `&storage`. Each borrow lowers to a `(data pointer, uint64 byte length)` C ABI pair only for the duration of the call. Quidra does not expose a pointer-only C-string contract, infer ownership transfer, or infer foreign failure from `errno`/null. Foreign code must not mutate or retain a borrowed pointer; APIs with a different contract need an explicit C wrapper. Each external C symbol may be bound by only one `extern` declaration in a compilation. `main`, the compiler-owned `n_*` mangling namespace, and the implementation-owned `quidra_*` / `__quidra_*` C symbol namespaces are reserved.
+Results are limited to ABI-stable scalar values or `void`. Scalar/bool parameters cross by value. Managed text/binary input must instead be an explicit read-only storage borrow, written `const string &` or `const bin &` and passed with `&storage`. Each borrow lowers to a `(data pointer, uint64 byte length)` C ABI pair only for the duration of the call. A borrowed `bin` must be byte-aligned (`len(value) % 8 == 0`); otherwise the call fails deterministically. Quidra does not expose a pointer-only C-string contract, infer ownership transfer, or infer foreign failure from `errno`/null. Foreign code must not mutate or retain a borrowed pointer; APIs with a different contract need an explicit C wrapper. Each external C symbol may be bound by only one `extern` declaration in a compilation. `main`, the compiler-owned `n_*` mangling namespace, and the implementation-owned `quidra_*` / `__quidra_*` C symbol namespaces are reserved.
 
 ## CLI
 
@@ -765,8 +836,14 @@ Results are limited to ABI-stable scalar values or `void`. Scalar/bool parameter
 quidra
 quidra repl
 quidra lsp
-quidra package list
-quidra package install ./my-package --name my_package
+quidra install dnn
+quidra install dnn@0.2.0
+quidra install ./my-package
+quidra remove dnn
+quidra list
+quidra lock program.qui
+quidra lock program.qui --check
+quidra package-path
 quidra program.qui
 quidra run program.qui
 quidra check program.qui
@@ -783,8 +860,17 @@ quidra debug program.qui -- arg1 arg2
 quidra describe
 ```
 
+Released packages are installed from immutable `vMAJOR.MINOR.PATCH` tags, never
+from `main`, `develop`, or another moving branch. A bare first-party package
+name such as `dnn` resolves to `quidra-lang/dnn`; with no version written,
+Quidra chooses the newest released tag compatible with the running compiler.
+`quidra.package` records the package version and its
+`requires.quidra`/package dependency ranges. Local directory installation and
+`QUIDRA_PACKAGE_PATH` remain available for development.
 
-Installed source packages use the existing deterministic package location `~/.quidra/packages/<name>/main.qui` and can also be discovered through `QUIDRA_PACKAGE_PATH`. The built-in `quidra package` commands manage only the default local store: `install` validates `main.qui` through the ordinary frontend before an atomic directory replacement, rejects symbolic links, and refuses replacement unless `--force` is explicit; `remove`, `list`, and `path` provide the corresponding local operations. Network fetching is intentionally outside this core command, so installing a package never executes a package script or silently contacts a registry. For reproducible projects, `quidra package lock FILE.qui` writes `quidra.lock` with the SHA-256 of every direct and transitive installed package actually reached by the import graph. Once present, the compiler enforces those hashes; `quidra package lock FILE.qui --check` is the non-writing CI check.
+`quidra lock FILE.qui` records each resolved package's version and SHA-256 in
+`quidra.lock`; normal compilation verifies both. See
+[Package management](docs/packages.md) for the complete contract.
 
 ### Debugging
 
@@ -793,8 +879,9 @@ Installed source packages use the existing deterministic package location `~/.qu
 ## Documentation
 
 - [Development and release workflow](docs/development.md)
+- [Package management](docs/packages.md)
 - [Language semantics](docs/spec/language.md)
-- [Numeric types and bytes](docs/spec/numeric-and-bytes.md)
+- [Numeric types and bin](docs/spec/numeric-and-bin.md)
 - [Grammar](docs/spec/grammar.ebnf)
 - [LLM guide](docs/spec/llm-guide.md)
 - [Architecture](docs/spec/architecture.md)
@@ -832,7 +919,7 @@ print(args.count)
 
 The field name is also the CLI name: `count` becomes `--count`, without repeating `"count"`. The CLI binding is a root top-level value and is not implicitly captured by functions; pass CLI-derived values explicitly when reusable code needs them. Direct execution accepts program arguments after the source path; `quidra run FILE.qui -- ARGS...` uses `--` as the compiler/program boundary.
 
-`file` provides text `read` / `write`, binary `read_bytes` / `write_bytes`, `exists`, `is_directory`, `remove`, `copy`, `move`, `mkdir`, and deterministic `list`. `file.is_directory(path)` returns `bool | error` (a missing path is `false`). `file.list(path)` returns sorted direct child paths as `string[] | error`; `file.list(path, recursive = true)` returns the full sorted descendant list. Filesystem failures are represented with `error` unions rather than silent fallback.
+`file` provides text `read` / `write`, binary `read_bin` / `write_bin`, `exists`, `is_directory`, `remove`, `copy`, `move`, `mkdir`, and deterministic `list`. `file.is_directory(path)` returns `bool | error` (a missing path is `false`). `file.list(path)` returns sorted direct child paths as `string[] | error`; `file.list(path, recursive = true)` returns the full sorted descendant list. Filesystem failures are represented with `error` unions rather than silent fallback.
 
 `environment` treats an unset host variable as absence rather than failure:
 
@@ -844,7 +931,7 @@ bool configured = environment.has("HOME")
 `test` reuses normal Quidra semantics:
 
 ```quidra
-test.check(2 + 2 == 4)
+test.check(int(2) + 2 == 4)
 test.equal("Quidra", "Quidra")
 ```
 
@@ -954,13 +1041,13 @@ match result
         print(problem)
 ```
 
-`http.Response.body` is `bytes`, not `string`, because an HTTP body is not necessarily text. Header lookup is ASCII case-insensitive and a missing header is `none`. HTTP status codes such as 404 and 500 still produce a `Response`; DNS, TLS, connection, redirect, timeout, and protocol failures produce `error`. The v0.1 runtime supports only `http://` and `https://`, follows at most 10 redirects, keeps TLS certificate verification enabled, and captures the complete response body in memory.
+`http.Response.body` is `bin`, not `string`, because an HTTP body is not necessarily text. Header lookup is ASCII case-insensitive and a missing header is `none`. HTTP status codes such as 404 and 500 still produce a `Response`; DNS, TLS, connection, redirect, timeout, and protocol failures produce `error`. The v0.1 runtime supports only `http://` and `https://`, follows at most 10 redirects, keeps TLS certificate verification enabled, and captures the complete response body in memory.
 
 ### Tensor numerics and image I/O
 
-`stats.mean(value)` computes the arithmetic mean of a numeric tensor and returns `float`. Empty or partially uninitialized tensors fail deterministically rather than inventing missing values.
+`stats.sum(value)`, `stats.min(value)`, and `stats.max(value)` reduce a numeric tensor to a same-dtype scalar; integer `sum` remains overflow-checked. `stats.mean(value)` returns `float`. Empty `min`/`max`/`mean` and partially uninitialized inputs fail deterministically rather than inventing missing values. GPU reductions execute on the selected device and transfer only the explicit scalar result to the host.
 
-`linear.dot(a, b)` computes a scalar dot product for same-length rank-1 numeric tensors. `linear.matmul(a, b)` performs rank-2 matrix multiplication for compatible `[m, k]` / `[k, n]` tensors. Both require identical element types, preserve that numeric type, and keep integer multiplication and accumulation overflow-checked.
+`linear.dot(a, b)` computes a scalar dot product for same-length rank-1 numeric tensors. `linear.matmul(a, b)` supports `[k] × [k,n] -> [n]`, `[m,k] × [k] -> [m]`, and `[m,k] × [k,n] -> [m,n]`. All forms require identical element types, preserve that numeric type and tensor device placement, and keep integer multiplication and accumulation overflow-checked.
 
 Image I/O is explicit and tensor-native:
 
@@ -978,7 +1065,7 @@ match loaded
         print(problem)
 ```
 
-Decoded images use CHW layout: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample dtype that Quidra and the codec can represent: PNG yields `uint8` or `uint16`, TIFF can yield any built-in numeric tensor dtype, and JPEG/BMP/WebP yield `uint8`. With no expected type, `auto loaded = image.read(path)` therefore has the union of all numeric tensor alternatives plus `error`; use exhaustive `match` when the dtype is genuinely unknown. When the expected union names one tensor dtype, such as `tensor<uint16> | error`, a file with a different dtype produces `error` rather than an implicit conversion. `image.write` likewise writes only when the target format can represent the tensor dtype exactly. There is no implicit normalization, BGR conversion, dtype conversion, or alpha discard; JPEG rejects RGBA input.
+Decoded images use CHW layout and have compiler-known rank 3: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample dtype and channel count by default. An expected type such as `tensor<uint8><3, _, _> | error` is an acceptance constraint: it accepts only rank-3 uint8 RGB and does not convert a mismatch. Use `channels = 1|3|4` to request channel conversion and `dtype = float32` (or another numeric built-in type) to request dtype conversion. Dtype conversion never normalizes sample ranges. RGB-to-gray uses the fixed `0.299R + 0.587G + 0.114B` rule. `image.write` writes only when the target codec can represent the tensor dtype exactly; alpha is removed only when an explicit channel conversion requests that result.
 
 The library boundary is intentionally small:
 

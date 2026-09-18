@@ -8,6 +8,7 @@ a structure that grows with the loop, which is invisible in a small test and
 turns an ordinary loop into an O(n^2) one.
 """
 import os
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -24,29 +25,44 @@ if os.environ.get("ASAN_OPTIONS") or os.environ.get("UBSAN_OPTIONS"):
     raise SystemExit(0)
 
 # A quadratic implementation costs ~4x when the input doubles and a linear one
-# ~2x. The observed regressions were far worse than 4x, so this leaves a wide
-# margin for scheduling noise while still failing on a genuine reintroduction.
+# ~2x. Keep the 3x boundary: measurement quality must improve rather than making
+# the regression threshold less meaningful.
 MAX_DOUBLING_RATIO = 3.0
-RUNS = 3
+RUNS = 7
+WARMUP_RUNS = 2
+MAX_STARTUP_FRACTION = 0.25
+MAX_WORKLOAD_GROWTHS = 4
 
 
-def best_seconds(program, work_dir):
+def median_seconds(program, work_dir):
     binary = os.path.join(work_dir, "prog")
     source = os.path.join(work_dir, "prog.qui")
     with open(source, "w") as f:
         f.write(program)
     subprocess.run([QUIDRA, "build", source, "-o", binary], check=True,
                    stdout=subprocess.DEVNULL)
-    best = None
-    for _ in range(RUNS):
+
+    def run_once():
         start = time.perf_counter()
         result = subprocess.run([binary], capture_output=True, text=True,
                                 cwd=work_dir)
         elapsed = time.perf_counter() - start
         if result.returncode != 0:
             raise SystemExit(f"program failed: {result.stderr}")
-        best = elapsed if best is None else min(best, elapsed)
-    return best, result.stdout.strip()
+        return elapsed, result.stdout.strip()
+
+    for _ in range(WARMUP_RUNS):
+        run_once()
+
+    samples = []
+    output = None
+    for _ in range(RUNS):
+        elapsed, current_output = run_once()
+        if output is not None and current_output != output:
+            raise SystemExit("program output changed between timing samples")
+        output = current_output
+        samples.append(elapsed)
+    return statistics.median(samples), output
 
 
 # Walking a second array must not cost dramatically more per element than
@@ -56,8 +72,8 @@ MAX_SECOND_ARRAY_RATIO = 2.0
 
 def check_ratio(name, baseline, candidate, baseline_out, candidate_out):
     with tempfile.TemporaryDirectory() as work_dir:
-        base_s, got_base = best_seconds(baseline, work_dir)
-        cand_s, got_cand = best_seconds(candidate, work_dir)
+        base_s, got_base = median_seconds(baseline, work_dir)
+        cand_s, got_cand = median_seconds(candidate, work_dir)
     for got, want in ((got_base, baseline_out), (got_cand, candidate_out)):
         if got != want:
             raise SystemExit(f"{name}: expected {want!r}, got {got!r}")
@@ -73,22 +89,48 @@ def check_ratio(name, baseline, candidate, baseline_out, candidate_out):
 
 def check_scaling(name, template, small, large, expect):
     with tempfile.TemporaryDirectory() as work_dir:
-        small_s, small_out = best_seconds(template.format(n=small), work_dir)
-        large_s, large_out = best_seconds(template.format(n=large), work_dir)
-    for got, want in ((small_out, expect(small)), (large_out, expect(large))):
-        if got != want:
-            raise SystemExit(f"{name}: expected {want!r}, got {got!r}")
-    # Process startup dominates a fast run, so compare the work above a floor
-    # rather than the raw wall times.
-    floor = min(small_s, large_s) * 0.5
-    ratio = max(large_s - floor, 1e-9) / max(small_s - floor, 1e-9)
+        startup_s, startup_out = median_seconds(template.format(n=0), work_dir)
+        if startup_out != expect(0):
+            raise SystemExit(f"{name}: expected {expect(0)!r}, got {startup_out!r}")
+
+        measured = None
+        for _ in range(MAX_WORKLOAD_GROWTHS + 1):
+            small_s, small_out = median_seconds(template.format(n=small), work_dir)
+            large_s, large_out = median_seconds(template.format(n=large), work_dir)
+            for got, want in ((small_out, expect(small)), (large_out, expect(large))):
+                if got != want:
+                    raise SystemExit(f"{name}: expected {want!r}, got {got!r}")
+
+            # Subtract a separately measured zero-work process cost instead of
+            # inventing a floor from the values under test. If startup is still
+            # too large a fraction of the smaller sample, grow both workloads
+            # together until the asymptotic signal dominates scheduler/process
+            # noise while preserving the exact 2x input comparison.
+            if startup_s < small_s and startup_s / small_s <= MAX_STARTUP_FRACTION:
+                measured = (small, large, small_s, large_s)
+                break
+            small *= 2
+            large *= 2
+
+    if measured is None:
+        raise SystemExit(
+            f"{name}: process startup ({startup_s * 1000:.1f} ms) remained too large "
+            "relative to the workload to measure asymptotic scaling reliably")
+
+    small, large, small_s, large_s = measured
+    small_work = small_s - startup_s
+    large_work = large_s - startup_s
+    ratio = large_work / small_work
     if ratio > MAX_DOUBLING_RATIO:
         raise SystemExit(
-            f"{name}: doubling the input multiplied the work by {ratio:.1f}x "
-            f"({small_s * 1000:.1f} ms -> {large_s * 1000:.1f} ms); "
+            f"{name}: doubling the input multiplied measured work by {ratio:.1f}x "
+            f"after subtracting the independently measured {startup_s * 1000:.1f} ms startup "
+            f"({small_s * 1000:.1f} ms at n={small} -> {large_s * 1000:.1f} ms at n={large}); "
             f"the operation is no longer linear")
-    print(f"  {name}: {small_s * 1000:8.1f} ms -> {large_s * 1000:8.1f} ms "
-          f"({ratio:.2f}x for 2x input)")
+    print(
+        f"  {name}: startup {startup_s * 1000:6.1f} ms; "
+        f"{small_s * 1000:8.1f} ms at n={small} -> {large_s * 1000:8.1f} ms at n={large} "
+        f"({ratio:.2f}x work for 2x input)")
 
 
 # Appending to a string re-read the whole accumulated prefix on every append,

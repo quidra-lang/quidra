@@ -226,9 +226,9 @@ bool replay_barrier_instruction(const ir::Instruction& instruction) {
             std::is_same_v<T, ir::CliFlag> ||
             std::is_same_v<T, ir::CliFinish> ||
             std::is_same_v<T, ir::FileRead> ||
-            std::is_same_v<T, ir::FileReadBytes> ||
+            std::is_same_v<T, ir::FileReadBin> ||
             std::is_same_v<T, ir::FileWrite> ||
-            std::is_same_v<T, ir::FileWriteBytes> ||
+            std::is_same_v<T, ir::FileWriteBin> ||
             std::is_same_v<T, ir::FileExists> ||
             std::is_same_v<T, ir::FileIsDirectory> ||
             std::is_same_v<T, ir::FileRemove> ||

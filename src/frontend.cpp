@@ -6,6 +6,8 @@
 #include "quidra/lexer.hpp"
 #include "quidra/parser.hpp"
 #include "quidra/package_lock.hpp"
+#include "quidra/package_manifest.hpp"
+#include "quidra/version.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -78,7 +80,7 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
             exports.values.emplace(name, std::string(*standard_value_target(module, name)));
         }
     } else if (module == "file") {
-        for (const char* name : {"read", "write", "read_bytes", "write_bytes", "exists", "is_directory", "remove", "copy", "move", "mkdir", "list"}) {
+        for (const char* name : {"read", "write", "read_bin", "write_bin", "exists", "is_directory", "remove", "copy", "move", "mkdir", "list"}) {
             exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
         }
     } else if (module == "environment") {
@@ -117,13 +119,21 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
         exports.functions.emplace("zeros", std::string(*standard_function_target(module, "zeros")));
         exports.functions.emplace("ones", std::string(*standard_function_target(module, "ones")));
     } else if (module == "stats") {
-        exports.functions.emplace("mean", std::string(*standard_function_target(module, "mean")));
+        for (const auto name : {"sum", "mean", "min", "max"}) {
+            exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
+        }
     } else if (module == "linear") {
         exports.functions.emplace("dot", std::string(*standard_function_target(module, "dot")));
         exports.functions.emplace("matmul", std::string(*standard_function_target(module, "matmul")));
     } else if (module == "image") {
-        exports.functions.emplace("read", std::string(*standard_function_target(module, "read")));
-        exports.functions.emplace("write", std::string(*standard_function_target(module, "write")));
+        for (const char* name : {
+                 "read", "write", "tensor_crop", "tensor_resize",
+                 "tensor_flip_horizontal", "tensor_flip_vertical",
+                 "tensor_rotate90", "tensor_rotate270", "tensor_grayscale",
+                 "tensor_threshold", "tensor_blur", "tensor_filter",
+                 "tensor_dilate", "tensor_erode"}) {
+            exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
+        }
     } else if (module == "neural") {
         exports.classes.emplace("Gradients", "$std.neural.Gradients");
         exports.classes.emplace("Parameter", "$std.neural.Parameter");
@@ -310,10 +320,10 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
     int[] __slots = array(8, fill = -1)
 
     int __hash(K key)
-        bytes __encoded = key.string().utf8()
+        int[] __encoded = key.string().codepoints()
         int __result = 0
-        for __byte in __encoded
-            __result = (__result * 131 + int(__byte)) % 2147483647
+        for __unit in __encoded
+            __result = (__result * 131 + __unit) % 2147483647
         return __result
 
     int __find(K key, int hash)
@@ -394,7 +404,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         response.name = "$std.http.Response";
         response.span = standard_span();
         response.fields.push_back(standard_field("status", "int"));
-        response.fields.push_back(standard_field("body", "bytes"));
+        response.fields.push_back(standard_field("body", "bin"));
         response.fields.push_back(standard_field("$headers", "uint64"));
 
         std::vector<Parameter> header_parameters;
@@ -446,6 +456,12 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
             "number", std::vector<Parameter>{},
             standard_union_type({"float", "error"}), standard_call("$std.json.number")));
         value.methods.push_back(standard_method(
+            "bigint", std::vector<Parameter>{},
+            standard_union_type({"bigint", "error"}), standard_call("$std.json.bigint")));
+        value.methods.push_back(standard_method(
+            "bigreal", std::vector<Parameter>{},
+            standard_union_type({"bigreal", "error"}), standard_call("$std.json.bigreal")));
+        value.methods.push_back(standard_method(
             "boolean", std::vector<Parameter>{},
             standard_union_type({"bool", "error"}), standard_call("$std.json.boolean")));
         value.methods.push_back(standard_method(
@@ -466,10 +482,10 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
     int[] __slots = array(8, fill = -1)
 
     int __hash(T value)
-        bytes __encoded = value.string().utf8()
+        int[] __encoded = value.string().codepoints()
         int __result = 0
-        for __byte in __encoded
-            __result = (__result * 131 + int(__byte)) % 2147483647
+        for __unit in __encoded
+            __result = (__result * 131 + __unit) % 2147483647
         return __result
 
     int __find(T value, int hash)
@@ -906,7 +922,7 @@ public:
                         "PACKAGE_LOCK_UNUSED",
                         "Package '" + name +
                             "' is recorded in quidra.lock but is not reached by the current import graph. "
-                            "Regenerate it with 'quidra package lock FILE.qui'.");
+                            "Regenerate it with 'quidra lock FILE.qui'.");
                 }
             }
         }
@@ -939,6 +955,93 @@ private:
         if (resolved_packages_) {
             resolved_packages_->emplace(name, normalized);
         }
+
+        std::optional<PackageManifest> manifest;
+        try {
+            manifest = try_read_package_manifest(normalized.parent_path());
+            if (manifest) {
+                if (manifest->name != name) {
+                    frontend_error(
+                        "PACKAGE_MANIFEST",
+                        "Package '" + name + "' has manifest name '" +
+                            manifest->name + "'.",
+                        span);
+                }
+
+                if (const auto requirement =
+                        manifest->requirements.find("quidra");
+                    requirement != manifest->requirements.end() &&
+                    !requirement->second.matches(
+                        parse_semantic_version(compiler_version))) {
+                    frontend_error(
+                        "PACKAGE_COMPATIBILITY",
+                        "Package '" + name + "' " + manifest->version.str() +
+                            " requires Quidra " + requirement->second.text +
+                            "; current compiler is " +
+                            std::string(compiler_version) + ".",
+                        span);
+                }
+
+                for (const auto& [dependency_name, requirement] :
+                     manifest->requirements) {
+                    if (dependency_name == "quidra") continue;
+
+                    std::optional<fs::path> dependency_main;
+                    try {
+                        dependency_main =
+                            resolve_installed_package_path(dependency_name);
+                    } catch (const std::exception& error) {
+                        frontend_error("PACKAGE_DEPENDENCY", error.what(), span);
+                    }
+                    if (!dependency_main) {
+                        frontend_error(
+                            "PACKAGE_DEPENDENCY",
+                            "Package '" + name + "' " + manifest->version.str() +
+                                " requires package '" + dependency_name + "' " +
+                                requirement.text + ", but it is not installed.",
+                            span);
+                    }
+
+                    try {
+                        const auto dependency_manifest =
+                            try_read_package_manifest(
+                                dependency_main->parent_path());
+                        if (!dependency_manifest) {
+                            frontend_error(
+                                "PACKAGE_DEPENDENCY",
+                                "Package '" + name + "' " +
+                                    manifest->version.str() +
+                                    " requires versioned package '" +
+                                    dependency_name + "' " + requirement.text +
+                                    ", but the installed dependency has no "
+                                    "quidra.package manifest.",
+                                span);
+                        }
+                        if (!requirement.matches(
+                                dependency_manifest->version)) {
+                            frontend_error(
+                                "PACKAGE_DEPENDENCY",
+                                "Package '" + name + "' " +
+                                    manifest->version.str() +
+                                    " requires package '" + dependency_name +
+                                    "' " + requirement.text +
+                                    "; installed version is " +
+                                    dependency_manifest->version.str() + ".",
+                                span);
+                        }
+                    } catch (const CompileError&) {
+                        throw;
+                    } catch (const std::exception& error) {
+                        frontend_error("PACKAGE_DEPENDENCY", error.what(), span);
+                    }
+                }
+            }
+        } catch (const CompileError&) {
+            throw;
+        } catch (const std::exception& error) {
+            frontend_error("PACKAGE_MANIFEST", error.what(), span);
+        }
+
         if (!enforce_package_lock_) return;
 
         if (!package_lock_loaded_) {
@@ -957,8 +1060,21 @@ private:
                 "PACKAGE_LOCK_MISSING",
                 "Package '" + name +
                     "' is imported but is not recorded in quidra.lock. "
-                    "Regenerate it with 'quidra package lock FILE.qui'.",
+                    "Regenerate it with 'quidra lock FILE.qui'.",
                 span);
+        }
+
+        if (expected->second.version != "-") {
+            if (!manifest ||
+                manifest->version.str() != expected->second.version) {
+                frontend_error(
+                    "PACKAGE_LOCK_VERSION",
+                    "Installed package '" + name +
+                        "' does not match version " +
+                        expected->second.version +
+                        " recorded in quidra.lock.",
+                    span);
+            }
         }
 
         const auto cache_key = normalized.string();
@@ -972,7 +1088,8 @@ private:
                 frontend_error("PACKAGE_LOCK", error.what(), span);
             }
         }
-        if (actual->second != expected->second) {
+
+        if (actual->second != expected->second.sha256) {
             frontend_error(
                 "PACKAGE_LOCK_MISMATCH",
                 "Installed package '" + name +
@@ -1210,9 +1327,31 @@ TypeName clone_type(const TypeName& source) {
     out.name = source.name;
     out.array_depth = source.array_depth;
     out.dimensions = source.dimensions;
+    out.dimension_expressions = source.dimension_expressions;
     out.span = source.span;
+    out.tensor_shape_prefix = source.tensor_shape_prefix;
+    out.tensor_shape_expressions = source.tensor_shape_expressions;
+    out.tensor_rank = source.tensor_rank;
+    out.tensor_known_shape_prefix = source.tensor_known_shape_prefix;
     for (const auto& argument : source.arguments) out.arguments.push_back(clone_type(argument));
     return out;
+}
+
+std::string canonical_extent_expression(const Expr& expression) {
+    if (const auto* literal = std::get_if<IntegerExpr>(&expression.data)) {
+        return std::to_string(literal->value);
+    }
+    if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+        return name->name;
+    }
+    if (const auto* unary = std::get_if<UnaryExpr>(&expression.data)) {
+        return unary->op + "(" + canonical_extent_expression(*unary->operand) + ")";
+    }
+    if (const auto* binary = std::get_if<BinaryExpr>(&expression.data)) {
+        return "(" + canonical_extent_expression(*binary->left) + binary->op +
+               canonical_extent_expression(*binary->right) + ")";
+    }
+    return "<extent>";
 }
 
 std::string canonical_type(const TypeName& type) {
@@ -1225,9 +1364,27 @@ std::string canonical_type(const TypeName& type) {
         }
         out += ">";
     }
-    for (const auto dimension : type.dimensions) {
+    if (!type.tensor_shape_prefix.empty()) {
+        out += "<";
+        for (std::size_t i = 0; i < type.tensor_shape_prefix.size(); ++i) {
+            if (i) out += ",";
+            if (i < type.tensor_shape_expressions.size() &&
+                type.tensor_shape_expressions[i]) {
+                out += canonical_extent_expression(*type.tensor_shape_expressions[i]);
+            } else {
+                const auto extent = type.tensor_shape_prefix[i];
+                out += extent < 0 ? "_" : std::to_string(extent);
+            }
+        }
+        out += ">";
+    }
+    for (std::size_t i = 0; i < type.dimensions.size(); ++i) {
         out += "[";
-        if (dimension >= 0) out += std::to_string(dimension);
+        if (i < type.dimension_expressions.size() && type.dimension_expressions[i]) {
+            out += canonical_extent_expression(*type.dimension_expressions[i]);
+        } else if (type.dimensions[i] >= 0) {
+            out += std::to_string(type.dimensions[i]);
+        }
         out += "]";
     }
     return out;
@@ -1265,7 +1422,8 @@ bool standard_collection_key_type(const TypeName& type) {
     if (!type.arguments.empty() || !type.dimensions.empty()) return false;
     return type.name == "int" || type.name == "int8" || type.name == "int16" ||
            type.name == "int32" || type.name == "uint8" || type.name == "uint16" ||
-           type.name == "uint32" || type.name == "uint64" || type.name == "bool" ||
+           type.name == "uint32" || type.name == "uint64" || type.name == "bigint" ||
+           type.name == "bool" ||
            type.name == "string";
 }
 
@@ -1280,6 +1438,12 @@ TypeName substitute_raw(
             std::vector<long long> dimensions = source.dimensions;
             dimensions.insert(dimensions.end(), result.dimensions.begin(), result.dimensions.end());
             result.dimensions = std::move(dimensions);
+            auto dimension_expressions = source.dimension_expressions;
+            dimension_expressions.insert(
+                dimension_expressions.end(),
+                result.dimension_expressions.begin(),
+                result.dimension_expressions.end());
+            result.dimension_expressions = std::move(dimension_expressions);
             result.array_depth = result.dimensions.size();
             result.span = source.span;
             return result;
@@ -1564,8 +1728,13 @@ private:
             result.span = expression.span;
             return std::optional<TypeName>{std::move(result)};
         };
-        if (std::holds_alternative<IntegerExpr>(expression.data)) return simple_type("int");
-        if (std::holds_alternative<FloatExpr>(expression.data)) return simple_type("float");
+        // Numeric literals carry only a family until a surrounding concrete type
+        // determines their representation. Generic inference must not invent
+        // default int/float types for them.
+        if (std::holds_alternative<IntegerExpr>(expression.data) ||
+            std::holds_alternative<FloatExpr>(expression.data)) {
+            return std::nullopt;
+        }
         if (std::holds_alternative<StringExpr>(expression.data) ||
             std::holds_alternative<StringTemplateExpr>(expression.data)) return simple_type("string");
         if (std::holds_alternative<BoolExpr>(expression.data)) return simple_type("bool");
@@ -1614,12 +1783,43 @@ private:
         }
 
         if (const auto* call = std::get_if<CallExpr>(&expression.data)) {
+            if ((call->callee == "tensor" || call->callee == "$std.tensor.zeros" ||
+                 call->callee == "$std.tensor.ones") &&
+                call->type_arguments.size() == 1 && call->args.size() == 1) {
+                TypeName result;
+                result.name = "tensor";
+                result.arguments.push_back(clone_type(call->type_arguments.front()));
+                const auto shape = infer_expression_type(*call->args[0].value, current_class);
+                if (shape && shape->name == "int" && shape->dimensions.size() == 1 &&
+                    shape->dimensions.front() >= 0) {
+                    result.tensor_rank = shape->dimensions.front();
+                }
+                if (const auto* literal = std::get_if<ArrayExpr>(&call->args[0].value->data)) {
+                    bool known = true;
+                    for (const auto& item : literal->elements) {
+                        const auto* integer = std::get_if<IntegerExpr>(&item->data);
+                        if (!integer ||
+                            integer->value > static_cast<std::uint64_t>(std::numeric_limits<long long>::max())) {
+                            known = false;
+                            break;
+                        }
+                        result.tensor_known_shape_prefix.push_back(
+                            static_cast<long long>(integer->value));
+                    }
+                    if (!known) result.tensor_known_shape_prefix.clear();
+                }
+                result.span = expression.span;
+                return result;
+            }
             if (call->callee == "$std.neural.track" && call->args.size() == 1) {
                 const auto source = infer_expression_type(*call->args[0].value, current_class);
                 if (source && source->name == "tensor" && source->arguments.size() == 1) {
                     TypeName result;
                     result.name = "neural";
                     result.arguments.push_back(clone_type(source->arguments.front()));
+                    result.tensor_rank = source->tensor_rank;
+                    result.tensor_shape_prefix = source->tensor_shape_prefix;
+                    result.tensor_known_shape_prefix = source->tensor_known_shape_prefix;
                     result.span = expression.span;
                     return result;
                 }
@@ -1640,6 +1840,17 @@ private:
             }
             if (call->callee == "$std.neural.grad") {
                 return simple_type("$std.neural.Gradients");
+            }
+            static const std::unordered_map<std::string, std::string>
+                numeric_cast_result_types{
+                    {"int8", "int8"}, {"int16", "int16"}, {"int32", "int32"},
+                    {"int", "int"}, {"int64", "int"},
+                    {"uint8", "uint8"}, {"uint16", "uint16"},
+                    {"uint32", "uint32"}, {"uint64", "uint64"},
+                    {"float32", "float32"}, {"float", "float"}, {"float64", "float"}};
+            if (const auto scalar = numeric_cast_result_types.find(call->callee);
+                scalar != numeric_cast_result_types.end()) {
+                return simple_type(scalar->second);
             }
             if (class_index_.contains(call->callee)) {
                 TypeName result;
@@ -1669,7 +1880,31 @@ private:
         if (const auto* index = std::get_if<IndexExpr>(&expression.data)) {
             auto base = infer_expression_type(*index->base, current_class);
             if (!base) return std::nullopt;
-            if (base->name == "tensor") return base;
+            if (base->name == "tensor") {
+                if (base->tensor_rank) {
+                    if (index->items.size() > static_cast<std::size_t>(*base->tensor_rank)) {
+                        return std::nullopt;
+                    }
+                    long long rank = *base->tensor_rank;
+                    for (const auto& item : index->items) {
+                        if (!item.slice) --rank;
+                    }
+                    base->tensor_rank = rank;
+                }
+                const auto project_prefix = [&](std::vector<long long>& prefix) {
+                    std::size_t axis = 0;
+                    for (const auto& item : index->items) {
+                        if (!item.slice) {
+                            if (axis < prefix.size()) prefix.erase(prefix.begin() + axis);
+                        } else {
+                            ++axis;
+                        }
+                    }
+                };
+                project_prefix(base->tensor_shape_prefix);
+                project_prefix(base->tensor_known_shape_prefix);
+                return base;
+            }
             if (base->dimensions.empty() || index->items.size() != 1 ||
                 index->items.front().slice) {
                 return std::nullopt;
@@ -1682,11 +1917,56 @@ private:
         if (const auto* call = std::get_if<MethodCallExpr>(&expression.data)) {
             const auto receiver = infer_expression_type(*call->receiver, current_class);
             if (!receiver || !receiver->dimensions.empty()) return std::nullopt;
+            if (receiver->name == "tensor") {
+                if (call->method == "contiguous" && call->args.empty()) return receiver;
+                if (call->method == "shape" && call->args.empty()) {
+                    TypeName result;
+                    result.name = "int";
+                    result.dimensions.push_back(receiver->tensor_rank.value_or(-1));
+                    result.array_depth = 1;
+                    result.span = expression.span;
+                    return result;
+                }
+                if (call->method == "reshape" && call->args.size() == 1) {
+                    auto result = clone_type(*receiver);
+                    result.tensor_shape_prefix.clear();
+                    result.tensor_rank.reset();
+                    result.tensor_known_shape_prefix.clear();
+                    const auto shape = infer_expression_type(*call->args[0].value, current_class);
+                    if (shape && shape->name == "int" && shape->dimensions.size() == 1 &&
+                        shape->dimensions.front() >= 0) {
+                        result.tensor_rank = shape->dimensions.front();
+                    }
+                    if (const auto* literal = std::get_if<ArrayExpr>(&call->args[0].value->data)) {
+                        bool known = true;
+                        for (const auto& item : literal->elements) {
+                            const auto* integer = std::get_if<IntegerExpr>(&item->data);
+                            if (!integer ||
+                                integer->value > static_cast<std::uint64_t>(std::numeric_limits<long long>::max())) {
+                                known = false;
+                                break;
+                            }
+                            result.tensor_known_shape_prefix.push_back(
+                                static_cast<long long>(integer->value));
+                        }
+                        if (!known) result.tensor_known_shape_prefix.clear();
+                    }
+                    result.span = expression.span;
+                    return result;
+                }
+                if (call->method == "item" && call->args.empty() &&
+                    receiver->arguments.size() == 1) {
+                    return clone_type(receiver->arguments.front());
+                }
+            }
             if (receiver->name == "neural" && call->method == "untrack" &&
                 receiver->arguments.size() == 1) {
                 TypeName result;
                 result.name = "tensor";
                 result.arguments.push_back(clone_type(receiver->arguments.front()));
+                result.tensor_rank = receiver->tensor_rank;
+                result.tensor_shape_prefix = receiver->tensor_shape_prefix;
+                result.tensor_known_shape_prefix = receiver->tensor_known_shape_prefix;
                 result.span = expression.span;
                 return result;
             }
@@ -1733,6 +2013,26 @@ private:
             pattern.arguments.size() != actual.arguments.size() ||
             pattern.dimensions.size() != actual.dimensions.size()) {
             return false;
+        }
+        if ((pattern.name == "tensor" || pattern.name == "neural") &&
+            !pattern.tensor_shape_prefix.empty()) {
+            const auto rank = pattern.tensor_shape_prefix.size();
+            if (actual.tensor_rank &&
+                static_cast<std::size_t>(*actual.tensor_rank) != rank) {
+                return false;
+            }
+            for (std::size_t axis = 0; axis < rank; ++axis) {
+                const auto required = pattern.tensor_shape_prefix[axis];
+                if (required < 0) continue;
+                std::optional<long long> actual_extent;
+                if (axis < actual.tensor_known_shape_prefix.size()) {
+                    actual_extent = actual.tensor_known_shape_prefix[axis];
+                } else if (axis < actual.tensor_shape_prefix.size() &&
+                           actual.tensor_shape_prefix[axis] >= 0) {
+                    actual_extent = actual.tensor_shape_prefix[axis];
+                }
+                if (actual_extent && *actual_extent != required) return false;
+            }
         }
         for (std::size_t i = 0; i < pattern.dimensions.size(); ++i) {
             const auto required = pattern.dimensions[i];

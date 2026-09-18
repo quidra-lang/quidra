@@ -7,10 +7,17 @@
 
 namespace quidra {
 
-using PackageLockEntries = std::map<std::string, std::string>;
+struct PackageLockEntry {
+    std::string version;
+    std::string sha256;
+};
 
-std::filesystem::path package_lock_path(const std::filesystem::path& project_root);
-std::string package_tree_sha256(const std::filesystem::path& package_main);
+using PackageLockEntries = std::map<std::string, PackageLockEntry>;
+
+std::filesystem::path package_lock_path(
+    const std::filesystem::path& project_root);
+std::string package_tree_sha256(
+    const std::filesystem::path& package_main);
 std::optional<PackageLockEntries> read_package_lock(
     const std::filesystem::path& project_root);
 std::string package_lock_text(

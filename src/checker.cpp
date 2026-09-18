@@ -24,7 +24,104 @@ bool poisoned(const Type& type) {
 
 bool printable(const Type& type) {
     return poisoned(type) || is_numeric(type) || type.kind == TypeKind::Bool ||
-           type.kind == TypeKind::String || type.kind == TypeKind::Error;
+           type.kind == TypeKind::String || type.kind == TypeKind::Bin ||
+           type.kind == TypeKind::Error;
+}
+
+enum class NumericLiteralFamily {
+    None,
+    Integer,
+    Real,
+    Mixed
+};
+
+NumericLiteralFamily numeric_literal_family(const Expr& expression) {
+    if (std::holds_alternative<IntegerExpr>(expression.data)) {
+        return NumericLiteralFamily::Integer;
+    }
+    if (std::holds_alternative<FloatExpr>(expression.data)) {
+        return NumericLiteralFamily::Real;
+    }
+    if (const auto* name = std::get_if<NameExpr>(&expression.data);
+        name && is_standard_real_constant(name->name)) {
+        return NumericLiteralFamily::Real;
+    }
+    if (const auto* unary = std::get_if<UnaryExpr>(&expression.data);
+        unary && unary->op == "-") {
+        return numeric_literal_family(*unary->operand);
+    }
+    if (const auto* binary = std::get_if<BinaryExpr>(&expression.data);
+        binary && (binary->op == "+" || binary->op == "-" || binary->op == "*" ||
+                   binary->op == "/" || binary->op == "%")) {
+        const auto left = numeric_literal_family(*binary->left);
+        const auto right = numeric_literal_family(*binary->right);
+        if (left == NumericLiteralFamily::None || right == NumericLiteralFamily::None) {
+            return NumericLiteralFamily::None;
+        }
+        if (left == right) return left;
+        return NumericLiteralFamily::Mixed;
+    }
+    return NumericLiteralFamily::None;
+}
+
+NumericLiteralFamily direct_numeric_literal_family(const Expr& expression) {
+    if (std::holds_alternative<IntegerExpr>(expression.data)) {
+        return NumericLiteralFamily::Integer;
+    }
+    if (std::holds_alternative<FloatExpr>(expression.data)) {
+        return NumericLiteralFamily::Real;
+    }
+    if (const auto* name = std::get_if<NameExpr>(&expression.data);
+        name && is_standard_real_constant(name->name)) {
+        return NumericLiteralFamily::Real;
+    }
+    if (const auto* unary = std::get_if<UnaryExpr>(&expression.data);
+        unary && unary->op == "-") {
+        return direct_numeric_literal_family(*unary->operand);
+    }
+    return NumericLiteralFamily::None;
+}
+
+struct NumericLiteralContext {
+    std::optional<Type> type;
+    bool ambiguous{};
+    bool opposite_family{};
+};
+
+NumericLiteralContext numeric_literal_context(
+    const Type* expected, NumericLiteralFamily family) {
+    NumericLiteralContext result;
+    if (!expected ||
+        (family != NumericLiteralFamily::Integer &&
+         family != NumericLiteralFamily::Real)) {
+        return result;
+    }
+
+    const auto matches = [&](const Type& candidate) {
+        return family == NumericLiteralFamily::Integer
+            ? is_integer_family_type(candidate)
+            : is_real(candidate);
+    };
+    const auto opposite = [&](const Type& candidate) {
+        return family == NumericLiteralFamily::Integer
+            ? is_real(candidate)
+            : is_integer_family_type(candidate);
+    };
+    const auto consider = [&](const Type& candidate) {
+        if (matches(candidate)) {
+            if (result.type) result.ambiguous = true;
+            else result.type = candidate;
+        } else if (opposite(candidate)) {
+            result.opposite_family = true;
+        }
+    };
+
+    if (expected->kind == TypeKind::Union) {
+        for (const auto& candidate : expected->cases) consider(candidate);
+    } else {
+        consider(*expected);
+    }
+    return result;
 }
 
 bool runtime_reserved_c_symbol(std::string_view symbol) {
@@ -148,6 +245,97 @@ ReferenceTargetJoin join_reference_targets(
     return result;
 }
 
+Type merge_shaped_flow_facts(
+    const Type& base, const std::vector<Type>& continuing) {
+    const bool shaped = base.kind == TypeKind::Tensor || base.kind == TypeKind::Neural;
+    if (!shaped || continuing.empty()) return base;
+
+    auto merged = base;
+    merged.length = continuing.front().kind == base.kind
+        ? continuing.front().length
+        : -1;
+    for (const auto& state : continuing) {
+        if (state.kind != base.kind || state.length != merged.length) {
+            merged.length = -1;
+            break;
+        }
+    }
+
+    merged.tensor_known_shape_prefix.clear();
+    for (std::size_t axis = 0;; ++axis) {
+        if (merged.length >= 0 &&
+            axis >= static_cast<std::size_t>(merged.length)) {
+            break;
+        }
+        std::optional<long long> extent;
+        bool known_on_every_path = true;
+        for (const auto& state : continuing) {
+            if (state.kind != base.kind) {
+                known_on_every_path = false;
+                break;
+            }
+            const auto current = tensor_known_extent(state, axis);
+            if (!current) {
+                known_on_every_path = false;
+                break;
+            }
+            if (!extent) {
+                extent = current;
+            } else if (*extent != *current) {
+                known_on_every_path = false;
+                break;
+            }
+        }
+        if (!known_on_every_path) break;
+        merged.tensor_known_shape_prefix.push_back(*extent);
+    }
+    return merged;
+}
+
+void collect_assigned_bindings(
+    const std::vector<StmtPtr>& body, std::unordered_set<std::string>& names) {
+    for (const auto& statement : body) {
+        if (const auto* assignment = std::get_if<AssignStmt>(&statement->data)) {
+            if (const auto* name = std::get_if<NameExpr>(&assignment->target->data)) {
+                names.insert(name->name);
+            }
+            continue;
+        }
+        if (const auto* branch = std::get_if<IfStmt>(&statement->data)) {
+            collect_assigned_bindings(branch->then_body, names);
+            collect_assigned_bindings(branch->else_body, names);
+            continue;
+        }
+        if (const auto* loop = std::get_if<WhileStmt>(&statement->data)) {
+            collect_assigned_bindings(loop->body, names);
+            continue;
+        }
+        if (const auto* loop = std::get_if<ForStmt>(&statement->data)) {
+            collect_assigned_bindings(loop->body, names);
+            continue;
+        }
+        if (const auto* match = std::get_if<MatchStmt>(&statement->data)) {
+            for (const auto& match_case : match->cases) {
+                collect_assigned_bindings(match_case.body, names);
+            }
+        }
+    }
+}
+
+void weaken_loop_tensor_facts(
+    std::unordered_map<std::string, Type>& variables,
+    const std::unordered_set<std::string>& assigned) {
+    for (const auto& name : assigned) {
+        const auto it = variables.find(name);
+        if (it == variables.end() ||
+            (it->second.kind != TypeKind::Tensor && it->second.kind != TypeKind::Neural)) continue;
+        it->second.length = it->second.tensor_shape_prefix.empty()
+            ? -1
+            : static_cast<long long>(it->second.tensor_shape_prefix.size());
+        it->second.tensor_known_shape_prefix.clear();
+    }
+}
+
 void collect_rebound_references(
     const std::vector<StmtPtr>& body, std::unordered_set<std::string>& names) {
     for (const auto& statement : body) {
@@ -176,7 +364,9 @@ void collect_rebound_references(
     }
 }
 
-std::optional<long long> constant_integer_value(const Expr& expression) {
+std::optional<long long> constant_integer_value(
+    const Expr& expression,
+    const std::unordered_map<std::string, long long>* names = nullptr) {
     if (const auto* literal = std::get_if<IntegerExpr>(&expression.data)) {
         if (literal->value > static_cast<unsigned long long>(std::numeric_limits<long long>::max())) {
             return std::nullopt;
@@ -184,9 +374,16 @@ std::optional<long long> constant_integer_value(const Expr& expression) {
         return static_cast<long long>(literal->value);
     }
 
+    if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+        if (!names) return std::nullopt;
+        const auto found = names->find(name->name);
+        return found == names->end() ? std::nullopt
+                                     : std::optional<long long>{found->second};
+    }
+
     if (const auto* unary = std::get_if<UnaryExpr>(&expression.data)) {
         if (unary->op != "-") return std::nullopt;
-        const auto value = constant_integer_value(*unary->operand);
+        const auto value = constant_integer_value(*unary->operand, names);
         if (!value || *value == std::numeric_limits<long long>::min()) return std::nullopt;
         return -*value;
     }
@@ -195,15 +392,15 @@ std::optional<long long> constant_integer_value(const Expr& expression) {
         if (call->args.size() != 1 || call->args[0].writable || call->args[0].name) return std::nullopt;
         const auto target = builtin_scalar_type(call->callee);
         if (!target || !is_integer(*target)) return std::nullopt;
-        const auto value = constant_integer_value(*call->args[0].value);
+        const auto value = constant_integer_value(*call->args[0].value, names);
         if (!value || !integer_value_fits(*value, *target)) return std::nullopt;
         return value;
     }
 
     const auto* binary = std::get_if<BinaryExpr>(&expression.data);
     if (!binary) return std::nullopt;
-    const auto left = constant_integer_value(*binary->left);
-    const auto right = constant_integer_value(*binary->right);
+    const auto left = constant_integer_value(*binary->left, names);
+    const auto right = constant_integer_value(*binary->right, names);
     if (!left || !right) return std::nullopt;
 
     if ((binary->op == "/" || binary->op == "%") && *right == 0) return std::nullopt;
@@ -359,7 +556,7 @@ bool Checker::equality_supported(const Type& type) const {
     std::function<bool(const Type&, bool)> supported =
         [&](const Type& current, bool inside_array) -> bool {
             if (poisoned(current) || is_numeric(current) || current.kind == TypeKind::Bool ||
-                current.kind == TypeKind::String || current.kind == TypeKind::Bytes ||
+                current.kind == TypeKind::String || current.kind == TypeKind::Bin ||
                 current.kind == TypeKind::Error) {
                 return true;
             }
@@ -627,7 +824,7 @@ bool Checker::const_access_path(const Expr& expression) const {
                 const auto base = storage_type(*index->base);
                 if (!base) return std::nullopt;
                 if (base->kind == TypeKind::Array) return *base->first;
-                if (base->kind == TypeKind::Bytes) return Type::simple(TypeKind::UInt8);
+                if (base->kind == TypeKind::Bin) return Type::simple(TypeKind::Bin);
                 if (base->kind == TypeKind::Tensor) return *base->first;
             }
             return std::nullopt;
@@ -766,6 +963,12 @@ Type Checker::check_address_target(const Expr& expression, bool allow_tensor_ele
             if (index->items.empty()) {
                 error("INDEX_ARITY", "Tensor index list cannot be empty.", expression.span);
             }
+            if (base.length >= 0 &&
+                index->items.size() != static_cast<std::size_t>(base.length)) {
+                error("INDEX_ARITY",
+                      "Writable tensor element assignment requires one integer index per static rank dimension.",
+                      expression.span);
+            }
             for (const auto& item : index->items) {
                 if (item.slice || !item.index) {
                     error("WRITE_CAPABILITY",
@@ -778,18 +981,21 @@ Type Checker::check_address_target(const Expr& expression, bool allow_tensor_ele
         } else {
             if (index->items.size() != 1 || index->items.front().slice ||
                 !index->items.front().index) {
-                error("INDEX_ARITY", "Array and bytes indexing requires exactly one integer index.",
+                error("INDEX_ARITY", "Array and bin indexing requires exactly one integer index.",
                       expression.span);
             }
             check_expr(*index->items.front().index, &int_type);
             check_static_index_bounds(base, *index->items.front().index);
             if (base.kind == TypeKind::Array) {
                 type = *base.first;
-            } else if (base.kind == TypeKind::Bytes) {
-                type = simple(TypeKind::UInt8);
+            } else if (base.kind == TypeKind::Bin) {
+                error("WRITE_CAPABILITY",
+                      "bin elements do not expose addressable references; assign through bin[index].",
+                      expression.span);
+                type = simple(TypeKind::Bin);
             } else {
                 error("TYPE_MISMATCH",
-                      "Element address requires an array, bytes, or tensor.", expression.span);
+                      "Element address requires an array or tensor.", expression.span);
             }
         }
     } else {
@@ -1336,10 +1542,14 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
             error("GENERIC_ARITY", "tensor requires exactly one element type.", source.span);
         }
         auto element = resolve_type(source.arguments.front());
-        if (!is_numeric(element)) {
-            error("INVALID_TYPE", "tensor element type must be numeric.", source.arguments.front().span);
+        if (!is_tensor_numeric(element)) {
+            error("INVALID_TYPE", "tensor element type must be a fixed-width native numeric type.", source.arguments.front().span);
         }
-        type = Type::tensor(element);
+        const auto rank = !source.tensor_shape_prefix.empty()
+            ? static_cast<long long>(source.tensor_shape_prefix.size())
+            : source.tensor_rank.value_or(-1);
+        type = Type::tensor(element, rank, source.tensor_shape_prefix,
+                            source.tensor_known_shape_prefix);
     } else if (source.name == "neural") {
         Type element = simple(TypeKind::Float32);
         if (source.arguments.size() > 1) {
@@ -1350,7 +1560,11 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
         if (element.kind != TypeKind::Float32 && element.kind != TypeKind::Float) {
             error("INVALID_TYPE", "neural element type must be float32 or float.", source.span);
         }
-        type = Type::neural(element);
+        const auto rank = !source.tensor_shape_prefix.empty()
+            ? static_cast<long long>(source.tensor_shape_prefix.size())
+            : source.tensor_rank.value_or(-1);
+        type = Type::neural(element, rank, source.tensor_shape_prefix,
+                            source.tensor_known_shape_prefix);
     } else if (source.name == "$std.neural.Gradients") {
         type = simple(TypeKind::Gradients);
     } else if (const auto builtin = builtin_scalar_type(source.name)) {
@@ -1384,14 +1598,53 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
 }
 
 
-Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value) {
+void Checker::check_type_extent_expressions(const TypeName& source) {
+    const auto check_extent = [&](const std::shared_ptr<Expr>& expression) {
+        if (!expression) return;
+        const auto int_type = simple(TypeKind::Int);
+        const auto type = check_expr(*expression, &int_type);
+        if (!poisoned(type) && !is_integer(type)) {
+            error("INVALID_TYPE",
+                  "Array/tensor extents require integer expressions.",
+                  expression->span);
+        }
+        if (const auto known =
+                constant_integer_value(*expression, &const_integer_values_);
+            known && *known < 0) {
+            error("INVALID_TYPE",
+                  "Array/tensor extents cannot be negative.",
+                  expression->span);
+        }
+    };
+
+    for (const auto& expression : source.dimension_expressions) {
+        check_extent(expression);
+    }
+    for (const auto& expression : source.tensor_shape_expressions) {
+        check_extent(expression);
+    }
+    for (const auto& argument : source.arguments) {
+        check_type_extent_expressions(argument);
+    }
+}
+
+
+Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value,
+                              const Type* expected) {
     Type type = simple(TypeKind::Void);
     const auto* node = &node_value;
 
         if (is_builtin_text_constant(node->name)) {
             type = simple(TypeKind::String);
-        } else if (standard_float_constant(node->name)) {
-            type = simple(TypeKind::Float);
+        } else if (is_standard_real_constant(node->name)) {
+            if (expected && is_real(*expected)) {
+                type = *expected;
+            } else {
+                error("AMBIGUOUS_NUMERIC_LITERAL",
+                      "Exact real constant requires a unique concrete real-family type context.",
+                      expression.span);
+                type = simple(TypeKind::Invalid);
+            }
         } else if (variables_.contains(node->name)) {
             if (current_reference_parameters_.contains(node->name)) {
                 auto& effect = current_reference_effects_[node->name];
@@ -1497,10 +1750,16 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
         if (node->items.empty()) {
             error("INDEX_ARITY", "Tensor index list cannot be empty.", expression.span);
         }
+        if (base.length >= 0 &&
+            node->items.size() > static_cast<std::size_t>(base.length)) {
+            error("INDEX_ARITY", "Tensor index list exceeds the statically known rank.", expression.span);
+        }
+        long long result_rank = base.length;
         for (const auto& item : node->items) {
             if (!item.slice) {
                 if (!item.index) error("INDEX_SYNTAX", "Tensor index is missing.", item.span);
                 check_expr(*item.index, &index_type);
+                if (result_rank >= 0) --result_rank;
                 continue;
             }
             if (item.start) check_expr(*item.start, &index_type);
@@ -1514,24 +1773,58 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
                 }
             }
         }
-        return base;
+        auto shape_prefix = base.tensor_shape_prefix;
+        auto known_shape_prefix = base.tensor_known_shape_prefix;
+        std::size_t axis = 0;
+        for (const auto& item : node->items) {
+            if (!item.slice) {
+                if (axis < shape_prefix.size()) shape_prefix.erase(shape_prefix.begin() + axis);
+                if (axis < known_shape_prefix.size())
+                    known_shape_prefix.erase(known_shape_prefix.begin() + axis);
+                continue;
+            }
+            const bool full_slice = !item.start && !item.stop && !item.step;
+            if (!full_slice) {
+                if (axis < shape_prefix.size()) shape_prefix[axis] = -1;
+                if (axis < known_shape_prefix.size()) known_shape_prefix.resize(axis);
+            }
+            ++axis;
+        }
+        return Type::tensor(*base.first, result_rank,
+                            std::move(shape_prefix), std::move(known_shape_prefix));
+    }
+
+    if (base.kind == TypeKind::Bin) {
+        if (node->items.size() != 1) {
+            error("INDEX_ARITY", "bin indexing requires exactly one index or slice.", expression.span);
+        }
+        const auto& item = node->items.front();
+        if (item.slice) {
+            if (item.start) check_expr(*item.start, &index_type);
+            if (item.stop) check_expr(*item.stop, &index_type);
+            if (item.step) error("SLICE_STEP", "bin slices do not take a step.", item.step->span);
+            type = simple(TypeKind::Bin);
+        } else {
+            if (!item.index) error("INDEX_SYNTAX", "bin index is missing.", item.span);
+            check_expr(*item.index, &index_type);
+            type = simple(TypeKind::Bin);
+        }
+        return type;
     }
 
     if (node->items.size() != 1 || node->items.front().slice ||
         !node->items.front().index) {
-        error("INDEX_ARITY", "Array, bytes, and string indexing requires exactly one integer index.",
+        error("INDEX_ARITY", "Array and string indexing requires exactly one integer index.",
               expression.span);
     }
     check_expr(*node->items.front().index, &index_type);
     check_static_index_bounds(base, *node->items.front().index);
     if (base.kind == TypeKind::Array) {
         type = *base.first;
-    } else if (base.kind == TypeKind::Bytes) {
-        type = simple(TypeKind::UInt8);
     } else if (base.kind == TypeKind::String) {
         type = simple(TypeKind::String);
     } else {
-        error("TYPE_MISMATCH", "Indexing requires an array, bytes, string, or tensor.", expression.span);
+        error("TYPE_MISMATCH", "Indexing requires an array, bin, string, or tensor.", expression.span);
     }
 
     return type;
@@ -1546,7 +1839,57 @@ Type Checker::check_method_call_expr(const Expr& expression,
         const auto type_receiver =
             receiver_name ? builtin_scalar_type(receiver_name->name) : std::optional<Type>{};
 
-        if (type_receiver && is_numeric(*type_receiver) && node->method == "parse") {
+        if (type_receiver && type_receiver->kind == TypeKind::Bin &&
+            node->method == "fill") {
+            if (!node->type_arguments.empty() || node->args.size() != 2 ||
+                node->args[0].writable || node->args[0].name ||
+                node->args[1].writable || node->args[1].name) {
+                error("ARGUMENT_MISMATCH",
+                      "bin.fill(n, bit) requires exactly two positional integer arguments.",
+                      expression.span);
+            }
+            auto int_type = simple(TypeKind::Int);
+            auto count = check_expr(*node->args[0].value, &int_type);
+            auto fill = check_expr(*node->args[1].value, &int_type);
+            if (const auto value = constant_integer_value(*node->args[0].value);
+                value && *value < 0) {
+                error("ARGUMENT_MISMATCH", "bin.fill length cannot be negative.",
+                      node->args[0].span);
+            }
+            if (const auto value = constant_integer_value(*node->args[1].value);
+                value && *value != 0 && *value != 1) {
+                error("ARGUMENT_MISMATCH", "bin.fill bit must be 0 or 1.",
+                      node->args[1].span);
+            }
+            expr_types_[node->receiver.get()] = raw_types_[node->receiver.get()] = *type_receiver;
+            type = poisoned(count) || poisoned(fill)
+                ? simple(TypeKind::Invalid)
+                : simple(TypeKind::Bin);
+        } else if (type_receiver && type_receiver->kind == TypeKind::String &&
+                   node->method == "repeat") {
+            if (!node->type_arguments.empty() || node->args.size() != 2 ||
+                node->args[0].writable || node->args[0].name ||
+                node->args[1].writable || node->args[1].name) {
+                error("ARGUMENT_MISMATCH",
+                      "string.repeat(value, n) requires a string and an integer count.",
+                      expression.span);
+            }
+            auto string_type = simple(TypeKind::String);
+            auto int_type = simple(TypeKind::Int);
+            auto value = check_expr(*node->args[0].value, &string_type);
+            auto count = check_expr(*node->args[1].value, &int_type);
+            if (const auto amount = constant_integer_value(*node->args[1].value);
+                amount && *amount < 0) {
+                error("ARGUMENT_MISMATCH", "string.repeat count cannot be negative.",
+                      node->args[1].span);
+            }
+            expr_types_[node->receiver.get()] = raw_types_[node->receiver.get()] = *type_receiver;
+            type = poisoned(value) || poisoned(count)
+                ? simple(TypeKind::Invalid)
+                : simple(TypeKind::String);
+        } else if (type_receiver &&
+            (is_numeric(*type_receiver) || type_receiver->kind == TypeKind::Bin) &&
+            node->method == "parse") {
             if (!node->type_arguments.empty()) {
                 error("ARGUMENT_MISMATCH", "parse does not take type arguments.", expression.span);
             }
@@ -1557,9 +1900,25 @@ Type Checker::check_method_call_expr(const Expr& expression,
             auto string_type = simple(TypeKind::String);
             auto argument = check_expr(*node->args[0].value, &string_type);
             expr_types_[node->receiver.get()] = raw_types_[node->receiver.get()] = *type_receiver;
-            type = poisoned(argument)
-                       ? simple(TypeKind::Invalid)
-                       : Type::union_of({*type_receiver, simple(TypeKind::Error)});
+            if (poisoned(argument)) {
+                type = simple(TypeKind::Invalid);
+            } else if (type_receiver->kind == TypeKind::Bin) {
+                bool static_literal = false;
+                if (const auto* literal = std::get_if<StringExpr>(&node->args[0].value->data)) {
+                    static_literal = true;
+                    for (const char ch : literal->value) {
+                        if (ch != '0' && ch != '1') {
+                            error("BIN_PARSE", "bin.parse accepts only '0' and '1'.",
+                                  node->args[0].span);
+                        }
+                    }
+                }
+                type = static_literal
+                    ? simple(TypeKind::Bin)
+                    : Type::union_of({simple(TypeKind::Bin), simple(TypeKind::Error)});
+            } else {
+                type = Type::union_of({*type_receiver, simple(TypeKind::Error)});
+            }
         } else {
             Type receiver;
             const std::string* internal = nullptr;
@@ -1594,14 +1953,45 @@ Type Checker::check_method_call_expr(const Expr& expression,
                     if (node->method == "untrack") {
                         if (!node->type_arguments.empty() || !node->args.empty())
                             error("ARGUMENT_MISMATCH", "neural.untrack() takes no arguments.", expression.span);
-                        type = Type::tensor(*receiver.first);
+                        type = Type::tensor(*receiver.first, receiver.length,
+                                            receiver.tensor_shape_prefix,
+                                            receiver.tensor_known_shape_prefix);
                     } else {
                         error("UNKNOWN_MEMBER", "Type '" + type_name(receiver) +
                               "' has no method '" + node->method + "'.", expression.span);
                     }
                 } else if (receiver.kind == TypeKind::Tensor) {
                     const auto shape_type = Type::array(simple(TypeKind::Int));
-                    if (node->method == "reshape") {
+                    if (node->method == "gpu") {
+                        const auto int_type = simple(TypeKind::Int);
+                        if (!node->type_arguments.empty() || node->args.size() != 1 ||
+                            node->args[0].writable || node->args[0].name) {
+                            error("ARGUMENT_MISMATCH",
+                                  "tensor.gpu(index) requires exactly one positional integer GPU index.",
+                                  expression.span);
+                        }
+                        auto gpu = node->args.empty()
+                            ? simple(TypeKind::Invalid)
+                            : check_expr(*node->args[0].value, &int_type);
+                        if (!node->args.empty()) {
+                            if (const auto index =
+                                    constant_integer_value(*node->args[0].value,
+                                                           &const_integer_values_);
+                                index && *index < 0) {
+                                error("ARGUMENT_MISMATCH",
+                                      "tensor.gpu(index) requires a non-negative GPU index.",
+                                      node->args[0].span);
+                                gpu = simple(TypeKind::Invalid);
+                            }
+                        }
+                        type = poisoned(gpu) ? simple(TypeKind::Invalid) : receiver;
+                    } else if (node->method == "cpu") {
+                        if (!node->type_arguments.empty() || !node->args.empty()) {
+                            error("ARGUMENT_MISMATCH",
+                                  "tensor.cpu() takes no arguments.", expression.span);
+                        }
+                        type = receiver;
+                    } else if (node->method == "reshape") {
                         if (!node->type_arguments.empty() || node->args.size() != 1 ||
                             node->args[0].writable ||
                             (node->args[0].name && *node->args[0].name != "shape")) {
@@ -1609,7 +1999,100 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                   "tensor.reshape requires one shape array.", expression.span);
                         }
                         auto shape = check_expr(*node->args[0].value, &shape_type);
-                        type = poisoned(shape) ? simple(TypeKind::Invalid) : receiver;
+                        long long rank = -1;
+                        if (!poisoned(shape)) {
+                            if (const auto* literal =
+                                    std::get_if<ArrayExpr>(&node->args[0].value->data)) {
+                                rank = static_cast<long long>(literal->elements.size());
+                            } else {
+                                const auto raw = raw_types_.find(node->args[0].value.get());
+                                if (raw != raw_types_.end() &&
+                                    raw->second.kind == TypeKind::Array &&
+                                    raw->second.length >= 0) {
+                                    rank = raw->second.length;
+                                }
+                            }
+                        }
+                        std::vector<long long> known_shape;
+                        if (!poisoned(shape)) {
+                            if (const auto* literal =
+                                    std::get_if<ArrayExpr>(&node->args[0].value->data)) {
+                                bool known = true;
+                                for (const auto& item : literal->elements) {
+                                    const auto extent = constant_integer_value(*item);
+                                    if (!extent || *extent < 0) {
+                                        known = false;
+                                        break;
+                                    }
+                                    known_shape.push_back(*extent);
+                                }
+                                if (!known) known_shape.clear();
+                            }
+                        }
+                        type = poisoned(shape)
+                            ? simple(TypeKind::Invalid)
+                            : Type::tensor(*receiver.first, rank, {}, std::move(known_shape));
+                    } else if (node->method == "transpose") {
+                        const auto int_type = simple(TypeKind::Int);
+                        if (!node->type_arguments.empty() || node->args.size() != 2 ||
+                            node->args[0].writable || node->args[1].writable ||
+                            node->args[0].name || node->args[1].name) {
+                            error("ARGUMENT_MISMATCH",
+                                  "tensor.transpose(axis0, axis1) requires exactly two positional integer axes.",
+                                  expression.span);
+                        }
+                        auto axis0 = node->args.size() > 0
+                            ? check_expr(*node->args[0].value, &int_type)
+                            : simple(TypeKind::Invalid);
+                        auto axis1 = node->args.size() > 1
+                            ? check_expr(*node->args[1].value, &int_type)
+                            : simple(TypeKind::Invalid);
+                        type = poisoned(axis0) || poisoned(axis1)
+                            ? simple(TypeKind::Invalid)
+                            : Type::tensor(*receiver.first, receiver.length);
+                        if (!poisoned(type)) {
+                            const auto constant_axis = [&](std::size_t index)
+                                -> std::optional<long long> {
+                                if (index >= node->args.size()) return std::nullopt;
+                                return constant_integer_value(
+                                    *node->args[index].value, &const_integer_values_);
+                            };
+                            const auto a0 = constant_axis(0);
+                            const auto a1 = constant_axis(1);
+                            const auto check_axis = [&](const std::optional<long long>& axis,
+                                                        const SourceSpan& span) {
+                                if (!axis) return;
+                                if (*axis < 0 ||
+                                    (receiver.length >= 0 && *axis >= receiver.length)) {
+                                    error("ARGUMENT_MISMATCH",
+                                          "tensor.transpose axis is outside the tensor rank.",
+                                          span);
+                                }
+                            };
+                            check_axis(a0, node->args[0].span);
+                            check_axis(a1, node->args[1].span);
+                            if (a0 && a1 && *a0 >= 0 && *a1 >= 0 &&
+                                (receiver.length < 0 ||
+                                 (*a0 < receiver.length && *a1 < receiver.length))) {
+                                auto pattern = receiver.tensor_shape_prefix;
+                                auto known = receiver.tensor_known_shape_prefix;
+                                const auto x = static_cast<std::size_t>(*a0);
+                                const auto y = static_cast<std::size_t>(*a1);
+                                if (x < pattern.size() && y < pattern.size()) {
+                                    std::swap(pattern[x], pattern[y]);
+                                } else {
+                                    pattern.clear();
+                                }
+                                if (x < known.size() && y < known.size()) {
+                                    std::swap(known[x], known[y]);
+                                } else {
+                                    known.clear();
+                                }
+                                type = Type::tensor(
+                                    *receiver.first, receiver.length,
+                                    std::move(pattern), std::move(known));
+                            }
+                        }
                     } else if (node->method == "contiguous") {
                         if (!node->type_arguments.empty() || !node->args.empty()) {
                             error("ARGUMENT_MISMATCH",
@@ -1621,7 +2104,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                             error("ARGUMENT_MISMATCH",
                                   "tensor.shape() takes no arguments.", expression.span);
                         }
-                        type = shape_type;
+                        type = Type::array(simple(TypeKind::Int), receiver.length);
                     } else if (node->method == "is_contiguous") {
                         if (!node->type_arguments.empty() || !node->args.empty()) {
                             error("ARGUMENT_MISMATCH",
@@ -1633,20 +2116,12 @@ Type Checker::check_method_call_expr(const Expr& expression,
                             error("ARGUMENT_MISMATCH",
                                   "tensor.item() takes no arguments.", expression.span);
                         }
-                        type = *receiver.first;
-                    } else if (node->method == "cast") {
-                        if (node->type_arguments.size() != 1 || !node->args.empty()) {
-                            error("ARGUMENT_MISMATCH",
-                                  "tensor.cast<T>() requires exactly one numeric target type.",
+                        if (receiver.length > 0) {
+                            error("TYPE_MISMATCH",
+                                  "tensor.item() requires a rank-0 tensor; index or reshape the tensor explicitly.",
                                   expression.span);
                         }
-                        auto target = resolve_type(node->type_arguments.front());
-                        if (!is_numeric(target)) {
-                            error("INVALID_TYPE", "tensor cast target must be numeric.", node->type_arguments.front().span);
-                        } else if (!explicit_numeric_cast_supported(*receiver.first, target)) {
-                            error("TYPE_MISMATCH", "tensor.cast cannot convert " + type_name(*receiver.first) + " to " + type_name(target) + "; floating-point to integer conversion requires an explicit rounding operation.", expression.span);
-                        }
-                        type = Type::tensor(target);
+                        type = *receiver.first;
                     } else {
                         error("UNKNOWN_MEMBER",
                               "Type '" + type_name(receiver) + "' has no method '" +
@@ -1704,7 +2179,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         type=poisoned(a)?simple(TypeKind::Invalid):Type::array(string_type);
                     } else if (node->method == "utf8") {
                         require_count(0, "string.utf8() takes no arguments.");
-                        type=simple(TypeKind::Bytes);
+                        type=simple(TypeKind::Bin);
                     } else if (node->method == "codepoints") {
                         require_count(0, "string.codepoints() takes no arguments.");
                         type=Type::array(int_type);
@@ -1732,18 +2207,18 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         auto a=check_plain_argument(0,"separator",text_type);
                         type=poisoned(a)?simple(TypeKind::Invalid):text_type;
                     } else {
-                        if (!is_numeric(*receiver.first) &&
+                        if (!is_tensor_numeric(*receiver.first) &&
                             receiver.first->kind != TypeKind::Bool &&
                             receiver.first->kind != TypeKind::String) {
                             error("UNKNOWN_MEMBER",
-                                  "sorted is available on numeric, bool, and string arrays.",
+                                  "sorted is available on fixed-width numeric, bool, and string arrays.",
                                   expression.span);
                         }
                         require_count(0, "array.sorted() takes no arguments.");
                         type=Type::array(*receiver.first);
                     }
                 } else {
-                    if (node->method != "string" || !printable(receiver) || receiver.kind == TypeKind::Bytes) {
+                    if (node->method != "string" || !printable(receiver)) {
                         error("UNKNOWN_MEMBER","Type '" + type_name(receiver) + "' has no method '" + node->method + "'.",expression.span);
                     }
                     require_count(0, "value.string() takes no arguments.");
@@ -1784,22 +2259,41 @@ Type Checker::check_method_call_expr(const Expr& expression,
                     if (argument.name) {
                         named = true;
                         if (!labels.insert(*argument.name).second) {
-                            error("ARGUMENT_MISMATCH", "Duplicate named argument.", argument.span);
+                            error("ARGUMENT_MISMATCH",
+                                  "Argument '" + *argument.name + "' is supplied more than once.",
+                                  argument.span);
                         }
                     } else if (named) {
-                        error("ARGUMENT_MISMATCH", "Positional arguments must precede named arguments.", argument.span);
+                        error("ARGUMENT_MISMATCH",
+                              "Positional argument cannot follow named arguments; name it explicitly.",
+                              argument.span);
                     }
 
-                    std::size_t target = positional++;
+                    std::size_t target = 0;
                     if (argument.name) {
-                        auto it = std::find_if(function.parameters.begin() + static_cast<std::ptrdiff_t>(offset),
-                                               function.parameters.end(),
-                                               [&](const auto& parameter) { return parameter.name == *argument.name; });
-                        target = static_cast<std::size_t>(
-                            it - (function.parameters.begin() + static_cast<std::ptrdiff_t>(offset)));
+                        const auto begin =
+                            function.parameters.begin() + static_cast<std::ptrdiff_t>(offset);
+                        const auto it = std::find_if(
+                            begin, function.parameters.end(),
+                            [&](const auto& parameter) { return parameter.name == *argument.name; });
+                        if (it == function.parameters.end()) {
+                            error("ARGUMENT_MISMATCH",
+                                  "Unknown method argument '" + *argument.name + "'.",
+                                  argument.span);
+                        }
+                        target = static_cast<std::size_t>(it - begin);
+                    } else {
+                        if (positional >= count) {
+                            error("ARGUMENT_MISMATCH",
+                                  "Too many positional method arguments.", argument.span);
+                        }
+                        target = positional++;
                     }
-                    if (target >= count || filled[target]) {
-                        error("ARGUMENT_MISMATCH", "Unknown or duplicate method argument.", argument.span);
+                    if (filled[target]) {
+                        error("ARGUMENT_MISMATCH",
+                              "Argument '" + function.parameters[target + offset].name +
+                                  "' is supplied more than once.",
+                              argument.span);
                     }
                     filled[target] = true;
                     const auto& parameter = function.parameters[target + offset];
@@ -1842,7 +2336,10 @@ Type Checker::check_method_call_expr(const Expr& expression,
                 }
                 for (std::size_t i = 0; i < count; ++i) {
                     if (!filled[i] && !function.parameters[i + offset].default_value) {
-                        error("ARGUMENT_MISMATCH", "Missing required method argument.", expression.span);
+                        error("ARGUMENT_MISMATCH",
+                              "Missing required argument '" +
+                                  function.parameters[i + offset].name + "'.",
+                              expression.span);
                     }
                 }
 
@@ -1977,7 +2474,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                 }
                 case BuiltinCallable::Len: {
                     if (node->args.size() != 1) {
-                        error("ARGUMENT_MISMATCH", "len requires one string, array, or bytes argument.", expression.span);
+                        error("ARGUMENT_MISMATCH", "len requires one string, array, or bin argument.", expression.span);
                     }
                     auto argument = builtin_arg(0, "value");
                     if (poisoned(argument)) {
@@ -1985,8 +2482,8 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     } else {
                         if (argument.kind != TypeKind::String &&
                             argument.kind != TypeKind::Array &&
-                            argument.kind != TypeKind::Bytes) {
-                            error("TYPE_MISMATCH", "len requires a string, array, or bytes.", expression.span);
+                            argument.kind != TypeKind::Bin) {
+                            error("TYPE_MISMATCH", "len requires a string, array, or bin.", expression.span);
                         }
                         type = simple(TypeKind::Int);
                     }
@@ -2005,11 +2502,12 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                 }
                 case BuiltinCallable::Sqrt: {
                     if (node->args.size() != 1) {
-                        error("ARGUMENT_MISMATCH", "sqrt requires one floating-point argument.", expression.span);
+                        error("ARGUMENT_MISMATCH", "sqrt requires one real argument.", expression.span);
                     }
-                    auto argument = builtin_arg(0, "value");
-                    if (!poisoned(argument) && !is_float(argument)) {
-                        error("TYPE_MISMATCH", "sqrt requires a floating-point value.", expression.span);
+                    const Type* context = expected && is_real(*expected) ? expected : nullptr;
+                    auto argument = builtin_arg(0, "value", context);
+                    if (!poisoned(argument) && !is_real(argument)) {
+                        error("TYPE_MISMATCH", "sqrt requires a real value.", expression.span);
                     }
                     type = argument;
                     break;
@@ -2041,9 +2539,10 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if (node->args.size() != 1) {
                         error("ARGUMENT_MISMATCH", name + " requires one floating-point argument.", expression.span);
                     }
-                    auto argument = builtin_arg(0, "value");
-                    if (!poisoned(argument) && !is_float(argument)) {
-                        error("TYPE_MISMATCH", name + " requires a floating-point value.", expression.span);
+                    const Type* context = expected && is_real(*expected) ? expected : nullptr;
+                    auto argument = builtin_arg(0, "value", context);
+                    if (!poisoned(argument) && !is_real(argument)) {
+                        error("TYPE_MISMATCH", name + " requires a real value.", expression.span);
                     }
                     type = argument;
                     break;
@@ -2054,21 +2553,25 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                 case BuiltinCallable::MathCeil: {
                     if (node->args.size() != 1) error("ARGUMENT_MISMATCH", name + " requires one floating-point argument.", expression.span);
                     auto argument = builtin_arg(0, "value");
-                    if (!poisoned(argument) && !is_float(argument)) error("TYPE_MISMATCH", name + " requires a floating-point value.", expression.span);
-                    type = poisoned(argument) ? simple(TypeKind::Invalid) : simple(TypeKind::Int);
+                    if (!poisoned(argument) && !is_real(argument))
+                        error("TYPE_MISMATCH", name + " requires a real value.", expression.span);
+                    type = poisoned(argument) ? simple(TypeKind::Invalid)
+                        : simple(argument.kind == TypeKind::BigReal
+                                     ? TypeKind::BigInt : TypeKind::Int);
                     break;
                 }
                 case BuiltinCallable::MathPow: {
                     if (node->args.size() != 2) {
                         error("ARGUMENT_MISMATCH", "math.pow requires two floating-point arguments.", expression.span);
                     }
-                    auto left = builtin_arg(0, "base");
+                    const Type* context = expected && is_real(*expected) ? expected : nullptr;
+                    auto left = builtin_arg(0, "base", context);
                     auto right = builtin_arg(1, "exponent", &left);
                     if (poisoned(left) || poisoned(right)) {
                         type = simple(TypeKind::Invalid);
                     } else {
-                        if (!is_float(left) || right != left) {
-                            error("TYPE_MISMATCH", "math.pow requires two floating-point values of the same type.", expression.span);
+                        if (!is_real(left) || right != left) {
+                            error("TYPE_MISMATCH", "math.pow requires two real values of the same type.", expression.span);
                         }
                         type = left;
                     }
@@ -2083,8 +2586,11 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     (void)builtin_arg(0, "name", &string_type);
                     (void)builtin_arg(1, "index", &int_type);
                     if (expected->kind != TypeKind::String && expected->kind != TypeKind::Int &&
-                        expected->kind != TypeKind::Float && expected->kind != TypeKind::Bool) {
-                        error("TYPE_MISMATCH", "CLI arguments support string, int, float, and bool.", expression.span);
+                        expected->kind != TypeKind::Float && expected->kind != TypeKind::BigInt &&
+                        expected->kind != TypeKind::BigReal && expected->kind != TypeKind::Bool) {
+                        error("TYPE_MISMATCH",
+                              "CLI arguments support string, int, float, bigint, bigreal, and bool.",
+                              expression.span);
                     }
                     type = *expected;
                     break;
@@ -2097,8 +2603,11 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     (void)builtin_arg(0, "name", &string_type);
                     (void)builtin_arg(1, "default", expected);
                     if (expected->kind != TypeKind::String && expected->kind != TypeKind::Int &&
-                        expected->kind != TypeKind::Float && expected->kind != TypeKind::Bool) {
-                        error("TYPE_MISMATCH", "CLI options support string, int, float, and bool.", expression.span);
+                        expected->kind != TypeKind::Float && expected->kind != TypeKind::BigInt &&
+                        expected->kind != TypeKind::BigReal && expected->kind != TypeKind::Bool) {
+                        error("TYPE_MISMATCH",
+                              "CLI options support string, int, float, bigint, bigreal, and bool.",
+                              expression.span);
                     }
                     type = *expected;
                     break;
@@ -2130,12 +2639,12 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         : Type::union_of({string_type, simple(TypeKind::Error)});
                     break;
                 }
-                case BuiltinCallable::FileReadBytes: {
-                    if (node->args.size() != 1) error("ARGUMENT_MISMATCH", "file.read_bytes requires one path.", expression.span);
+                case BuiltinCallable::FileReadBin: {
+                    if (node->args.size() != 1) error("ARGUMENT_MISMATCH", "file.read_bin requires one path.", expression.span);
                     auto string_type = simple(TypeKind::String);
                     auto path = builtin_arg(0, "path", &string_type);
                     type = poisoned(path) ? simple(TypeKind::Invalid)
-                        : Type::union_of({simple(TypeKind::Bytes), simple(TypeKind::Error)});
+                        : Type::union_of({simple(TypeKind::Bin), simple(TypeKind::Error)});
                     break;
                 }
                 case BuiltinCallable::FileWrite: {
@@ -2147,13 +2656,13 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         : Type::union_of({simple(TypeKind::Void), simple(TypeKind::Error)});
                     break;
                 }
-                case BuiltinCallable::FileWriteBytes: {
-                    if (node->args.size() != 2) error("ARGUMENT_MISMATCH", "file.write_bytes requires path and bytes.", expression.span);
+                case BuiltinCallable::FileWriteBin: {
+                    if (node->args.size() != 2) error("ARGUMENT_MISMATCH", "file.write_bin requires path and bin.", expression.span);
                     auto string_type = simple(TypeKind::String);
-                    auto bytes_type = simple(TypeKind::Bytes);
+                    auto bin_type = simple(TypeKind::Bin);
                     auto path = builtin_arg(0, "path", &string_type);
-                    auto bytes = builtin_arg(1, "bytes", &bytes_type);
-                    type = poisoned(path) || poisoned(bytes) ? simple(TypeKind::Invalid)
+                    auto bin = builtin_arg(1, "bin", &bin_type);
+                    type = poisoned(path) || poisoned(bin) ? simple(TypeKind::Invalid)
                         : Type::union_of({simple(TypeKind::Void), simple(TypeKind::Error)});
                     break;
                 }
@@ -2236,8 +2745,30 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if (node->args.size() != 2) {
                         error("ARGUMENT_MISMATCH", "test.equal requires actual and expected values.", expression.span);
                     }
-                    auto actual = builtin_arg(0, "actual");
-                    auto expected_value = builtin_arg(1, "expected");
+                    const auto actual_family =
+                        numeric_literal_family(*node->args[0].value);
+                    const auto expected_family =
+                        numeric_literal_family(*node->args[1].value);
+                    const bool actual_family_only =
+                        actual_family == NumericLiteralFamily::Integer ||
+                        actual_family == NumericLiteralFamily::Real;
+                    const bool expected_family_only =
+                        expected_family == NumericLiteralFamily::Integer ||
+                        expected_family == NumericLiteralFamily::Real;
+
+                    Type actual;
+                    Type expected_value;
+                    if (actual_family_only && !expected_family_only) {
+                        expected_value = builtin_arg(1, "expected");
+                        actual = poisoned(expected_value)
+                            ? simple(TypeKind::Invalid)
+                            : builtin_arg(0, "actual", &expected_value);
+                    } else {
+                        actual = builtin_arg(0, "actual");
+                        expected_value = poisoned(actual)
+                            ? simple(TypeKind::Invalid)
+                            : builtin_arg(1, "expected", &actual);
+                    }
                     if (poisoned(actual) || poisoned(expected_value)) {
                         type = simple(TypeKind::Invalid);
                     } else {
@@ -2469,6 +3000,26 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     type = Type::union_of({simple(TypeKind::Float), simple(TypeKind::Error)});
                     break;
                 }
+                case BuiltinCallable::JsonBigInt: {
+                    if (current_class_ != "$std.json.Value") {
+                        error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
+                    }
+                    if (!node->args.empty()) {
+                        error("ARGUMENT_MISMATCH", "Value.bigint takes no arguments.", expression.span);
+                    }
+                    type = Type::union_of({simple(TypeKind::BigInt), simple(TypeKind::Error)});
+                    break;
+                }
+                case BuiltinCallable::JsonBigReal: {
+                    if (current_class_ != "$std.json.Value") {
+                        error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
+                    }
+                    if (!node->args.empty()) {
+                        error("ARGUMENT_MISMATCH", "Value.bigreal takes no arguments.", expression.span);
+                    }
+                    type = Type::union_of({simple(TypeKind::BigReal), simple(TypeKind::Error)});
+                    break;
+                }
                 case BuiltinCallable::JsonBoolean: {
                     if (current_class_ != "$std.json.Value") {
                         error("INVALID_CONTEXT", "json Value operation requires a Value receiver.", expression.span);
@@ -2544,7 +3095,10 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                               name + " requires tensor<float32> or tensor<float>.",
                               expression.span);
                     }
-                    type = poisoned(input) ? simple(TypeKind::Invalid) : Type::neural(*input.first);
+                    type = poisoned(input) ? simple(TypeKind::Invalid)
+                        : Type::neural(*input.first, input.length,
+                                       input.tensor_shape_prefix,
+                                       input.tensor_known_shape_prefix);
                     break;
                 }
                 case BuiltinCallable::NeuralConvolve2D: {
@@ -2653,8 +3207,8 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
 
                     std::function<bool(const Type&,std::unordered_set<std::string>&)> serializable;
                     serializable=[&](const Type& current,std::unordered_set<std::string>& active)->bool{
-                        if(is_numeric(current)||current.kind==TypeKind::Bool||
-                           current.kind==TypeKind::String||current.kind==TypeKind::Bytes||
+                        if(is_tensor_numeric(current)||current.kind==TypeKind::Bool||
+                           current.kind==TypeKind::String||current.kind==TypeKind::Bin||
                            current.kind==TypeKind::Tensor) return true;
                         if(current.kind!=TypeKind::Class) return false;
                         if(!active.insert(current.class_name).second) return false;
@@ -2937,11 +3491,11 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         return value&&value->type.kind==kind;
                     };
                     const bool step_valid=!poisoned(step)&&state_value_kind(step,TypeKind::Int);
-                    const bool moments_valid=!poisoned(moments)&&state_value_kind(moments,TypeKind::Bytes);
+                    const bool moments_valid=!poisoned(moments)&&state_value_kind(moments,TypeKind::Bin);
                     if(!poisoned(step)&&!step_valid)
                         error("TYPE_MISMATCH","moment_update step must be neural.State<int>.",step_arg.span);
                     if(!poisoned(moments)&&!moments_valid)
-                        error("TYPE_MISMATCH","moment_update moments must be neural.State<bytes>.",moments_arg.span);
+                        error("TYPE_MISMATCH","moment_update moments must be neural.State<bin>.",moments_arg.span);
                     if(!poisoned(gradients)&&gradients.kind!=TypeKind::Gradients)
                         error("TYPE_MISMATCH","moment_update requires neural.Gradients.",gradients_arg.span);
                     StorageEffect write_effect;
@@ -2970,6 +3524,11 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if (!poisoned(input) && !valid)
                         error("TYPE_MISMATCH", name + " requires neural or a floating-point tensor.", expression.span);
                     type = valid ? input : simple(TypeKind::Invalid);
+                    if (valid && builtin == BuiltinCallable::NeuralMean) {
+                        type.length = 0;
+                        type.tensor_shape_prefix.clear();
+                        type.tensor_known_shape_prefix.clear();
+                    }
                     break;
                 }
                 case BuiltinCallable::NeuralGrad: {
@@ -2980,24 +3539,40 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     type = poisoned(loss) ? simple(TypeKind::Invalid) : simple(TypeKind::Gradients);
                     break;
                 }
-                case BuiltinCallable::StatsMean: {
+                case BuiltinCallable::StatsSum:
+                case BuiltinCallable::StatsMean:
+                case BuiltinCallable::StatsMin:
+                case BuiltinCallable::StatsMax: {
+                    const char* name =
+                        builtin == BuiltinCallable::StatsSum ? "stats.sum" :
+                        builtin == BuiltinCallable::StatsMean ? "stats.mean" :
+                        builtin == BuiltinCallable::StatsMin ? "stats.min" : "stats.max";
                     if (node->args.size() != 1) {
                         error("ARGUMENT_MISMATCH",
-                              "stats.mean requires one tensor value.", expression.span);
+                              std::string(name) + " requires one tensor value.", expression.span);
                         type = simple(TypeKind::Invalid);
                         break;
                     }
                     if (node->args[0].writable ||
                         (node->args[0].name && *node->args[0].name != "value")) {
                         error("ARGUMENT_MISMATCH",
-                              "stats.mean requires value = tensor or one positional tensor.",
+                              std::string(name) + " requires value = tensor or one positional tensor.",
                               node->args[0].span);
                     }
                     auto value = check_expr(*node->args[0].value);
                     if (!poisoned(value) && value.kind != TypeKind::Tensor) {
-                        error("TYPE_MISMATCH", "stats.mean requires a tensor.", expression.span);
+                        error("TYPE_MISMATCH", std::string(name) + " requires a tensor.",
+                              expression.span);
                     }
-                    type = poisoned(value) ? simple(TypeKind::Invalid) : simple(TypeKind::Float);
+                    if (poisoned(value)) {
+                        type = simple(TypeKind::Invalid);
+                    } else if (builtin == BuiltinCallable::StatsMean) {
+                        type = simple(TypeKind::Float);
+                    } else if (value.first) {
+                        type = *value.first;
+                    } else {
+                        type = simple(TypeKind::Invalid);
+                    }
                     break;
                 }
                 case BuiltinCallable::LinearMatmul: {
@@ -3023,14 +3598,32 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         error("TYPE_MISMATCH", "linear.matmul right operand must be a tensor.",
                               node->args[1].span);
                     }
+                    long long result_rank = -1;
                     if (!poisoned(left) && !poisoned(right) &&
-                        left.kind == TypeKind::Tensor && right.kind == TypeKind::Tensor &&
-                        *left.first != *right.first) {
-                        error("TYPE_MISMATCH",
-                              "linear.matmul requires identical tensor element types.",
-                              expression.span);
+                        left.kind == TypeKind::Tensor && right.kind == TypeKind::Tensor) {
+                        if (*left.first != *right.first) {
+                            error("TYPE_MISMATCH",
+                                  "linear.matmul requires identical tensor element types.",
+                                  expression.span);
+                        }
+                        const auto valid_rank = [](long long rank) {
+                            return rank < 0 || rank == 1 || rank == 2;
+                        };
+                        if (!valid_rank(left.length) || !valid_rank(right.length)) {
+                            error("TYPE_MISMATCH",
+                                  "linear.matmul supports vector-matrix, matrix-vector, and matrix-matrix operands.",
+                                  expression.span);
+                        } else if (left.length == 1 && right.length == 1) {
+                            error("TYPE_MISMATCH",
+                                  "linear.matmul does not accept two vectors; use linear.dot.",
+                                  expression.span);
+                        } else if (left.length >= 0 && right.length >= 0) {
+                            result_rank = left.length == 2 && right.length == 2 ? 2 : 1;
+                        }
                     }
-                    type = poisoned(left) || poisoned(right) ? simple(TypeKind::Invalid) : left;
+                    type = poisoned(left) || poisoned(right)
+                        ? simple(TypeKind::Invalid)
+                        : Type::tensor(*left.first, result_rank);
                     break;
                 }
                 case BuiltinCallable::LinearDot: {
@@ -3057,11 +3650,16 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                               node->args[1].span);
                     }
                     if (!poisoned(left) && !poisoned(right) &&
-                        left.kind == TypeKind::Tensor && right.kind == TypeKind::Tensor &&
-                        *left.first != *right.first) {
-                        error("TYPE_MISMATCH",
-                              "linear.dot requires identical tensor element types.",
-                              expression.span);
+                        left.kind == TypeKind::Tensor && right.kind == TypeKind::Tensor) {
+                        if (*left.first != *right.first) {
+                            error("TYPE_MISMATCH",
+                                  "linear.dot requires identical tensor element types.",
+                                  expression.span);
+                        }
+                        if ((left.length >= 0 && left.length != 1) ||
+                            (right.length >= 0 && right.length != 1)) {
+                            error("TYPE_MISMATCH", "linear.dot requires rank-1 tensors.", expression.span);
+                        }
                     }
                     type = poisoned(left) || poisoned(right)
                         ? simple(TypeKind::Invalid)
@@ -3073,43 +3671,93 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         error("GENERIC_TARGET",
                               "image.read does not take type arguments.", expression.span);
                     }
-                    if (node->args.size() != 1) {
+                    if (node->args.empty() || node->args.size() > 3) {
                         error("ARGUMENT_MISMATCH",
-                              "image.read requires one path string.", expression.span);
+                              "image.read requires path and optional channels/dtype conversions.",
+                              expression.span);
                         type = simple(TypeKind::Invalid);
                         break;
                     }
+
                     auto string_type = simple(TypeKind::String);
+                    auto int_type = simple(TypeKind::Int);
                     auto path_type = check_expr(*node->args[0].value, &string_type);
+                    bool bad = poisoned(path_type);
                     if (node->args[0].writable ||
                         (node->args[0].name && *node->args[0].name != "path")) {
                         error("ARGUMENT_MISMATCH",
                               "image.read path has an invalid label or write capability.",
                               node->args[0].span);
+                        bad = true;
                     }
-                    if (poisoned(path_type)) {
+
+                    std::optional<long long> target_channels;
+                    std::optional<Type> target_dtype;
+                    for (std::size_t i = 1; i < node->args.size(); ++i) {
+                        const auto& argument = node->args[i];
+                        if (argument.writable || !argument.name) {
+                            error("ARGUMENT_MISMATCH",
+                                  "image.read conversion options must be named.",
+                                  argument.span);
+                            bad = true;
+                            continue;
+                        }
+                        if (*argument.name == "channels") {
+                            if (target_channels) {
+                                error("DUPLICATE_ARGUMENT",
+                                      "image.read channels is specified more than once.",
+                                      argument.span);
+                                bad = true;
+                                continue;
+                            }
+                            const auto channel_type = check_expr(*argument.value, &int_type);
+                            const auto channels = constant_integer_value(*argument.value);
+                            if (poisoned(channel_type) || !channels ||
+                                (*channels != 1 && *channels != 3 && *channels != 4)) {
+                                error("ARGUMENT_MISMATCH",
+                                      "image.read channels must be the literal 1, 3, or 4.",
+                                      argument.span);
+                                bad = true;
+                            } else {
+                                target_channels = *channels;
+                            }
+                            continue;
+                        }
+                        if (*argument.name == "dtype") {
+                            if (target_dtype) {
+                                error("DUPLICATE_ARGUMENT",
+                                      "image.read dtype is specified more than once.",
+                                      argument.span);
+                                bad = true;
+                                continue;
+                            }
+                            const auto* name = std::get_if<NameExpr>(&argument.value->data);
+                            const auto dtype = name ? builtin_scalar_type(name->name)
+                                                    : std::optional<Type>{};
+                            if (!dtype || !is_tensor_numeric(*dtype)) {
+                                error("ARGUMENT_MISMATCH",
+                                      "image.read dtype must name a numeric built-in type.",
+                                      argument.span);
+                                bad = true;
+                            } else {
+                                target_dtype = *dtype;
+                                raw_types_[argument.value.get()] = *dtype;
+                                expr_types_[argument.value.get()] = *dtype;
+                            }
+                            continue;
+                        }
+                        error("ARGUMENT_MISMATCH",
+                              "image.read supports only channels = 1|3|4 and dtype = numeric_type.",
+                              argument.span);
+                        bad = true;
+                    }
+                    if (bad) {
                         type = simple(TypeKind::Invalid);
                         break;
                     }
 
                     const auto error_type = simple(TypeKind::Error);
-                    const auto full_result = Type::union_of({
-                        Type::tensor(simple(TypeKind::Int8)),
-                        Type::tensor(simple(TypeKind::Int16)),
-                        Type::tensor(simple(TypeKind::Int32)),
-                        Type::tensor(simple(TypeKind::Int)),
-                        Type::tensor(simple(TypeKind::UInt8)),
-                        Type::tensor(simple(TypeKind::UInt16)),
-                        Type::tensor(simple(TypeKind::UInt32)),
-                        Type::tensor(simple(TypeKind::UInt64)),
-                        Type::tensor(simple(TypeKind::Float32)),
-                        Type::tensor(simple(TypeKind::Float)),
-                        error_type});
-                    type = full_result;
-
-                    // An expected tensor<T> | error context selects a dtype without
-                    // converting it. Runtime image decoding validates the exact dtype;
-                    // a mismatch is the error alternative.
+                    std::optional<Type> expected_tensor;
                     if (expected && expected->kind == TypeKind::Union &&
                         case_index(*expected, error_type) >= 0) {
                         std::vector<Type> non_error;
@@ -3118,10 +3766,79 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         }
                         if (non_error.size() == 1 &&
                             non_error.front().kind == TypeKind::Tensor &&
-                            non_error.front().first && is_numeric(*non_error.front().first)) {
-                            type = *expected;
+                            non_error.front().first &&
+                            is_tensor_numeric(*non_error.front().first)) {
+                            expected_tensor = non_error.front();
                         }
                     }
+
+                    if (expected_tensor &&
+                        !expected_tensor->tensor_shape_prefix.empty() &&
+                        expected_tensor->tensor_shape_prefix.size() != 3) {
+                        error("TYPE_MISMATCH",
+                              "image.read returns rank-3 CHW tensors; an expected shape pattern must contain exactly three axes.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
+                    }
+                    if (target_dtype && expected_tensor &&
+                        *expected_tensor->first != *target_dtype) {
+                        error("TYPE_MISMATCH",
+                              "image.read dtype conversion conflicts with the expected tensor dtype.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
+                    }
+                    if (target_channels && expected_tensor &&
+                        !expected_tensor->tensor_shape_prefix.empty() &&
+                        expected_tensor->tensor_shape_prefix.front() >= 0 &&
+                        expected_tensor->tensor_shape_prefix.front() != *target_channels) {
+                        error("TYPE_MISMATCH",
+                              "image.read channel conversion conflicts with the expected tensor shape.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
+                    }
+
+                    std::vector<Type> result_cases;
+                    const auto append_case = [&](Type element) {
+                        std::vector<long long> shape_contract;
+                        std::vector<long long> known_shape;
+                        if (expected_tensor) {
+                            shape_contract = expected_tensor->tensor_shape_prefix;
+                            for (const auto extent : shape_contract) {
+                                if (extent < 0) break;
+                                known_shape.push_back(extent);
+                            }
+                        }
+                        if (target_channels) {
+                            if (known_shape.empty()) known_shape.push_back(*target_channels);
+                            else known_shape.front() = *target_channels;
+                        }
+                        result_cases.push_back(Type::tensor(
+                            element, 3, std::move(shape_contract), std::move(known_shape)));
+                    };
+
+                    if (target_dtype) {
+                        append_case(*target_dtype);
+                    } else if (expected_tensor) {
+                        // The expected dtype is a source/output constraint, not permission
+                        // to convert the decoded samples.
+                        append_case(*expected_tensor->first);
+                    } else {
+                        append_case(simple(TypeKind::Int8));
+                        append_case(simple(TypeKind::Int16));
+                        append_case(simple(TypeKind::Int32));
+                        append_case(simple(TypeKind::Int));
+                        append_case(simple(TypeKind::UInt8));
+                        append_case(simple(TypeKind::UInt16));
+                        append_case(simple(TypeKind::UInt32));
+                        append_case(simple(TypeKind::UInt64));
+                        append_case(simple(TypeKind::Float32));
+                        append_case(simple(TypeKind::Float));
+                    }
+                    result_cases.push_back(error_type);
+                    type = Type::union_of(std::move(result_cases));
                     break;
                 }
                 case BuiltinCallable::ImageWrite: {
@@ -3143,10 +3860,31 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     bool bad = poisoned(path_type) || poisoned(value_type);
                     if (!poisoned(value_type) &&
                         (value_type.kind != TypeKind::Tensor || !value_type.first ||
-                         !is_numeric(*value_type.first))) {
+                         !is_tensor_numeric(*value_type.first))) {
                         error("TYPE_MISMATCH",
                               "image.write requires a numeric CHW tensor.",
                               node->args[1].span);
+                    }
+                    if (!poisoned(value_type) && value_type.kind == TypeKind::Tensor) {
+                        if (value_type.length >= 0 && value_type.length != 3) {
+                            error("TYPE_MISMATCH",
+                                  "image.write requires a rank-3 CHW tensor.",
+                                  node->args[1].span);
+                        }
+                        if (!value_type.tensor_shape_prefix.empty() &&
+                            value_type.tensor_shape_prefix.size() != 3) {
+                            error("TYPE_MISMATCH",
+                                  "image.write requires an exact-rank three-axis CHW shape pattern.",
+                                  node->args[1].span);
+                        }
+                        if (!value_type.tensor_shape_prefix.empty()) {
+                            const auto channels = value_type.tensor_shape_prefix.front();
+                            if (channels >= 0 && channels != 1 && channels != 3 && channels != 4) {
+                                error("TYPE_MISMATCH",
+                                      "image.write requires CHW channel count 1, 3, or 4.",
+                                      node->args[1].span);
+                            }
+                        }
                     }
                     if (node->args[0].writable || node->args[1].writable ||
                         (node->args[0].name && *node->args[0].name != "path") ||
@@ -3169,29 +3907,334 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                                                  simple(TypeKind::Error)});
                     break;
                 }
-                case BuiltinCallable::TensorCreate:
-                case BuiltinCallable::TensorZeros:
-                case BuiltinCallable::TensorOnes: {
-                    if (node->type_arguments.size() != 1) {
-                        error("GENERIC_ARITY",
-                              "tensor construction requires exactly one numeric element type.",
+                case BuiltinCallable::ImageTensorCrop:
+                case BuiltinCallable::ImageTensorResize:
+                case BuiltinCallable::ImageTensorFlipHorizontal:
+                case BuiltinCallable::ImageTensorFlipVertical:
+                case BuiltinCallable::ImageTensorRotate90:
+                case BuiltinCallable::ImageTensorRotate270:
+                case BuiltinCallable::ImageTensorDilate:
+                case BuiltinCallable::ImageTensorErode: {
+                    const bool crop = builtin == BuiltinCallable::ImageTensorCrop;
+                    const bool resize = builtin == BuiltinCallable::ImageTensorResize;
+                    const bool morphology =
+                        builtin == BuiltinCallable::ImageTensorDilate ||
+                        builtin == BuiltinCallable::ImageTensorErode;
+                    const std::size_t expected_args =
+                        crop ? 5U : resize ? 3U : morphology ? 2U : 1U;
+                    if (!node->type_arguments.empty()) {
+                        error("GENERIC_TARGET",
+                              name + " does not take explicit type arguments.",
+                              expression.span);
+                    }
+                    if (node->args.size() != expected_args) {
+                        error("ARGUMENT_MISMATCH",
+                              name + " has an invalid argument count.",
                               expression.span);
                         type = simple(TypeKind::Invalid);
                         break;
                     }
-                    auto element = resolve_type(node->type_arguments.front());
-                    if (!is_numeric(element)) {
-                        error("INVALID_TYPE", "tensor element type must be numeric.",
-                              node->type_arguments.front().span);
+                    auto input = builtin_arg(0, "value");
+                    bool valid = !poisoned(input) &&
+                        input.kind == TypeKind::Tensor && input.first &&
+                        is_numeric(*input.first);
+                    if (!poisoned(input) && !valid) {
+                        error("TYPE_MISMATCH",
+                              name + " requires a numeric tensor.",
+                              node->args[0].span);
                     }
-                    if (node->args.size() != 1 || node->args[0].writable ||
-                        (node->args[0].name && *node->args[0].name != "shape")) {
+                    if (valid && input.length >= 0 && input.length != 3) {
+                        error("TYPE_MISMATCH",
+                              name + " requires a rank-3 CHW tensor.",
+                              node->args[0].span);
+                        valid = false;
+                    }
+                    const auto int_type = simple(TypeKind::Int);
+                    for (std::size_t i = 1; i < node->args.size(); ++i) {
+                        const char* label = crop
+                            ? (i == 1 ? "top" : i == 2 ? "left" :
+                               i == 3 ? "height" : "width")
+                            : resize
+                                ? (i == 1 ? "height" : "width")
+                                : "radius";
+                        auto argument = builtin_arg(i, label, &int_type);
+                        valid = valid && !poisoned(argument);
+                    }
+                    if (!valid) {
+                        type = simple(TypeKind::Invalid);
+                    } else if (crop || resize ||
+                               builtin == BuiltinCallable::ImageTensorRotate90 ||
+                               builtin == BuiltinCallable::ImageTensorRotate270) {
+                        type = Type::tensor(*input.first, 3);
+                    } else {
+                        type = input;
+                    }
+                    break;
+                }
+                case BuiltinCallable::ImageTensorGrayscale: {
+                    if (!node->type_arguments.empty() || node->args.size() != 1) {
                         error("ARGUMENT_MISMATCH",
-                              "tensor construction requires one shape array.", expression.span);
+                              "image.tensor_grayscale requires one uint8 CHW tensor.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
                     }
+                    auto input = builtin_arg(0, "value");
+                    const auto uint8_type = simple(TypeKind::UInt8);
+                    const bool valid = !poisoned(input) &&
+                        input.kind == TypeKind::Tensor && input.first &&
+                        *input.first == uint8_type &&
+                        (input.length < 0 || input.length == 3);
+                    if (!poisoned(input) && !valid) {
+                        error("TYPE_MISMATCH",
+                              "image.tensor_grayscale requires tensor<uint8> with rank 3.",
+                              node->args[0].span);
+                    }
+                    type = valid ? Type::tensor(uint8_type, 3)
+                                 : simple(TypeKind::Invalid);
+                    break;
+                }
+                case BuiltinCallable::ImageTensorThreshold: {
+                    if (!node->type_arguments.empty() || node->args.size() != 4) {
+                        error("ARGUMENT_MISMATCH",
+                              "image.tensor_threshold requires value, cutoff, low, and high.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
+                    }
+                    auto input = builtin_arg(0, "value");
+                    const auto uint8_type = simple(TypeKind::UInt8);
+                    bool valid = !poisoned(input) &&
+                        input.kind == TypeKind::Tensor && input.first &&
+                        *input.first == uint8_type &&
+                        (input.length < 0 || input.length == 3);
+                    for (std::size_t i = 1; i < 4; ++i) {
+                        const char* label = i == 1 ? "cutoff" : i == 2 ? "low" : "high";
+                        auto argument = builtin_arg(i, label, &uint8_type);
+                        valid = valid && !poisoned(argument);
+                    }
+                    if (!poisoned(input) && !valid) {
+                        error("TYPE_MISMATCH",
+                              "image.tensor_threshold requires tensor<uint8> and uint8 scalar values.",
+                              expression.span);
+                    }
+                    type = valid ? input : simple(TypeKind::Invalid);
+                    break;
+                }
+                case BuiltinCallable::ImageTensorBlur: {
+                    if (!node->type_arguments.empty() || node->args.size() != 2) {
+                        error("ARGUMENT_MISMATCH",
+                              "image.tensor_blur requires value and radius.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
+                    }
+                    auto input = builtin_arg(0, "value");
+                    const auto uint8_type = simple(TypeKind::UInt8);
+                    const auto int_type = simple(TypeKind::Int);
+                    auto radius = builtin_arg(1, "radius", &int_type);
+                    const bool valid = !poisoned(input) && !poisoned(radius) &&
+                        input.kind == TypeKind::Tensor && input.first &&
+                        *input.first == uint8_type &&
+                        (input.length < 0 || input.length == 3);
+                    if (!poisoned(input) && !valid) {
+                        error("TYPE_MISMATCH",
+                              "image.tensor_blur requires tensor<uint8> with rank 3 and an integer radius.",
+                              expression.span);
+                    }
+                    type = valid ? input : simple(TypeKind::Invalid);
+                    break;
+                }
+                case BuiltinCallable::ImageTensorFilter: {
+                    if (!node->type_arguments.empty() || node->args.size() != 4) {
+                        error("ARGUMENT_MISMATCH",
+                              "image.tensor_filter requires value, kernel, divisor, and offset.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
+                    }
+                    auto input = builtin_arg(0, "value");
+                    auto kernel = builtin_arg(1, "kernel");
+                    const auto int_type = simple(TypeKind::Int);
+                    auto divisor = builtin_arg(2, "divisor", &int_type);
+                    auto offset = builtin_arg(3, "offset", &int_type);
+                    bool valid = !poisoned(input) && !poisoned(kernel) &&
+                        !poisoned(divisor) && !poisoned(offset);
+                    if (valid) {
+                        valid = input.kind == TypeKind::Tensor && input.first &&
+                            *input.first == simple(TypeKind::UInt8) &&
+                            (input.length < 0 || input.length == 3) &&
+                            kernel.kind == TypeKind::Tensor && kernel.first &&
+                            *kernel.first == int_type &&
+                            (kernel.length < 0 || kernel.length == 2);
+                    }
+                    if (!poisoned(input) && !poisoned(kernel) && !valid) {
+                        error("TYPE_MISMATCH",
+                              "image.tensor_filter requires tensor<uint8> CHW pixels and a rank-2 tensor<int> kernel.",
+                              expression.span);
+                    }
+                    type = valid ? input : simple(TypeKind::Invalid);
+                    break;
+                }
+                case BuiltinCallable::TensorCreate:
+                case BuiltinCallable::TensorZeros:
+                case BuiltinCallable::TensorOnes: {
+                    Type element = simple(TypeKind::Invalid);
+                    if (node->type_arguments.size() == 1) {
+                        element = resolve_type(node->type_arguments.front());
+                    } else if (node->type_arguments.empty() && expected &&
+                               expected->kind == TypeKind::Tensor && expected->first) {
+                        element = *expected->first;
+                    } else {
+                        error("GENERIC_ARITY",
+                              "tensor construction requires one numeric element type unless the expected tensor type supplies it.",
+                              expression.span);
+                    }
+                    if (!poisoned(element) && !is_tensor_numeric(element)) {
+                        error("INVALID_TYPE", "tensor element type must be a fixed-width native numeric type.",
+                              expression.span);
+                    }
+
+                    std::optional<std::size_t> shape_index;
+                    std::optional<std::size_t> gpu_index;
+                    for (std::size_t i = 0; i < node->args.size(); ++i) {
+                        const auto& argument = node->args[i];
+                        if (argument.writable) {
+                            error("ARGUMENT_MISMATCH",
+                                  "tensor construction arguments are values, not writable references.",
+                                  argument.span);
+                            continue;
+                        }
+                        if (!argument.name) {
+                            if (shape_index) {
+                                error("ARGUMENT_MISMATCH",
+                                      "tensor construction accepts at most one positional shape argument; gpu must be named.",
+                                      argument.span);
+                            } else {
+                                shape_index = i;
+                            }
+                            continue;
+                        }
+                        if (*argument.name == "shape") {
+                            if (shape_index) {
+                                error("ARGUMENT_MISMATCH",
+                                      "tensor shape is supplied more than once.",
+                                      argument.span);
+                            } else {
+                                shape_index = i;
+                            }
+                        } else if (*argument.name == "gpu") {
+                            if (gpu_index) {
+                                error("ARGUMENT_MISMATCH",
+                                      "tensor gpu is supplied more than once.",
+                                      argument.span);
+                            } else {
+                                gpu_index = i;
+                            }
+                        } else {
+                            error("ARGUMENT_MISMATCH",
+                                  "tensor construction supports only shape and gpu named arguments.",
+                                  argument.span);
+                        }
+                    }
+
+                    bool bad_gpu = false;
+                    if (gpu_index) {
+                        const auto int_type = simple(TypeKind::Int);
+                        auto gpu = check_expr(*node->args[*gpu_index].value, &int_type);
+                        bad_gpu = poisoned(gpu);
+                        if (!bad_gpu && gpu != int_type) {
+                            error("TYPE_MISMATCH",
+                                  "tensor gpu index expected int.",
+                                  node->args[*gpu_index].span);
+                            bad_gpu = true;
+                        }
+                        if (const auto index =
+                                constant_integer_value(*node->args[*gpu_index].value,
+                                                       &const_integer_values_);
+                            index && *index < 0) {
+                            error("ARGUMENT_MISMATCH",
+                                  "tensor gpu index must be non-negative.",
+                                  node->args[*gpu_index].span);
+                            bad_gpu = true;
+                        }
+                    }
+
+                    const bool contextual_shape = !shape_index;
+                    if (contextual_shape) {
+                        if (builtin == BuiltinCallable::TensorCreate) {
+                            error("ARGUMENT_MISMATCH",
+                                  "Uninitialized tensor construction requires an explicit shape array.",
+                                  expression.span);
+                        }
+                        if (!expected || expected->kind != TypeKind::Tensor ||
+                            expected->tensor_shape_prefix.empty()) {
+                            error("ARGUMENT_MISMATCH",
+                                  "Contextual tensor.zeros()/tensor.ones() requires an exact-rank expected tensor shape.",
+                                  expression.span);
+                        }
+                        if (expected &&
+                            std::any_of(expected->tensor_shape_prefix.begin(),
+                                        expected->tensor_shape_prefix.end(),
+                                        [](long long extent) { return extent == -1; })) {
+                            error("ARGUMENT_MISMATCH",
+                                  "Contextual tensor allocation cannot infer '_' extents.",
+                                  expression.span);
+                        }
+                        type = expected && !bad_gpu
+                            ? Type::tensor(element, expected->length)
+                            : simple(TypeKind::Invalid);
+                        if (expected && !bad_gpu) {
+                            bool prefix_known=true;
+                            for (const auto extent : expected->tensor_shape_prefix) {
+                                if (extent < 0) {
+                                    prefix_known=false;
+                                    break;
+                                }
+                                type.tensor_known_shape_prefix.push_back(extent);
+                            }
+                            if (!prefix_known) type.tensor_known_shape_prefix.clear();
+                        }
+                        break;
+                    }
+
                     const auto shape_type = Type::array(simple(TypeKind::Int));
-                    auto shape = check_expr(*node->args[0].value, &shape_type);
-                    type = poisoned(shape) ? simple(TypeKind::Invalid) : Type::tensor(element);
+                    auto shape = check_expr(*node->args[*shape_index].value, &shape_type);
+                    long long rank = -1;
+                    if (!poisoned(shape)) {
+                        if (const auto* literal =
+                                std::get_if<ArrayExpr>(&node->args[*shape_index].value->data)) {
+                            rank = static_cast<long long>(literal->elements.size());
+                        } else {
+                            const auto raw =
+                                raw_types_.find(node->args[*shape_index].value.get());
+                            if (raw != raw_types_.end() &&
+                                raw->second.kind == TypeKind::Array &&
+                                raw->second.length >= 0) {
+                                rank = raw->second.length;
+                            }
+                        }
+                    }
+                    std::vector<long long> known_shape;
+                    if (!poisoned(shape)) {
+                        if (const auto* literal =
+                                std::get_if<ArrayExpr>(&node->args[*shape_index].value->data)) {
+                            bool known = true;
+                            for (const auto& item : literal->elements) {
+                                const auto extent =
+                                    constant_integer_value(*item, &const_integer_values_);
+                                if (!extent || *extent < 0) {
+                                    known = false;
+                                    break;
+                                }
+                                known_shape.push_back(*extent);
+                            }
+                            if (!known) known_shape.clear();
+                        }
+                    }
+                    type = poisoned(shape) || bad_gpu
+                        ? simple(TypeKind::Invalid)
+                        : Type::tensor(element, rank, {}, std::move(known_shape));
                     break;
                 }
             }
@@ -3226,10 +4269,14 @@ Type Checker::check_call_expr(const Expr& expression,
             if (argument.name) {
                 named = true;
                 if (!labels.insert(*argument.name).second) {
-                    error("ARGUMENT_MISMATCH", "Duplicate named argument.", argument.span);
+                    error("ARGUMENT_MISMATCH",
+                          "Argument '" + *argument.name + "' is supplied more than once.",
+                          argument.span);
                 }
             } else if (named) {
-                error("ARGUMENT_MISMATCH", "Positional arguments must precede named arguments.", argument.span);
+                error("ARGUMENT_MISMATCH",
+                      "Positional argument cannot follow named arguments; name it explicitly.",
+                      argument.span);
             }
         }
 
@@ -3247,16 +4294,31 @@ Type Checker::check_call_expr(const Expr& expression,
             std::vector<PendingReferenceEffect> pending_reference_effects;
 
             for (const auto& argument : node->args) {
-                std::size_t target = positional++;
+                std::size_t target = 0;
                 if (argument.name) {
-                    auto it = std::find_if(function.parameters.begin() + static_cast<std::ptrdiff_t>(offset),
-                                           function.parameters.end(),
-                                           [&](const auto& parameter) { return parameter.name == *argument.name; });
-                    target = static_cast<std::size_t>(
-                        it - (function.parameters.begin() + static_cast<std::ptrdiff_t>(offset)));
+                    const auto begin =
+                        function.parameters.begin() + static_cast<std::ptrdiff_t>(offset);
+                    const auto it = std::find_if(
+                        begin, function.parameters.end(),
+                        [&](const auto& parameter) { return parameter.name == *argument.name; });
+                    if (it == function.parameters.end()) {
+                        error("ARGUMENT_MISMATCH",
+                              "Unknown method argument '" + *argument.name + "'.",
+                              argument.span);
+                    }
+                    target = static_cast<std::size_t>(it - begin);
+                } else {
+                    if (positional >= count) {
+                        error("ARGUMENT_MISMATCH",
+                              "Too many positional method arguments.", argument.span);
+                    }
+                    target = positional++;
                 }
-                if (target >= count || filled[target]) {
-                    error("ARGUMENT_MISMATCH", "Unknown or duplicate method argument.", argument.span);
+                if (filled[target]) {
+                    error("ARGUMENT_MISMATCH",
+                          "Argument '" + function.parameters[target + offset].name +
+                              "' is supplied more than once.",
+                          argument.span);
                 }
                 filled[target] = true;
                 const auto& parameter = function.parameters[target + offset];
@@ -3307,7 +4369,10 @@ Type Checker::check_call_expr(const Expr& expression,
 
             for (std::size_t i = 0; i < count; ++i) {
                 if (!filled[i] && !function.parameters[i + offset].default_value) {
-                    error("ARGUMENT_MISMATCH", "Missing required method argument.", expression.span);
+                    error("ARGUMENT_MISMATCH",
+                          "Missing required argument '" +
+                              function.parameters[i + offset].name + "'.",
+                          expression.span);
                 }
             }
             if (!any_poison) {
@@ -3321,60 +4386,158 @@ Type Checker::check_call_expr(const Expr& expression,
             }
         } else if (const auto target = builtin_scalar_type(name);
                    target && is_numeric(*target)) {
-            call_resolutions_[&expression] =
-                CallResolution{CallKind::NumericCast, name, std::nullopt, *target};
             if (node->args.size() != 1 || node->args[0].writable ||
                 (node->args[0].name && *node->args[0].name != "value")) {
                 error("ARGUMENT_MISMATCH", "Numeric cast requires one value argument.", expression.span);
             }
-            auto source = check_expr(*node->args[0].value);
-            if (!poisoned(source)) {
-                if (!is_numeric(source) || !explicit_numeric_cast_supported(source, *target)) {
-                    const std::string detail = is_float(source) && is_integer(*target)
+            Type source;
+            const auto family = numeric_literal_family(*node->args[0].value);
+            const auto direct_family =
+                direct_numeric_literal_family(*node->args[0].value);
+            const bool target_integer = is_integer_family_type(*target);
+            const bool target_floating = is_real(*target);
+            const bool same_family =
+                (family == NumericLiteralFamily::Integer && target_integer) ||
+                (family == NumericLiteralFamily::Real && target_floating);
+            const bool direct_cross_family =
+                (direct_family == NumericLiteralFamily::Integer && target_floating) ||
+                (direct_family == NumericLiteralFamily::Real && target_integer);
+
+            if (family == NumericLiteralFamily::Mixed) {
+                error("NUMERIC_FAMILY",
+                      "Explicit numeric cast source cannot implicitly mix integer and floating literal families.",
+                      node->args[0].span);
+            } else if (same_family || direct_cross_family) {
+                const bool previous = explicit_numeric_literal_context_;
+                explicit_numeric_literal_context_ = true;
+                try {
+                    source = check_expr(*node->args[0].value, &*target);
+                } catch (...) {
+                    explicit_numeric_literal_context_ = previous;
+                    throw;
+                }
+                explicit_numeric_literal_context_ = previous;
+            } else if (family == NumericLiteralFamily::Integer ||
+                       family == NumericLiteralFamily::Real) {
+                error("NUMERIC_CAST",
+                      "Cross-family conversion of a numeric-family expression requires a concrete source type.",
+                      node->args[0].span);
+            } else {
+                source = check_expr(*node->args[0].value);
+            }
+
+            std::function<std::optional<Type>(const Type&)> cast_result =
+                [&](const Type& current) -> std::optional<Type> {
+                    if (current.kind == TypeKind::Bin) {
+                        return is_integer(*target) ? std::optional<Type>{*target} : std::nullopt;
+                    }
+                    if (is_numeric(current)) {
+                        if (!explicit_numeric_cast_supported(current, *target)) return std::nullopt;
+                        return *target;
+                    }
+                    if (current.kind == TypeKind::Array && current.first) {
+                        const auto child = cast_result(*current.first);
+                        if (!child || current.first->kind == TypeKind::Bin) return std::nullopt;
+                        return Type::array(*child, current.length);
+                    }
+                    if (current.kind == TypeKind::Tensor && current.first &&
+                        is_tensor_numeric(*current.first) && is_tensor_numeric(*target) &&
+                        explicit_numeric_cast_supported(*current.first, *target)) {
+                        return Type::tensor(*target, current.length,
+                                            current.tensor_shape_prefix,
+                                            current.tensor_known_shape_prefix);
+                    }
+                    if (current.kind == TypeKind::Neural && current.first &&
+                        is_float(*current.first) && is_float(*target) &&
+                        explicit_numeric_cast_supported(*current.first, *target)) {
+                        return Type::neural(*target, current.length,
+                                            current.tensor_shape_prefix,
+                                            current.tensor_known_shape_prefix);
+                    }
+                    return std::nullopt;
+                };
+
+            if (poisoned(source)) {
+                type = source;
+                call_resolutions_[&expression] =
+                    CallResolution{CallKind::NumericCast, name, std::nullopt, source};
+            } else {
+                const auto result = cast_result(source);
+                if (!result) {
+                    Type leaf = source;
+                    while (leaf.kind == TypeKind::Array && leaf.first) leaf = *leaf.first;
+                    if ((leaf.kind == TypeKind::Tensor || leaf.kind == TypeKind::Neural) &&
+                        leaf.first) leaf = *leaf.first;
+                    const std::string detail = is_float(leaf) && is_integer_family_type(*target)
                         ? " Floating-point to integer conversion requires math.trunc, math.round, math.floor, or math.ceil."
                         : "";
-                    error("NUMERIC_CAST", "Explicit cast from " + type_name(source) + " to " + type_name(*target) + " is not supported." + detail, expression.span);
+                    error("NUMERIC_CAST",
+                          "Explicit cast from " + type_name(source) +
+                          " to element type " + type_name(*target) +
+                          " is not supported." + detail,
+                          expression.span);
+                    type = simple(TypeKind::Invalid);
+                } else {
+                    type = *result;
                 }
-                if (const auto* literal = std::get_if<IntegerExpr>(&node->args[0].value->data)) {
-                    if (is_integer(*target) && !integer_literal_value_fits(static_cast<unsigned long long>(literal->value), *target))
-                        error("NUMERIC_CAST", "Integer literal is outside the range of " + type_name(*target) + ".", expression.span);
-                }
+                call_resolutions_[&expression] =
+                    CallResolution{CallKind::NumericCast, name, std::nullopt, type};
             }
-            type = poisoned(source) ? source : *target;
-        } else if (name == "bytes") {
+        } else if (name == "bool") {
+            if (node->args.size() != 1 || node->args[0].writable || node->args[0].name) {
+                error("ARGUMENT_MISMATCH", "bool conversion requires one positional bin value.", expression.span);
+            }
+            auto source = check_expr(*node->args[0].value);
+            if (!poisoned(source) && source.kind != TypeKind::Bin) {
+                error("TYPE_MISMATCH", "bool(value) accepts bin only.", expression.span);
+            }
+            type = poisoned(source) ? source : simple(TypeKind::Bool);
             call_resolutions_[&expression] =
-                CallResolution{CallKind::Constructor, "bytes", std::nullopt, simple(TypeKind::Bytes)};
-            if (node->args.size() > 2) {
-                error("ARGUMENT_MISMATCH", "bytes takes zero, one, or two arguments.", expression.span);
+                CallResolution{CallKind::NumericCast, name, std::nullopt, type};
+        } else if (name == "bin") {
+            if (node->args.size() != 1 || node->args[0].writable || node->args[0].name) {
+                error("ARGUMENT_MISMATCH",
+                      "bin(value) is an explicit conversion; use bin.fill(n, bit) to allocate raw bits.",
+                      expression.span);
             }
-            auto int_type = simple(TypeKind::Int);
-            auto byte_type = simple(TypeKind::UInt8);
-            bool any_poison = false;
-            if (!node->args.empty()) {
-                if (node->args[0].writable || (node->args[0].name && *node->args[0].name != "n")) {
-                    error("ARGUMENT_MISMATCH", "bytes length must be positional or n = value.", node->args[0].span);
-                }
-                any_poison |= poisoned(check_expr(*node->args[0].value, &int_type));
-                bool negative_length = false;
-                if (std::holds_alternative<IntegerExpr>(node->args[0].value->data)) {
-                    negative_length = false;
-                } else if (const auto* unary = std::get_if<UnaryExpr>(&node->args[0].value->data);
-                           unary && unary->op == "-") {
-                    if (const auto* literal = std::get_if<IntegerExpr>(&unary->operand->data)) {
-                        negative_length = literal->value > 0;
-                    }
-                }
-                if (negative_length) {
-                    error("ARGUMENT_MISMATCH", "bytes length cannot be negative.", node->args[0].span);
-                }
+            const auto source = check_expr(*node->args[0].value);
+            bool valid = is_integer(source) || source.kind == TypeKind::Bool;
+            if (source.kind == TypeKind::Array && source.first)
+                valid = is_integer(*source.first) || source.first->kind == TypeKind::Bool;
+            if (!poisoned(source) && !valid) {
+                error("TYPE_MISMATCH",
+                      "bin(value) accepts an integer, bool, or a flat integer/bool array.",
+                      node->args[0].span);
             }
-            if (node->args.size() == 2) {
-                if (node->args[1].writable || !node->args[1].name || *node->args[1].name != "fill") {
-                    error("ARGUMENT_MISMATCH", "bytes second argument must be fill = value.", node->args[1].span);
-                }
-                any_poison |= poisoned(check_expr(*node->args[1].value, &byte_type));
+            type = poisoned(source) ? simple(TypeKind::Invalid) : simple(TypeKind::Bin);
+            call_resolutions_[&expression] =
+                CallResolution{CallKind::Constructor, "bin.cast", std::nullopt, type};
+        } else if (name == "string") {
+            error("ARGUMENT_MISMATCH",
+                  "string is not a constructor; use string.repeat(value, n) for repetition.",
+                  expression.span);
+        } else if (name.size() > 2 && name.ends_with("[]")) {
+            const auto element_name = name.substr(0, name.size() - 2);
+            const auto element = builtin_scalar_type(element_name);
+            if (!element || (!is_integer(*element) && element->kind != TypeKind::Bool)) {
+                error("TYPE_MISMATCH",
+                      "Only integer[] and bool[] explicit conversions are supported here.",
+                      expression.span);
             }
-            type = any_poison ? simple(TypeKind::Invalid) : simple(TypeKind::Bytes);
+            if (node->args.size() != 1 || node->args[0].writable || node->args[0].name) {
+                error("ARGUMENT_MISMATCH",
+                      "Array conversion requires one positional bin value.", expression.span);
+            }
+            const auto source = check_expr(*node->args[0].value);
+            if (!poisoned(source) && source.kind != TypeKind::Bin) {
+                error("TYPE_MISMATCH",
+                      "T[](value) binary conversion accepts bin only.", expression.span);
+            }
+            type = poisoned(source) || !element
+                ? simple(TypeKind::Invalid)
+                : Type::array(*element);
+            call_resolutions_[&expression] =
+                CallResolution{CallKind::NumericCast, name, std::nullopt, type};
         } else if (classes_.contains(name)) {
             call_resolutions_[&expression] =
                 CallResolution{CallKind::Constructor, name, std::nullopt, Type::class_type(name)};
@@ -3444,14 +4607,28 @@ Type Checker::check_call_expr(const Expr& expression,
             std::vector<PendingReferenceEffect> pending_reference_effects;
 
             for (const auto& argument : node->args) {
-                std::size_t target = positional++;
+                std::size_t target = 0;
                 if (argument.name) {
-                    auto it = std::find_if(function.parameters.begin(), function.parameters.end(),
-                                           [&](const auto& parameter) { return parameter.name == *argument.name; });
+                    const auto it = std::find_if(
+                        function.parameters.begin(), function.parameters.end(),
+                        [&](const auto& parameter) { return parameter.name == *argument.name; });
+                    if (it == function.parameters.end()) {
+                        error("ARGUMENT_MISMATCH",
+                              "Unknown argument '" + *argument.name + "'.",
+                              argument.span);
+                    }
                     target = static_cast<std::size_t>(it - function.parameters.begin());
+                } else {
+                    if (positional >= filled.size()) {
+                        error("ARGUMENT_MISMATCH", "Too many positional arguments.", argument.span);
+                    }
+                    target = positional++;
                 }
-                if (target >= filled.size() || filled[target]) {
-                    error("ARGUMENT_MISMATCH", "Unknown or duplicate argument.", argument.span);
+                if (filled[target]) {
+                    error("ARGUMENT_MISMATCH",
+                          "Argument '" + function.parameters[target].name +
+                              "' is supplied more than once.",
+                          argument.span);
                 }
                 filled[target] = true;
                 const auto& parameter = function.parameters[target];
@@ -3502,7 +4679,9 @@ Type Checker::check_call_expr(const Expr& expression,
 
             for (std::size_t i = 0; i < filled.size(); ++i) {
                 if (!filled[i] && !function.parameters[i].default_value) {
-                    error("ARGUMENT_MISMATCH", "Missing required argument.", expression.span);
+                    error("ARGUMENT_MISMATCH",
+                          "Missing required argument '" + function.parameters[i].name + "'.",
+                          expression.span);
                 }
             }
             if (!any_poison) {
@@ -3521,28 +4700,74 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
     Type type = simple(TypeKind::Void);
 
     if (const auto* node = std::get_if<IntegerExpr>(&expression.data)) {
-        if (expected && is_integer(*expected) && integer_literal_value_fits(static_cast<unsigned long long>(node->value), *expected)) {
-            type = *expected;
-        } else if (expected && is_float(*expected) &&
-                   integer_literal_fits_exactly_in_float(static_cast<unsigned long long>(node->value), *expected)) {
-            type = *expected;
-        } else {
-            if (node->value >
-                static_cast<unsigned long long>(std::numeric_limits<std::int64_t>::max())) {
-                error("INTEGER_RANGE",
-                      "Integer literal exceeds int; use an explicit uint64 context for values up to uint64 maximum.",
+        const auto context =
+            numeric_literal_context(expected, NumericLiteralFamily::Integer);
+        if (context.ambiguous) {
+            error("AMBIGUOUS_NUMERIC_LITERAL",
+                  "Integer-family literal matches multiple concrete integer types.",
+                  expression.span);
+        }
+        if (context.type) {
+            if (context.type->kind != TypeKind::BigInt &&
+                (!node->fits_u64 || !integer_literal_value_fits(
+                    static_cast<unsigned long long>(node->value), *context.type))) {
+                error(explicit_numeric_literal_context_ ? "NUMERIC_CAST" : "INTEGER_RANGE",
+                      "Integer-family literal is outside the range of " +
+                          type_name(*context.type) + ".",
                       expression.span);
             }
-            type = simple(TypeKind::Int);
+            type = *context.type;
+        } else if (explicit_numeric_literal_context_ && expected &&
+                   is_real(*expected)) {
+            type = *expected;
+        } else if (context.opposite_family) {
+            error("NUMERIC_FAMILY",
+                  "Integer-family literal cannot materialize as a real-family type without an explicit cast.",
+                  expression.span);
+        } else if (expected) {
+            error("TYPE_MISMATCH",
+                  "Integer-family literal requires a concrete integer type context.",
+                  expression.span);
+        } else {
+            error("AMBIGUOUS_NUMERIC_LITERAL",
+                  "Integer-family literal requires a unique concrete integer type context.",
+                  expression.span);
         }
     } else if (const auto* node = std::get_if<FloatExpr>(&expression.data)) {
-        if (!std::isfinite(node->value)) {
-            error("FLOAT_RANGE", "Float literal must be finite.", expression.span);
+        const auto context =
+            numeric_literal_context(expected, NumericLiteralFamily::Real);
+        if (context.ambiguous) {
+            error("AMBIGUOUS_NUMERIC_LITERAL",
+                  "Real-family literal matches multiple concrete real types.",
+                  expression.span);
         }
-        if (expected && is_float(*expected) && float_value_fits_exactly(node->value, *expected)) {
-            type = *expected;
+        if (context.type) {
+            if (context.type->kind != TypeKind::BigReal &&
+                (!std::isfinite(node->value) ||
+                 !float_value_fits_range(node->value, *context.type))) {
+                error(explicit_numeric_literal_context_ ? "NUMERIC_CAST" : "FLOAT_RANGE",
+                      "Real-family literal is outside the finite range of " +
+                          type_name(*context.type) + ".",
+                      expression.span);
+            }
+            type = *context.type;
+        } else if (explicit_numeric_literal_context_ && expected &&
+                   is_integer_family_type(*expected)) {
+            error("NUMERIC_CAST",
+                  "Floating-point to integer conversion requires math.trunc, math.round, math.floor, or math.ceil.",
+                  expression.span);
+        } else if (context.opposite_family) {
+            error("NUMERIC_FAMILY",
+                  "Real-family literal cannot materialize as an integer-family type without an explicit conversion.",
+                  expression.span);
+        } else if (expected) {
+            error("TYPE_MISMATCH",
+                  "Real-family literal requires a concrete real type context.",
+                  expression.span);
         } else {
-            type = simple(TypeKind::Float);
+            error("AMBIGUOUS_NUMERIC_LITERAL",
+                  "Real-family literal requires a unique concrete real type context.",
+                  expression.span);
         }
     } else if (std::holds_alternative<StringExpr>(expression.data)) {
         type = simple(TypeKind::String);
@@ -3563,7 +4788,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         }
         type = simple(TypeKind::String);
     } else if (const auto* node = std::get_if<NameExpr>(&expression.data)) {
-        type = check_name_expr(expression, *node);
+        type = check_name_expr(expression, *node, expected);
     } else if (const auto* node = std::get_if<MemberExpr>(&expression.data)) {
         type = check_member_expr(expression, *node);
     } else if (const auto* node = std::get_if<ArrayExpr>(&expression.data)) {
@@ -3584,15 +4809,46 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             }
             type = Type::array(*context->first, 0);
         } else {
-            auto element = check_expr(*node->elements[0], context ? context->first.get() : nullptr);
+            Type element;
+            if (context) {
+                element = check_expr(*node->elements[0], context->first.get());
+                if (!poisoned(element)) {
+                    for (std::size_t i = 1; i < node->elements.size(); ++i) {
+                        check_expr(*node->elements[i], &element);
+                    }
+                }
+            } else {
+                std::optional<std::size_t> seed;
+                for (std::size_t i = 0; i < node->elements.size(); ++i) {
+                    const auto family = numeric_literal_family(*node->elements[i]);
+                    if (family == NumericLiteralFamily::Mixed) {
+                        error("NUMERIC_FAMILY",
+                              "Numeric-family expression cannot mix integer- and real-family literals implicitly.",
+                              node->elements[i]->span);
+                    }
+                    if (family == NumericLiteralFamily::None) {
+                        seed = i;
+                        break;
+                    }
+                }
+                if (!seed) {
+                    error("AMBIGUOUS_NUMERIC_LITERAL",
+                          "An array made only of numeric-family expressions needs an explicit element type.",
+                          expression.span);
+                }
+                element = check_expr(*node->elements[*seed]);
+                if (!poisoned(element)) {
+                    for (std::size_t i = 0; i < node->elements.size(); ++i) {
+                        if (i == *seed) continue;
+                        check_expr(*node->elements[i], &element);
+                    }
+                }
+            }
             if (poisoned(element)) {
                 type = element;
             } else {
                 if (!is_storable(element)) {
                     error("TYPE_MISMATCH", "Array elements must be storable.", expression.span);
-                }
-                for (std::size_t i = 1; i < node->elements.size(); ++i) {
-                    check_expr(*node->elements[i], &element);
                 }
                 type = Type::array(element, static_cast<long long>(node->elements.size()));
             }
@@ -3606,13 +4862,58 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
     } else if (const auto* node = std::get_if<IndexExpr>(&expression.data)) {
         type = check_index_expr(expression, *node);
     } else if (const auto* node = std::get_if<UnaryExpr>(&expression.data)) {
-        const Type* operand_expected =
-            node->op == "-" && expected && is_numeric(*expected) ? expected : nullptr;
-        type = check_expr(*node->operand, operand_expected);
+        std::optional<Type> literal_expected;
+        const Type* operand_expected = nullptr;
+        bool materialized_signed_minimum = false;
+        if (node->op == "-" && expected &&
+            (is_numeric(*expected) || expected->kind == TypeKind::Tensor)) {
+            operand_expected = expected;
+            if (const auto* literal = std::get_if<IntegerExpr>(&node->operand->data);
+                literal && is_integer(*expected) && is_signed_integer(*expected) &&
+                !integer_literal_value_fits(
+                    static_cast<unsigned long long>(literal->value), *expected) &&
+                negative_integer_literal_value_fits(
+                    static_cast<unsigned long long>(literal->value), *expected)) {
+                // The sign is part of the source expression's value. Signed minima
+                // such as int8(-128) must not reject the magnitude 128 before '-'
+                // is applied.
+                type = *expected;
+                raw_types_[node->operand.get()] = *expected;
+                expr_types_[node->operand.get()] = *expected;
+                materialized_signed_minimum = true;
+            }
+        } else if (node->op == "-") {
+            const auto family = numeric_literal_family(*node->operand);
+            if (family == NumericLiteralFamily::Mixed) {
+                error("NUMERIC_FAMILY",
+                      "Numeric-family expression cannot mix integer- and real-family literals implicitly.",
+                      expression.span);
+            }
+            const auto context = numeric_literal_context(expected, family);
+            if (context.ambiguous) {
+                error("AMBIGUOUS_NUMERIC_LITERAL",
+                      "Numeric-family literal matches multiple concrete types.",
+                      expression.span);
+            }
+            if (context.type) {
+                literal_expected = *context.type;
+                operand_expected = &*literal_expected;
+            }
+        }
+        if (!materialized_signed_minimum) {
+            type = check_expr(*node->operand, operand_expected);
+        }
         if (!poisoned(type)) {
             if (node->op == "not") {
                 if (type.kind != TypeKind::Bool) {
                     error("TYPE_MISMATCH", "not requires bool.", expression.span);
+                }
+            } else if (type.kind == TypeKind::Tensor) {
+                if (!type.first || !is_numeric(*type.first) ||
+                    (is_integer(*type.first) && !is_signed_integer(*type.first))) {
+                    error("TYPE_MISMATCH",
+                          "Tensor negation requires a signed numeric tensor.",
+                          expression.span);
                 }
             } else if (!is_numeric(type)) {
                 error("TYPE_MISMATCH", "Negation requires a number.", expression.span);
@@ -3621,36 +4922,66 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             }
         }
     } else if (const auto* node = std::get_if<BinaryExpr>(&expression.data)) {
-        const auto literal_kind = [](const Expr& value) {
-            if (std::holds_alternative<IntegerExpr>(value.data)) return 1;
-            if (std::holds_alternative<FloatExpr>(value.data)) return 2;
-            if (const auto* unary = std::get_if<UnaryExpr>(&value.data);
-                unary && unary->op == "-") {
-                if (std::holds_alternative<IntegerExpr>(unary->operand->data)) return 1;
-                if (std::holds_alternative<FloatExpr>(unary->operand->data)) return 2;
-            }
-            return 0;
-        };
+        const auto left_family = numeric_literal_family(*node->left);
+        const auto right_family = numeric_literal_family(*node->right);
+        if (left_family == NumericLiteralFamily::Mixed ||
+            right_family == NumericLiteralFamily::Mixed) {
+            error("NUMERIC_FAMILY",
+                  "Numeric-family expression cannot mix integer- and real-family literals implicitly.",
+                  expression.span);
+        }
 
-        const int left_literal = literal_kind(*node->left);
-        const int right_literal = literal_kind(*node->right);
         Type left;
         Type right;
+        const auto scalar_context = [](const Type& other) -> const Type* {
+            if (is_numeric(other)) return &other;
+            if ((other.kind == TypeKind::Tensor || other.kind == TypeKind::Neural) &&
+                other.first && is_numeric(*other.first)) {
+                return other.first.get();
+            }
+            return nullptr;
+        };
+
+        const bool left_literal =
+            left_family == NumericLiteralFamily::Integer ||
+            left_family == NumericLiteralFamily::Real;
+        const bool right_literal =
+            right_family == NumericLiteralFamily::Integer ||
+            right_family == NumericLiteralFamily::Real;
 
         if (left_literal && right_literal) {
-            const auto context = simple(
-                left_literal == 2 || right_literal == 2 ? TypeKind::Float : TypeKind::Int);
-            left = check_expr(*node->left, &context);
-            right = check_expr(*node->right, &context);
+            if (left_family != right_family) {
+                error("NUMERIC_FAMILY",
+                      "Integer- and real-family expressions cannot mix implicitly.",
+                      expression.span);
+            }
+            const auto context = numeric_literal_context(expected, left_family);
+            if (context.ambiguous) {
+                error("AMBIGUOUS_NUMERIC_LITERAL",
+                      "Numeric-family expression matches multiple concrete numeric types.",
+                      expression.span);
+            }
+            if (!context.type) {
+                if (context.opposite_family) {
+                    error("NUMERIC_FAMILY",
+                          "Numeric-family expression cannot cross families without an explicit cast.",
+                          expression.span);
+                }
+                error("AMBIGUOUS_NUMERIC_LITERAL",
+                      "Numeric-family expression requires a unique concrete numeric type context.",
+                      expression.span);
+            }
+            left = check_expr(*node->left, &*context.type);
+            right = check_expr(*node->right, &*context.type);
         } else if (left_literal) {
             right = check_expr(*node->right);
-            left = is_numeric(right) ? check_expr(*node->left, &right)
-                                     : check_expr(*node->left);
+            left = check_expr(*node->left, scalar_context(right));
+        } else if (right_literal) {
+            left = check_expr(*node->left);
+            right = check_expr(*node->right, scalar_context(left));
         } else {
             left = check_expr(*node->left);
-            right = right_literal && is_numeric(left)
-                ? check_expr(*node->right, &left)
-                : check_expr(*node->right);
+            right = check_expr(*node->right);
         }
 
         if (poisoned(left) || poisoned(right)) {
@@ -3664,22 +4995,11 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 if (left != right) error("TYPE_MISMATCH", "neural arithmetic requires identical element types.", expression.span);
             } else {
                 const Type& scalar = left_neural ? right : left;
-                const Expr& scalar_expr = left_neural ? *node->right : *node->left;
-                bool compatible = is_numeric(scalar) &&
-                    (scalar == element || lossless_implicit_numeric_conversion(scalar, element));
-                if (!compatible) {
-                    if (const auto integer = constant_integer_value(scalar_expr)) {
-                        compatible = is_integer(element)
-                            ? integer_value_fits(*integer, element)
-                            : (is_float(element) &&
-                               integer_value_fits_exactly_in_float(*integer, element));
-                    } else if (const auto* value = std::get_if<FloatExpr>(&scalar_expr.data)) {
-                        compatible = is_float(element) &&
-                            float_value_fits_exactly(value->value, element);
-                    }
+                if (!is_tensor_numeric(scalar) || scalar != element) {
+                    error("TYPE_MISMATCH",
+                          "neural scalar arithmetic requires the exact element type.",
+                          expression.span);
                 }
-                if (!compatible)
-                    error("TYPE_MISMATCH", "neural scalar arithmetic requires an exactly representable scalar.", expression.span);
             }
             if (node->op != "+" && node->op != "-" && node->op != "*" && node->op != "/")
                 error("TYPE_MISMATCH", "neural operators are elementwise +, -, *, and /.", expression.span);
@@ -3689,31 +5009,25 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             const bool right_tensor = right.kind == TypeKind::Tensor;
             const Type& tensor_type = left_tensor ? left : right;
             const auto element = *tensor_type.first;
-            const auto scalar_compatible = [&](const Expr& source, const Type& actual) {
-                if (actual == element || lossless_implicit_numeric_conversion(actual, element)) {
-                    return true;
-                }
-                if (const auto integer = constant_integer_value(source)) {
-                    if (is_integer(element)) return integer_value_fits(*integer, element);
-                    if (is_float(element)) return integer_value_fits_exactly_in_float(*integer, element);
-                }
-                if (const auto* value = std::get_if<FloatExpr>(&source.data)) {
-                    if (is_float(element)) return float_value_fits_exactly(value->value, element);
-                    if (is_integer(element)) return float_value_fits_exactly_in_integer(value->value, element);
-                }
-                return false;
-            };
+            Type tensor_result = tensor_type;
             if (left_tensor && right_tensor) {
-                if (left != right) {
+                if (*left.first != *right.first) {
                     error("TYPE_MISMATCH",
                           "Tensor arithmetic requires identical element types.", expression.span);
                 }
+                if (left.length >= 0 && right.length >= 0 && left.length != right.length) {
+                    error("TYPE_MISMATCH",
+                          "Tensor arithmetic requires identical rank when both ranks are statically known.",
+                          expression.span);
+                }
+                if (tensor_result.length < 0) {
+                    tensor_result.length = left.length >= 0 ? left.length : right.length;
+                }
             } else {
                 const auto& scalar_type = left_tensor ? right : left;
-                const auto& scalar_expr = left_tensor ? *node->right : *node->left;
-                if (!is_numeric(scalar_type) || !scalar_compatible(scalar_expr, scalar_type)) {
+                if (!is_tensor_numeric(scalar_type) || scalar_type != element) {
                     error("TYPE_MISMATCH",
-                          "Tensor scalar arithmetic requires an exactly representable scalar.",
+                          "Tensor scalar arithmetic requires the exact element type.",
                           expression.span);
                 }
             }
@@ -3726,7 +5040,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 error("TYPE_MISMATCH", "Tensor remainder requires an integer element type.",
                       expression.span);
             }
-            type = tensor_type;
+            type = tensor_result;
         } else {
             if (left != right) {
                 error("TYPE_MISMATCH", "Operands must have identical types.", expression.span);
@@ -3756,10 +5070,10 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             } else if (node->op == "+" && left.kind == TypeKind::String) {
                 type = left;
             } else {
-                if (!is_numeric(left) || (node->op == "%" && !is_integer(left))) {
+                if (!is_numeric(left) || (node->op == "%" && !is_integer_family_type(left))) {
                     error("TYPE_MISMATCH", "Arithmetic requires compatible numbers.", expression.span);
                 }
-                if (is_integer(left) && (node->op == "/" || node->op == "%")) {
+                if (is_integer_family_type(left) && (node->op == "/" || node->op == "%")) {
                     const auto divisor = constant_integer_value(*node->right);
                     if (divisor && *divisor == 0) {
                         error("DIVIDE_BY_ZERO",
@@ -3831,6 +5145,52 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
 
         auto type = resolve_type(node.declared_type, true);
 
+        const auto resolve_extent = [&](const std::shared_ptr<Expr>& expression,
+                                        SourceSpan span) -> long long {
+            if (!expression) return -1;
+            const auto int_type = simple(TypeKind::Int);
+            const auto extent_type = check_expr(*expression, &int_type);
+            if (!poisoned(extent_type) && !is_integer(extent_type)) {
+                error("INVALID_TYPE", "Array/tensor extents require integer expressions.", span);
+            }
+            if (const auto known =
+                    constant_integer_value(*expression, &const_integer_values_)) {
+                if (*known < 0) {
+                    error("INVALID_TYPE", "Array/tensor extents cannot be negative.", span);
+                }
+                return *known;
+            }
+            return -2;
+        };
+
+        if (type.kind == TypeKind::Tensor || type.kind == TypeKind::Neural) {
+            for (std::size_t axis = 0;
+                 axis < node.declared_type.tensor_shape_expressions.size(); ++axis) {
+                if (axis >= type.tensor_shape_prefix.size()) break;
+                const auto& expression =
+                    node.declared_type.tensor_shape_expressions[axis];
+                if (!expression) {
+                    type.tensor_shape_prefix[axis] = -1;
+                    continue;
+                }
+                type.tensor_shape_prefix[axis] =
+                    resolve_extent(expression, expression->span);
+            }
+        }
+
+        Type* array_axis = &type;
+        for (std::size_t axis = 0;
+             axis < node.declared_type.dimension_expressions.size() &&
+             array_axis && array_axis->kind == TypeKind::Array;
+             ++axis) {
+            const auto& expression =
+                node.declared_type.dimension_expressions[axis];
+            array_axis->length = expression
+                ? resolve_extent(expression, expression->span)
+                : -1;
+            array_axis = array_axis->first.get();
+        }
+
         if (node.is_const && !node.value) {
             error("CONST_INITIALIZATION", "const bindings require an initializer.", statement.span);
         }
@@ -3901,18 +5261,37 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
         if (type.kind == TypeKind::Auto) {
             if (!node.value) error("INVALID_AUTO", "auto requires an initializer.", statement.span);
             type = check_expr(*node.value);
-            if (type.kind == TypeKind::Array) {
+            if (type.kind == TypeKind::Array &&
+                std::holds_alternative<ArrayExpr>(node.value->data)) {
+                // Array literals infer a runtime-sized array so common auto bindings remain
+                // appendable. Other expressions preserve their declared static shape contract.
                 type.length = -1;
                 expr_types_[node.value.get()] = type;
             }
         } else if (node.value) {
             check_expr(*node.value, &type);
+            if (type.kind == TypeKind::Tensor || type.kind == TypeKind::Neural) {
+                const auto raw = raw_types_.find(node.value.get());
+                if (raw != raw_types_.end() && raw->second.kind == type.kind) {
+                    type.length = raw->second.length;
+                    type.tensor_known_shape_prefix =
+                        raw->second.tensor_known_shape_prefix;
+                }
+            }
         }
         if (!is_storable(type)) {
             error("INVALID_TYPE", "Binding requires a storable type.", statement.span);
         }
         variables_[node.name] = type;
-        if (node.is_const) const_bindings_.insert(node.name);
+        if (node.is_const) {
+            const_bindings_.insert(node.name);
+            if (node.value && is_integer(type)) {
+                if (const auto known =
+                        constant_integer_value(*node.value, &const_integer_values_)) {
+                    const_integer_values_[node.name] = *known;
+                }
+            }
+        }
         binding_types_[&statement] = type;
         if (node.value) {
             initialized_.insert(node.name);
@@ -3920,9 +5299,14 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             if (!paths.empty()) {
                 class_initialized_paths_[node.name] = paths;
             }
-        } else if (type.kind == TypeKind::Array && type.length >= 0) {
-            // A fixed array declaration creates storage immediately. Its elements are tracked
-            // independently and may still be uninitialized.
+        } else if (type.kind == TypeKind::Array &&
+                   (type.length >= 0 ||
+                    (type.length == -2 &&
+                     !node.declared_type.dimension_expressions.empty() &&
+                     node.declared_type.dimension_expressions.front()))) {
+            // A fixed or captured-extent outer array declaration creates storage
+            // immediately. Its elements are tracked independently and may still
+            // be uninitialized.
             initialized_.insert(node.name);
         }
         return;
@@ -4022,7 +5406,22 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                 }
                 type = variables_.at(name->name);
                 expr_types_[node.target.get()] = raw_types_[node.target.get()] = type;
-                check_expr(*node.value, &type);
+                auto expected = type;
+                if (expected.kind == TypeKind::Tensor || expected.kind == TypeKind::Neural) {
+                    if (expected.tensor_shape_prefix.empty()) expected.length = -1;
+                    expected.tensor_known_shape_prefix.clear();
+                }
+                check_expr(*node.value, &expected);
+                if (type.kind == TypeKind::Tensor || type.kind == TypeKind::Neural) {
+                    const auto raw = raw_types_.find(node.value.get());
+                    if (raw != raw_types_.end() && raw->second.kind == type.kind) {
+                        auto refined = type;
+                        refined.length = raw->second.length;
+                        refined.tensor_known_shape_prefix =
+                            raw->second.tensor_known_shape_prefix;
+                        variables_[name->name] = std::move(refined);
+                    }
+                }
                 if (current_reference_parameters_.contains(name->name)) {
                     record_storage_assignment(
                         current_reference_effects_[name->name], "", type, *node.value);
@@ -4080,9 +5479,30 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                       "Assignment storage must be rooted in an existing binding or receiver storage.",
                       node.target->span);
             }
-            type = check_address_target(
-                *node.target, std::holds_alternative<IndexExpr>(node.target->data));
-            check_expr(*node.value, &type);
+            if (const auto* indexed = std::get_if<IndexExpr>(&node.target->data)) {
+                const auto base_type = raw_types_.contains(indexed->base.get())
+                    ? raw_types_.at(indexed->base.get())
+                    : check_expr(*indexed->base);
+                if (base_type.kind == TypeKind::Bin) {
+                    if (indexed->items.size() != 1 || indexed->items.front().slice ||
+                        !indexed->items.front().index) {
+                        error("INDEX_ARITY",
+                              "bin assignment requires exactly one integer index.",
+                              node.target->span);
+                    }
+                    auto int_type = simple(TypeKind::Int);
+                    check_expr(*indexed->items.front().index, &int_type);
+                    type = simple(TypeKind::Bin);
+                    raw_types_[node.target.get()] = expr_types_[node.target.get()] = type;
+                    check_expr(*node.value, &type);
+                } else {
+                    type = check_address_target(*node.target, true);
+                    check_expr(*node.value, &type);
+                }
+            } else {
+                type = check_address_target(*node.target, false);
+                check_expr(*node.value, &type);
+            }
             if (const auto receiver_path = current_receiver_path(*node.target)) {
                 if (std::holds_alternative<IndexExpr>(node.target->data)) {
                     current_receiver_effect_.writes.insert(*receiver_path);
@@ -4183,6 +5603,7 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         auto before_reference_effects = current_reference_effects_;
 
         check_block(node.then_body);
+        auto yes_variables = variables_;
         auto yes = initialized_;
         auto yes_paths = class_initialized_paths_;
         auto yes_method = current_receiver_effect_.initializes;
@@ -4204,6 +5625,7 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         current_receiver_effect_.invalidates = before_method_invalidated;
         current_reference_effects_ = before_reference_effects;
         check_block(node.else_body);
+        auto no_variables = variables_;
         auto no = initialized_;
         auto no_paths = class_initialized_paths_;
         auto no_method = current_receiver_effect_.initializes;
@@ -4224,7 +5646,24 @@ void Checker::check_if_stmt(const Stmt&, const IfStmt& node) {
         current_receiver_effect_.writes = before_method_written;
         current_receiver_effect_.invalidates = before_method_invalidated;
         current_reference_effects_ = before_reference_effects;
-        for (const auto& [name, _] : variables) {
+        for (const auto& [name, base_type] : variables) {
+            if (base_type.kind == TypeKind::Tensor || base_type.kind == TypeKind::Neural) {
+                std::vector<Type> continuing_types;
+                if (!yes_terminates) {
+                    if (const auto it = yes_variables.find(name); it != yes_variables.end()) {
+                        continuing_types.push_back(it->second);
+                    }
+                }
+                if (!no_terminates) {
+                    if (const auto it = no_variables.find(name); it != no_variables.end()) {
+                        continuing_types.push_back(it->second);
+                    }
+                }
+                if (!continuing_types.empty()) {
+                    variables_[name] =
+                        merge_shaped_flow_facts(base_type, continuing_types);
+                }
+            }
             if ((yes_terminates || yes.contains(name)) && (no_terminates || no.contains(name))) {
                 initialized_.insert(name);
             } else if (reference_paths.contains(name)) {
@@ -4298,9 +5737,14 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         auto method_written = current_receiver_effect_.writes;
         auto method_invalidated = current_receiver_effect_.invalidates;
         auto reference_effects = current_reference_effects_;
+        std::unordered_set<std::string> loop_assigned;
+        collect_assigned_bindings(node.body, loop_assigned);
+        weaken_loop_tensor_facts(variables_, loop_assigned);
+        variables = variables_;
         ++loop_depth_;
         check_block(node.body);
         --loop_depth_;
+        auto body_variables = variables_;
         auto body_written = current_receiver_effect_.writes;
         auto body_invalidated = current_receiver_effect_.invalidates;
         variables_ = variables;
@@ -4310,6 +5754,13 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         const_bindings_ = const_bindings;
         initialized_ = initialized;
         class_initialized_paths_ = paths;
+        for (const auto& [name, base_type] : variables) {
+            if (base_type.kind != TypeKind::Tensor && base_type.kind != TypeKind::Neural) continue;
+            const auto it = body_variables.find(name);
+            if (it == body_variables.end()) continue;
+            variables_[name] =
+                merge_shaped_flow_facts(base_type, {base_type, it->second});
+        }
         current_receiver_effect_.initializes = method_initialized;
         current_receiver_effect_.writes = method_written;
         current_receiver_effect_.writes.insert(body_written.begin(), body_written.end());
@@ -4332,8 +5783,8 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
 void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         auto type = check_expr(*node.iterable);
         if (type.kind == TypeKind::Invalid) return;
-        if (type.kind != TypeKind::Array && type.kind != TypeKind::Bytes && type.kind != TypeKind::Range) {
-            error("TYPE_MISMATCH", "for requires an array, bytes, or range.", statement.span);
+        if (type.kind != TypeKind::Array && type.kind != TypeKind::Bin && type.kind != TypeKind::Range) {
+            error("TYPE_MISMATCH", "for requires an array, bin, or range.", statement.span);
         }
         if (variables_.contains(node.name) || functions_.contains(node.name) ||
             class_names_.contains(node.name) || is_reserved_value_name(node.name) ||
@@ -4353,16 +5804,20 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         auto method_invalidated = current_receiver_effect_.invalidates;
         auto reference_effects = current_reference_effects_;
         auto borrowed = borrowed_;
+        std::unordered_set<std::string> loop_assigned;
+        collect_assigned_bindings(node.body, loop_assigned);
+        weaken_loop_tensor_facts(variables_, loop_assigned);
+        variables = variables_;
 
         if (node.writable) {
             auto* name = std::get_if<NameExpr>(&node.iterable->data);
-            if ((type.kind != TypeKind::Array && type.kind != TypeKind::Bytes) ||
+            if ((type.kind != TypeKind::Array && type.kind != TypeKind::Bin) ||
                 !name || !variables_.contains(name->name)) {
-                error("WRITE_CAPABILITY", "Writable iteration requires an array or bytes binding.", statement.span);
+                error("WRITE_CAPABILITY", "Writable iteration requires an array or bin binding.", statement.span);
             }
             const auto root = reference_root(name->name);
             if (borrowed_.contains(root) || narrowed_.contains(root)) {
-                error("WRITE_CAPABILITY", "Writable iteration requires an unaliased array or bytes binding.", statement.span);
+                error("WRITE_CAPABILITY", "Writable iteration requires an unaliased array or bin binding.", statement.span);
             }
             borrowed_.insert(root);
         }
@@ -4370,14 +5825,15 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         Type item_type = simple(TypeKind::Int);
         if (type.kind == TypeKind::Array) {
             item_type = *type.first;
-        } else if (type.kind == TypeKind::Bytes) {
-            item_type = simple(TypeKind::UInt8);
+        } else if (type.kind == TypeKind::Bin) {
+            item_type = simple(TypeKind::Bin);
         }
         variables_[node.name] = item_type;
         initialized_.insert(node.name);
         ++loop_depth_;
         check_block(node.body);
         --loop_depth_;
+        auto body_variables = variables_;
         auto body_written = current_receiver_effect_.writes;
         auto body_invalidated = current_receiver_effect_.invalidates;
         variables_ = variables;
@@ -4387,6 +5843,13 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         const_bindings_ = const_bindings;
         initialized_ = initialized;
         class_initialized_paths_ = class_paths;
+        for (const auto& [name, base_type] : variables) {
+            if (base_type.kind != TypeKind::Tensor && base_type.kind != TypeKind::Neural) continue;
+            const auto it = body_variables.find(name);
+            if (it == body_variables.end()) continue;
+            variables_[name] =
+                merge_shaped_flow_facts(base_type, {base_type, it->second});
+        }
         current_receiver_effect_.initializes = method_initialized;
         current_receiver_effect_.writes = method_written;
         current_receiver_effect_.writes.insert(body_written.begin(), body_written.end());
@@ -4426,6 +5889,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
     auto reference_before = current_reference_effects_;
     auto narrowed = narrowed_;
     std::unordered_set<int> seen;
+    std::vector<std::unordered_map<std::string, Type>> continuing_variables;
     std::vector<std::unordered_set<std::string>> continuing_initialized;
     std::vector<std::unordered_map<std::string, std::unordered_set<std::string>>>
         continuing_class_paths;
@@ -4436,11 +5900,33 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
     auto matched_reference_effects = reference_before;
 
     for (auto& match_case : node.cases) {
-        auto case_type = resolve_type(match_case.type);
-        const int tag = case_index(type, case_type);
+        const auto requested_case_type = resolve_type(match_case.type);
+        int tag = case_index(type, requested_case_type);
+        if (tag < 0 &&
+            (requested_case_type.kind == TypeKind::Tensor ||
+             requested_case_type.kind == TypeKind::Neural) &&
+            requested_case_type.first) {
+            int compatible_tag = -1;
+            for (std::size_t i = 0; i < type.cases.size(); ++i) {
+                const auto& candidate = type.cases[i];
+                if (candidate.kind != requested_case_type.kind || !candidate.first ||
+                    *candidate.first != *requested_case_type.first ||
+                    !tensor_satisfies_shape_prefix(candidate, requested_case_type)) {
+                    continue;
+                }
+                if (compatible_tag >= 0) {
+                    compatible_tag = -2;
+                    break;
+                }
+                compatible_tag = static_cast<int>(i);
+            }
+            if (compatible_tag >= 0) tag = compatible_tag;
+        }
         if (tag < 0 || !seen.insert(tag).second) {
             error("MATCH_CASE", "Unreachable or duplicate typed case.", match_case.span);
         }
+        const auto case_type = tag >= 0 ? type.cases[static_cast<std::size_t>(tag)]
+                                        : requested_case_type;
         if (case_type.kind == TypeKind::None && match_case.binder) {
             error("MATCH_CASE", "none has no payload binder.", match_case.span);
         }
@@ -4496,6 +5982,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
         }
 
         if (!block_always_terminates(match_case.body)) {
+            continuing_variables.push_back(variables_);
             continuing_initialized.push_back(initialized_);
             continuing_class_paths.push_back(class_initialized_paths_);
             continuing_receiver_initialized.push_back(current_receiver_effect_.initializes);
@@ -4520,6 +6007,19 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
 
     if (!continuing_initialized.empty()) {
         for (const auto& [name, variable_type] : variables) {
+            if (variable_type.kind == TypeKind::Tensor || variable_type.kind == TypeKind::Neural) {
+                std::vector<Type> continuing_types;
+                continuing_types.reserve(continuing_variables.size());
+                for (const auto& state : continuing_variables) {
+                    if (const auto it = state.find(name); it != state.end()) {
+                        continuing_types.push_back(it->second);
+                    }
+                }
+                if (!continuing_types.empty()) {
+                    variables_[name] =
+                        merge_shaped_flow_facts(variable_type, continuing_types);
+                }
+            }
             if (std::all_of(continuing_initialized.begin(), continuing_initialized.end(),
                             [&](const auto& state) { return state.contains(name); })) {
                 initialized_.insert(name);
@@ -4797,6 +6297,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     case_types_.clear();
     initialized_.clear();
     const_bindings_.clear();
+    const_integer_values_.clear();
     class_initialized_paths_.clear();
     class_expr_initialized_paths_.clear();
     reset_current_effect_state();
@@ -4807,6 +6308,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     diagnostics_.clear();
     current_class_.clear();
     loop_depth_ = 0;
+    explicit_numeric_literal_context_ = false;
 
     std::unordered_map<std::string, ClassDecl*> class_decls;
     for (auto& class_decl : program.classes) {
@@ -5002,7 +6504,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 }
             };
             const auto ffi_borrowed_buffer=[](const Type& type) {
-                return type.kind==TypeKind::String || type.kind==TypeKind::Bytes;
+                return type.kind==TypeKind::String || type.kind==TypeKind::Bin;
             };
             if(function.external_symbol) {
                 const auto& symbol=*function.external_symbol;
@@ -5043,9 +6545,9 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                             error("FFI_REFERENCE","External C scalar parameters are explicit by-value inputs and cannot use const/reference parameter forms.",parameter.span);
                     } else if(ffi_borrowed_buffer(type)) {
                         if(!parameter.writable || !parameter.is_const)
-                            error("FFI_REFERENCE","External C string/bytes inputs must be explicit call-scoped read-only borrows written as const T &.",parameter.span);
+                            error("FFI_REFERENCE","External C string/bin inputs must be explicit call-scoped read-only borrows written as const T &.",parameter.span);
                     } else {
-                        error("FFI_TYPE","External C parameters must use explicit numeric/bool scalar values or const string/bytes references.",parameter.span);
+                        error("FFI_TYPE","External C parameters must use explicit numeric/bool scalar values or const string/bin references.",parameter.span);
                     }
                 }
                 if (parameter.default_value) {
@@ -5076,6 +6578,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     unknown_reference_targets_.clear();
     initialized_.clear();
     const_bindings_.clear();
+    const_integer_values_.clear();
     class_initialized_paths_.clear();
     in_function_ = false;
     for (auto& class_decl : program.classes) {
@@ -5101,6 +6604,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         unknown_reference_targets_.clear();
         initialized_.clear();
         const_bindings_.clear();
+    const_integer_values_.clear();
         in_function_ = false;
         for (auto& parameter : functions_.at(function.name).parameters) {
             if (!parameter.default_value) continue;
@@ -5132,6 +6636,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             unknown_reference_targets_.clear();
             initialized_.clear();
             const_bindings_.clear();
+    const_integer_values_.clear();
             current_class_.clear();
             in_function_ = false;
             for (std::size_t i = 1; i < signature.parameters.size(); ++i) {
@@ -5198,6 +6703,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 unknown_reference_targets_.clear();
                 initialized_.clear();
                 const_bindings_.clear();
+    const_integer_values_.clear();
                 class_initialized_paths_.clear();
                 reset_current_effect_state();
 
@@ -5246,6 +6752,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                     unknown_reference_targets_.clear();
                     initialized_.clear();
                     const_bindings_.clear();
+    const_integer_values_.clear();
                     class_initialized_paths_.clear();
                     reset_current_effect_state();
 
@@ -5314,6 +6821,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         unknown_reference_targets_.clear();
         initialized_.clear();
         const_bindings_.clear();
+    const_integer_values_.clear();
         class_initialized_paths_.clear();
         reset_current_effect_state();
 
@@ -5334,6 +6842,14 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         current_return_ = signature.result;
         current_class_.clear();
         in_function_ = true;
+        try {
+            for (const auto& parameter : function.parameters) {
+                check_type_extent_expressions(parameter.type);
+            }
+            check_type_extent_expressions(function.return_type);
+        } catch (const CompileError& compile_error) {
+            record(compile_error);
+        }
         check_block(function.body);
         finalize_reference_effects(signature, !block_always_terminates(function.body));
         signature.return_initialized_fields =
@@ -5362,6 +6878,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             unknown_reference_targets_.clear();
             initialized_.clear();
             const_bindings_.clear();
+    const_integer_values_.clear();
             class_initialized_paths_.clear();
             reset_current_effect_state();
 
@@ -5383,6 +6900,14 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             current_return_ = signature.result;
             current_class_ = class_decl.name;
             in_function_ = true;
+            try {
+                for (const auto& parameter : method.parameters) {
+                    check_type_extent_expressions(parameter.type);
+                }
+                check_type_extent_expressions(method.return_type);
+            } catch (const CompileError& compile_error) {
+                record(compile_error);
+            }
             check_block(method.body);
             finalize_receiver_effects(signature, !block_always_terminates(method.body));
             finalize_reference_effects(signature, !block_always_terminates(method.body));
@@ -5406,6 +6931,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     unknown_reference_targets_.clear();
     initialized_.clear();
     const_bindings_.clear();
+    const_integer_values_.clear();
     class_initialized_paths_.clear();
     reset_current_effect_state();
 

@@ -28,6 +28,11 @@ struct Lowerer {
     std::size_t repl_replay_prefix_offset{};
     std::unordered_map<std::string, std::unordered_set<std::size_t>> borrowed_parameters;
     std::unordered_set<std::string> fully_initialized_array_locals;
+    std::unordered_map<std::string, std::vector<std::optional<std::string>>> shaped_constraints;
+    std::unordered_map<std::string, std::vector<std::optional<std::string>>> array_constraints;
+    std::unordered_map<const Expr*, std::vector<std::optional<std::string>>> contextual_tensor_shapes;
+    std::vector<std::optional<std::string>> return_shaped_constraints;
+    std::vector<std::optional<std::string>> return_array_constraints;
 
     explicit Lowerer(
         const CheckedProgram& c, const Expr* repl = nullptr,
@@ -330,6 +335,179 @@ struct Lowerer {
     ValueId const_int(long long n) { auto v=fresh(); block->instructions.push_back(ConstantInt{v,std::to_string(n),Type::simple(TypeKind::Int)}); return v; }
     ValueId const_float(double x) { auto v=fresh(); block->instructions.push_back(ConstantFloat{v,x,Type::simple(TypeKind::Float)}); return v; }
     ValueId const_bool(bool b) { auto v=fresh(); block->instructions.push_back(ConstantBool{v,b}); return v; }
+
+    ValueId extent_value(const Expr& expression) {
+        auto value = expr(expression);
+        const auto source = type_of(expression);
+        const auto target = Type::simple(TypeKind::Int);
+        if (source == target) return value;
+        auto out = fresh();
+        const bool checked_range =
+            numeric_conversion_policy(source, target) ==
+            NumericConversionPolicy::ExplicitRangeCheck;
+        block->instructions.push_back(NumericConvert{
+            out, value, source, target, checked_range,
+            static_cast<std::uint32_t>(expression.span.start.line),
+            static_cast<std::uint32_t>(expression.span.start.column)});
+        return out;
+    }
+
+    std::vector<std::optional<std::string>> capture_extents(
+        const std::vector<std::shared_ptr<Expr>>& expressions,
+        std::string_view prefix) {
+        std::vector<std::optional<std::string>> captured;
+        captured.reserve(expressions.size());
+        for (const auto& expression : expressions) {
+            if (!expression) {
+                captured.push_back(std::nullopt);
+                continue;
+            }
+            const auto name = hidden(prefix);
+            locals[name] = Type::simple(TypeKind::Int);
+            block->instructions.push_back(
+                DeclareLocal{name, Type::simple(TypeKind::Int)});
+            const auto value = extent_value(*expression);
+            block->instructions.push_back(
+                StoreLocal{name, value, Type::simple(TypeKind::Int)});
+            captured.push_back(name);
+        }
+        return captured;
+    }
+
+    std::vector<std::optional<ValueId>> load_captured_extents(
+        const std::vector<std::optional<std::string>>& captured) {
+        std::vector<std::optional<ValueId>> values;
+        values.reserve(captured.size());
+        for (const auto& name : captured) {
+            if (!name) {
+                values.push_back(std::nullopt);
+                continue;
+            }
+            auto value = fresh();
+            block->instructions.push_back(
+                LoadLocal{value, *name, Type::simple(TypeKind::Int)});
+            values.push_back(value);
+        }
+        return values;
+    }
+
+    void emit_shaped_constraint(
+        ValueId value, TypeKind kind,
+        const std::vector<std::optional<std::string>>& captured,
+        SourceSpan span) {
+        if (captured.empty()) return;
+        block->instructions.push_back(ShapedConstraintCheck{
+            value, kind, load_captured_extents(captured),
+            static_cast<std::uint32_t>(span.start.line),
+            static_cast<std::uint32_t>(span.start.column)});
+    }
+
+    bool deeper_array_constraint(
+        const std::vector<std::optional<std::string>>& captured,
+        std::size_t axis) const {
+        for (std::size_t i = axis; i < captured.size(); ++i) {
+            if (captured[i]) return true;
+        }
+        return false;
+    }
+
+    void emit_array_constraints(
+        ValueId array, const Type& array_type,
+        const std::vector<std::optional<std::string>>& captured,
+        std::size_t axis, SourceSpan span) {
+        if (axis >= captured.size() || array_type.kind != TypeKind::Array) return;
+
+        if (captured[axis]) {
+            auto actual = fresh();
+            block->instructions.push_back(ArrayLength{actual, array});
+            auto expected = fresh();
+            block->instructions.push_back(
+                LoadLocal{expected, *captured[axis], Type::simple(TypeKind::Int)});
+            block->instructions.push_back(ExtentEqualCheck{
+                actual, expected,
+                static_cast<std::uint32_t>(span.start.line),
+                static_cast<std::uint32_t>(span.start.column)});
+        }
+
+        if (axis + 1 >= captured.size() || !array_type.first ||
+            array_type.first->kind != TypeKind::Array ||
+            !deeper_array_constraint(captured, axis + 1)) {
+            return;
+        }
+
+        auto count = fresh();
+        block->instructions.push_back(ArrayLength{count, array});
+        const auto index_name = hidden("shape.index");
+        locals[index_name] = Type::simple(TypeKind::Int);
+        block->instructions.push_back(
+            DeclareLocal{index_name, Type::simple(TypeKind::Int)});
+        block->instructions.push_back(
+            StoreLocal{index_name, const_int(0), Type::simple(TypeKind::Int)});
+
+        const auto cond = label("shape.cond");
+        const auto body = label("shape.body");
+        const auto done = label("shape.done");
+        block->instructions.push_back(Jump{cond});
+
+        block = &add_block(cond);
+        auto index = fresh();
+        block->instructions.push_back(
+            LoadLocal{index, index_name, Type::simple(TypeKind::Int)});
+        auto cmp = fresh();
+        block->instructions.push_back(Binary{
+            cmp, "<", index, count, Type::simple(TypeKind::Int),
+            Type::simple(TypeKind::Bool),
+            static_cast<std::uint32_t>(span.start.line),
+            static_cast<std::uint32_t>(span.start.column)});
+        block->instructions.push_back(Branch{cmp, body, done});
+
+        block = &add_block(body);
+        auto child = fresh();
+        block->instructions.push_back(ArrayGet{
+            child, array, index, *array_type.first,
+            static_cast<std::uint32_t>(span.start.line),
+            static_cast<std::uint32_t>(span.start.column),
+            false, true});
+        emit_array_constraints(
+            child, *array_type.first, captured, axis + 1, span);
+        auto next = fresh();
+        block->instructions.push_back(Binary{
+            next, "+", index, const_int(1), Type::simple(TypeKind::Int),
+            Type::simple(TypeKind::Int),
+            static_cast<std::uint32_t>(span.start.line),
+            static_cast<std::uint32_t>(span.start.column)});
+        block->instructions.push_back(
+            StoreLocal{index_name, next, Type::simple(TypeKind::Int)});
+        block->instructions.push_back(Jump{cond});
+
+        block = &add_block(done);
+    }
+
+    ValueId generated_shape_array(
+        const std::vector<std::optional<std::string>>& captured,
+        SourceSpan span) {
+        const auto shape_type = Type::array(Type::simple(TypeKind::Int));
+        auto storage = fresh();
+        auto length = const_int(static_cast<long long>(captured.size()));
+        block->instructions.push_back(
+            ArrayAlloc{storage, length, shape_type, false});
+        for (std::size_t i = 0; i < captured.size(); ++i) {
+            if (!captured[i]) {
+                throw std::logic_error(
+                    "contextual tensor allocation contains an unconstrained axis");
+            }
+            auto extent = fresh();
+            block->instructions.push_back(
+                LoadLocal{extent, *captured[i], Type::simple(TypeKind::Int)});
+            block->instructions.push_back(ArraySet{
+                storage, const_int(static_cast<long long>(i)), extent,
+                Type::simple(TypeKind::Int),
+                static_cast<std::uint32_t>(span.start.line),
+                static_cast<std::uint32_t>(span.start.column),
+                false, true});
+        }
+        return storage;
+    }
     void collect_neural_parameters(
         ValueId object,const Type& type,const std::string& path,
         std::vector<NeuralParameterRef>& out,
@@ -356,7 +534,7 @@ struct Lowerer {
 
     static bool neural_state_leaf(const Type& type) {
         return is_numeric(type) || type.kind==TypeKind::Bool ||
-               type.kind==TypeKind::String || type.kind==TypeKind::Bytes ||
+               type.kind==TypeKind::String || type.kind==TypeKind::Bin ||
                type.kind==TypeKind::Tensor;
     }
 
@@ -449,13 +627,19 @@ struct Lowerer {
         if (std::holds_alternative<StringExpr>(expression.data)) {
             return false;
         }
-        if (std::holds_alternative<NameExpr>(expression.data)) return false;
+        if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+            // Ordinary names borrow local/reference storage, but exact standard
+            // real constants materialize a fresh managed bigreal value.
+            return type.kind == TypeKind::BigReal &&
+                   standard_float_constant(name->name).has_value();
+        }
         if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
             return expression_owns_result(*member->base);
         }
         if (const auto* index = std::get_if<IndexExpr>(&expression.data)) {
             const auto base_kind = type_of(*index->base).kind;
-            if (base_kind == TypeKind::Tensor || base_kind == TypeKind::String) return true;
+            if (base_kind == TypeKind::Tensor || base_kind == TypeKind::String ||
+                base_kind == TypeKind::Bin) return true;
             return expression_owns_result(*index->base);
         }
         if (const auto* tried = std::get_if<TryExpr>(&expression.data)) {
@@ -596,7 +780,7 @@ struct Lowerer {
             block->instructions.push_back(LoadLocal{out,result_name,to});
             return out;
         }
-        if(to.kind==TypeKind::Union && from.kind!=TypeKind::Union){if(copy)v=copy_value(v,from);auto out=fresh();block->instructions.push_back(VariantMake{out,case_index(to,from),v,to,from});return out;}
+        if(to.kind==TypeKind::Union && from.kind!=TypeKind::Union){if(copy)v=copy_value(v,from);auto out=fresh();block->instructions.push_back(VariantMake{out,compatible_case_index(to,from),v,to,from});return out;}
         if(from!=to && is_numeric(from) && is_numeric(to)){
             auto out=fresh();
             block->instructions.push_back(NumericConvert{out,v,from,to,false});
@@ -646,11 +830,11 @@ struct Lowerer {
                 throw std::logic_error("tensor elements do not expose raw addresses");
             }
             auto array=expr(*n->base),index=expr(*n->items.front().index),out=fresh();
-            const auto element_type=array_type.kind==TypeKind::Bytes
+            const auto element_type=array_type.kind==TypeKind::Bin
                 ? Type::simple(TypeKind::UInt8)
                 : *array_type.first;
             block->instructions.push_back(AddressElement{
-                out,array,index,array_type,element_type,array_type.kind==TypeKind::Bytes,
+                out,array,index,array_type,element_type,array_type.kind==TypeKind::Bin,
                 static_cast<std::uint32_t>(e.span.start.line),
                 static_cast<std::uint32_t>(e.span.start.column)});
             return out;
@@ -705,16 +889,26 @@ struct Lowerer {
         if (const auto* n=std::get_if<IntegerExpr>(&e.data)) {
             auto out=fresh();
             const auto type=checked.raw_types.at(&e);
-            if(is_float(type)) {
+            const auto spelling=n->spelling.empty()?std::to_string(n->value):n->spelling;
+            if(type.kind==TypeKind::BigInt||type.kind==TypeKind::BigReal) {
+                block->instructions.push_back(ConstantExact{out,spelling,type});
+            } else if(is_float(type)) {
                 block->instructions.push_back(ConstantFloat{
                     out,static_cast<double>(n->value),type});
             } else {
-                block->instructions.push_back(ConstantInt{
-                    out,std::to_string(n->value),type});
+                block->instructions.push_back(ConstantInt{out,spelling,type});
             }
             return out;
         }
-        if (const auto* n=std::get_if<FloatExpr>(&e.data)) { auto out=fresh(); block->instructions.push_back(ConstantFloat{out,n->value,checked.raw_types.at(&e)}); return out; }
+        if (const auto* n=std::get_if<FloatExpr>(&e.data)) {
+            auto out=fresh(); const auto type=checked.raw_types.at(&e);
+            if(type.kind==TypeKind::BigReal)
+                block->instructions.push_back(ConstantExact{
+                    out,n->spelling.empty()?std::to_string(n->value):n->spelling,type});
+            else
+                block->instructions.push_back(ConstantFloat{out,n->value,type});
+            return out;
+        }
         if (const auto* n=std::get_if<BoolExpr>(&e.data)) { auto out=fresh(); block->instructions.push_back(ConstantBool{out,n->value}); return out; }
         if (const auto* n=std::get_if<StringExpr>(&e.data)) { auto out=fresh(); block->instructions.push_back(ConstantString{out,n->value}); return out; }
         if (std::holds_alternative<VoidExpr>(e.data) || std::holds_alternative<NoneExpr>(e.data)) return 0;
@@ -765,7 +959,15 @@ struct Lowerer {
         }
         if (const auto* n=std::get_if<NameExpr>(&e.data)) {
             if(is_builtin_text_constant(n->name)){auto out=fresh();block->instructions.push_back(ConstantString{out,std::string(builtin_text_constant(n->name))});return out;}
-            if(const auto constant=standard_float_constant(n->name)){auto out=fresh();block->instructions.push_back(ConstantFloat{out,*constant,Type::simple(TypeKind::Float)});return out;}
+            if(const auto constant=standard_float_constant(n->name)){
+                auto out=fresh(); const auto type=checked.raw_types.at(&e);
+                if(type.kind==TypeKind::BigReal)
+                    block->instructions.push_back(ConstantExact{
+                        out,n->name=="$std.math.pi"?"$pi":"$e",type});
+                else
+                    block->instructions.push_back(ConstantFloat{out,*constant,type});
+                return out;
+            }
             if(const auto it=checked.field_accesses.find(&e);it!=checked.field_accesses.end()){
                 auto object=receiver_value(),out=fresh();block->instructions.push_back(FieldGet{out,object,it->second.index,it->second.type});return out;
             }
@@ -818,17 +1020,28 @@ struct Lowerer {
                     static_cast<std::uint32_t>(e.span.start.line),
                     static_cast<std::uint32_t>(e.span.start.column)});
             }else{
-                auto i=expr(*n->items.front().index);
-                if(base_type.kind==TypeKind::Bytes) {
-                    block->instructions.push_back(BytesGet{
-                        out,a,i,static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column),
-                        checked.bounds_proven.contains(n->items.front().index.get())});
+                if(base_type.kind==TypeKind::Bin) {
+                    const auto& item=n->items.front();
+                    if(item.slice){
+                        auto start=item.start?expr(*item.start):const_int(0);
+                        ValueId stop;
+                        if(item.stop) stop=expr(*item.stop);
+                        else { stop=fresh(); block->instructions.push_back(BinLength{stop,a}); }
+                        block->instructions.push_back(BinSlice{out,a,start,stop});
+                    }else{
+                        auto i=expr(*item.index);
+                        block->instructions.push_back(BinGet{
+                            out,a,i,static_cast<std::uint32_t>(e.span.start.line),
+                            static_cast<std::uint32_t>(e.span.start.column),
+                            checked.bounds_proven.contains(item.index.get())});
+                    }
                 } else if(base_type.kind==TypeKind::String) {
+                    auto i=expr(*n->items.front().index);
                     block->instructions.push_back(StringIndex{
                         out,a,i,static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column)});
                 } else {
+                    auto i=expr(*n->items.front().index);
                     block->instructions.push_back(ArrayGet{
                         out,a,i,checked.raw_types.at(&e),
                         static_cast<std::uint32_t>(e.span.start.line),
@@ -842,7 +1055,22 @@ struct Lowerer {
             if(base_owned) block->instructions.push_back(Release{a,base_type});
             return out;
         }
-        if (const auto* n=std::get_if<UnaryExpr>(&e.data)) { auto v=expr(*n->operand), out=fresh(); block->instructions.push_back(Unary{out,n->op,v,type_of(e),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)}); return out; }
+        if (const auto* n=std::get_if<UnaryExpr>(&e.data)) {
+            if(n->op=="-"){
+                if(const auto* literal=std::get_if<IntegerExpr>(&n->operand->data);
+                   literal && is_integer(type_of(e))){
+                    auto out=fresh();
+                    block->instructions.push_back(ConstantInt{
+                        out,"-"+std::to_string(literal->value),type_of(e)});
+                    return out;
+                }
+            }
+            auto v=expr(*n->operand), out=fresh();
+            block->instructions.push_back(Unary{
+                out,n->op,v,type_of(e),static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)});
+            return out;
+        }
         if (const auto* n=std::get_if<BinaryExpr>(&e.data)) {
             if(n->op=="+" && type_of(e).kind==TypeKind::String){
                 std::vector<const Expr*> parts;
@@ -1031,6 +1259,23 @@ struct Lowerer {
                     release_temporary(*n->args[0].value,text);
                     return out;
                 }
+                if(target && target->kind==TypeKind::Bin){
+                    auto text=expr(*n->args[0].value),out=fresh();
+                    block->instructions.push_back(ParseBin{out,text,checked.raw_types.at(&e)});
+                    release_temporary(*n->args[0].value,text);
+                    return out;
+                }
+            }
+            if(receiver_name && receiver_name->name=="bin" && n->method=="fill"){
+                auto length=expr(*n->args[0].value),fill=expr(*n->args[1].value),out=fresh();
+                block->instructions.push_back(BinAlloc{out,length,fill});
+                return out;
+            }
+            if(receiver_name && receiver_name->name=="string" && n->method=="repeat"){
+                auto fill=expr(*n->args[0].value),count=expr(*n->args[1].value),out=fresh();
+                block->instructions.push_back(StringRepeat{out,count,fill});
+                release_temporary(*n->args[0].value,fill);
+                return out;
             }
             const auto receiver_type=type_of(*n->receiver);
             if(receiver_type.kind==TypeKind::String){
@@ -1107,6 +1352,22 @@ struct Lowerer {
                     if(receiver_owned) block->instructions.push_back(Release{receiver,receiver_type});
                     return out;
                 };
+                if(n->method=="gpu"){
+                    auto gpu=expr(*n->args[0].value),out=fresh();
+                    block->instructions.push_back(TensorTransfer{
+                        out,receiver,gpu,receiver_type,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    return finish(out);
+                }
+                if(n->method=="cpu"){
+                    auto out=fresh();
+                    block->instructions.push_back(TensorTransfer{
+                        out,receiver,std::nullopt,receiver_type,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    return finish(out);
+                }
                 if(n->method=="reshape"){
                     const auto shape_type=Type::array(Type::simple(TypeKind::Int));
                     auto shape=destination_value(*n->args[0].value,shape_type),out=fresh();
@@ -1117,6 +1378,16 @@ struct Lowerer {
                     release_temporary(*n->args[0].value,shape);
                     return finish(out);
                 }
+                if(n->method=="transpose"){
+                    auto axis0=expr(*n->args[0].value);
+                    auto axis1=expr(*n->args[1].value);
+                    auto out=fresh();
+                    block->instructions.push_back(TensorTranspose{
+                        out,receiver,axis0,axis1,type_of(e),
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    return finish(out);
+                }
                 if(n->method=="contiguous"){
                     auto out=fresh();
                     block->instructions.push_back(TensorContiguous{out,receiver,receiver_type});
@@ -1124,7 +1395,7 @@ struct Lowerer {
                 }
                 if(n->method=="shape"){
                     auto out=fresh();
-                    block->instructions.push_back(TensorShape{out,receiver});
+                    block->instructions.push_back(TensorShape{out,receiver,type_of(e)});
                     return finish(out);
                 }
                 if(n->method=="is_contiguous"){
@@ -1136,14 +1407,6 @@ struct Lowerer {
                     auto out=fresh();
                     block->instructions.push_back(TensorItem{
                         out,receiver,*receiver_type.first,
-                        static_cast<std::uint32_t>(e.span.start.line),
-                        static_cast<std::uint32_t>(e.span.start.column)});
-                    return finish(out);
-                }
-                if(n->method=="cast"){
-                    auto out=fresh();
-                    block->instructions.push_back(TensorCast{
-                        out,receiver,receiver_type,type_of(e),
                         static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column)});
                     return finish(out);
@@ -1274,9 +1537,36 @@ struct Lowerer {
             auto value=expr(*n.args[0].value),out=fresh();
             const auto source=type_of(*n.args[0].value);
             const auto& target=resolution.type;
-            const bool checked_range=
-                numeric_conversion_policy(source,target)==NumericConversionPolicy::ExplicitRangeCheck;
-            block->instructions.push_back(NumericConvert{out,value,source,target,checked_range,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+            if(source.kind==TypeKind::Bin){
+                block->instructions.push_back(BinConvert{
+                    out,value,source,target,
+                    static_cast<std::uint32_t>(e.span.start.line),
+                    static_cast<std::uint32_t>(e.span.start.column)});
+                release_temporary(*n.args[0].value,value);
+            }else if(source.kind==TypeKind::Tensor){
+                block->instructions.push_back(TensorCast{
+                    out,value,source,target,
+                    static_cast<std::uint32_t>(e.span.start.line),
+                    static_cast<std::uint32_t>(e.span.start.column)});
+            }else if(source.kind==TypeKind::Neural){
+                block->instructions.push_back(NeuralNumericCast{
+                    out,value,source,target,
+                    static_cast<std::uint32_t>(e.span.start.line),
+                    static_cast<std::uint32_t>(e.span.start.column)});
+            }else if(source.kind==TypeKind::Array){
+                block->instructions.push_back(ArrayNumericCast{
+                    out,value,source,target,
+                    static_cast<std::uint32_t>(e.span.start.line),
+                    static_cast<std::uint32_t>(e.span.start.column)});
+            }else{
+                const bool checked_range=
+                    numeric_conversion_policy(source,target)==NumericConversionPolicy::ExplicitRangeCheck;
+                block->instructions.push_back(NumericConvert{
+                    out,value,source,target,checked_range,
+                    static_cast<std::uint32_t>(e.span.start.line),
+                    static_cast<std::uint32_t>(e.span.start.column)});
+                release_temporary(*n.args[0].value,value);
+            }
             return out;
         }
 
@@ -1284,19 +1574,26 @@ struct Lowerer {
             if(resolution.type.kind==TypeKind::Error) {
                 return expr(*n.args[0].value);
             }
-            if(resolution.type.kind==TypeKind::Bytes){
-                auto byte_type=Type::simple(TypeKind::UInt8);
-                ValueId length=n.args.empty()?const_int(0):expr(*n.args[0].value);
-                ValueId fill;
-                if(n.args.size()<2){
-                    fill=fresh();
-                    block->instructions.push_back(ConstantInt{fill,"0",byte_type});
-                }else{
-                    fill=expr(*n.args[1].value);
-                    fill=convert(fill,type_of(*n.args[1].value),byte_type);
+            if(resolution.target=="string.repeat"){
+                auto count=expr(*n.args[0].value),fill=expr(*n.args[1].value),out=fresh();
+                block->instructions.push_back(StringRepeat{out,count,fill});
+                release_temporary(*n.args[1].value,fill);
+                return out;
+            }
+            if(resolution.type.kind==TypeKind::Bin){
+                if(resolution.target=="bin.cast"){
+                    auto value=expr(*n.args[0].value),out=fresh();
+                    block->instructions.push_back(BinConvert{
+                        out,value,type_of(*n.args[0].value),Type::simple(TypeKind::Bin),
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    release_temporary(*n.args[0].value,value);
+                    return out;
                 }
+                auto length=expr(*n.args[0].value);
+                auto fill=expr(*n.args[1].value);
                 auto out=fresh();
-                block->instructions.push_back(BytesAlloc{out,length,fill});
+                block->instructions.push_back(BinAlloc{out,length,fill});
                 return out;
             }
             if(resolution.type.kind==TypeKind::Class){
@@ -1541,6 +1838,18 @@ struct Lowerer {
                     release_arg(0,input);
                     return out;
                 }
+                case BuiltinCallable::StatsSum:
+                case BuiltinCallable::StatsMin:
+                case BuiltinCallable::StatsMax: {
+                    auto input=expr(*n.args[0].value),out=fresh();
+                    const auto tensor_type=type_of(*n.args[0].value);
+                    block->instructions.push_back(StatsReduce{
+                        out,input,*tensor_type.first,*resolution.builtin,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    release_arg(0,input);
+                    return out;
+                }
                 case BuiltinCallable::LinearMatmul: {
                     auto left=expr(*n.args[0].value);
                     auto right=expr(*n.args[1].value);
@@ -1569,16 +1878,37 @@ struct Lowerer {
                 case BuiltinCallable::TensorZeros:
                 case BuiltinCallable::TensorOnes: {
                     const auto shape_type=Type::array(Type::simple(TypeKind::Int));
-                    auto shape=destination_value(*n.args[0].value,shape_type),out=fresh();
+                    ValueId shape{};
+                    std::optional<ValueId> gpu;
+                    std::optional<std::size_t> shape_argument;
+                    bool generated=false;
+                    for(std::size_t i=0;i<n.args.size();++i){
+                        const auto& argument=n.args[i];
+                        if(argument.name && *argument.name=="gpu"){
+                            gpu=expr(*argument.value);
+                        }else{
+                            shape=destination_value(*argument.value,shape_type);
+                            shape_argument=i;
+                        }
+                    }
+                    if(!shape_argument){
+                        const auto found=contextual_tensor_shapes.find(&e);
+                        if(found==contextual_tensor_shapes.end())
+                            throw std::logic_error("missing contextual tensor shape capture");
+                        shape=generated_shape_array(found->second,e.span);
+                        generated=true;
+                    }
+                    auto out=fresh();
                     const auto type=checked.raw_types.at(&e);
                     const int fill_mode=
                         *resolution.builtin==BuiltinCallable::TensorZeros ? 1 :
                         *resolution.builtin==BuiltinCallable::TensorOnes ? 2 : 0;
                     block->instructions.push_back(TensorCreate{
-                        out,shape,type,fill_mode,
+                        out,shape,gpu,type,fill_mode,
                         static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column)});
-                    release_arg(0,shape);
+                    if(generated) block->instructions.push_back(Release{shape,shape_type});
+                    else release_arg(*shape_argument,shape);
                     return out;
                 }
                 case BuiltinCallable::Array: {
@@ -1630,7 +1960,7 @@ struct Lowerer {
                 case BuiltinCallable::Len: {
                     auto value=expr(*n.args[0].value),out=fresh();
                     const auto kind=type_of(*n.args[0].value).kind;
-                    if(kind==TypeKind::Bytes)block->instructions.push_back(BytesLength{out,value});
+                    if(kind==TypeKind::Bin)block->instructions.push_back(BinLength{out,value});
                     else if(kind==TypeKind::String)block->instructions.push_back(StringLength{out,value});
                     else block->instructions.push_back(ArrayLength{out,value});
                     release_arg(0,value);
@@ -1640,11 +1970,16 @@ struct Lowerer {
                     auto value=expr(*n.args[0].value),out=fresh();
                     block->instructions.push_back(
                         NumericAbs{out,value,type_of(*n.args[0].value),static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+                    release_arg(0,value);
                     return out;
                 }
                 case BuiltinCallable::Sqrt: {
                     auto value=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(Sqrt{out,value});
+                    block->instructions.push_back(Sqrt{
+                        out,value,type_of(*n.args[0].value),
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    release_arg(0,value);
                     return out;
                 }
                 case BuiltinCallable::Min:
@@ -1653,6 +1988,8 @@ struct Lowerer {
                     block->instructions.push_back(NumericMinMax{
                         out,left,right,type_of(*n.args[0].value),
                         *resolution.builtin==BuiltinCallable::Max});
+                    release_arg(0,left);
+                    release_arg(1,right);
                     return out;
                 }
                 case BuiltinCallable::MathSin:
@@ -1663,6 +2000,7 @@ struct Lowerer {
                     auto value=expr(*n.args[0].value),out=fresh();
                     block->instructions.push_back(MathUnary{
                         out,value,type_of(*n.args[0].value),*resolution.builtin});
+                    release_arg(0,value);
                     return out;
                 }
                 case BuiltinCallable::MathTrunc:
@@ -1670,13 +2008,19 @@ struct Lowerer {
                 case BuiltinCallable::MathFloor:
                 case BuiltinCallable::MathCeil: {
                     auto input=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(MathRoundInt{out,input,type_of(*n.args[0].value),*resolution.builtin,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
+                    block->instructions.push_back(MathRoundInt{
+                        out,input,type_of(*n.args[0].value),checked.raw_types.at(&e),
+                        *resolution.builtin,static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    release_arg(0,input);
                     return out;
                 }
                 case BuiltinCallable::MathPow: {
                     auto base=expr(*n.args[0].value),exponent=expr(*n.args[1].value),out=fresh();
                     block->instructions.push_back(MathPow{
                         out,base,exponent,type_of(*n.args[0].value)});
+                    release_arg(0,base);
+                    release_arg(1,exponent);
                     return out;
                 }
                 case BuiltinCallable::CliArgument: {
@@ -1707,9 +2051,9 @@ struct Lowerer {
                     release_arg(0,path);
                     return out;
                 }
-                case BuiltinCallable::FileReadBytes: {
+                case BuiltinCallable::FileReadBin: {
                     auto path=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(FileReadBytes{out,path,checked.raw_types.at(&e)});
+                    block->instructions.push_back(FileReadBin{out,path,checked.raw_types.at(&e)});
                     release_arg(0,path);
                     return out;
                 }
@@ -1727,11 +2071,11 @@ struct Lowerer {
                     release_arg(1,text);
                     return out;
                 }
-                case BuiltinCallable::FileWriteBytes: {
-                    auto path=expr(*n.args[0].value),bytes=expr(*n.args[1].value),out=fresh();
-                    block->instructions.push_back(FileWriteBytes{out,path,bytes,checked.raw_types.at(&e)});
+                case BuiltinCallable::FileWriteBin: {
+                    auto path=expr(*n.args[0].value),bin=expr(*n.args[1].value),out=fresh();
+                    block->instructions.push_back(FileWriteBin{out,path,bin,checked.raw_types.at(&e)});
                     release_arg(0,path);
-                    release_arg(1,bytes);
+                    release_arg(1,bin);
                     return out;
                 }
                 case BuiltinCallable::FileExists: {
@@ -1891,6 +2235,16 @@ struct Lowerer {
                     block->instructions.push_back(JsonNumber{out,value,checked.raw_types.at(&e)});
                     return out;
                 }
+                case BuiltinCallable::JsonBigInt: {
+                    auto value=receiver_value(),out=fresh();
+                    block->instructions.push_back(JsonBigInt{out,value,checked.raw_types.at(&e)});
+                    return out;
+                }
+                case BuiltinCallable::JsonBigReal: {
+                    auto value=receiver_value(),out=fresh();
+                    block->instructions.push_back(JsonBigReal{out,value,checked.raw_types.at(&e)});
+                    return out;
+                }
                 case BuiltinCallable::JsonBoolean: {
                     auto value=receiver_value(),out=fresh();
                     block->instructions.push_back(JsonBoolean{out,value,checked.raw_types.at(&e)});
@@ -1909,7 +2263,32 @@ struct Lowerer {
                 }
                 case BuiltinCallable::ImageRead: {
                     auto path=expr(*n.args[0].value),out=fresh();
-                    block->instructions.push_back(ImageRead{out,path,checked.raw_types.at(&e)});
+                    std::optional<Type> target_dtype;
+                    int target_channels=0;
+                    for(std::size_t i=1;i<n.args.size();++i){
+                        if(!n.args[i].name) continue;
+                        if(*n.args[i].name=="channels"){
+                            if(const auto* value=std::get_if<IntegerExpr>(&n.args[i].value->data))
+                                target_channels=static_cast<int>(value->value);
+                        }else if(*n.args[i].name=="dtype"){
+                            if(const auto* name=std::get_if<NameExpr>(&n.args[i].value->data))
+                                target_dtype=builtin_scalar_type(name->name);
+                        }
+                    }
+                    const auto result_type=checked.raw_types.at(&e);
+                    std::vector<long long> expected_shape_prefix;
+                    if(result_type.kind==TypeKind::Union){
+                        for(const auto& candidate:result_type.cases){
+                            if(candidate.kind!=TypeKind::Tensor) continue;
+                            if(expected_shape_prefix.empty())
+                                expected_shape_prefix=candidate.tensor_shape_prefix;
+                            else if(expected_shape_prefix!=candidate.tensor_shape_prefix)
+                                expected_shape_prefix.clear();
+                        }
+                    }
+                    block->instructions.push_back(
+                        ImageRead{out,path,result_type,target_dtype,target_channels,
+                                  std::move(expected_shape_prefix)});
                     release_arg(0,path);
                     return out;
                 }
@@ -1930,6 +2309,34 @@ struct Lowerer {
                     release_arg(0,path);
                     release_arg(1,image);
                     if(n.args.size()==3) release_arg(2,quality);
+                    return out;
+                }
+                case BuiltinCallable::ImageTensorCrop:
+                case BuiltinCallable::ImageTensorResize:
+                case BuiltinCallable::ImageTensorFlipHorizontal:
+                case BuiltinCallable::ImageTensorFlipVertical:
+                case BuiltinCallable::ImageTensorRotate90:
+                case BuiltinCallable::ImageTensorRotate270:
+                case BuiltinCallable::ImageTensorGrayscale:
+                case BuiltinCallable::ImageTensorThreshold:
+                case BuiltinCallable::ImageTensorBlur:
+                case BuiltinCallable::ImageTensorFilter:
+                case BuiltinCallable::ImageTensorDilate:
+                case BuiltinCallable::ImageTensorErode: {
+                    std::vector<ValueId> args;
+                    args.reserve(n.args.size());
+                    for (const auto& argument : n.args) {
+                        args.push_back(expr(*argument.value));
+                    }
+                    auto out=fresh();
+                    const auto input_type=type_of(*n.args[0].value);
+                    block->instructions.push_back(ImageTensorOp{
+                        out,*resolution.builtin,std::move(args),
+                        checked.raw_types.at(&e),*input_type.first,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    for(std::size_t i=0;i<n.args.size();++i)
+                        release_arg(i,std::get<ImageTensorOp>(block->instructions.back()).args[i]);
                     return out;
                 }
                 case BuiltinCallable::HttpGet: {
@@ -1996,19 +2403,19 @@ struct Lowerer {
             array_type.kind == TypeKind::Array &&
             array_expression_fully_initialized(*n.iterable);
         auto array=expr(*n.iterable);
-        const auto item=array_type.kind==TypeKind::Bytes?Type::simple(TypeKind::UInt8):*array_type.first;
+        const auto item=array_type.kind==TypeKind::Bin?Type::simple(TypeKind::Bin):*array_type.first;
         const bool iterable_temporary=expression_owns_result(*n.iterable);
         const auto idx_name=hidden("for.index"), len_name=hidden("for.length"); locals[idx_name]=locals[len_name]=Type::simple(TypeKind::Int); const auto iter_name=bind_source_local(n.name,item);
         auto len=fresh();
-        if(array_type.kind==TypeKind::Bytes) block->instructions.push_back(BytesLength{len,array}); else block->instructions.push_back(ArrayLength{len,array});
+        if(array_type.kind==TypeKind::Bin) block->instructions.push_back(BinLength{len,array}); else block->instructions.push_back(ArrayLength{len,array});
         auto zero=const_int(0); block->instructions.push_back(StoreLocal{idx_name,zero,locals[idx_name]}); block->instructions.push_back(StoreLocal{len_name,len,locals[len_name]});
         const auto cond=label("for.cond"), body_name=label("for.body"),
                    step_label=label("for.step"), break_label=label("for.break"),
                    done=label("for.end"); block->instructions.push_back(Jump{cond});
         auto& cb=add_block(cond); block=&cb; auto idx=fresh(), l=fresh(), cmp=fresh(); block->instructions.push_back(LoadLocal{idx,idx_name,locals[idx_name]}); block->instructions.push_back(LoadLocal{l,len_name,locals[len_name]}); block->instructions.push_back(Binary{cmp,"<",idx,l,Type::simple(TypeKind::Int),Type::simple(TypeKind::Bool)}); block->instructions.push_back(Branch{cmp,body_name,done});
         auto& bb=add_block(body_name); block=&bb; auto ix=fresh(), element=fresh(); block->instructions.push_back(LoadLocal{ix,idx_name,locals[idx_name]});
-        if(array_type.kind==TypeKind::Bytes) {
-            block->instructions.push_back(BytesGet{element,array,ix,0,0,true});
+        if(array_type.kind==TypeKind::Bin) {
+            block->instructions.push_back(BinGet{element,array,ix,0,0,true});
         } else {
             block->instructions.push_back(ArrayGet{
                 element,array,ix,item,
@@ -2016,7 +2423,8 @@ struct Lowerer {
                 static_cast<std::uint32_t>(n.iterable->span.start.column),
                 iterable_initialization_proven,true});
         }
-        element=copy_value(element,item); block->instructions.push_back(StoreLocal{iter_name,element,item});
+        if(array_type.kind!=TypeKind::Bin) element=copy_value(element,item);
+        block->instructions.push_back(StoreLocal{iter_name,element,item});
         loop_targets.push_back({step_label,break_label});
         for(const auto& s:n.body){ stmt(*s); if(terminated()) break; }
         loop_targets.pop_back();
@@ -2027,13 +2435,16 @@ struct Lowerer {
             auto ix2=fresh(), val=fresh();
             block->instructions.push_back(LoadLocal{ix2,idx_name,locals[idx_name]});
             block->instructions.push_back(LoadLocal{val,iter_name,item});
-            val=copy_value(val,item);
-            if(array_type.kind==TypeKind::Bytes) block->instructions.push_back(BytesSet{array,ix2,val,0,0,true});
-            else block->instructions.push_back(ArraySet{
+            if(array_type.kind==TypeKind::Bin) {
+                block->instructions.push_back(BinSet{array,ix2,val,0,0,true});
+            } else {
+                val=copy_value(val,item);
+                block->instructions.push_back(ArraySet{
                 array,ix2,val,item,
                 static_cast<std::uint32_t>(n.iterable->span.start.line),
                 static_cast<std::uint32_t>(n.iterable->span.start.column),
                 iterable_initialization_proven,true});
+            }
         };
 
         auto& sb=add_block(step_label); block=&sb; write_back();
@@ -2054,23 +2465,69 @@ struct Lowerer {
                 block->instructions.push_back(BindReference{ir_name,address});
                 return;
             }
-            const auto ir_name=bind_source_local(n->name,t);block->instructions.push_back(DeclareLocal{ir_name,t});
+            const auto ir_name=bind_source_local(n->name,t);
+            block->instructions.push_back(DeclareLocal{ir_name,t});
+
+            if(t.kind==TypeKind::Tensor || t.kind==TypeKind::Neural){
+                auto captured=capture_extents(
+                    n->declared_type.tensor_shape_expressions,"shape.extent");
+                if(!captured.empty()) shaped_constraints[ir_name]=captured;
+                if(n->value && !captured.empty()){
+                    if(const auto* call=std::get_if<CallExpr>(&n->value->data)){
+                        const auto found=checked.call_resolutions.find(n->value.get());
+                        const bool has_explicit_shape=std::any_of(
+                            call->args.begin(),call->args.end(),[](const auto& argument){
+                                return !argument.name || *argument.name!="gpu";
+                            });
+                        if(!has_explicit_shape && found!=checked.call_resolutions.end() &&
+                           found->second.kind==CallKind::Builtin &&
+                           (found->second.builtin==BuiltinCallable::TensorZeros ||
+                            found->second.builtin==BuiltinCallable::TensorOnes)){
+                            contextual_tensor_shapes[n->value.get()]=captured;
+                        }
+                    }
+                }
+            }else if(t.kind==TypeKind::Array){
+                auto captured=capture_extents(
+                    n->declared_type.dimension_expressions,"array.extent");
+                if(!captured.empty()) array_constraints[ir_name]=captured;
+            }
+
             if(n->value){
                 const bool array_full =
                     t.kind == TypeKind::Array &&
                     array_expression_fully_initialized(*n->value);
                 auto v=destination_value(*n->value,t);
+                if(const auto found=shaped_constraints.find(ir_name);
+                   found!=shaped_constraints.end()){
+                    emit_shaped_constraint(v,t.kind,found->second,s.span);
+                }
+                if(const auto found=array_constraints.find(ir_name);
+                   found!=array_constraints.end()){
+                    emit_array_constraints(v,t,found->second,0,s.span);
+                }
                 block->instructions.push_back(StoreLocal{ir_name,v,t});
                 if (t.kind == TypeKind::Array) {
                     if (array_full) fully_initialized_array_locals.insert(n->name);
                     else fully_initialized_array_locals.erase(n->name);
                 }
-            } else if(t.kind==TypeKind::Array && t.length>=0) {
-                auto length=const_int(t.length);
-                auto storage=fresh();
-                block->instructions.push_back(ArrayAlloc{storage,length,t});
-                block->instructions.push_back(StoreLocal{ir_name,storage,t});
-                fully_initialized_array_locals.erase(n->name);
+            } else if(t.kind==TypeKind::Array) {
+                const auto captured=array_constraints.find(ir_name);
+                if(t.length>=0 || (t.length==-2 && captured!=array_constraints.end() &&
+                                   !captured->second.empty() && captured->second[0])){
+                    ValueId length{};
+                    if(t.length>=0){
+                        length=const_int(t.length);
+                    }else{
+                        length=fresh();
+                        block->instructions.push_back(LoadLocal{
+                            length,*captured->second[0],Type::simple(TypeKind::Int)});
+                    }
+                    auto storage=fresh();
+                    block->instructions.push_back(ArrayAlloc{storage,length,t,false});
+                    block->instructions.push_back(StoreLocal{ir_name,storage,t});
+                    fully_initialized_array_locals.erase(n->name);
+                }
             }
             return;
         }
@@ -2207,7 +2664,7 @@ struct Lowerer {
             // the allocation is uniquely owned, fully initialized, and not pinned
             // by an interior reference. Otherwise the ordinary value-copy path is
             // preserved exactly.
-            if(t.kind==TypeKind::Array && t.length<0){
+            if(t.kind==TypeKind::Array && t.length==-1){
                 const auto* target_name=std::get_if<NameExpr>(&n->target->data);
                 const auto* append=std::get_if<MethodCallExpr>(&n->value->data);
                 const auto* receiver_name=append
@@ -2326,7 +2783,16 @@ struct Lowerer {
                 } else if(is_source_reference(name->name)) {
                     block->instructions.push_back(StoreReference{source_reference(name->name),v,t});
                 } else {
-                    block->instructions.push_back(StoreLocal{source_local(name->name),v,t});
+                    const auto local_name=source_local(name->name);
+                    if(const auto found=shaped_constraints.find(local_name);
+                       found!=shaped_constraints.end()){
+                        emit_shaped_constraint(v,t.kind,found->second,s.span);
+                    }
+                    if(const auto found=array_constraints.find(local_name);
+                       found!=array_constraints.end()){
+                        emit_array_constraints(v,t,found->second,0,s.span);
+                    }
+                    block->instructions.push_back(StoreLocal{local_name,v,t});
                     if (t.kind == TypeKind::Array) {
                         if (assigned_array_full) fully_initialized_array_locals.insert(name->name);
                         else fully_initialized_array_locals.erase(name->name);
@@ -2354,11 +2820,13 @@ struct Lowerer {
                         static_cast<std::uint32_t>(n->target->span.start.column)});
                 }else{
                     auto i=expr(*ix.items.front().index);
-                    if(base_type.kind==TypeKind::Bytes) block->instructions.push_back(BytesSet{
-                        a,i,v,static_cast<std::uint32_t>(n->target->span.start.line),
-                        static_cast<std::uint32_t>(n->target->span.start.column),
-                        checked.bounds_proven.contains(ix.items.front().index.get())});
-                    else block->instructions.push_back(ArraySet{
+                    if(base_type.kind==TypeKind::Bin) {
+                        block->instructions.push_back(BinSet{
+                            a,i,v,static_cast<std::uint32_t>(n->target->span.start.line),
+                            static_cast<std::uint32_t>(n->target->span.start.column),
+                            checked.bounds_proven.contains(ix.items.front().index.get())});
+                        block->instructions.push_back(Release{v,t});
+                    } else block->instructions.push_back(ArraySet{
                         a,i,v,t,static_cast<std::uint32_t>(n->target->span.start.line),
                         static_cast<std::uint32_t>(n->target->span.start.column),
                         initialization_proven,
@@ -2374,6 +2842,14 @@ struct Lowerer {
         }
         if(const auto* n=std::get_if<ReturnStmt>(&s.data)){
             auto v=destination_value(*n->value,fn->result);
+            if(!return_shaped_constraints.empty()){
+                emit_shaped_constraint(
+                    v,fn->result.kind,return_shaped_constraints,s.span);
+            }
+            if(!return_array_constraints.empty()){
+                emit_array_constraints(
+                    v,fn->result,return_array_constraints,0,s.span);
+            }
             block->instructions.push_back(Return{v,fn->result});
             return;
         }
@@ -2528,9 +3004,72 @@ struct Lowerer {
         else fully_initialized_array_locals.clear();
     }
 
+    void capture_signature_constraints(
+        const FunctionDecl& source, std::size_t parameter_offset) {
+        for (std::size_t i = 0; i < source.parameters.size(); ++i) {
+            const auto ir_index = i + parameter_offset;
+            if (ir_index >= fn->parameters.size()) {
+                throw std::logic_error("signature parameter offset mismatch");
+            }
+            const auto& parameter = fn->parameters[ir_index];
+            const auto& syntax = source.parameters[i].type;
+
+            if ((parameter.type.kind == TypeKind::Tensor ||
+                 parameter.type.kind == TypeKind::Neural) &&
+                !syntax.tensor_shape_expressions.empty()) {
+                auto captured =
+                    capture_extents(syntax.tensor_shape_expressions, "param.shape");
+                shaped_constraints[parameter.name] = captured;
+                auto value = fresh();
+                block->instructions.push_back(
+                    LoadLocal{value, parameter.name, parameter.type});
+                emit_shaped_constraint(
+                    value, parameter.type.kind, captured, source.parameters[i].span);
+            }
+
+            if (parameter.type.kind == TypeKind::Array &&
+                !syntax.dimension_expressions.empty()) {
+                auto captured =
+                    capture_extents(syntax.dimension_expressions, "param.array");
+                array_constraints[parameter.name] = captured;
+                auto value = fresh();
+                block->instructions.push_back(
+                    LoadLocal{value, parameter.name, parameter.type});
+                emit_array_constraints(
+                    value, parameter.type, captured, 0, source.parameters[i].span);
+            }
+        }
+
+        if ((fn->result.kind == TypeKind::Tensor ||
+             fn->result.kind == TypeKind::Neural) &&
+            !source.return_type.tensor_shape_expressions.empty()) {
+            return_shaped_constraints = capture_extents(
+                source.return_type.tensor_shape_expressions, "return.shape");
+        }
+        if (fn->result.kind == TypeKind::Array &&
+            !source.return_type.dimension_expressions.empty()) {
+            return_array_constraints = capture_extents(
+                source.return_type.dimension_expressions, "return.array");
+        }
+    }
+
     void begin_function(Function out) {
-        module.functions.push_back(std::move(out));fn=&module.functions.back();next_value=1;next_label=0;next_hidden=0;locals.clear();local_names.clear();reference_names.clear();references.clear();fully_initialized_array_locals.clear();fn->blocks.push_back(Block{"entry",{}});block=&fn->blocks.back();
+        module.functions.push_back(std::move(out));fn=&module.functions.back();next_value=1;next_label=0;next_hidden=0;locals.clear();local_names.clear();reference_names.clear();references.clear();fully_initialized_array_locals.clear();shaped_constraints.clear();array_constraints.clear();contextual_tensor_shapes.clear();return_shaped_constraints.clear();return_array_constraints.clear();fn->blocks.push_back(Block{"entry",{}});block=&fn->blocks.back();
         for(const auto& p:fn->parameters){locals[p.name]=p.type;local_names[p.name]=p.name;}
+        for(const auto& p:fn->parameters){
+            if((p.type.kind!=TypeKind::Tensor&&p.type.kind!=TypeKind::Neural)||
+               p.type.tensor_shape_prefix.empty()) continue;
+            auto parameter=fresh();
+            block->instructions.push_back(LoadLocal{parameter,p.name,p.type});
+            std::vector<std::optional<ValueId>> extents;
+            extents.reserve(p.type.tensor_shape_prefix.size());
+            for(const auto extent:p.type.tensor_shape_prefix){
+                if(extent>=0) extents.push_back(const_int(extent));
+                else extents.push_back(std::nullopt);
+            }
+            block->instructions.push_back(ShapedConstraintCheck{
+                parameter,p.type.kind,std::move(extents),0,0});
+        }
     }
 
     void lower_function(const FunctionDecl& source){
@@ -2540,6 +3079,7 @@ struct Lowerer {
             p.name, p.type, p.writable, parameter_is_borrowed(source.name, i), p.is_const});}
         if(out.external_symbol){module.functions.push_back(std::move(out));return;}
         current_class.clear();begin_function(std::move(out));
+        capture_signature_constraints(source,0);
         for(const auto& s:source.body){stmt(*s);if(terminated())break;}
         if(!terminated()&&fn->result.kind==TypeKind::Void)block->instructions.push_back(ReturnVoid{});
     }
@@ -2551,6 +3091,7 @@ struct Lowerer {
             p.name, p.type, p.writable,
             p.name=="$receiver"||parameter_is_borrowed(internal,i), p.is_const});}
         current_class=class_name;begin_function(std::move(out));
+        capture_signature_constraints(source,1);
         for(const auto& s:source.body){stmt(*s);if(terminated())break;}
         if(!terminated()&&fn->result.kind==TypeKind::Void)block->instructions.push_back(ReturnVoid{});
         current_class.clear();
@@ -2586,6 +3127,7 @@ struct Lowerer {
 std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit([&](const auto& n){using T=std::decay_t<decltype(n)>;
     if constexpr(std::is_same_v<T,ConstantInt>)out<<"%"<<n.out<<" = const.int "<<n.value<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,ConstantFloat>)out<<"%"<<n.out<<" = const.float "<<n.value<<" : "<<type_name(n.type);
+    if constexpr(std::is_same_v<T,ConstantExact>)out<<"%"<<n.out<<" = const.exact "<<n.spelling<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,ConstantBool>)out<<"%"<<n.out<<" = const.bool "<<(n.value?"true":"false");
     if constexpr(std::is_same_v<T,ConstantString>)out<<"%"<<n.out<<" = const.string \""<<n.value<<"\"";
     if constexpr(std::is_same_v<T,ArrayMake>)out<<"%"<<n.out<<" = array.make "<<type_name(n.type);
@@ -2623,16 +3165,18 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,StringConcat>){out<<"%"<<n.out<<" = string.concat";for(const auto value:n.values)out<<" %"<<value;}
     if constexpr(std::is_same_v<T,StringCanAppendMove>)out<<"%"<<n.out<<" = string.can_append_move %"<<n.text;
     if constexpr(std::is_same_v<T,StringAppendMove>){out<<"%"<<n.out<<" = string.append_move %"<<n.text;for(const auto value:n.suffixes)out<<" %"<<value;}
-    if constexpr(std::is_same_v<T,BytesAlloc>)out<<"%"<<n.out<<" = bytes.alloc %"<<n.length<<", %"<<n.fill;
-    if constexpr(std::is_same_v<T,BytesLength>)out<<"%"<<n.out<<" = bytes.length %"<<n.bytes;
-    if constexpr(std::is_same_v<T,BytesGet>)out<<"%"<<n.out<<" = bytes.get %"<<n.bytes<<", %"<<n.index;
-    if constexpr(std::is_same_v<T,BytesSet>)out<<"bytes.set %"<<n.bytes<<", %"<<n.index<<", %"<<n.value;
+    if constexpr(std::is_same_v<T,BinAlloc>)out<<"%"<<n.out<<" = bin.alloc %"<<n.length<<", %"<<n.fill;
+    if constexpr(std::is_same_v<T,BinLength>)out<<"%"<<n.out<<" = bin.length %"<<n.bin;
+    if constexpr(std::is_same_v<T,BinGet>)out<<"%"<<n.out<<" = bin.get %"<<n.bin<<", %"<<n.index;
+    if constexpr(std::is_same_v<T,BinSet>)out<<"bin.set %"<<n.bin<<", %"<<n.index<<", %"<<n.value;
     if constexpr(std::is_same_v<T,MathRoundInt>)out<<"%"<<n.out<<" = math.round-int %"<<n.value;
     if constexpr(std::is_same_v<T,NumericConvert>)out<<"%"<<n.out<<" = convert %"<<n.value<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type)<<(n.checked_range?" checked":"");
-    if constexpr(std::is_same_v<T,TensorCreate>)out<<"%"<<n.out<<" = tensor.create %"<<n.shape<<" : "<<type_name(n.type)<<" init="<<(n.fill_mode==0?"uninitialized":n.fill_mode==1?"zeros":"ones");
+    if constexpr(std::is_same_v<T,TensorCreate>)out<<"%"<<n.out<<" = tensor.create %"<<n.shape<<" : "<<type_name(n.type)<<" init="<<(n.fill_mode==0?"uninitialized":n.fill_mode==1?"zeros":"ones")<<(n.gpu?" gpu=%"+std::to_string(*n.gpu):" cpu");
+    if constexpr(std::is_same_v<T,TensorTransfer>)out<<"%"<<n.out<<" = tensor."<<(n.gpu?"gpu":"cpu")<<" %"<<n.tensor<<(n.gpu?", %"+std::to_string(*n.gpu):"")<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorReshape>)out<<"%"<<n.out<<" = tensor.reshape %"<<n.tensor<<", %"<<n.shape<<" : "<<type_name(n.type);
+    if constexpr(std::is_same_v<T,TensorTranspose>)out<<"%"<<n.out<<" = tensor.transpose %"<<n.tensor<<", %"<<n.axis0<<", %"<<n.axis1<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorContiguous>)out<<"%"<<n.out<<" = tensor.contiguous %"<<n.tensor<<" : "<<type_name(n.type);
-    if constexpr(std::is_same_v<T,TensorShape>)out<<"%"<<n.out<<" = tensor.shape %"<<n.tensor;
+    if constexpr(std::is_same_v<T,TensorShape>)out<<"%"<<n.out<<" = tensor.shape %"<<n.tensor<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,TensorIsContiguous>)out<<"%"<<n.out<<" = tensor.is_contiguous %"<<n.tensor;
     if constexpr(std::is_same_v<T,TensorItem>)out<<"%"<<n.out<<" = tensor.item %"<<n.tensor<<" : "<<type_name(n.element_type);
     if constexpr(std::is_same_v<T,NeuralTrack>)out<<"%"<<n.out<<" = neural.track %"<<n.tensor;
@@ -2648,12 +3192,23 @@ if constexpr(std::is_same_v<T,NeuralRandomMask>)out<<"%"<<n.out<<" = neural.rand
 if constexpr(std::is_same_v<T,NeuralMomentUpdate>)out<<"neural.moment_update params="<<n.parameters.size();
 if constexpr(std::is_same_v<T,NeuralSave>)out<<"neural.save leaves="<<n.values.size();
 if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.size();
-    if constexpr(std::is_same_v<T,TensorCast>)out<<"%"<<n.out<<" = tensor.cast %"<<n.tensor<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
+    if constexpr(std::is_same_v<T,ArrayNumericCast>)out<<"%"<<n.out<<" = array.numeric_cast %"<<n.array<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
+    if constexpr(std::is_same_v<T,TensorCast>)out<<"%"<<n.out<<" = tensor.numeric_cast %"<<n.tensor<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
+    if constexpr(std::is_same_v<T,NeuralNumericCast>)out<<"%"<<n.out<<" = neural.numeric_cast %"<<n.value<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type);
+    if constexpr(std::is_same_v<T,ShapedConstraintCheck>)out<<"shape.constraint %"<<n.value<<" rank="<<n.extents.size();
+    if constexpr(std::is_same_v<T,ExtentEqualCheck>)out<<"extent.check %"<<n.actual<<", %"<<n.expected;
     if constexpr(std::is_same_v<T,StatsMean>)out<<"%"<<n.out<<" = stats.mean %"<<n.tensor;
+    if constexpr(std::is_same_v<T,StatsReduce>)out<<"%"<<n.out<<" = stats.reduce %"<<n.tensor;
     if constexpr(std::is_same_v<T,LinearMatmul>)out<<"%"<<n.out<<" = linear.matmul %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,LinearDot>)out<<"%"<<n.out<<" = linear.dot %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.element_type);
-    if constexpr(std::is_same_v<T,ImageRead>)out<<"%"<<n.out<<" = image.read %"<<n.path<<" : "<<type_name(n.result_type);
+    if constexpr(std::is_same_v<T,ImageRead>){
+        out<<"%"<<n.out<<" = image.read %"<<n.path;
+        if(n.target_channels) out<<", channels="<<n.target_channels;
+        if(n.target_dtype) out<<", dtype="<<type_name(*n.target_dtype);
+        out<<" : "<<type_name(n.result_type);
+    }
     if constexpr(std::is_same_v<T,ImageWrite>)out<<"%"<<n.out<<" = image.write %"<<n.path<<", %"<<n.image<<", quality %"<<n.quality<<" : "<<type_name(n.result_type);
+    if constexpr(std::is_same_v<T,ImageTensorOp>)out<<"%"<<n.out<<" = image.tensor.op";
     if constexpr(std::is_same_v<T,TensorBinary>)out<<"%"<<n.out<<" = tensor.binary "<<n.op<<" %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.result_type);
     if constexpr(std::is_same_v<T,TensorIndex>){
         out<<"%"<<n.out<<" = tensor.index %"<<n.tensor<<" [";
@@ -2683,9 +3238,9 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,CliFlag>)out<<"%"<<n.out<<" = cli.flag %"<<n.name;
     if constexpr(std::is_same_v<T,CliFinish>)out<<"cli.finish";
     if constexpr(std::is_same_v<T,FileRead>)out<<"%"<<n.out<<" = file.read %"<<n.path;
-    if constexpr(std::is_same_v<T,FileReadBytes>)out<<"%"<<n.out<<" = file.read_bytes %"<<n.path;
+    if constexpr(std::is_same_v<T,FileReadBin>)out<<"%"<<n.out<<" = file.read_bin %"<<n.path;
     if constexpr(std::is_same_v<T,FileWrite>)out<<"%"<<n.out<<" = file.write %"<<n.path<<", %"<<n.text;
-    if constexpr(std::is_same_v<T,FileWriteBytes>)out<<"%"<<n.out<<" = file.write_bytes %"<<n.path<<", %"<<n.bytes;
+    if constexpr(std::is_same_v<T,FileWriteBin>)out<<"%"<<n.out<<" = file.write_bin %"<<n.path<<", %"<<n.bin;
     if constexpr(std::is_same_v<T,FileExists>)out<<"%"<<n.out<<" = file.exists %"<<n.path;
     if constexpr(std::is_same_v<T,FileIsDirectory>)out<<"%"<<n.out<<" = file.is_directory %"<<n.path;
     if constexpr(std::is_same_v<T,FileRemove>)out<<"%"<<n.out<<" = file.remove %"<<n.path;
@@ -2713,6 +3268,8 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,JsonText>)out<<"%"<<n.out<<" = json.text";
     if constexpr(std::is_same_v<T,JsonInteger>)out<<"%"<<n.out<<" = json.integer";
     if constexpr(std::is_same_v<T,JsonNumber>)out<<"%"<<n.out<<" = json.number";
+    if constexpr(std::is_same_v<T,JsonBigInt>)out<<"%"<<n.out<<" = json.bigint";
+    if constexpr(std::is_same_v<T,JsonBigReal>)out<<"%"<<n.out<<" = json.bigreal";
     if constexpr(std::is_same_v<T,JsonBoolean>)out<<"%"<<n.out<<" = json.boolean";
     if constexpr(std::is_same_v<T,JsonEncode>)out<<"%"<<n.out<<" = json.encode";
     if constexpr(std::is_same_v<T,JsonEqual>)out<<"%"<<n.out<<" = json.equal";

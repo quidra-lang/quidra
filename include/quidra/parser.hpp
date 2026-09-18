@@ -35,6 +35,9 @@ private:
     bool looks_like_type_argument_call() const;
     bool looks_like_cli_decl() const;
     TypeName type_name();
+    ExprPtr type_integer_expression();
+    ExprPtr type_integer_term();
+    ExprPtr type_integer_factor();
     std::vector<TypeName> type_argument_list();
     std::vector<std::string> type_parameter_list();
     ImportDecl import_decl();

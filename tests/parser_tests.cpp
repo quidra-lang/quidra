@@ -32,6 +32,68 @@ static void reject(const std::string& source) {
 }
 
 int main() {
+    reject("tensor<float32, 3> invalid\n");
+    reject("tensor<3, _, _> invalid\n");
+    reject("tensor<float32><3, , _> invalid\n");
+    reject("tensor<float32><3, _ ,> invalid\n");
+    {
+        auto shaped = parse(
+            "tensor<float32><3, _, _> image\n"
+            "neural<3, _, _> graph\n"
+            "neural<float><_, 768> wide\n"
+        );
+        const auto& image = std::get<BindingStmt>(shaped.statements[0]->data).declared_type;
+        const auto& graph = std::get<BindingStmt>(shaped.statements[1]->data).declared_type;
+        const auto& wide = std::get<BindingStmt>(shaped.statements[2]->data).declared_type;
+        require(image.arguments.size() == 1 &&
+                image.tensor_shape_prefix == std::vector<long long>({3, -1, -1}),
+                "tensor exact shape pattern AST");
+        require(graph.arguments.empty() &&
+                graph.tensor_shape_prefix == std::vector<long long>({3, -1, -1}),
+                "neural default-float shape shorthand AST");
+        require(wide.arguments.size() == 1 &&
+                wide.tensor_shape_prefix == std::vector<long long>({-1, 768}),
+                "neural explicit dtype shape pattern AST");
+    }
+    {
+        auto extents = parse(
+            "int n = 3\n"
+            "int m = 4\n"
+            "tensor<float><n * 2 + 1, _, 224> image\n"
+            "neural<float><n * m, 224> graph\n"
+            "float[n * m] row\n"
+            "float[][n * m] nested\n"
+        );
+        const auto& image =
+            std::get<BindingStmt>(extents.statements[2]->data).declared_type;
+        const auto& graph =
+            std::get<BindingStmt>(extents.statements[3]->data).declared_type;
+        const auto& row =
+            std::get<BindingStmt>(extents.statements[4]->data).declared_type;
+        const auto& nested =
+            std::get<BindingStmt>(extents.statements[5]->data).declared_type;
+        require(image.tensor_shape_prefix ==
+                    std::vector<long long>({-2, -1, 224}) &&
+                image.tensor_shape_expressions.size() == 3 &&
+                image.tensor_shape_expressions[0] &&
+                !image.tensor_shape_expressions[1] &&
+                image.tensor_shape_expressions[2],
+                "tensor integer-expression shape AST");
+        require(graph.tensor_shape_prefix ==
+                    std::vector<long long>({-2, 224}) &&
+                graph.tensor_shape_expressions[0],
+                "neural integer-expression shape AST");
+        require(row.dimensions == std::vector<long long>({-2}) &&
+                row.dimension_expressions.size() == 1 &&
+                row.dimension_expressions[0],
+                "array integer-expression extent AST");
+        require(nested.dimensions == std::vector<long long>({-1, -2}) &&
+                nested.dimension_expressions.size() == 2 &&
+                !nested.dimension_expressions[0] &&
+                nested.dimension_expressions[1],
+                "nested array captured extent AST");
+    }
+
     {
         bool rejected = false;
         try {
@@ -87,6 +149,18 @@ int main() {
                     "invalid UTF-8 diagnostic code");
         }
         require(rejected, "invalid UTF-8 source rejection");
+    }
+    {
+        auto lf = parse("string text = \"left\nright\"\n");
+        auto crlf = parse("string text = \"left\r\nright\"\r\n");
+        const auto& lf_binding = std::get<BindingStmt>(lf.statements[0]->data);
+        const auto& crlf_binding = std::get<BindingStmt>(crlf.statements[0]->data);
+        const auto& lf_text = std::get<StringExpr>(lf_binding.value->data).value;
+        const auto& crlf_text = std::get<StringExpr>(crlf_binding.value->data).value;
+        require(lf_text == "left\nright", "LF multiline string value");
+        require(crlf_text == lf_text, "CRLF multiline string normalization");
+        require(crlf_text.find('\r') == std::string::npos,
+                "CRLF multiline string contains no carriage return");
     }
     {
         auto p = parse(

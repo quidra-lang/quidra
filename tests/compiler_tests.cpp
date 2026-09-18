@@ -6,7 +6,28 @@
 #include <filesystem>
 #include <fstream>
 #include <vector>
-static void good(const std::string& s) { try { auto c=quidra::compile(s); (void)quidra::inspect_source_json(s,c.checked,"test.qui"); } catch(const std::exception& e){std::cerr<<"unexpected rejection: "<<e.what()<<"\n"<<s;std::exit(1);} }
+static void good(const std::string& s) {
+    try {
+        auto c=quidra::compile(s);
+        (void)quidra::inspect_source_json(s,c.checked,"test.qui");
+    } catch(const quidra::CompileErrors& e) {
+        std::cerr<<"unexpected rejection: "<<e.what()<<"\n";
+        for(const auto& d:e.diagnostics()) {
+            std::cerr<<d.span.start.line<<":"<<d.span.start.column
+                     <<" ["<<d.code<<"] "<<d.message<<"\n";
+        }
+        std::cerr<<s;
+        std::exit(1);
+    } catch(const quidra::CompileError& e) {
+        const auto& d=e.diagnostic();
+        std::cerr<<"unexpected rejection: "<<d.span.start.line<<":"<<d.span.start.column
+                 <<" ["<<d.code<<"] "<<d.message<<"\n"<<s;
+        std::exit(1);
+    } catch(const std::exception& e){
+        std::cerr<<"unexpected rejection: "<<e.what()<<"\n"<<s;
+        std::exit(1);
+    }
+}
 static void bad(const std::string& s) { try {(void)quidra::compile(s);}catch(const quidra::CompileErrors&){return;}catch(const quidra::CompileError&){return;}std::cerr<<"unexpected acceptance:\n"<<s;std::exit(1); }
 static void inspect_contains(const std::string& s, const std::string& expected) {
     try {
@@ -134,6 +155,26 @@ static void bad_code(const std::string& s, const std::string& expected) {
     }
     std::cerr<<"unexpected acceptance, expected "<<expected<<":\n"<<s; std::exit(1);
 }
+static void bad_message(const std::string& s, const std::string& code,
+                        const std::string& fragment) {
+    try { (void)quidra::compile(s); }
+    catch (const quidra::CompileErrors& errors) {
+        for (const auto& d : errors.diagnostics()) {
+            if (d.code == code && d.message.find(fragment) != std::string::npos) return;
+        }
+        std::cerr << "missing diagnostic " << code << " containing '" << fragment << "'\n" << s;
+        std::exit(1);
+    }
+    catch (const quidra::CompileError& error) {
+        const auto& d = error.diagnostic();
+        if (d.code == code && d.message.find(fragment) != std::string::npos) return;
+        std::cerr << "missing diagnostic " << code << " containing '" << fragment << "'\n" << s;
+        std::exit(1);
+    }
+    std::cerr << "unexpected acceptance, expected " << code << " containing '" << fragment
+              << "':\n" << s;
+    std::exit(1);
+}
 static void root_source_override_with_import() {
     const auto root = std::filesystem::temp_directory_path() / "quidra-root-source-override";
     const auto main_path = root / "main.qui";
@@ -177,8 +218,8 @@ static void string_input_ignores_package_lock() {
                 << "dnn 0000000000000000000000000000000000000000000000000000000000000000\n";
         }
         std::filesystem::current_path(root);
-        (void)quidra::check("print(1)\n");
-        (void)quidra::compile("print(1)\n");
+        (void)quidra::check("print(int(1))\n");
+        (void)quidra::compile("print(int(1))\n");
         std::filesystem::current_path(original);
         std::filesystem::remove_all(root);
     } catch (const std::exception& e) {
@@ -191,6 +232,55 @@ static void string_input_ignores_package_lock() {
 }
 
 int main(){
+ good(R"(bigint huge = 12345678901234567890123456789012345678901234567890
+bigint one = 1
+bigint sum = huge + one
+print(sum)
+)");
+ good(R"(bigreal root = math.sqrt(2.0)
+bigreal circle = math.pi
+bigreal natural = math.e
+bigreal ratio = bigreal(1) / bigreal(3)
+print(root)
+print(circle)
+print(natural)
+print(ratio)
+)");
+ good(R"(T identity<T>(T value)
+    return value
+
+bigint large = identity<bigint>(123456789012345678901234567890)
+bigreal exact = identity<bigreal>(math.sqrt(2.0))
+print(large)
+print(exact)
+)");
+ good(R"(bigint[] values = [
+    123456789012345678901234567890,
+    2,
+]
+bigreal[] reals = bigreal(values)
+print(values[0])
+print(reals[1])
+)");
+ llvm_contains(
+     "bigint x = 123456789012345678901234567890\n",
+     "call ptr @quidra_bigint_literal");
+ llvm_contains(
+     "bigreal x = math.sqrt(2.0)\n",
+     "call ptr @quidra_bigreal_sqrt");
+ llvm_contains(
+     "bigreal x = math.pi\n",
+     "call ptr @quidra_bigreal_literal");
+ bad_code("tensor<bigint> x = tensor<bigint>([1])\n", "INVALID_TYPE");
+ bad_code("neural<bigreal> x = neural.track(tensor<float>([1]))\n", "INVALID_TYPE");
+ bad_code("neural<bigint> x = neural.track(tensor<float>([1]))\n", "INVALID_TYPE");
+ bad_code("auto x = math.sqrt(4.0)\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ bad_code("int x = int(math.sqrt(4.0))\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ good("bigreal x = math.sqrt(4.0)\nint y = int(x)\n");
+ good("bigreal x = math.sqrt(2.0)\nprint(\"{x:sig=100}\")\n");
+ bad_code("map.Map<bigreal, int> values = map.Map<bigreal, int>()\n", "STANDARD_KEY_TYPE");
+ bad_code("set.Set<bigreal> values = set.Set<bigreal>()\n", "STANDARD_KEY_TYPE");
+
  good("extern void scalar_abi(int8 a, int16 b, int32 c, int d, uint8 e, uint16 f, uint32 g, uint64 h, float32 i, float j, bool k) = \"scalar_abi\"\n");
  llvm_contains("extern bool c_bool(bool value) = \"c_bool\"\n", "declare zeroext i1 @c_bool(i1 zeroext)");
  llvm_contains("extern int8 c_i8(int8 value) = \"c_i8\"\n", "declare signext i8 @c_i8(i8 signext)");
@@ -199,21 +289,21 @@ int main(){
  llvm_contains("extern uint16 c_u16(uint16 value) = \"c_u16\"\n", "declare zeroext i16 @c_u16(i16 zeroext)");
  llvm_contains("extern int8 c_i8(int8 value) = \"c_i8\"\nint8 x = 1\nint8 y = c_i8(x)\n", "call signext i8 @c_i8(i8 signext");
  good("extern int32 c_text(const string &text) = \"c_text\"\n");
- good("extern int32 c_bytes(const bytes &data) = \"c_bytes\"\n");
+ good("extern int32 c_bin(const bin &data) = \"c_bin\"\n");
  ir_contains("extern int32 c_text(const string &text) = \"c_text\"\n", "function c_text(const string &text) -> int32 = \"c_text\"");
  llvm_contains("extern int32 c_text(const string &text) = \"c_text\"\n", "declare i32 @c_text(ptr nocapture nonnull readonly, i64)");
- llvm_contains("extern int32 c_bytes(const bytes &data) = \"c_bytes\"\n", "declare i32 @c_bytes(ptr nocapture nonnull readonly, i64)");
+ llvm_contains("extern int32 c_bin(const bin &data) = \"c_bin\"\n", "declare i32 @c_bin(ptr nocapture nonnull readonly, i64)");
  llvm_contains("extern int32 c_text(const string &text) = \"c_text\"\nstring value = \"abc\"\nint32 result = c_text(&value)\n", "ffi.borrowed.value");
  llvm_contains("extern int32 c_text(const string &text) = \"c_text\"\nstring value = \"abc\"\nint32 result = c_text(&value)\n", "call i64 @strlen(ptr");
- llvm_contains("extern int32 c_bytes(const bytes &data) = \"c_bytes\"\nbytes value = bytes(3, fill = 1)\nint32 result = c_bytes(&value)\n", "ffi.bytes.length");
- llvm_contains("extern int32 c_bytes(const bytes &data) = \"c_bytes\"\nbytes value = bytes(3, fill = 1)\nint32 result = c_bytes(&value)\n", "call i32 @c_bytes(ptr nocapture nonnull readonly");
- llvm_file_contains("tensor<float> source = tensor.ones<float>([1])\nneural<float> value = neural.track(source)\nneural<float> next = value + 1\n", "@quidra_neural_binary_scalar");
- llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nuint8 scalar = 255\nneural<float32> next = value + scalar\n", "uitofp i8");
- llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nint8 scalar = -1\nneural<float32> next = value + scalar\n", "sitofp i8");
+ llvm_contains("extern int32 c_bin(const bin &data) = \"c_bin\"\nbin value = bin.fill(24, 1)\nint32 result = c_bin(&value)\n", "ffi.bin.length");
+ llvm_contains("extern int32 c_bin(const bin &data) = \"c_bin\"\nbin value = bin.fill(24, 1)\nint32 result = c_bin(&value)\n", "call i32 @c_bin(ptr nocapture nonnull readonly");
+ llvm_file_contains("tensor<float> source = tensor.ones<float>([1])\nneural<float> value = neural.track(source)\nneural<float> next = value + 1.0\n", "@quidra_neural_binary_scalar");
+ llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nuint8 scalar = 255\nneural<float32> next = value + float32(scalar)\n", "uitofp i8");
+ llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nint8 scalar = -1\nneural<float32> next = value + float32(scalar)\n", "sitofp i8");
 
  bad_code("extern int32 implicit_text(string text) = \"implicit_text\"\n", "FFI_REFERENCE");
- bad_code("extern int32 implicit_bytes(bytes data) = \"implicit_bytes\"\n", "FFI_REFERENCE");
- bad_code("extern int32 mutable_bytes(bytes &data) = \"mutable_bytes\"\n", "FFI_REFERENCE");
+ bad_code("extern int32 implicit_bytes(bin data) = \"implicit_bytes\"\n", "FFI_REFERENCE");
+ bad_code("extern int32 mutable_bytes(bin &data) = \"mutable_bytes\"\n", "FFI_REFERENCE");
  bad_code("extern int32 const_value(const string text) = \"const_value\"\n", "FFI_REFERENCE");
  bad_code("extern int32 c_puts(const string &text) = \"puts\"\n", "FFI_SYMBOL_CONFLICT");
  bad_code("extern int32 c_main(int32 value) = \"main\"\n", "FFI_SYMBOL_CONFLICT");
@@ -222,7 +312,7 @@ int main(){
  bad_code("extern int32 c_internal(int32 value) = \"__quidra_internal_symbol\"\n", "FFI_SYMBOL_CONFLICT");
  bad_code("extern int32 first(int32 value) = \"shared_symbol\"\nextern int32 second(int32 value) = \"shared_symbol\"\n", "FFI_SYMBOL_CONFLICT");
  bad_code("extern string unsafe(int value) = \"unsafe_symbol\"\n", "FFI_TYPE");
- bad_code("extern bytes unsafe_bytes(int value) = \"unsafe_symbol\"\n", "FFI_TYPE");
+ bad_code("extern bin unsafe_bin(int value) = \"unsafe_symbol\"\n", "FFI_TYPE");
  bad_code("extern int unsafe(int &value) = \"unsafe_symbol\"\n", "FFI_REFERENCE");
  bad_code("extern int unsafe(int value = 1) = \"unsafe_symbol\"\n", "FFI_DEFAULT");
  bad_code("extern int unsafe(int value) = \"bad-symbol\"\n", "FFI_SYMBOL");
@@ -689,11 +779,11 @@ print(outer.inner.y)
 int result = 10 / denominator
 )",
  R"(int8 small = 127
-int16 wider = small
+int16 wider = int16(small)
 uint8 byte_value = 255
 uint32 count = 100
-int total = count
-float exact_float = 1
+int total = int(count)
+float exact_float = 1.0
 float32 exact_small_float = 1.5
 int8 casted = int8(100)
 int exact_from_float = 3
@@ -701,16 +791,17 @@ string small_text = small.string()
 string flag_text = true.string()
 int | error parsed = int.parse("123")
 float32 | error parsed_float = float32.parse("1.5")
-bytes data = bytes(4, fill = 7)
-data[0] = 255
-uint8 first = data[0]
-uint8 &second = &data[1]
-second = 9
-bytes copy = data
-copy[2] = 11
+bin allocated = bin.fill(8, 0)
+string repeated = string.repeat("a", 3)
+bin data = bin.parse("0000000111111110")
+bin first = data[0]
+bin slice = data[0:8]
+uint8[] decoded = uint8[](data)
+bin copy = data
+copy[0] = bin.parse("1")
 bool same = data == copy
 for value in data
-    uint8 x = value
+    bin x = value
 for &value in copy
     value = value
 write(small_text)
@@ -723,19 +814,34 @@ int x = 7
 print(local_name())
 print(x)
 )",
- "int x\nx = 4\nprint(x)\n", "auto x = 41\nprint(x)\n", "int end = 7\nprint(end)\n", "// comment only\nint x = 1 // trailing comment\nprint(x)\n"}) good(s);
+ "int x\nx = 4\nprint(x)\n", "auto x = int(41)\nprint(x)\n", "int end = 7\nprint(end)\n", "// comment only\nint x = 1 // trailing comment\nprint(x)\n"}) good(s);
  good("int exit = 7\nprint(exit)\n");
 
- good(R"(float scalar = 3
-float32 scalar32 = 2
-float[] values = [1, 2, 3]
+ ir_contains(R"(bin bits = bin.parse("01")
+print(bits[0])
+)", "release %");
+ ir_contains(R"(bool flag = bool(bin.parse("1"))
+print(flag)
+)", "release %");
+ ir_contains(R"(bin bits = bin.fill(1, 0)
+bits[0] = bin.parse("1")
+print(bits)
+)", "release %");
+ ir_contains(R"(bin bits = bin.parse("01")
+for bit in bits
+    print(bit)
+)", "bin.get");
+
+ good(R"(float scalar = 3.0
+float32 scalar32 = 2.0
+float[] values = [1.0, 2.0, 3.0]
 
 float half(float value)
     return value / 2.0
 
-float negative = -3
-float product = 2.0 * 3
-float argument = half(3)
+float negative = -3.0
+float product = 2.0 * 3.0
+float argument = half(3.0)
 int8 small = 5
 int8 sum = small + 100
 
@@ -904,12 +1010,11 @@ print(outer.inner.y)
  "void f(int &x)\n    x = 2\nint x = 1\nf(x)\n", "void f(int x)\n    return\nint x = 1\nf(&x)\n",
  "int f(int x = 1, int y)\n    return y\n", "void f(int &x = 1)\n    return\n", "void f(const int &x = 1)\n    return\n", "int f(int x, int y = x)\n    return y\n",
  "int f(int x)\n    return x\nprint(f(x: 1))\n", "int f(int x, int y)\n    return x\nprint(f(x = 1, 2))\n",
- "int | none x = 1\nmatch x\n    int\n        print(x)\n", "int | none x = 1\nmatch x\n    int\n        print(x)\n    int y\n        print(y)\n    none\n        print(0)\n",
- "int | none x = 1\nmatch x\n    int\n        x = none\n    none\n        print(0)\n",
+ "int | none x = 1\nmatch x\n    int\n        print(x)\n", "int | none x = 1\nmatch x\n    int\n        print(x)\n    int y\n        print(y)\n    none\n        print(int(0))\n",
+ "int | none x = 1\nmatch x\n    int\n        x = none\n    none\n        print(int(0))\n",
  "auto x = 9223372036854775808\n", "auto x = []\n", "auto x = range(3)\n",
  "int8 x = 128\n", "uint8 x = -1\n", "int8 x = int8(300)\n",
- "float32 x = 0.1\n",
- "bytes x = bytes(-1)\n", "bytes x = bytes(2, fill = 256)\n",
+ "bin x = bin(2, fill = 0)\n", "bin x = bin.fill(-1, 0)\n", "bin x = bin.fill(2, 2)\n", "string x = string(2, fill = \"a\")\n", "string x = string.repeat(\"a\", -1)\n",
  "string tab = \"x\"\n", "void f(string enter)\n    return\n",
  "int x = 1\nif true\n    int x = 2\n", "int x = 1\nint x = 2\n",
  "class A\n    int x\n    int x\n",
@@ -955,7 +1060,7 @@ print(plain<int>(1))
 GenericOnly value
 )",
  "class A\n    int x\nclass B\n    int y\nclass C : A, B\n    int z\n",
- "#if DEBUG\nprint(1)\n", "# comment\nprint(1)\n"}) bad(s);
+ "#if DEBUG\nprint(int(1))\n", "# comment\nprint(int(1))\n"}) bad(s);
  good(R"(class Linear
     int unused = 0
 class Rbf
@@ -1206,11 +1311,40 @@ auto f = square
  bad_code("int | none x = 1\nmatch x\n    int\n        print(x)\n", "MATCH_EXHAUSTIVE");
  bad_code("auto values = []\n", "AMBIGUOUS_TYPE");
  bad_code("int f(int x)\n    return x\nprint(f())\n", "ARGUMENT_MISMATCH");
+ bad_message(R"(int combine(int first, int second = 2)
+    return first + second
+print(combine(first = 1, 2))
+)", "ARGUMENT_MISMATCH", "Positional argument cannot follow named arguments");
+ bad_message(R"(int combine(int first, int second = 2)
+    return first + second
+print(combine(first = 1, first = 2))
+)", "ARGUMENT_MISMATCH", "Argument 'first' is supplied more than once");
+ bad_message(R"(int combine(int first, int second = 2)
+    return first + second
+print(combine(third = 1))
+)", "ARGUMENT_MISMATCH", "Unknown argument 'third'");
+ bad_message(R"(int combine(int first, int second = 2)
+    return first + second
+print(combine())
+)", "ARGUMENT_MISMATCH", "Missing required argument 'first'");
+ bad_message(R"(int combine(int first, int second = 2)
+    return first + second
+print(combine(1, 2, 3))
+)", "ARGUMENT_MISMATCH", "Too many positional arguments");
+ bad_message(R"(int combine(int first, int second = 2)
+    return first + second
+print(combine(1, first = 2))
+)", "ARGUMENT_MISMATCH", "Argument 'first' is supplied more than once");
  bad_code("int[2] values = [1]\n", "ARRAY_SHAPE");
  bad_code("class A\n    int x\nclass A\n    int y\n", "DUPLICATE_NAME");
+ bad_code(R"(T identity<T>(T value)
+    return value
+auto result = identity(1)
+)", "GENERIC_INFERENCE");
  good(R"(T identity<T>(T value)
     return value
-print(identity(1))
+auto result = identity(int32(1))
+print(result)
 )");
  bad_code(R"(T identity<T>(T value)
     return value
@@ -1230,10 +1364,44 @@ class B : A
         return 0
 )", "INVALID_OVERRIDE");
  bad_code("break\n", "LOOP_CONTROL_CONTEXT");
- bad_code("int | none x = 1\nmatch x\n    int\n        print(1)\n    int y\n        print(y)\n    none\n        print(0)\n", "MATCH_CASE");
+ bad_code("int | none x = 1\nmatch x\n    int\n        print(int(1))\n    int y\n        print(y)\n    none\n        print(int(0))\n", "MATCH_CASE");
  bad_code("int f(bool yes)\n    if yes\n        return 1\n", "MISSING_RETURN");
  bad_code("int8 x = int8(300)\n", "NUMERIC_CAST");
  bad_code("int x = int(3.5)\n", "NUMERIC_CAST");
+ good("int8 minimum = -128\nint minimum64 = -9223372036854775808\n");
+ bad_code("int8 too_small = -129\n", "INTEGER_RANGE");
+ good("int8 minimum = int8(-128)\n");
+ bad_code("int8 too_small = int8(-129)\n", "NUMERIC_CAST");
+
+ // Numeric literals carry families, not default concrete types.
+ good("int32 x = 3\nfloat32 y = 3.0\nfloat32 z = 0.1\n");
+ bad_code("auto x = 3\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ bad_code("auto x = 1.5\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ bad_code("print(1)\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ bad_code("float x = 3\n", "NUMERIC_FAMILY");
+ bad_code("int x = 3.0\n", "NUMERIC_FAMILY");
+ bad_code("auto x = [1, 2, 3]\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ good(R"(int32 seed = 1
+auto values = [2, seed, 3]
+print(values[0])
+)");
+ good(R"(int32 fixed_identity(int32 value)
+    return value
+auto result = fixed_identity(3)
+print(result)
+)");
+ bad_code("bin raw = bin(3567446)\n", "AMBIGUOUS_NUMERIC_LITERAL");
+ good("bin raw = bin(int32(3567446))\nprint(raw)\n");
+ bad_code("bigint value = 1\nbin raw = bin(value)\n", "TYPE_MISMATCH");
+ bad_code("bigreal value = 1.0\nbin raw = bin(value)\n", "TYPE_MISMATCH");
+ good("float32 rounded = float32(16777217)\n");
+ bad_code("float32 too_large = 1.0e100\n", "FLOAT_RANGE");
+ bad_code("float32 too_large = float32(1.0e100)\n", "NUMERIC_CAST");
+
+ // Numeric spelling has one integer radix; exponent notation is visibly floating.
+ bad_code("float x = 1e8\n", "LEX_ERROR");
+ good("float x = 1.0e8\n");
+ bad_code("int x = 0x10\n", "LEX_ERROR");
  bad_code(R"(class A
     int get()
         return 1
@@ -1286,11 +1454,11 @@ bool same = a == b
  bad_code("class A\n    int x\nA a = A(x = 1)\nprint(a.y)\n", "UNKNOWN_MEMBER");
  bad_code("print(missing)\n", "UNKNOWN_NAME");
  bad_code("Missing value\n", "UNKNOWN_TYPE");
- bad_code("float value = 1e9999\n", "FLOAT_RANGE");
+ bad_code("float value = 1.0e9999\n", "FLOAT_RANGE");
  bad_code("import math\n", "STANDARD_NAMESPACE_IMPORT");
  bad_code("auto loaded = vision.read<uint8>(\"input.png\")\n", "GENERIC_RECEIVER");
  bad_code("auto loaded = vision.read(\"input.png\")\n", "UNKNOWN_NAME");
- good("print(math.sqrt(16.0))\n");
+ good("print(math.sqrt(float(16.0)))\n");
  good("tensor<float32> grid = tensor.zeros<float32>([2, 2])\nprint(grid.shape()[0])\n");
  bad_code("1 = 2\n", "INVALID_ASSIGNMENT");
  bad_code(R"(class Broken : Missing
@@ -1317,6 +1485,230 @@ A value = A()
 print(value.missing<int>(1))
 )", "UNKNOWN_GENERIC_METHOD");
  bad_code("int[] values = [1]\nvalues.missing<int>()\n", "GENERIC_RECEIVER");
+
+ // Tensor shape patterns fix rank exactly; '_' keeps only that extent unconstrained.
+ good(R"(tensor<float32><2, 3> matrix = tensor.zeros<float32>([2, 3])
+int[2] dimensions = matrix.shape()
+tensor<float32> erased = matrix
+int[2] inferred_dimensions = erased.shape()
+tensor<float32><3> row = matrix[0]
+tensor<float32><2> column = matrix[:, 0]
+tensor<float32> cell = matrix[0, 0]
+float32 value = cell.item()
+tensor<float32><6> reshaped = matrix.reshape([6])
+tensor<float32><2, 3> contiguous = matrix.contiguous()
+tensor<float><2, 3> converted = float(matrix)
+tensor<float32> product = linear.matmul(matrix, tensor.ones<float32>([3, 2]))
+float32 dot = linear.dot(reshaped, tensor.ones<float32>([6]))
+)");
+ good(R"(tensor<T><3, _> first_three<T>(tensor<T><3, _> value)
+    return value
+tensor<float32> source = tensor.ones<float32>([3, 2])
+tensor<float32><3, _> constrained = first_three(source)
+)");
+ // Generic dtype inference may proceed through an unknown shape, but the
+ // specialized call still enforces the exact-rank shape pattern.
+ bad_code(R"(tensor<T><3, _> first_three<T>(tensor<T><3, _> value)
+    return value
+tensor<float32> source = tensor.ones<float32>([2, 2])
+tensor<float32><3, _> constrained = first_three(source)
+)", "TYPE_MISMATCH");
+ good(R"(tensor<float32> | error direct = tensor.zeros<float32>([2, 2])
+tensor<float32><2, _> | error constrained = tensor.ones<float32>([2, 2])
+tensor<float32> | error widened = constrained
+match widened
+    tensor<float32> pixels
+        print(pixels.shape()[0])
+    error problem
+        print(problem)
+)");
+ bad_code("tensor<float32><3, _> wrong = tensor.zeros<float32>([2, 2])\n", "TYPE_MISMATCH");
+ bad_code("tensor<float32><2, 4> wrong = tensor.zeros<float32>([2, 3])\n", "TYPE_MISMATCH");
+ bad_code("tensor<float32><3, _> wrong_rank = tensor.zeros<float32>([3, 4, 5])\n", "TYPE_MISMATCH");
+ good("tensor<float32><3, _, _> exact_rank = tensor.zeros<float32>([3, 4, 5])\n");
+ bad_code("tensor<float32><2, 3> value = tensor.ones<float32>([2, 3])\nint[3] wrong_shape = value.shape()\n", "TYPE_MISMATCH");
+ good(R"(tensor<float32> erase(tensor<float32> value)
+    return value
+tensor<float32><2, _> known = erase(tensor.zeros<float32>([2, 2]))
+)");
+ bad_code("tensor<float32> value = tensor.ones<float32>([1])\nfloat32 scalar = value.item()\n", "TYPE_MISMATCH");
+ bad_code("tensor<float32><2, 2> value = tensor.ones<float32>([2, 2])\nauto bad = value[0, 0, 0]\n", "INDEX_ARITY");
+ bad_code("tensor<float32> value = tensor.ones<float32>([2, 2])\nfloat32 bad = linear.dot(value, value)\n", "TYPE_MISMATCH");
+ bad_code("tensor<float32> value = tensor.ones<float32>([2])\nauto bad = linear.matmul(value, value)\n", "TYPE_MISMATCH");
+ bad_code("tensor<uint8><2, _> value = tensor.zeros<uint8>([2, 2])\nauto result = image.write(home, value)\n", "TYPE_MISMATCH");
+
+ // Shape-pattern match cases select only exact-rank compatible tensor alternatives.
+ good(R"(void classify(tensor<float32><3, 4> | tensor<float32><1, 4> value)
+    match value
+        tensor<float32><3, _> rgb
+            print(rgb.shape()[0])
+        tensor<float32><1, _> gray
+            print(gray.shape()[0])
+)");
+ bad_code(R"(void invalid_case(tensor<float32><1, 4> | tensor<float32><4, 4> value)
+    match value
+        tensor<float32><3, _> impossible
+            print(impossible.shape()[0])
+        tensor<float32><1, _> gray
+            print(gray.shape()[0])
+        tensor<float32><4, _> rgba
+            print(rgba.shape()[0])
+)", "MATCH_CASE");
+
+ // neural shares the same exact shape pattern; shape-only neural defaults to float32.
+ good(R"(tensor<float32> source = tensor.ones<float32>([3, 8, 8])
+neural<3, _, _> value = neural.track(source)
+tensor<float32><3, _, _> restored = value.untrack()
+)");
+ good(R"(tensor<float> source = tensor.ones<float>([2, 4])
+neural<float><2, _> value = neural.track(source)
+tensor<float><2, _> restored = value.untrack()
+)");
+ bad_code(R"(tensor<float32> source = tensor.ones<float32>([3, 8, 8])
+neural<3, _> wrong = neural.track(source)
+)", "TYPE_MISMATCH");
+
+ // Dependent shape expressions in function signatures are checked at the boundary.
+ good(R"(tensor<float><n, 2> keep_shape(int n, tensor<float><n, 2> value)
+    return value
+tensor<float> unknown = tensor.ones<float>([3, 2])
+tensor<float><3, 2> checked = keep_shape(3, unknown)
+)");
+ good(R"(int[][n] keep_rows(int n, int[][n] rows)
+    return rows
+int[][] dynamic_rows = [[1, 2], [3, 4]]
+int[][] checked_rows = keep_rows(2, dynamic_rows)
+)");
+
+ // Runtime extent expressions are captured per binding; mutable sources remain legal.
+ good(R"(int n = 3
+int m = 4
+tensor<float><n * 2 + 1, 224> captured = tensor.ones<float>([7, 224])
+n = 10
+tensor<float><n, 224> later = tensor.ones<float>([10, 224])
+float[n * m] dynamic_fixed
+dynamic_fixed[0] = 1.0
+tensor<float><3, 224> contextual = tensor.zeros()
+tensor<float><_, 224> explicit_shape = tensor.zeros([3, 224])
+)");
+ bad_code(R"(int n = 3
+tensor<float><n, 224> wrong = tensor.ones<float>([3, 224, 1])
+)", "TYPE_MISMATCH");
+
+ // Numeric container casts preserve array structure and tensor shape facts.
+ good(R"(int[][] values = [[1, 2], [3, 4]]
+float[][] converted = float(values)
+int[2][2] fixed = [[1, 2], [3, 4]]
+float[2][2] fixed_converted = float(fixed)
+tensor<int><2, 2> matrix = tensor.ones<int>([2, 2])
+tensor<float><2, 2> tensor_converted = float(matrix)
+tensor<float32><2, 2> tracked_source = tensor.ones<float32>([2, 2])
+neural<2, 2> tracked = neural.track(tracked_source)
+neural<float><2, 2> neural_converted = float(tracked)
+tensor<float><2, 2> neural_restored = neural_converted.untrack()
+)");
+ bad_code("int[] values = [1, 2]\nfloat[] converted = values\n", "TYPE_MISMATCH");
+ bad_code("float[] values = [1.0, 2.0]\nint[] converted = int(values)\n", "NUMERIC_CAST");
+ bad_code("tensor<float> values = tensor.ones<float>([2])\nauto converted = int(values)\n", "NUMERIC_CAST");
+ bad_code("tensor<int> values = tensor.ones<int>([2])\nauto converted = values.cast<float>()\n", "UNKNOWN_MEMBER");
+
+ // Tensor flow facts weaken at joins. A later exact-shape binding accepts the
+ // unknown fact set and emits a runtime constraint check.
+ good(R"(void branch_shape(bool flag)
+    tensor<float32> value = tensor.zeros<float32>([3, 4])
+    if flag
+        value = tensor.zeros<float32>([3, 5])
+    tensor<float32><3, 4> exact = value
+)");
+ bad_code(R"(void branch_rank(bool flag)
+    tensor<float32> value = tensor.zeros<float32>([2, 2])
+    if flag
+        value = tensor.zeros<float32>([2, 2, 2])
+    int[2] dimensions = value.shape()
+)", "TYPE_MISMATCH");
+ bad_code(R"(void while_rank(bool flag)
+    tensor<float32> value = tensor.zeros<float32>([2, 2])
+    while flag
+        value = tensor.zeros<float32>([2, 2, 2])
+        flag = false
+    int[2] dimensions = value.shape()
+)", "TYPE_MISMATCH");
+ bad_code(R"(void for_rank(int[] items)
+    tensor<float32> value = tensor.zeros<float32>([2, 2])
+    for item in items
+        value = tensor.zeros<float32>([2, 2, 2])
+    int[2] dimensions = value.shape()
+)", "TYPE_MISMATCH");
+ bad_code(R"(void match_rank(int | string choice)
+    tensor<float32> value = tensor.zeros<float32>([2, 2])
+    match choice
+        int
+            value = tensor.zeros<float32>([2, 2, 2])
+        string
+            value = tensor.zeros<float32>([2, 2])
+    int[2] dimensions = value.shape()
+)", "TYPE_MISMATCH");
+
+ // Device placement is runtime/compiler metadata, not part of the nominal tensor type.
+ good(R"(tensor<float32> cpu = tensor.zeros<float32>([2])
+tensor<float32> direct_gpu = tensor.zeros<float32>([2], gpu = 0)
+tensor<float32><2> contextual_gpu = tensor.ones(gpu = 1)
+tensor<float32> copied = cpu.gpu(0)
+tensor<float32> returned = copied.cpu()
+)");
+ bad_message("auto value = tensor.zeros<float32>([1], gpu = -1)\n",
+             "ARGUMENT_MISMATCH", "gpu index must be non-negative");
+ bad_message("auto value = tensor.zeros<float32>([1], gpu = 1.5)\n",
+             "NUMERIC_FAMILY", "Real-family literal cannot materialize as an integer-family type");
+ bad_code("auto value = tensor.zeros<float32>([1], device = 0)\n",
+          "ARGUMENT_MISMATCH");
+ bad_message("auto value = tensor.zeros<float32>([1])\nauto moved = value.gpu()\n",
+             "ARGUMENT_MISMATCH", "requires exactly one positional integer GPU index");
+ bad_message("auto value = tensor.zeros<float32>([1])\nauto moved = value.gpu(-1)\n",
+             "ARGUMENT_MISMATCH", "non-negative GPU index");
+ bad_message("auto value = tensor.zeros<float32>([1])\nauto moved = value.cpu(0)\n",
+             "ARGUMENT_MISMATCH", "takes no arguments");
+
+ // Explicit transfer remains an observable IR boundary; it must not be folded
+ // into the preceding allocation or relocate earlier arithmetic.
+ const std::string explicit_gpu_transfer = R"(tensor<float32> source = tensor.zeros<float32>([2])
+tensor<float32> moved = source.gpu(0)
+)";
+ ir_contains(explicit_gpu_transfer, "tensor.create");
+ ir_contains(explicit_gpu_transfer, " cpu");
+ ir_contains(explicit_gpu_transfer, "tensor.gpu");
+ const std::string post_compute_transfer = R"(tensor<float32> left = tensor.ones<float32>([2])
+tensor<float32> right = tensor.ones<float32>([2])
+tensor<float32> sum = left + right
+tensor<float32> moved = sum.gpu(0)
+)";
+ ir_contains(post_compute_transfer, "tensor.binary");
+ ir_contains(post_compute_transfer, "tensor.gpu");
+ llvm_contains(
+     "auto value = tensor.zeros<float32>([1], gpu = 0)\n",
+     "@quidra_tensor_create");
+ llvm_contains(
+     "auto value = tensor.zeros<float32>([1])\nauto moved = value.gpu(0)\n",
+     "@quidra_tensor_to_gpu");
+ llvm_contains(
+     "auto value = tensor.zeros<float32>([1])\nauto moved = value.cpu()\n",
+     "@quidra_tensor_to_cpu");
+
+ // Loop-carried tensor facts must be weakened before checking the loop body.
+ good(R"(void loop_backedge(bool flag)
+    tensor<float32> value = tensor.zeros<float32>([2, 2])
+    while flag
+        auto product = linear.matmul(value, value)
+        value = tensor.zeros<float32>([2, 2, 2])
+        flag = false
+)");
+ good(R"(void for_backedge(int[] items)
+    tensor<float32> value = tensor.zeros<float32>([2, 2])
+    for item in items
+        auto product = linear.matmul(value, value)
+        value = tensor.zeros<float32>([2, 2, 2])
+)");
+
  std::string deep = "print(";
  deep.append(5000, '(');
  deep += "1";

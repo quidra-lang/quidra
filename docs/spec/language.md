@@ -765,9 +765,36 @@ High-level deep-learning APIs are provided by the official `dnn` package through
 
 `neural.save` and `neural.load` use the typed `.quistate` format. The supplied class object graph determines what is serialized. The format records exact nominal roots, structural field paths and types, tensor dtype and shape, version, and checksum. Loading validates the complete payload before mutating existing storage and preserves Parameter identity.
 
-### Local package management
+### Package management
 
-Unquoted non-standard imports resolve installed source packages from configured `QUIDRA_PACKAGE_PATH` roots and then the default per-user store `~/.quidra/packages/<name>/main.qui`. `quidra package install DIR [--name NAME] [--force]` manages that default store. Installation requires a source directory containing `main.qui`, validates that entry source through the ordinary compiler frontend, rejects symbolic links and unsupported filesystem entries, copies into a same-filesystem temporary directory, and publishes it by rename. Existing packages are not replaced unless `--force` is explicit. `package remove`, `package list`, and `package path` are local deterministic operations. Core package management performs no network access and runs no install scripts. `quidra package lock FILE.qui` resolves the actual direct and transitive installed-package import graph and writes a sorted `quidra.lock` in the command working directory. Each entry pins the package name to a SHA-256 over its complete regular-file tree. When that lockfile exists, normal compilation (including unsaved-buffer LSP checking) requires an exact package-name graph: it rejects imported packages missing from the lock, locked packages no longer reached by the current import graph, and installed contents whose tree hash no longer matches. `--check` verifies that the current resolution produces exactly the committed lockfile without rewriting it.
+Unquoted non-standard imports resolve installed source packages from configured
+`QUIDRA_PACKAGE_PATH` roots and then the default per-user store
+`~/.quidra/packages/<name>/main.qui`.
+
+Released packages contain `quidra.package`, including an exact package version
+and a `requires.quidra` range. `quidra install PACKAGE` examines only exact
+stable release tags named `vMAJOR.MINOR.PATCH`; branches are never install
+identities. With no version specified, the newest released tag compatible with
+the running Quidra compiler is selected. `quidra install PACKAGE@X.Y.Z`
+requires that exact release and rejects it when its Quidra compatibility range
+does not match. Remote package installation uses Git but never executes package
+install scripts.
+
+A local source directory can be installed with `quidra install DIR`; legacy
+local packages without a manifest remain usable for development. Existing local
+installs require explicit `--force` replacement. `quidra remove`,
+`quidra list`, and `quidra package-path` manage the default store.
+
+`quidra lock FILE.qui` resolves the direct and transitive installed-package
+import graph and writes sorted `quidra-lock-v2` entries containing package
+name, package version (or `-` for an unversioned local package), and a SHA-256
+over the complete regular-file tree excluding `.git` metadata. When the
+lockfile exists, normal compilation requires the same package graph, declared
+version, and content hash. `--check` verifies the current resolution without
+rewriting the lockfile.
+
+The full package/release metadata contract is documented in
+`docs/packages.md`.
 
 ### C FFI
 

@@ -137,7 +137,7 @@ match raw
     error problem
         print(problem)
 QUI
-[[ "$("$QUIDRA" "$TMP/file-bin.qui")" == 
+[[ "$("$QUIDRA" "$TMP/file-bin.qui")" == $'40\n0\n255\nbin' ]]
 python3 - "$TMP/copied.bin" <<'PY'
 import sys
 data = open(sys.argv[1], "rb").read()

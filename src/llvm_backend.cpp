@@ -863,6 +863,30 @@ struct FunctionEmitter {
                <<", i32 "<<tensor_dtype_code(*n.target_type.first)
                <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
         }
+        if constexpr(std::is_same_v<T,ir::ShapedConstraintCheck>){
+            const bool neural=n.kind==TypeKind::Neural;
+            out<<"  call void @"<<(neural?"quidra_neural_rank_check":"quidra_tensor_rank_check")
+               <<"(ptr "<<value(n.value)<<", i64 "<<n.extents.size()
+               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            for(std::size_t axis=0;axis<n.extents.size();++axis){
+                if(!n.extents[axis]) continue;
+                out<<"  call void @"<<(neural?"quidra_neural_extent_check":"quidra_tensor_extent_check")
+                   <<"(ptr "<<value(n.value)<<", i64 "<<axis
+                   <<", i64 "<<value(*n.extents[axis])
+                   <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }
+        }
+        if constexpr(std::is_same_v<T,ir::ExtentEqualCheck>){
+            const auto bad=temp("extent.mismatch");
+            out<<"  "<<bad<<" = icmp ne i64 "<<value(n.actual)<<", "<<value(n.expected)<<"\n";
+            fail_if(bad,"@.code.shape","@.msg.shape","shape.extent",n.line,n.column);
+        }
+        if constexpr(std::is_same_v<T,ir::NeuralNumericCast>){
+            values[n.out]=n.target_type;
+            out<<"  "<<value(n.out)<<" = call ptr @quidra_neural_cast(ptr "<<value(n.value)
+               <<", i32 "<<tensor_dtype_code(*n.target_type.first)
+               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+        }
         if constexpr(std::is_same_v<T,ir::NeuralTrack>){
             values[n.out]=n.type;
             out<<"  "<<value(n.out)<<" = call ptr @"
@@ -3012,9 +3036,14 @@ declare ptr @quidra_tensor_shape_fixed(ptr, i64)
 declare i1 @quidra_tensor_is_contiguous(ptr)
 declare ptr @quidra_tensor_item_ptr(ptr, i64, i64)
 declare ptr @quidra_tensor_cast(ptr, i32, i64, i64)
+declare void @quidra_tensor_rank_check(ptr, i64, i64, i64)
+declare void @quidra_tensor_extent_check(ptr, i64, i64, i64, i64)
 declare ptr @quidra_neural_track(ptr, i64, i64)
 declare ptr @quidra_neural_parameter_track(ptr, i64, i64)
 declare ptr @quidra_neural_untrack(ptr)
+declare ptr @quidra_neural_cast(ptr, i32, i64, i64)
+declare void @quidra_neural_rank_check(ptr, i64, i64, i64)
+declare void @quidra_neural_extent_check(ptr, i64, i64, i64, i64)
 declare ptr @quidra_neural_clone(ptr)
 declare void @quidra_neural_drop(ptr)
 declare ptr @quidra_neural_gradients_clone(ptr)
@@ -3413,6 +3442,7 @@ out<<"@.code.divzero = private unnamed_addr constant [17 x i8] c\"DIVISION_BY_ZE
 out<<"@.code.range.step = private unnamed_addr constant [16 x i8] c\"RANGE_STEP_ZERO\\00\"\n@.msg.range.step = private unnamed_addr constant [19 x i8] c\"range step is zero\\00\"\n";
 out<<"@.code.stack = private unnamed_addr constant [17 x i8] c\"CALL_DEPTH_LIMIT\\00\"\n@.msg.stack = private unnamed_addr constant [17 x i8] c\"call depth limit\\00\"\n";
 out<<"@.code.numeric.cast = private unnamed_addr constant [19 x i8] c\"NUMERIC_CAST_RANGE\\00\"\n@.msg.numeric.cast = private unnamed_addr constant [39 x i8] c\"numeric cast outside destination range\\00\"\n";
+out<<"@.code.shape = private unnamed_addr constant [15 x i8] c\"SHAPE_MISMATCH\\00\"\n@.msg.shape = private unnamed_addr constant [26 x i8] c\"captured extent mismatch\\00\"\n";
 out<<"@.err.parse = private unnamed_addr constant [21 x i8] c\"numeric parse failed\\00\"\n";
 out<<"@.err.input = private unnamed_addr constant [13 x i8] c\"input failed\\00\"\n";
 out<<"@.err.json.type = private unnamed_addr constant [33 x i8] c\"JSON value has incompatible kind\\00\"\n";

@@ -240,21 +240,21 @@ int main(){
  llvm_contains("extern uint16 c_u16(uint16 value) = \"c_u16\"\n", "declare zeroext i16 @c_u16(i16 zeroext)");
  llvm_contains("extern int8 c_i8(int8 value) = \"c_i8\"\nint8 x = 1\nint8 y = c_i8(x)\n", "call signext i8 @c_i8(i8 signext");
  good("extern int32 c_text(const string &text) = \"c_text\"\n");
- good("extern int32 c_bytes(const bytes &data) = \"c_bytes\"\n");
+ good("extern int32 c_bin(const bin &data) = \"c_bin\"\n");
  ir_contains("extern int32 c_text(const string &text) = \"c_text\"\n", "function c_text(const string &text) -> int32 = \"c_text\"");
  llvm_contains("extern int32 c_text(const string &text) = \"c_text\"\n", "declare i32 @c_text(ptr nocapture nonnull readonly, i64)");
- llvm_contains("extern int32 c_bytes(const bytes &data) = \"c_bytes\"\n", "declare i32 @c_bytes(ptr nocapture nonnull readonly, i64)");
+ llvm_contains("extern int32 c_bin(const bin &data) = \"c_bin\"\n", "declare i32 @c_bin(ptr nocapture nonnull readonly, i64)");
  llvm_contains("extern int32 c_text(const string &text) = \"c_text\"\nstring value = \"abc\"\nint32 result = c_text(&value)\n", "ffi.borrowed.value");
  llvm_contains("extern int32 c_text(const string &text) = \"c_text\"\nstring value = \"abc\"\nint32 result = c_text(&value)\n", "call i64 @strlen(ptr");
- llvm_contains("extern int32 c_bytes(const bytes &data) = \"c_bytes\"\nbytes value = bytes(3, fill = 1)\nint32 result = c_bytes(&value)\n", "ffi.bytes.length");
- llvm_contains("extern int32 c_bytes(const bytes &data) = \"c_bytes\"\nbytes value = bytes(3, fill = 1)\nint32 result = c_bytes(&value)\n", "call i32 @c_bytes(ptr nocapture nonnull readonly");
+ llvm_contains("extern int32 c_bin(const bin &data) = \"c_bin\"\nbin value = bin(24, fill = 1)\nint32 result = c_bin(&value)\n", "ffi.bin.length");
+ llvm_contains("extern int32 c_bin(const bin &data) = \"c_bin\"\nbin value = bin(24, fill = 1)\nint32 result = c_bin(&value)\n", "call i32 @c_bin(ptr nocapture nonnull readonly");
  llvm_file_contains("tensor<float> source = tensor.ones<float>([1])\nneural<float> value = neural.track(source)\nneural<float> next = value + 1\n", "@quidra_neural_binary_scalar");
  llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nuint8 scalar = 255\nneural<float32> next = value + float32(scalar)\n", "uitofp i8");
  llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nint8 scalar = -1\nneural<float32> next = value + float32(scalar)\n", "sitofp i8");
 
  bad_code("extern int32 implicit_text(string text) = \"implicit_text\"\n", "FFI_REFERENCE");
- bad_code("extern int32 implicit_bytes(bytes data) = \"implicit_bytes\"\n", "FFI_REFERENCE");
- bad_code("extern int32 mutable_bytes(bytes &data) = \"mutable_bytes\"\n", "FFI_REFERENCE");
+ bad_code("extern int32 implicit_bytes(bin data) = \"implicit_bytes\"\n", "FFI_REFERENCE");
+ bad_code("extern int32 mutable_bytes(bin &data) = \"mutable_bytes\"\n", "FFI_REFERENCE");
  bad_code("extern int32 const_value(const string text) = \"const_value\"\n", "FFI_REFERENCE");
  bad_code("extern int32 c_puts(const string &text) = \"puts\"\n", "FFI_SYMBOL_CONFLICT");
  bad_code("extern int32 c_main(int32 value) = \"main\"\n", "FFI_SYMBOL_CONFLICT");
@@ -263,7 +263,7 @@ int main(){
  bad_code("extern int32 c_internal(int32 value) = \"__quidra_internal_symbol\"\n", "FFI_SYMBOL_CONFLICT");
  bad_code("extern int32 first(int32 value) = \"shared_symbol\"\nextern int32 second(int32 value) = \"shared_symbol\"\n", "FFI_SYMBOL_CONFLICT");
  bad_code("extern string unsafe(int value) = \"unsafe_symbol\"\n", "FFI_TYPE");
- bad_code("extern bytes unsafe_bytes(int value) = \"unsafe_symbol\"\n", "FFI_TYPE");
+ bad_code("extern bin unsafe_bin(int value) = \"unsafe_symbol\"\n", "FFI_TYPE");
  bad_code("extern int unsafe(int &value) = \"unsafe_symbol\"\n", "FFI_REFERENCE");
  bad_code("extern int unsafe(int value = 1) = \"unsafe_symbol\"\n", "FFI_DEFAULT");
  bad_code("extern int unsafe(int value) = \"bad-symbol\"\n", "FFI_SYMBOL");
@@ -742,16 +742,15 @@ string small_text = small.string()
 string flag_text = true.string()
 int | error parsed = int.parse("123")
 float32 | error parsed_float = float32.parse("1.5")
-bytes data = bytes(4, fill = 7)
-data[0] = 255
-uint8 first = data[0]
-uint8 &second = &data[1]
-second = 9
-bytes copy = data
-copy[2] = 11
+bin data = bin.parse("0000000111111110")
+bin first = data[0]
+bin slice = data[0:8]
+uint8[] decoded = uint8[](data)
+bin copy = data
+copy[0] = bin.parse("1")
 bool same = data == copy
 for value in data
-    uint8 x = value
+    bin x = value
 for &value in copy
     value = value
 write(small_text)
@@ -950,7 +949,7 @@ print(outer.inner.y)
  "auto x = 9223372036854775808\n", "auto x = []\n", "auto x = range(3)\n",
  "int8 x = 128\n", "uint8 x = -1\n", "int8 x = int8(300)\n",
  "float32 x = 0.1\n",
- "bytes x = bytes(-1)\n", "bytes x = bytes(2, fill = 256)\n",
+ "bin x = bin(-1, fill = 0)\n", "bin x = bin(2, fill = 2)\n",
  "string tab = \"x\"\n", "void f(string enter)\n    return\n",
  "int x = 1\nif true\n    int x = 2\n", "int x = 1\nint x = 2\n",
  "class A\n    int x\n    int x\n",

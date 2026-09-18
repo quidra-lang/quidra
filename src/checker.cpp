@@ -1751,11 +1751,9 @@ Type Checker::check_method_call_expr(const Expr& expression,
                 type = simple(TypeKind::Invalid);
             } else if (type_receiver->kind == TypeKind::Bytes) {
                 bool static_literal = false;
-                if (const auto* literal =
-                        std::get_if<StringTemplateExpr>(&node->args[0].value->data);
-                    literal && literal->expressions.empty() && literal->literals.size() == 1) {
+                if (const auto* literal = std::get_if<StringExpr>(&node->args[0].value->data)) {
                     static_literal = true;
-                    for (const char ch : literal->literals.front()) {
+                    for (const char ch : literal->value) {
                         if (ch != '0' && ch != '1') {
                             error("BIN_PARSE", "bin.parse accepts only '0' and '1'.",
                                   node->args[0].span);
@@ -4336,6 +4334,28 @@ Type Checker::check_call_expr(const Expr& expression,
                 CallResolution{CallKind::Constructor, "string.repeat", std::nullopt,
                                string_type};
             type = any_poison ? simple(TypeKind::Invalid) : string_type;
+        } else if (name.size() > 2 && name.ends_with("[]")) {
+            const auto element_name = name.substr(0, name.size() - 2);
+            const auto element = builtin_scalar_type(element_name);
+            if (!element || (!is_integer(*element) && element->kind != TypeKind::Bool)) {
+                error("TYPE_MISMATCH",
+                      "Only integer[] and bool[] explicit conversions are supported here.",
+                      expression.span);
+            }
+            if (node->args.size() != 1 || node->args[0].writable || node->args[0].name) {
+                error("ARGUMENT_MISMATCH",
+                      "Array conversion requires one positional bin value.", expression.span);
+            }
+            const auto source = check_expr(*node->args[0].value);
+            if (!poisoned(source) && source.kind != TypeKind::Bytes) {
+                error("TYPE_MISMATCH",
+                      "T[](value) binary conversion accepts bin only.", expression.span);
+            }
+            type = poisoned(source) || !element
+                ? simple(TypeKind::Invalid)
+                : Type::array(*element);
+            call_resolutions_[&expression] =
+                CallResolution{CallKind::NumericCast, name, std::nullopt, type};
         } else if (classes_.contains(name)) {
             call_resolutions_[&expression] =
                 CallResolution{CallKind::Constructor, name, std::nullopt, Type::class_type(name)};
@@ -5156,9 +5176,30 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
                       "Assignment storage must be rooted in an existing binding or receiver storage.",
                       node.target->span);
             }
-            type = check_address_target(
-                *node.target, std::holds_alternative<IndexExpr>(node.target->data));
-            check_expr(*node.value, &type);
+            if (const auto* indexed = std::get_if<IndexExpr>(&node.target->data)) {
+                const auto base_type = raw_types_.contains(indexed->base.get())
+                    ? raw_types_.at(indexed->base.get())
+                    : check_expr(*indexed->base);
+                if (base_type.kind == TypeKind::Bytes) {
+                    if (indexed->items.size() != 1 || indexed->items.front().slice ||
+                        !indexed->items.front().index) {
+                        error("INDEX_ARITY",
+                              "bin assignment requires exactly one integer index.",
+                              node.target->span);
+                    }
+                    auto int_type = simple(TypeKind::Int);
+                    check_expr(*indexed->items.front().index, &int_type);
+                    type = simple(TypeKind::Bytes);
+                    raw_types_[node.target.get()] = expr_types_[node.target.get()] = type;
+                    check_expr(*node.value, &type);
+                } else {
+                    type = check_address_target(*node.target, true);
+                    check_expr(*node.value, &type);
+                }
+            } else {
+                type = check_address_target(*node.target, false);
+                check_expr(*node.value, &type);
+            }
             if (const auto receiver_path = current_receiver_path(*node.target)) {
                 if (std::holds_alternative<IndexExpr>(node.target->data)) {
                     current_receiver_effect_.writes.insert(*receiver_path);

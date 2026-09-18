@@ -1747,6 +1747,18 @@ struct Lowerer {
                     release_arg(0,input);
                     return out;
                 }
+                case BuiltinCallable::StatsSum:
+                case BuiltinCallable::StatsMin:
+                case BuiltinCallable::StatsMax: {
+                    auto input=expr(*n.args[0].value),out=fresh();
+                    const auto tensor_type=type_of(*n.args[0].value);
+                    block->instructions.push_back(StatsReduce{
+                        out,input,*tensor_type.first,*resolution.builtin,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    release_arg(0,input);
+                    return out;
+                }
                 case BuiltinCallable::LinearMatmul: {
                     auto left=expr(*n.args[0].value);
                     auto right=expr(*n.args[1].value);
@@ -3035,6 +3047,7 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,ShapedConstraintCheck>)out<<"shape.constraint %"<<n.value<<" rank="<<n.extents.size();
     if constexpr(std::is_same_v<T,ExtentEqualCheck>)out<<"extent.check %"<<n.actual<<", %"<<n.expected;
     if constexpr(std::is_same_v<T,StatsMean>)out<<"%"<<n.out<<" = stats.mean %"<<n.tensor;
+    if constexpr(std::is_same_v<T,StatsReduce>)out<<"%"<<n.out<<" = stats.reduce %"<<n.tensor;
     if constexpr(std::is_same_v<T,LinearMatmul>)out<<"%"<<n.out<<" = linear.matmul %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,LinearDot>)out<<"%"<<n.out<<" = linear.dot %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.element_type);
     if constexpr(std::is_same_v<T,ImageRead>){

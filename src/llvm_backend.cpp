@@ -1110,6 +1110,18 @@ struct FunctionEmitter {
             out<<"  "<<value(n.out)<<" = call double @quidra_stats_mean(ptr "<<value(n.tensor)
                <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
         }
+        if constexpr(std::is_same_v<T,ir::StatsReduce>){
+            values[n.out]=n.element_type;
+            const int operation =
+                n.operation==BuiltinCallable::StatsSum ? 1 :
+                n.operation==BuiltinCallable::StatsMin ? 2 : 3;
+            const auto raw=temp("stats.reduce");
+            out<<"  "<<raw<<" = call ptr @quidra_stats_reduce_ptr(ptr "<<value(n.tensor)
+               <<", i32 "<<tensor_dtype_code(n.element_type)
+               <<", i32 "<<operation<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            out<<"  "<<value(n.out)<<" = load "<<llvm_type(n.element_type)
+               <<", ptr "<<raw<<", align 1\n";
+        }
         if constexpr(std::is_same_v<T,ir::LinearMatmul>){
             values[n.out]=n.type;
             out<<"  "<<value(n.out)<<" = call ptr @quidra_linear_matmul(ptr "<<value(n.left)
@@ -2056,7 +2068,10 @@ struct FunctionEmitter {
         }
         if constexpr(std::is_same_v<T,ir::Unary>){
             values[n.out]=n.type;
-            if(n.op=="not"){
+            if(n.type.kind==TypeKind::Tensor){
+                out<<"  "<<value(n.out)<<" = call ptr @quidra_tensor_unary(ptr "
+                   <<value(n.operand)<<", i32 1, i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            }else if(n.op=="not"){
                 out<<"  "<<value(n.out)<<" = xor i1 "<<value(n.operand)<<", true\n";
             }else if(is_integer(n.type)){
                 const auto ty=llvm_type(n.type);
@@ -3090,10 +3105,12 @@ declare i64 @quidra_math_round_int(double, i64, i64)
 declare i64 @quidra_math_floor_int(double, i64, i64)
 declare i64 @quidra_math_ceil_int(double, i64, i64)
 declare double @quidra_stats_mean(ptr, i64, i64)
+declare ptr @quidra_stats_reduce_ptr(ptr, i32, i32, i64, i64)
 declare ptr @quidra_linear_matmul(ptr, ptr, i64, i64)
 declare i64 @quidra_linear_dot_integer(ptr, ptr, i32, i64, i64)
 declare float @quidra_linear_dot_float32(ptr, ptr, i64, i64)
 declare double @quidra_linear_dot_float64(ptr, ptr, i64, i64)
+declare ptr @quidra_tensor_unary(ptr, i32, i64, i64)
 declare ptr @quidra_tensor_binary(ptr, ptr, ptr, i32, i32, i64, i64)
 declare ptr @quidra_tensor_index(ptr, ptr, i64, i64, i64)
 declare void @quidra_tensor_set(ptr, ptr, i64, ptr, i64, i64)

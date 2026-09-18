@@ -123,7 +123,10 @@ enum class BuiltinCallable {
     TensorCreate,
     TensorZeros,
     TensorOnes,
+    StatsSum,
     StatsMean,
+    StatsMin,
+    StatsMax,
     LinearMatmul,
     LinearDot,
     ImageRead,
@@ -171,7 +174,7 @@ inline constexpr std::array<BuiltinCallableInfo, 11> builtin_callables{{
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 77> intrinsic_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 80> intrinsic_callables{{
     {"$std.math.sin", BuiltinCallable::MathSin},
     {"$std.math.cos", BuiltinCallable::MathCos},
     {"$std.math.tan", BuiltinCallable::MathTan},
@@ -226,7 +229,10 @@ inline constexpr std::array<BuiltinCallableInfo, 77> intrinsic_callables{{
     {"$std.http.header", BuiltinCallable::HttpHeader},
     {"$std.tensor.zeros", BuiltinCallable::TensorZeros},
     {"$std.tensor.ones", BuiltinCallable::TensorOnes},
+    {"$std.stats.sum", BuiltinCallable::StatsSum},
     {"$std.stats.mean", BuiltinCallable::StatsMean},
+    {"$std.stats.min", BuiltinCallable::StatsMin},
+    {"$std.stats.max", BuiltinCallable::StatsMax},
     {"$std.linear.matmul", BuiltinCallable::LinearMatmul},
     {"$std.linear.dot", BuiltinCallable::LinearDot},
     {"$std.image.read", BuiltinCallable::ImageRead},
@@ -326,7 +332,10 @@ inline constexpr std::optional<std::string_view> standard_function_target(
         return std::nullopt;
     }
     if (module == "stats") {
+        if (member == "sum") return "$std.stats.sum";
         if (member == "mean") return "$std.stats.mean";
+        if (member == "min") return "$std.stats.min";
+        if (member == "max") return "$std.stats.max";
         return std::nullopt;
     }
     if (module == "linear") {

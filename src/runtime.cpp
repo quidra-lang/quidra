@@ -4163,6 +4163,82 @@ void tensor_binary_typed(const TensorValue& primary, const TensorValue* other,
 
 } // namespace
 
+
+extern "C" void* quidra_tensor_unary(void* raw, int operation,
+                                      unsigned long long line,
+                                      unsigned long long column) {
+    if (!raw || operation != 1) {
+        tensor_fail("invalid tensor unary operation", line, column);
+    }
+    auto& source = *static_cast<TensorValue*>(raw);
+    const auto dtype = source.storage->dtype;
+    if (dtype == 5 || dtype == 6 || dtype == 7 || dtype == 8) {
+        tensor_fail("tensor negation requires a signed numeric tensor", line, column);
+    }
+    tensor_require_initialized(source, line, column);
+    const auto count = tensor_logical_count(source);
+
+    if (!tensor_on_cpu(*source.storage)) {
+        TensorStorage* materialized = nullptr;
+        const TensorStorage* input = source.storage;
+        std::size_t input_offset =
+            source.offset * tensor_dtype_bytes(source.storage->dtype);
+        if (!tensor_is_contiguous_value(source)) {
+            materialized = tensor_gpu_materialize_storage(source, line, column);
+            input = materialized;
+            input_offset = 0;
+        }
+        auto* output = tensor_storage_create(
+            dtype, count, 1, source.storage->device, line, column);
+        std::string backend_error;
+        const bool ok = quidra::device::compute_unary(
+            output->gpu_buffer, input->gpu_buffer, input_offset,
+            dtype, operation, count, backend_error);
+        if (materialized) tensor_storage_release(materialized);
+        if (!ok) {
+            tensor_storage_release(output);
+            tensor_fail(backend_error.c_str(), line, column);
+        }
+        return tensor_descriptor(
+            output, source.shape, tensor_contiguous_strides(source.shape), 0);
+    }
+
+    auto* output = tensor_storage_create(dtype, count, 1);
+    auto run = [&](auto tag) {
+        using T = decltype(tag);
+        for (std::size_t i = 0; i < count; ++i) {
+            const auto source_index = tensor_storage_index(source, i);
+            T value{};
+            std::memcpy(&value,
+                        source.storage->data.data() + source_index * sizeof(T),
+                        sizeof(T));
+            T result{};
+            if constexpr (std::is_integral_v<T>) {
+                if (!tensor_sub_checked(T{}, value, result)) {
+                    tensor_storage_release(output);
+                    tensor_fail("tensor integer negation overflow", line, column);
+                }
+            } else {
+                result = static_cast<T>(-value);
+            }
+            std::memcpy(output->data.data() + i * sizeof(T), &result, sizeof(T));
+        }
+    };
+    switch (dtype) {
+        case 1: run(std::int64_t{}); break;
+        case 2: run(std::int8_t{}); break;
+        case 3: run(std::int16_t{}); break;
+        case 4: run(std::int32_t{}); break;
+        case 9: run(double{}); break;
+        case 10: run(float{}); break;
+        default:
+            tensor_storage_release(output);
+            tensor_fail("invalid tensor element type for negation", line, column);
+    }
+    return tensor_descriptor(
+        output, source.shape, tensor_contiguous_strides(source.shape), 0);
+}
+
 extern "C" void* quidra_tensor_binary(void* primary_raw, void* other_raw,
                                         void* scalar, int scalar_side,
                                         int operation,
@@ -4604,6 +4680,95 @@ extern "C" double quidra_linear_dot_float64(
         return result;
     }
     return tensor_dot_typed<double>(left, right, line, column);
+}
+
+
+extern "C" void* quidra_stats_reduce_ptr(
+    void* raw, int dtype, int operation,
+    unsigned long long line, unsigned long long column) {
+    if (!raw || operation < 1 || operation > 3) {
+        tensor_fail("invalid stats reduction", line, column);
+    }
+    auto& value = *static_cast<TensorValue*>(raw);
+    if (value.storage->dtype != dtype) {
+        tensor_fail("stats reduction dtype mismatch", line, column);
+    }
+    const auto count = tensor_logical_count(value);
+    if (count == 0 && operation != 1) {
+        tensor_fail(
+            operation == 2
+                ? "stats.min is undefined for an empty tensor"
+                : "stats.max is undefined for an empty tensor",
+            line, column);
+    }
+    tensor_require_initialized(value, line, column);
+    static thread_local std::array<unsigned char, 8> result{};
+    std::fill(result.begin(), result.end(), 0);
+
+    if (!tensor_on_cpu(*value.storage)) {
+        TensorStorage* materialized = nullptr;
+        const TensorStorage* input = value.storage;
+        if (!tensor_is_contiguous_value(value) || value.offset != 0) {
+            materialized = tensor_gpu_materialize_storage(value, line, column);
+            input = materialized;
+        }
+        std::string backend_error;
+        const bool ok = quidra::device::compute_reduce(
+            input->gpu_buffer, dtype, operation, count,
+            result.data(), backend_error);
+        if (materialized) tensor_storage_release(materialized);
+        if (!ok) tensor_fail(backend_error.c_str(), line, column);
+        return result.data();
+    }
+
+    auto run = [&](auto tag) {
+        using T = decltype(tag);
+        T reduced{};
+        if (operation != 1 && count != 0) {
+            const auto first_index = tensor_storage_index(value, 0);
+            std::memcpy(
+                &reduced,
+                value.storage->data.data() + first_index * sizeof(T),
+                sizeof(T));
+        }
+        const std::size_t start = operation == 1 ? 0 : 1;
+        for (std::size_t i = start; i < count; ++i) {
+            const auto storage_index = tensor_storage_index(value, i);
+            T element{};
+            std::memcpy(
+                &element,
+                value.storage->data.data() + storage_index * sizeof(T),
+                sizeof(T));
+            if (operation == 1) {
+                T next{};
+                if (!tensor_add_checked(reduced, element, next)) {
+                    tensor_fail("stats.sum integer arithmetic overflow", line, column);
+                }
+                reduced = next;
+            } else if (operation == 2) {
+                if (element < reduced) reduced = element;
+            } else {
+                if (element > reduced) reduced = element;
+            }
+        }
+        std::memcpy(result.data(), &reduced, sizeof(T));
+    };
+
+    switch (dtype) {
+        case 1: run(std::int64_t{}); break;
+        case 2: run(std::int8_t{}); break;
+        case 3: run(std::int16_t{}); break;
+        case 4: run(std::int32_t{}); break;
+        case 5: run(std::uint8_t{}); break;
+        case 6: run(std::uint16_t{}); break;
+        case 7: run(std::uint32_t{}); break;
+        case 8: run(std::uint64_t{}); break;
+        case 9: run(double{}); break;
+        case 10:run(float{}); break;
+        default:
+            tensor_fail("stats reduction received an unsupported tensor dtype", line, column);
+    }
+    return result.data();
 }
 
 extern "C" double quidra_stats_mean(void* raw,

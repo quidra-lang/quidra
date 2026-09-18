@@ -95,6 +95,7 @@ struct NeuralStateTarget { std::string path; ValueId address; Type type; };
 struct NeuralSave { ValueId path; std::string schema; std::vector<NeuralStateValue> values; std::uint32_t line{}; std::uint32_t column{}; };
 struct NeuralLoad { ValueId path; std::string schema; std::vector<NeuralStateTarget> targets; std::uint32_t line{}; std::uint32_t column{}; };
 struct StatsMean { ValueId out; ValueId tensor; Type tensor_type; std::uint32_t line{}; std::uint32_t column{}; };
+struct StatsReduce { ValueId out; ValueId tensor; Type element_type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
 struct LinearMatmul { ValueId out; ValueId left; ValueId right; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct LinearDot { ValueId out; ValueId left; ValueId right; Type element_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct ImageRead {
@@ -250,7 +251,7 @@ using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantBool, Const
                                  NeuralAffine, NeuralConvolve2D, NeuralUpdate, NeuralNormalize,
                                  NeuralRandomMask, NeuralMomentUpdate,
                                  NeuralSave, NeuralLoad,
-                                 StatsMean, LinearMatmul, LinearDot, ImageRead, ImageWrite, TensorBinary, TensorIndex, TensorSet, ParseNumber, NumericAbs, Sqrt, MathUnary, MathRoundInt, MathPow,
+                                 StatsMean, StatsReduce, LinearMatmul, LinearDot, ImageRead, ImageWrite, TensorBinary, TensorIndex, TensorSet, ParseNumber, NumericAbs, Sqrt, MathUnary, MathRoundInt, MathPow,
                                  CliArgument, CliOption, CliFlag, CliFinish,
                                  FileRead, FileReadBytes, FileWrite, FileWriteBytes, FileExists, FileIsDirectory, FileRemove, FileCopy, FileMove, FileMkdir, FileList,
                                  EnvironmentGet, EnvironmentHas, TestAssert,

@@ -3233,24 +3233,40 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     type = poisoned(loss) ? simple(TypeKind::Invalid) : simple(TypeKind::Gradients);
                     break;
                 }
-                case BuiltinCallable::StatsMean: {
+                case BuiltinCallable::StatsSum:
+                case BuiltinCallable::StatsMean:
+                case BuiltinCallable::StatsMin:
+                case BuiltinCallable::StatsMax: {
+                    const char* name =
+                        builtin == BuiltinCallable::StatsSum ? "stats.sum" :
+                        builtin == BuiltinCallable::StatsMean ? "stats.mean" :
+                        builtin == BuiltinCallable::StatsMin ? "stats.min" : "stats.max";
                     if (node->args.size() != 1) {
                         error("ARGUMENT_MISMATCH",
-                              "stats.mean requires one tensor value.", expression.span);
+                              std::string(name) + " requires one tensor value.", expression.span);
                         type = simple(TypeKind::Invalid);
                         break;
                     }
                     if (node->args[0].writable ||
                         (node->args[0].name && *node->args[0].name != "value")) {
                         error("ARGUMENT_MISMATCH",
-                              "stats.mean requires value = tensor or one positional tensor.",
+                              std::string(name) + " requires value = tensor or one positional tensor.",
                               node->args[0].span);
                     }
                     auto value = check_expr(*node->args[0].value);
                     if (!poisoned(value) && value.kind != TypeKind::Tensor) {
-                        error("TYPE_MISMATCH", "stats.mean requires a tensor.", expression.span);
+                        error("TYPE_MISMATCH", std::string(name) + " requires a tensor.",
+                              expression.span);
                     }
-                    type = poisoned(value) ? simple(TypeKind::Invalid) : simple(TypeKind::Float);
+                    if (poisoned(value)) {
+                        type = simple(TypeKind::Invalid);
+                    } else if (builtin == BuiltinCallable::StatsMean) {
+                        type = simple(TypeKind::Float);
+                    } else if (value.first) {
+                        type = *value.first;
+                    } else {
+                        type = simple(TypeKind::Invalid);
+                    }
                     break;
                 }
                 case BuiltinCallable::LinearMatmul: {
@@ -4239,12 +4255,21 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
         type = check_index_expr(expression, *node);
     } else if (const auto* node = std::get_if<UnaryExpr>(&expression.data)) {
         const Type* operand_expected =
-            node->op == "-" && expected && is_numeric(*expected) ? expected : nullptr;
+            node->op == "-" && expected &&
+                    (is_numeric(*expected) || expected->kind == TypeKind::Tensor)
+                ? expected : nullptr;
         type = check_expr(*node->operand, operand_expected);
         if (!poisoned(type)) {
             if (node->op == "not") {
                 if (type.kind != TypeKind::Bool) {
                     error("TYPE_MISMATCH", "not requires bool.", expression.span);
+                }
+            } else if (type.kind == TypeKind::Tensor) {
+                if (!type.first || !is_numeric(*type.first) ||
+                    (is_integer(*type.first) && !is_signed_integer(*type.first))) {
+                    error("TYPE_MISMATCH",
+                          "Tensor negation requires a signed numeric tensor.",
+                          expression.span);
                 }
             } else if (!is_numeric(type)) {
                 error("TYPE_MISMATCH", "Negation requires a number.", expression.span);

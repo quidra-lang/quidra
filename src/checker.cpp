@@ -2586,8 +2586,11 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     (void)builtin_arg(0, "name", &string_type);
                     (void)builtin_arg(1, "index", &int_type);
                     if (expected->kind != TypeKind::String && expected->kind != TypeKind::Int &&
-                        expected->kind != TypeKind::Float && expected->kind != TypeKind::Bool) {
-                        error("TYPE_MISMATCH", "CLI arguments support string, int, float, and bool.", expression.span);
+                        expected->kind != TypeKind::Float && expected->kind != TypeKind::BigInt &&
+                        expected->kind != TypeKind::BigReal && expected->kind != TypeKind::Bool) {
+                        error("TYPE_MISMATCH",
+                              "CLI arguments support string, int, float, bigint, bigreal, and bool.",
+                              expression.span);
                     }
                     type = *expected;
                     break;
@@ -2600,8 +2603,11 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     (void)builtin_arg(0, "name", &string_type);
                     (void)builtin_arg(1, "default", expected);
                     if (expected->kind != TypeKind::String && expected->kind != TypeKind::Int &&
-                        expected->kind != TypeKind::Float && expected->kind != TypeKind::Bool) {
-                        error("TYPE_MISMATCH", "CLI options support string, int, float, and bool.", expression.span);
+                        expected->kind != TypeKind::Float && expected->kind != TypeKind::BigInt &&
+                        expected->kind != TypeKind::BigReal && expected->kind != TypeKind::Bool) {
+                        error("TYPE_MISMATCH",
+                              "CLI options support string, int, float, bigint, bigreal, and bool.",
+                              expression.span);
                     }
                     type = *expected;
                     break;

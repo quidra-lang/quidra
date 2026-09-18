@@ -1659,7 +1659,7 @@ tensor<float32> returned = copied.cpu()
  bad_message("auto value = tensor.zeros<float32>([1], gpu = -1)\n",
              "ARGUMENT_MISMATCH", "gpu index must be non-negative");
  bad_message("auto value = tensor.zeros<float32>([1], gpu = 1.5)\n",
-             "NUMERIC_FAMILY", "Floating-family literal cannot materialize as an integer-family type");
+             "NUMERIC_FAMILY", "Real-family literal cannot materialize as an integer-family type");
  bad_code("auto value = tensor.zeros<float32>([1], device = 0)\n",
           "ARGUMENT_MISMATCH");
  bad_message("auto value = tensor.zeros<float32>([1])\nauto moved = value.gpu()\n",

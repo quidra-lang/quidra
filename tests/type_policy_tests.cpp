@@ -24,10 +24,10 @@ int main() {
             "int must alias int64");
     require(builtin_scalar_type("float") == builtin_scalar_type("float64"),
             "float must alias float64");
-    require(type_name(t(TypeKind::Bytes)) == "bytes", "bytes name");
+    require(type_name(t(TypeKind::Bytes)) == "bin", "bin name");
     require(type_name(Type::neural()) == "neural", "neural defaults to float32");
     require(type_name(Type::neural(t(TypeKind::Float))) == "neural<float>", "explicit neural float64 name");
-    require(is_pointer_runtime_type(t(TypeKind::Bytes)), "bytes uses managed runtime storage");
+    require(is_pointer_runtime_type(t(TypeKind::Bytes)), "bin uses managed runtime storage");
 
     const auto tensor_plain = Type::tensor(t(TypeKind::Float32));
     const auto tensor_rank2 = Type::tensor(t(TypeKind::Float32), 2);

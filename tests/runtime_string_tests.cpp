@@ -2,6 +2,8 @@
 
 extern "C" char* quidra_string_index(const char*, long long, unsigned long long, unsigned long long);
 extern "C" char* quidra_runtime_try_copy_text_bytes(const char*, unsigned long long);
+extern "C" void* quidra_string_split(const char*, const char*);
+extern "C" void quidra_managed_retain(void*);
 extern "C" void quidra_managed_release(void*, void*);
 
 int main() {
@@ -37,5 +39,28 @@ int main() {
     char* non_ascii = quidra_string_index("\xC3\xA9", 0, 1, 1);
     if (std::strcmp(non_ascii, "\xC3\xA9") != 0) return 1;
     quidra_managed_release(non_ascii, nullptr);
+
+    // split() pieces share one backing allocation, but each element keeps normal
+    // value lifetime semantics. Retaining one piece must keep it alive after all
+    // sibling element owners and the result array itself are released.
+    void* split_raw = quidra_string_split("alpha beta gamma", " ");
+    long long split_count = 0;
+    std::memcpy(&split_count, split_raw, sizeof(split_count));
+    if (split_count != 3) return 1;
+    char* pieces[3]{};
+    for (int i = 0; i < 3; ++i) {
+        std::memcpy(&pieces[i],
+                    static_cast<unsigned char*>(split_raw) + 8 + i * sizeof(char*),
+                    sizeof(char*));
+    }
+    if (std::strcmp(pieces[0], "alpha") != 0 ||
+        std::strcmp(pieces[1], "beta") != 0 ||
+        std::strcmp(pieces[2], "gamma") != 0) return 1;
+
+    quidra_managed_retain(pieces[1]);
+    for (char* piece : pieces) quidra_managed_release(piece, nullptr);
+    quidra_managed_release(split_raw, nullptr);
+    if (std::strcmp(pieces[1], "beta") != 0) return 1;
+    quidra_managed_release(pieces[1], nullptr);
     return 0;
 }

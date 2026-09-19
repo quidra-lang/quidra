@@ -1366,10 +1366,10 @@ match parsed
 string text = "0101"
 bin | error dynamic = bin.parse(text)
 )");
- bad_code("bin direct = bin.parse(\"0101\")\n", "TYPE_MISMATCH");
- bad_code(R"(string text = "0101"
+ good("bin direct = bin.parse(\"0101\")\n");
+ good(R"(string text = "0101"
 bin direct = bin.parse(text)
-)", "TYPE_MISMATCH");
+)");
  bad_code("auto invalid = bin.parse(\"0102\")\n", "BIN_PARSE");
  llvm_not_contains(R"(auto parsed = bin.parse("0101")
 match parsed

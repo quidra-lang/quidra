@@ -4370,6 +4370,14 @@ Type Checker::check_call_expr(const Expr& expression,
             call_resolutions_[&expression] =
                 CallResolution{CallKind::FunctionValue, name, std::nullopt, type};
         } else if (!current_class_.empty() && find_method(current_class_, name)) {
+            const auto private_it = classes_.at(current_class_).private_methods.find(name);
+            if (private_it != classes_.at(current_class_).private_methods.end() &&
+                current_class_ != private_it->second) {
+                error("PRIVATE_MEMBER",
+                      "Private method '" + name + "' is only accessible inside class '" +
+                          private_it->second + "'.",
+                      expression.span);
+            }
             const auto internal = *find_method(current_class_, name);
             method_calls_[&expression] = MethodCallInfo{internal};
             call_resolutions_[&expression] =

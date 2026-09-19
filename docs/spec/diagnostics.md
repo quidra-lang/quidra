@@ -59,7 +59,6 @@ Codes are contracts for the category of failure. Message wording may become more
 | `OVERRIDE_REQUIRED` | A method replaces an inherited method without `override`. | Add `override`. |
 | `PARSE_DEPTH` | Parser nesting exceeds the safety budget. | Reduce pathological nesting. |
 | `PARSE_ERROR` | Tokens do not form valid Quidra grammar. | Correct the syntax near the reported span. |
-| `PRIVATE_MEMBER` | Code reads, writes, addresses, calls, or otherwise accesses a private class member outside its declaring class. | Access it through a public API of the declaring class; named construction may still initialize private fields. |
 | `PRIVATE_MEMBER` | A private field is read, written, or addressed outside its declaring class, or a private method is called outside its declaring class. | Access the member only from a method declared by its owning class, or expose an intentional public method. Private fields may still be supplied by name during construction. |
 | `PATCH_HASH_MISMATCH` | A patch node changed since inspection. | Re-inspect and use the new hash. |
 | `PATCH_OVERLAP` | Patch operations target overlapping spans. | Split or remove overlapping replacements. |

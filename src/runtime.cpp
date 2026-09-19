@@ -5504,12 +5504,15 @@ void* neural_grad_device(
     unsigned long long line,unsigned long long column) {
     std::unordered_set<const NeuralNode*> seen;
     std::vector<std::shared_ptr<NeuralNode>> order;
+    seen.reserve(64);
+    order.reserve(64);
     neural_topological(loss,seen,order);
 
     if(!loss->device_tensor||tensor_logical_count(*loss->device_tensor)!=1)
         neural_fail("grad requires a scalar GPU loss",line,column);
 
     std::unordered_map<const NeuralNode*,TensorValue*> gradients;
+    gradients.reserve(order.size());
     auto* initial=neural_device_filled_like(*loss,true,line,column);
     gradients.emplace(loss.get(),initial);
     auto output=std::make_shared<NeuralGradientData>();
@@ -5861,9 +5864,12 @@ void* neural_grad_t(
     unsigned long long line,unsigned long long column) {
     std::unordered_set<const NeuralNode*> seen;
     std::vector<std::shared_ptr<NeuralNode>> order;
+    seen.reserve(64);
+    order.reserve(64);
     neural_topological(loss,seen,order);
 
     std::unordered_map<const NeuralNode*,std::vector<T>> gradients;
+    gradients.reserve(order.size());
     gradients[loss.get()]={T{1}};
     auto output=std::make_shared<NeuralGradientData>();
 

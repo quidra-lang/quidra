@@ -2015,6 +2015,7 @@ class DerivedSecret : BaseSecret
     private void hidden()
         return
 class MiddleSecret : BaseSecret
+    int marker = 0
 class DerivedSecret : MiddleSecret
     void hidden()
         return

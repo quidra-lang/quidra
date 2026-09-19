@@ -821,6 +821,54 @@ void add_local_completions(
     }
 }
 
+std::optional<std::string> completion_receiver_class(
+    const CheckedProgram& checked,const Expr& receiver) {
+    const auto found=checked.expr_types.find(&receiver);
+    if(found==checked.expr_types.end()||found->second.kind!=TypeKind::Class)
+        return std::nullopt;
+    return found->second.class_name;
+}
+
+std::vector<CompletionSymbol> member_completions_at(
+    const CheckedProgram& checked,std::string_view source,std::size_t offset) {
+    const auto tokens=Lexer(source).scan();
+    std::optional<Token> previous;
+    for(const auto& token:tokens) {
+        if(token.span.start.offset>=offset) break;
+        if(token.kind!=TokenKind::Newline&&token.kind!=TokenKind::Indent&&
+           token.kind!=TokenKind::Dedent&&token.kind!=TokenKind::Eof)
+            previous=token;
+    }
+    if(!previous||previous->kind!=TokenKind::Dot) return {};
+
+    const Expr* best=nullptr;
+    for(const auto& [expression,type]:checked.expr_types) {
+        if(expression->span.end.offset!=previous->span.start.offset) continue;
+        if(type.kind!=TypeKind::Class) continue;
+        if(!best||expression->span.start.offset>best->span.start.offset) best=expression;
+    }
+    if(!best) return {};
+    const auto receiver_class=completion_receiver_class(checked,*best);
+    if(!receiver_class) return {};
+    const auto info=checked.classes.find(*receiver_class);
+    if(info==checked.classes.end()) return {};
+
+    std::vector<CompletionSymbol> result;
+    for(const auto& field:info->second.fields) {
+        if(field.is_private) continue;
+        result.push_back({field.name,5,type_name(field.type)});
+    }
+    for(const auto& [name,internal]:info->second.methods) {
+        if(info->second.private_methods.contains(name)) continue;
+        const auto function=checked.functions.find(internal);
+        result.push_back({name,2,function==checked.functions.end()?"method":type_name(function->second.result)});
+    }
+    std::sort(result.begin(),result.end(),[](const auto& left,const auto& right) {
+        return left.name<right.name;
+    });
+    return result;
+}
+
 std::vector<CompletionSymbol> completions_at(
     const Program& program,std::string_view source,std::size_t offset) {
     std::vector<CompletionSymbol> result;
@@ -1389,7 +1437,11 @@ private:
         const auto offset=raw_offset(source,request_position(message));
         try {
             const auto program=root_program(source);
-            const auto items=completions_at(program,source,offset);
+            auto items=completions_at(program,source,offset);
+            if(offset>0&&source[offset-1]=='.') {
+                const auto checked=semantic_check(uri,source.substr(0,offset-1));
+                items=member_completions_at(checked,source.substr(0,offset-1),offset-1);
+            }
             std::ostringstream result;
             result<<"[";
             for(std::size_t i=0;i<items.size();++i) {

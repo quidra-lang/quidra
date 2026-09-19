@@ -3537,8 +3537,14 @@ struct Lowerer {
                 static_cast<std::uint32_t>(n.iterable->span.start.column),
                 iterable_initialization_proven,true,iterable_initialization_guard});
         }
-        if(array_type.kind!=TypeKind::Bin) element=copy_value(element,item);
-        block->instructions.push_back(StoreLocal{iter_name,element,item});
+        const bool borrowed_iteration =
+            array_type.kind == TypeKind::Array && !n.writable &&
+            uses_shared_immutable_storage(item) &&
+            !block_mutates_parameter(n.body, n.name);
+        if(array_type.kind!=TypeKind::Bin && !borrowed_iteration)
+            element=copy_value(element,item);
+        block->instructions.push_back(
+            StoreLocal{iter_name,element,item,borrowed_iteration});
         loop_targets.push_back({step_label,break_label});
         lower_loop_statement_sequence(n.body);
         loop_targets.pop_back();

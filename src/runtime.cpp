@@ -833,6 +833,44 @@ extern "C" char* quidra_runtime_try_copy_text_bytes(
     return copy_validated_runtime_text(view, codepoints);
 }
 
+extern "C" char* quidra_runtime_allocate_text_buffer(
+    unsigned long long size) {
+    if (size >
+        static_cast<unsigned long long>(
+            std::numeric_limits<std::size_t>::max() - 1)) {
+        return nullptr;
+    }
+    const auto bytes = static_cast<std::size_t>(size);
+    auto* result =
+        static_cast<char*>(managed_allocate_string(bytes + 1));
+    result[bytes] = '\0';
+    return result;
+}
+
+extern "C" bool quidra_runtime_commit_text_buffer(
+    char* data, unsigned long long size) {
+    if (!data ||
+        size > static_cast<unsigned long long>(
+            std::numeric_limits<std::size_t>::max())) {
+        return false;
+    }
+    const auto bytes = static_cast<std::size_t>(size);
+    const auto it =
+        managed_allocations.find(reinterpret_cast<std::uintptr_t>(data));
+    if (it == managed_allocations.end() ||
+        it->second.size < bytes + 1) {
+        return false;
+    }
+    std::size_t codepoints = 0;
+    bool contains_nul = false;
+    const auto view = std::string_view(data, bytes);
+    if (!valid_utf8(view, &codepoints, &contains_nul) || contains_nul)
+        return false;
+    data[bytes] = '\0';
+    mark_managed_string(data, bytes, codepoints);
+    return true;
+}
+
 extern "C" unsigned long long quidra_runtime_text_byte_length(
     const char* text) {
     ManagedAllocation* allocation = nullptr;

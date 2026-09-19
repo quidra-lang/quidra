@@ -301,6 +301,14 @@ print(reals[1])
  llvm_not_contains(
      "map.Map<bigint, int> values = map.Map<bigint, int>()\nbigint key = bigint(7)\nvalues.set(key, 2)\nauto value = values.get(key)\n",
      "call ptr @quidra_bigint_text");
+ // Standard map/set slot capacities are compiler-owned powers of two, so hot
+ // probing uses masking rather than signed remainder and branchy wraparound.
+ llvm_not_contains(
+     "map.Map<int, int> values = map.Map<int, int>()\nvalues.set(1, 2)\nauto value = values.get(1)\n",
+     "srem i64");
+ llvm_not_contains(
+     "set.Set<int> values = set.Set<int>()\nvalues.add(1)\nbool present = values.has(1)\n",
+     "srem i64");
 
  // Hot string/parse patterns keep their source semantics while lowering to
  // allocation-light native operations.

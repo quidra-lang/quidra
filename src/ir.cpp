@@ -46,6 +46,314 @@ struct Lowerer {
     std::unordered_map<std::string, std::string> scalar_length_of_array;
     std::unordered_map<std::string, std::string> array_length_from_scalar;
 
+    struct NonnegativeIntegerRange {
+        std::uint64_t minimum{};
+        std::uint64_t maximum{};
+    };
+    std::unordered_map<std::string, NonnegativeIntegerRange>
+        proven_nonnegative_integer_ranges;
+
+    std::optional<NonnegativeIntegerRange> fixed_nonnegative_range(
+        const Type& type) const {
+        switch (type.kind) {
+            case TypeKind::Bool: return NonnegativeIntegerRange{0, 1};
+            case TypeKind::UInt8: return NonnegativeIntegerRange{0, 255};
+            case TypeKind::UInt16: return NonnegativeIntegerRange{0, 65535};
+            case TypeKind::UInt32:
+                return NonnegativeIntegerRange{
+                    0, std::numeric_limits<std::uint32_t>::max()};
+            default: return std::nullopt;
+        }
+    }
+
+    std::optional<NonnegativeIntegerRange> nonnegative_integer_range(
+        const Expr& expression,
+        const std::unordered_map<std::string, NonnegativeIntegerRange>& facts) const {
+        if (const auto fixed = fixed_nonnegative_range(type_of(expression)))
+            return fixed;
+
+        constexpr auto signed_limit =
+            static_cast<std::uint64_t>(std::numeric_limits<long long>::max());
+
+        if (const auto* literal = std::get_if<IntegerExpr>(&expression.data)) {
+            if (!literal->fits_u64 || literal->value > signed_limit)
+                return std::nullopt;
+            return NonnegativeIntegerRange{literal->value, literal->value};
+        }
+
+        if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+            if (checked.field_accesses.contains(&expression) ||
+                is_source_reference(name->name))
+                return std::nullopt;
+            const auto found = facts.find(name->name);
+            if (found != facts.end()) return found->second;
+            return std::nullopt;
+        }
+
+        if (const auto* call = std::get_if<CallExpr>(&expression.data)) {
+            const auto resolution = checked.call_resolutions.find(&expression);
+            if (resolution != checked.call_resolutions.end() &&
+                resolution->second.kind == CallKind::NumericCast &&
+                type_of(expression).kind == TypeKind::Int &&
+                call->args.size() == 1 && call->args.front().value) {
+                const auto source =
+                    nonnegative_integer_range(*call->args.front().value, facts);
+                if (source && source->maximum <= signed_limit) return source;
+            }
+            return std::nullopt;
+        }
+
+        const auto* binary = std::get_if<BinaryExpr>(&expression.data);
+        if (!binary || type_of(expression).kind != TypeKind::Int)
+            return std::nullopt;
+        const auto left = nonnegative_integer_range(*binary->left, facts);
+        const auto right = nonnegative_integer_range(*binary->right, facts);
+        if (!left || !right) return std::nullopt;
+
+        if (binary->op == "+") {
+            if (left->maximum > signed_limit - right->maximum)
+                return std::nullopt;
+            return NonnegativeIntegerRange{
+                left->minimum + right->minimum,
+                left->maximum + right->maximum};
+        }
+        if (binary->op == "-") {
+            if (left->minimum < right->maximum)
+                return std::nullopt;
+            return NonnegativeIntegerRange{
+                left->minimum - right->maximum,
+                left->maximum - right->minimum};
+        }
+        if (binary->op == "*") {
+            if (left->maximum != 0 &&
+                right->maximum > signed_limit / left->maximum)
+                return std::nullopt;
+            return NonnegativeIntegerRange{
+                left->minimum * right->minimum,
+                left->maximum * right->maximum};
+        }
+        if ((binary->op == "%" || binary->op == "/") &&
+            right->minimum == right->maximum && right->minimum != 0) {
+            const auto divisor = right->minimum;
+            if (binary->op == "%") {
+                return NonnegativeIntegerRange{
+                    0, std::min(left->maximum, divisor - 1)};
+            }
+            return NonnegativeIntegerRange{
+                left->minimum / divisor, left->maximum / divisor};
+        }
+        return std::nullopt;
+    }
+
+    std::optional<NonnegativeIntegerRange> nonnegative_integer_range(
+        const Expr& expression) const {
+        return nonnegative_integer_range(
+            expression, proven_nonnegative_integer_ranges);
+    }
+
+    bool integer_overflow_proven(const Expr& expression) const {
+        const auto* binary = std::get_if<BinaryExpr>(&expression.data);
+        if (!binary || type_of(expression).kind != TypeKind::Int ||
+            (binary->op != "+" && binary->op != "-" && binary->op != "*"))
+            return false;
+        return nonnegative_integer_range(expression).has_value();
+    }
+
+    struct IntegerRangeCandidate {
+        NonnegativeIntegerRange initial;
+        std::optional<std::uint64_t> modulus;
+        std::vector<const Expr*> numerators;
+        std::size_t assignments{};
+        bool invalid{};
+    };
+
+    void inspect_integer_range_candidate(
+        const std::vector<StmtPtr>& body, const std::string& name,
+        const std::unordered_map<std::string, NonnegativeIntegerRange>& constants,
+        IntegerRangeCandidate& candidate) const {
+        const std::unordered_set<std::string> rooted_name{name};
+        const auto inspect_expression = [&](const Expr& expression) {
+            return expression_may_replace_array_reference(
+                expression, rooted_name);
+        };
+
+        for (const auto& statement : body) {
+            const auto& data = statement->data;
+            if (const auto* binding = std::get_if<BindingStmt>(&data)) {
+                if (binding->value &&
+                    ((binding->reference || binding->reference_initializer) &&
+                     storage_root_is(*binding->value, name)))
+                    candidate.invalid = true;
+                if (binding->value && inspect_expression(*binding->value))
+                    candidate.invalid = true;
+            } else if (const auto* assign = std::get_if<AssignStmt>(&data)) {
+                const auto* target =
+                    std::get_if<NameExpr>(&assign->target->data);
+                if (target && target->name == name &&
+                    !checked.field_accesses.contains(assign->target.get()) &&
+                    !is_source_reference(target->name)) {
+                    ++candidate.assignments;
+                    if (!assign->compound_op.empty()) {
+                        candidate.invalid = true;
+                    } else {
+                        const auto* modulo =
+                            std::get_if<BinaryExpr>(&assign->value->data);
+                        if (!modulo || modulo->op != "%") {
+                            candidate.invalid = true;
+                        } else {
+                            const auto divisor =
+                                nonnegative_integer_range(
+                                    *modulo->right, constants);
+                            if (!divisor ||
+                                divisor->minimum != divisor->maximum ||
+                                divisor->minimum == 0) {
+                                candidate.invalid = true;
+                            } else {
+                                if (candidate.modulus &&
+                                    *candidate.modulus != divisor->minimum)
+                                    candidate.invalid = true;
+                                candidate.modulus = divisor->minimum;
+                                candidate.numerators.push_back(
+                                    modulo->left.get());
+                            }
+                        }
+                    }
+                }
+                if (inspect_expression(*assign->target) ||
+                    inspect_expression(*assign->value))
+                    candidate.invalid = true;
+            } else if (const auto* rebind =
+                           std::get_if<RebindStmt>(&data)) {
+                if (storage_root_is(*rebind->target, name) ||
+                    inspect_expression(*rebind->target))
+                    candidate.invalid = true;
+            } else if (const auto* returned =
+                           std::get_if<ReturnStmt>(&data)) {
+                if (returned->value && inspect_expression(*returned->value))
+                    candidate.invalid = true;
+            } else if (const auto* expression =
+                           std::get_if<ExprStmt>(&data)) {
+                if (inspect_expression(*expression->value))
+                    candidate.invalid = true;
+            } else if (const auto* branch = std::get_if<IfStmt>(&data)) {
+                if (inspect_expression(*branch->condition))
+                    candidate.invalid = true;
+                inspect_integer_range_candidate(
+                    branch->then_body, name, constants, candidate);
+                inspect_integer_range_candidate(
+                    branch->else_body, name, constants, candidate);
+            } else if (const auto* loop = std::get_if<WhileStmt>(&data)) {
+                if (inspect_expression(*loop->condition))
+                    candidate.invalid = true;
+                inspect_integer_range_candidate(
+                    loop->body, name, constants, candidate);
+            } else if (const auto* loop = std::get_if<ForStmt>(&data)) {
+                if ((loop->writable &&
+                     storage_root_is(*loop->iterable, name)) ||
+                    inspect_expression(*loop->iterable))
+                    candidate.invalid = true;
+                inspect_integer_range_candidate(
+                    loop->body, name, constants, candidate);
+            } else if (const auto* match = std::get_if<MatchStmt>(&data)) {
+                if (inspect_expression(*match->value))
+                    candidate.invalid = true;
+                for (const auto& match_case : match->cases)
+                    inspect_integer_range_candidate(
+                        match_case.body, name, constants, candidate);
+            }
+        }
+    }
+
+    void prepare_integer_range_facts(const std::vector<StmtPtr>& body) {
+        proven_nonnegative_integer_ranges.clear();
+
+        // Function-scope const integers are immutable range facts and may also
+        // serve as exact positive divisors in modulo invariants.
+        for (const auto& statement : body) {
+            const auto* binding =
+                std::get_if<BindingStmt>(&statement->data);
+            if (!binding || !binding->is_const || binding->reference ||
+                !binding->value)
+                continue;
+            const auto type = checked.binding_types.find(statement.get());
+            if (type == checked.binding_types.end() ||
+                type->second.kind != TypeKind::Int)
+                continue;
+            if (const auto range =
+                    nonnegative_integer_range(
+                        *binding->value, proven_nonnegative_integer_ranges))
+                proven_nonnegative_integer_ranges[binding->name] = *range;
+        }
+
+        struct PendingCandidate {
+            std::string name;
+            IntegerRangeCandidate candidate;
+        };
+        std::vector<PendingCandidate> pending;
+
+        for (const auto& statement : body) {
+            const auto* binding =
+                std::get_if<BindingStmt>(&statement->data);
+            if (!binding || binding->is_const || binding->reference ||
+                !binding->value)
+                continue;
+            const auto type = checked.binding_types.find(statement.get());
+            if (type == checked.binding_types.end() ||
+                type->second.kind != TypeKind::Int)
+                continue;
+            const auto initial =
+                nonnegative_integer_range(
+                    *binding->value, proven_nonnegative_integer_ranges);
+            if (!initial) continue;
+            IntegerRangeCandidate candidate{*initial};
+            inspect_integer_range_candidate(
+                body, binding->name,
+                proven_nonnegative_integer_ranges, candidate);
+            pending.push_back(
+                PendingCandidate{binding->name, std::move(candidate)});
+        }
+
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            for (auto& item : pending) {
+                if (proven_nonnegative_integer_ranges.contains(item.name) ||
+                    item.candidate.invalid)
+                    continue;
+
+                if (item.candidate.assignments == 0) {
+                    proven_nonnegative_integer_ranges[item.name] =
+                        item.candidate.initial;
+                    changed = true;
+                    continue;
+                }
+                if (!item.candidate.modulus ||
+                    item.candidate.initial.maximum >=
+                        *item.candidate.modulus)
+                    continue;
+
+                auto provisional = proven_nonnegative_integer_ranges;
+                provisional[item.name] =
+                    NonnegativeIntegerRange{
+                        0, *item.candidate.modulus - 1};
+
+                bool safe = true;
+                for (const auto* numerator : item.candidate.numerators) {
+                    if (!nonnegative_integer_range(
+                            *numerator, provisional)) {
+                        safe = false;
+                        break;
+                    }
+                }
+                if (!safe) continue;
+
+                proven_nonnegative_integer_ranges[item.name] =
+                    provisional[item.name];
+                changed = true;
+            }
+        }
+    }
+
     explicit Lowerer(
         const CheckedProgram& c, const Expr* repl = nullptr,
         std::size_t replay_prefix_offset = 0)
@@ -1728,7 +2036,8 @@ struct Lowerer {
                     block->instructions.push_back(Binary{
                         out,binary->op,left,right,left_type,type_of(*current),
                         static_cast<std::uint32_t>(current->span.start.line),
-                        static_cast<std::uint32_t>(current->span.start.column)});
+                        static_cast<std::uint32_t>(current->span.start.column),
+                        integer_overflow_proven(*current)});
                 }
 
                 // Source operands are evaluated once. Release the original values;
@@ -4907,7 +5216,7 @@ struct Lowerer {
     }
 
     void begin_function(Function out) {
-        module.functions.push_back(std::move(out));fn=&module.functions.back();next_value=1;next_label=0;next_hidden=0;locals.clear();local_names.clear();reference_names.clear();references.clear();fully_initialized_array_locals.clear();reference_array_initialization.clear();active_range_bounds.clear();scalar_length_of_array.clear();array_length_from_scalar.clear();shaped_constraints.clear();array_constraints.clear();contextual_tensor_shapes.clear();return_shaped_constraints.clear();return_array_constraints.clear();fn->blocks.push_back(Block{"entry",{}});block=&fn->blocks.back();
+        module.functions.push_back(std::move(out));fn=&module.functions.back();next_value=1;next_label=0;next_hidden=0;locals.clear();local_names.clear();reference_names.clear();references.clear();fully_initialized_array_locals.clear();reference_array_initialization.clear();active_range_bounds.clear();scalar_length_of_array.clear();array_length_from_scalar.clear();proven_nonnegative_integer_ranges.clear();shaped_constraints.clear();array_constraints.clear();contextual_tensor_shapes.clear();return_shaped_constraints.clear();return_array_constraints.clear();fn->blocks.push_back(Block{"entry",{}});block=&fn->blocks.back();
         for(const auto& p:fn->parameters){locals[p.name]=p.type;local_names[p.name]=p.name;}
         for(const auto& p:fn->parameters){
             if((p.type.kind!=TypeKind::Tensor&&p.type.kind!=TypeKind::Neural)||
@@ -4935,6 +5244,7 @@ struct Lowerer {
             p.name, p.type, p.writable, parameter_is_borrowed(source.name, i), p.is_const});}
         if(out.external_symbol){module.functions.push_back(std::move(out));return;}
         current_class.clear();begin_function(std::move(out));
+        prepare_integer_range_facts(source.body);
         cache_reference_array_initialization(sig, source.body);
         capture_signature_constraints(source,0);
         lower_loop_statement_sequence(source.body);
@@ -4952,6 +5262,7 @@ struct Lowerer {
             p.name, p.type, p.writable,
             p.name=="$receiver"||parameter_is_borrowed(internal,i), p.is_const});}
         current_class=class_name;begin_function(std::move(out));
+        prepare_integer_range_facts(source.body);
         cache_reference_array_initialization(sig, source.body);
         capture_signature_constraints(source,1);
         lower_loop_statement_sequence(source.body);
@@ -4971,6 +5282,7 @@ struct Lowerer {
         out.entrypoint = true;
         current_class.clear();
         begin_function(std::move(out));
+        prepare_integer_range_facts(statements);
 
         bool replaying = repl_replay_prefix_offset != 0;
         if (!replaying) {
@@ -5166,7 +5478,7 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,Retain>)out<<"%"<<n.out<<" = retain %"<<n.value<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,Release>)out<<"release %"<<n.value<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,Unary>)out<<"%"<<n.out<<" = "<<n.op<<" %"<<n.operand;
-    if constexpr(std::is_same_v<T,Binary>)out<<"%"<<n.out<<" = "<<n.op<<" %"<<n.left<<", %"<<n.right;
+    if constexpr(std::is_same_v<T,Binary>)out<<"%"<<n.out<<" = "<<n.op<<" %"<<n.left<<", %"<<n.right<<(n.overflow_proven?" no-overflow":"");
     if constexpr(std::is_same_v<T,ToString>)out<<"%"<<n.out<<" = text %"<<n.value<<" : "<<type_name(n.source_type);
     if constexpr(std::is_same_v<T,FormatNumber>){
         out<<"%"<<n.out<<" = format %"<<n.value<<" : "<<type_name(n.source_type);

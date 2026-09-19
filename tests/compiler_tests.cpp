@@ -2130,6 +2130,20 @@ print(result)
     return value
 print(identity<int, int>(1))
 )", "GENERIC_ARITY");
+ good(R"(void | error read_open_file(string path)
+    file.Handle handle = try file.open(path)
+    string text = try handle.read()
+    handle.close()
+    return void
+)");
+ good(R"(void | error read_open_bin(string path)
+    file.Handle handle = try file.open(path)
+    bin data = try handle.read_bin()
+    return void
+)");
+ bad_code(R"(void close_readonly(const file.Handle &handle)
+    handle.close()
+)", "WRITE_CAPABILITY");
  good(R"(enum Token
     Number(float)
     Name(string)

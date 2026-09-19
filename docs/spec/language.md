@@ -634,13 +634,26 @@ quidra run app.qui -- input.png --count 5 --verbose
 `file` provides simple whole-file and filesystem operations:
 
 ```quidra
-auto text = file.read("input.txt")              // string | error
+auto text = file.read("input.txt")               // string | error
 auto raw = file.read_bin("input.bin")            // bin | error
 auto saved = file.write("out.txt", "x")          // void | error
 auto present = file.exists("out.txt")            // bool | error
 ```
 
 It also exports `remove`, `copy`, `move`, and `mkdir`, each returning `void | error`. `file.list(path)` returns `string[] | error`: on success it contains the direct child paths of the directory, non-recursively, sorted lexicographically so enumeration order is deterministic. Returned paths preserve the directory prefix supplied by the caller. I/O failure is typed data rather than an implicit process abort. `read` and `write` are text-oriented whole-file operations. `read` accepts only valid UTF-8 without embedded NUL and returns `error` for invalid text. `read_bin(path) -> bin | error` and `write_bin(path, bin) -> void | error` are binary whole-file operations. File input produces a byte-aligned `bin`; file output requires `len(value) % 8 == 0` and otherwise fails deterministically. Arbitrary byte values, including NUL and invalid UTF-8, are preserved exactly. `file.list` converts host paths to UTF-8 and returns `error` if a path cannot be represented as Quidra text. Text and binary I/O are separate so arbitrary bytes never enter `string` storage implicitly.
+
+For incremental ownership of an open file, `file.open(path) -> file.Handle | error` returns an opaque resource handle:
+
+```quidra
+string | error read_open_file(string path)
+    file.Handle handle = try file.open(path)
+    string text = try handle.read()
+    return text
+```
+
+`file.Handle.read() -> string | error` and `read_bin() -> bin | error` consume the remaining bytes from the handle's current position. `close() -> void` is an optional early release and is idempotent. If `close()` is not called, the native file is closed deterministically when the last live handle to that resource leaves its lifetime; no `defer` or manual cleanup is required.
+
+A `file.Handle` is an opaque external-resource capability rather than ordinary pure data. Copying or passing a handle preserves the same underlying file identity: copies share the current stream position and closed state. Therefore closing one copy closes that resource for every copy. This aliasing is deliberate and source-visible through the `file.Handle` type; it does not apply to ordinary classes, arrays, strings, tensors, or other value-semantic data.
 
 ### environment
 

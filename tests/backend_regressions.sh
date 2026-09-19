@@ -24,6 +24,26 @@ verify_and_run() {
     fi
 }
 
+printf 'scope' > "$TMP/file-handle-cleanup.txt"
+cat > "$TMP/file-handle-cleanup.qui" <<QUI
+void | error consume(string path)
+    file.Handle handle = try file.open(path)
+    string text = try handle.read()
+    print(text)
+    return void
+
+auto result = consume("$TMP/file-handle-cleanup.txt")
+match result
+    void
+        print("done")
+    error problem
+        print(problem)
+QUI
+"$QUIDRA" llvm "$TMP/file-handle-cleanup.qui" > "$TMP/file-handle-cleanup.ll"
+"$OPT" -passes=verify -disable-output "$TMP/file-handle-cleanup.ll"
+grep -Eq 'call void @quidra_managed_release\(ptr [^,]+, ptr @quidra_file_handle_drop\)' "$TMP/file-handle-cleanup.ll"
+[[ "$("$QUIDRA" run "$TMP/file-handle-cleanup.qui")" == $'scope\ndone' ]]
+
 cat > "$TMP/short-circuit.qui" <<'QUI'
 int a = 4
 if a % 2 == 0 and a % 4 == 0

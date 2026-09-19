@@ -294,7 +294,7 @@ std::string ptx_conv2d_backward_source(int dtype,int kind) {
       " .param .u64 p_ci,\n .param .u64 p_h,\n .param .u64 p_w,\n"
       " .param .u64 p_co,\n .param .u64 p_kh,\n .param .u64 p_kw,\n"
       " .param .u64 p_oh,\n .param .u64 p_ow,\n .param .u64 p_stride,\n"
-      " .param .u64 p_padding)\n{\n"
+      " .param .u64 p_padding,\n .param .u64 p_bias)\n{\n"
       " .reg .pred %p<16>;\n .reg .b32 %r<16>;\n .reg .b64 %rd<96>;\n"
       <<(f32?" .reg .f32 %f<12>;\n":" .reg .f64 %fd<12>;\n")
       <<" ld.param.u64 %rd1,[p_out];\n ld.param.u64 %rd2,[p_grad];\n"
@@ -305,6 +305,7 @@ std::string ptx_conv2d_backward_source(int dtype,int kind) {
         " ld.param.u64 %rd11,[p_kh];\n ld.param.u64 %rd12,[p_kw];\n"
         " ld.param.u64 %rd13,[p_oh];\n ld.param.u64 %rd14,[p_ow];\n"
         " ld.param.u64 %rd15,[p_stride];\n ld.param.u64 %rd16,[p_padding];\n"
+        " ld.param.u64 %rd18,[p_bias];\n"
         " mov.u32 %r1,%ctaid.x;\n mov.u32 %r2,%ntid.x;\n mov.u32 %r3,%tid.x;\n"
         " mad.lo.s32 %r4,%r1,%r2,%r3;\n cvt.u64.u32 %rd17,%r4;\n"
         " setp.ge.u64 %p1,%rd17,%rd5;\n @%p1 bra DONE;\n";
@@ -341,22 +342,31 @@ std::string ptx_conv2d_backward_source(int dtype,int kind) {
         o<<" rem.u64 %rd20,%rd17,%rd12;\n div.u64 %rd21,%rd17,%rd12;\n"
           " rem.u64 %rd22,%rd21,%rd11;\n div.u64 %rd23,%rd21,%rd11;\n"
           " rem.u64 %rd24,%rd23,%rd7;\n div.u64 %rd25,%rd23,%rd7;\n"
-          " mov.u64 %rd30,0;\nNLOOP:\n setp.ge.u64 %p2,%rd30,%rd6;\n @%p2 bra STORE;\n"
+          " setp.eq.u64 %p11,%rd24,0;\n setp.eq.u64 %p12,%rd22,0;\n"
+          " and.pred %p11,%p11,%p12;\n setp.eq.u64 %p12,%rd20,0;\n"
+          " and.pred %p11,%p11,%p12;\n";
+        if(f32)o<<" mov.f32 %f5,0f00000000;\n";
+        else o<<" mov.f64 %fd5,0d0000000000000000;\n";
+        o<<" mov.u64 %rd30,0;\nNLOOP:\n setp.ge.u64 %p2,%rd30,%rd6;\n @%p2 bra STORE;\n"
           " mov.u64 %rd31,0;\nOY:\n setp.ge.u64 %p3,%rd31,%rd13;\n @%p3 bra NEXT_N;\n"
           " mov.u64 %rd32,0;\nOX:\n setp.ge.u64 %p4,%rd32,%rd14;\n @%p4 bra NEXT_OY;\n"
-          " mul.lo.u64 %rd33,%rd31,%rd15;\n add.u64 %rd33,%rd33,%rd22;\n"
+          // Bias uses every gradient position, including positions whose
+          // corresponding padded input is outside the source tensor.
+          " mul.lo.u64 %rd45,%rd30,%rd10;\n add.u64 %rd45,%rd45,%rd25;\n"
+          " mul.lo.u64 %rd45,%rd45,%rd13;\n add.u64 %rd45,%rd45,%rd31;\n"
+          " mul.lo.u64 %rd45,%rd45,%rd14;\n add.u64 %rd45,%rd45,%rd32;\n"
+          <<" mul.lo.u64 %rd49,%rd45,"<<bytes<<";\n add.u64 %rd50,%rd2,%rd49;\n";
+        if(f32)o<<" ld.global.f32 %f2,[%rd50];\n @%p11 add.f32 %f5,%f5,%f2;\n";
+        else o<<" ld.global.f64 %fd2,[%rd50];\n @%p11 add.f64 %fd5,%fd5,%fd2;\n";
+        o<<" mul.lo.u64 %rd33,%rd31,%rd15;\n add.u64 %rd33,%rd33,%rd22;\n"
           " setp.lt.u64 %p5,%rd33,%rd16;\n @%p5 bra SKIP;\n sub.u64 %rd33,%rd33,%rd16;\n"
           " setp.ge.u64 %p6,%rd33,%rd8;\n @%p6 bra SKIP;\n"
           " mul.lo.u64 %rd34,%rd32,%rd15;\n add.u64 %rd34,%rd34,%rd20;\n"
           " setp.lt.u64 %p7,%rd34,%rd16;\n @%p7 bra SKIP;\n sub.u64 %rd34,%rd34,%rd16;\n"
           " setp.ge.u64 %p8,%rd34,%rd9;\n @%p8 bra SKIP;\n"
-          " mul.lo.u64 %rd45,%rd30,%rd10;\n add.u64 %rd45,%rd45,%rd25;\n"
-          " mul.lo.u64 %rd45,%rd45,%rd13;\n add.u64 %rd45,%rd45,%rd31;\n"
-          " mul.lo.u64 %rd45,%rd45,%rd14;\n add.u64 %rd45,%rd45,%rd32;\n"
           " mul.lo.u64 %rd48,%rd30,%rd7;\n add.u64 %rd48,%rd48,%rd24;\n"
           " mul.lo.u64 %rd48,%rd48,%rd8;\n add.u64 %rd48,%rd48,%rd33;\n"
           " mul.lo.u64 %rd48,%rd48,%rd9;\n add.u64 %rd48,%rd48,%rd34;\n"
-          <<" mul.lo.u64 %rd49,%rd45,"<<bytes<<";\n add.u64 %rd50,%rd2,%rd49;\n"
           <<" mul.lo.u64 %rd51,%rd48,"<<bytes<<";\n add.u64 %rd52,%rd3,%rd51;\n";
     }else{
         o<<" mov.u64 %rd30,0;\nNLOOP:\n setp.ge.u64 %p2,%rd30,%rd6;\n @%p2 bra STORE;\n"
@@ -367,14 +377,19 @@ std::string ptx_conv2d_backward_source(int dtype,int kind) {
           " mul.lo.u64 %rd45,%rd45,%rd14;\n add.u64 %rd45,%rd45,%rd32;\n"
           <<" mul.lo.u64 %rd49,%rd45,"<<bytes<<";\n add.u64 %rd50,%rd2,%rd49;\n";
     }
-    if(f32)o<<" ld.global.f32 %f2,[%rd50];\n";
-    else o<<" ld.global.f64 %fd2,[%rd50];\n";
-    if(kind!=3){
+    if(kind==2){
         if(f32)o<<" ld.global.f32 %f3,[%rd52];\n mul.f32 %f4,%f2,%f3;\n add.f32 %f1,%f1,%f4;\n";
         else o<<" ld.global.f64 %fd3,[%rd52];\n mul.f64 %fd4,%fd2,%fd3;\n add.f64 %fd1,%fd1,%fd4;\n";
     }else{
-        if(f32)o<<" add.f32 %f1,%f1,%f2;\n";
-        else o<<" add.f64 %fd1,%fd1,%fd2;\n";
+        if(f32)o<<" ld.global.f32 %f2,[%rd50];\n";
+        else o<<" ld.global.f64 %fd2,[%rd50];\n";
+        if(kind!=3){
+            if(f32)o<<" ld.global.f32 %f3,[%rd52];\n mul.f32 %f4,%f2,%f3;\n add.f32 %f1,%f1,%f4;\n";
+            else o<<" ld.global.f64 %fd3,[%rd52];\n mul.f64 %fd4,%fd2,%fd3;\n add.f64 %fd1,%fd1,%fd4;\n";
+        }else{
+            if(f32)o<<" add.f32 %f1,%f1,%f2;\n";
+            else o<<" add.f64 %fd1,%fd1,%fd2;\n";
+        }
     }
     o<<"SKIP:\n";
     if(kind==1)o<<" add.u64 %rd32,%rd32,1;\n bra KX;\nNEXT_KY:\n add.u64 %rd31,%rd31,1;\n bra KY;\nNEXT_OC:\n add.u64 %rd30,%rd30,1;\n bra OC;\n";
@@ -383,11 +398,54 @@ std::string ptx_conv2d_backward_source(int dtype,int kind) {
       <<" mul.lo.u64 %rd60,%rd17,"<<bytes<<";\n add.u64 %rd61,%rd1,%rd60;\n";
     if(f32)o<<" st.global.f32 [%rd61],%f1;\n";
     else o<<" st.global.f64 [%rd61],%fd1;\n";
+    if(kind==2){
+        o<<" mul.lo.u64 %rd62,%rd25,"<<bytes<<";\n add.u64 %rd63,%rd18,%rd62;\n";
+        if(f32)o<<" @%p11 st.global.f32 [%rd63],%f5;\n";
+        else o<<" @%p11 st.global.f64 [%rd63],%fd5;\n";
+    }
     o<<"DONE:\n ret;\n}\n";
     return o.str();
 }
 
 std::string hip_conv2d_backward_source(int dtype,int kind) {
+    const char* t=dtype==10?"float":"double";
+    std::ostringstream o;
+    o<<"#include <hip/hip_runtime.h>\nextern \"C\" __global__ void q_kernel("
+      <<t<<"* out,const "<<t<<"* grad,const "<<t<<"* input,const "<<t<<"* weight,"
+      "unsigned long long count,unsigned long long batches,unsigned long long ci,"
+      "unsigned long long h,unsigned long long w,unsigned long long co,"
+      "unsigned long long kh,unsigned long long kw,unsigned long long oh,"
+      "unsigned long long ow,unsigned long long stride,unsigned long long padding,"
+      <<t<<"* bias_gradient){"
+      "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+      "if(i>=count)return;"<<t<<" sum=0;";
+    if(kind==1){
+        o<<"unsigned long long ix=i%w,t=i/w,iy=t%h;t/=h;unsigned long long ic=t%ci,n=t/ci;"
+          "for(unsigned long long oc=0;oc<co;++oc)for(unsigned long long ky=0;ky<kh;++ky)"
+          "for(unsigned long long kx=0;kx<kw;++kx){long long ny=(long long)iy+(long long)padding-(long long)ky;"
+          "long long nx=(long long)ix+(long long)padding-(long long)kx;"
+          "if(ny<0||nx<0||ny%(long long)stride||nx%(long long)stride)continue;"
+          "unsigned long long oy=(unsigned long long)(ny/(long long)stride),ox=(unsigned long long)(nx/(long long)stride);"
+          "if(oy>=oh||ox>=ow)continue;unsigned long long gi=((n*co+oc)*oh+oy)*ow+ox;"
+          "unsigned long long wi=((oc*ci+ic)*kh+ky)*kw+kx;sum+=grad[gi]*weight[wi];}";
+    }else if(kind==2){
+        o<<"unsigned long long kx=i%kw,t=i/kw,ky=t%kh;t/=kh;unsigned long long ic=t%ci,oc=t/ci;"
+          "bool reduce_bias=(ic==0&&ky==0&&kx==0);"<<t<<" bias_sum=0;"
+          "for(unsigned long long n=0;n<batches;++n)for(unsigned long long oy=0;oy<oh;++oy)"
+          "for(unsigned long long ox=0;ox<ow;++ox){unsigned long long gi=((n*co+oc)*oh+oy)*ow+ox;"
+          <<t<<" g=grad[gi];if(reduce_bias)bias_sum+=g;"
+          "long long iy=(long long)(oy*stride+ky)-(long long)padding;"
+          "long long ix=(long long)(ox*stride+kx)-(long long)padding;"
+          "if(iy<0||ix<0||iy>=(long long)h||ix>=(long long)w)continue;"
+          "unsigned long long ii=((n*ci+ic)*h+(unsigned long long)iy)*w+(unsigned long long)ix;"
+          "sum+=g*input[ii];}if(reduce_bias)bias_gradient[oc]=bias_sum;";
+    }else{
+        o<<"unsigned long long oc=i;for(unsigned long long n=0;n<batches;++n)for(unsigned long long oy=0;oy<oh;++oy)"
+          "for(unsigned long long ox=0;ox<ow;++ox)sum+=grad[((n*co+oc)*oh+oy)*ow+ox];";
+    }
+    o<<"out[i]=sum;}\n";
+    return o.str();
+}(int dtype,int kind) {
     const char* t=dtype==10?"float":"double";
     std::ostringstream o;
     o<<"#include <hip/hip_runtime.h>\nextern \"C\" __global__ void q_kernel("
@@ -428,11 +486,12 @@ std::string msl_conv2d_backward_source(int kind) {
     o<<"#include <metal_stdlib>\nusing namespace metal;\nkernel void q_kernel("
       "device float* out [[buffer(0)]],const device float* grad [[buffer(1)]],"
       "const device float* input [[buffer(2)]],const device float* weight [[buffer(3)]],"
-      "constant ulong& count [[buffer(4)]],constant ulong& batches [[buffer(5)]],"
-      "constant ulong& ci [[buffer(6)]],constant ulong& h [[buffer(7)]],constant ulong& w [[buffer(8)]],"
-      "constant ulong& co [[buffer(9)]],constant ulong& kh [[buffer(10)]],constant ulong& kw [[buffer(11)]],"
-      "constant ulong& oh [[buffer(12)]],constant ulong& ow [[buffer(13)]],constant ulong& stride [[buffer(14)]],"
-      "constant ulong& padding [[buffer(15)]],uint gid [[thread_position_in_grid]]){"
+      "device float* bias_gradient [[buffer(4)]],"
+      "constant ulong& count [[buffer(5)]],constant ulong& batches [[buffer(6)]],"
+      "constant ulong& ci [[buffer(7)]],constant ulong& h [[buffer(8)]],constant ulong& w [[buffer(9)]],"
+      "constant ulong& co [[buffer(10)]],constant ulong& kh [[buffer(11)]],constant ulong& kw [[buffer(12)]],"
+      "constant ulong& oh [[buffer(13)]],constant ulong& ow [[buffer(14)]],constant ulong& stride [[buffer(15)]],"
+      "constant ulong& padding [[buffer(16)]],uint gid [[thread_position_in_grid]]){"
       "ulong i=ulong(gid);if(i>=count)return;float sum=0.0f;";
     if(kind==1){
         o<<"ulong ix=i%w,t=i/w,iy=t%h;t/=h;ulong ic=t%ci,n=t/ci;"
@@ -443,10 +502,13 @@ std::string msl_conv2d_backward_source(int kind) {
           "sum+=grad[((n*co+oc)*oh+oy)*ow+ox]*weight[((oc*ci+ic)*kh+ky)*kw+kx];}";
     }else if(kind==2){
         o<<"ulong kx=i%kw,t=i/kw,ky=t%kh;t/=kh;ulong ic=t%ci,oc=t/ci;"
+          "bool reduce_bias=(ic==0&&ky==0&&kx==0);float bias_sum=0.0f;"
           "for(ulong n=0;n<batches;++n)for(ulong oy=0;oy<oh;++oy)for(ulong ox=0;ox<ow;++ox){"
+          "ulong gi=((n*co+oc)*oh+oy)*ow+ox;float g=grad[gi];if(reduce_bias)bias_sum+=g;"
           "long iy=long(oy*stride+ky)-long(padding),ix=long(ox*stride+kx)-long(padding);"
           "if(iy<0||ix<0||iy>=long(h)||ix>=long(w))continue;"
-          "sum+=grad[((n*co+oc)*oh+oy)*ow+ox]*input[((n*ci+ic)*h+ulong(iy))*w+ulong(ix)];}";
+          "sum+=g*input[((n*ci+ic)*h+ulong(iy))*w+ulong(ix)];}"
+          "if(reduce_bias)bias_gradient[oc]=bias_sum;";
     }else{
         o<<"ulong oc=i;for(ulong n=0;n<batches;++n)for(ulong oy=0;oy<oh;++oy)for(ulong ox=0;ox<ow;++ox)"
           "sum+=grad[((n*co+oc)*oh+oy)*ow+ox];";
@@ -1028,18 +1090,19 @@ bool compute_conv2d_backward(
         error="neural convolution backward requires a floating dtype";return false;
     }
 #endif
-    const auto launch_counts=std::array<std::size_t,3>{input_count,weight_count,channels_out};
+    const auto launch_counts=std::array<std::size_t,2>{input_count,weight_count};
     if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Nvidia){
         if(cudnn_conv2d_backward(input_gradient,weight_gradient,bias_gradient,
                                  gradient,input,weight,dtype,batches,channels_in,
                                  height,width,channels_out,kernel_h,kernel_w,
                                  output_h,output_w,stride,padding))
             return true;
-        for(int kind=1;kind<=3;++kind){
-            Buffer* target=kind==1?input_gradient:kind==2?weight_gradient:bias_gradient;
+        for(int kind=1;kind<=2;++kind){
+            Buffer* target=kind==1?input_gradient:weight_gradient;
             auto ptx=ptx_conv2d_backward_source(dtype,kind);
             auto out_ptr=target->cuda_pointer,g_ptr=gradient->cuda_pointer,
-                 in_ptr=input->cuda_pointer,w_ptr=weight->cuda_pointer;
+                 in_ptr=input->cuda_pointer,w_ptr=weight->cuda_pointer,
+                 bias_ptr=bias_gradient->cuda_pointer;
             auto count=static_cast<std::uint64_t>(launch_counts[kind-1]);
             auto ba=static_cast<std::uint64_t>(batches),ci=static_cast<std::uint64_t>(channels_in),
                  h=static_cast<std::uint64_t>(height),w=static_cast<std::uint64_t>(width),
@@ -1047,17 +1110,25 @@ bool compute_conv2d_backward(
                  kw=static_cast<std::uint64_t>(kernel_w),oh=static_cast<std::uint64_t>(output_h),
                  ow=static_cast<std::uint64_t>(output_w),st=static_cast<std::uint64_t>(stride),
                  pa=static_cast<std::uint64_t>(padding);
-            void* args[]={&out_ptr,&g_ptr,&in_ptr,&w_ptr,&count,&ba,&ci,&h,&w,&co,&kh,&kw,&oh,&ow,&st,&pa};
-            if(!launch_ptx_1d(target,"conv2d-backward-"+std::to_string(dtype)+"-"+std::to_string(kind),
-                              ptx,launch_counts[kind-1],args,error))return false;
+            void* args[]={
+                &out_ptr,&g_ptr,&in_ptr,&w_ptr,&count,&ba,&ci,&h,&w,&co,&kh,&kw,
+                &oh,&ow,&st,&pa,&bias_ptr
+            };
+            if(!launch_ptx_1d(
+                   target,
+                   "conv2d-backward-"+std::to_string(dtype)+"-"+std::to_string(kind),
+                   ptx,launch_counts[kind-1],args,error))
+                return false;
         }
         return true;
     }
     if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Amd){
-        for(int kind=1;kind<=3;++kind){
-            Buffer* target=kind==1?input_gradient:kind==2?weight_gradient:bias_gradient;
+        for(int kind=1;kind<=2;++kind){
+            Buffer* target=kind==1?input_gradient:weight_gradient;
             auto source=hip_conv2d_backward_source(dtype,kind);
-            auto out_ptr=target->pointer,g_ptr=gradient->pointer,in_ptr=input->pointer,w_ptr=weight->pointer;
+            auto out_ptr=target->pointer,g_ptr=gradient->pointer,
+                 in_ptr=input->pointer,w_ptr=weight->pointer,
+                 bias_ptr=bias_gradient->pointer;
             auto count=static_cast<std::uint64_t>(launch_counts[kind-1]);
             auto ba=static_cast<std::uint64_t>(batches),ci=static_cast<std::uint64_t>(channels_in),
                  h=static_cast<std::uint64_t>(height),w=static_cast<std::uint64_t>(width),
@@ -1065,18 +1136,25 @@ bool compute_conv2d_backward(
                  kw=static_cast<std::uint64_t>(kernel_w),oh=static_cast<std::uint64_t>(output_h),
                  ow=static_cast<std::uint64_t>(output_w),st=static_cast<std::uint64_t>(stride),
                  pa=static_cast<std::uint64_t>(padding);
-            void* args[]={&out_ptr,&g_ptr,&in_ptr,&w_ptr,&count,&ba,&ci,&h,&w,&co,&kh,&kw,&oh,&ow,&st,&pa};
-            if(!launch_hip_1d(target,"conv2d-backward-"+std::to_string(dtype)+"-"+std::to_string(kind),
-                              source,launch_counts[kind-1],args,error))return false;
+            void* args[]={
+                &out_ptr,&g_ptr,&in_ptr,&w_ptr,&count,&ba,&ci,&h,&w,&co,&kh,&kw,
+                &oh,&ow,&st,&pa,&bias_ptr
+            };
+            if(!launch_hip_1d(
+                   target,
+                   "conv2d-backward-"+std::to_string(dtype)+"-"+std::to_string(kind),
+                   source,launch_counts[kind-1],args,error))
+                return false;
         }
         return true;
     }
 #ifdef __APPLE__
     if(dtype==10&&input_gradient->backend==Backend::Metal){
-        for(int kind=1;kind<=3;++kind){
-            Buffer* target=kind==1?input_gradient:kind==2?weight_gradient:bias_gradient;
+        for(int kind=1;kind<=2;++kind){
+            Buffer* target=kind==1?input_gradient:weight_gradient;
             auto source=msl_conv2d_backward_source(kind);
-            auto pipeline=cached_metal_pipeline([target->metal_buffer device],
+            auto pipeline=cached_metal_pipeline(
+                [target->metal_buffer device],
                 "conv2d-backward-f32-"+std::to_string(kind),source,error);
             if(!pipeline)return false;
             auto count=static_cast<std::uint64_t>(launch_counts[kind-1]);
@@ -1086,14 +1164,28 @@ bool compute_conv2d_backward(
                  kw=static_cast<std::uint64_t>(kernel_w),oh=static_cast<std::uint64_t>(output_h),
                  ow=static_cast<std::uint64_t>(output_w),st=static_cast<std::uint64_t>(stride),
                  pa=static_cast<std::uint64_t>(padding);
-            if(!dispatch_metal_1d(target,pipeline,launch_counts[kind-1],[&](id<MTLComputeCommandEncoder> e){
-                [e setBuffer:target->metal_buffer offset:0 atIndex:0];[e setBuffer:gradient->metal_buffer offset:0 atIndex:1];
-                [e setBuffer:input->metal_buffer offset:0 atIndex:2];[e setBuffer:weight->metal_buffer offset:0 atIndex:3];
-                [e setBytes:&count length:8 atIndex:4];[e setBytes:&ba length:8 atIndex:5];[e setBytes:&ci length:8 atIndex:6];
-                [e setBytes:&h length:8 atIndex:7];[e setBytes:&w length:8 atIndex:8];[e setBytes:&co length:8 atIndex:9];
-                [e setBytes:&kh length:8 atIndex:10];[e setBytes:&kw length:8 atIndex:11];[e setBytes:&oh length:8 atIndex:12];
-                [e setBytes:&ow length:8 atIndex:13];[e setBytes:&st length:8 atIndex:14];[e setBytes:&pa length:8 atIndex:15];
-            },error))return false;
+            if(!dispatch_metal_1d(
+                   target,pipeline,launch_counts[kind-1],
+                   [&](id<MTLComputeCommandEncoder> e){
+                       [e setBuffer:target->metal_buffer offset:0 atIndex:0];
+                       [e setBuffer:gradient->metal_buffer offset:0 atIndex:1];
+                       [e setBuffer:input->metal_buffer offset:0 atIndex:2];
+                       [e setBuffer:weight->metal_buffer offset:0 atIndex:3];
+                       [e setBuffer:bias_gradient->metal_buffer offset:0 atIndex:4];
+                       [e setBytes:&count length:8 atIndex:5];
+                       [e setBytes:&ba length:8 atIndex:6];
+                       [e setBytes:&ci length:8 atIndex:7];
+                       [e setBytes:&h length:8 atIndex:8];
+                       [e setBytes:&w length:8 atIndex:9];
+                       [e setBytes:&co length:8 atIndex:10];
+                       [e setBytes:&kh length:8 atIndex:11];
+                       [e setBytes:&kw length:8 atIndex:12];
+                       [e setBytes:&oh length:8 atIndex:13];
+                       [e setBytes:&ow length:8 atIndex:14];
+                       [e setBytes:&st length:8 atIndex:15];
+                       [e setBytes:&pa length:8 atIndex:16];
+                   },error))
+                return false;
         }
         return true;
     }

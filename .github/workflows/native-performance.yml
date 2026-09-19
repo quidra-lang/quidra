@@ -38,7 +38,7 @@ jobs:
           QUIDRA_BIN: ${{ github.workspace }}/build/quidra
         run: |
           python3 "benchmark/2026-09-17-7677581(latest)/scripts/run_micro_suite.py" \
-            --configs quidra_native,quidra_interpreter,cpp,rust,go \
+            --configs quidra_native,cpp,rust,go \
             --repeats 5 --warmups 2 --timeout 1800 \
             --out "${RUNNER_TEMP}/native-micro.json"
       - name: Summarize measurements
@@ -53,11 +53,8 @@ jobs:
           data=json.load(open(path))
           rows=[]
           by={}
-          display_name={
-              "quidra_interpreter": "quidra_compile_execute",
-          }
           for r in data["results"]:
-              cfg=display_name.get(r["config"],r["config"])
+              cfg=r["config"]
               if r.get("status")!="ok":
                   rows.append((cfg,r["workload"],r.get("status"),None,None,None,None,None))
                   continue
@@ -73,7 +70,6 @@ jobs:
                   lines.append(f"| {cfg} | {wl} | {status} | - | - | - | - | - |")
               else:
                   lines.append(f"| {cfg} | {wl} | {status} | {wall:.4f} | {rss/1048576:.1f} | {comp:.4f} | {size/1024:.1f} | {first:.4f} |")
-          lines.append("\n> Historical config `quidra_interpreter` invokes `quidra run`; the summary labels it `quidra_compile_execute` because it includes compile+link+execute and is not an interpreter/REPL measurement.")
           lines.append("\n## Mean wall time across 11 workloads")
           for cfg,vals in by.items():
               lines.append(f"- {cfg}: {statistics.mean(vals):.4f} s")

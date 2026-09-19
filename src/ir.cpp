@@ -2753,6 +2753,95 @@ struct Lowerer {
         return out;
     }
 
+    bool lower_string_array_join_pair(
+        const Stmt& array_statement, const Stmt& join_statement,
+        bool used_later) {
+        if (used_later) return false;
+        const auto* array_binding =
+            std::get_if<BindingStmt>(&array_statement.data);
+        const auto* join_binding =
+            std::get_if<BindingStmt>(&join_statement.data);
+        if (!array_binding || !join_binding || array_binding->reference ||
+            join_binding->reference || !array_binding->value ||
+            !join_binding->value)
+            return false;
+
+        const auto array_type = checked.binding_types.at(&array_statement);
+        const auto result_type = checked.binding_types.at(&join_statement);
+        if (array_type.kind != TypeKind::Array || !array_type.first ||
+            array_type.first->kind != TypeKind::String ||
+            result_type.kind != TypeKind::String)
+            return false;
+
+        const auto* array =
+            std::get_if<ArrayExpr>(&array_binding->value->data);
+        const auto* join =
+            std::get_if<MethodCallExpr>(&join_binding->value->data);
+        if (!array || array->elements.empty() || !join ||
+            join->method != "join" || join->args.size() != 1 ||
+            join->args[0].writable)
+            return false;
+        const auto* receiver = std::get_if<NameExpr>(&join->receiver->data);
+        if (!receiver || receiver->name != array_binding->name)
+            return false;
+        for (const auto& element : array->elements)
+            if (!string_build_element_supported(*element)) return false;
+
+        block->instructions.push_back(SourceLocation{
+            static_cast<std::uint32_t>(array_statement.span.start.line),
+            static_cast<std::uint32_t>(array_statement.span.start.column)});
+        std::vector<StringBuildPart> parts;
+        parts.reserve(array->elements.size());
+        for (const auto& element : array->elements)
+            parts.push_back(lower_string_build_element(*element));
+
+        block->instructions.push_back(SourceLocation{
+            static_cast<std::uint32_t>(join_statement.span.start.line),
+            static_cast<std::uint32_t>(join_statement.span.start.column)});
+        auto separator = expr(*join->args[0].value);
+        auto built = fresh();
+        block->instructions.push_back(
+            StringBuild{built, std::move(parts), separator});
+        release_temporary(*join->args[0].value, separator);
+
+        const auto local_name =
+            bind_source_local(join_binding->name, result_type);
+        block->instructions.push_back(DeclareLocal{
+            local_name, result_type, join_binding->name,
+            static_cast<std::uint32_t>(join_statement.span.start.line),
+            static_cast<std::uint32_t>(join_statement.span.start.column)});
+        block->instructions.push_back(
+            StoreLocal{local_name, built, result_type});
+        return true;
+    }
+
+    void lower_loop_statement_sequence(
+        const std::vector<StmtPtr>& statements) {
+        for (std::size_t i = 0; i < statements.size(); ++i) {
+            if (i + 1 < statements.size()) {
+                const auto* binding =
+                    std::get_if<BindingStmt>(&statements[i]->data);
+                bool used_later = false;
+                if (binding) {
+                    for (std::size_t j = i + 2;
+                         j < statements.size() && !used_later; ++j) {
+                        used_later = statement_mentions_name(
+                            *statements[j], binding->name);
+                    }
+                }
+                if (binding &&
+                    lower_string_array_join_pair(
+                        *statements[i], *statements[i + 1], used_later)) {
+                    ++i;
+                    if (terminated()) break;
+                    continue;
+                }
+            }
+            stmt(*statements[i]);
+            if (terminated()) break;
+        }
+    }
+
     void lower_for(const ForStmt& n) {
         const auto* range_call=std::get_if<CallExpr>(&n.iterable->data);
         const auto range_resolution=checked.call_resolutions.find(n.iterable.get());
@@ -2779,7 +2868,7 @@ struct Lowerer {
             block->instructions.push_back(Binary{a,"and",pos,lt,Type::simple(TypeKind::Bool),Type::simple(TypeKind::Bool)}); block->instructions.push_back(Binary{b,"and",neg,gt,Type::simple(TypeKind::Bool),Type::simple(TypeKind::Bool)}); block->instructions.push_back(Binary{c,"or",a,b,Type::simple(TypeKind::Bool),Type::simple(TypeKind::Bool)}); block->instructions.push_back(Branch{c,body_name,done});
             auto& bb=add_block(body_name); block=&bb; auto cur=fresh(); block->instructions.push_back(LoadLocal{cur,i_name,locals[i_name]}); block->instructions.push_back(StoreLocal{iter_name,cur,locals[iter_name]});
             loop_targets.push_back({step_label,done});
-            for(const auto& s:n.body){ stmt(*s); if(terminated()) break; }
+            lower_loop_statement_sequence(n.body);
             loop_targets.pop_back();
             if(!terminated()) block->instructions.push_back(Jump{step_label});
             auto& sb=add_block(step_label); block=&sb;
@@ -2818,7 +2907,7 @@ struct Lowerer {
         if(array_type.kind!=TypeKind::Bin) element=copy_value(element,item);
         block->instructions.push_back(StoreLocal{iter_name,element,item});
         loop_targets.push_back({step_label,break_label});
-        for(const auto& s:n.body){ stmt(*s); if(terminated()) break; }
+        lower_loop_statement_sequence(n.body);
         loop_targets.pop_back();
         if(!terminated()) block->instructions.push_back(Jump{step_label});
 
@@ -3891,6 +3980,7 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,StringCodepoints>)out<<"%"<<n.out<<" = string.codepoints %"<<n.text;
     if constexpr(std::is_same_v<T,StringJoin>)out<<"%"<<n.out<<" = string.join %"<<n.values<<", %"<<n.separator;
     if constexpr(std::is_same_v<T,StringConcat>){out<<"%"<<n.out<<" = string.concat";for(const auto value:n.values)out<<" %"<<value;}
+    if constexpr(std::is_same_v<T,StringBuild>){out<<"%"<<n.out<<" = string.build";for(const auto& part:n.parts)out<<" %"<<part.value<<":"<<type_name(part.type);out<<" sep %"<<n.separator;}
     if constexpr(std::is_same_v<T,StringCanAppendMove>)out<<"%"<<n.out<<" = string.can_append_move %"<<n.text;
     if constexpr(std::is_same_v<T,StringAppendMove>){out<<"%"<<n.out<<" = string.append_move %"<<n.text;for(const auto value:n.suffixes)out<<" %"<<value;}
     if constexpr(std::is_same_v<T,BinAlloc>)out<<"%"<<n.out<<" = bin.alloc %"<<n.length<<", %"<<n.fill;

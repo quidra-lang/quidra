@@ -1279,12 +1279,12 @@ private:
                         value=signature_label(call->callee,function->second);
                     }
                 }
-            } else if(const auto* call=std::get_if<MethodCallExpr>(&expression->data)) {
+            } else if(const auto* method_call=std::get_if<MethodCallExpr>(&expression->data)) {
                 if(const auto method=checked.method_calls.find(expression);
                    method!=checked.method_calls.end()) {
                     if(const auto function=checked.functions.find(method->second.internal_name);
                        function!=checked.functions.end()) {
-                        value=signature_label(call->method,function->second);
+                        value=signature_label(method_call->method,function->second);
                     }
                 }
             }
@@ -1314,10 +1314,10 @@ private:
             if(!expression) { respond(id,"null"); return; }
 
             std::string name;
-            if(const auto* node=std::get_if<NameExpr>(&expression->data)) name=node->name;
-            else if(const auto* node=std::get_if<CallExpr>(&expression->data)) name=node->callee;
-            else if(const auto* node=std::get_if<MemberExpr>(&expression->data)) name=node->name;
-            else if(const auto* node=std::get_if<MethodCallExpr>(&expression->data)) name=node->method;
+            if(const auto* name_node=std::get_if<NameExpr>(&expression->data)) name=name_node->name;
+            else if(const auto* call_node=std::get_if<CallExpr>(&expression->data)) name=call_node->callee;
+            else if(const auto* member_node=std::get_if<MemberExpr>(&expression->data)) name=member_node->name;
+            else if(const auto* method_node=std::get_if<MethodCallExpr>(&expression->data)) name=method_node->method;
             if(name.empty()) { respond(id,"null"); return; }
 
             const auto tokens=Lexer(source).scan();
@@ -1384,9 +1384,9 @@ private:
                     const auto found=checked.functions.find(resolution->second.target);
                     if(found!=checked.functions.end()) function=&found->second;
                 }
-            } else if(const auto* call=std::get_if<MethodCallExpr>(&expression->data)) {
-                name=call->method;
-                arguments=&call->args;
+            } else if(const auto* method_call=std::get_if<MethodCallExpr>(&expression->data)) {
+                name=method_call->method;
+                arguments=&method_call->args;
                 const auto resolution=checked.method_calls.find(expression);
                 if(resolution!=checked.method_calls.end()) {
                     const auto found=checked.functions.find(resolution->second.internal_name);

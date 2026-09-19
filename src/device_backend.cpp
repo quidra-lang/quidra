@@ -291,10 +291,6 @@ struct CublasApi {
                     const double*, double*, int){};
     std::vector<Handle> handles;
     std::vector<std::shared_ptr<std::mutex>> operation_mutexes;
-    // Reusable per-device cuDNN scratch. A device's operation mutex serializes
-    // access, so steady-state convolution does not need per-call allocation.
-    std::vector<CudaApi::CUdeviceptr> workspaces;
-    std::vector<std::size_t> workspace_sizes;
     std::mutex mutex;
     bool ready{};
 
@@ -440,6 +436,10 @@ struct CudnnApi {
                                         const void*,TensorDescriptor,void*){};
     std::vector<Handle> handles;
     std::vector<std::shared_ptr<std::mutex>> operation_mutexes;
+    // Reusable per-device cuDNN scratch. A device's operation mutex serializes
+    // access, so steady-state convolution does not need per-call allocation.
+    std::vector<CudaApi::CUdeviceptr> workspaces;
+    std::vector<std::size_t> workspace_sizes;
     std::mutex mutex;
     bool ready{};
 

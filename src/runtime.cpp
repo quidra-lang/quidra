@@ -129,6 +129,28 @@ struct ManagedFinalization {
 using ManagedAllocations = std::unordered_map<std::uintptr_t, ManagedAllocation>;
 thread_local ManagedAllocations managed_allocations;
 thread_local std::uint64_t next_managed_identity = 1;
+thread_local const char* cached_managed_string_text = nullptr;
+thread_local ManagedAllocation* cached_managed_string_allocation = nullptr;
+
+ManagedAllocation* exact_managed_string(const char* text) {
+    if (text && text == cached_managed_string_text &&
+        cached_managed_string_allocation) {
+        return cached_managed_string_allocation;
+    }
+    if (!text) return nullptr;
+    const auto it =
+        managed_allocations.find(reinterpret_cast<std::uintptr_t>(text));
+    if (it == managed_allocations.end()) return nullptr;
+    cached_managed_string_text = text;
+    cached_managed_string_allocation = &it->second;
+    return cached_managed_string_allocation;
+}
+
+void invalidate_managed_string_cache(const ManagedAllocation* allocation) {
+    if (cached_managed_string_allocation != allocation) return;
+    cached_managed_string_text = nullptr;
+    cached_managed_string_allocation = nullptr;
+}
 
 void neural_moment_cache_release(void* value);
 // Interior references need an ordered range index, but exact owner operations do not.
@@ -432,10 +454,7 @@ std::string_view cached_string_view(const char* text, ManagedAllocation*& alloca
     allocation = nullptr;
     if (!text) runtime_text_failure("null string");
 
-    const auto exact =
-        managed_allocations.find(reinterpret_cast<std::uintptr_t>(text));
-    ManagedAllocation* found =
-        exact == managed_allocations.end() ? nullptr : &exact->second;
+    ManagedAllocation* found = exact_managed_string(text);
     if (!found) {
         auto* containing = managed_containing(text);
         if (containing && containing->shared_string_slab) found = containing;
@@ -801,6 +820,7 @@ extern "C" void quidra_managed_release(void* value, void* drop_function) {
     if (allocation->owners == 0 && allocation->pins == 0) {
         const auto key = reinterpret_cast<std::uintptr_t>(allocation->base);
         const ManagedFinalization finalization{allocation->base, allocation->drop};
+        invalidate_managed_string_cache(allocation);
         neural_moment_cache_release(allocation->base);
         if (allocation->interior_range_tracked) {
             clear_managed_range_cache(allocation);
@@ -838,6 +858,7 @@ extern "C" void quidra_managed_unpin(void* address) {
     if (allocation->owners == 0 && allocation->pins == 0) {
         const auto key = reinterpret_cast<std::uintptr_t>(allocation->base);
         const ManagedFinalization finalization{allocation->base, allocation->drop};
+        invalidate_managed_string_cache(allocation);
         neural_moment_cache_release(allocation->base);
         if (allocation->interior_range_tracked) {
             clear_managed_range_cache(allocation);
@@ -6780,11 +6801,10 @@ extern "C" char* quidra_string_index(const char* text, long long index,
     // file and benchmark text. UTF-8 validation already proved that code-point
     // and byte offsets are identical, so preserve full Quidra string semantics
     // while making s[i] as cheap as an ordinary byte-indexed string access.
-    if (const auto it =
-            managed_allocations.find(reinterpret_cast<std::uintptr_t>(text));
-        it != managed_allocations.end() && it->second.string_ascii_known &&
-        it->second.string_ascii) {
-        const auto length = it->second.string_byte_length;
+    if (auto* allocation = exact_managed_string(text);
+        allocation && allocation->string_ascii_known &&
+        allocation->string_ascii) {
+        const auto length = allocation->string_byte_length;
         const auto position = static_cast<std::size_t>(index);
         if (position >= length) {
             std::fprintf(stderr,
@@ -7144,6 +7164,7 @@ extern "C" char* quidra_string_append_move_many(
         }
         const auto new_bytes = new_capacity + 1;
         const auto old_bytes = allocation.size;
+        invalidate_managed_string_cache(&allocation);
         result = static_cast<char*>(std::realloc(raw, new_bytes));
         if (!result) runtime_allocation_failure();
         if (new_bytes > old_bytes) {

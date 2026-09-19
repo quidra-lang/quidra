@@ -568,6 +568,26 @@ std::string_view cached_string_view(const char* text, ManagedAllocation*& alloca
 std::string_view validated_string_view(
     const char* text, ManagedAllocation*& allocation,
     std::size_t* codepoints = nullptr) {
+    // Cached iterator slices come from an already validated UTF-8 source.
+    // Splitting a valid UTF-8 string on a valid UTF-8 separator cannot create
+    // an invalid code-point boundary, so reparsing every hot-loop slice is
+    // redundant. Keep per-slice length metadata out of the backing allocation.
+    if (text && text == cached_shared_string_text &&
+        cached_shared_string_allocation) {
+        allocation = nullptr;
+        const auto source =
+            std::string_view(text, cached_shared_string_length);
+        if (codepoints) {
+            if (cached_shared_string_allocation->string_ascii_known &&
+                cached_shared_string_allocation->string_ascii) {
+                *codepoints = source.size();
+            } else {
+                *codepoints = utf8_length(source);
+            }
+        }
+        return source;
+    }
+
     const auto source = cached_string_view(text, allocation);
     if (allocation && allocation->string_utf8_validated) {
         if (codepoints) {
@@ -7254,6 +7274,10 @@ static void* quidra_string_split_iter_begin_impl(
     }
     slab_it->second.shared_string_slab = true;
     slab_it->second.owners = 1;
+    if (source_allocation && source_allocation->string_ascii_known) {
+        slab_it->second.string_ascii_known = true;
+        slab_it->second.string_ascii = source_allocation->string_ascii;
+    }
     iterator->slab = slab;
     return iterator;
 }

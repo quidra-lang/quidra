@@ -76,7 +76,16 @@ int main() {
 
     void* split_iter = quidra_string_split_iter_begin("a::b::", "::");
     char* iter_a = quidra_string_split_iter_next(split_iter);
+    // Keep the iterator's backing-allocation identity valid even if unrelated
+    // managed allocations grow/rehash the allocation table between slices.
+    char* split_cache_churn[256]{};
+    for (auto& value : split_cache_churn) {
+        value = quidra_runtime_try_copy_text_bytes("cache", 5);
+        if (!value) return 1;
+    }
     char* iter_b = quidra_string_split_iter_next(split_iter);
+    for (char* value : split_cache_churn)
+        quidra_managed_release(value, nullptr);
     char* iter_empty = quidra_string_split_iter_next(split_iter);
     if (!iter_a || !iter_b || !iter_empty ||
         std::strcmp(iter_a, "a") != 0 ||

@@ -7210,6 +7210,7 @@ extern "C" char* quidra_string_trim(const char* text) {
 
 struct QuidraStringSplitIterator {
     char* slab{};
+    ManagedAllocation* allocation{};
     std::size_t size{};
     std::size_t next{};
     std::string separator;
@@ -7257,6 +7258,7 @@ static void* quidra_string_split_iter_begin_impl(
         ++allocation.owners;
         allocation.shared_string_slab = true;
         iterator->slab = const_cast<char*>(text);
+        iterator->allocation = source_allocation;
         iterator->slab[source.size()] = '\0';
         return iterator;
     }
@@ -7279,6 +7281,7 @@ static void* quidra_string_split_iter_begin_impl(
         slab_it->second.string_ascii = source_allocation->string_ascii;
     }
     iterator->slab = slab;
+    iterator->allocation = &slab_it->second;
     return iterator;
 }
 
@@ -7319,8 +7322,7 @@ extern "C" char* quidra_string_split_iter_next(void* raw) {
         iterator.slab[iterator.size] = '\0';
         cached_shared_string_text = iterator.slab + start;
         cached_shared_string_length = iterator.size - start;
-        cached_shared_string_allocation =
-            exact_managed_string(iterator.slab);
+        cached_shared_string_allocation = iterator.allocation;
         return iterator.slab + start;
     }
 
@@ -7329,17 +7331,15 @@ extern "C" char* quidra_string_split_iter_next(void* raw) {
     iterator.next = position + iterator.separator.size();
     cached_shared_string_text = iterator.slab + start;
     cached_shared_string_length = position - start;
-    cached_shared_string_allocation =
-        exact_managed_string(iterator.slab);
+    cached_shared_string_allocation = iterator.allocation;
     return iterator.slab + start;
 }
 
 extern "C" void quidra_string_split_iter_end(void* raw) {
     if (!raw) return;
     auto* iterator = static_cast<QuidraStringSplitIterator*>(raw);
-    if (cached_shared_string_allocation ==
-        exact_managed_string(iterator->slab)) {
-        invalidate_shared_string_cache(cached_shared_string_allocation);
+    if (cached_shared_string_allocation == iterator->allocation) {
+        invalidate_shared_string_cache(iterator->allocation);
     }
     quidra_managed_release(iterator->slab, nullptr);
     delete iterator;

@@ -3349,6 +3349,119 @@ struct Lowerer {
     }
 
 
+    bool lower_utf8_array_match(const MatchStmt& match) {
+        const auto* conversion =
+            std::get_if<MethodCallExpr>(&match.value->data);
+        if (!conversion || conversion->method != "from_utf8" ||
+            conversion->args.size() != 1 ||
+            !conversion->args.front().value)
+            return false;
+        const auto* receiver =
+            std::get_if<NameExpr>(&conversion->receiver->data);
+        if (!receiver || receiver->name != "string")
+            return false;
+
+        const auto* packed =
+            std::get_if<CallExpr>(&conversion->args.front().value->data);
+        if (!packed || packed->callee != "bin" ||
+            packed->args.size() != 1 || !packed->args.front().value)
+            return false;
+        const auto packed_resolution =
+            checked.call_resolutions.find(conversion->args.front().value.get());
+        if (packed_resolution == checked.call_resolutions.end() ||
+            packed_resolution->second.type.kind != TypeKind::Bin ||
+            (packed_resolution->second.kind != CallKind::NumericCast &&
+             packed_resolution->second.kind != CallKind::Constructor))
+            return false;
+
+        const auto& source_expression = *packed->args.front().value;
+        const auto source_type = type_of(source_expression);
+        if (source_type.kind != TypeKind::Array || !source_type.first ||
+            source_type.first->kind != TypeKind::UInt8 ||
+            !array_expression_fully_initialized(source_expression))
+            return false;
+        const auto* source_name =
+            std::get_if<NameExpr>(&source_expression.data);
+        if (!source_name || is_source_reference(source_name->name) ||
+            checked.field_accesses.contains(&source_expression))
+            return false;
+
+        const auto result_type = type_of(*match.value);
+        if (result_type.kind != TypeKind::Union || match.cases.size() != 2)
+            return false;
+        const MatchCase* value_case = nullptr;
+        const MatchCase* error_case = nullptr;
+        for (const auto& current : match.cases) {
+            const auto current_type = checked.case_types.at(&current);
+            if (current_type.kind == TypeKind::String) value_case = &current;
+            else if (current_type.kind == TypeKind::Error) error_case = &current;
+            else return false;
+        }
+        if (!value_case || !error_case) return false;
+
+        auto array = expr(source_expression);
+        auto text = fresh();
+        auto ok = fresh();
+        auto error_value = fresh();
+        block->instructions.push_back(
+            StringFromUtf8ArrayDirect{text, ok, error_value, array});
+
+        const auto value_label = label("utf8.array.value");
+        const auto error_label = label("utf8.array.error");
+        const auto done = label("utf8.array.end");
+        block->instructions.push_back(Branch{ok, value_label, error_label});
+
+        auto before = locals;
+        auto before_names = local_names;
+        const auto before_full = fully_initialized_array_locals;
+        std::optional<std::unordered_set<std::string>> joined_full;
+
+        auto lower_case = [&](const MatchCase& current,
+                              const std::string& case_label,
+                              ValueId payload, const Type& payload_type,
+                              bool release_unbound) {
+            block = &add_block(case_label);
+            locals = before;
+            local_names = before_names;
+            fully_initialized_array_locals = before_full;
+            if (current.binder) {
+                const auto binder_name =
+                    bind_source_local(*current.binder, payload_type);
+                block->instructions.push_back(
+                    StoreLocal{binder_name, payload, payload_type, false});
+            } else if (release_unbound) {
+                block->instructions.push_back(
+                    Release{payload, payload_type});
+            }
+            for (const auto& statement : current.body) {
+                stmt(*statement);
+                if (terminated()) break;
+            }
+            if (!terminated()) {
+                if (joined_full)
+                    *joined_full = intersect_full_arrays(
+                        *joined_full, fully_initialized_array_locals);
+                else
+                    joined_full = fully_initialized_array_locals;
+                block->instructions.push_back(Jump{done});
+            }
+        };
+
+        lower_case(
+            *value_case, value_label, text,
+            Type::simple(TypeKind::String), true);
+        lower_case(
+            *error_case, error_label, error_value,
+            Type::simple(TypeKind::Error), false);
+
+        block = &add_block(done);
+        locals = before;
+        local_names = before_names;
+        if (joined_full) fully_initialized_array_locals = std::move(*joined_full);
+        else fully_initialized_array_locals.clear();
+        return true;
+    }
+
     // Numeric parse followed immediately by match does not need the
     // heap-backed T | error container on the successful path. Parse into scalar
     // storage, branch on success, and expose the same static error value only
@@ -4160,6 +4273,7 @@ struct Lowerer {
             return;
         }
         const auto& n=std::get<MatchStmt>(s.data);
+        if (lower_utf8_array_match(n)) return;
         if (lower_numeric_parse_match(n)) return;
         if (lower_standard_map_get_match(n)) return;
         const bool container_owned=expression_owns_result(*n.value);
@@ -4406,6 +4520,7 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,StringParseTwoSigned>)out<<"%"<<n.left<<", %"<<n.right<<", %"<<n.ok<<" = string.parse_two_signed %"<<n.text<<", "<<static_cast<unsigned>(n.separator);
     if constexpr(std::is_same_v<T,StringUtf8>)out<<"%"<<n.out<<" = string.utf8 %"<<n.text;
     if constexpr(std::is_same_v<T,StringFromUtf8>)out<<"%"<<n.out<<" = string.from_utf8 %"<<n.bin;
+    if constexpr(std::is_same_v<T,StringFromUtf8ArrayDirect>)out<<"%"<<n.text<<", %"<<n.ok<<", %"<<n.error<<" = string.from_utf8_array_direct %"<<n.array;
     if constexpr(std::is_same_v<T,StringCodepoints>)out<<"%"<<n.out<<" = string.codepoints %"<<n.text;
     if constexpr(std::is_same_v<T,StringJoin>)out<<"%"<<n.out<<" = string.join %"<<n.values<<", %"<<n.separator;
     if constexpr(std::is_same_v<T,StringConcat>){out<<"%"<<n.out<<" = string.concat";for(const auto value:n.values)out<<" %"<<value;}

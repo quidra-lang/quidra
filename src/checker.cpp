@@ -2722,8 +2722,23 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     const auto operation_type =
                         Type::function(simple(TypeKind::Void), {});
                     const auto operations_type = Type::array(operation_type);
-                    const auto operations =
-                        builtin_arg(0, "operations", &operations_type);
+                    const auto& argument = node->args[0];
+                    if (argument.writable ||
+                        (argument.name && *argument.name != "operations")) {
+                        error("ARGUMENT_MISMATCH", "Invalid builtin argument.", argument.span);
+                    }
+                    Type operations;
+                    if (const auto* literal =
+                            std::get_if<ArrayExpr>(&argument.value->data)) {
+                        bool any_poison = false;
+                        for (const auto& item : literal->items) {
+                            any_poison |= poisoned(check_expr(*item, &operation_type));
+                        }
+                        operations = any_poison ? simple(TypeKind::Invalid) : operations_type;
+                        if (!any_poison) expr_types_[argument.value.get()] = operations_type;
+                    } else {
+                        operations = check_expr(*argument.value, &operations_type);
+                    }
                     type = poisoned(operations)
                         ? simple(TypeKind::Invalid)
                         : simple(TypeKind::Void);

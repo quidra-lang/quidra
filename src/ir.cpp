@@ -3372,7 +3372,8 @@ struct Lowerer {
 
     bool lower_bound_string_split_for_pair(
         const Stmt& binding_statement, const Stmt& for_statement,
-        bool used_later) {
+        bool used_later,
+        const std::vector<const Stmt*>& prelude = {}) {
         if (used_later) return false;
         const auto* binding =
             std::get_if<BindingStmt>(&binding_statement.data);
@@ -3417,6 +3418,17 @@ struct Lowerer {
         release_temporary(*split->receiver, text);
         release_temporary(*split->args.front().value, separator);
 
+        // Preserve the original split-binding execution point. Independent
+        // scalar/local bindings between the split and its consuming loop are
+        // lowered here, after the cursor has captured the split value but
+        // before iteration begins.
+        for (const auto* statement : prelude) {
+            stmt(*statement);
+            if (terminated())
+                throw std::logic_error(
+                    "split-loop prelude unexpectedly terminated control flow");
+        }
+
         const auto item = Type::simple(TypeKind::String);
         const auto iter_name = bind_source_local(loop->name, item);
         const auto cond = label("split.binding.for.cond");
@@ -3457,6 +3469,46 @@ struct Lowerer {
     void lower_loop_statement_sequence(
         const std::vector<StmtPtr>& statements) {
         for (std::size_t i = 0; i < statements.size(); ++i) {
+            if (const auto* split_sequence_binding =
+                    std::get_if<BindingStmt>(&statements[i]->data);
+                split_sequence_binding && !split_sequence_binding->reference) {
+                std::vector<const Stmt*> prelude;
+                for (std::size_t k = i + 1; k < statements.size(); ++k) {
+                    if (const auto* loop =
+                            std::get_if<ForStmt>(&statements[k]->data)) {
+                        const auto* iterable_name =
+                            std::get_if<NameExpr>(&loop->iterable->data);
+                        if (!iterable_name ||
+                            iterable_name->name != split_sequence_binding->name)
+                            break;
+                        bool split_used_later = false;
+                        for (std::size_t j = k + 1;
+                             j < statements.size() && !split_used_later; ++j) {
+                            split_used_later = statement_mentions_name(
+                                *statements[j], split_sequence_binding->name);
+                        }
+                        if (lower_bound_string_split_for_pair(
+                                *statements[i], *statements[k],
+                                split_used_later, prelude)) {
+                            i = k;
+                            if (terminated()) break;
+                            goto next_loop_statement;
+                        }
+                        break;
+                    }
+
+                    // Only cross ordinary local bindings. Cursor creation stays
+                    // at the original split statement, so their execution order
+                    // and side effects remain unchanged.
+                    const auto* middle =
+                        std::get_if<BindingStmt>(&statements[k]->data);
+                    if (!middle || middle->reference ||
+                        statement_mentions_name(
+                            *statements[k], split_sequence_binding->name))
+                        break;
+                    prelude.push_back(statements[k].get());
+                }
+            }
             if (i + 1 < statements.size()) {
                 const auto* split_sequence_binding =
                     std::get_if<BindingStmt>(&statements[i]->data);
@@ -3549,6 +3601,8 @@ struct Lowerer {
             }
             stmt(*statements[i]);
             if (terminated()) break;
+next_loop_statement:
+            ;
         }
     }
 

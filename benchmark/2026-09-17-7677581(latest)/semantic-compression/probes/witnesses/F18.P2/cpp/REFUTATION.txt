@@ -1,1 +1,0 @@
-refutation witness: declaring and calling util::secret from a second TU fails to link: "Undefined symbols for architecture arm64: util::secret()"

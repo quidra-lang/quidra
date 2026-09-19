@@ -1,7 +1,0 @@
-$ javac -d build/java-test1-alt probes/TEST-1/java/alt/ProbeAssertTests.java
-javac_exit=0
-$ java -ea -cp build/java-test1-alt ProbeAssertTests
-Exception in thread "main" java.lang.AssertionError: fail_one
-	at ProbeAssertTests.failOne(ProbeAssertTests.java:9)
-	at ProbeAssertTests.main(ProbeAssertTests.java:14)
-run_exit=1

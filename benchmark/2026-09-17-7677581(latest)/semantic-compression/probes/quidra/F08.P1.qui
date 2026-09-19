@@ -1,8 +1,0 @@
-int32 overflow_at_max()
-    // BEGIN PROBE F08.P1
-    int32 m = 2147483647
-    int32 o = m + 1
-    return o
-// END PROBE F08.P1
-
-print(overflow_at_max())

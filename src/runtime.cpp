@@ -5268,6 +5268,35 @@ TensorValue* neural_device_negate_tensor(
         quidra_tensor_unary(input,1,line,column));
 }
 
+bool neural_accumulate_device_gradient_in_place(
+    TensorValue* destination,const TensorValue* source,
+    unsigned long long line,unsigned long long column) {
+    if(!destination||!source||destination==source||
+       !destination->storage||!source->storage)
+        return false;
+    if(tensor_on_cpu(*destination->storage)||tensor_on_cpu(*source->storage)||
+       destination->storage->owners!=1||
+       destination->storage->dtype!=source->storage->dtype||
+       destination->storage->device!=source->storage->device||
+       destination->shape!=source->shape||
+       destination->offset!=0||source->offset!=0||
+       !tensor_is_contiguous_value(*destination)||
+       !tensor_is_contiguous_value(*source))
+        return false;
+
+    tensor_require_initialized(*destination,line,column);
+    tensor_require_initialized(*source,line,column);
+    std::string backend_error;
+    const auto count=tensor_logical_count(*destination);
+    if(!quidra::device::compute_binary(
+            destination->storage->gpu_buffer,
+            destination->storage->gpu_buffer,0,
+            source->storage->gpu_buffer,0,
+            nullptr,0,destination->storage->dtype,1,count,backend_error))
+        neural_fail(backend_error.c_str(),line,column);
+    return true;
+}
+
 void neural_add_device_gradient(
     std::unordered_map<const NeuralNode*,TensorValue*>& gradients,
     const std::shared_ptr<NeuralNode>& node,TensorValue* value,
@@ -5276,6 +5305,11 @@ void neural_add_device_gradient(
     const auto found=gradients.find(node.get());
     if(found==gradients.end()){
         gradients.emplace(node.get(),value);
+        return;
+    }
+    if(neural_accumulate_device_gradient_in_place(
+            found->second,value,line,column)){
+        quidra_tensor_drop(value);
         return;
     }
     auto* combined=neural_device_binary_tensor(
@@ -5343,7 +5377,11 @@ void* neural_grad_device(
             neural_store_device_parameter_gradient(
                 *output,*node,g,line,column);
 
-        if(node->parents.empty()) continue;
+        if(node->parents.empty()){
+            quidra_tensor_drop(g);
+            gradients.erase(node.get());
+            continue;
+        }
 
         if(node->op==NeuralOp::Add||node->op==NeuralOp::Sub||
            node->op==NeuralOp::Mul||node->op==NeuralOp::Div){
@@ -5621,6 +5659,11 @@ void* neural_grad_device(
             neural_add_device_gradient(
                 gradients,node->parents[0],result,line,column);
         }
+
+        // Every child has already contributed in reverse-topological order.
+        // Release this gradient now instead of retaining the entire backward pass.
+        quidra_tensor_drop(g);
+        gradients.erase(node.get());
     }
 
     for(auto& [_,value]:gradients)
@@ -5664,7 +5707,10 @@ void* neural_grad_t(
             }
         }
 
-        if(node->parents.empty()) continue;
+        if(node->parents.empty()){
+            gradients.erase(node.get());
+            continue;
+        }
 
         if(node->op==NeuralOp::Add||node->op==NeuralOp::Sub||
            node->op==NeuralOp::Mul||node->op==NeuralOp::Div){
@@ -5969,6 +6015,9 @@ void* neural_grad_t(
             neural_add_gradient(gradients,weight,std::move(weight_gradient));
             neural_add_gradient(gradients,bias,std::move(bias_gradient));
         }
+
+        // No later child can contribute to a node after reverse-topological visit.
+        gradients.erase(node.get());
     }
     return neural_gradients_descriptor(std::move(output));
 }

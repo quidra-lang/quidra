@@ -1,5 +1,0 @@
-test_exit=1
-parsed 17 JSON records
-actions: ['fail', 'output', 'pass', 'run', 'start']
-first record: {"Time": "2026-09-19T09:28:17.817926+09:00", "Action": "start", "Package": "test1go"}
-exit=0

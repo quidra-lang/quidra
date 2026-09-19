@@ -1,4 +1,0 @@
-V-AMBIG  INVERSE_AMBIGUOUS detector
-  [PASS] positive[clean_submission]         expected=False  got=False  clash=[]
-  [PASS] negative[variable_named_with_pseudo_word] expected=True   got=True   clash=['ganimu']
-  [PASS] negative[inverse_image_fails_to_build] expected=False  got=False  solution.zig:9:9: error: expected 'an identifier', found 'if'

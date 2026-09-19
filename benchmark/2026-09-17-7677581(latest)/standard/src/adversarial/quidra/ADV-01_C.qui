@@ -1,5 +1,0 @@
-print("ADV-START")
-int64 source = 9223372036854775807
-int32 narrowed = int32(source)
-print("OBS=V:{narrowed}")
-print("ADV-END")

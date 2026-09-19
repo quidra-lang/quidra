@@ -1,9 +1,0 @@
-print("ADV-START")
-int64[] values = [1, 2, 3, 4, 5]
-int64 iterations = 0
-for value in values
-    iterations = iterations + 1
-    if value == 2
-        values = values.append(99)
-print("OBS=ITERS:{iterations}|LEN:{len(values)}")
-print("ADV-END")

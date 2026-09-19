@@ -1,9 +1,0 @@
-{
- "probe": "F02.P2",
- "class_id": "X-value-initialized-REFUTED",
- "build_command": "clang++ -std=c++20 -O2 witness.cpp -o BIN",
- "built": true,
- "expected_build": true,
- "build_diagnostics": "",
- "observer_output": "value-initialized sum=0 (the probe's form performs no initialization: [dcl.init]/7)"
-}

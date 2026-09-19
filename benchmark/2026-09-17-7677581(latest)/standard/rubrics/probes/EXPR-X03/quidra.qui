@@ -1,9 +1,0 @@
-class Box<T>
-    T value
-
-    T get()
-        return value
-
-Box<int> a = Box<int>(value = 5)
-Box<string> b = Box<string>(value = "hi")
-print("X03 {a.get()} {b.get()}")

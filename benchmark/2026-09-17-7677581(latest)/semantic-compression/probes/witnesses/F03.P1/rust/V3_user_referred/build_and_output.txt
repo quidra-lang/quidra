@@ -1,1 +1,0 @@
-./BIN -> v3 own_storage_unchanged=true referred_state=42

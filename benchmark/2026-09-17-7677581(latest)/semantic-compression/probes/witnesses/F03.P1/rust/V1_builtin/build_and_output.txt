@@ -1,1 +1,0 @@
-rustc -O -C debug-assertions=on f03p1_v1.rs -o BIN ; ./BIN -> v1 result=42 / v1 edge_panicked=true

@@ -1,6 +1,0 @@
-float a = math.sqrt(4.0)
-float b = math.exp(0.0)
-float c = math.log(1.0)
-float d = math.sin(0.0)
-float e = math.cos(0.0)
-print("X17 {math.round(a)} {math.round(b)} {math.round(c)} {math.round(d)} {math.round(e)}")

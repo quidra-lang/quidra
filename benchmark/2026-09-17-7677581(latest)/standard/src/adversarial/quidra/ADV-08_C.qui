@@ -1,6 +1,0 @@
-print("ADV-START")
-int64 a = 7
-int64 b = 0
-int64 q = a / b
-print("OBS=QUOT:{q}")
-print("ADV-END")

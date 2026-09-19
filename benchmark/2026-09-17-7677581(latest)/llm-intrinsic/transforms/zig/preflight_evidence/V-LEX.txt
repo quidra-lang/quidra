@@ -1,8 +1,0 @@
-V-LEX  lexer losslessness
-  [PASS] lossless[fixture_real.zig]         expected=True   got=True   
-  [PASS] lossless[fixture_anon.zig]         expected=True   got=True   
-  [PASS] lossless[strings/chars/comments/builtins] expected=True   got=True   
-  [PASS] no_WORD_inside_string_or_comment   expected=True   got=True   
-  [PASS] strings_untouched_by_forward       expected=True   got=True   string literal intact
-  [PASS] builtin_at_name_untouched          expected=True   got=True   @import preserved
-  [PASS] rejects[unterminated_string]       expected=False  got=False  

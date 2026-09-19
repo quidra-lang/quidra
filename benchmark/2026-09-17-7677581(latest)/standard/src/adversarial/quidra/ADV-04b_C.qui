@@ -1,6 +1,0 @@
-print("ADV-START")
-int32 signed_value = -1
-uint32 unsigned_value = 1
-bool outcome = signed_value < unsigned_value
-print("OBS=CMP:{outcome}")
-print("ADV-END")

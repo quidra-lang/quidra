@@ -1,7 +1,0 @@
-attempt: gen_00.txt
-gate: PASS (0 H_REAL events)
-inverse: rc=0, no INVERSE_AMBIGUOUS
-build: swiftc -O solution.swift -o BIN  -> exit 0, no diagnostics
-run: exit 0
-cmp vs expected_output.txt: IDENTICAL
-verdict: PASS at gen_00 (correct@1, 0 repairs)

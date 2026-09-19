@@ -1,6 +1,0 @@
-float32 probe()
-    uint8[16] buffer
-    buffer[0] = 1
-    return buffer[0]
-
-print(probe())

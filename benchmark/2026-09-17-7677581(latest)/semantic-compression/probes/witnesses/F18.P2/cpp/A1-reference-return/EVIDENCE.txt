@@ -1,1 +1,0 @@
-build: clang++ -std=c++20 -O2 u4.cpp m4.cpp -o BIN ; run: ./BIN ; observed: "6 1" - the call yields an assignable lvalue

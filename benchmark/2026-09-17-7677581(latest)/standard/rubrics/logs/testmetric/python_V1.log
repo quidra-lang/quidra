@@ -1,8 +1,0 @@
-test_scale (test_project.ProjectTests) ... ok
-test_scale_and_offset (test_project.ProjectTests) ... ok
-
-----------------------------------------------------------------------
-Ran 2 tests in 0.000s
-
-OK
-exit=0

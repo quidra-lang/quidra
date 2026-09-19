@@ -1,9 +1,0 @@
-{
- "probe": "F04.P3",
- "class_id": "X-value-equality-REFUTED",
- "build_command": "clang++ -std=c++20 -O2 witness.cpp -o BIN",
- "built": true,
- "expected_build": true,
- "build_diagnostics": "With the commented line enabled: /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/cppwork/f43b.cpp:14:17: error: invalid operands to binary expression ('Node' and 'Node')    14 |     bool v = *a == *b; (void)v; ",
- "observer_output": "identity=0 field_equality=1"
-}

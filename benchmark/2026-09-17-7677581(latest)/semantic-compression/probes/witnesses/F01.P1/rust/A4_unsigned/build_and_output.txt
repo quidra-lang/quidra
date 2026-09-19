@@ -1,1 +1,0 @@
-rustc -O -C debug-assertions=on f01p1_unsigned.rs -o BIN ; ./BIN -> val=7 size=1 signed=false

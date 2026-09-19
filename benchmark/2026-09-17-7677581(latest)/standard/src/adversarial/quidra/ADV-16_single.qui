@@ -1,8 +1,0 @@
-void observe()
-    const int64 value = 10
-    value = 20
-    print("OBS=V:{value}")
-
-print("ADV-START")
-observe()
-print("ADV-END")

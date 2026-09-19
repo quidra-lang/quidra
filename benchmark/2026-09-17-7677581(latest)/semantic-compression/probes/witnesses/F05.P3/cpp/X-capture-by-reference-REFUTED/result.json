@@ -1,9 +1,0 @@
-{
- "probe": "F05.P3",
- "class_id": "X-capture-by-reference-REFUTED",
- "build_command": "clang++ -std=c++20 -O2 witness.cpp -o BIN",
- "built": true,
- "expected_build": true,
- "build_diagnostics": "",
- "observer_output": "-1 allocs=4 (xs=1, ys>=1; none for the closure)"
-}

@@ -1,5 +1,0 @@
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.06s
-     Running unittests src/lib.rs (probes/TEST-1/rust/target/debug/deps/test1_rust-13ece1868fce19d6)
-error: the option `Z` is only accepted on the nightly compiler
-error: test failed, to rerun pass `--lib`
-exit=101

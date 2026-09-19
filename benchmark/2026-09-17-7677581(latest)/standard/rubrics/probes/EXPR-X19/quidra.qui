@@ -1,9 +1,0 @@
-// Probe: a standard-library concurrency primitive of any kind.  Quidra 0.2.0
-// language specification, "Implementation scope": "Concurrency, WASM,
-// self-hosting, broader signal-processing APIs, and broader package
-// distribution remain development areas."
-int worker()
-    return 42
-
-auto t = thread.spawn(worker)
-print("X19 {t.join()}")

@@ -1,7 +1,0 @@
-class Pair
-    int a
-    int b
-
-Pair pair = Pair(a = 1, b = 2)
-int a, int b = pair
-print("X06 {a} {b}")

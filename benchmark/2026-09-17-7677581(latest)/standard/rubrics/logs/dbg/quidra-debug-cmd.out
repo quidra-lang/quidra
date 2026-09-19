@@ -1,5 +1,0 @@
-warning: no debug symbols in executable (-arch arm64)
-(lldb) target create "/var/folders/71/zhtl3cb131g9fdd6z18yh_cm0000gn/T/quidra-15169472951139856322/program"
-warning: (arm64) /var/folders/71/zhtl3cb131g9fdd6z18yh_cm0000gn/T/quidra-15169472951139856322/program empty dSYM file detected, dSYM was created with an executable with no debug info.
-Current executable set to '/var/folders/71/zhtl3cb131g9fdd6z18yh_cm0000gn/T/quidra-15169472951139856322/program' (arm64).
-(lldb) quit

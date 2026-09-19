@@ -1,4 +1,0 @@
-print("ADV-START")
-int value = 9223372036854775809
-print("OBS=V:{value}")
-print("ADV-END")

@@ -1,9 +1,0 @@
-int | error probe()
-    const int n = 7
-    return n
-
-match probe()
-    int v
-        print(v)
-    error e
-        print(e)

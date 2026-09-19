@@ -1,8 +1,0 @@
-int sub_range()
-    int[] xs = [10, 20, 30, 40, 50]
-    // BEGIN PROBE F11.P2
-    auto part = [xs[1], xs[2], xs[3]]
-    return part[0]
-    // END PROBE F11.P2
-
-print(sub_range())

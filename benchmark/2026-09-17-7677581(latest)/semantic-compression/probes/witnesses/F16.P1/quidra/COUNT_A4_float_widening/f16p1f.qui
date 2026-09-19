@@ -1,8 +1,0 @@
-float sum_sequence()
-    int32[] xs = [1, 2, 3]
-    int32 total = 0
-    for x in xs
-        total += x
-    return total
-
-print(sum_sequence())

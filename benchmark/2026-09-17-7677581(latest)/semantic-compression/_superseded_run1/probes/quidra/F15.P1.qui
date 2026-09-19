@@ -1,8 +1,0 @@
-// BEGIN PROBE F15.P1
-T first<T>(T[] values)
-    return values[0]
-
-int a = first([1, 2, 3])
-string b = first(["x", "y"])
-print(a.string() + b)
-// END PROBE F15.P1

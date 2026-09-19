@@ -1,7 +1,0 @@
-#pragma once
-#include <string_view>
-
-namespace quidra {
-inline constexpr std::string_view language_manifest_json =
-R"QUIDRA_MANIFEST(@QUIDRA_MANIFEST_JSON@)QUIDRA_MANIFEST";
-}

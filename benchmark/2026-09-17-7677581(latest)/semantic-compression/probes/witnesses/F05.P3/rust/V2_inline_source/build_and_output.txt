@@ -1,1 +1,0 @@
-./BIN -> f05p3_opt result=-1 allocs=1 deallocs=0 (no source buffer to move; collect allocates)

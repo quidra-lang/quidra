@@ -1,9 +1,0 @@
-wrote /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/kotlin/mapping.json
-  K01      fun    -> dunisi
-  K02      val    -> rinuso
-  K03      var    -> ruroge
-  K04      if     -> pozebe
-  K05      else   -> nifise
-  K07      for    -> kepafa
-  U:in     in     -> pibemo
-rejection filters fired: {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 2, '7': 0}

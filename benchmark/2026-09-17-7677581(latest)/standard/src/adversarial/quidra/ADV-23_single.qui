@@ -1,8 +1,0 @@
-void | error run()
-    string text = try file.read("inputs/ADV-23.bin")
-    print("OBS=CP:{len(text)}")
-    return void
-
-print("ADV-START")
-run()
-print("ADV-END")

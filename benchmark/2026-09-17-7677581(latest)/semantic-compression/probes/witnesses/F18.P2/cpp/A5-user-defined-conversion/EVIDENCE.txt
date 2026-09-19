@@ -1,1 +1,0 @@
-build: clang++ -std=c++20 -O2 u3.cpp m3.cpp -o BIN ; run: ./BIN ; observed: "user-defined conversion ran" then 60

@@ -1,7 +1,0 @@
-// BEGIN PROBE F20.P1
-extern int32 c_abs(int32 value) = "abs"
-
-int32 magnitude = c_abs(-3)
-// END PROBE F20.P1
-
-print(magnitude)

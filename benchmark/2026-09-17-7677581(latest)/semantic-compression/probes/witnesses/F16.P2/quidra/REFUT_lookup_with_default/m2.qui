@@ -1,3 +1,0 @@
-map.Map<string, int32> mp = map.Map<string, int32>()
-mp.set("a", 1)
-print(mp.get("b", 0))

@@ -1,7 +1,0 @@
-// BEGIN PROBE F18.P2
-int32 secret()
-    return 1
-
-int32 pub_add(int32 a, int32 b)
-    return a + b + secret()
-// END PROBE F18.P2

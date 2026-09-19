@@ -1,4 +1,0 @@
-// Probe: constant evaluation of a non-trivial expression before run time.
-// A fixed array length is the only construct that demands a compile-time value.
-int[1 * 2 * 3 * 4 * 5] fixed
-print("X11 {len(fixed)}")

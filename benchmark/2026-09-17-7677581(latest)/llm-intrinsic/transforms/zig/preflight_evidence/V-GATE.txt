@@ -1,4 +1,0 @@
-V-GATE  section 4.2a conformance gate for I1
-  [PASS] positive[transformed_fixture]      expected=True   got=True   ok:12_pseudo_tokens
-  [PASS] negative[correct_real_source]      expected=False  got=False  REAL_TOKENS_PRESENT:const,fn,if,main,pub,try,u64,u8,undefined,var,void,while
-  [PASS] negative[no_bound_token_at_all]    expected=False  got=False  NO_TRANSFORMED_TOKEN_PRESENT

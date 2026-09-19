@@ -371,4 +371,27 @@ if [[ -e "$TMP/should-not-exist.png" ]]; then
     exit 1
 fi
 
+cat > "$TMP/gpu-autograd-fanin.qui" <<'QUI'
+class Model
+    neural.Parameter<float32> value
+
+Model model = Model(
+    value = neural.Parameter<float32>(
+        value = tensor.ones<float32>([1], gpu = 0)
+    )
+)
+neural<float32> tracked = model.value.track()
+neural<float32> first = tracked * tracked
+neural<float32> second = tracked * tracked
+neural<float32> loss = neural.mean(first + second)
+neural.Gradients gradients = neural.grad(loss)
+neural.update(&model, gradients, rate = 0.1)
+float32 updated = model.value.raw().cpu()[0].item()
+print(updated > float32(0.5999) and updated < float32(0.6001))
+QUI
+if [[ "$("$QUIDRA" run "$TMP/gpu-autograd-fanin.qui")" != "true" ]]; then
+    echo "unexpected fake-GPU autograd fan-in result" >&2
+    exit 1
+fi
+
 echo "fake GPU placement contracts: ok"

@@ -1,8 +1,0 @@
-{
-  "compilerOptions": {
-    "target": "es2022",
-    "module": "commonjs",
-    "outDir": "../../../build/port1-typescript"
-  },
-  "files": ["port1.ts"]
-}

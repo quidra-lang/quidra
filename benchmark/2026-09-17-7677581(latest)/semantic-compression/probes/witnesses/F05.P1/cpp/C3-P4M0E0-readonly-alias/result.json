@@ -1,9 +1,0 @@
-{
- "probe": "F05.P1",
- "class_id": "C3-P4M0E0-readonly-alias",
- "build_command": "clang++ -std=c++20 -O2 /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/witnesses/F05.P1/cpp/C3-P4M0E0-readonly-alias/witness.cpp -o /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/cppwork/w/F05.P1_C3-P4M0E0-readonly-alias",
- "built": true,
- "build_diagnostics": "",
- "observer_output": "in-callee allocs=1 size=3\n1 allocs=1 escaped=0",
- "expected_build": true
-}

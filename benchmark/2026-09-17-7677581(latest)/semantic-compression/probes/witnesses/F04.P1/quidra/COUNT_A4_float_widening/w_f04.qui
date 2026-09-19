@@ -1,7 +1,0 @@
-float probe()
-    int32 slot = 4
-    int32 &port = &slot
-    port = 9
-    return slot
-
-print(probe())

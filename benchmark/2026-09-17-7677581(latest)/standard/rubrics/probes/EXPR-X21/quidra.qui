@@ -1,4 +1,0 @@
-// Probe: first-party standard-library regular expressions with capture groups.
-// Quidra 0.2.0 reserves no regex namespace.
-auto m = regex.match("([0-9]{4})-([0-9]{2})", "date 2026-09-17")
-print("X21 {m}")

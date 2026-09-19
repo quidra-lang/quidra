@@ -1,5 +1,0 @@
-$ command -v mvn
-which_exit=1
-$ mvn -B -f probes/TEST-2/java/pom.xml package
-(eval):84: command not found: mvn
-exit=127

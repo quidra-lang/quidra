@@ -1,8 +1,0 @@
-int probe()
-    int[] xs = [1, 2, 3]
-// BEGIN PROBE F03.P2
-    xs[1] = 42
-// END PROBE F03.P2
-    return xs[1]
-
-print(probe())

@@ -1,6 +1,0 @@
-int32 f()
-    int32 m = 2147483647
-    int32 o = m + 1
-    return o
-
-print(f())

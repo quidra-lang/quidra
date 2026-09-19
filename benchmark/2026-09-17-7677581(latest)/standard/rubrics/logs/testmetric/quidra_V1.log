@@ -1,6 +1,0 @@
-$ quidra build probes/TEST-2/quidra/main.qui -o build/quidra-test2
-exit=0
-$ ./build/quidra-test2
-6
-7
-run_exit=0

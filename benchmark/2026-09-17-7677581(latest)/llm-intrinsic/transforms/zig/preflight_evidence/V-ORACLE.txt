@@ -1,5 +1,0 @@
-V-ORACLE  stdout byte-identity + exit status
-  [PASS] positive[reference_solution].built expected=True   got=True   
-  [PASS] positive[reference_solution].exit0 expected=True   got=True   
-  [PASS] positive[reference_solution].stdout expected=True   got=True   
-  [PASS] negative[49_terms_instead_of_50]   expected=False  got=False  'SUM 24847'

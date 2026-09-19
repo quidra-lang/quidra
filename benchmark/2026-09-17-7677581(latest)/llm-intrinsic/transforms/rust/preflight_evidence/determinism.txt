@@ -1,6 +1,0 @@
-=== determinism: two separate processes regenerate mapping.json ===
-process A vs process B: BYTE-IDENTICAL
-regenerated vs committed mapping.json: BYTE-IDENTICAL
-0c921fa89e00994c66ee6b765c19167a981779b2a71a15e0aaf985fbbbb39557  /tmp/m_a.json
-0c921fa89e00994c66ee6b765c19167a981779b2a71a15e0aaf985fbbbb39557  /tmp/m_b.json
-0c921fa89e00994c66ee6b765c19167a981779b2a71a15e0aaf985fbbbb39557  /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/rust/mapping.json

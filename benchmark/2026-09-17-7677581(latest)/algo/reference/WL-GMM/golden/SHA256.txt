@@ -1,1 +1,0 @@
-eb3aaf5f717b86c69baca4ac3b1de8ec1e0faba4254329eefeb6f848bc2999a1  expected_stdout.txt

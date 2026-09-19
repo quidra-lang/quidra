@@ -1,1 +1,0 @@
-build: clang++ -std=c++20 -O2 u2.cpp m2.cpp -o BIN ; run: ./BIN ; observed: 5 (instead of 6)

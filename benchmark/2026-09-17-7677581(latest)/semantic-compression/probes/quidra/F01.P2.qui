@@ -1,7 +1,0 @@
-// BEGIN PROBE F01.P2
-int counter = 0
-const int LIMIT = 100
-// END PROBE F01.P2
-
-counter = LIMIT
-print(counter)

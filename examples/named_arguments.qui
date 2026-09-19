@@ -1,4 +1,0 @@
-bool within(int value, int minimum, int maximum)
-    return value >= minimum and value <= maximum
-
-print(within(50, minimum = 0, maximum = 100))

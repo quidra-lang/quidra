@@ -1,5 +1,0 @@
-int32 narrow(int big)
-    int32 small = int32(big)
-    return small
-
-print(narrow(5000000000))

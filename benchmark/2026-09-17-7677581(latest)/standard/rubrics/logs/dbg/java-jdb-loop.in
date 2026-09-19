@@ -1,7 +1,0 @@
-stop at Main:20
-run
-locals
-dump items
-dump item
-cont
-quit

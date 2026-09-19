@@ -1,9 +1,0 @@
-int32 guarded(int16 a, int16 b)
-    int32 q
-    if b == 0
-        q = 0
-    else
-        q = a / b
-    return q
-
-print(guarded(7, 2))

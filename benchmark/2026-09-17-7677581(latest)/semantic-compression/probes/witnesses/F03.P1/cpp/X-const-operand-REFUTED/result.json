@@ -1,9 +1,0 @@
-{
- "probe": "F03.P1",
- "class_id": "X-const-operand-REFUTED",
- "build_command": "clang++ -std=c++20 -O2 witness.cpp -o BIN",
- "built": false,
- "expected_build": false,
- "build_diagnostics": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/witnesses/F03.P1/cpp/X-const-operand-REFUTED/witness.cpp:8:2: error: cannot assign to variable 'x' with const-qualified type 'const std::int32_t' (aka 'const int')     8 | x++; ",
- "observer_output": ""
-}

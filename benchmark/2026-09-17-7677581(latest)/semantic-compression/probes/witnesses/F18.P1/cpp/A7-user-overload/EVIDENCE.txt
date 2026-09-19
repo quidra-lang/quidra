@@ -1,1 +1,0 @@
-build: clang++ -std=c++20 -O2 w18a.cpp -o BIN ; run: ./BIN ; observed: Y (instead of x)

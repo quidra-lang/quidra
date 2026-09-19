@@ -445,39 +445,6 @@ std::string hip_conv2d_backward_source(int dtype,int kind) {
     }
     o<<"out[i]=sum;}\n";
     return o.str();
-}(int dtype,int kind) {
-    const char* t=dtype==10?"float":"double";
-    std::ostringstream o;
-    o<<"#include <hip/hip_runtime.h>\nextern \"C\" __global__ void q_kernel("
-      <<t<<"* out,const "<<t<<"* grad,const "<<t<<"* input,const "<<t<<"* weight,"
-      "unsigned long long count,unsigned long long batches,unsigned long long ci,"
-      "unsigned long long h,unsigned long long w,unsigned long long co,"
-      "unsigned long long kh,unsigned long long kw,unsigned long long oh,"
-      "unsigned long long ow,unsigned long long stride,unsigned long long padding){"
-      "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
-      "if(i>=count)return;"<<t<<" sum=0;";
-    if(kind==1){
-        o<<"unsigned long long ix=i%w,t=i/w,iy=t%h;t/=h;unsigned long long ic=t%ci,n=t/ci;"
-          "for(unsigned long long oc=0;oc<co;++oc)for(unsigned long long ky=0;ky<kh;++ky)"
-          "for(unsigned long long kx=0;kx<kw;++kx){long long ny=(long long)iy+(long long)padding-(long long)ky;"
-          "long long nx=(long long)ix+(long long)padding-(long long)kx;"
-          "if(ny<0||nx<0||ny%(long long)stride||nx%(long long)stride)continue;"
-          "unsigned long long oy=(unsigned long long)(ny/(long long)stride),ox=(unsigned long long)(nx/(long long)stride);"
-          "if(oy>=oh||ox>=ow)continue;unsigned long long gi=((n*co+oc)*oh+oy)*ow+ox;"
-          "unsigned long long wi=((oc*ci+ic)*kh+ky)*kw+kx;sum+=grad[gi]*weight[wi];}";
-    }else if(kind==2){
-        o<<"unsigned long long kx=i%kw,t=i/kw,ky=t%kh;t/=kh;unsigned long long ic=t%ci,oc=t/ci;"
-          "for(unsigned long long n=0;n<batches;++n)for(unsigned long long oy=0;oy<oh;++oy)"
-          "for(unsigned long long ox=0;ox<ow;++ox){long long iy=(long long)(oy*stride+ky)-(long long)padding;"
-          "long long ix=(long long)(ox*stride+kx)-(long long)padding;if(iy<0||ix<0||iy>=(long long)h||ix>=(long long)w)continue;"
-          "unsigned long long gi=((n*co+oc)*oh+oy)*ow+ox;unsigned long long ii=((n*ci+ic)*h+(unsigned long long)iy)*w+(unsigned long long)ix;"
-          "sum+=grad[gi]*input[ii];}";
-    }else{
-        o<<"unsigned long long oc=i;for(unsigned long long n=0;n<batches;++n)for(unsigned long long oy=0;oy<oh;++oy)"
-          "for(unsigned long long ox=0;ox<ow;++ox)sum+=grad[((n*co+oc)*oh+oy)*ow+ox];";
-    }
-    o<<"out[i]=sum;}\n";
-    return o.str();
 }
 
 #ifdef __APPLE__

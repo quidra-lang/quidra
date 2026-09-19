@@ -1429,8 +1429,9 @@ private:
             const auto program=root_program(source);
             auto items=completions_at(program,source,offset);
             if(offset>0&&source[offset-1]=='.') {
-                const auto prefix=source.substr(0,offset-1);
-                const auto checked=semantic_check(uri,prefix);
+                std::string probe(source);
+                probe.insert(offset,"string()");
+                const auto checked=semantic_check(uri,probe);
                 items=member_completions_at(checked,offset-1);
             }
             std::ostringstream result;

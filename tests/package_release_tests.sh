@@ -60,66 +60,7 @@ git -C "$REPO" commit -q -m 'unreleased development'
 
 HOME="$HOME_DIR" "$QUIDRA" install "file://$REPO" >/dev/null
 [[ "$(HOME="$HOME_DIR" "$QUIDRA" list)" == "sample_pkg 0.1.0" ]]
-grep -q '^version = 0.1.0
-set +e
-HOME="$HOME_DIR" "$QUIDRA" install "file://$REPO@0.2.0"     >"$TMP/out" 2>"$TMP/err"
-rc=$?
-set -e
-
-[[ "$rc" -eq 1 ]]
-grep -q 'requires Quidra' "$TMP/err"
-
-HOME="$HOME_DIR" "$QUIDRA" install "file://$REPO@0.1.0" >/dev/null
-[[ "$(HOME="$HOME_DIR" "$QUIDRA" list)" == "sample_pkg 0.1.0" ]]
-
-mkdir -p "$TMP/deps/base_pkg" "$TMP/deps/app_pkg"
-
-cat > "$TMP/deps/base_pkg/main.qui" <<'QUI'
-int value()
-    return 7
-QUI
-
-cat > "$TMP/deps/base_pkg/quidra.package" <<EOF_MANIFEST
-name = base_pkg
-version = 0.1.0
-requires.quidra = >=$QUIDRA_VERSION <$NEXT_MINOR
-EOF_MANIFEST
-
-cat > "$TMP/deps/app_pkg/main.qui" <<'QUI'
-import base = base_pkg
-
-int answer()
-    return base.value()
-QUI
-
-cat > "$TMP/deps/app_pkg/quidra.package" <<EOF_MANIFEST
-name = app_pkg
-version = 0.1.0
-requires.quidra = >=$QUIDRA_VERSION <$NEXT_MINOR
-requires.base_pkg = >=0.2.0 <0.3.0
-EOF_MANIFEST
-
-cat > "$TMP/dependency-use.qui" <<'QUI'
-import app = app_pkg
-print(app.answer())
-QUI
-
-set +e
-QUIDRA_PACKAGE_PATH="$TMP/deps" "$QUIDRA" check "$TMP/dependency-use.qui"     >"$TMP/dependency.out" 2>"$TMP/dependency.err"
-dependency_rc=$?
-set -e
-
-[[ "$dependency_rc" -eq 1 ]]
-grep -q 'PACKAGE_DEPENDENCY' "$TMP/dependency.err"
-grep -q 'requires package' "$TMP/dependency.err"
-
-sed -i.bak 's/version = 0.1.0/version = 0.2.0/' "$TMP/deps/base_pkg/quidra.package"
-rm -f "$TMP/deps/base_pkg/quidra.package.bak"
-
-QUIDRA_PACKAGE_PATH="$TMP/deps" "$QUIDRA" check "$TMP/dependency-use.qui" >/dev/null
-
-echo "package release tests: ok"
-     "$HOME_DIR/.quidra/packages/sample_pkg/quidra.package"
+grep -q '^version = 0.1.0$' "$HOME_DIR/.quidra/packages/sample_pkg/quidra.package"
 
 HOME="$HOME_DIR" "$QUIDRA" package-info sample_pkg --json > "$TMP/package-info.json"
 python3 - "$TMP/package-info.json" <<'PY'

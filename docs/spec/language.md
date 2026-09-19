@@ -739,7 +739,22 @@ system and has no compiler-specific name handling.
 
 ## Function values and union payload initialization
 
-Function and method declarations are callable names, not first-class values in the current language. A bare function or method name in value position is rejected with `FUNCTION_NOT_VALUE`.
+Quidra has explicit capture-free typed function values. The type form is `fn<R>(P...)`, with the result type before the parameter list:
+
+```quidra
+int twice(int value)
+    return value * 2
+
+int apply(fn<int>(int) operation, int value)
+    return operation(value)
+
+fn<int>(int) operation = twice
+print(apply(operation, 21))
+```
+
+A function declaration becomes a value only when an explicit `fn<...>(...)` context supplies the complete signature. `auto operation = twice` is rejected rather than inferring an implicit function type. Conversion requires an exact result/parameter match and currently represents only by-value parameters; a function with a reference parameter cannot be converted to an `fn` value. `extern` C declarations are not function values, and methods are not implicitly converted into bound closures. Function-value calls use positional by-value arguments only.
+
+The value contains only the statically known code target: it captures no local, receiver, top-level, or hidden environment. Ordinary assignment/pass/return therefore does not create a closure allocation or hidden lifetime. Function identity is not part of source semantics, so `==` and `!=` are not defined for function values. Calling an uninitialized function binding is a definite-initialization error. A function value stored behind an explicit reference still follows the ordinary reference read-before-use rules.
 
 Class values preserve field-level definite initialization while they remain class-typed. Converting a class value into a union closes that hidden initialization state: the class must be fully definitely initialized first. Therefore a class alternative selected by exhaustive `match` is known to be fully initialized, including when the union crossed a function boundary.
 
@@ -749,7 +764,7 @@ For arrays whose type has a statically known length, a constant index outside `[
 
 Generated native code is optimized with Clang `-O3` without fast-math. Runtime safety remains explicit: checked arithmetic, bounds checks, ownership, and recursion protection are not disabled for speed.
 
-Because all current language calls are statically resolved, the backend identifies recursive call cycles. Only functions that participate in a recursive cycle receive dynamic call-depth bookkeeping; acyclic calls do not pay that fixed overhead.
+Direct calls remain statically resolved. Function-value calls lower through an explicit indirect-call IR node whose signature was already checked. The backend identifies direct recursive cycles and also treats any function whose address becomes a function value as a possible indirect recursion target; only those functions receive dynamic call-depth bookkeeping. Ordinary acyclic direct calls do not pay that fixed overhead.
 
 Managed ownership bookkeeping is local to the executing thread in the current runtime. The language does not currently expose cross-thread sharing of managed values, so retain/release does not require a process-wide mutex. If a future concurrency model introduces shared managed values, that ownership contract must be revisited explicitly rather than silently changing this assumption.
 

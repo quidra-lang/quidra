@@ -286,6 +286,18 @@ Overrides are explicit and signature-checked. `super.method(...)` is statically 
 
 Generics follow the same preference for explicit structure: generic classes keep explicit type arguments, while generic functions and methods infer them only when every generic parameter is uniquely determined by the call arguments. Concrete instances are monomorphized before ordinary checking and native lowering.
 
+Functions can also cross a call boundary as explicit capture-free values. `fn<int>(int) operation = twice` states the complete signature; `auto operation = twice` is intentionally rejected. The value is only the code target: there is no hidden closure environment, bound receiver, or implicit lifetime. Signature mismatches, reference-parameter functions, and `extern` functions are rejected before lowering.
+
+```quidra
+int twice(int value)
+    return value * 2
+
+int apply(fn<int>(int) operation, int value)
+    return operation(value)
+
+print(apply(twice, 21)) // 42
+```
+
 ### 7. Syntax should expose semantic roles
 
 Quidra prefers familiar words and punctuation when they carry a stable meaning.

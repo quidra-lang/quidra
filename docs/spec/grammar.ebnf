@@ -33,7 +33,8 @@ parameter        = [ "const" ], type, [ "&" ], identifier, [ "=", expression ] ;
 
 type             = array_type, { "|", array_type } ;
 array_type       = type_atom, { "[", [ integer_expression ], "]" } ;
-type_atom        = tensor_type | neural_type | qualified_identifier, [ type_arguments ] ;
+type_atom        = function_type | tensor_type | neural_type | qualified_identifier, [ type_arguments ] ;
+function_type    = "fn", "<", type, ">", "(", [ type, { ",", type } ], ")" ;
 tensor_type      = "tensor", "<", type, ">", [ shape_pattern ] ;
 neural_type      = "neural", [ ( type_arguments, [ shape_pattern ] ) | shape_pattern ] ;
 shape_pattern    = "<", shape_axis, { ",", shape_axis }, ">" ;
@@ -125,6 +126,10 @@ statement_end    = NEWLINE | EOF ;
    - generic class uses require explicit type arguments; generic function/method
      type arguments may be omitted when every generic parameter is uniquely inferred
      from call arguments; all concrete uses are monomorphized before ordinary static checking;
+   - `fn<R>(P...)` is a capture-free function-value type. Converting a declared
+     function to it requires the complete explicit function-value context and an exact
+     by-value signature; extern functions, reference-parameter functions, and bound
+     methods do not implicitly become function values;
    - super is only valid as super.method(...) or super.method<T>(...) in a subclass method;
    - class construction is named; fields may have defaults or remain uninitialized;
    - single inheritance, exact override contracts, safe address targets, exhaustive cases,

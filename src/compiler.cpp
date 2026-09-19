@@ -45,7 +45,7 @@ CheckedProgram finish_check(ResolvedProgram program, CompileOptions options) {
 Compilation finish_compile(ResolvedProgram program, CompileOptions options) {
     auto checked = finish_check(std::move(program), options);
     auto lowered = ir::lower(checked);
-    auto llvm = emit_llvm(lowered);
+    auto llvm = emit_llvm(lowered, options.debug_info);
     return Compilation{std::move(checked), std::move(lowered), std::move(llvm)};
 }
 

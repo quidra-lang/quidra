@@ -5,6 +5,7 @@
 #include <iomanip>
 #include <bit>
 #include <functional>
+#include <filesystem>
 #include <limits>
 #include <map>
 #include <set>
@@ -68,6 +69,7 @@ std::string c_abi_parameter_attribute(const Type& type) {
 }
 
 std::string escape_bytes(const std::string& s){std::ostringstream out;for(char raw:s){auto c=static_cast<unsigned char>(raw);if(c>=32&&c<=126&&c!='"'&&c!='\\')out<<static_cast<char>(c);else out<<'\\'<<std::uppercase<<std::hex<<std::setw(2)<<std::setfill('0')<<static_cast<int>(c)<<std::dec;}out<<"\\00";return out.str();}
+std::string escape_metadata(std::string_view s){std::ostringstream out;for(char raw:s){auto c=static_cast<unsigned char>(raw);if(c>=32&&c<=126&&c!='"'&&c!='\\')out<<static_cast<char>(c);else out<<'\\'<<std::uppercase<<std::hex<<std::setw(2)<<std::setfill('0')<<static_cast<int>(c)<<std::dec;}return out.str();}
 std::string mangle(std::string name){std::string out="n_";for(char c:name)out+=(std::isalnum(static_cast<unsigned char>(c))||c=='_')?c:'_';return out;}
 std::string local_id(std::string name){std::string out;for(char c:name)out+=(std::isalnum(static_cast<unsigned char>(c))||c=='_')?c:'_';return out;}
 std::string type_id(const Type& t){return local_id(type_name(t));}
@@ -283,15 +285,17 @@ struct FunctionEmitter {
     std::string active_repl_array_index_scratch;
     bool guard_stack_depth{};
     const std::unordered_set<std::string>& recursive_callees;
+    std::optional<std::size_t> debug_subprogram;
     std::size_t temp_counter{0};
 
     FunctionEmitter(const ir::Function& f,const std::unordered_map<std::string,FunctionType>&s,
                     const std::unordered_map<std::string,std::string>&externals,
                     StringPool&p,const std::unordered_map<std::string,ir::ClassLayout>&l,
                     const ArrayLayoutPolicy&a,bool guard,
-                    const std::unordered_set<std::string>& recursive)
+                    const std::unordered_set<std::string>& recursive,
+                    std::optional<std::size_t> debug_id=std::nullopt)
         :fn(f),signatures(s),external_symbols(externals),pool(p),layouts(l),array_layout(a),
-         guard_stack_depth(guard),recursive_callees(recursive){}
+         guard_stack_depth(guard),recursive_callees(recursive),debug_subprogram(debug_id){}
     std::string call_symbol(const std::string& name) const {
         const auto found=external_symbols.find(name);
         return found==external_symbols.end()?mangle(name):found->second;
@@ -2797,7 +2801,7 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::Branch>)out<<"  br i1 "<<value(n.condition)<<", label %"<<n.if_true<<", label %"<<n.if_false<<"\n";
     },ins);}
 
-    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<") {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}emit_entry_scratch();for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";return out.str();}
+    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<")";if(debug_subprogram)out<<" !dbg !"<<*debug_subprogram;out<<" {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}emit_entry_scratch();for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";return out.str();}
 };
 
 
@@ -4048,7 +4052,7 @@ ok:
 
 } // namespace
 
-std::string emit_llvm(const ir::Module& module) {
+std::string emit_llvm(const ir::Module& module, bool debug_info) {
     StringPool pool;
     std::unordered_map<std::string, FunctionType> sigs;
     std::unordered_map<std::string, ir::ClassLayout> layouts;
@@ -4067,16 +4071,52 @@ std::string emit_llvm(const ir::Module& module) {
     }
     const auto array_layout = collect_array_layout_policy(module);
     const auto recursive = recursive_functions(module);
+
+    std::string primary_source;
+    if(debug_info) {
+        for(const auto& f:module.functions)
+            if(f.entrypoint&&!f.source_file.empty()) { primary_source=f.source_file; break; }
+        if(primary_source.empty())
+            for(const auto& f:module.functions)
+                if(!f.source_file.empty()) { primary_source=f.source_file; break; }
+    }
+
+    std::map<std::string,std::size_t> debug_files;
+    std::size_t next_debug_metadata=7;
+    if(debug_info&&!primary_source.empty()) {
+        debug_files.emplace(primary_source,1);
+        for(const auto& f:module.functions) {
+            if(f.source_file.empty()||debug_files.contains(f.source_file)) continue;
+            debug_files.emplace(f.source_file,next_debug_metadata++);
+        }
+    }
+
+    std::vector<std::optional<std::size_t>> debug_subprograms(module.functions.size());
+    if(debug_info&&!primary_source.empty()) {
+        for(std::size_t i=0;i<module.functions.size();++i) {
+            const auto& f=module.functions[i];
+            if(!f.external_symbol&&!f.source_file.empty())
+                debug_subprograms[i]=next_debug_metadata++;
+        }
+    }
+
     std::vector<std::string> funcs;
-    for (const auto& f : module.functions) {
+    for (std::size_t i=0;i<module.functions.size();++i) {
+        const auto& f=module.functions[i];
         funcs.push_back(FunctionEmitter{
-            f, sigs, external_symbols, pool, layouts, array_layout, recursive.contains(f.name), recursive}.emit());
+            f, sigs, external_symbols, pool, layouts, array_layout,
+            recursive.contains(f.name), recursive, debug_subprograms[i]}.emit());
     }
     const auto array_cast_pairs = collect_array_cast_pairs(module);
     std::map<std::string, Type> clone_types;
     collect_clone_types(module, clone_types, layouts);
     std::ostringstream out;
-    out << "; Quidra 0.1 generated LLVM IR\n" << runtime_helpers();
+    out << "; Quidra 0.1 generated LLVM IR\n";
+    if(debug_info&&!primary_source.empty()) {
+        const auto path=std::filesystem::path(primary_source);
+        out<<"source_filename = \""<<escape_metadata(path.filename().string())<<"\"\n";
+    }
+    out << runtime_helpers();
     out << "@.quidra.repl.replaying = internal global i1 false\n";
     out << "@.fmt.int = private unnamed_addr constant [6 x i8] c\"%lld\\0A\\00\"\n";
 out<<"@.fmt.int.write = private unnamed_addr constant [5 x i8] c\"%lld\\00\"\n";
@@ -4116,6 +4156,44 @@ std::map<std::string, Type> equality_types;
 collect_equality_types(module, equality_types, layouts);
 for (const auto& [_, type] : equality_types) out << emit_equality_helper(type, layouts, array_layout);
 for (const auto& function : funcs) out << function;
+if(debug_info&&!primary_source.empty()) {
+    const auto primary_path=std::filesystem::path(primary_source);
+    out<<"\n!llvm.dbg.cu = !{!0}\n"
+       <<"!llvm.module.flags = !{!2, !3}\n"
+       <<"!llvm.ident = !{!4}\n"
+       <<"!0 = distinct !DICompileUnit(language: DW_LANG_C11, file: !1, producer: \"Quidra\", isOptimized: false, runtimeVersion: 0, emissionKind: FullDebug)\n"
+       <<"!1 = !DIFile(filename: \""<<escape_metadata(primary_path.filename().string())
+       <<"\", directory: \""<<escape_metadata(primary_path.parent_path().string())<<"\")\n"
+       <<"!2 = !{i32 2, !\"Dwarf Version\", i32 4}\n"
+       <<"!3 = !{i32 2, !\"Debug Info Version\", i32 3}\n"
+       <<"!4 = !{!\"Quidra\"}\n"
+       <<"!5 = !DISubroutineType(types: !6)\n"
+       <<"!6 = !{}\n";
+
+    for(const auto& [source,id]:debug_files) {
+        if(id==1) continue;
+        const auto path=std::filesystem::path(source);
+        out<<"!"<<id<<" = !DIFile(filename: \""<<escape_metadata(path.filename().string())
+           <<"\", directory: \""<<escape_metadata(path.parent_path().string())<<"\")\n";
+    }
+
+    for(std::size_t i=0;i<module.functions.size();++i) {
+        if(!debug_subprograms[i]) continue;
+        const auto& f=module.functions[i];
+        const auto file=debug_files.at(f.source_file);
+        std::string display=f.entrypoint?"<top-level>":f.name;
+        constexpr std::string_view method_prefix="$method.";
+        if(display.rfind(method_prefix,0)==0) display.erase(0,method_prefix.size());
+        const auto linkage=f.entrypoint?"main":mangle(f.name);
+        out<<"!"<<*debug_subprograms[i]
+           <<" = distinct !DISubprogram(name: \""<<escape_metadata(display)
+           <<"\", linkageName: \""<<escape_metadata(linkage)
+           <<"\", scope: !"<<file<<", file: !"<<file
+           <<", line: "<<std::max<std::uint32_t>(1,f.source_line)
+           <<", type: !5, scopeLine: "<<std::max<std::uint32_t>(1,f.source_line)
+           <<", spFlags: DISPFlagDefinition, unit: !0)\n";
+    }
+}
 return out.str();
 }
 

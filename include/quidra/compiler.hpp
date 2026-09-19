@@ -16,6 +16,7 @@ struct Compilation {
 
 struct CompileOptions {
     std::size_t max_errors{20};
+    bool debug_info{};
 };
 
 struct ReplCompilation {

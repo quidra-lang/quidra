@@ -3,5 +3,5 @@
 #include <string>
 
 namespace quidra {
-std::string emit_llvm(const ir::Module& module);
+std::string emit_llvm(const ir::Module& module, bool debug_info = false);
 }

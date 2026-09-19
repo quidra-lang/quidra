@@ -179,7 +179,8 @@ std::size_t parse_max_errors(const std::string& text) {
 int build_native(const fs::path& source, const fs::path& output, bool keep_llvm = false,
                  std::size_t max_errors = 20, bool debug = false) {
     require_qui_source(source);
-    auto result = quidra::compile_file(source, quidra::CompileOptions{max_errors}, fs::current_path());
+    auto result = quidra::compile_file(
+        source, quidra::CompileOptions{max_errors, debug}, fs::current_path());
     auto ll = output;
     ll += ".ll";
     write_file(ll, result.llvm);

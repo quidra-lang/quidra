@@ -815,6 +815,11 @@ void rename_expr(
                     expression.data = NameExpr{value->second};
                     return;
                 }
+                if (const auto function = import->second.exports.functions.find(node->name);
+                    function != import->second.exports.functions.end()) {
+                    expression.data = NameExpr{function->second};
+                    return;
+                }
             }
         }
         rename_expr(*node->base, ns, local_classes, local_functions, imports, type_parameters);

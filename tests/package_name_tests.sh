@@ -9,6 +9,12 @@ mkdir -p "$TMP/source" "$TMP/home"
 cat > "$TMP/source/main.qui" <<'QUI'
 int answer()
     return 42
+
+void announce()
+    print("function-value")
+
+void invoke(fn<void>() operation)
+    operation()
 QUI
 
 expect_rejected() {
@@ -36,7 +42,8 @@ HOME="$TMP/home" "$QUIDRA" package install "$TMP/source" --name _pkg9 >/dev/null
 cat > "$TMP/use.qui" <<'QUI'
 import package = _pkg9
 print(package.answer())
+package.invoke(package.announce)
 QUI
-[[ "$(HOME="$TMP/home" "$QUIDRA" "$TMP/use.qui")" == "42" ]]
+[[ "$(HOME="$TMP/home" "$QUIDRA" "$TMP/use.qui")" == "$(printf '42\nfunction-value')" ]]
 
 echo "package name tests: ok"

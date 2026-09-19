@@ -954,8 +954,8 @@ std::optional<SourceSpan> semantic_member_definition_span(
 }
 
 std::optional<SourceSpan> resolved_definition_span(
-    const CheckedProgram& checked,std::string_view source,std::string_view name,
-    std::size_t offset,const std::vector<Token>& tokens) {
+    const CheckedProgram& checked,std::string_view name,std::size_t offset,
+    const std::vector<Token>& tokens) {
     (void)source;
     const auto* expression=expression_at(checked.program,offset);
     if(auto semantic=semantic_member_definition_span(
@@ -967,7 +967,7 @@ std::optional<SourceSpan> resolved_definition_span(
 std::optional<SourceSpan> resolved_definition_span(
     const CheckedProgram& checked,std::string_view source,std::string_view name,std::size_t offset) {
     const auto tokens=Lexer(source).scan();
-    return resolved_definition_span(checked,source,name,offset,tokens);
+    return resolved_definition_span(checked,name,offset,tokens);
 }
 
 std::vector<SourceSpan> reference_spans(
@@ -977,7 +977,7 @@ std::vector<SourceSpan> reference_spans(
     for(const auto& token:tokens) {
         if(token.kind!=TokenKind::Identifier||token.text!=name) continue;
         const auto resolved=resolved_definition_span(
-            checked,source,name,token.span.start.offset,tokens);
+            checked,name,token.span.start.offset,tokens);
         if(resolved&&same_span(*resolved,target)) result.push_back(token.span);
     }
     return result;
@@ -1369,7 +1369,7 @@ private:
             if(name.empty()) { respond(id,"null"); return; }
 
             const auto tokens=Lexer(source).scan();
-            auto span=resolved_definition_span(checked,source,name,offset,tokens);
+            auto span=resolved_definition_span(checked,name,offset,tokens);
             if(!span) { respond(id,"null"); return; }
             respond(id,"{\"uri\":\""+escape(uri)+"\",\"range\":"+
                        range_json(source,*span)+"}");

@@ -666,10 +666,13 @@ bool cublas_affine_backward(
     std::string ignored;
     auto handle=api.handle(input_gradient->backend_index,ignored);
     if(!handle)return false;
+    auto operation_mutex=api.operation_mutex(input_gradient->backend_index);
+    std::lock_guard operation_lock(*operation_mutex);
+    const auto mode=dnn_mode();
     if(api.set_atomics_mode){
         constexpr CublasApi::AtomicsMode not_allowed=0,allowed=1;
         (void)api.set_atomics_mode(
-            handle,dnn_mode()==DnnMode::Deterministic?not_allowed:allowed);
+            handle,mode==DnnMode::Deterministic?not_allowed:allowed);
     }
     constexpr CublasApi::Operation op_n=0,op_t=1;
     const int b=static_cast<int>(batches);

@@ -757,6 +757,9 @@ bool cudnn_conv2d_backward(
     if(!api.ready)return false;
     std::string ignored; auto handle=api.handle(input_gradient->backend_index,ignored);
     if(!handle)return false;
+    auto operation_mutex=api.operation_mutex(input_gradient->backend_index);
+    std::lock_guard operation_lock(*operation_mutex);
+    const auto mode=dnn_mode();
 
     CudnnApi::TensorDescriptor x_desc=nullptr,dy_desc=nullptr,dx_desc=nullptr,db_desc=nullptr;
     CudnnApi::FilterDescriptor w_desc=nullptr,dw_desc=nullptr;
@@ -798,13 +801,13 @@ bool cudnn_conv2d_backward(
     if(api.set_convolution_math_type){
         constexpr int default_math=0,fma_math=3;
         (void)api.set_convolution_math_type(
-            conv_desc,dnn_mode()==DnnMode::Deterministic?fma_math:default_math);
+            conv_desc,mode==DnnMode::Deterministic?fma_math:default_math);
     }
 
-    const bool deterministic=dnn_mode()==DnnMode::Deterministic;
+    const bool deterministic=mode==DnnMode::Deterministic;
     std::ostringstream algorithm_key_stream;
     algorithm_key_stream<<input_gradient->global_index<<':'<<dtype<<':'
-        <<static_cast<int>(dnn_mode())<<':'<<batches<<':'<<channels_in<<':'
+        <<static_cast<int>(mode)<<':'<<batches<<':'<<channels_in<<':'
         <<height<<':'<<width<<':'<<channels_out<<':'<<kernel_h<<':'
         <<kernel_w<<':'<<output_h<<':'<<output_w<<':'<<stride<<':'<<padding;
     const auto algorithm_key=algorithm_key_stream.str();

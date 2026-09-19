@@ -260,6 +260,7 @@ struct CublasApi {
                     const double*, const double*, int, const double*, int,
                     const double*, double*, int){};
     std::vector<Handle> handles;
+    std::vector<std::shared_ptr<std::mutex>> operation_mutexes;
     std::mutex mutex;
     bool ready{};
 
@@ -303,6 +304,10 @@ struct CublasApi {
         }
         if (handles.size() < static_cast<std::size_t>(count))
             handles.resize(static_cast<std::size_t>(count), nullptr);
+        if (operation_mutexes.size() < static_cast<std::size_t>(count))
+            operation_mutexes.resize(static_cast<std::size_t>(count));
+        auto& operation = operation_mutexes[static_cast<std::size_t>(backend_index)];
+        if (!operation) operation = std::make_shared<std::mutex>();
         auto& result = handles[static_cast<std::size_t>(backend_index)];
         if (!result && create(&result) != 0) {
             result = nullptr;
@@ -310,6 +315,11 @@ struct CublasApi {
             return nullptr;
         }
         return result;
+    }
+
+    std::shared_ptr<std::mutex> operation_mutex(int backend_index) {
+        std::lock_guard lock(mutex);
+        return operation_mutexes.at(static_cast<std::size_t>(backend_index));
     }
 };
 
@@ -395,6 +405,7 @@ struct CudnnApi {
     Status (*convolution_backward_bias)(Handle,const void*,TensorDescriptor,const void*,
                                         const void*,TensorDescriptor,void*){};
     std::vector<Handle> handles;
+    std::vector<std::shared_ptr<std::mutex>> operation_mutexes;
     std::mutex mutex;
     bool ready{};
 
@@ -459,11 +470,20 @@ struct CudnnApi {
         }
         if(handles.size()<static_cast<std::size_t>(count))
             handles.resize(static_cast<std::size_t>(count),nullptr);
+        if(operation_mutexes.size()<static_cast<std::size_t>(count))
+            operation_mutexes.resize(static_cast<std::size_t>(count));
+        auto& operation=operation_mutexes[static_cast<std::size_t>(backend_index)];
+        if(!operation)operation=std::make_shared<std::mutex>();
         auto& result=handles[static_cast<std::size_t>(backend_index)];
         if(!result&&create(&result)!=0){
             result=nullptr;error="cuDNN handle creation failed";return nullptr;
         }
         return result;
+    }
+
+    std::shared_ptr<std::mutex> operation_mutex(int backend_index) {
+        std::lock_guard lock(mutex);
+        return operation_mutexes.at(static_cast<std::size_t>(backend_index));
     }
 };
 

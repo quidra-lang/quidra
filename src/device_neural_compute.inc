@@ -331,12 +331,15 @@ bool cublas_affine(Buffer* output, const Buffer* input, const Buffer* weight,
         error.clear();
         return false;
     }
+    auto operation_mutex = api.operation_mutex(output->backend_index);
+    std::lock_guard operation_lock(*operation_mutex);
+    const auto mode = dnn_mode();
     if (api.set_atomics_mode) {
         constexpr CublasApi::AtomicsMode not_allowed = 0;
         constexpr CublasApi::AtomicsMode allowed = 1;
         (void)api.set_atomics_mode(
             handle,
-            dnn_mode() == DnnMode::Deterministic ? not_allowed : allowed);
+            mode == DnnMode::Deterministic ? not_allowed : allowed);
     }
 
     constexpr CublasApi::Operation op_n = 0;
@@ -463,6 +466,9 @@ bool cudnn_conv2d_forward(
     std::string ignored;
     auto handle=api.handle(output->backend_index,ignored);
     if(!handle)return false;
+    auto operation_mutex=api.operation_mutex(output->backend_index);
+    std::lock_guard operation_lock(*operation_mutex);
+    const auto mode=dnn_mode();
 
     CudnnApi::TensorDescriptor x_desc=nullptr,y_desc=nullptr,b_desc=nullptr;
     CudnnApi::FilterDescriptor w_desc=nullptr;
@@ -497,14 +503,14 @@ bool cudnn_conv2d_forward(
     }
     if(api.set_convolution_math_type){
         constexpr int default_math=0,fma_math=3;
-        const int math=dnn_mode()==DnnMode::Deterministic?fma_math:default_math;
+        const int math=mode==DnnMode::Deterministic?fma_math:default_math;
         (void)api.set_convolution_math_type(conv_desc,math);
     }
 
-    const bool deterministic=dnn_mode()==DnnMode::Deterministic;
+    const bool deterministic=mode==DnnMode::Deterministic;
     std::ostringstream algorithm_key_stream;
     algorithm_key_stream<<output->global_index<<':'<<dtype<<':'
-        <<static_cast<int>(dnn_mode())<<':'<<batches<<':'<<channels_in<<':'
+        <<static_cast<int>(mode)<<':'<<batches<<':'<<channels_in<<':'
         <<height<<':'<<width<<':'<<channels_out<<':'<<kernel_h<<':'
         <<kernel_w<<':'<<output_h<<':'<<output_w<<':'<<stride<<':'<<padding;
     const auto algorithm_key=algorithm_key_stream.str();

@@ -16,9 +16,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  micro:
+  current-equivalent:
     runs-on: macos-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - name: Install native dependencies
@@ -33,69 +33,15 @@ jobs:
           rustc --version
           go version
           build/quidra --version
-      - name: Historical native micro workloads
+      - name: Verify current Quidra overlays
         env:
           QUIDRA_BIN: ${{ github.workspace }}/build/quidra
         run: |
-          python3 "benchmark/2026-09-17-7677581(latest)/scripts/run_micro_suite.py" \
-            --configs quidra_native,cpp,rust,go \
-            --repeats 5 --warmups 2 --timeout 1800 \
-            --out "${RUNNER_TEMP}/native-micro.json"
-      - name: Summarize measurements
-        if: always()
-        run: |
-          python3 - <<'PY'
-          import json, os, statistics
-          path=os.path.join(os.environ["RUNNER_TEMP"],"native-micro.json")
-          if not os.path.exists(path):
-              print("native-micro.json was not produced")
-              raise SystemExit(0)
-          data=json.load(open(path))
-          rows=[]
-          by={}
-          for r in data["results"]:
-              cfg=r["config"]
-              if r.get("status")!="ok":
-                  rows.append((cfg,r["workload"],r.get("status"),None,None,None,None,None))
-                  continue
-              t=r["timing"]
-              rep=t["representative"]
-              row=(cfg,r["workload"],"ok",rep["wall_seconds"],rep["peak_rss_bytes"],r["build"]["wall_seconds"],r.get("artifact_size_bytes"),t["first_run_wall_seconds"])
-              rows.append(row)
-              by.setdefault(cfg,[]).append(rep["wall_seconds"])
-          header="| config | workload | status | wall s | peak RSS MiB | compile s | artifact KiB | first run s |\n|---|---|---:|---:|---:|---:|---:|---:|"
-          lines=[header]
-          for cfg,wl,status,wall,rss,comp,size,first in rows:
-              if status!="ok":
-                  lines.append(f"| {cfg} | {wl} | {status} | - | - | - | - | - |")
-              else:
-                  lines.append(f"| {cfg} | {wl} | {status} | {wall:.4f} | {rss/1048576:.1f} | {comp:.4f} | {size/1024:.1f} | {first:.4f} |")
-          lines.append("\n## Mean wall time across 11 workloads")
-          for cfg,vals in by.items():
-              lines.append(f"- {cfg}: {statistics.mean(vals):.4f} s")
-          text="\n".join(lines)+"\n"
-          print(text)
-          with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as f: f.write(text)
-          PY
-      - name: Preserve raw measurements
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: native-micro-${{ github.sha }}
-          path: ${{ runner.temp }}/native-micro.json
-          if-no-files-found: warn
-
-  current-equivalent:
-    runs-on: macos-latest
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-      - name: Install native dependencies
-        run: brew install curl libpng jpeg-turbo libtiff webp go
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON -DCMAKE_PREFIX_PATH="$(brew --prefix curl);$(brew --prefix libpng);$(brew --prefix jpeg-turbo);$(brew --prefix libtiff);$(brew --prefix webp)"
-      - name: Build Quidra
-        run: cmake --build build --parallel
+          python3 benchmark/current-native/run.py \
+            --configs quidra_native \
+            --workloads mb03,mb08,mb10,mb11 \
+            --verify-only --timeout 1800 \
+            --out "${RUNNER_TEMP}/current-overlay-verify.json"
       - name: Current-equivalent native micro workloads
         env:
           QUIDRA_BIN: ${{ github.workspace }}/build/quidra
@@ -109,33 +55,57 @@ jobs:
         run: |
           python3 - <<'PY'
           import json, os, statistics
-          path=os.path.join(os.environ["RUNNER_TEMP"],"current-native.json")
-          if not os.path.exists(path):
+          current_path=os.path.join(os.environ["RUNNER_TEMP"],"current-native.json")
+          if not os.path.exists(current_path):
               print("current-native.json was not produced")
               raise SystemExit(0)
-          data=json.load(open(path))
-          by={}
-          rows=[]
+          data=json.load(open(current_path))
+          historical_path=os.path.join(
+              os.environ["GITHUB_WORKSPACE"],
+              "benchmark","2026-09-17-7677581(latest)","micro","raw","micro_timing.json")
+          historical=json.load(open(historical_path))
+          old_quidra={
+              r["workload"]: r["timing"]["representative"]
+              for r in historical["results"]
+              if r.get("status")=="ok" and r["config"]=="quidra_native"
+          }
+          by={}; per={}; rows=[]
           for r in data["results"]:
+              cfg=r["config"]; wl=r["workload"]
               if r.get("status")!="ok":
-                  rows.append((r["config"],r["workload"],r.get("status"),None,None,None,None,None))
+                  rows.append((cfg,wl,r.get("status"),None,None,None,None,None))
                   continue
-              t=r["timing"]; rep=t["representative"]
-              rows.append((r["config"],r["workload"],"ok",rep["wall_seconds"],rep["peak_rss_bytes"],r["build"]["wall_seconds"],r.get("artifact_size_bytes"),t["first_run_wall_seconds"]))
-              by.setdefault(r["config"],[]).append(rep["wall_seconds"])
-          lines=["## Current-equivalent diagnostic", "", "| config | workload | status | wall s | peak RSS MiB | compile s | artifact KiB | first run s |", "|---|---|---:|---:|---:|---:|---:|---:|"]
+              t=r["timing"]; rep=t["representative"]; wall=rep["wall_seconds"]
+              rows.append((cfg,wl,"ok",wall,rep["peak_rss_bytes"],r["build"]["wall_seconds"],r.get("artifact_size_bytes"),t["first_run_wall_seconds"]))
+              by.setdefault(cfg,[]).append(wall)
+              per.setdefault(wl,{})[cfg]=(wall,rep["peak_rss_bytes"])
+          lines=[
+              "## Current-equivalent diagnostic","",
+              "Frozen 2026-09-17 sources/results stay unchanged; current Quidra overlays only obsolete capability substitutions in MB03/08/10/11.","",
+              "| config | workload | status | wall s | peak RSS MiB | compile s | artifact KiB | first run s |",
+              "|---|---|---:|---:|---:|---:|---:|---:|"]
           for cfg,wl,status,wall,rss,comp,size,first in rows:
               if status!="ok":
                   lines.append(f"| {cfg} | {wl} | {status} | - | - | - | - | - |")
               else:
                   lines.append(f"| {cfg} | {wl} | ok | {wall:.4f} | {rss/1048576:.1f} | {comp:.4f} | {size/1024:.1f} | {first:.4f} |")
-          lines.append("")
+          lines += ["","### Quidra native / median(C++, Rust, Go)"]
+          for wl in sorted(per):
+              values=per[wl]; peers=[values[c][0] for c in ("cpp","rust","go") if c in values]
+              if "quidra_native" in values and peers:
+                  lines.append(f"- {wl}: {values['quidra_native'][0]/statistics.median(peers):.2f}x")
+          lines += ["","### Historical Quidra native -> current-equivalent"]
+          overlays={"mb03","mb08","mb10","mb11"}
+          for wl in sorted(per):
+              if "quidra_native" not in per[wl] or wl not in old_quidra: continue
+              now_wall,now_rss=per[wl]["quidra_native"]; old=old_quidra[wl]
+              label="source+compiler" if wl in overlays else "compiler/runtime"
+              lines.append(f"- {wl}: {old['wall_seconds']:.4f}s -> {now_wall:.4f}s ({old['wall_seconds']/now_wall:.2f}x faster, {label}); RSS {old['peak_rss_bytes']/1048576:.1f} -> {now_rss/1048576:.1f} MiB")
+          lines += ["","### Mean wall time across 11 workloads"]
           for cfg,vals in by.items():
-              lines.append(f"- mean {cfg}: {statistics.mean(vals):.4f} s")
-          text="\n".join(lines)+"\n"
-          print(text)
-          with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as f:
-              f.write(text)
+              lines.append(f"- {cfg}: {statistics.mean(vals):.4f} s")
+          text="\n".join(lines)+"\n"; print(text)
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as f: f.write(text)
           PY
       - name: Preserve current-equivalent measurements
         if: always()

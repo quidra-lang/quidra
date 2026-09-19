@@ -389,6 +389,26 @@ QUI
 grep -q 'declare i64 @llabs(i64)' "$TMP/ffi-scalar.ll"
 grep -q 'call i64 @llabs(i64' "$TMP/ffi-scalar.ll"
 
+cat > "$TMP/ffi-linked.c" <<'C'
+long long quidra_test_increment(long long value) {
+    return value + 1;
+}
+C
+"${CC:-cc}" -c "$TMP/ffi-linked.c" -o "$TMP/ffi-linked.o"
+cat > "$TMP/ffi-linked.qui" <<'QUI'
+extern int c_increment(int value) = "quidra_test_increment"
+print(c_increment(41))
+QUI
+"$QUIDRA" build "$TMP/ffi-linked.qui" --link "$TMP/ffi-linked.o" -o "$TMP/ffi-linked"
+[[ "$("$TMP/ffi-linked")" == "42" ]]
+[[ "$("$QUIDRA" run "$TMP/ffi-linked.qui" --link "$TMP/ffi-linked.o")" == "42" ]]
+set +e
+"$QUIDRA" build "$TMP/ffi-linked.qui" --link "$TMP/missing-foreign.o" -o "$TMP/ffi-linked-missing" >"$TMP/ffi-link-missing.out" 2>"$TMP/ffi-link-missing.err"
+ffi_link_missing_rc=$?
+set -e
+[[ "$ffi_link_missing_rc" -eq 1 ]]
+grep -q -- '--link input is not a regular file' "$TMP/ffi-link-missing.err"
+
 cat > "$TMP/ffi-borrowed-inputs.qui" <<'QUI'
 extern int32 c_text(const string &text) = "foreign_test_text"
 extern int32 c_bin(const bin &data) = "foreign_test_bin"

@@ -177,7 +177,8 @@ std::size_t parse_max_errors(const std::string& text) {
 }
 
 int build_native(const fs::path& source, const fs::path& output, bool keep_llvm = false,
-                 std::size_t max_errors = 20, bool debug = false) {
+                 std::size_t max_errors = 20, bool debug = false,
+                 const std::vector<fs::path>& link_inputs = {}) {
     require_qui_source(source);
     auto result = quidra::compile_file(
         source, quidra::CompileOptions{max_errors, debug}, fs::current_path());
@@ -186,7 +187,7 @@ int build_native(const fs::path& source, const fs::path& output, bool keep_llvm 
     write_file(ll, result.llvm);
 
     const auto rc = quidra::native::link_llvm(
-        ll, output, quidra::native::LinkOptions{debug});
+        ll, output, quidra::native::LinkOptions{debug, link_inputs});
     if (!keep_llvm) {
         std::error_code ec;
         fs::remove(ll, ec);
@@ -195,10 +196,11 @@ int build_native(const fs::path& source, const fs::path& output, bool keep_llvm 
 }
 
 int run_native(const fs::path& source, std::size_t max_errors = 20,
-               const std::vector<std::string>& program_args = {}) {
+               const std::vector<std::string>& program_args = {},
+               const std::vector<fs::path>& link_inputs = {}) {
     TemporaryBuild temp;
     const auto executable = temp.executable();
-    if (build_native(source, executable, false, max_errors) != 0) return 1;
+    if (build_native(source, executable, false, max_errors, false, link_inputs) != 0) return 1;
     return quidra::native::run_program(executable, program_args);
 }
 
@@ -221,12 +223,14 @@ void usage(std::ostream& out) {
         << "  quidra gpu                        list supported GPU devices and backends\n"
         << "  quidra info                       print CPU/GPU backend information\n"
         << "  quidra FILE.qui [ARGS...]         compile and run with program arguments\n"
-        << "  quidra run FILE.qui [-- ARGS...]  compile and run; '--' separates program arguments\n"
+        << "  quidra run FILE.qui [--link FILE] [-- ARGS...]\n"
+        << "                                      compile and run; --link is repeatable\n"
         << "  quidra check FILE.qui [--json] [--max-errors N]\n"
         << "                                      type-check without building\n"
-        << "  quidra build FILE.qui [-o FILE] [--debug] [--max-errors N]\n"
-        << "                                      build native executable\n"
-        << "  quidra debug FILE.qui [-- ARGS...] build with debug symbols and launch lldb/gdb\n"
+        << "  quidra build FILE.qui [-o FILE] [--debug] [--link FILE] [--max-errors N]\n"
+        << "                                      build native executable; --link is repeatable\n"
+        << "  quidra debug FILE.qui [--link FILE] [-- ARGS...]\n"
+        << "                                      build with debug symbols and launch lldb/gdb\n"
         << "  quidra fmt FILE.qui [--check]     format source; --check only verifies canonical form\n"
         << "  quidra ir FILE.qui                print typed Quidra IR\n"
         << "  quidra llvm FILE.qui              print generated LLVM IR\n"
@@ -510,44 +514,53 @@ int main(int argc, char** argv) {
             bool keep = false;
             bool debug = false;
             std::size_t max_errors = 20;
+            std::vector<fs::path> link_inputs;
             for (int i = 3; i < argc; ++i) {
                 const std::string option = argv[i];
                 if (option == "-o" && i + 1 < argc) output = argv[++i];
                 else if (option == "--keep-llvm") keep = true;
                 else if (option == "--debug") debug = true;
+                else if (option == "--link" && i + 1 < argc) link_inputs.emplace_back(argv[++i]);
+                else if (option == "--link") throw std::runtime_error("--link requires a file path");
                 else if (option == "--max-errors" && i + 1 < argc) max_errors = parse_max_errors(argv[++i]);
                 else throw std::runtime_error("unknown build option: " + option);
             }
-            return build_native(input, output, keep, max_errors, debug);
+            return build_native(input, output, keep, max_errors, debug, link_inputs);
         }
 
         if (command == "debug") {
             std::vector<std::string> program_args;
+            std::vector<fs::path> link_inputs;
             bool program_mode = false;
             for (int i = 3; i < argc; ++i) {
                 const std::string option = argv[i];
                 if (program_mode) program_args.push_back(option);
                 else if (option == "--") program_mode = true;
+                else if (option == "--link" && i + 1 < argc) link_inputs.emplace_back(argv[++i]);
+                else if (option == "--link") throw std::runtime_error("--link requires a file path");
                 else throw std::runtime_error("unknown debug option: " + option);
             }
             TemporaryBuild temp;
             const auto executable = temp.executable();
-            if (build_native(input, executable, true, 20, true) != 0) return 1;
+            if (build_native(input, executable, true, 20, true, link_inputs) != 0) return 1;
             return quidra::native::run_debugger(executable, program_args);
         }
 
         if (command == "run") {
             std::size_t max_errors = 20;
             std::vector<std::string> program_args;
+            std::vector<fs::path> link_inputs;
             bool program_mode = false;
             for (int i = 3; i < argc; ++i) {
                 const std::string option = argv[i];
                 if (program_mode) program_args.push_back(option);
                 else if (option == "--") program_mode = true;
+                else if (option == "--link" && i + 1 < argc) link_inputs.emplace_back(argv[++i]);
+                else if (option == "--link") throw std::runtime_error("--link requires a file path");
                 else if (option == "--max-errors" && i + 1 < argc) max_errors = parse_max_errors(argv[++i]);
                 else throw std::runtime_error("unknown run option: " + option + "; use '--' before program arguments");
             }
-            return run_native(input, max_errors, program_args);
+            return run_native(input, max_errors, program_args, link_inputs);
         }
 
         usage(std::cerr);

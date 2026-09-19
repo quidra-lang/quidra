@@ -420,11 +420,18 @@ int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options)
         L"-x",
         L"none",
         runtime_library().native(),
+    };
+    for (const auto& input : options.inputs) {
+        if (!fs::is_regular_file(input))
+            throw std::runtime_error("--link input is not a regular file: " + input.string());
+        arguments.push_back(input.native());
+    }
+    arguments.insert(arguments.end(), {
         L"-Xlinker",
         L"/DEFAULTLIB:legacy_stdio_definitions",
         L"-o",
         output.native(),
-    };
+    });
     if (options.debug) {
         arguments.emplace_back(L"-g");
         arguments.emplace_back(L"-fno-omit-frame-pointer");
@@ -463,11 +470,18 @@ int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options)
         "-x",
         "none",
         runtime_library().string(),
+    };
+    for (const auto& input : options.inputs) {
+        if (!fs::is_regular_file(input))
+            throw std::runtime_error("--link input is not a regular file: " + input.string());
+        arguments.push_back(input.string());
+    }
+    arguments.insert(arguments.end(), {
         "-o",
         output.string(),
         "-lm",
         "-pthread",
-    };
+    });
 #ifdef __APPLE__
     arguments.emplace_back("-framework");
     arguments.emplace_back("Foundation");

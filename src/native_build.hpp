@@ -13,6 +13,7 @@ std::filesystem::path runtime_library();
 
 struct LinkOptions {
     bool debug{};
+    std::vector<std::filesystem::path> inputs;
 };
 
 std::string debugger_driver();

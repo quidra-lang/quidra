@@ -2116,7 +2116,7 @@ print(item.read())
  bad_code(R"(class PrivateInit
     private int value
 PrivateInit item = PrivateInit(other = 9)
-)", "UNKNOWN_ARGUMENT");
+)", "ARGUMENT_MISMATCH");
  bad_code("class A\n    int x\nclass A\n    int y\n", "DUPLICATE_NAME");
  bad_code(R"(T identity<T>(T value)
     return value

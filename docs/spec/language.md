@@ -55,8 +55,8 @@ bin | error pattern = bin.parse("01010000")
 
 bin data = bin.fill(8, 0)
 data[0] = bin.fill(1, 1)
-bin first = pattern[0]
-bin nibble = pattern[0:4]
+bin first = data[0]
+bin nibble = data[0:4]
 ```
 
 `bin.fill(n, bit)` allocates exactly `n` bits and accepts only `0` or `1` for `bit`. Length zero is valid. Negative lengths, invalid allocation sizes, and fill values other than 0 or 1 are rejected. `len(value)` returns the bit count. Indexing is zero-based and returns a one-bit `bin`; slicing uses a half-open bit range and returns `bin`. `print(bin)` and `bin.string()` expose the exact 0/1 sequence.

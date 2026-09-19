@@ -325,6 +325,8 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
     int __empty_slot = -1
     int __last_index = -1
     int __last_hash = -1
+    int __last_slot = -1
+    K[] __last_key = []
     int __version = 0
     int __last_version = -1
 
@@ -411,9 +413,14 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         int __index = __find(key, __hash_value)
         __last_hash = __hash_value
         __last_index = __index
+        __last_slot = __empty_slot
         __last_version = __version
         if __index >= 0
             return __values[__index]
+        if len(__last_key) == 0
+            __last_key = __last_key.append(key)
+        else
+            __last_key[0] = key
         return none
 
     void set(K key, V value)
@@ -424,7 +431,19 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
                 __values[__cached] = value
                 return void
 
-        int __index = __find(key, __hash_value)
+        bool __reuse_missing = false
+        if __last_version == __version and __last_index < 0 and __last_hash == __hash_value and len(__last_key) == 1
+            if __last_key[0] == key
+                __reuse_missing = true
+
+        int __index = -1
+        int __insert_slot = -1
+        if __reuse_missing
+            __insert_slot = __last_slot
+        else
+            __index = __find(key, __hash_value)
+            __insert_slot = __empty_slot
+
         if __index >= 0
             __values[__index] = value
             __last_hash = __hash_value
@@ -433,7 +452,6 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
             return void
 
         int __new_index = len(__keys)
-        int __insert_slot = __empty_slot
         __keys = __keys.append(key)
         __values = __values.append(value)
         __hashes = __hashes.append(__hash_value)

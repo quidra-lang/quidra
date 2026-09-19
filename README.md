@@ -1127,8 +1127,7 @@ match opened
     video.Reader reader
         print(reader.width())
         print(reader.height())
-        print(reader.fps())
-        auto next = reader.read()
+        tensor<uint8><3, _, _> | none | error next = reader.read()
         match next
             tensor<uint8><3, _, _> frame
                 print(frame.shape())
@@ -1140,7 +1139,7 @@ match opened
         print(problem)
 ```
 
-`video.open(path)` returns `video.Reader | error`. `Reader.read()` returns one CPU RGB CHW frame as `tensor<uint8><3, _, _>`, `none` at clean end-of-stream, or `error` on decode failure. `width()`, `height()`, and `fps()` expose stream metadata. Reader copies share one stream cursor; copying a handle does not duplicate or restart the decoder. Audio streams are ignored by this initial API.
+`video.open(path)` returns `video.Reader | error`. `Reader.read()` returns one CPU CHW frame, `none` at clean end-of-stream, or `error` on failure. The default layout is RGB; `channel = 1|3|4` explicitly requests gray/RGB/RGBA, and `type = T` explicitly requests numeric representation conversion. Decode precision is kept as `uint8` or `uint16` before explicit conversion, so high-bit-depth video is not silently narrowed. `width()`, `height()`, `fps()`, `frames()`, `duration()`, `position()`, and `seek(frame)` expose metadata and explicit logical frame positioning. Optional metadata is represented with `none`. Reader copies have independent positions, and frames move to a GPU only through an explicit `.gpu(n)`.
 
 Decoded images use CHW layout and have compiler-known rank 3: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample type and channel count by default. An expected type such as `tensor<uint8><3, _, _> | error` is an acceptance constraint: it accepts only rank-3 uint8 RGB and does not convert a mismatch. Use `channel = value` (which must evaluate to 1, 3, or 4) to request channel conversion and `type = float32` (or another numeric built-in type) to request element-type conversion. These option values can drive diagnostics and conversion behavior but do not narrow an `auto` result type; write the expected union type explicitly when the result type must be fixed. Type conversion never normalizes sample ranges. RGB-to-gray uses the fixed `0.299R + 0.587G + 0.114B` rule. `image.write` writes only when the target codec can represent the tensor element type exactly; alpha is removed only when an explicit channel conversion requests that result.
 
@@ -1150,6 +1149,7 @@ The library boundary is intentionally small:
 standard foundations
 tensor
 ├── image       type-preserving tensor image I/O
+├── video       streaming tensor video decode
 └── neural      autodiff, gradients, parameters, and training state
 
 official source packages

@@ -1733,7 +1733,8 @@ Type Checker::check_index_expr(const Expr& expression, const IndexExpr& node_val
 }
 
 Type Checker::check_method_call_expr(const Expr& expression,
-                                     const MethodCallExpr& node_value) {
+                                     const MethodCallExpr& node_value,
+                                     const Type* expected) {
     Type type = simple(TypeKind::Void);
     const auto* node = &node_value;
         const auto* receiver_name = std::get_if<NameExpr>(&node->receiver->data);
@@ -1861,6 +1862,249 @@ Type Checker::check_method_call_expr(const Expr& expression,
 
             if (poisoned(receiver)) {
                 type = receiver;
+            } else if (!super_receiver && receiver.kind == TypeKind::Class &&
+                       receiver.class_name == "$std.video.Reader") {
+                if (!node->type_arguments.empty()) {
+                    error("GENERIC_TARGET",
+                          "video.Reader methods do not take type arguments.",
+                          expression.span);
+                }
+                const auto mark_mutation = [&] {
+                    if (const_access_path(*node->receiver)) {
+                        error("WRITE_CAPABILITY",
+                              "video.Reader read/seek cannot mutate through a const access path.",
+                              expression.span);
+                    }
+                    if (const auto path = current_receiver_path(*node->receiver)) {
+                        current_receiver_effect_.writes.insert(*path);
+                    }
+                    if (const auto path =
+                            current_reference_parameter_path(*node->receiver)) {
+                        current_reference_effects_[path->first].writes.insert(path->second);
+                    }
+                };
+                const auto require_no_arguments = [&](const char* signature) {
+                    if (!node->args.empty()) {
+                        error("ARGUMENT_MISMATCH", signature, expression.span);
+                    }
+                };
+
+                if (node->method == "width") {
+                    require_no_arguments("video.Reader.width() takes no arguments.");
+                    type = simple(TypeKind::Int);
+                } else if (node->method == "height") {
+                    require_no_arguments("video.Reader.height() takes no arguments.");
+                    type = simple(TypeKind::Int);
+                } else if (node->method == "fps") {
+                    require_no_arguments("video.Reader.fps() takes no arguments.");
+                    type = Type::union_of({
+                        simple(TypeKind::Float), simple(TypeKind::None)});
+                } else if (node->method == "frames") {
+                    require_no_arguments("video.Reader.frames() takes no arguments.");
+                    type = Type::union_of({
+                        simple(TypeKind::Int), simple(TypeKind::None)});
+                } else if (node->method == "duration") {
+                    require_no_arguments("video.Reader.duration() takes no arguments.");
+                    type = Type::union_of({
+                        simple(TypeKind::Float), simple(TypeKind::None)});
+                } else if (node->method == "position") {
+                    require_no_arguments("video.Reader.position() takes no arguments.");
+                    type = simple(TypeKind::Int);
+                } else if (node->method == "seek") {
+                    if (node->args.size() != 1 || node->args[0].writable ||
+                        (node->args[0].name && *node->args[0].name != "frame")) {
+                        error("ARGUMENT_MISMATCH",
+                              "video.Reader.seek(frame) requires one integer frame index.",
+                              expression.span);
+                    }
+                    auto int_type = simple(TypeKind::Int);
+                    auto frame = node->args.empty()
+                        ? simple(TypeKind::Invalid)
+                        : check_expr(*node->args[0].value, &int_type);
+                    if (!node->args.empty()) {
+                        if (const auto index =
+                                constant_eval::integer(*node->args[0].value,
+                                                       &const_integer_values_);
+                            index && *index < 0) {
+                            error("ARGUMENT_MISMATCH",
+                                  "video.Reader.seek frame cannot be negative.",
+                                  node->args[0].span);
+                            frame = simple(TypeKind::Invalid);
+                        }
+                    }
+                    mark_mutation();
+                    type = poisoned(frame) ? simple(TypeKind::Invalid)
+                        : Type::union_of({
+                            simple(TypeKind::Void), simple(TypeKind::Error)});
+                } else if (node->method == "read") {
+                    if (node->args.size() > 2) {
+                        error("ARGUMENT_MISMATCH",
+                              "video.Reader.read accepts optional channel/type conversions.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                    } else {
+                        bool bad = false;
+                        bool channel_seen = false;
+                        bool type_seen = false;
+                        std::optional<long long> target_channels;
+                        std::optional<Type> target_dtype;
+                        auto int_type = simple(TypeKind::Int);
+
+                        for (const auto& argument : node->args) {
+                            if (argument.writable || !argument.name) {
+                                error("ARGUMENT_MISMATCH",
+                                      "video.Reader.read conversion options must be named.",
+                                      argument.span);
+                                bad = true;
+                                continue;
+                            }
+                            if (*argument.name == "channel") {
+                                if (channel_seen) {
+                                    error("DUPLICATE_ARGUMENT",
+                                          "video.Reader.read channel is specified more than once.",
+                                          argument.span);
+                                    bad = true;
+                                    continue;
+                                }
+                                channel_seen = true;
+                                const auto channel_type =
+                                    check_expr(*argument.value, &int_type);
+                                const auto channels =
+                                    constant_eval::integer(*argument.value,
+                                                           &const_integer_values_);
+                                if (poisoned(channel_type)) {
+                                    bad = true;
+                                } else if (channels &&
+                                           *channels != 1 && *channels != 3 &&
+                                           *channels != 4) {
+                                    error("ARGUMENT_MISMATCH",
+                                          "video.Reader.read channel must evaluate to 1, 3, or 4.",
+                                          argument.span);
+                                    bad = true;
+                                } else if (channels) {
+                                    target_channels = *channels;
+                                }
+                                continue;
+                            }
+                            if (*argument.name == "type") {
+                                if (type_seen) {
+                                    error("DUPLICATE_ARGUMENT",
+                                          "video.Reader.read type is specified more than once.",
+                                          argument.span);
+                                    bad = true;
+                                    continue;
+                                }
+                                type_seen = true;
+                                const auto* name =
+                                    std::get_if<NameExpr>(&argument.value->data);
+                                const auto dtype = name
+                                    ? builtin_scalar_type(name->name)
+                                    : std::optional<Type>{};
+                                if (!dtype || !is_tensor_numeric(*dtype)) {
+                                    error("ARGUMENT_MISMATCH",
+                                          "video.Reader.read type must name a numeric built-in type.",
+                                          argument.span);
+                                    bad = true;
+                                } else {
+                                    target_dtype = *dtype;
+                                    raw_types_[argument.value.get()] = *dtype;
+                                    expr_types_[argument.value.get()] = *dtype;
+                                }
+                                continue;
+                            }
+                            error("ARGUMENT_MISMATCH",
+                                  "video.Reader.read supports only channel = int and type = numeric_type.",
+                                  argument.span);
+                            bad = true;
+                        }
+
+                        const auto none_type = simple(TypeKind::None);
+                        const auto error_type = simple(TypeKind::Error);
+                        std::optional<Type> expected_tensor;
+                        if (expected && expected->kind == TypeKind::Union &&
+                            case_index(*expected, none_type) >= 0 &&
+                            case_index(*expected, error_type) >= 0) {
+                            std::vector<Type> tensors;
+                            for (const auto& item : expected->cases) {
+                                if (item.kind == TypeKind::Tensor && item.first &&
+                                    is_tensor_numeric(*item.first)) {
+                                    tensors.push_back(item);
+                                }
+                            }
+                            if (tensors.size() == 1) expected_tensor = tensors.front();
+                        }
+
+                        if (expected_tensor &&
+                            !expected_tensor->tensor_shape_prefix.empty() &&
+                            expected_tensor->tensor_shape_prefix.size() != 3) {
+                            error("TYPE_MISMATCH",
+                                  "video.Reader.read returns rank-3 CHW tensors.",
+                                  expression.span);
+                            bad = true;
+                        }
+                        if (target_dtype && expected_tensor &&
+                            *expected_tensor->first != *target_dtype) {
+                            error("TYPE_MISMATCH",
+                                  "video.Reader.read type conversion conflicts with the expected tensor element type.",
+                                  expression.span);
+                            bad = true;
+                        }
+                        if (target_channels && expected_tensor &&
+                            !expected_tensor->tensor_shape_prefix.empty() &&
+                            expected_tensor->tensor_shape_prefix.front() >= 0 &&
+                            expected_tensor->tensor_shape_prefix.front() !=
+                                *target_channels) {
+                            error("TYPE_MISMATCH",
+                                  "video.Reader.read channel conversion conflicts with the expected tensor shape.",
+                                  expression.span);
+                            bad = true;
+                        }
+
+                        mark_mutation();
+                        if (bad) {
+                            type = simple(TypeKind::Invalid);
+                        } else {
+                            std::vector<Type> result_cases;
+                            const auto append_case = [&](Type element) {
+                                std::vector<long long> shape_contract;
+                                std::vector<long long> known_shape;
+                                if (expected_tensor) {
+                                    shape_contract =
+                                        expected_tensor->tensor_shape_prefix;
+                                    for (const auto extent : shape_contract) {
+                                        if (extent < 0) break;
+                                        known_shape.push_back(extent);
+                                    }
+                                }
+                                result_cases.push_back(Type::tensor(
+                                    element, 3, std::move(shape_contract),
+                                    std::move(known_shape)));
+                            };
+                            if (expected_tensor) {
+                                append_case(*expected_tensor->first);
+                            } else {
+                                append_case(simple(TypeKind::Int8));
+                                append_case(simple(TypeKind::Int16));
+                                append_case(simple(TypeKind::Int32));
+                                append_case(simple(TypeKind::Int));
+                                append_case(simple(TypeKind::UInt8));
+                                append_case(simple(TypeKind::UInt16));
+                                append_case(simple(TypeKind::UInt32));
+                                append_case(simple(TypeKind::UInt64));
+                                append_case(simple(TypeKind::Float32));
+                                append_case(simple(TypeKind::Float));
+                            }
+                            result_cases.push_back(none_type);
+                            result_cases.push_back(error_type);
+                            type = Type::union_of(std::move(result_cases));
+                        }
+                    }
+                } else {
+                    error("UNKNOWN_MEMBER",
+                          "Class 'video.Reader' has no method '" +
+                              node->method + "'.",
+                          expression.span);
+                }
             } else if (!super_receiver && receiver.kind != TypeKind::Class) {
                 if (receiver.kind == TypeKind::Neural) {
                     if (node->method == "untrack") {
@@ -5245,7 +5489,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             }
         }
     } else if (const auto* node = std::get_if<MethodCallExpr>(&expression.data)) {
-        type = check_method_call_expr(expression, *node);
+        type = check_method_call_expr(expression, *node, expected);
     } else if (const auto* node = std::get_if<CallExpr>(&expression.data)) {
         type = check_call_expr(expression, *node, expected);
     }

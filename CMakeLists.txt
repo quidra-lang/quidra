@@ -220,6 +220,7 @@ if(BUILD_TESTING)
     add_test(NAME quidra_stdlib COMMAND bash ${CMAKE_SOURCE_DIR}/tests/stdlib_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_neural_foundation COMMAND bash ${CMAKE_SOURCE_DIR}/tests/neural_foundation_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_image_dtype COMMAND bash ${CMAKE_SOURCE_DIR}/tests/image_dtype_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_video COMMAND bash ${CMAKE_SOURCE_DIR}/tests/video_tests.sh $<TARGET_FILE:quidra>)
     if(QUIDRA_ENABLE_TEST_GPU_BACKEND)
       add_executable(quidra_device_backend_tests tests/device_backend_tests.cpp)
       target_include_directories(quidra_device_backend_tests PRIVATE ${CMAKE_SOURCE_DIR}/src)
@@ -276,6 +277,7 @@ if(BUILD_TESTING)
       quidra_stdlib
       quidra_neural_foundation
       quidra_image_dtype
+      quidra_video
       quidra_native_smoke
       PROPERTIES TIMEOUT ${QUIDRA_TEST_TIMEOUT}
     )

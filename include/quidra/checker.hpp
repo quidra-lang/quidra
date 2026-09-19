@@ -150,7 +150,8 @@ private:
                          const Type* expected = nullptr);
     Type check_member_expr(const Expr& expression, const MemberExpr& node);
     Type check_index_expr(const Expr& expression, const IndexExpr& node);
-    Type check_method_call_expr(const Expr& expression, const MethodCallExpr& node);
+    Type check_method_call_expr(const Expr& expression, const MethodCallExpr& node,
+                                const Type* expected = nullptr);
     Type check_call_expr(const Expr& expression, const CallExpr& node, const Type* expected);
     Type check_builtin_call_expr(const Expr& expression, const CallExpr& node,
                                  BuiltinCallable builtin, const Type* expected);

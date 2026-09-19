@@ -757,16 +757,23 @@ system and has no compiler-specific name handling.
 
 `video.open(path)` returns `video.Reader | error` and opens one video stream for incremental decoding. The runtime does not decode or buffer the complete video up front.
 
-`video.Reader` exposes:
+`video.Reader` exposes methods rather than source-visible representation fields:
 
-- `width() -> int`
-- `height() -> int`
-- `fps() -> float`
-- `read() -> tensor<uint8><3, _, _> | none | error`
+- `width() -> int` and `height() -> int`
+- `fps() -> float | none`
+- `frames() -> int | none`
+- `duration() -> float | none` in seconds
+- `position() -> int`, the zero-based index of the next logical frame
+- `seek(frame) -> void | error`
+- `read(...) -> tensor<T> | none | error`
 
-Each successful `read()` yields one CPU RGB frame in CHW layout with shape `[3,H,W]`. Clean end-of-stream is `none`; container, codec, or frame-conversion failure is `error`. No implicit GPU transfer or dtype conversion occurs. The first selected video stream is decoded and audio is ignored.
+A successful `read()` yields one CPU CHW frame. The default channel layout is RGB. `channel = 1`, `3`, or `4` explicitly requests gray, RGB, or RGBA. Decoded component precision is represented as `uint8` for up-to-8-bit sources and `uint16` for higher decoded precision, rather than silently narrowing high-bit-depth video to 8-bit. `type = T` is an explicit numeric representation conversion and follows the same range-preserving policy as `image.read`; sample ranges are not normalized. The conversion from an encoded YUV/RGB pixel format into the requested gray/RGB/RGBA layout is part of decoding, not an implicit tensor cast.
 
-Reader lifetime is automatic. Copying a Reader shares the same opaque stream cursor, so reads through either copy advance the same decoder; Quidra does not silently duplicate external decoder state. The native implementation uses FFmpeg libavformat/libavcodec/libavutil/libswscale behind the standard API. FFmpeg types and handles are not source-visible, and generated programs link those libraries only when the generated LLVM reaches the `video` runtime.
+Conversion option values do not specialize the static result type of an `auto` expression. An explicit expected type such as `tensor<uint16><3, _, _> | none | error` is an acceptance constraint and may narrow the checked result. A runtime dtype/shape mismatch returns `error`. Clean end-of-stream is `none`.
+
+`fps()`, `frames()`, and `duration()` return `none` when the container cannot supply the corresponding metadata. `seek(frame)` uses a logical frame index and does not silently reinterpret it as a timestamp. Reader assignment, parameter passing, and return preserve ordinary Quidra value semantics: a copied Reader has an independent logical position. Immutable source metadata may be shared internally, while decoder state is reconstructed lazily for a copied value. Native decoder resources are released automatically with value lifetime.
+
+No GPU transfer is hidden in video I/O; decoded frames stay on CPU until an explicit `.gpu(n)`. Audio is ignored by this API. The native implementation uses FFmpeg libavformat/libavcodec/libavutil/libswscale behind the standard API, but FFmpeg types and handles are not source-visible.
 
 `signal` is reserved as a standard namespace so its future qualified API cannot be captured by a user bare declaration, but language version 0.1 does not define public signal-processing callables.
 

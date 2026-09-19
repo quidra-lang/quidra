@@ -983,6 +983,12 @@ struct Lowerer {
         }
         if (const auto* node = std::get_if<MethodCallExpr>(&expression.data)) {
             if (storage_root_is(*node->receiver, name)) {
+                const auto receiver_type = type_of(*node->receiver);
+                if (receiver_type.kind == TypeKind::Class &&
+                    receiver_type.class_name == "$std.video.Reader" &&
+                    (node->method == "read" || node->method == "seek")) {
+                    return true;
+                }
                 if (const auto call = checked.method_calls.find(&expression); call != checked.method_calls.end()) {
                     const auto signature = checked.functions.find(call->second.internal_name);
                     if (signature != checked.functions.end()) {
@@ -2269,6 +2275,67 @@ struct Lowerer {
                 return out;
             }
             const auto receiver_type=type_of(*n->receiver);
+            if(receiver_type.kind==TypeKind::Class &&
+               receiver_type.class_name=="$std.video.Reader"){
+                auto reader=expr(*n->receiver);
+                const bool owned=expression_owns_result(*n->receiver);
+                const auto finish=[&](ValueId result){
+                    if(owned) block->instructions.push_back(Release{reader,receiver_type});
+                    return result;
+                };
+                if(n->method=="width"){
+                    auto out=fresh();block->instructions.push_back(VideoWidth{out,reader});return finish(out);
+                }
+                if(n->method=="height"){
+                    auto out=fresh();block->instructions.push_back(VideoHeight{out,reader});return finish(out);
+                }
+                if(n->method=="fps"){
+                    auto out=fresh();block->instructions.push_back(VideoFps{out,reader,checked.raw_types.at(&e)});return finish(out);
+                }
+                if(n->method=="frames"){
+                    auto out=fresh();block->instructions.push_back(VideoFrames{out,reader,checked.raw_types.at(&e)});return finish(out);
+                }
+                if(n->method=="duration"){
+                    auto out=fresh();block->instructions.push_back(VideoDuration{out,reader,checked.raw_types.at(&e)});return finish(out);
+                }
+                if(n->method=="position"){
+                    auto out=fresh();block->instructions.push_back(VideoPosition{out,reader});return finish(out);
+                }
+                if(n->method=="seek"){
+                    auto frame=expr(*n->args[0].value),out=fresh();
+                    block->instructions.push_back(VideoSeek{out,reader,frame,checked.raw_types.at(&e)});
+                    return finish(out);
+                }
+                if(n->method=="read"){
+                    std::optional<Type> target_dtype;
+                    std::optional<ValueId> target_channels;
+                    for(const auto& argument:n->args){
+                        if(!argument.name) continue;
+                        if(*argument.name=="channel"){
+                            target_channels=expr(*argument.value);
+                        }else if(*argument.name=="type"){
+                            if(const auto* name=std::get_if<NameExpr>(&argument.value->data))
+                                target_dtype=builtin_scalar_type(name->name);
+                        }
+                    }
+                    const auto result_type=checked.raw_types.at(&e);
+                    std::vector<long long> expected_shape_prefix;
+                    if(result_type.kind==TypeKind::Union){
+                        for(const auto& candidate:result_type.cases){
+                            if(candidate.kind!=TypeKind::Tensor) continue;
+                            if(expected_shape_prefix.empty())
+                                expected_shape_prefix=candidate.tensor_shape_prefix;
+                            else if(expected_shape_prefix!=candidate.tensor_shape_prefix)
+                                expected_shape_prefix.clear();
+                        }
+                    }
+                    auto out=fresh();
+                    block->instructions.push_back(VideoRead{
+                        out,reader,result_type,target_dtype,target_channels,
+                        std::move(expected_shape_prefix)});
+                    return finish(out);
+                }
+            }
             if(receiver_type.kind==TypeKind::String){
                 auto receiver=expr(*n->receiver);
                 if(n->method=="string") return receiver;
@@ -3394,7 +3461,7 @@ struct Lowerer {
                 }
                 case BuiltinCallable::VideoRead: {
                     auto reader=receiver_value(),out=fresh();
-                    block->instructions.push_back(VideoRead{out,reader,checked.raw_types.at(&e)});
+                    block->instructions.push_back(VideoRead{out,reader,checked.raw_types.at(&e),std::nullopt,std::nullopt,{3,-1,-1}});
                     return out;
                 }
                 case BuiltinCallable::VideoWidth: {
@@ -3409,7 +3476,7 @@ struct Lowerer {
                 }
                 case BuiltinCallable::VideoFps: {
                     auto reader=receiver_value(),out=fresh();
-                    block->instructions.push_back(VideoFps{out,reader});
+                    block->instructions.push_back(VideoFps{out,reader,checked.raw_types.at(&e)});
                     return out;
                 }
             }
@@ -5848,6 +5915,10 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,VideoWidth>)out<<"%"<<n.out<<" = video.width";
     if constexpr(std::is_same_v<T,VideoHeight>)out<<"%"<<n.out<<" = video.height";
     if constexpr(std::is_same_v<T,VideoFps>)out<<"%"<<n.out<<" = video.fps";
+    if constexpr(std::is_same_v<T,VideoFrames>)out<<"%"<<n.out<<" = video.frames";
+    if constexpr(std::is_same_v<T,VideoDuration>)out<<"%"<<n.out<<" = video.duration";
+    if constexpr(std::is_same_v<T,VideoPosition>)out<<"%"<<n.out<<" = video.position";
+    if constexpr(std::is_same_v<T,VideoSeek>)out<<"%"<<n.out<<" = video.seek %"<<n.frame;
     if constexpr(std::is_same_v<T,NumericMinMax>)out<<"%"<<n.out<<" = "<<(n.maximum?"max ":"min ")<<"%"<<n.left<<", %"<<n.right;
     if constexpr(std::is_same_v<T,ArrayInitializationComplete>)out<<"%"<<n.out<<" = array.initialization.complete %"<<n.array;
     if constexpr(std::is_same_v<T,ArrayGet>)out<<"%"<<n.out<<" = array.get %"<<n.array<<", %"<<n.index<<(n.bounds_guard?" bounds-guard %"+std::to_string(*n.bounds_guard):"");

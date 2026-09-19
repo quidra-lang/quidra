@@ -524,33 +524,10 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
             standard_call("$std.http.header", std::move(header_arguments))));
         declarations.push_back(std::move(response));
     } else if (module == "video") {
-        TypeName frame = standard_type("tensor");
-        frame.arguments.push_back(standard_type("uint8"));
-        frame.tensor_shape_prefix = {3, -1, -1};
-
-        TypeName read_result;
-        read_result.name = "union";
-        read_result.span = standard_span();
-        read_result.arguments.push_back(frame);
-        read_result.arguments.push_back(standard_type("none"));
-        read_result.arguments.push_back(standard_type("error"));
-
         ClassDecl reader;
         reader.name = "$std.video.Reader";
         reader.span = standard_span();
         reader.fields.push_back(standard_field("$handle", "uint64"));
-        reader.methods.push_back(standard_method(
-            "read", std::vector<Parameter>{}, std::move(read_result),
-            standard_call("$std.video.read")));
-        reader.methods.push_back(standard_method(
-            "width", std::vector<Parameter>{}, "int",
-            standard_call("$std.video.width")));
-        reader.methods.push_back(standard_method(
-            "height", std::vector<Parameter>{}, "int",
-            standard_call("$std.video.height")));
-        reader.methods.push_back(standard_method(
-            "fps", std::vector<Parameter>{}, "float",
-            standard_call("$std.video.fps")));
         declarations.push_back(std::move(reader));
     } else if (module == "json") {
         ClassDecl value;

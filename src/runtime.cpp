@@ -3363,22 +3363,6 @@ void neural_replace_tensor_value(
     quidra_tensor_drop(source);
 }
 
-void neural_apply_parameter_delta(
-    void* parameter_raw,const std::vector<double>& delta,
-    unsigned long long line,unsigned long long column) {
-    auto* tensor=neural_parameter_tensor(parameter_raw);
-    if(!tensor) neural_fail("invalid neural Parameter",line,column);
-    if(delta.size()!=tensor_logical_count(*tensor))
-        neural_fail("optimizer update size mismatch",line,column);
-    tensor_detach_for_write(*tensor, line, column);
-    for(std::size_t i=0;i<delta.size();++i){
-        const auto storage_index=tensor_storage_index(*tensor,i);
-        const auto current=neural_tensor_value(*tensor,i,line,column);
-        neural_store_float(*tensor->storage,storage_index,current-delta[i]);
-        tracker_set(tensor->storage->initialization,storage_index);
-    }
-}
-
 } // namespace
 
 extern "C" void quidra_neural_all_reduce_sum(

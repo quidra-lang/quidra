@@ -914,15 +914,20 @@ bool cudnn_conv2d_backward(
         if(status==0)status=api.convolution_backward_bias(handle,&one,dy_desc,ptr(gradient),
             &zero,db_desc,mut(bias_gradient));
     }
+    // Backward cuDNN calls enqueue work that still references both workspaces
+    // and the operation descriptors. Synchronize before destroying those
+    // resources; native fallback kernels remain asynchronous.
+    auto& cu=cuda();
+    const bool synchronized=status==0&&cu.ctx_synchronize&&cu.ctx_synchronize()==0;
     if(data_ws)release(data_ws);
     if(filter_ws)release(filter_ws);
     cleanup();
-    if(status!=0){
+    if(!synchronized){
         {std::lock_guard lock(data_cache_mutex);data_cache.erase(algorithm_key);}
         {std::lock_guard lock(filter_cache_mutex);filter_cache.erase(algorithm_key);}
         return false;
     }
-    auto& cu=cuda(); return cu.ctx_synchronize&&cu.ctx_synchronize()==0;
+    return true;
 }
 
 bool compute_conv2d_backward(

@@ -1239,6 +1239,17 @@ auto decoded_image = image.read("input.png")
      ir_contains(ir_surface, fragment);
  }
  bad_code("auto loaded = image.read<uint8>(\"input.png\")\n", "GENERIC_TARGET");
+ good(R"(tensor<uint8><1, _, _> | error gray = image.read("input.png", channel = 1)
+tensor<float32><3, _, _> | error converted = image.read("input.png", type = float32)
+)");
+ bad_code("tensor<uint8><1, _, _> | error gray = image.read(\"input.png\", channels = 1)\n", "ARGUMENT_MISMATCH");
+ bad_code("tensor<float32><3, _, _> | error converted = image.read(\"input.png\", dtype = float32)\n", "ARGUMENT_MISMATCH");
+ ir_contains(
+     "tensor<float32><1, _, _> | error converted = image.read(\"input.png\", channel = 1, type = float32)\n",
+     "channel=1");
+ ir_contains(
+     "tensor<float32><1, _, _> | error converted = image.read(\"input.png\", channel = 1, type = float32)\n",
+     "type=float32");
  for(const auto& s:std::vector<std::string>{
  "break\n", "continue\n",
  "int x\nprint(x)\n",

@@ -223,9 +223,40 @@ CudaApi& cuda() {
 template <std::size_t N>
 bool open_dnn_nvidia_library(DynamicLibrary& library,
                              const std::array<const char*, N>& names) {
+    std::string configured_root;
+    bool allow_system_libraries = false;
+#ifdef _WIN32
+    char* root_buffer = nullptr;
+    std::size_t root_size = 0;
+    if (_dupenv_s(&root_buffer, &root_size,
+                  "QUIDRA_DNN_NVIDIA_LIBRARY_PATH") == 0 &&
+        root_buffer && *root_buffer) {
+        configured_root.assign(root_buffer);
+    }
+    std::free(root_buffer);
+
+    char* allow_buffer = nullptr;
+    std::size_t allow_size = 0;
+    if (_dupenv_s(&allow_buffer, &allow_size,
+                  "QUIDRA_DNN_ALLOW_SYSTEM_NVIDIA_LIBS") == 0 &&
+        allow_buffer) {
+        allow_system_libraries = std::string_view(allow_buffer) == "1";
+    }
+    std::free(allow_buffer);
+#else
     if (const char* root = std::getenv("QUIDRA_DNN_NVIDIA_LIBRARY_PATH");
         root && *root) {
-        std::string prefix(root);
+        configured_root.assign(root);
+    }
+    if (const char* allow_system =
+            std::getenv("QUIDRA_DNN_ALLOW_SYSTEM_NVIDIA_LIBS");
+        allow_system) {
+        allow_system_libraries = std::string_view(allow_system) == "1";
+    }
+#endif
+
+    if (!configured_root.empty()) {
+        std::string prefix = std::move(configured_root);
         if (prefix.back() != '/' && prefix.back() != '\\') prefix.push_back('/');
         for (const char* name : names) {
             const auto candidate = prefix + name;
@@ -234,8 +265,7 @@ bool open_dnn_nvidia_library(DynamicLibrary& library,
         return false;
     }
 
-    const char* allow_system = std::getenv("QUIDRA_DNN_ALLOW_SYSTEM_NVIDIA_LIBS");
-    if (!allow_system || std::string_view(allow_system) != "1") return false;
+    if (!allow_system_libraries) return false;
     for (const char* name : names) {
         if (library.open(name)) return true;
     }

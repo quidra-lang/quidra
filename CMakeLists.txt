@@ -223,7 +223,7 @@ if(BUILD_TESTING)
   add_test(NAME quidra_manifest_registry COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/manifest_registry_tests.py $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
   add_test(
     NAME quidra_generic_specialization_benchmark_smoke
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/benchmark/generic_specialization_scaling.py
+    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/generic_specialization_scaling.py
             $<TARGET_FILE:quidra> --sizes 2,4 --repeats 1
   )
 

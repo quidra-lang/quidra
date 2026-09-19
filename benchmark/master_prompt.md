@@ -211,6 +211,45 @@ If a value cannot be measured honestly, do not fabricate it.
 
 Use `N/A` or `Not Executed` and explain why.
 
+
+## 4.1 Mandatory comparability and publication gates
+
+A benchmark result is publishable only if the evidence being compared has the same meaning across all 10 languages.
+
+This is a **precondition**, not a post-result disclaimer.
+
+Before any primary evaluation is scored, define and preserve its comparability contract:
+
+- the exact units being counted or measured;
+- the exact row / site / task universe;
+- inclusion and exclusion rules;
+- multiplicity rules;
+- missing-capability handling;
+- validation rules; and
+- the mechanical checks that prove all 10 languages were evaluated against the same contract.
+
+The run must assign each primary evaluation exactly one status:
+
+- `COMPLETE` — all required evidence and comparability gates passed;
+- `PARTIAL` — useful measurements exist, but one or more required measurements, repetitions, or gates are incomplete;
+- `WITHDRAWN` — measurements were produced but a validity defect was discovered;
+- `NOT EXECUTED` — the evaluation was not run.
+
+**Only a `COMPLETE` primary evaluation may publish its Overall Score or Ranking.**
+
+For `PARTIAL`, `WITHDRAWN`, or `NOT EXECUTED` evaluations:
+
+- preserve all valid raw evidence;
+- clearly identify provisional or diagnostic observations;
+- do not emit a numeric primary Overall Score;
+- do not rank the languages for that primary evaluation;
+- do not place provisional values into fields named `Overall Score` or `Ranking`; and
+- do not allow report-generation scripts to infer a ranking from raw intermediate values.
+
+A failed comparability gate is an infrastructure failure. It is never converted into a language score.
+
+`N/A`, `Not Executed`, `PARTIAL`, and `WITHDRAWN` are distinct states and must never be treated as interchangeable.
+
 ---
 
 # 5. Universal Score Direction
@@ -321,6 +360,55 @@ Semantic Compression measures:
 The benchmark must not derive this evaluation from Quidra's existing operators, types, syntax, or feature set. Define the capability universe and probe set before scoring any language, and keep them identical for all 10 languages.
 
 A capability that Quidra lacks must remain in the probe universe. Unsupported capabilities are not silently removed and are not automatically `N/A`.
+
+### 6.1.1A Mandatory semantic-site matrix
+
+The semantic unit must be fixed **before any language-specific annotation is performed**.
+
+For every Semantic Compression probe, create a language-neutral **semantic-site matrix**. The matrix defines the only semantic facts that may contribute to cross-language counts for that probe.
+
+Each row must contain at least:
+
+- stable `site_id`;
+- capability family;
+- semantic question being tested;
+- inclusion criterion;
+- exclusion criterion;
+- multiplicity rule;
+- whether the row contributes to Semantic Density, Determinacy, Locality, Hidden Semantic Cost, Capability Efficiency, or more than one of them; and
+- the rule for unsupported capabilities.
+
+Typical semantic questions include binding, type constraints, storage / mutability, conversion, dispatch / lookup, control flow, failure behavior, ownership / reference behavior, allocation / lifetime, bounds or runtime checks, evaluation order, synchronization, effects / I/O, and implicit/default behavior. These are examples of semantic roles, not a permission to add language-specific rows after seeing syntax.
+
+The matrix is defined from the capability and probe semantics, **not from any of the 10 implementations**. It must not contain language spellings, Quidra-specific constructs, or rows invented because one language exposes an implementation detail conveniently.
+
+All 10 languages must then fill the **identical ordered set of `site_id` rows**.
+
+Rules:
+
+1. A language may not add a semantic-fact row that the other languages were not offered.
+2. A language may not omit a row because the semantic fact is inconvenient, implicit, unsupported, or absent. Record the prescribed zero / unsupported / hidden-behavior state instead.
+3. One matrix row contributes at most one unit unless its multiplicity rule was explicitly frozen before annotation.
+4. A compound syntax form does not receive more facts merely because an annotator chose to describe it at finer granularity.
+5. A concise syntax form does not lose facts merely because several frozen semantic sites are expressed by one token.
+6. Hidden behavior is counted only through frozen rows/checklist items, never through free-form commentary.
+7. If a semantic phenomenon cannot be represented consistently by the frozen matrix, stop and revise the matrix **before any score is observed**, then restart the affected annotation from the frozen version.
+
+Before scoring, run a mechanical matrix validator that must confirm for every probe:
+
+- identical `site_id` set and ordering across all 10 languages;
+- no unknown or language-only rows;
+- no missing required rows;
+- valid values for every row;
+- identical multiplicity rules;
+- identical metric mapping; and
+- identical capability denominator.
+
+In addition, before normalization or ranking, perform a blinded cross-language comparability audit on a predeclared sample covering at least 20% of probes and every capability family. Any disagreement caused by annotation depth, row interpretation, or asymmetric treatment must be adjudicated against the frozen matrix and the affected annotations revalidated.
+
+**If the matrix validator or comparability audit fails, Semantic Compression scoring must not start.** Raw annotations may be preserved for debugging, but Semantic Density, `Q`, Semantic Compression Overall Score, and Semantic Compression Ranking must remain unpublished until the gate passes.
+
+The matrix, validator output, audit sample, disagreements, and resolutions must be preserved in the run directory.
 
 ### 6.1.2 Fixed language-neutral capability universe
 
@@ -492,11 +580,14 @@ Do not replace this formula with a weighted arithmetic mean after results are kn
 Before measuring Semantic Compression:
 
 1. freeze the capability universe;
-2. freeze every probe and semantic-fact annotation;
-3. freeze the hidden-behavior checklist;
-4. freeze support / partial-support rubrics;
-5. freeze token counting and normalization rules;
-6. validate each probe against the real language implementation or authoritative specification where possible.
+2. freeze every probe;
+3. freeze the semantic-site matrix and all row-level inclusion, exclusion, and multiplicity rules;
+4. freeze the hidden-behavior checklist;
+5. freeze support / partial-support rubrics;
+6. freeze token counting and normalization rules;
+7. validate each probe against the real language implementation or authoritative specification where possible;
+8. run the mechanical semantic-site matrix validator across all 10 languages; and
+9. pass the predeclared cross-language comparability audit before calculating any normalized Semantic Compression metric.
 
 Publish the probe definitions, raw counts, scoring scripts, capability matrix, and normalization calculations.
 
@@ -716,6 +807,10 @@ Apply the N/A policy in Section 26 within the affected category first. If an ent
 
 Do not change category weights, metric membership, or within-category equal weighting after measurements begin.
 
+A genuinely inapplicable metric may follow Section 26. An applicable metric that was not executed is **not** `N/A` and its weight may not be silently redistributed.
+
+If any applicable Standard metric required by the fixed score is `Not Executed`, or if an entire applicable category lacks the evidence required by this specification, mark Standard `PARTIAL` and do **not** calculate or publish Standard Overall Score or Standard Ranking. Partial category and metric measurements may still be reported as diagnostics.
+
 ---
 
 # 9. LLM Practical Effectiveness Evaluation
@@ -793,6 +888,10 @@ A specification-assisted condition may be used as the normal practical prompt wh
 All normalized LLM scores must follow:
 
 **100 = best, 0 = worst.**
+
+The required trial allocation in Section 6.2 is part of validity, not merely a reporting preference. In particular, every cell that contributes to Practical Correct@1 or Prompt Robustness must have all five required independent trials before the LLM Practical Effectiveness primary score may be published.
+
+If fewer required trials are available, preserve the observations as a clearly labelled **pilot / partial result**, mark the primary evaluation `PARTIAL`, and do not publish LLM Practical Effectiveness Score or Ranking.
 
 ---
 
@@ -948,6 +1047,29 @@ An infrastructure defect in this track does not announce itself. It arrives look
 An all-zero or near-all-zero row for one language, one condition, or one validator is to be treated as a suspected infrastructure defect and investigated before it is reported as a result. If investigation confirms it is a genuine language outcome, record the evidence that confirmed it.
 
 Defects found during a run are fixed, the affected cells re-run or re-verified, and both the defect and the fix recorded. They are not silently corrected.
+
+
+### Mandatory Reference Pack leakage audit
+
+After the §10.4 infrastructure pre-flight passes but **before any scored model request**, audit every Intrinsic Reference Pack for answer leakage.
+
+For every language, condition, seed, and transformation set used in scoring, verify mechanically where possible and manually by a blinded reviewer where necessary that the model-visible pack does not reveal:
+
+- the exact scored solution;
+- the exact expected output when predicting that output is part of the task;
+- an isomorphic worked example that differs only by identifiers or literals;
+- withheld transformed-to-real token mappings;
+- validator acceptance conditions that directly encode the answer;
+- comments, filenames, fixture names, diagnostics, or metadata that disclose the target; or
+- any other information that makes the scored task solvable by copying rather than learning the supplied rules.
+
+Worked examples must be structurally distinct from the scored fixtures. A scored fixture itself, or a mechanically trivial mutation of it, must never be used as a worked example.
+
+Preserve an audit manifest for every scored pack. The manifest must record the pack hash, fixture hash, leakage checks performed, and pass/fail status.
+
+**No Intrinsic scored trial may begin until every pack that can enter that trial has passed the leakage audit.**
+
+If leakage is discovered after a scored request was sent, all affected scores are invalid. Mark those cells `WITHDRAWN`, fix the infrastructure without inspecting replacement outputs, rebuild and re-audit the packs, and run fresh independent trials. Do not retain the contaminated score in any aggregate or ranking.
 
 ## 10.5 Intrinsic subtests
 
@@ -1774,6 +1896,10 @@ For Semantic Compression Capability Coverage, an unsupported capability in the f
 
 Document the reason for every `N/A`.
 
+`Not Executed` is never `N/A`. Lack of time, compute budget, tool availability during the run, unfinished harness work, or an aborted measurement does not make an applicable metric inapplicable.
+
+Do not renormalize weights around `Not Executed` evidence. If a required applicable metric is Not Executed, apply the primary-evaluation publication gate in Section 4.1.
+
 ---
 
 # 27. Primary Evaluation Final Comparison Tables — 1–2
@@ -1801,7 +1927,7 @@ Create an independent:
 
 **Semantic Compression Ranking**
 
-based only on Semantic Compression Overall Score.
+based only on Semantic Compression Overall Score, **and only when the Semantic Compression status is `COMPLETE` and the semantic-site comparability gate passed**. Otherwise print the status and withhold both Overall Score and Ranking.
 
 ## 27.2 Primary Evaluation 2 — LLM Intrinsic / Unknown-Language Learnability
 
@@ -1823,7 +1949,7 @@ For I1-I6, preserve separate seed-level tables including seed identifiers, trans
 
 Every normalized score must follow **higher = better.**
 
-Create an independent **LLM Intrinsic Learnability Ranking** based on LLM Intrinsic Learnability Score.
+Create an independent **LLM Intrinsic Learnability Ranking** based on LLM Intrinsic Learnability Score only when the Intrinsic evaluation status is `COMPLETE`. Any contaminated, incomplete, or withdrawn cell prevents publication of the primary score and ranking.
 
 ---
 
@@ -1882,7 +2008,7 @@ Create an independent:
 
 **Standard Ranking**
 
-based on Standard Overall Score.
+based on Standard Overall Score only when Standard status is `COMPLETE`. `Not Executed` applicable metrics prevent publication of the Standard Overall Score and Ranking.
 
 ## 28.2 Primary Evaluation 4 — LLM Standard / Knowledge-Dependent Performance
 
@@ -1904,7 +2030,7 @@ Produce the **LLM Practical Effectiveness** table using the fixed language colum
 | LLM Generated Code Performance | | | | | | | | | | |
 | **LLM Practical Effectiveness Score** | | | | | | | | | | |
 
-Create an independent **LLM Practical Effectiveness Ranking** based on LLM Practical Effectiveness Score.
+Create an independent **LLM Practical Effectiveness Ranking** based on LLM Practical Effectiveness Score only when the Practical evaluation status is `COMPLETE`, including all required trial replication.
 
 Do not merge Practical Effectiveness and Intrinsic Learnability. Do not merge either LLM result with Semantic Compression or Standard.
 
@@ -2004,6 +2130,10 @@ At completion, preserve at least the following inside the run directory.
 - Semantic Compression capability universe and probe definitions
 - Semantic Compression support / partial-support rubric
 - Semantic Compression raw counts and capability matrix
+- frozen Semantic Compression semantic-site matrix
+- semantic-site matrix validator output
+- predeclared Semantic Compression comparability-audit sample and adjudication record
+- Intrinsic Reference Pack leakage-audit manifests
 - raw logs
 - compiler logs
 - runtime logs
@@ -2064,6 +2194,9 @@ Do not:
 - modify Quidra during benchmarking
 - commit or push benchmark results
 - create a cross-evaluation weighted overall score or overall ranking
+- publish a primary Overall Score or Ranking from a `PARTIAL`, `WITHDRAWN`, or `NOT EXECUTED` evaluation
+- compare Semantic Compression fact counts produced from different semantic-site row sets or annotation depths
+- begin Intrinsic scored trials before the Reference Pack leakage audit passes
 
 ---
 
@@ -2082,6 +2215,9 @@ The benchmark is complete only when all applicable items below are satisfied:
 9. Early Error Detection was evaluated.
 10. Debuggability was evaluated.
 11. The Semantic Compression capability universe, fact taxonomy, probe set, hidden-behavior checklist, support rubric, token-counting rule, and normalization rules were frozen before scoring.
+11a. A language-neutral semantic-site matrix was frozen before language-specific annotation, with stable site IDs, inclusion/exclusion rules, multiplicity rules, metric mapping, and unsupported-capability handling.
+11b. The semantic-site matrix validator confirmed identical required rows and rules across all 10 languages.
+11c. The predeclared cross-language Semantic Compression comparability audit passed before any Semantic Compression normalized score or ranking was calculated.
 12. The same Semantic Compression capability universe and probes were evaluated for all 10 languages.
 13. Semantic Density was calculated from preserved fact and token counts.
 14. Semantic Determinacy was calculated from preserved local semantic branching counts, including the required call-site argument-passing probe.
@@ -2123,6 +2259,7 @@ The benchmark is complete only when all applicable items below are satisfied:
 50. I4 Novel-rule Generalization was measured for all 10 languages.
 51. I5 Held-out Rule Composition was measured for all 10 languages.
 52. I6 Prior-conflict Resistance was measured for all 10 languages.
+52a. Every Intrinsic Reference Pack used for scoring passed the mandatory leakage audit before the first scored request, and the audit manifests were preserved.
 53. Forward/inverse mappings, manifests, seeds, and round-trip validation were preserved, and the §10.4 pre-flight validation was performed and preserved: every fixture compiled, ran and matched its expected output; every harness-side convention the prompt withholds was satisfied by the harness; and every validator was shown able to both pass a correct input and reject a corrupted one.
 54. Seed-level Intrinsic results, means, standard deviations, minima, and maxima were reported.
 55. I1/I2 familiarity-drop diagnostics were reported separately from the Intrinsic score.
@@ -2131,6 +2268,9 @@ The benchmark is complete only when all applicable items below are satisfied:
 58. The exact LLM model/version, decoding controls, repair budget, trial count, and token limits or provider-controlled status were preserved.
 59. Semantic Compression, Standard, LLM Practical, and Intrinsic formulas and weights matched the fixed rules in this specification.
 60. Every normalized score used the fixed normalization family or an explicitly pre-existing metric-specific override, with no post-result formula selection, and every family-C metric whose applicable raw values span a factor of 100 or more published its raw values and ratios alongside the compressed score.
+61. Each primary evaluation was assigned exactly one status from `COMPLETE`, `PARTIAL`, `WITHDRAWN`, or `NOT EXECUTED`.
+62. No primary Overall Score or Ranking was published unless that primary evaluation was `COMPLETE`.
+63. `Not Executed` applicable evidence was never converted to `N/A` or removed by weight renormalization.
 
 If a technically impossible or unavailable item prevents completion, do not invent a result.
 
@@ -2145,15 +2285,16 @@ After completion, keep the chat response concise.
 Report at least, in this order:
 
 - evaluated Quidra HEAD SHA
-- Semantic Compression Overall Score
-- Semantic Compression Ranking
+- status of each of the four primary evaluations
+- Semantic Compression Overall Score, or `WITHHELD` if its status is not `COMPLETE`
+- Semantic Compression Ranking, or `WITHHELD` if its status is not `COMPLETE`
 - Raw Semantic Compression Quality `Q` and Capability Coverage `C`
-- LLM Intrinsic Learnability Score, identified as Primary Evaluation 2 / Unknown-Language Learnability
-- LLM Intrinsic Learnability Ranking
-- Standard Overall Score, identified as Primary Evaluation 3
-- Standard Ranking
-- LLM Practical Effectiveness Score, identified as Primary Evaluation 4 / Knowledge-Dependent Performance
-- LLM Practical Effectiveness Ranking
+- LLM Intrinsic Learnability Score, identified as Primary Evaluation 2 / Unknown-Language Learnability, or `WITHHELD` unless `COMPLETE`
+- LLM Intrinsic Learnability Ranking, or `WITHHELD` unless `COMPLETE`
+- Standard Overall Score, identified as Primary Evaluation 3, or `WITHHELD` unless `COMPLETE`
+- Standard Ranking, or `WITHHELD` unless `COMPLETE`
+- LLM Practical Effectiveness Score, identified as Primary Evaluation 4 / Knowledge-Dependent Performance, or `WITHHELD` unless `COMPLETE`
+- LLM Practical Effectiveness Ranking, or `WITHHELD` unless `COMPLETE`
 - major Quidra strengths
 - major Quidra weaknesses
 - any N/A or Not Executed items
@@ -2182,7 +2323,7 @@ Measure four independent primary evaluations in this priority order:
 
 The Intrinsic evaluation must include keyword anonymization, vocabulary anonymization, structural surface perturbation, novel-rule generalization, held-out rule composition, and prior-conflict resistance.
 
-Calculate exactly four independent primary scores:
+Attempt to calculate these four independent primary scores:
 
 **Semantic Compression Overall Score**
 
@@ -2194,7 +2335,7 @@ Calculate exactly four independent primary scores:
 
 using reproducible evidence.
 
-Create a separate ranking for each score.
+Publish a primary score and its separate ranking **only when that evaluation is `COMPLETE` under Section 4.1**. Otherwise preserve partial evidence, publish the evaluation status, and withhold its primary score and ranking.
 
 **Do not average, weight, merge, or otherwise collapse the four primary evaluations into one final score or one overall ranking.** Assigning cross-evaluation weights would encode subjective design priorities and would undermine the benchmark's fairness.
 
@@ -2205,6 +2346,8 @@ For every normalized score:
 Historical completed benchmark results must remain preserved as historical evidence. New completed results receive a distinct `YYYY-MM-DD-<Quidra-short-SHA>` run identity directly under `benchmark/`; do not overwrite an older completed run. Exactly one newest completed run carries the literal `(latest)` suffix.
 
 At the `benchmark/` root, keep only `master_prompt.md` and the run directories. Store every other benchmark file and directory inside the applicable run directory.
+
+Permanent compiler/runtime tests, CI smoke tests, performance-regression guards, release tooling, and other product-development infrastructure must live outside `benchmark/` (for example under `tests/` or `scripts/`). A benchmark run may copy such tooling into its immutable run directory for reproducibility, but production CI must not depend on transient benchmark-root files.
 
 Keep `benchmark/master_prompt.md` intact while executing a benchmark, and preserve the exact version used as `prompt.md` inside that run's directory. Revisions are allowed only between runs.
 

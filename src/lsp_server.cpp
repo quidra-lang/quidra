@@ -739,7 +739,7 @@ Program root_program(std::string_view source) {
 }
 
 std::optional<SourceSpan> definition_span(
-    const Program& program,std::string_view source,std::string_view name,std::size_t offset,
+    const Program& program,std::string_view name,std::size_t offset,
     const std::vector<Token>& tokens) {
     for(const auto& declaration:program.classes) {
         if(!contains_offset(declaration.span,offset)) continue;
@@ -784,7 +784,7 @@ std::optional<SourceSpan> definition_span(
 std::optional<SourceSpan> definition_span(
     const Program& program,std::string_view source,std::string_view name,std::size_t offset) {
     const auto tokens=Lexer(source).scan();
-    return definition_span(program,source,name,offset,tokens);
+    return definition_span(program,name,offset,tokens);
 }
 
 struct CompletionSymbol {
@@ -881,7 +881,7 @@ bool same_span(SourceSpan left,SourceSpan right) {
 }
 
 std::optional<Token> identifier_token_at(std::string_view source,std::size_t offset) {
-    for(const auto& token:tokens) {
+    for(const auto& token:Lexer(source).scan()) {
         if(token.kind==TokenKind::Identifier&&contains_offset(token.span,offset)) return token;
     }
     return std::nullopt;
@@ -890,7 +890,7 @@ std::optional<Token> identifier_token_at(std::string_view source,std::size_t off
 std::optional<SourceSpan> resolved_definition_span(
     const Program& program,std::string_view source,std::string_view name,std::size_t offset,
     const std::vector<Token>& tokens) {
-    if(auto found=definition_span(program,source,name,offset,tokens)) return found;
+    if(auto found=definition_span(program,name,offset,tokens)) return found;
 
     const auto* expression=expression_at(program,offset);
     if(!expression) return std::nullopt;
@@ -930,10 +930,12 @@ std::optional<SourceSpan> resolved_definition_span(
 
 std::vector<SourceSpan> reference_spans(
     const Program& program,std::string_view source,std::string_view name,SourceSpan target) {
+    const auto tokens=Lexer(source).scan();
     std::vector<SourceSpan> result;
-    for(const auto& token:Lexer(source).scan()) {
+    for(const auto& token:tokens) {
         if(token.kind!=TokenKind::Identifier||token.text!=name) continue;
-        const auto resolved=resolved_definition_span(program,source,name,token.span.start.offset);
+        const auto resolved=resolved_definition_span(
+            program,source,name,token.span.start.offset,tokens);
         if(resolved&&same_span(*resolved,target)) result.push_back(token.span);
     }
     return result;
@@ -988,7 +990,7 @@ bool is_operator_token(TokenKind kind) {
 }
 
 int declaration_semantic_type(
-    const Program& program,std::string_view source,const Token& token,
+    const Program& program,const Token& token,
     const std::vector<Token>& tokens) {
     for(const auto& import:program.imports)
         if(import.alias==token.text&&contains_offset(import.span,token.span.start.offset)) return 0;
@@ -1055,7 +1057,7 @@ int identifier_semantic_type(
             break;
         }
     }
-    return declaration_semantic_type(program,source,definition_token,tokens);
+    return declaration_semantic_type(program,definition_token,tokens);
 }
 
 std::string semantic_tokens_json(const Program& program,std::string_view source) {

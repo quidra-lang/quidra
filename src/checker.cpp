@@ -1588,6 +1588,12 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
             if (!field) {
                 error("UNKNOWN_MEMBER", "Class '" + base.class_name + "' has no field '" + node->name + "'.", expression.span);
             }
+            if (field->is_private && current_class_ != base.class_name) {
+                error("PRIVATE_MEMBER",
+                      "Private field '" + node->name + "' is only accessible inside class '" +
+                          base.class_name + "'.",
+                      expression.span);
+            }
             if (const auto receiver_base = current_receiver_path(*node->base)) {
                 const auto full = *receiver_base + "." + node->name;
                 if (!current_receiver_effect_.initializes.contains(full)) {
@@ -2104,6 +2110,18 @@ Type Checker::check_method_call_expr(const Expr& expression,
                     if (!internal) {
                         error("UNKNOWN_MEMBER", "Class '" + receiver.class_name + "' has no method '" + node->method + "'.", expression.span);
                     }
+                }
+                const auto owner = super_receiver
+                    ? *classes_.at(current_class_).parent
+                    : receiver.class_name;
+                const auto owner_it = classes_.find(owner);
+                if (owner_it != classes_.end() &&
+                    owner_it->second.private_methods.contains(node->method) &&
+                    current_class_ != owner) {
+                    error("PRIVATE_MEMBER",
+                          "Private method '" + node->method + "' is only accessible inside class '" +
+                              owner + "'.",
+                          expression.span);
                 }
                 if (!node->type_arguments.empty()) {
                     throw std::logic_error("ConcreteProgram contains unresolved generic method arguments.");
@@ -4556,6 +4574,12 @@ Type Checker::check_call_expr(const Expr& expression,
                     if (!field || !supplied.insert(*argument.name).second) {
                         error("ARGUMENT_MISMATCH", "Unknown or duplicate class field.", argument.span);
                     }
+                    if (field->is_private && current_class_ != name) {
+                        error("PRIVATE_MEMBER",
+                              "Private field '" + field->name +
+                                  "' cannot be initialized outside class '" + name + "'.",
+                              argument.span);
+                    }
                     any_poison |= poisoned(check_expr(*argument.value, &field->type));
                     initialized_paths.insert(field->name);
                     if (field->type.kind == TypeKind::Class) {
@@ -6386,6 +6410,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 const auto& parent = classes_.at(*declaration.parent);
                 info.fields = parent.fields;
                 info.methods = parent.methods;
+                info.private_methods = parent.private_methods;
             }
 
             std::unordered_set<std::string> own_fields;
@@ -6408,7 +6433,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 if (!is_storable(field_type)) {
                     error("INVALID_TYPE", "Class fields require storable explicit types.", field.span);
                 }
-                info.fields.push_back(ClassFieldType{field.name, field_type, info.fields.size(), field.default_value.get(), field.is_const});
+                info.fields.push_back(ClassFieldType{field.name, field_type, info.fields.size(), field.default_value.get(), field.is_const, field.is_private});
             }
 
             std::unordered_set<std::string> own_methods;
@@ -6483,6 +6508,8 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                                                      public_signature.parameters.end());
                 functions_[internal_name] = std::move(internal_signature);
                 info.methods[method.name] = internal_name;
+                if (method.is_private) info.private_methods.insert(method.name);
+                else info.private_methods.erase(method.name);
             }
 
             classes_[declaration.name] = std::move(info);

@@ -96,10 +96,19 @@ struct Lowerer {
         }
         if (const auto* call = std::get_if<CallExpr>(&expression.data)) {
             const auto found = checked.call_resolutions.find(&expression);
-            return found != checked.call_resolutions.end() &&
-                   found->second.kind == CallKind::Builtin &&
-                   found->second.builtin == BuiltinCallable::Array &&
-                   call->args.size() == 2;
+            if (found == checked.call_resolutions.end()) return false;
+            if (found->second.kind == CallKind::Builtin &&
+                found->second.builtin == BuiltinCallable::Array &&
+                call->args.size() == 2) {
+                return true;
+            }
+            if (found->second.kind == CallKind::NumericCast &&
+                call->args.size() == 1 && call->args.front().value &&
+                type_of(*call->args.front().value).kind == TypeKind::Bin) {
+                // bin -> T[] materializes every destination element.
+                return true;
+            }
+            return false;
         }
         if (const auto* method = std::get_if<MethodCallExpr>(&expression.data)) {
             const auto receiver_type = type_of(*method->receiver);

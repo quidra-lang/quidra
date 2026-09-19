@@ -353,6 +353,7 @@ Program Parser::parse() {
             if (at(TokenKind::KwImport)) p.imports.push_back(import_decl());
             else if (at(TokenKind::Identifier) && peek().text == "extern") p.functions.push_back(external_function_decl());
             else if (looks_like_cli_decl()) cli_decl(p);
+            else if (at(TokenKind::KwEnum)) p.enums.push_back(enum_decl());
             else if (at(TokenKind::KwClass)) p.classes.push_back(class_decl());
             else if (at(TokenKind::KwOverride)) error(peek(), "override is only valid on a class method.");
             else if (looks_like_declaration(true)) p.functions.push_back(function_decl());
@@ -712,6 +713,30 @@ void Parser::cli_decl(Program& program) {
     program.statements.push_back(std::move(finish_stmt));
 }
 
+EnumDecl Parser::enum_decl() {
+    const auto start = consume(TokenKind::KwEnum, "Expected enum.").span.start;
+    const auto name = consume(TokenKind::Identifier, "Expected enum name.");
+    end_statement("enum declaration");
+    consume(TokenKind::Indent, "Expected indented enum variants.");
+    std::vector<EnumVariantDecl> variants;
+    while (!at(TokenKind::Dedent) && !at(TokenKind::Eof)) {
+        const auto variant = consume(TokenKind::Identifier, "Expected enum variant name.");
+        std::optional<TypeName> payload;
+        SourceSpan span = variant.span;
+        if (match(TokenKind::LParen)) {
+            payload = type_name();
+            consume(TokenKind::RParen, "Expected ')' after enum variant payload type.");
+            span.end = previous().span.end;
+        }
+        end_statement("enum variant");
+        variants.push_back(EnumVariantDecl{variant.text, std::move(payload), span});
+        consume_newlines();
+    }
+    if (variants.empty()) error(peek(), "enum requires at least one variant.");
+    const auto end = consume(TokenKind::Dedent, "Expected end of enum body.").span.end;
+    return EnumDecl{name.text, {}, std::move(variants), {start, end}};
+}
+
 ClassDecl Parser::class_decl() {
     const auto start = consume(TokenKind::KwClass, "Expected class.").span.start;
     const auto name = consume(TokenKind::Identifier, "Expected class name.");
@@ -828,6 +853,7 @@ std::vector<StmtPtr> Parser::block_until(bool) {
     while (!at(TokenKind::Dedent) && !at(TokenKind::Eof)) {
         try {
             if (at(TokenKind::KwClass)) error(peek(), "Nested classes are prohibited.");
+            if (at(TokenKind::KwEnum)) error(peek(), "Nested enums are prohibited.");
             if (at(TokenKind::KwImport)) error(peek(), "import is only valid at top level.");
             if (at(TokenKind::Identifier) && peek().text == "extern") error(peek(), "extern declarations are only valid at top level.");
             if (looks_like_declaration(true)) error(peek(), "Nested functions are prohibited.");
@@ -850,7 +876,8 @@ StmtPtr Parser::statement() {
     if (at(TokenKind::KwFor)) return for_stmt();
     if (at(TokenKind::KwMatch)) return match_stmt();
     if (at(TokenKind::KwImport)) error(peek(), "import is only valid at top level.");
-    if (at(TokenKind::KwClass) || at(TokenKind::KwOverride)) error(peek(),"class and override are only valid at class declaration boundaries.");
+    if (at(TokenKind::KwClass) || at(TokenKind::KwEnum) || at(TokenKind::KwOverride))
+        error(peek(),"class, enum, and override are only valid at declaration boundaries.");
     if (looks_like_declaration(false)) return binding_stmt();
     if (at(TokenKind::Ampersand)) return rebind_stmt();
     return expr_or_assign_stmt();
@@ -917,8 +944,18 @@ StmtPtr Parser::for_stmt() {
 }
 StmtPtr Parser::match_stmt() {
     auto start=consume(TokenKind::KwMatch,"Expected match.").span.start;auto value=expression();end_statement("match value");consume(TokenKind::Indent,"Expected indented typed cases.");std::vector<MatchCase> cases;
-    while(!at(TokenKind::Dedent)&&!at(TokenKind::Eof)) {auto type=type_name();auto span=type.span;auto tag=type.name;std::optional<std::string> binder;if(at(TokenKind::Identifier)){auto n=consume(TokenKind::Identifier,"Expected binder.");binder=n.text;span.end=n.span.end;}end_statement("match case");auto body=block_until(false);cases.push_back(MatchCase{std::move(type),tag,std::move(binder),std::move(body),span});}
-    consume(TokenKind::Dedent,"Expected end of match.");auto s=std::make_unique<Stmt>();s->span={start,previous().span.end};s->data=MatchStmt{std::move(value),std::move(cases)};return s;
+    while(!at(TokenKind::Dedent)&&!at(TokenKind::Eof)) {
+        auto type=type_name();auto span=type.span;std::string tag;std::optional<std::string> binder;
+        if(match(TokenKind::LParen)){
+            tag=type.name;
+            auto n=consume(TokenKind::Identifier,"Expected enum payload binder.");
+            binder=n.text;span.end=n.span.end;
+            consume(TokenKind::RParen,"Expected ')' after enum payload binder.");span.end=previous().span.end;
+        }else if(at(TokenKind::Identifier)){auto n=consume(TokenKind::Identifier,"Expected binder.");binder=n.text;span.end=n.span.end;}
+        end_statement("match case");auto body=block_until(false);
+        cases.push_back(MatchCase{std::move(type),std::move(tag),std::move(binder),std::move(body),span});
+    }
+    consume(TokenKind::Dedent,"Expected end of match.");auto result=std::make_unique<Stmt>();result->span={start,previous().span.end};result->data=MatchStmt{std::move(value),std::move(cases)};return result;
 }
 
 StmtPtr Parser::rebind_stmt() {

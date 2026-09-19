@@ -72,7 +72,7 @@ const char* token_name(TokenKind kind) {
         case TokenKind::Eof: return "end of file"; case TokenKind::Newline: return "newline";
         case TokenKind::Identifier: return "identifier"; case TokenKind::Integer: return "integer";
         case TokenKind::Float: return "float"; case TokenKind::String: return "string";
-        case TokenKind::KwClass: return "class"; case TokenKind::KwOverride: return "override"; case TokenKind::KwPrivate: return "private"; case TokenKind::KwImport: return "import"; case TokenKind::KwSuper: return "super"; case TokenKind::KwConst: return "const";
+        case TokenKind::KwClass: return "class"; case TokenKind::KwEnum: return "enum"; case TokenKind::KwOverride: return "override"; case TokenKind::KwPrivate: return "private"; case TokenKind::KwImport: return "import"; case TokenKind::KwSuper: return "super"; case TokenKind::KwConst: return "const";
         case TokenKind::KwReturn: return "return"; case TokenKind::KwIf: return "if";
         case TokenKind::KwElif: return "elif"; case TokenKind::KwElse: return "else";
         case TokenKind::KwWhile: return "while"; case TokenKind::KwFor: return "for";
@@ -148,7 +148,7 @@ Token Lexer::identifier() {
     while (!eof() && (std::isalnum(static_cast<unsigned char>(peek())) || peek() == '_')) advance();
     const auto text = std::string(source_.substr(start_index, index_ - start_index));
     static const std::unordered_map<std::string, TokenKind> keywords = {
-        {"class", TokenKind::KwClass}, {"override", TokenKind::KwOverride}, {"private", TokenKind::KwPrivate}, {"import", TokenKind::KwImport}, {"super", TokenKind::KwSuper}, {"const", TokenKind::KwConst},
+        {"class", TokenKind::KwClass}, {"enum", TokenKind::KwEnum}, {"override", TokenKind::KwOverride}, {"private", TokenKind::KwPrivate}, {"import", TokenKind::KwImport}, {"super", TokenKind::KwSuper}, {"const", TokenKind::KwConst},
         {"return", TokenKind::KwReturn}, {"if", TokenKind::KwIf}, {"elif", TokenKind::KwElif}, {"else", TokenKind::KwElse},
         {"while", TokenKind::KwWhile}, {"for", TokenKind::KwFor},
         {"in", TokenKind::KwIn}, {"match", TokenKind::KwMatch}, {"try", TokenKind::KwTry},

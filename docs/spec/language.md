@@ -194,6 +194,39 @@ tensor<T> normalize<T: floating>(tensor<T> value)
 
 The built-in constraints are `numeric`, `integer`, `floating`, `ordered`, and `equatable`. They add no runtime representation, vtable, dynamic dispatch, or implicit conversion. `integer` accepts the fixed-width integer families and `bigint`; `floating` accepts `float32` and `float`; `numeric` accepts integer, floating, and `bigreal`; `ordered` is the numeric set with relational ordering; and `equatable` accepts values with ordinary structural/scalar equality. Constraint failure is diagnosed before a concrete generic body is emitted. User-defined traits/interfaces are intentionally not part of this constraint system.
 
+## Named enums and variants
+
+Named enums represent semantic alternatives without overloading ordinary structural unions:
+
+```quidra
+enum Token
+    Number(float)
+    Name(string)
+    Plus
+    End
+
+Token token = Token.Number(3.0)
+Token end = Token.End
+```
+
+The enum name is the static type. Variants are always qualified with the enum name. A variant carries either one explicitly typed payload or no payload; payload-free variants are values and are written without parentheses. Different variants remain distinct even when they carry the same payload type.
+
+Enum matching is exhaustive:
+
+```quidra
+match token
+    Token.Number(value)
+        print(value)
+    Token.Name(name)
+        print(name)
+    Token.Plus
+        void
+    Token.End
+        void
+```
+
+A payload binder exists only inside its branch. A payload may be ignored by matching the qualified variant without a binder. Enum values are nominal: they do not implicitly convert to or from an ordinary union with the same payload types. Internally, enum storage reuses Quidra's checked tagged-union representation; there is no dynamic dispatch or hidden subtype relation.
+
 ## Classes
 
 User-defined data types use a single construct, `class`. A class may contain fields and methods:

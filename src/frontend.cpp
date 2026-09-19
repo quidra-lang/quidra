@@ -60,6 +60,7 @@ std::string suffix_after_first(const std::string& name) {
 
 struct Exports {
     std::unordered_map<std::string, std::string> classes;
+    std::unordered_map<std::string, std::string> enums;
     std::unordered_map<std::string, std::string> functions;
     std::unordered_map<std::string, std::string> values;
 };
@@ -754,13 +755,32 @@ void rename_type(
             if (suffix.empty()) {
                 frontend_error("UNKNOWN_TYPE", "Imported module alias cannot be used as a type.", type.span);
             }
-            if (!it->second.exports.classes.contains(suffix)) {
-                frontend_error("UNKNOWN_TYPE",
-                               "Module '" + head + "' has no exported class '" + suffix + "'.",
-                               type.span);
+            if (const auto cls = it->second.exports.classes.find(suffix);
+                cls != it->second.exports.classes.end()) {
+                type.name = cls->second;
+                return;
             }
-            type.name = it->second.exports.classes.at(suffix);
+            if (const auto en = it->second.exports.enums.find(suffix);
+                en != it->second.exports.enums.end()) {
+                type.name = en->second;
+                return;
+            }
+            const auto dot = suffix.find('.');
+            if (dot != std::string::npos) {
+                const auto enum_name = suffix.substr(0, dot);
+                if (const auto en = it->second.exports.enums.find(enum_name);
+                    en != it->second.exports.enums.end()) {
+                    type.name = en->second + suffix.substr(dot);
+                    return;
+                }
+            }
+            frontend_error("UNKNOWN_TYPE",
+                           "Module '" + head + "' has no exported type '" + suffix + "'.",
+                           type.span);
         }
+        const auto dot = type.name.find('.');
+        const auto head_name = dot == std::string::npos ? type.name : type.name.substr(0, dot);
+        if (local_classes.contains(head_name)) type.name = qualify(ns, type.name);
         return;
     }
 
@@ -831,7 +851,13 @@ void rename_expr(
                     expression.data = NameExpr{function->second};
                     return;
                 }
+                if (const auto en = import->second.exports.enums.find(node->name);
+                    en != import->second.exports.enums.end()) {
+                    expression.data = NameExpr{en->second};
+                    return;
+                }
             }
+            if (local_classes.contains(base->name)) base->name = qualify(ns, base->name);
         }
         rename_expr(*node->base, ns, local_classes, local_functions, imports, type_parameters);
         return;
@@ -860,7 +886,7 @@ void rename_expr(
         return;
     }
     if (auto* node = std::get_if<MethodCallExpr>(&expression.data)) {
-        const auto* receiver_name = std::get_if<NameExpr>(&node->receiver->data);
+        auto* receiver_name = std::get_if<NameExpr>(&node->receiver->data);
         if (receiver_name) {
             if (const auto import = imports.find(receiver_name->name); import != imports.end()) {
                 for (auto& type_argument : node->type_arguments) {
@@ -891,6 +917,8 @@ void rename_expr(
             }
         }
 
+        if (receiver_name && local_classes.contains(receiver_name->name))
+            receiver_name->name = qualify(ns, receiver_name->name);
         rename_expr(*node->receiver, ns, local_classes, local_functions, imports, type_parameters);
         for (auto& type_argument : node->type_arguments) {
             rename_type(type_argument, ns, local_classes, imports, type_parameters);
@@ -1325,11 +1353,16 @@ private:
         Program program = parser.parse();
         const auto source_file = absolute.string();
         for (auto& function : program.functions) function.source_file = source_file;
+        for (auto& declaration : program.enums) declaration.source_file = source_file;
         for (auto& declaration : program.classes) {
             declaration.source_file = source_file;
             for (auto& method : declaration.methods) method.source_file = source_file;
         }
 
+        for (const auto& enum_decl : program.enums) {
+            if (is_reserved_value_name(enum_decl.name) || enum_decl.name == "main")
+                frontend_error("DUPLICATE_NAME", "Enum name '" + enum_decl.name + "' is reserved.", enum_decl.span);
+        }
         for (const auto& class_decl : program.classes) {
             if (class_decl.name.rfind("$cli.", 0) == 0) continue;
             if (is_reserved_value_name(class_decl.name) || class_decl.name == "main") {
@@ -1357,10 +1390,14 @@ private:
         std::unordered_set<std::string> local_classes;
         std::unordered_set<std::string> local_functions;
         for (const auto& class_decl : program.classes) local_classes.insert(class_decl.name);
+        for (const auto& enum_decl : program.enums) local_classes.insert(enum_decl.name);
         for (const auto& function : program.functions) local_functions.insert(function.name);
 
         Exports exports;
-        for (const auto& name : local_classes) exports.classes[name] = qualify(ns, name);
+        for (const auto& class_decl : program.classes)
+            exports.classes[class_decl.name] = qualify(ns, class_decl.name);
+        for (const auto& enum_decl : program.enums)
+            exports.enums[enum_decl.name] = qualify(ns, enum_decl.name);
         for (const auto& name : local_functions) exports.functions[name] = qualify(ns, name);
 
         std::unordered_map<std::string, ImportBinding> imports;
@@ -1447,6 +1484,12 @@ private:
 
         reject_import_alias_shadowing(program, aliases);
 
+        for (auto& enum_decl : program.enums) {
+            for (auto& variant : enum_decl.variants)
+                if (variant.payload) rename_type(*variant.payload, ns, local_classes, imports, {});
+            enum_decl.name = qualify(ns, enum_decl.name);
+        }
+
         for (auto& class_decl : program.classes) {
             std::unordered_set<std::string> class_parameters(
                 class_decl.type_parameters.begin(), class_decl.type_parameters.end());
@@ -1488,6 +1531,10 @@ private:
             // Keep imported declarations in the semantic program while marking their top-level
             // spans as non-root. Source inspection/patching can then remain root-file scoped.
             const auto imported_offset = std::numeric_limits<std::size_t>::max();
+            for (auto& enum_decl : program.enums) {
+                enum_decl.span.start.offset = imported_offset;
+                enum_decl.span.end.offset = imported_offset;
+            }
             for (auto& class_decl : program.classes) {
                 class_decl.span.start.offset = imported_offset;
                 class_decl.span.end.offset = imported_offset;
@@ -1498,6 +1545,7 @@ private:
             }
         }
 
+        for (auto& enum_decl : program.enums) merged.enums.push_back(std::move(enum_decl));
         for (auto& class_decl : program.classes) merged.classes.push_back(std::move(class_decl));
         for (auto& function : program.functions) merged.functions.push_back(std::move(function));
         if (root) {
@@ -1730,6 +1778,20 @@ public:
     }
 
     Program run() {
+        for (const auto& declaration : source_.enums) {
+            EnumDecl copy;
+            copy.name = declaration.name;
+            copy.source_file = declaration.source_file;
+            copy.span = declaration.span;
+            for (const auto& variant : declaration.variants) {
+                EnumVariantDecl item;
+                item.name = variant.name;
+                item.span = variant.span;
+                if (variant.payload) item.payload = materialize_type(*variant.payload, {}, {});
+                copy.variants.push_back(std::move(item));
+            }
+            output_.enums.push_back(std::move(copy));
+        }
         for (const auto& [name, declaration] : concrete_classes_) {
             materialize_concrete_class(*declaration);
         }
@@ -1861,6 +1923,22 @@ private:
 
     void validate_declarations() const {
         std::unordered_set<std::string> declaration_names;
+        for (const auto& enum_decl : source_.enums) {
+            if (enum_decl.name == "main" || is_language_type_name(enum_decl.name) ||
+                is_reserved_value_name(enum_decl.name) ||
+                !declaration_names.insert(enum_decl.name).second) {
+                frontend_error("DUPLICATE_NAME",
+                               "Enum name '" + enum_decl.name + "' is reserved or duplicated.",
+                               enum_decl.span);
+            }
+            std::unordered_set<std::string> variants;
+            for (const auto& variant : enum_decl.variants) {
+                if (is_reserved_value_name(variant.name) || !variants.insert(variant.name).second)
+                    frontend_error("DUPLICATE_NAME",
+                                   "Enum variant '" + variant.name + "' is reserved or duplicated.",
+                                   variant.span);
+            }
+        }
         for (const auto& class_decl : source_.classes) {
             if (class_decl.name == "main") {
                 frontend_error("RESERVED_MAIN",
@@ -2837,7 +2915,7 @@ private:
                 type_environment_ = before;
                 MatchCase case_copy;
                 case_copy.type = materialize_type(match_case.type, substitution, deferred);
-                case_copy.tag = case_copy.type.name;
+                case_copy.tag = match_case.tag;
                 case_copy.binder = match_case.binder;
                 case_copy.span = match_case.span;
                 if (const auto* name = std::get_if<NameExpr>(&copy.value->data)) {

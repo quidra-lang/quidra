@@ -2130,6 +2130,45 @@ print(result)
     return value
 print(identity<int, int>(1))
 )", "GENERIC_ARITY");
+ good(R"(enum Token
+    Number(float)
+    Name(string)
+    Plus
+    End
+
+Token token = Token.Number(3.0)
+match token
+    Token.Number(value)
+        print(value)
+    Token.Name(name)
+        print(name)
+    Token.Plus
+        void
+    Token.End
+        void
+)");
+ good(R"(enum State
+    First(int)
+    Second(int)
+State state = State.Second(2)
+match state
+    State.First(value)
+        print(value)
+    State.Second(value)
+        print(value)
+)");
+ bad_code(R"(enum Token
+    Number(float)
+    End
+Token token = Token.End
+match token
+    Token.Number(value)
+        print(value)
+)", "MATCH_EXHAUSTIVE");
+ bad_code(R"(enum Token
+    Number(float)
+Token token = Token.Number
+)", "ARGUMENT_MISMATCH");
  good(R"(T maximum<T: ordered>(T a, T b)
     if a > b
         return a

@@ -266,6 +266,20 @@ Unions describe alternatives directly:
 int | string value
 ```
 
+Named semantic alternatives use exhaustive enums:
+
+```quidra
+enum Token
+    Number(float)
+    Plus
+    End
+
+Token token = Token.Number(3.0)
+```
+
+Variants are always qualified (`Token.Number`, `Token.Plus`), and payload-free variants are values rather than implicit integers.
+
+
 Inheritance is code and member reuse, not an implicit runtime subtype relation.
 
 ```quidra

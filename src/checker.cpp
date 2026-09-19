@@ -1437,6 +1437,8 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
             error("INVALID_AUTO", "auto is only a complete initialized local type.", source.span);
         }
         return simple(TypeKind::Auto);
+    } else if (enum_types_.contains(source.name)) {
+        type = enum_types_.at(source.name);
     } else if (class_names_.contains(source.name)) {
         type = Type::class_type(source.name);
     } else {
@@ -1582,6 +1584,20 @@ Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value
 Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_value) {
     Type type = simple(TypeKind::Void);
     const auto* node = &node_value;
+
+        if (const auto* enum_name = std::get_if<NameExpr>(&node->base->data);
+            enum_name && enum_types_.contains(enum_name->name)) {
+            const auto enum_type = enum_types_.at(enum_name->name);
+            const auto it = std::find(enum_type.case_names.begin(), enum_type.case_names.end(), node->name);
+            if (it == enum_type.case_names.end())
+                error("UNKNOWN_MEMBER", "Enum '" + enum_name->name + "' has no variant '" + node->name + "'.", expression.span);
+            const auto tag = static_cast<int>(it - enum_type.case_names.begin());
+            const auto payload = enum_type.cases[static_cast<std::size_t>(tag)];
+            if (payload.kind != TypeKind::Void)
+                error("ARGUMENT_MISMATCH", "Enum variant '" + enum_name->name + "." + node->name + "' requires one payload value.", expression.span);
+            enum_constructions_[&expression] = EnumConstructionInfo{enum_type, tag, payload};
+            return enum_type;
+        }
 
         const auto reference_base = current_reference_parameter_path(*node->base);
         Type base;
@@ -1742,7 +1758,25 @@ Type Checker::check_method_call_expr(const Expr& expression,
         const auto type_receiver =
             receiver_name ? builtin_scalar_type(receiver_name->name) : std::optional<Type>{};
 
-        if (type_receiver && type_receiver->kind == TypeKind::Bin &&
+        if (receiver_name && enum_types_.contains(receiver_name->name)) {
+            const auto enum_type = enum_types_.at(receiver_name->name);
+            const auto it = std::find(enum_type.case_names.begin(), enum_type.case_names.end(), node->method);
+            if (it == enum_type.case_names.end())
+                error("UNKNOWN_MEMBER", "Enum '" + receiver_name->name + "' has no variant '" + node->method + "'.", expression.span);
+            const auto tag = static_cast<int>(it - enum_type.case_names.begin());
+            const auto payload = enum_type.cases[static_cast<std::size_t>(tag)];
+            if (!node->type_arguments.empty())
+                error("GENERIC_TARGET", "Enum variants do not take type arguments.", expression.span);
+            if (payload.kind == TypeKind::Void)
+                error("ARGUMENT_MISMATCH", "Payload-free enum variant '" + receiver_name->name + "." + node->method + "' is a value; write it without ().", expression.span);
+            if (node->args.size() != 1 || node->args[0].writable || node->args[0].name)
+                error("ARGUMENT_MISMATCH", "Enum payload variant '" + receiver_name->name + "." + node->method + "' requires exactly one positional value.", expression.span);
+            const auto actual = check_expr(*node->args[0].value, &payload);
+            if (!poisoned(actual) && !assignable(actual, payload))
+                error("TYPE_MISMATCH", "Enum payload expected " + type_name(payload) + ", got " + type_name(actual) + ".", node->args[0].span);
+            enum_constructions_[&expression] = EnumConstructionInfo{enum_type, tag, payload};
+            type = poisoned(actual) ? simple(TypeKind::Invalid) : enum_type;
+        } else if (type_receiver && type_receiver->kind == TypeKind::Bin &&
             node->method == "fill") {
             if (!node->type_arguments.empty() || node->args.size() != 2 ||
                 node->args[0].writable || node->args[0].name ||
@@ -5514,7 +5548,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
 }
 void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node) {
         if (variables_.contains(node.name) || functions_.contains(node.name) ||
-            class_names_.contains(node.name) || is_reserved_value_name(node.name) ||
+            class_names_.contains(node.name) || enum_types_.contains(node.name) || is_reserved_value_name(node.name) ||
             member_name_visible(node.name)) {
             error("SHADOWING", "Name is already visible or reserved.", statement.span);
         }
@@ -6169,7 +6203,7 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
             error("TYPE_MISMATCH", "for requires an array, bin, or range.", statement.span);
         }
         if (variables_.contains(node.name) || functions_.contains(node.name) ||
-            class_names_.contains(node.name) || is_reserved_value_name(node.name) ||
+            class_names_.contains(node.name) || enum_types_.contains(node.name) || is_reserved_value_name(node.name) ||
             member_name_visible(node.name)) {
             error("SHADOWING", "Iteration name is already visible or reserved.", statement.span);
         }
@@ -6257,8 +6291,9 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
     auto type = check_expr(*node.value);
     if (type.kind == TypeKind::Invalid) return;
     if (type.kind != TypeKind::Union) {
-        error("TYPE_MISMATCH", "match requires a union.", statement.span);
+        error("TYPE_MISMATCH", "match requires a union or enum.", statement.span);
     }
+    const bool named_enum = !type.union_name.empty();
 
     auto variables = variables_;
     auto references = reference_roots_;
@@ -6282,9 +6317,32 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
     auto matched_reference_effects = reference_before;
 
     for (auto& match_case : node.cases) {
-        const auto requested_case_type = resolve_type(match_case.type);
-        int tag = case_index(type, requested_case_type);
-        if (tag < 0 &&
+        Type requested_case_type = simple(TypeKind::Invalid);
+        int tag = -1;
+        if (named_enum) {
+            const auto prefix = type.union_name + ".";
+            if (match_case.type.name.rfind(prefix, 0) != 0 ||
+                !match_case.type.arguments.empty() || !match_case.type.dimensions.empty())
+                error("MATCH_CASE", "Enum match cases must name a variant of '" + type.union_name + "'.", match_case.span);
+            const auto variant = match_case.type.name.substr(prefix.size());
+            const auto found = std::find(type.case_names.begin(), type.case_names.end(), variant);
+            if (found == type.case_names.end())
+                error("MATCH_CASE", "Enum '" + type.union_name + "' has no variant '" + variant + "'.", match_case.span);
+            tag = static_cast<int>(found - type.case_names.begin());
+            requested_case_type = type.cases[static_cast<std::size_t>(tag)];
+            if (requested_case_type.kind == TypeKind::Void && match_case.binder)
+                error("MATCH_CASE", "Payload-free enum variants cannot bind a value.", match_case.span);
+            if (!match_case.tag.empty() && requested_case_type.kind == TypeKind::Void)
+                error("MATCH_CASE", "Payload-free enum variants do not use (...).", match_case.span);
+            if (match_case.tag.empty() && match_case.binder)
+                error("MATCH_CASE", "Enum payload binders use Variant(name) syntax.", match_case.span);
+        } else {
+            if (!match_case.tag.empty())
+                error("MATCH_CASE", "Variant(name) match syntax is only valid for enums.", match_case.span);
+            requested_case_type = resolve_type(match_case.type);
+            tag = case_index(type, requested_case_type);
+        }
+        if (!named_enum && tag < 0 &&
             (requested_case_type.kind == TypeKind::Tensor ||
              requested_case_type.kind == TypeKind::Neural) &&
             requested_case_type.first) {
@@ -6314,6 +6372,7 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
         }
 
         case_types_[&match_case] = case_type;
+        case_tags_[&match_case] = tag;
         variables_ = variables;
         reference_roots_ = references;
         reference_paths_ = reference_paths;
@@ -6329,17 +6388,18 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
         if (case_type.kind == TypeKind::Class) {
             matched_paths = complete_class_paths(case_type);
         }
-        if (auto* name = std::get_if<NameExpr>(&node.value->data)) {
-            variables_[name->name] = case_type;
-            narrowed_.insert(reference_root(name->name));
-            if (case_type.kind == TypeKind::Class) {
-                class_initialized_paths_[reference_root(name->name)] = matched_paths;
+        if (!named_enum) {
+            if (auto* name = std::get_if<NameExpr>(&node.value->data)) {
+                variables_[name->name] = case_type;
+                narrowed_.insert(reference_root(name->name));
+                if (case_type.kind == TypeKind::Class)
+                    class_initialized_paths_[reference_root(name->name)] = matched_paths;
             }
         }
 
         if (match_case.binder) {
             if (variables_.contains(*match_case.binder) || functions_.contains(*match_case.binder) ||
-                class_names_.contains(*match_case.binder) ||
+                class_names_.contains(*match_case.binder) || enum_types_.contains(*match_case.binder) ||
                 is_reserved_value_name(*match_case.binder) ||
                 member_name_visible(*match_case.binder)) {
                 error("SHADOWING", "Case binder is already visible or reserved.", match_case.span);
@@ -6375,7 +6435,10 @@ void Checker::check_match_stmt(const Stmt& statement, const MatchStmt& node_valu
     }
 
     if (seen.size() != type.cases.size()) {
-        error("MATCH_EXHAUSTIVE", "match must cover every union case exactly once.", statement.span);
+        error("MATCH_EXHAUSTIVE",
+              named_enum ? "match must cover every enum variant exactly once."
+                         : "match must cover every union case exactly once.",
+              statement.span);
     }
 
     variables_ = variables;
@@ -6666,6 +6729,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     functions_.clear();
     classes_.clear();
     class_names_.clear();
+    enum_types_.clear();
     variables_.clear();
     reference_roots_.clear();
     reference_paths_.clear();
@@ -6677,6 +6741,8 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     call_resolutions_.clear();
     binding_types_.clear();
     case_types_.clear();
+    case_tags_.clear();
+    enum_constructions_.clear();
     initialized_.clear();
     const_bindings_.clear();
     const_integer_values_.clear();
@@ -6706,6 +6772,57 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         } catch (const CompileError& compile_error) {
             record(compile_error);
         }
+    }
+
+    std::unordered_map<std::string, EnumDecl*> enum_decls;
+    for (auto& enum_decl : program.enums) {
+        try {
+            if (is_reserved_value_name(enum_decl.name) || enum_decl.name == "main" ||
+                class_names_.contains(enum_decl.name) || enum_decls.contains(enum_decl.name))
+                error("DUPLICATE_NAME", "Enum name is reserved or duplicated.", enum_decl.span);
+            enum_decls[enum_decl.name] = &enum_decl;
+        } catch (const CompileError& compile_error) { record(compile_error); }
+    }
+
+    std::unordered_set<std::string> building_enums;
+    std::unordered_set<std::string> invalid_enums;
+    std::function<void(EnumDecl&)> build_enum;
+    std::function<void(const TypeName&)> ensure_enum_dependencies;
+    ensure_enum_dependencies = [&](const TypeName& source) {
+        if (const auto it = enum_decls.find(source.name); it != enum_decls.end()) build_enum(*it->second);
+        for (const auto& argument : source.arguments) ensure_enum_dependencies(argument);
+        for (const auto& parameter : source.function_parameters) ensure_enum_dependencies(parameter);
+    };
+    build_enum = [&](EnumDecl& declaration) {
+        if (enum_types_.contains(declaration.name)) return;
+        if (invalid_enums.contains(declaration.name))
+            error("INVALID_ENUM", "Referenced enum is invalid.", declaration.span);
+        if (!building_enums.insert(declaration.name).second)
+            error("ENUM_CYCLE", "Enum payload types cannot contain a recursive enum cycle.", declaration.span);
+        try {
+            std::vector<std::string> names;
+            std::vector<Type> payloads;
+            std::unordered_set<std::string> seen;
+            for (const auto& variant : declaration.variants) {
+                if (is_reserved_value_name(variant.name) || !seen.insert(variant.name).second)
+                    error("DUPLICATE_NAME", "Enum variant '" + variant.name + "' is reserved or duplicated.", variant.span);
+                names.push_back(variant.name);
+                if (variant.payload) {
+                    ensure_enum_dependencies(*variant.payload);
+                    auto payload = resolve_type(*variant.payload);
+                    if (!is_storable(payload))
+                        error("INVALID_TYPE", "Enum payload types must be storable values.", variant.payload->span);
+                    payloads.push_back(std::move(payload));
+                } else payloads.push_back(simple(TypeKind::Void));
+            }
+            enum_types_[declaration.name] = Type::enum_type(declaration.name, std::move(names), std::move(payloads));
+            building_enums.erase(declaration.name);
+        } catch (...) { building_enums.erase(declaration.name); throw; }
+    };
+    for (auto& enum_decl : program.enums) {
+        if (!enum_decls.contains(enum_decl.name)) continue;
+        try { build_enum(enum_decl); }
+        catch (const CompileError& compile_error) { record(compile_error); invalid_enums.insert(enum_decl.name); }
     }
 
     std::unordered_set<std::string> building;
@@ -6743,7 +6860,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 declaration.name.rfind("__quidra_gc__std_", 0) == 0;
             for (auto& field : declaration.fields) {
                 if ((!standard_generated && is_reserved_value_name(field.name)) ||
-                    class_names_.contains(field.name)) {
+                    class_names_.contains(field.name) || enum_types_.contains(field.name)) {
                     error("SHADOWING", "Class field name is reserved or conflicts with a class name.", field.span);
                 }
                 if (!own_fields.insert(field.name).second || find_field(info.name, field.name)) {
@@ -6763,7 +6880,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             std::unordered_set<std::string> own_methods;
             for (auto& method : declaration.methods) {
                 if ((!standard_generated && is_reserved_value_name(method.name)) ||
-                    class_names_.contains(method.name) || method.name == "main") {
+                    class_names_.contains(method.name) || enum_types_.contains(method.name) || method.name == "main") {
                     error("DUPLICATE_NAME", "Method name is reserved or conflicts with a class/entry point.", method.span);
                 }
                 if (!own_methods.insert(method.name).second) {
@@ -6782,7 +6899,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 std::unordered_set<std::string> parameter_names;
                 bool defaults = false;
                 for (auto& parameter : method.parameters) {
-                    if (is_reserved_value_name(parameter.name) || class_names_.contains(parameter.name) ||
+                    if (is_reserved_value_name(parameter.name) || class_names_.contains(parameter.name) || enum_types_.contains(parameter.name) ||
                         std::any_of(info.fields.begin(), info.fields.end(), [&](const auto& field) { return field.name == parameter.name; }) ||
                         info.methods.contains(parameter.name) || parameter.name == method.name) {
                         error("SHADOWING", "Method parameter shadows a class member or reserved name.", parameter.span);
@@ -6872,7 +6989,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 error("RESERVED_MAIN", "Top-level code is the entrypoint.", function.span);
             }
             if (functions_.contains(function.name) || class_names_.contains(function.name) ||
-                is_reserved_value_name(function.name)) {
+                enum_types_.contains(function.name) || is_reserved_value_name(function.name)) {
                 error("DUPLICATE_NAME", "Reserved or duplicate function name.", function.span);
             }
 
@@ -6939,7 +7056,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             std::unordered_set<std::string> names;
             bool defaults = false;
             for (auto& parameter : function.parameters) {
-                if (is_reserved_value_name(parameter.name) || class_names_.contains(parameter.name)) {
+                if (is_reserved_value_name(parameter.name) || class_names_.contains(parameter.name) || enum_types_.contains(parameter.name)) {
                     error("SHADOWING", "Parameter name is reserved.", parameter.span);
                 }
                 if (!names.insert(parameter.name).second) {
@@ -7366,7 +7483,8 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
 
     return CheckedProgram{std::move(program), functions_, classes_, expr_types_, raw_types_,
                           field_accesses_, method_calls_, call_resolutions_, function_references_,
-                          binding_types_, case_types_, bounds_proven_, class_expr_initialized_paths_};
+                          binding_types_, case_types_, case_tags_, enum_constructions_,
+                          bounds_proven_, class_expr_initialized_paths_};
 }
 
 } // namespace quidra

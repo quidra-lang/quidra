@@ -42,6 +42,7 @@ private:
     std::vector<std::string> type_parameter_list(std::vector<std::string>* constraints = nullptr);
     ImportDecl import_decl();
     void cli_decl(Program& program);
+    EnumDecl enum_decl();
     ClassDecl class_decl();
     FunctionDecl function_decl(bool allow_override = false);
     FunctionDecl external_function_decl();

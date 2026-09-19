@@ -164,6 +164,19 @@ struct ClassDecl {
     std::vector<std::string> type_constraints;
 };
 
+struct EnumVariantDecl {
+    std::string name;
+    std::optional<TypeName> payload;
+    SourceSpan span{};
+};
+
+struct EnumDecl {
+    std::string name;
+    std::string source_file;
+    std::vector<EnumVariantDecl> variants;
+    SourceSpan span{};
+};
+
 struct ImportDecl {
     std::string alias;
     std::string target;
@@ -175,6 +188,7 @@ struct Program {
     std::string language_version;
     std::string root_source_file;
     std::vector<ClassDecl> classes;
+    std::vector<EnumDecl> enums;
     std::vector<FunctionDecl> functions;
     std::vector<StmtPtr> statements;
     std::vector<ImportDecl> imports;

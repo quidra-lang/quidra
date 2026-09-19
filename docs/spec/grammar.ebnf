@@ -4,7 +4,7 @@
    line-ending style does not change string data. Control characters use
    enter, tab, home, quote, backspace, page, vtab, and bell. *)
 
-program          = { NEWLINE | import_decl | extern_decl | cli_decl | class_decl | function | statement }, EOF ;
+program          = { NEWLINE | import_decl | extern_decl | cli_decl | enum_decl | class_decl | function | statement }, EOF ;
 
 import_decl      = "import", identifier,
                    [ "=", ( string | identifier ) ], statement_end ;
@@ -18,6 +18,10 @@ cli_field        = type, identifier, "=", cli_source, statement_end ;
 cli_source       = "argument", "(", ")"
                  | "option", "(", "default", "=", expression, ")"
                  | "flag", "(", ")" ;
+
+enum_decl        = "enum", identifier, NEWLINE, INDENT,
+                   enum_variant, { enum_variant | NEWLINE }, DEDENT ;
+enum_variant     = identifier, [ "(", type, ")" ], statement_end ;
 
 class_decl       = "class", identifier, [ type_parameters ],
                    [ ":", type ], NEWLINE, INDENT,
@@ -65,7 +69,7 @@ while_stmt       = "while", expression, suite ;
 for_stmt         = "for", [ "&" ], identifier, "in", expression, suite ;
 match_stmt       = "match", expression, NEWLINE, INDENT,
                    match_case, { match_case | NEWLINE }, DEDENT ;
-match_case       = type, [ identifier ], suite ;
+match_case       = type, [ identifier | "(", identifier, ")" ], suite ;
 expr_stmt        = expression, statement_end ;
 
 expression       = or_expr ;

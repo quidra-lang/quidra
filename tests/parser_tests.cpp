@@ -33,6 +33,36 @@ static void reject(const std::string& source) {
 
 int main() {
     {
+        auto enums = parse(
+            "enum Token\n"
+            "    Number(float)\n"
+            "    Name(string)\n"
+            "    Plus\n"
+            "    End\n"
+            "Token token = Token.Number(3.0)\n"
+            "match token\n"
+            "    Token.Number(value)\n"
+            "        print(value)\n"
+            "    Token.Name(name)\n"
+            "        print(name)\n"
+            "    Token.Plus\n"
+            "        void\n"
+            "    Token.End\n"
+            "        void\n"
+        );
+        require(enums.enums.size() == 1 && enums.enums[0].variants.size() == 4,
+                "enum declaration AST");
+        require(enums.enums[0].variants[0].payload.has_value() &&
+                enums.enums[0].variants[0].payload->name == "float",
+                "enum payload AST");
+        const auto& match = std::get<MatchStmt>(enums.statements[1]->data);
+        require(match.cases[0].tag == "Token.Number" &&
+                match.cases[0].binder == std::optional<std::string>("value"),
+                "enum payload match AST");
+        require(match.cases[2].tag.empty() && !match.cases[2].binder,
+                "enum no-payload match AST");
+    }
+    {
         auto generic = parse(
             "T maximum<T: ordered>(T a, T b)\n"
             "    return a\n"

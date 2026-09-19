@@ -56,6 +56,8 @@ struct Type {
     std::vector<long long> tensor_shape_prefix;
     std::vector<long long> tensor_known_shape_prefix;
     std::string class_name;
+    std::string union_name;
+    std::vector<std::string> case_names;
 
     static Type simple(TypeKind kind) {
         Type type;
@@ -107,8 +109,18 @@ struct Type {
 
     static Type union_of(std::vector<Type>);
 
+    static Type enum_type(std::string name, std::vector<std::string> names,
+                          std::vector<Type> payloads) {
+        auto type = simple(TypeKind::Union);
+        type.union_name = std::move(name);
+        type.case_names = std::move(names);
+        type.cases = std::move(payloads);
+        return type;
+    }
+
     bool operator==(const Type& other) const {
         if (kind != other.kind || class_name != other.class_name ||
+            union_name != other.union_name || case_names != other.case_names ||
             cases != other.cases || parameters != other.parameters ||
             bool(first) != bool(other.first) ||
             (first && *first != *other.first)) {
@@ -202,6 +214,7 @@ inline std::string type_name(const Type& type) {
             return type_name(*element) + dimensions;
         }
         case TypeKind::Union: {
+            if (!type.union_name.empty()) return type.union_name;
             std::string result;
             for (const auto& current : type.cases) {
                 if (!result.empty()) result += " | ";
@@ -636,6 +649,10 @@ inline bool assignable(const Type& from, const Type& to) {
     if (from.kind == TypeKind::Invalid || to.kind == TypeKind::Invalid || from == to ||
         from.kind == TypeKind::Never) {
         return true;
+    }
+    if ((from.kind == TypeKind::Union && !from.union_name.empty()) ||
+        (to.kind == TypeKind::Union && !to.union_name.empty())) {
+        return false;
     }
     if (to.kind == TypeKind::Union) {
         if (from.kind == TypeKind::Union) {

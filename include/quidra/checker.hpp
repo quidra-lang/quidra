@@ -79,6 +79,12 @@ struct MethodCallInfo {
     std::string internal_name;
 };
 
+struct EnumConstructionInfo {
+    Type type;
+    int tag{};
+    Type payload_type{Type::simple(TypeKind::Void)};
+};
+
 struct CheckedProgram {
     Program program;
     std::unordered_map<std::string, FunctionType> functions;
@@ -91,6 +97,8 @@ struct CheckedProgram {
     std::unordered_map<const Expr*, std::string> function_references;
     std::unordered_map<const Stmt*, Type> binding_types;
     std::unordered_map<const MatchCase*, Type> case_types;
+    std::unordered_map<const MatchCase*, int> case_tags;
+    std::unordered_map<const Expr*, EnumConstructionInfo> enum_constructions;
     std::unordered_set<const Expr*> bounds_proven;
     std::unordered_map<const Expr*, std::unordered_set<std::string>> class_expr_initialized_paths;
 };
@@ -104,6 +112,7 @@ private:
     std::unordered_map<std::string, FunctionType> functions_;
     std::unordered_map<std::string, ClassTypeInfo> classes_;
     std::unordered_set<std::string> class_names_;
+    std::unordered_map<std::string, Type> enum_types_;
     std::unordered_map<std::string, Type> variables_;
     std::unordered_map<std::string, std::string> reference_roots_;
     std::unordered_map<std::string, std::pair<std::string, std::string>> reference_paths_;
@@ -116,6 +125,8 @@ private:
     std::unordered_map<const Expr*, std::string> function_references_;
     std::unordered_map<const Stmt*, Type> binding_types_;
     std::unordered_map<const MatchCase*, Type> case_types_;
+    std::unordered_map<const MatchCase*, int> case_tags_;
+    std::unordered_map<const Expr*, EnumConstructionInfo> enum_constructions_;
     std::unordered_set<const Expr*> bounds_proven_;
     std::unordered_set<std::string> initialized_, narrowed_, borrowed_, const_bindings_;
     std::unordered_map<std::string, long long> const_integer_values_;

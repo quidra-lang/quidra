@@ -1508,6 +1508,7 @@ struct Lowerer {
     }
 
     bool expression_owns_result(const Expr& expression) const {
+        if (checked.enum_constructions.contains(&expression)) return true;
         const auto type = type_of(expression);
         if (!requires_lifetime_management(type)) return false;
         if (std::holds_alternative<StringExpr>(expression.data)) {
@@ -1775,6 +1776,17 @@ struct Lowerer {
     }
 
     ValueId raw_expr(const Expr& e) {
+        if (const auto construction = checked.enum_constructions.find(&e);
+            construction != checked.enum_constructions.end()) {
+            ValueId payload = 0;
+            if (const auto* call = std::get_if<MethodCallExpr>(&e.data);
+                call && !call->args.empty())
+                payload = destination_value(*call->args.front().value, construction->second.payload_type);
+            auto out = fresh();
+            block->instructions.push_back(VariantMake{out, construction->second.tag, payload,
+                construction->second.type, construction->second.payload_type});
+            return out;
+        }
         if (const auto* n=std::get_if<IntegerExpr>(&e.data)) {
             auto out=fresh();
             const auto type=checked.raw_types.at(&e);
@@ -5564,7 +5576,7 @@ struct Lowerer {
         for(auto& c:n.cases){
             const auto ct=checked.case_types.at(&c);
             auto yes=label("match.case"),next=label("match.next");
-            auto num=const_int(case_index(mt,ct)),test=fresh();
+            auto num=const_int(checked.case_tags.at(&c)),test=fresh();
             block->instructions.push_back(Binary{
                 test,"==",tag,num,Type::simple(TypeKind::Int),Type::simple(TypeKind::Bool)});
             block->instructions.push_back(Branch{test,yes,next});

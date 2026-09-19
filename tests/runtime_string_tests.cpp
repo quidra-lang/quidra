@@ -8,6 +8,7 @@ extern "C" void* quidra_string_split_iter_begin(const char*, const char*);
 extern "C" char* quidra_string_split_iter_next(void*);
 extern "C" void quidra_string_split_iter_end(void*);
 extern "C" unsigned long long quidra_runtime_text_byte_length(const char*);
+extern "C" long long quidra_string_length(const char*);
 extern "C" void quidra_managed_retain(void*);
 extern "C" void quidra_managed_release(void*, void*);
 
@@ -88,6 +89,23 @@ int main() {
     quidra_string_split_iter_end(split_iter);
     if (std::strcmp(iter_b, "b") != 0) return 1;
     quidra_managed_release(iter_b, nullptr);
+
+    // Slice byte-length caching must never leak code-point metadata between
+    // different slices that share one backing slab.
+    void* unicode_iter =
+        quidra_string_split_iter_begin("\xC3\xA9::abc::\xE3\x81\x82\xE3\x81\x84", "::");
+    char* unicode_one = quidra_string_split_iter_next(unicode_iter);
+    char* unicode_ascii = quidra_string_split_iter_next(unicode_iter);
+    char* unicode_two = quidra_string_split_iter_next(unicode_iter);
+    if (!unicode_one || !unicode_ascii || !unicode_two ||
+        quidra_string_length(unicode_one) != 1 ||
+        quidra_string_length(unicode_ascii) != 3 ||
+        quidra_string_length(unicode_two) != 2 ||
+        quidra_runtime_text_byte_length(unicode_one) != 2 ||
+        quidra_runtime_text_byte_length(unicode_ascii) != 3 ||
+        quidra_runtime_text_byte_length(unicode_two) != 6 ||
+        quidra_string_split_iter_next(unicode_iter) != nullptr) return 1;
+    quidra_string_split_iter_end(unicode_iter);
 
     void* empty_iter = quidra_string_split_iter_begin("", ",");
     char* only_empty = quidra_string_split_iter_next(empty_iter);

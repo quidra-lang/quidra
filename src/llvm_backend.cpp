@@ -1133,6 +1133,23 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::StringSlice>){values[n.out]=Type::simple(TypeKind::String);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_slice(ptr "<<value(n.text)<<", i64 "<<value(n.start)<<", i64 "<<value(n.end)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringTrim>){values[n.out]=Type::simple(TypeKind::String);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_trim(ptr "<<value(n.text)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringSplit>){values[n.out]=Type::array(Type::simple(TypeKind::String));out<<"  "<<value(n.out)<<" = call ptr @quidra_string_split(ptr "<<value(n.text)<<", ptr "<<value(n.separator)<<")\n";}
+        if constexpr(std::is_same_v<T,ir::StringParseTwoSigned>){
+            values[n.left]=Type::simple(TypeKind::Int);
+            values[n.right]=Type::simple(TypeKind::Int);
+            values[n.ok]=Type::simple(TypeKind::Bool);
+            const auto parsed=temp("string.parse.two");
+            const auto okraw=temp("string.parse.two.okraw");
+            const auto leftptr=temp("string.parse.two.leftptr");
+            const auto rightptr=temp("string.parse.two.rightptr");
+            out<<"  "<<parsed<<" = call ptr @quidra_string_parse_two_signed(ptr "<<value(n.text)
+               <<", i8 "<<static_cast<unsigned>(n.separator)<<")\n";
+            out<<"  "<<okraw<<" = load i64, ptr "<<parsed<<", align 8\n";
+            out<<"  "<<value(n.ok)<<" = icmp ne i64 "<<okraw<<", 0\n";
+            out<<"  "<<leftptr<<" = getelementptr inbounds i8, ptr "<<parsed<<", i64 8\n";
+            out<<"  "<<value(n.left)<<" = load i64, ptr "<<leftptr<<", align 8\n";
+            out<<"  "<<rightptr<<" = getelementptr inbounds i8, ptr "<<parsed<<", i64 16\n";
+            out<<"  "<<value(n.right)<<" = load i64, ptr "<<rightptr<<", align 8\n";
+        }
         if constexpr(std::is_same_v<T,ir::StringUtf8>){values[n.out]=Type::simple(TypeKind::Bin);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_utf8(ptr "<<value(n.text)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringFromUtf8>){
             values[n.out]=n.result_type;
@@ -4061,6 +4078,7 @@ declare i64 @quidra_string_find(ptr, ptr)
 declare ptr @quidra_string_slice(ptr, i64, i64)
 declare ptr @quidra_string_trim(ptr)
 declare ptr @quidra_string_split(ptr, ptr)
+declare ptr @quidra_string_parse_two_signed(ptr, i8)
 declare ptr @quidra_string_utf8(ptr)
 declare ptr @quidra_bin_try_utf8(ptr)
 declare ptr @quidra_string_codepoints(ptr)

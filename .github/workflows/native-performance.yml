@@ -1,0 +1,79 @@
+name: native-performance
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/native-performance.yml"
+      - "src/**"
+      - "include/**"
+      - "CMakeLists.txt"
+      - "tests/performance_regressions.py"
+
+jobs:
+  micro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native dependencies
+        run: sudo apt-get update && sudo apt-get install -y llvm libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON
+      - name: Build Quidra
+        run: cmake --build build --parallel
+      - name: Toolchain preflight
+        run: |
+          clang++ --version
+          rustc --version
+          go version
+          build/quidra --version
+      - name: Historical native micro workloads
+        env:
+          QUIDRA_BIN: ${{ github.workspace }}/build/quidra
+        run: |
+          python3 "benchmark/2026-09-17-7677581(latest)/scripts/run_micro_suite.py" \
+            --configs quidra_native,quidra_interpreter,cpp,rust,go \
+            --repeats 5 --warmups 2 --timeout 1800 \
+            --out "${RUNNER_TEMP}/native-micro.json"
+      - name: Summarize measurements
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, os, statistics
+          path=os.path.join(os.environ["RUNNER_TEMP"],"native-micro.json")
+          if not os.path.exists(path):
+              raise SystemExit("native-micro.json was not produced")
+          data=json.load(open(path))
+          rows=[]
+          by={}
+          for r in data["results"]:
+              if r.get("status")!="ok":
+                  rows.append((r["config"],r["workload"],r.get("status"),None,None,None,None,None))
+                  continue
+              t=r["timing"]
+              rep=t["representative"]
+              row=(r["config"],r["workload"],"ok",rep["wall_seconds"],rep["peak_rss_bytes"],r["build"]["wall_seconds"],r.get("artifact_size_bytes"),t["first_run_wall_seconds"])
+              rows.append(row)
+              by.setdefault(r["config"],[]).append(rep["wall_seconds"])
+          header="| config | workload | status | wall s | peak RSS MiB | compile s | artifact KiB | first run s |\n|---|---|---:|---:|---:|---:|---:|---:|"
+          lines=[header]
+          for cfg,wl,status,wall,rss,comp,size,first in rows:
+              if status!="ok":
+                  lines.append(f"| {cfg} | {wl} | {status} | - | - | - | - | - |")
+              else:
+                  lines.append(f"| {cfg} | {wl} | {status} | {wall:.4f} | {rss/1048576:.1f} | {comp:.4f} | {size/1024:.1f} | {first:.4f} |")
+          lines.append("\n## Mean wall time across 11 workloads")
+          for cfg,vals in by.items():
+              lines.append(f"- {cfg}: {statistics.mean(vals):.4f} s")
+          text="\n".join(lines)+"\n"
+          print(text)
+          with open(os.environ["GITHUB_STEP_SUMMARY"],"a") as f: f.write(text)
+          PY
+      - name: Preserve raw measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-micro-${{ github.sha }}
+          path: ${{ runner.temp }}/native-micro.json
+          if-no-files-found: error

@@ -4937,7 +4937,7 @@ struct Lowerer {
         current_class.clear();begin_function(std::move(out));
         cache_reference_array_initialization(sig, source.body);
         capture_signature_constraints(source,0);
-        for(const auto& s:source.body){stmt(*s);if(terminated())break;}
+        lower_loop_statement_sequence(source.body);
         if(!terminated()&&fn->result.kind==TypeKind::Void)block->instructions.push_back(ReturnVoid{});
     }
 
@@ -4954,7 +4954,7 @@ struct Lowerer {
         current_class=class_name;begin_function(std::move(out));
         cache_reference_array_initialization(sig, source.body);
         capture_signature_constraints(source,1);
-        for(const auto& s:source.body){stmt(*s);if(terminated())break;}
+        lower_loop_statement_sequence(source.body);
         if(!terminated()&&fn->result.kind==TypeKind::Void)block->instructions.push_back(ReturnVoid{});
         current_class.clear();
     }
@@ -4973,15 +4973,19 @@ struct Lowerer {
         begin_function(std::move(out));
 
         bool replaying = repl_replay_prefix_offset != 0;
-        if (replaying) block->instructions.push_back(ReplReplayMode{true});
-        for (const auto& statement : statements) {
-            if (replaying &&
-                statement->span.start.offset >= repl_replay_prefix_offset) {
-                block->instructions.push_back(ReplReplayMode{false});
-                replaying = false;
+        if (!replaying) {
+            lower_loop_statement_sequence(statements);
+        } else {
+            block->instructions.push_back(ReplReplayMode{true});
+            for (const auto& statement : statements) {
+                if (replaying &&
+                    statement->span.start.offset >= repl_replay_prefix_offset) {
+                    block->instructions.push_back(ReplReplayMode{false});
+                    replaying = false;
+                }
+                stmt(*statement);
+                if (terminated()) break;
             }
-            stmt(*statement);
-            if (terminated()) break;
         }
         if (!terminated()) {
             if (replaying) block->instructions.push_back(ReplReplayMode{false});

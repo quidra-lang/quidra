@@ -1177,6 +1177,15 @@ struct FunctionEmitter {
                <<"  store ptr @.err.utf8, ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
             out<<done<<":\n";
         }
+        if constexpr(std::is_same_v<T,ir::StringFromUtf8ArrayDirect>){
+            values[n.text]=Type::simple(TypeKind::String);
+            values[n.ok]=Type::simple(TypeKind::Bool);
+            values[n.error]=Type::simple(TypeKind::Error);
+            out<<"  "<<value(n.text)<<" = call ptr @quidra_u8_array_try_utf8(ptr "
+               <<value(n.array)<<")\n";
+            out<<"  "<<value(n.ok)<<" = icmp ne ptr "<<value(n.text)<<", null\n";
+            out<<"  "<<value(n.error)<<" = getelementptr inbounds i8, ptr @.err.utf8, i64 0\n";
+        }
         if constexpr(std::is_same_v<T,ir::StringCodepoints>){values[n.out]=Type::array(Type::simple(TypeKind::Int));out<<"  "<<value(n.out)<<" = call ptr @quidra_string_codepoints(ptr "<<value(n.text)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringJoin>){values[n.out]=Type::simple(TypeKind::String);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_join(ptr "<<value(n.values)<<", ptr "<<value(n.separator)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringConcat>){
@@ -4131,6 +4140,7 @@ declare ptr @quidra_string_split(ptr, ptr)
 declare ptr @quidra_string_parse_two_signed(ptr, i8)
 declare ptr @quidra_string_utf8(ptr)
 declare ptr @quidra_bin_try_utf8(ptr)
+declare ptr @quidra_u8_array_try_utf8(ptr)
 declare ptr @quidra_string_codepoints(ptr)
 declare ptr @quidra_string_join(ptr, ptr, i64, i64)
 declare ptr @quidra_string_concat_many(ptr, i64)

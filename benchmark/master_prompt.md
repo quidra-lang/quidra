@@ -257,10 +257,10 @@ The benchmark is large enough that a run must be resumable without mixing eviden
 Before the first measurement or scored model request, create a machine-readable execution manifest and run ledger inside the active run directory. The ledger must enumerate every required unit of work, including:
 
 - every language × workload measurement;
-- every Standard rubric / adversarial case;
+- every Language Quality rubric / adversarial case;
 - every Semantic Compression probe and semantic-site matrix validation;
-- every Intrinsic language × condition × seed / transformation set;
-- every Practical language × task × required independent trial;
+- every Learnability language × condition × seed / transformation set;
+- every Proficiency language × task × required independent trial;
 - every validator self-test;
 - every comparability / leakage audit; and
 - every final aggregation and report-consistency check.
@@ -287,7 +287,7 @@ On resume:
 
 If the exact primary LLM model/version changes, do not mix old and new LLM trials in one primary score. Start a new run or restart the affected LLM evaluation under one fixed model identity.
 
-Before expensive scoring begins, complete **all infrastructure pre-flight work first**: build/reference validation, golden-output agreement, validator pass/fail self-tests, Semantic Compression matrix/comparability gates, Intrinsic transformation round trips, and Reference Pack leakage audits. Do not spend scored LLM trials on infrastructure that has not passed pre-flight.
+Before expensive scoring begins, complete **all infrastructure pre-flight work first**: build/reference validation, golden-output agreement, validator pass/fail self-tests, Semantic Compression matrix/comparability gates, Learnability transformation round trips, and Reference Pack leakage audits. Do not spend scored LLM trials on infrastructure that has not passed pre-flight.
 
 Provider/network/rate-limit failures are infrastructure events, not model failures. Preserve them separately, leave the affected work unit incomplete, and resume it under the same fixed configuration rather than scoring the transport failure as an incorrect generation.
 
@@ -303,7 +303,7 @@ The readiness pre-flight must cover **all 10 fixed languages and every shared me
 - a minimal source file for every language can be compiled or checked as applicable, executed, and validated against an exact expected output;
 - the Quidra native compiler and interpreter / REPL both build, start, execute a minimal valid program, and produce the expected output;
 - every required reference repository / frozen source snapshot is locally available at the recorded SHA;
-- every golden-output generator and validator needed by SVM, GMM, LightGrad, microbenchmarks, Semantic Compression, Intrinsic, Practical, and Standard evaluations can run;
+- every golden-output generator and validator needed by SVM, GMM, LightGrad, microbenchmarks, Semantic Compression, Learnability, Proficiency, and Language Quality evaluations can run;
 - the wall-clock timer, CPU-time measurement mechanism, peak-RSS measurement mechanism, source-token counter, file-size measurement, and any other required measurement utility are available and pass a known-answer smoke test;
 - required filesystem operations work in the active scratch copy: create, atomic replace/rename, hash, and cleanup;
 - enough writable disk space exists for the planned run plus temporary build products; record free space before scored execution;
@@ -407,10 +407,10 @@ Their numbering reflects **Quidra's design priorities**, not scoring weights and
 The priority order is:
 
 1. **Semantic Compression**
-2. **LLM Intrinsic / Unknown-Language Learnability**
-3. **Standard**
-4. **Ecosystem / Adoption**
-5. **LLM Standard / Knowledge-Dependent Performance**
+2. **LLM Learnability**
+3. **Language Quality**
+4. **Ecosystem**
+5. **LLM Proficiency**
 
 ## Primary Evaluation 1 — Semantic Compression
 
@@ -418,37 +418,37 @@ Measures how much reliable, statically or locally recoverable meaning a language
 
 Semantic Compression is not a short-code contest. A shorter program is not better when it hides more behavior or supports fewer capabilities.
 
-## Primary Evaluation 2 — LLM Intrinsic / Unknown-Language Learnability
+## Primary Evaluation 2 — LLM Learnability
 
-This is implemented by the **LLM Intrinsic Learnability Evaluation** in Section 10.
+This is implemented by the **LLM Learnability Evaluation** in Section 10.
 
 It measures how effectively the selected LLM can learn, apply, compose, and resist misremembering the language's rules when direct lexical and structural familiarity is deliberately reduced through controlled, reversible transformations.
 
-## Primary Evaluation 3 — Standard
+## Primary Evaluation 3 — Language Quality
 
 Measures how strong each language and its first-party / normally expected toolchain are as a practical general-purpose programming platform when used appropriately by a competent developer using normal best practices.
 
 This evaluation includes performance, resource/distribution characteristics, language/development quality, safety/robustness, interoperability, and present-day toolchain/developer experience. It intentionally excludes external popularity, third-party ecosystem breadth, community scale, and production adoption, which belong to Primary Evaluation 4.
 
-## Primary Evaluation 4 — Ecosystem / Adoption
+## Primary Evaluation 4 — Ecosystem
 
-This is implemented by the **Ecosystem / Adoption Evaluation** in Section 8.2.
+This is implemented by the **Ecosystem Evaluation** in Section 8.2.
 
 It measures how much external ecosystem, community knowledge, third-party integration, and real-world adoption exist for the language today. This evaluation intentionally captures accumulated network effects and incumbency advantages rather than attributing them to language design or compiler quality.
 
-## Primary Evaluation 5 — LLM Standard / Knowledge-Dependent Performance
+## Primary Evaluation 5 — LLM Proficiency
 
-This is implemented by the **LLM Practical Effectiveness Evaluation** in Section 9.
+This is implemented by the **LLM Proficiency Evaluation** in Section 9.
 
 It measures how effectively the selected LLM can use the language as it actually exists today, including any advantage or disadvantage created by pretraining exposure, ecosystem prevalence, familiar syntax, and existing examples.
 
 The benchmark defines exactly five independent primary scores:
 
 - **Semantic Compression Overall Score**
-- **LLM Intrinsic Learnability Score**
-- **Standard Overall Score**
-- **Ecosystem / Adoption Score**
-- **LLM Practical Effectiveness Score**
+- **LLM Learnability Score**
+- **Language Quality Score**
+- **Ecosystem Score**
+- **LLM Proficiency Score**
 
 Attempt all five evaluations, but publish a primary score and its separate ranking only when that evaluation is `COMPLETE` under Section 4.1. For any other status, publish the status and valid diagnostic evidence without a primary score or ranking.
 
@@ -728,7 +728,7 @@ A language must be allowed to score well for semantics Quidra does not have. A l
 
 ## 6.2 Fixed LLM Execution Configuration
 
-The following configuration applies to both **LLM Practical Effectiveness** and **LLM Intrinsic Learnability** unless a subtest explicitly overrides one field.
+The following configuration applies to both **LLM Proficiency** and **LLM Learnability** unless a subtest explicitly overrides one field.
 
 The primary LLM benchmark must use one exact model identity for all 10 languages. Record the provider, public model name, exact model/version identifier exposed by the provider, API or client version, and benchmark date. A model/version change requires a new benchmark run and must not be mixed into an existing run.
 
@@ -757,7 +757,7 @@ the requirement.
 
 **Five independent trials are required** for each cell of:
 
-- Practical Effectiveness Correct@1 on the primary implementation task, because
+- Proficiency Effectiveness Correct@1 on the primary implementation task, because
   this is the metric the largest weight rests on and the one whose variance
   matters most;
 - any cell used to compute Prompt Robustness, since that metric is about
@@ -765,7 +765,7 @@ the requirement.
 
 **One trial per cell is sufficient**, and is what the specification asks for, in:
 
-- every Intrinsic condition that is already replicated across seeds or
+- every Learnability condition that is already replicated across seeds or
   transformation sets. There, replication is supplied by the seed count that
   §10.3 and §10.5 fix, and the subtest score is the seed mean. Five trials per
   seed would replicate replication.
@@ -778,7 +778,7 @@ as if they were.
 
 If a provider or client does not expose one of temperature, top-p, seed, or token-limit controls, do not emulate it with a language-specific workaround. Record the field as **provider-controlled / unavailable**, preserve the provider defaults if known, and use the same interface/configuration for every language.
 
-If deterministic decoding causes repeated trials to be byte-identical, preserve all five trials and report the duplication rate. Do not add ad-hoc prompt noise merely to force diversity. Prompt-robustness variations and Intrinsic transformation seeds remain separate controlled sources of variation.
+If deterministic decoding causes repeated trials to be byte-identical, preserve all five trials and report the duplication rate. Do not add ad-hoc prompt noise merely to force diversity. Prompt-robustness variations and Learnability transformation seeds remain separate controlled sources of variation.
 
 Before the first scored LLM generation, write an immutable run configuration containing all fields above plus:
 
@@ -798,9 +798,9 @@ Provider failures, rate limits, transport failures, and infrastructure failures 
 
 ---
 
-# 7. Standard Evaluation Fairness
+# 7. Language Quality Evaluation Fairness
 
-For Standard Evaluation, use normal, idiomatic, production-reasonable best practices for each language.
+For Language Quality Evaluation, use normal, idiomatic, production-reasonable best practices for each language.
 
 The goal is to compare:
 
@@ -836,15 +836,15 @@ However, the following are prohibited:
 
 The principle is:
 
-**Standard Score = the practical capability of the language when used properly.**
+**Language Quality Score = the practical capability of the language when used properly.**
 
-Standard must not be tuned to Quidra's design philosophy. If an established language objectively has better first-party or normally expected tooling quality, package/dependency workflow, IDE/editor integration, debugger/profiler support, build/test integration, documentation quality, installation/distribution experience, or toolchain stability, that advantage must be scored normally.
+Language Quality must not be tuned to Quidra's design philosophy. If an established language objectively has better first-party or normally expected tooling quality, package/dependency workflow, IDE/editor integration, debugger/profiler support, build/test integration, documentation quality, installation/distribution experience, or toolchain stability, that advantage must be scored normally.
 
-External library breadth, third-party integration count, community scale, public knowledge volume, and production adoption are not Standard metrics. They belong exclusively to Primary Evaluation 4 — Ecosystem / Adoption, so incumbency and network effects are visible without being conflated with the language/toolchain itself.
+External library breadth, third-party integration count, community scale, public knowledge volume, and production adoption are not Language Quality metrics. They belong exclusively to Primary Evaluation 4 — Ecosystem, so incumbency and network effects are visible without being conflated with the language/toolchain itself.
 
 ---
 
-# 8. Standard Score Metrics
+# 8. Language Quality Score Metrics
 
 Evaluate the following metrics.
 
@@ -902,13 +902,13 @@ Source size, artifact size, and deployment footprint must remain separate metric
 - Installation / Distribution Experience
 - Toolchain Stability / Release Maturity
 
-Semantic Compression-specific concepts such as Semantic Regularity, Rule Exception Density, context-sensitive semantic branching, and hidden behavior are intentionally excluded from the Standard score to avoid double counting. Their direct evaluation belongs to Primary Evaluation 1.
+Semantic Compression-specific concepts such as Semantic Regularity, Rule Exception Density, context-sensitive semantic branching, and hidden behavior are intentionally excluded from the Language Quality score to avoid double counting. Their direct evaluation belongs to Primary Evaluation 1.
 
-Standard intentionally excludes external adoption and network-effect metrics. Do not raise or lower Standard merely because a language has more users, more third-party packages, more community content, or more production deployments. Do score the present-day quality and availability of the language's own normally expected development toolchain, even when a young language legitimately lacks those capabilities.
+Language Quality intentionally excludes external adoption and network-effect metrics. Do not raise or lower Language Quality merely because a language has more users, more third-party packages, more community content, or more production deployments. Do score the present-day quality and availability of the language's own normally expected development toolchain, even when a young language legitimately lacks those capabilities.
 
 Use these metrics to calculate the:
 
-**Standard Overall Score**
+**Language Quality Score**
 
 Do not fabricate human-study results for metrics such as Readability.
 
@@ -916,11 +916,11 @@ If an objective proxy is used, define it explicitly.
 
 ---
 
-## 8.1 Fixed Standard Overall Weighting
+## 8.1 Fixed Language Quality Weighting
 
-The Standard Overall Score uses fixed category weights. Do not choose or tune these weights during a benchmark run.
+The Language Quality Score uses fixed category weights. Do not choose or tune these weights during a benchmark run.
 
-| Standard category | Weight |
+| Language Quality category | Weight |
 |---|---:|
 | Performance | 20% |
 | Resource / Distribution | 15% |
@@ -932,7 +932,7 @@ Within each category, every listed normalized metric has equal weight unless thi
 
 Calculate each category score as the arithmetic mean of its applicable normalized metrics, then calculate:
 
-**Standard Overall Score = 0.20*Performance + 0.15*Resource + 0.20*LanguageDevelopment + 0.25*SafetyRobustness + 0.20*ToolchainDeveloperExperience**
+**Language Quality Score = 0.20*Performance + 0.15*Resource + 0.20*LanguageDevelopment + 0.25*SafetyRobustness + 0.20*ToolchainDeveloperExperience**
 
 Apply the N/A policy in Section 26 within the affected category first. If an entire category is genuinely N/A, renormalize the remaining category weights proportionally and document the reason. A missing capability intentionally tested by a category is not N/A.
 
@@ -940,15 +940,15 @@ Do not change category weights, metric membership, or within-category equal weig
 
 A genuinely inapplicable metric may follow Section 26. An applicable metric that was not executed is **not** `N/A` and its weight may not be silently redistributed.
 
-If any applicable Standard metric required by the fixed score is `Not Executed`, or if an entire applicable category lacks the evidence required by this specification, mark Standard `PARTIAL` and do **not** calculate or publish Standard Overall Score or Standard Ranking. Partial category and metric measurements may still be reported as diagnostics.
+If any applicable Language Quality metric required by the fixed score is `Not Executed`, or if an entire applicable category lacks the evidence required by this specification, mark Language Quality `PARTIAL` and do **not** calculate or publish Language Quality Score or Language Quality Ranking. Partial category and metric measurements may still be reported as diagnostics.
 
 ---
 
-## 8.2 Ecosystem / Adoption Evaluation
+## 8.2 Ecosystem Evaluation
 
-This section implements **Primary Evaluation 4 — Ecosystem / Adoption**.
+This section implements **Primary Evaluation 4 — Ecosystem**.
 
-Ecosystem / Adoption measures external assets and real-world use that accumulate around a language over time. It is deliberately separate from Standard so that language/toolchain quality is not conflated with popularity, age, installed base, or network effects.
+Ecosystem measures external assets and real-world use that accumulate around a language over time. It is deliberately separate from Language Quality so that language/toolchain quality is not conflated with popularity, age, installed base, or network effects.
 
 Evaluate the following five metrics:
 
@@ -958,27 +958,27 @@ Evaluate the following five metrics:
 - Production Adoption / Deployment Evidence
 - Community / Public Knowledge Availability
 
-Do **not** score first-party installation convenience, official package/dependency-management quality, official LSP/editor support, debugger/profiler quality, build/test integration, documentation quality, or release/toolchain stability here. Those belong to Standard — Toolchain / Developer Experience.
+Do **not** score first-party installation convenience, official package/dependency-management quality, official LSP/editor support, debugger/profiler quality, build/test integration, documentation quality, or release/toolchain stability here. Those belong to Language Quality — Toolchain / Developer Experience.
 
-Conversely, do **not** move third-party package counts, external integrations, community size/activity, public Q&A/tutorial availability, or real production adoption back into Standard.
+Conversely, do **not** move third-party package counts, external integrations, community size/activity, public Q&A/tutorial availability, or real production adoption back into Language Quality.
 
-For each Ecosystem / Adoption metric, define and freeze an objective rubric or proxy before scoring any language. The same evidence sources, snapshot date or observation window, query rules, thresholds, and 0–100 conversion must be applied unchanged to all 10 languages.
+For each Ecosystem metric, define and freeze an objective rubric or proxy before scoring any language. The same evidence sources, snapshot date or observation window, query rules, thresholds, and 0–100 conversion must be applied unchanged to all 10 languages.
 
 Raw popularity indicators such as GitHub stars, search-result counts, download counts, or package counts must not be used as a single standalone proxy for the entire evaluation. They may be used as declared evidence within an individual metric when collected consistently for all languages and accompanied by the limitations of that proxy.
 
 Each of the five metrics has equal weight:
 
-**Ecosystem / Adoption Score = 0.20*ThirdPartyLibraryAvailability + 0.20*PackageEcosystemActivity + 0.20*ThirdPartyToolIntegrationAvailability + 0.20*ProductionAdoptionEvidence + 0.20*CommunityPublicKnowledgeAvailability**
+**Ecosystem Score = 0.20*ThirdPartyLibraryAvailability + 0.20*PackageEcosystemActivity + 0.20*ThirdPartyToolIntegrationAvailability + 0.20*ProductionAdoptionEvidence + 0.20*CommunityPublicKnowledgeAvailability**
 
 Unsupported or absent ecosystem evidence intentionally covered by a metric receives the rubric-defined low score rather than `N/A`. Apply Section 26 only to genuinely inapplicable cases.
 
-If any applicable Ecosystem / Adoption metric is `Not Executed`, mark Primary Evaluation 4 `PARTIAL` and do **not** calculate or publish Ecosystem / Adoption Score or Ranking.
+If any applicable Ecosystem metric is `Not Executed`, mark Primary Evaluation 4 `PARTIAL` and do **not** calculate or publish Ecosystem Score or Ranking.
 
 ---
 
-# 9. LLM Practical Effectiveness Evaluation
+# 9. LLM Proficiency Evaluation
 
-This section implements **Primary Evaluation 5 — LLM Standard / Knowledge-Dependent Performance**.
+This section implements **Primary Evaluation 5 — LLM Proficiency**.
 
 During LLM evaluation, humans must not manually improve generated code and then count the result as an LLM success.
 
@@ -1028,9 +1028,9 @@ Measure:
 
 Use these metrics to calculate the:
 
-**LLM Practical Effectiveness Score**
+**LLM Proficiency Score**
 
-At minimum, the final LLM Practical Effectiveness table must separately contain:
+At minimum, the final LLM Proficiency table must separately contain:
 
 - LLM Generation Success
 - LLM Compile Success
@@ -1044,7 +1044,7 @@ At minimum, the final LLM Practical Effectiveness table must separately contain:
 - LLM Hallucination Resistance
 - LLM Silent Bug Resistance
 - LLM Generated Code Performance
-- LLM Practical Effectiveness Score
+- LLM Proficiency Score
 
 A specification-assisted condition may be used as the normal practical prompt when that is how the benchmark is defined. If a no-specification condition is also run, report it as a practical diagnostic of prior knowledge; do not transform it into a familiarity-corrected primary score.
 
@@ -1052,15 +1052,15 @@ All normalized LLM scores must follow:
 
 **100 = best, 0 = worst.**
 
-The required trial allocation in Section 6.2 is part of validity, not merely a reporting preference. In particular, every cell that contributes to Practical Correct@1 or Prompt Robustness must have all five required independent trials before the LLM Practical Effectiveness primary score may be published.
+The required trial allocation in Section 6.2 is part of validity, not merely a reporting preference. In particular, every cell that contributes to Proficiency Correct@1 or Prompt Robustness must have all five required independent trials before the LLM Proficiency primary score may be published.
 
-If fewer required trials are available, preserve the observations as a clearly labelled **pilot / partial result**, mark the primary evaluation `PARTIAL`, and do not publish LLM Practical Effectiveness Score or Ranking.
+If fewer required trials are available, preserve the observations as a clearly labelled **pilot / partial result**, mark the primary evaluation `PARTIAL`, and do not publish LLM Proficiency Score or Ranking.
 
 ---
 
-## 9.1 Fixed LLM Practical Effectiveness Weighting
+## 9.1 Fixed LLM Proficiency Weighting
 
-The primary LLM Practical Effectiveness Score uses the following fixed metric weights:
+The primary LLM Proficiency Score uses the following fixed metric weights:
 
 | Metric | Weight |
 |---|---:|
@@ -1112,9 +1112,9 @@ Do not alter these weights after any scored LLM output has been observed.
 
 ---
 
-# 10. LLM Intrinsic Learnability Evaluation
+# 10. LLM Learnability Evaluation
 
-This section implements **Primary Evaluation 2 — LLM Intrinsic / Unknown-Language Learnability**.
+This section implements **Primary Evaluation 2 — LLM Learnability**.
 
 ## 10.1 Objective
 
@@ -1124,7 +1124,7 @@ It does not claim to mathematically remove pretraining. Structural similarities,
 
 The required claim is narrower:
 
-**LLM Intrinsic Learnability is a familiarity-controlled, specification-grounded evaluation, not a proof of zero prior exposure.**
+**LLM Learnability is a familiarity-controlled, specification-grounded evaluation, not a proof of zero prior exposure.**
 
 The model must not be told the real language name during transformed trials. Use a neutral identifier such as Language A, with the assignment randomized independently of presentation order.
 
@@ -1155,7 +1155,7 @@ Keep these fixed or matched as closely as possible across all languages and tran
 - source-to-source mapping validation
 - number of random seeds
 
-Use an **Intrinsic Reference Pack** for each language. It must describe exactly the subset of syntax and semantics needed by the tasks, including every transformed token or rule. Reference packs must use the same section template and a comparable token budget. Publish their token counts.
+Use an **Learnability Reference Pack** for each language. It must describe exactly the subset of syntax and semantics needed by the tasks, including every transformed token or rule. Reference packs must use the same section template and a comparable token budget. Publish their token counts.
 
 Do not silently give one language substantially more examples or explanation because its syntax is harder.
 
@@ -1214,7 +1214,7 @@ Defects found during a run are fixed, the affected cells re-run or re-verified, 
 
 ### Mandatory Reference Pack leakage audit
 
-After the §10.4 infrastructure pre-flight passes but **before any scored model request**, audit every Intrinsic Reference Pack for answer leakage.
+After the §10.4 infrastructure pre-flight passes but **before any scored model request**, audit every Learnability Reference Pack for answer leakage.
 
 For every language, condition, seed, and transformation set used in scoring, verify mechanically where possible and manually by a blinded reviewer where necessary that the model-visible pack does not reveal:
 
@@ -1230,13 +1230,13 @@ Worked examples must be structurally distinct from the scored fixtures. A scored
 
 Preserve an audit manifest for every scored pack. The manifest must record the pack hash, fixture hash, leakage checks performed, and pass/fail status.
 
-**No Intrinsic scored trial may begin until every pack that can enter that trial has passed the leakage audit.**
+**No Learnability scored trial may begin until every pack that can enter that trial has passed the leakage audit.**
 
 If leakage is discovered after a scored request was sent, all affected scores are invalid. Mark those cells `WITHDRAWN`, fix the infrastructure without inspecting replacement outputs, rebuild and re-audit the packs, and run fresh independent trials. Do not retain the contaminated score in any aggregate or ranking.
 
-## 10.5 Intrinsic subtests
+## 10.5 Learnability subtests
 
-The primary Intrinsic score consists of six independently reported subtests.
+The primary Learnability score consists of six independently reported subtests.
 
 ### I1. Keyword Anonymization — 20%
 
@@ -1284,7 +1284,7 @@ Add a small synthetic overlay rule that the model could not have learned as a pr
 
 The overlay must:
 
-- be described only in the Intrinsic Reference Pack;
+- be described only in the Learnability Reference Pack;
 - be mechanically validated before inverse mapping;
 - leave the underlying program semantics unchanged after validation/removal;
 - impose equivalent reasoning difficulty across languages.
@@ -1325,7 +1325,7 @@ Use multiple deterministic mappings and report failure modes separately.
 
 ## 10.6 Scoring
 
-For each I1-I6 condition, evaluate the applicable LLM metrics using the same definitions used in Practical Effectiveness where possible:
+For each I1-I6 condition, evaluate the applicable LLM metrics using the same definitions used in Proficiency Effectiveness where possible:
 
 - compile / parse success
 - Correct@1
@@ -1341,7 +1341,7 @@ For each I1-I6 condition, evaluate the applicable LLM metrics using the same def
 
 Calculate a **Condition Task Effectiveness Score** on the same 0-100 direction using these fixed weights:
 
-| Intrinsic condition metric | Weight |
+| Learnability condition metric | Weight |
 |---|---:|
 | Compile / Parse Success | 7% |
 | Correct@1 | 18% |
@@ -1369,7 +1369,7 @@ For each randomized subtest:
 
 Then calculate:
 
-**LLM Intrinsic Learnability Score = 0.20*I1 + 0.20*I2 + 0.15*I3 + 0.20*I4 + 0.15*I5 + 0.10*I6**
+**LLM Learnability Score = 0.20*I1 + 0.20*I2 + 0.15*I3 + 0.20*I4 + 0.15*I5 + 0.10*I6**
 
 These weights are fixed before the benchmark results are observed.
 
@@ -1381,11 +1381,11 @@ Report each I1-I6 score separately in addition to the aggregate.
 
 For I1 and I2, also report:
 
-**Practical baseline score - transformed score**
+**Proficiency baseline score - transformed score**
 
 for each language.
 
-This drop is diagnostic only. It is not itself the Intrinsic score and must not be used as a correction factor.
+This drop is diagnostic only. It is not itself the Learnability score and must not be used as a correction factor.
 
 A small drop can mean the model learned the transformed specification well; it does not prove the model had no structural prior.
 
@@ -1393,8 +1393,8 @@ A small drop can mean the model learned the transformed specification well; it d
 
 The two LLM primary results intentionally answer different questions:
 
-- **LLM Practical Effectiveness Score** includes real-world model familiarity and measures present-day knowledge-dependent usefulness.
-- **LLM Intrinsic Learnability Score** uses controlled unfamiliarization and novel-rule tests to measure specification-grounded learnability and rule consistency.
+- **LLM Proficiency Score** includes real-world model familiarity and measures present-day knowledge-dependent usefulness.
+- **LLM Learnability Score** uses controlled unfamiliarization and novel-rule tests to measure specification-grounded learnability and rule consistency.
 
 Do not merge them.
 
@@ -1789,7 +1789,7 @@ LLM or agent wall-clock time may be recorded when actually measured, but also re
 
 # 20. Semantic Regularity Evidence for Semantic Compression
 
-Semantic regularity is raw evidence for **Primary Evaluation 1 — Semantic Compression**. It is not a separate Standard category and must not be double-counted in Standard.
+Semantic regularity is raw evidence for **Primary Evaluation 1 — Semantic Compression**. It is not a separate Language Quality category and must not be double-counted in Language Quality.
 
 Measure how often each language requires reasoning of the form:
 
@@ -2127,9 +2127,9 @@ Create an independent:
 
 based only on Semantic Compression Overall Score, **and only when the Semantic Compression status is `COMPLETE` and the semantic-site comparability gate passed**. Otherwise print the status and withhold both Overall Score and Ranking.
 
-## 27.2 Primary Evaluation 2 — LLM Intrinsic / Unknown-Language Learnability
+## 27.2 Primary Evaluation 2 — LLM Learnability
 
-Produce the **LLM Intrinsic Learnability** table:
+Produce the **LLM Learnability** table:
 
 | Metric | Quidra | Python | C++ | Rust | Go | Java | TypeScript | Kotlin | Swift | Zig |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -2141,21 +2141,21 @@ Produce the **LLM Intrinsic Learnability** table:
 | I6 Prior-conflict Resistance | | | | | | | | | | |
 | I1 Familiarity Drop, raw diagnostic | | | | | | | | | | |
 | I2 Familiarity Drop, raw diagnostic | | | | | | | | | | |
-| **LLM Intrinsic Learnability Score** | | | | | | | | | | |
+| **LLM Learnability Score** | | | | | | | | | | |
 
 For I1-I6, preserve separate seed-level tables including seed identifiers, transformation manifests, means, standard deviations, minima, and maxima.
 
 Every normalized score must follow **higher = better.**
 
-Create an independent **LLM Intrinsic Learnability Ranking** based on LLM Intrinsic Learnability Score only when the Intrinsic evaluation status is `COMPLETE`. Any contaminated, incomplete, or withdrawn cell prevents publication of the primary score and ranking.
+Create an independent **LLM Learnability Ranking** based on LLM Learnability Score only when the Learnability evaluation status is `COMPLETE`. Any contaminated, incomplete, or withdrawn cell prevents publication of the primary score and ranking.
 
 ---
 
 # 28. Primary Evaluation Final Comparison Tables — 3–5
 
-## 28.1 Primary Evaluation 3 — Standard Final Comparison Table
+## 28.1 Primary Evaluation 3 — Language Quality Final Comparison Table
 
-Produce a Standard table with the following fixed columns:
+Produce a Language Quality table with the following fixed columns:
 
 | Metric | Quidra | Python | C++ | Rust | Go | Java | TypeScript | Kotlin | Swift | Zig |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -2194,7 +2194,7 @@ Produce a Standard table with the following fixed columns:
 | Documentation Quality | | | | | | | | | | |
 | Installation / Distribution Experience | | | | | | | | | | |
 | Toolchain Stability / Release Maturity | | | | | | | | | | |
-| **Standard Overall Score** | | | | | | | | | | |
+| **Language Quality Score** | | | | | | | | | | |
 
 Every value in this table that is a normalized score must follow:
 
@@ -2202,13 +2202,13 @@ Every value in this table that is a normalized score must follow:
 
 Create an independent:
 
-**Standard Ranking**
+**Language Quality Ranking**
 
-based on Standard Overall Score only when Standard status is `COMPLETE`. `Not Executed` applicable metrics prevent publication of the Standard Overall Score and Ranking.
+based on Language Quality Score only when Language Quality status is `COMPLETE`. `Not Executed` applicable metrics prevent publication of the Language Quality Score and Ranking.
 
-## 28.2 Primary Evaluation 4 — Ecosystem / Adoption
+## 28.2 Primary Evaluation 4 — Ecosystem
 
-Produce an Ecosystem / Adoption table with the following fixed columns:
+Produce an Ecosystem table with the following fixed columns:
 
 | Metric | Quidra | Python | C++ | Rust | Go | Java | TypeScript | Kotlin | Swift | Zig |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -2217,13 +2217,13 @@ Produce an Ecosystem / Adoption table with the following fixed columns:
 | Third-party Tool / Integration Availability | | | | | | | | | | |
 | Production Adoption / Deployment Evidence | | | | | | | | | | |
 | Community / Public Knowledge Availability | | | | | | | | | | |
-| **Ecosystem / Adoption Score** | | | | | | | | | | |
+| **Ecosystem Score** | | | | | | | | | | |
 
-Create an independent **Ecosystem / Adoption Ranking** based on Ecosystem / Adoption Score only when the Ecosystem / Adoption evaluation status is `COMPLETE`.
+Create an independent **Ecosystem Ranking** based on Ecosystem Score only when the Ecosystem evaluation status is `COMPLETE`.
 
-## 28.3 Primary Evaluation 5 — LLM Standard / Knowledge-Dependent Performance
+## 28.3 Primary Evaluation 5 — LLM Proficiency
 
-Produce the **LLM Practical Effectiveness** table using the fixed language columns:
+Produce the **LLM Proficiency** table using the fixed language columns:
 
 | Metric | Quidra | Python | C++ | Rust | Go | Java | TypeScript | Kotlin | Swift | Zig |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -2239,11 +2239,11 @@ Produce the **LLM Practical Effectiveness** table using the fixed language colum
 | LLM Hallucination Resistance | | | | | | | | | | |
 | LLM Silent Bug Resistance | | | | | | | | | | |
 | LLM Generated Code Performance | | | | | | | | | | |
-| **LLM Practical Effectiveness Score** | | | | | | | | | | |
+| **LLM Proficiency Score** | | | | | | | | | | |
 
-Create an independent **LLM Practical Effectiveness Ranking** based on LLM Practical Effectiveness Score only when the Practical evaluation status is `COMPLETE`, including all required trial replication.
+Create an independent **LLM Proficiency Ranking** based on LLM Proficiency Score only when the Proficiency evaluation status is `COMPLETE`, including all required trial replication.
 
-Do not merge Practical Effectiveness and Intrinsic Learnability. Do not merge either LLM result with Semantic Compression, Standard, or Ecosystem / Adoption.
+Do not merge Proficiency Effectiveness and Learnability Learnability. Do not merge either LLM result with Semantic Compression, Language Quality, or Ecosystem.
 
 ---
 
@@ -2290,14 +2290,14 @@ At completion, preserve at least the following inside the run directory.
 - Semantic Compression Ranking
 - Semantic Compression Raw Probe Results
 - Capability Coverage Matrix
-- LLM Intrinsic Learnability Score Table
-- LLM Intrinsic Learnability Ranking
-- Standard Score Table
-- Standard Ranking
-- Ecosystem / Adoption Score Table
-- Ecosystem / Adoption Ranking
-- LLM Practical Effectiveness Score Table
-- LLM Practical Effectiveness Ranking
+- LLM Learnability Score Table
+- LLM Learnability Ranking
+- Language Quality Score Table
+- Language Quality Ranking
+- Ecosystem Score Table
+- Ecosystem Ranking
+- LLM Proficiency Score Table
+- LLM Proficiency Ranking
 - Raw Results
 - Native vs Interpreter Results
 - Micro Benchmark Results
@@ -2346,7 +2346,7 @@ At completion, preserve at least the following inside the run directory.
 - frozen Semantic Compression semantic-site matrix
 - semantic-site matrix validator output
 - predeclared Semantic Compression comparability-audit sample and adjudication record
-- Intrinsic Reference Pack leakage-audit manifests
+- Learnability Reference Pack leakage-audit manifests
 - raw logs
 - compiler logs
 - runtime logs
@@ -2411,7 +2411,7 @@ Do not:
 - create a cross-evaluation weighted overall score or overall ranking
 - publish a primary Overall Score or Ranking from a `PARTIAL`, `WITHDRAWN`, or `NOT EXECUTED` evaluation
 - compare Semantic Compression fact counts produced from different semantic-site row sets or annotation depths
-- begin Intrinsic scored trials before the Reference Pack leakage audit passes
+- begin Learnability scored trials before the Reference Pack leakage audit passes
 
 ---
 
@@ -2444,18 +2444,18 @@ The benchmark is complete only when all applicable items below are satisfied:
 20. Semantic Compression Ranking was created.
 21. Unseen-case Generalization was evaluated.
 22. Prompt Robustness was evaluated.
-23. LLM Intrinsic subtest scores were calculated.
-24. LLM Intrinsic Learnability Score was calculated.
-25. LLM Intrinsic Learnability Ranking was created.
-26. Standard metric scores were calculated without Semantic Compression-specific double counting and without Ecosystem / Adoption leakage.
-27. Standard Overall Score was calculated.
-28. Standard Ranking was created.
-28a. Ecosystem / Adoption metric scores were calculated from frozen, language-neutral rubrics or proxies.
-28b. Ecosystem / Adoption Score was calculated.
-28c. Ecosystem / Adoption Ranking was created.
-29. LLM Practical metric scores were calculated.
-30. LLM Practical Effectiveness Score was calculated.
-31. LLM Practical Effectiveness Ranking was created.
+23. LLM Learnability subtest scores were calculated.
+24. LLM Learnability Score was calculated.
+25. LLM Learnability Ranking was created.
+26. Language Quality metric scores were calculated without Semantic Compression-specific double counting and without Ecosystem leakage.
+27. Language Quality Score was calculated.
+28. Language Quality Ranking was created.
+28a. Ecosystem metric scores were calculated from frozen, language-neutral rubrics or proxies.
+28b. Ecosystem Score was calculated.
+28c. Ecosystem Ranking was created.
+29. LLM Proficiency metric scores were calculated.
+30. LLM Proficiency Score was calculated.
+31. LLM Proficiency Ranking was created.
 32. No cross-evaluation weighted overall score or ranking was created.
 33. Raw Data was preserved.
 34. Scoring formulas and weights were preserved.
@@ -2470,22 +2470,22 @@ The benchmark is complete only when all applicable items below are satisfied:
 43. The exact `benchmark/master_prompt.md` used for the run was copied to the run directory as immutable `prompt.md`, and `benchmark/master_prompt.md` remained intact during benchmark execution.
 44. The Quidra implementation was not modified during benchmark execution.
 45. No commit or push was performed during benchmark execution.
-46. LLM Practical Effectiveness was measured for all 10 languages.
-46a. Ecosystem / Adoption was measured for all 10 languages using the same frozen evidence rules and observation window.
+46. LLM Proficiency was measured for all 10 languages.
+46a. Ecosystem was measured for all 10 languages using the same frozen evidence rules and observation window.
 47. I1 Keyword Anonymization was measured for all 10 languages with at least 5 seeds.
 48. I2 Vocabulary Anonymization was measured for all 10 languages with at least 5 seeds.
 49. I3 Structural Surface Perturbation was measured for all 10 languages with at least 3 transformation sets.
 50. I4 Novel-rule Generalization was measured for all 10 languages.
 51. I5 Held-out Rule Composition was measured for all 10 languages.
 52. I6 Prior-conflict Resistance was measured for all 10 languages.
-52a. Every Intrinsic Reference Pack used for scoring passed the mandatory leakage audit before the first scored request, and the audit manifests were preserved.
+52a. Every Learnability Reference Pack used for scoring passed the mandatory leakage audit before the first scored request, and the audit manifests were preserved.
 53. Forward/inverse mappings, manifests, seeds, and round-trip validation were preserved, and the §10.4 pre-flight validation was performed and preserved: every fixture compiled, ran and matched its expected output; every harness-side convention the prompt withholds was satisfied by the harness; and every validator was shown able to both pass a correct input and reject a corrupted one.
-54. Seed-level Intrinsic results, means, standard deviations, minima, and maxima were reported.
-55. I1/I2 familiarity-drop diagnostics were reported separately from the Intrinsic score.
-56. Intrinsic Reference Pack token counts and transformation-budget controls were published.
+54. Seed-level Learnability results, means, standard deviations, minima, and maxima were reported.
+55. I1/I2 familiarity-drop diagnostics were reported separately from the Learnability score.
+56. Learnability Reference Pack token counts and transformation-budget controls were published.
 57. The immutable LLM run configuration was written before the first scored LLM generation.
 58. The exact LLM model/version, decoding controls, repair budget, trial count, and token limits or provider-controlled status were preserved.
-59. Semantic Compression, Standard, Ecosystem / Adoption, LLM Practical, and Intrinsic formulas and weights matched the fixed rules in this specification.
+59. Semantic Compression, Language Quality, Ecosystem, LLM Proficiency, and Learnability formulas and weights matched the fixed rules in this specification.
 60. Every normalized score used the fixed normalization family or an explicitly pre-existing metric-specific override, with no post-result formula selection, and every family-C metric whose applicable raw values span a factor of 100 or more published its raw values and ratios alongside the compressed score.
 61. Each primary evaluation was assigned exactly one status from `COMPLETE`, `PARTIAL`, `WITHDRAWN`, or `NOT EXECUTED`.
 62. No primary Overall Score or Ranking was published unless that primary evaluation was `COMPLETE`.
@@ -2515,8 +2515,8 @@ The audit must fail report publication if any of the following is true:
 - a `COMPLETE` evaluation is missing any required work unit or validation evidence;
 - a `Not Executed` applicable metric was treated as `N/A`;
 - a Semantic Compression score exists without a passing matrix/comparability gate;
-- an Intrinsic score includes a Reference Pack without a passing leakage audit;
-- a Practical score uses fewer than the required independent trials;
+- a Learnability score includes a Reference Pack without a passing leakage audit;
+- a Proficiency score uses fewer than the required independent trials;
 - report tables, JSON, Markdown summaries, and commit-summary values disagree; or
 - the report labels a different Quidra version/SHA than `version.txt`.
 
@@ -2531,14 +2531,14 @@ Report at least, in this order:
 - Semantic Compression Overall Score, or `WITHHELD` if its status is not `COMPLETE`
 - Semantic Compression Ranking, or `WITHHELD` if its status is not `COMPLETE`
 - Raw Semantic Compression Quality `Q` and Capability Coverage `C`
-- LLM Intrinsic Learnability Score, identified as Primary Evaluation 2 / Unknown-Language Learnability, or `WITHHELD` unless `COMPLETE`
-- LLM Intrinsic Learnability Ranking, or `WITHHELD` unless `COMPLETE`
-- Standard Overall Score, identified as Primary Evaluation 3, or `WITHHELD` unless `COMPLETE`
-- Standard Ranking, or `WITHHELD` unless `COMPLETE`
-- Ecosystem / Adoption Score, identified as Primary Evaluation 4, or `WITHHELD` unless `COMPLETE`
-- Ecosystem / Adoption Ranking, or `WITHHELD` unless `COMPLETE`
-- LLM Practical Effectiveness Score, identified as Primary Evaluation 5 / Knowledge-Dependent Performance, or `WITHHELD` unless `COMPLETE`
-- LLM Practical Effectiveness Ranking, or `WITHHELD` unless `COMPLETE`
+- LLM Learnability Score, identified as Primary Evaluation 2, or `WITHHELD` unless `COMPLETE`
+- LLM Learnability Ranking, or `WITHHELD` unless `COMPLETE`
+- Language Quality Score, identified as Primary Evaluation 3, or `WITHHELD` unless `COMPLETE`
+- Language Quality Ranking, or `WITHHELD` unless `COMPLETE`
+- Ecosystem Score, identified as Primary Evaluation 4, or `WITHHELD` unless `COMPLETE`
+- Ecosystem Ranking, or `WITHHELD` unless `COMPLETE`
+- LLM Proficiency Score, identified as Primary Evaluation 5, or `WITHHELD` unless `COMPLETE`
+- LLM Proficiency Ranking, or `WITHHELD` unless `COMPLETE`
 - major Quidra strengths
 - major Quidra weaknesses
 - any N/A or Not Executed items
@@ -2561,24 +2561,24 @@ Compare it against the fixed set of Python, C++, Rust, Go, Java, TypeScript, Kot
 Measure five independent primary evaluations in this priority order:
 
 1. **Semantic Compression** — how much reliable meaning is communicated per unit of syntax, adjusted for capability coverage.
-2. **LLM Intrinsic / Unknown-Language Learnability** — specification-grounded learnability under controlled unfamiliarization.
-3. **Standard** — present-day general-purpose language and first-party / normally expected toolchain strength, excluding external adoption and network effects.
-4. **Ecosystem / Adoption** — present-day third-party ecosystem breadth, community/public knowledge availability, and real-world adoption.
-5. **LLM Standard / Knowledge-Dependent Performance** — present-day LLM effectiveness with real pretraining familiarity included.
+2. **LLM Learnability** — specification-grounded learnability under controlled unfamiliarization.
+3. **Language Quality** — present-day general-purpose language and first-party / normally expected toolchain strength, excluding external adoption and network effects.
+4. **Ecosystem** — present-day third-party ecosystem breadth, community/public knowledge availability, and real-world adoption.
+5. **LLM Proficiency** — present-day LLM effectiveness with real pretraining familiarity included.
 
-The Intrinsic evaluation must include keyword anonymization, vocabulary anonymization, structural surface perturbation, novel-rule generalization, held-out rule composition, and prior-conflict resistance.
+The Learnability evaluation must include keyword anonymization, vocabulary anonymization, structural surface perturbation, novel-rule generalization, held-out rule composition, and prior-conflict resistance.
 
 Attempt to calculate these five independent primary scores:
 
 **Semantic Compression Overall Score**
 
-**LLM Intrinsic Learnability Score**
+**LLM Learnability Score**
 
-**Standard Overall Score**
+**Language Quality Score**
 
-**Ecosystem / Adoption Score**
+**Ecosystem Score**
 
-**LLM Practical Effectiveness Score**
+**LLM Proficiency Score**
 
 using reproducible evidence.
 

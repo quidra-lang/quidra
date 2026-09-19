@@ -395,6 +395,86 @@ assert all(edit["newText"]=="left_score" for edit in rename),rename
 assert by_id[6]["result"] is None
 PY
 
+python3 - "$QUIDRA" "$TMP" <<'PY'
+import json
+import pathlib
+import subprocess
+import sys
+
+quidra = sys.argv[1]
+tmp = pathlib.Path(sys.argv[2])
+uri = (tmp / "lsp-private-inheritance.qui").as_uri()
+source = (
+    "class Base\n"
+    "    int visible\n"
+    "    private int hidden = 2\n"
+    "\n"
+    "    int private_read()\n"
+    "        return hidden\n"
+    "\n"
+    "class Derived : Base\n"
+    "    int read()\n"
+    "        return visible\n"
+    "\n"
+    "Derived item = Derived(visible = 1, hidden = 2)\n"
+    "print(item.visible)\n"
+)
+invalid_source = source + "print(item.hidden)\n"
+messages = [
+    {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"rootUri":tmp.as_uri()}},
+    {"jsonrpc":"2.0","method":"initialized","params":{}},
+    {"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{
+        "uri":uri,"languageId":"quidra","version":1,"text":source
+    }}},
+    {"jsonrpc":"2.0","id":2,"method":"textDocument/definition","params":{
+        "textDocument":{"uri":uri},"position":{"line":9,"character":16}
+    }},
+    {"jsonrpc":"2.0","id":3,"method":"textDocument/definition","params":{
+        "textDocument":{"uri":uri},"position":{"line":12,"character":12}
+    }},
+    {"jsonrpc":"2.0","id":4,"method":"textDocument/completion","params":{
+        "textDocument":{"uri":uri},"position":{"line":5,"character":8}
+    }},
+    {"jsonrpc":"2.0","method":"textDocument/didChange","params":{
+        "textDocument":{"uri":uri,"version":2},"contentChanges":[{"text":invalid_source}]
+    }},
+    {"jsonrpc":"2.0","id":5,"method":"textDocument/definition","params":{
+        "textDocument":{"uri":uri},"position":{"line":13,"character":12}
+    }},
+    {"jsonrpc":"2.0","id":6,"method":"shutdown","params":None},
+    {"jsonrpc":"2.0","method":"exit","params":None},
+]
+payload=b""
+for message in messages:
+    body=json.dumps(message,separators=(",",":")).encode()
+    payload+=f"Content-Length: {len(body)}\r\n\r\n".encode()+body
+process=subprocess.run([quidra,"lsp"],input=payload,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+assert process.returncode==0,process.stderr.decode()
+responses=[]; data=process.stdout; pos=0
+while pos<len(data):
+    end=data.find(b"\r\n\r\n",pos); assert end>=0
+    headers=data[pos:end].decode().split("\r\n")
+    length=int(next(x.split(":",1)[1].strip() for x in headers if x.lower().startswith("content-length:")))
+    start=end+4
+    responses.append(json.loads(data[start:start+length]))
+    pos=start+length
+by_id={x["id"]:x for x in responses if "id" in x}
+for request_id in (2,3):
+    definition=by_id[request_id]["result"]
+    assert definition["uri"]==uri,definition
+    assert definition["range"]["start"]=={"line":1,"character":8},definition
+labels={item["label"] for item in by_id[4]["result"]}
+assert "visible" in labels and "hidden" in labels,labels
+assert by_id[5]["result"] is None,by_id[5]
+published=[x for x in responses if x.get("method")=="textDocument/publishDiagnostics"]
+assert any(
+    diagnostic.get("code")=="PRIVATE_MEMBER"
+    for message in published
+    for diagnostic in message["params"]["diagnostics"]
+),published
+assert by_id[6]["result"] is None
+PY
+
 mkdir -p "$TMP/package-source" "$TMP/package-home"
 cat > "$TMP/package-source/main.qui" <<'QUI'
 int doubled(int value)

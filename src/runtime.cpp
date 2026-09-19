@@ -7206,14 +7206,13 @@ extern "C" void* quidra_string_split(const char* text, const char* separator) {
 }
 extern "C" bool quidra_string_can_append_move(void* raw) {
     if (!raw) return false;
-    const auto it =
-        managed_allocations.find(reinterpret_cast<std::uintptr_t>(raw));
-    if (it == managed_allocations.end()) return false;
-    const auto& allocation = it->second;
-    return allocation.owners == 1 && allocation.pins == 0 &&
-           !allocation.shared_string_slab &&
-           !allocation.initialization && allocation.drop == nullptr &&
-           allocation.size != 0;
+    const auto* allocation =
+        exact_managed_string(static_cast<const char*>(raw));
+    if (!allocation) return false;
+    return allocation->owners == 1 && allocation->pins == 0 &&
+           !allocation->shared_string_slab &&
+           !allocation->initialization && allocation->drop == nullptr &&
+           allocation->size != 0;
 }
 
 

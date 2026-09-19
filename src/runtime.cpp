@@ -7846,6 +7846,41 @@ extern "C" char* quidra_string_join(void* raw, const char* separator,
     const auto delimiter = validated_string_view(
         separator, delimiter_allocation, &delimiter_codepoints);
 
+    // A common builder shape is ["a", "b", ...].join(""). Every element is
+    // already a valid immutable string, so single-byte ASCII pieces can be
+    // copied directly without per-piece managed lookup or UTF-8 validation.
+    if (delimiter.empty() && count != 0) {
+        bool single_ascii_join = true;
+        for (std::size_t i = 0; i < count; ++i) {
+            char* item = nullptr;
+            std::memcpy(&item,
+                        static_cast<unsigned char*>(raw) + 8 + i * sizeof(char*),
+                        sizeof(item));
+            if (!item) runtime_text_failure("null string in join");
+            const auto byte = static_cast<unsigned char>(item[0]);
+            if (byte == 0 || byte >= 0x80U || item[1] != '\0') {
+                single_ascii_join = false;
+                break;
+            }
+        }
+        if (single_ascii_join) {
+            if (count == std::numeric_limits<std::size_t>::max())
+                runtime_allocation_failure();
+            auto* result =
+                static_cast<char*>(managed_allocate_string(count + 1));
+            for (std::size_t i = 0; i < count; ++i) {
+                char* item = nullptr;
+                std::memcpy(&item,
+                            static_cast<unsigned char*>(raw) + 8 + i * sizeof(char*),
+                            sizeof(item));
+                result[i] = item[0];
+            }
+            result[count] = '\0';
+            mark_managed_string(result, count, count);
+            return result;
+        }
+    }
+
     std::size_t total = 0;
     std::size_t total_codepoints = 0;
     if (count > 1 && delimiter.size() != 0) {

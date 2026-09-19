@@ -413,8 +413,8 @@ neural.Gradients gradients = neural.grad(loss)
 neural.update(&model, gradients, rate = 0.1)
 float32 left_value = model.left.raw().cpu()[0].item()
 float32 right_value = model.right.raw().cpu()[0].item()
-print(math.abs(float(left_value) - 1.975) < 0.0001)
-print(math.abs(float(right_value) - 4.0125) < 0.0001)
+print(left_value > float32(1.9749) and left_value < float32(1.9751))
+print(right_value > float32(4.0124) and right_value < float32(4.0126))
 QUI
 div_output="$("$QUIDRA" run "$TMP/gpu-autograd-div.qui")"
 if [[ "$div_output" != "$(printf 'true\ntrue')" ]]; then

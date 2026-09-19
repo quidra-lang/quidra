@@ -2012,6 +2012,69 @@ class DerivedSecret : MiddleSecret
     void hidden()
         return
 )", "SHADOWING");
+ bad_code(R"(class BaseSecret
+    private int value = 1
+class MiddleSecret : BaseSecret
+class DerivedSecret : MiddleSecret
+    int reveal()
+        return value
+)", "PRIVATE_MEMBER");
+ good_code(R"(class Secret
+    private int value = 1
+
+    void update_other(Secret other)
+        int &alias = &other.value
+        alias = 2
+)");
+ good_code(R"(class Secret
+    private void hidden()
+        return
+
+    void call_other(Secret other)
+        other.hidden()
+)");
+ bad_code(R"(class Box<T>
+    private T value
+Box<int> box = Box<int>(value = 1)
+print(box.value)
+)", "PRIVATE_MEMBER");
+ bad_code(R"(class Box<T>
+    private void hidden()
+        return
+Box<int> box = Box<int>()
+box.hidden()
+)", "PRIVATE_MEMBER");
+ bad_code(R"(class Secret
+    private T echo<T>(T value)
+        return value
+Secret secret = Secret()
+print(secret.echo<int>(1))
+)", "PRIVATE_MEMBER");
+ good_code(R"(class BaseVisible
+    void visible()
+        return
+class DerivedVisible : BaseVisible
+    private override void visible()
+        super.visible()
+)");
+ bad_code(R"(class BaseVisible
+    void visible()
+        return
+class DerivedVisible : BaseVisible
+    private override void visible()
+        super.visible()
+DerivedVisible derived = DerivedVisible()
+derived.visible()
+)", "PRIVATE_MEMBER");
+ bad_code(R"(class BaseVisible
+    void visible()
+        return
+class DerivedVisible : BaseVisible
+    override private void visible()
+        return
+)", "PARSE_ERROR");
+ bad_code("class Secret\n    private private int value\n", "PARSE_ERROR");
+ bad_code("private int value = 1\n", "PARSE_ERROR");
  bad_code("class A\n    int x\nclass A\n    int y\n", "DUPLICATE_NAME");
  bad_code(R"(T identity<T>(T value)
     return value

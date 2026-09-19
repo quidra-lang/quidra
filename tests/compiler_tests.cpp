@@ -2115,6 +2115,16 @@ tensor<float32><2, 4> impossible = generated
 auto transposed = source.transpose(0, 1)
 tensor<float32><2, 3> impossible = transposed
 )", "TYPE_MISMATCH");
+ good(R"(tensor<float32><2, 3> source = tensor.zeros<float32>([2, 3])
+auto transposed = source.transpose(0, 1)
+tensor<float32><3, 2> exact = transposed
+auto reshaped = source.reshape([3, 2])
+tensor<float32><3, 2> reshaped_exact = reshaped
+)");
+ bad_code(R"(tensor<float32><2, 3> source = tensor.zeros<float32>([2, 3])
+auto reshaped = source.reshape([3, 2])
+tensor<float32><2, 3> impossible = reshaped
+)", "TYPE_MISMATCH");
  ir_contains(R"(tensor<float32> erase_shape(tensor<float32> value)
     return value
 auto unknown = erase_shape(tensor.zeros<float32>([2, 3]))

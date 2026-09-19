@@ -951,7 +951,11 @@ extern "C" void quidra_init_create(void* base, unsigned long long count,
         tracker->bits.assign((tracker->count + 7) / 8, 0);
     }
     if (tracker->data_offset == 8) {
-        it->second.array_capacity = tracker->count;
+        const auto physical_capacity =
+            it->second.size >= tracker->data_offset
+                ? (it->second.size - tracker->data_offset) / tracker->unit_bytes
+                : 0;
+        it->second.array_capacity = std::max(tracker->count, physical_capacity);
     }
     it->second.initialization = std::move(tracker);
 }
@@ -1176,11 +1180,14 @@ extern "C" void* quidra_array_grow_move(void* array, unsigned long long raw_stri
             node.key() = new_key;
             node.mapped().base = result;
             node.mapped().size = new_bytes;
+            node.mapped().small_pool_class = 0;
             node.mapped().array_capacity = new_capacity;
             managed_allocations.insert(std::move(node));
         } else {
             allocation.base = result;
             allocation.size = new_bytes;
+            allocation.small_pool_class = 0;
+            allocation.small_pool_class = 0;
             allocation.array_capacity = new_capacity;
         }
         managed_ranges.emplace(new_key, new_bytes);
@@ -7281,6 +7288,7 @@ extern "C" char* quidra_string_append_move_many(
             node.key() = new_key;
             node.mapped().base = result;
             node.mapped().size = new_bytes;
+            node.mapped().small_pool_class = 0;
             managed_allocations.insert(std::move(node));
         } else {
             allocation.base = result;

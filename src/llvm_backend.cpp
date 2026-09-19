@@ -51,7 +51,7 @@ std::string c_abi_return_attribute(const Type& type) {
     }
 }
 
-std::string c_abi_parameter_attribute(const Type& type) {
+std::string c_abi_parameter_attribute(const Type& type, bool readonly_buffer=true) {
     switch (type.kind) {
         case TypeKind::Int8:
         case TypeKind::Int16:
@@ -61,8 +61,11 @@ std::string c_abi_parameter_attribute(const Type& type) {
         case TypeKind::Bool:
             return " zeroext";
         case TypeKind::String:
-        case TypeKind::Bin:
             return " nocapture nonnull readonly";
+        case TypeKind::Bin:
+            return readonly_buffer
+                ? " nocapture nonnull readonly"
+                : " nocapture nonnull";
         default:
             return "";
     }
@@ -2760,7 +2763,7 @@ struct FunctionEmitter {
                 const bool ffi_borrowed_buffer=external&&
                     (parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin);
                 if(ffi_borrowed_buffer){
-                    out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type)
+                    out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type,parameter.is_const)
                        <<" "<<call_values[i]<<", i64 "<<ffi_lengths[i];
                 }else if(parameter.writable){
                     out<<"ptr "<<value(*n.args[i].writable_address);
@@ -2886,7 +2889,7 @@ struct FunctionEmitter {
         }
     }
 
-    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<")";if(debug_subprogram)out<<" !dbg !"<<*debug_subprogram;out<<" {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}emit_entry_scratch();for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";auto text=out.str();for(auto it=debug_segments.rbegin();it!=debug_segments.rend();++it)attach_debug_location_range(text,it->begin,it->end,it->location);return text;}
+    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type,parameter.is_const);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<")";if(debug_subprogram)out<<" !dbg !"<<*debug_subprogram;out<<" {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}emit_entry_scratch();for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";auto text=out.str();for(auto it=debug_segments.rbegin();it!=debug_segments.rend();++it)attach_debug_location_range(text,it->begin,it->end,it->location);return text;}
 };
 
 

@@ -6401,11 +6401,14 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                     if(ffi_scalar(type)) {
                         if(parameter.writable || parameter.is_const)
                             error("FFI_REFERENCE","External C scalar parameters are explicit by-value inputs and cannot use const/reference parameter forms.",parameter.span);
-                    } else if(ffi_borrowed_buffer(type)) {
+                    } else if(type.kind==TypeKind::String) {
                         if(!parameter.writable || !parameter.is_const)
-                            error("FFI_REFERENCE","External C string/bin inputs must be explicit call-scoped read-only borrows written as const T &.",parameter.span);
+                            error("FFI_REFERENCE","External C string inputs must be explicit call-scoped read-only borrows written as const string &.",parameter.span);
+                    } else if(type.kind==TypeKind::Bin) {
+                        if(!parameter.writable)
+                            error("FFI_REFERENCE","External C bin parameters must be explicit call-scoped borrows written as const bin & or bin &.",parameter.span);
                     } else {
-                        error("FFI_TYPE","External C parameters must use explicit numeric/bool scalar values or const string/bin references.",parameter.span);
+                        error("FFI_TYPE","External C parameters must use explicit numeric/bool scalar values, const string &, const bin &, or bin &.",parameter.span);
                     }
                 }
                 if (parameter.default_value) {

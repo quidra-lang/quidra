@@ -392,19 +392,36 @@ grep -q 'call i64 @llabs(i64' "$TMP/ffi-scalar.ll"
 cat > "$TMP/ffi-borrowed-inputs.qui" <<'QUI'
 extern int32 c_text(const string &text) = "foreign_test_text"
 extern int32 c_bin(const bin &data) = "foreign_test_bin"
+extern int32 c_bin_mut(bin &data) = "foreign_test_bin_mut"
 
 string text = "ffi-string"
 bin payload = bin.fill(24, 1)
 int32 text_status = c_text(&text)
 int32 bin_status = c_bin(&payload)
+int32 bin_mut_status = c_bin_mut(&payload)
 QUI
 "$QUIDRA" llvm "$TMP/ffi-borrowed-inputs.qui" > "$TMP/ffi-borrowed-inputs.ll"
 grep -q 'declare i32 @foreign_test_text(ptr nocapture nonnull readonly, i64)' "$TMP/ffi-borrowed-inputs.ll"
 grep -q 'declare i32 @foreign_test_bin(ptr nocapture nonnull readonly, i64)' "$TMP/ffi-borrowed-inputs.ll"
+grep -q 'declare i32 @foreign_test_bin_mut(ptr nocapture nonnull, i64)' "$TMP/ffi-borrowed-inputs.ll"
+grep -q 'call i32 @foreign_test_bin_mut(ptr nocapture nonnull %ffi.bin.data' "$TMP/ffi-borrowed-inputs.ll"
 grep -q 'ffi.borrowed.value' "$TMP/ffi-borrowed-inputs.ll"
 grep -q 'call i64 @strlen(ptr' "$TMP/ffi-borrowed-inputs.ll"
 grep -q 'ffi.bin.length' "$TMP/ffi-borrowed-inputs.ll"
 grep -q 'ffi.bin.data' "$TMP/ffi-borrowed-inputs.ll"
+
+cat > "$TMP/ffi-mutable-string-rejected.qui" <<'QUI'
+extern int32 c_text_mut(string &text) = "foreign_test_text_mut"
+string text = "immutable UTF-8"
+int32 status = c_text_mut(&text)
+QUI
+set +e
+"$QUIDRA" check "$TMP/ffi-mutable-string-rejected.qui" >"$TMP/ffi-mutable-string.out" 2>"$TMP/ffi-mutable-string.err"
+ffi_mutable_string_rc=$?
+set -e
+[[ "$ffi_mutable_string_rc" -eq 1 ]]
+grep -q 'FFI_REFERENCE' "$TMP/ffi-mutable-string.err"
+grep -q 'const string &' "$TMP/ffi-mutable-string.err"
 
 "$QUIDRA" build "$ROOT/examples/hello.qui" --debug -o "$TMP/hello-debug"
 [[ "$("$TMP/hello-debug")" == "Hello from Quidra" ]]

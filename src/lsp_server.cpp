@@ -830,20 +830,10 @@ std::optional<std::string> completion_receiver_class(
 }
 
 std::vector<CompletionSymbol> member_completions_at(
-    const CheckedProgram& checked,std::string_view source,std::size_t offset) {
-    const auto tokens=Lexer(source).scan();
-    std::optional<Token> previous;
-    for(const auto& token:tokens) {
-        if(token.span.start.offset>=offset) break;
-        if(token.kind!=TokenKind::Newline&&token.kind!=TokenKind::Indent&&
-           token.kind!=TokenKind::Dedent&&token.kind!=TokenKind::Eof)
-            previous=token;
-    }
-    if(!previous||previous->kind!=TokenKind::Dot) return {};
-
+    const CheckedProgram& checked,std::size_t receiver_end) {
     const Expr* best=nullptr;
     for(const auto& [expression,type]:checked.expr_types) {
-        if(expression->span.end.offset!=previous->span.start.offset) continue;
+        if(expression->span.end.offset!=receiver_end) continue;
         if(type.kind!=TypeKind::Class) continue;
         if(!best||expression->span.start.offset>best->span.start.offset) best=expression;
     }
@@ -1439,8 +1429,9 @@ private:
             const auto program=root_program(source);
             auto items=completions_at(program,source,offset);
             if(offset>0&&source[offset-1]=='.') {
-                const auto checked=semantic_check(uri,source.substr(0,offset-1));
-                items=member_completions_at(checked,source.substr(0,offset-1),offset-1);
+                const auto prefix=source.substr(0,offset-1);
+                const auto checked=semantic_check(uri,prefix);
+                items=member_completions_at(checked,offset-1);
             }
             std::ostringstream result;
             result<<"[";

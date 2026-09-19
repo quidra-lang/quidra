@@ -279,6 +279,11 @@ bool module_requires_replay_barrier(const ir::Module& module) {
                     if (target == functions.end()) return true;
                     pending.push_back(target->second);
                 }
+                // Capture-free function values may hide the dynamic callee from
+                // this simple call-graph walk. Until effect summaries are carried
+                // through function values, replaying such a submission would risk
+                // repeating an external or nondeterministic effect.
+                if (std::holds_alternative<ir::IndirectCall>(instruction)) return true;
             }
         }
     }

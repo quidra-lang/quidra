@@ -1420,7 +1420,7 @@ print(slot)
  bad_code(R"(int square(int x)
     return x * x
 auto f = square
-)", "FUNCTION_NOT_VALUE");
+)", "FUNCTION_REFERENCE_CONTEXT");
  bad_code("int[0] xs = []\nprint(xs[0])\n", "INDEX_BOUNDS");
  bad_code("int[2] xs = [1, 2]\nxs[2] = 3\n", "INDEX_BOUNDS");
  llvm_contains(

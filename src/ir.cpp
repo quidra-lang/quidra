@@ -2457,6 +2457,9 @@ struct Lowerer {
     }
 
     void stmt(const Stmt& s) {
+        block->instructions.push_back(SourceLocation{
+            static_cast<std::uint32_t>(s.span.start.line),
+            static_cast<std::uint32_t>(s.span.start.column)});
         if(const auto* n=std::get_if<BindingStmt>(&s.data)){
             const auto t=checked.binding_types.at(&s);
             if(n->reference){
@@ -3138,6 +3141,7 @@ struct Lowerer {
 };
 
 std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit([&](const auto& n){using T=std::decay_t<decltype(n)>;
+    if constexpr(std::is_same_v<T,SourceLocation>)out<<"source "<<n.line<<":"<<n.column;
     if constexpr(std::is_same_v<T,ConstantInt>)out<<"%"<<n.out<<" = const.int "<<n.value<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,ConstantFloat>)out<<"%"<<n.out<<" = const.float "<<n.value<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,ConstantExact>)out<<"%"<<n.out<<" = const.exact "<<n.spelling<<" : "<<type_name(n.type);

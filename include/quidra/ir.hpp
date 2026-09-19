@@ -11,6 +11,7 @@ namespace quidra::ir {
 
 using ValueId = std::uint32_t;
 
+struct SourceLocation { std::uint32_t line{}; std::uint32_t column{}; };
 struct ConstantInt { ValueId out; std::string value; Type type; };
 struct ConstantFloat { ValueId out; double value; Type type; };
 struct ConstantExact { ValueId out; std::string spelling; Type type; };
@@ -251,7 +252,7 @@ struct ReturnVoid {};
 struct Jump { std::string target; };
 struct Branch { ValueId condition; std::string if_true; std::string if_false; };
 
-using Instruction = std::variant<ConstantInt, ConstantFloat, ConstantExact, ConstantBool, ConstantString,
+using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, ConstantExact, ConstantBool, ConstantString,
                                  ArrayMake, ArrayAlloc, ClassMake, FieldGet, FieldSet,
                                  DeclareLocal, DeclareReference, AddressLocal, AddressField, AddressElement,
                                  LoadAddress, StoreAddress, BindReference, ReferenceAddress, LoadReference, StoreReference,

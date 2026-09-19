@@ -200,6 +200,23 @@ print(total)
 """,
     250000, 500000, lambda n: str(n * 8), allow_too_fast=True)
 
+# Standard map deletion uses backward-shift repair plus occasional stable-order
+# compaction. Building, deleting half the entries, and enumerating survivors must
+# remain roughly linear rather than turning repeated deletion or compaction into
+# quadratic work.
+check_scaling(
+    "map removal and compaction",
+    """int n = {n}
+map.Map<int, int> values = map.Map<int, int>()
+for i in range(0, n)
+    values.set(i, i)
+for i in range(0, n, 2)
+    values.remove(i)
+int[] remaining = values.keys()
+print(len(remaining))
+""",
+    12000, 24000, lambda n: str(n // 2), allow_too_fast=True)
+
 # Every checked element access through a writable array reference consults the
 # runtime initialization tracker, which cached exactly one allocation. A loop
 # that reads one array while writing another missed that cache on every access

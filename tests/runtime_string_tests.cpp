@@ -97,10 +97,12 @@ int main() {
     if (!movable) return 1;
     void* move_iter = quidra_string_split_iter_begin_move(movable, " ");
     char* move_left = quidra_string_split_iter_next(move_iter);
-    if (move_left != movable || std::strcmp(move_left, "left") != 0) return 1;
+    if (move_left != movable || std::strcmp(move_left, "left") != 0 ||
+        quidra_string_length(move_left) != 4) return 1;
     quidra_managed_release(movable, nullptr);
     char* move_right = quidra_string_split_iter_next(move_iter);
     if (!move_right || std::strcmp(move_right, "right") != 0 ||
+        quidra_string_length(move_right) != 5 ||
         quidra_string_split_iter_next(move_iter) != nullptr) return 1;
     quidra_managed_retain(move_right);
     quidra_string_split_iter_end(move_iter);

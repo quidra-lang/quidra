@@ -60,15 +60,6 @@ jobs:
               print("current-native.json was not produced")
               raise SystemExit(0)
           data=json.load(open(current_path))
-          historical_path=os.path.join(
-              os.environ["GITHUB_WORKSPACE"],
-              "benchmark","2026-09-17-7677581(latest)","micro","raw","micro_timing.json")
-          historical=json.load(open(historical_path))
-          old_quidra={
-              r["workload"]: r["timing"]["representative"]
-              for r in historical["results"]
-              if r.get("status")=="ok" and r["config"]=="quidra_native"
-          }
           by={}; per={}; rows=[]
           for r in data["results"]:
               cfg=r["config"]; wl=r["workload"]
@@ -94,13 +85,8 @@ jobs:
               values=per[wl]; peers=[values[c][0] for c in ("cpp","rust","go") if c in values]
               if "quidra_native" in values and peers:
                   lines.append(f"- {wl}: {values['quidra_native'][0]/statistics.median(peers):.2f}x")
-          lines += ["","### Historical Quidra native -> current-equivalent"]
-          overlays={"mb03","mb08","mb10","mb11"}
-          for wl in sorted(per):
-              if "quidra_native" not in per[wl] or wl not in old_quidra: continue
-              now_wall,now_rss=per[wl]["quidra_native"]; old=old_quidra[wl]
-              label="source+compiler" if wl in overlays else "compiler/runtime"
-              lines.append(f"- {wl}: {old['wall_seconds']:.4f}s -> {now_wall:.4f}s ({old['wall_seconds']/now_wall:.2f}x faster, {label}); RSS {old['peak_rss_bytes']/1048576:.1f} -> {now_rss/1048576:.1f} MiB")
+          lines += ["","### Historical reference comparability"]
+          lines.append("Frozen 2026-09-17 raw measurements are retained as historical evidence but are not converted into speedup or RSS ratios here: the stored raw file does not establish runner-hardware equivalence with this GitHub Actions run.")
           lines += ["","### Mean wall time across 11 workloads"]
           for cfg,vals in by.items():
               lines.append(f"- {cfg}: {statistics.mean(vals):.4f} s")

@@ -845,7 +845,6 @@ std::vector<CompletionSymbol> member_completions_at(
 
     std::string current_class;
     for(const auto& declaration:checked.program.classes) {
-        if(!contains_offset(declaration.span,receiver_end)) continue;
         for(const auto& method:declaration.methods) {
             if(contains_offset(method.span,receiver_end)) {
                 current_class=declaration.name;

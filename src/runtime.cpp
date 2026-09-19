@@ -97,6 +97,7 @@ struct ManagedAllocation {
     std::size_t pins{};
     std::size_t array_capacity{};
     bool interior_range_tracked{true};
+    bool shared_string_slab{};
     // Strings are immutable at the source level. The only internal mutation is
     // unique-owner suffix append, so a cursor into the existing prefix remains
     // valid across that optimization. This avoids a retained O(n) offset table.
@@ -430,10 +431,33 @@ struct StringIndexBounds {
 std::string_view cached_string_view(const char* text, ManagedAllocation*& allocation) {
     allocation = nullptr;
     if (!text) runtime_text_failure("null string");
-    const auto it = managed_allocations.find(reinterpret_cast<std::uintptr_t>(text));
-    if (it == managed_allocations.end()) return std::string_view(text);
 
-    allocation = &it->second;
+    const auto exact =
+        managed_allocations.find(reinterpret_cast<std::uintptr_t>(text));
+    ManagedAllocation* found =
+        exact == managed_allocations.end() ? nullptr : &exact->second;
+    if (!found) {
+        auto* containing = managed_containing(text);
+        if (containing && containing->shared_string_slab) found = containing;
+    }
+    if (!found) return std::string_view(text);
+
+    if (found->shared_string_slab) {
+        const auto begin = reinterpret_cast<std::uintptr_t>(found->base);
+        const auto address = reinterpret_cast<std::uintptr_t>(text);
+        if (address < begin || address - begin >= found->size)
+            runtime_text_failure("invalid shared string slice");
+        const auto remaining =
+            found->size - static_cast<std::size_t>(address - begin);
+        const auto* end =
+            static_cast<const char*>(std::memchr(text, '\0', remaining));
+        if (!end)
+            runtime_text_failure("shared string slice is missing a terminator");
+        return std::string_view(
+            text, static_cast<std::size_t>(end - text));
+    }
+
+    allocation = found;
     if (!allocation->string_byte_length_known) {
         const auto* end = static_cast<const char*>(
             std::memchr(text, '\0', allocation->size));
@@ -740,34 +764,49 @@ extern "C" unsigned long long quidra_runtime_text_byte_length(
 
 extern "C" void quidra_managed_retain(void* value) {
     if (!value) return;
-    const auto it = managed_allocations.find(reinterpret_cast<std::uintptr_t>(value));
-    if (it != managed_allocations.end()) {
-        if (it->second.owners == std::numeric_limits<std::size_t>::max()) {
-            runtime_text_failure("managed owner count overflow");
-        }
-        ++it->second.owners;
+    ManagedAllocation* allocation = nullptr;
+    const auto exact =
+        managed_allocations.find(reinterpret_cast<std::uintptr_t>(value));
+    if (exact != managed_allocations.end()) {
+        allocation = &exact->second;
+    } else {
+        auto* containing = managed_containing(value);
+        if (containing && containing->shared_string_slab) allocation = containing;
     }
+    if (!allocation) return;
+    if (allocation->owners == std::numeric_limits<std::size_t>::max()) {
+        runtime_text_failure("managed owner count overflow");
+    }
+    ++allocation->owners;
 }
 
 extern "C" void quidra_managed_release(void* value, void* drop_function) {
     if (!value) return;
-    const auto it = managed_allocations.find(reinterpret_cast<std::uintptr_t>(value));
-    if (it == managed_allocations.end()) return;
-    auto& allocation = it->second;
-    if (drop_function && !allocation.drop) {
-        allocation.drop = reinterpret_cast<ManagedDrop>(drop_function);
+    ManagedAllocation* allocation = nullptr;
+    const auto exact =
+        managed_allocations.find(reinterpret_cast<std::uintptr_t>(value));
+    if (exact != managed_allocations.end()) {
+        allocation = &exact->second;
+    } else {
+        auto* containing = managed_containing(value);
+        if (containing && containing->shared_string_slab) allocation = containing;
     }
-    if (allocation.owners == 0) runtime_text_failure("managed owner count underflow");
-    --allocation.owners;
-    if (allocation.owners == 0 && allocation.pins == 0) {
-        const auto key = reinterpret_cast<std::uintptr_t>(allocation.base);
-        const ManagedFinalization finalization{allocation.base, allocation.drop};
-        neural_moment_cache_release(allocation.base);
-        if (allocation.interior_range_tracked) {
-            clear_managed_range_cache(&allocation);
+    if (!allocation) return;
+
+    if (drop_function && !allocation->drop && !allocation->shared_string_slab) {
+        allocation->drop = reinterpret_cast<ManagedDrop>(drop_function);
+    }
+    if (allocation->owners == 0) runtime_text_failure("managed owner count underflow");
+    --allocation->owners;
+    if (allocation->owners == 0 && allocation->pins == 0) {
+        const auto key = reinterpret_cast<std::uintptr_t>(allocation->base);
+        const ManagedFinalization finalization{allocation->base, allocation->drop};
+        neural_moment_cache_release(allocation->base);
+        if (allocation->interior_range_tracked) {
+            clear_managed_range_cache(allocation);
             managed_ranges.erase(key);
         }
-        managed_allocations.erase(it);
+        managed_allocations.erase(key);
         finalize_managed(finalization);
     }
 }
@@ -6961,9 +7000,23 @@ extern "C" void* quidra_string_split(const char* text, const char* separator) {
         start = pos + delimiter.size();
     }
 
-    if (piece_count > (std::numeric_limits<std::size_t>::max() - 8) / sizeof(char*)) {
+    if (piece_count > (std::numeric_limits<std::size_t>::max() - 8) / sizeof(char*) ||
+        source.size() == std::numeric_limits<std::size_t>::max()) {
         runtime_allocation_failure();
     }
+
+    auto* slab = static_cast<char*>(
+        managed_allocate_impl(source.size() + 1, true));
+    if (!source.empty()) std::memcpy(slab, source.data(), source.size());
+    slab[source.size()] = '\0';
+
+    const auto slab_key = reinterpret_cast<std::uintptr_t>(slab);
+    auto slab_it = managed_allocations.find(slab_key);
+    if (slab_it == managed_allocations.end())
+        runtime_text_failure("split backing storage disappeared");
+    slab_it->second.shared_string_slab = true;
+    slab_it->second.owners = piece_count;
+
     const auto bytes = 8 + piece_count * sizeof(char*);
     auto* result = static_cast<unsigned char*>(managed_allocate(bytes));
     const auto count = static_cast<long long>(piece_count);
@@ -6973,8 +7026,8 @@ extern "C" void* quidra_string_split(const char* text, const char* separator) {
     for (std::size_t i = 0; i < piece_count; ++i) {
         const auto pos = source.find(delimiter, start);
         const auto end = pos == std::string_view::npos ? source.size() : pos;
-        auto* item = copy_validated_runtime_text(
-            source.substr(start, end - start));
+        slab[end] = '\0';
+        auto* item = slab + start;
         std::memcpy(result + 8 + i * sizeof(char*), &item, sizeof(item));
         start = pos == std::string_view::npos
             ? source.size() : pos + delimiter.size();
@@ -6988,6 +7041,7 @@ extern "C" bool quidra_string_can_append_move(void* raw) {
     if (it == managed_allocations.end()) return false;
     const auto& allocation = it->second;
     return allocation.owners == 1 && allocation.pins == 0 &&
+           !allocation.shared_string_slab &&
            !allocation.initialization && allocation.drop == nullptr &&
            allocation.size != 0;
 }

@@ -325,6 +325,20 @@ for i in range(0, len(text))
     error problem
         print(problem)
 )", "parse.direct");
+ ir_contains(R"(int parse_decimal(string text)
+    match int.parse(text)
+        int value
+            return value
+        error problem
+            process.exit(1)
+
+string line = "12 34"
+for i in range(0, 1)
+    string[] fields = line.split(" ")
+    int left = parse_decimal(fields[0])
+    int right = parse_decimal(fields[1])
+    print(left + right)
+)", "string.parse_two_signed");
 
  // Release lowering keeps the public function ABI but threads recursion depth
  // through an internal implementation instead of touching TLS on every direct

@@ -234,7 +234,17 @@ messages = [
     {"jsonrpc":"2.0","id":5,"method":"textDocument/signatureHelp","params":{
         "textDocument":{"uri":uri},"position":{"line":4,"character":20}
     }},
-    {"jsonrpc":"2.0","id":6,"method":"shutdown","params":None},
+    {"jsonrpc":"2.0","id":6,"method":"textDocument/references","params":{
+        "textDocument":{"uri":uri},"position":{"line":5,"character":8},
+        "context":{"includeDeclaration":True}
+    }},
+    {"jsonrpc":"2.0","id":7,"method":"textDocument/rename","params":{
+        "textDocument":{"uri":uri},"position":{"line":5,"character":8},"newName":"result"
+    }},
+    {"jsonrpc":"2.0","id":8,"method":"textDocument/semanticTokens/full","params":{
+        "textDocument":{"uri":uri}
+    }},
+    {"jsonrpc":"2.0","id":9,"method":"shutdown","params":None},
     {"jsonrpc":"2.0","method":"exit","params":None},
 ]
 payload = b""
@@ -262,6 +272,12 @@ assert caps["hoverProvider"] is True
 assert caps["definitionProvider"] is True
 assert caps["completionProvider"]["triggerCharacters"] == ["."]
 assert caps["signatureHelpProvider"]["triggerCharacters"] == ["(",","]
+assert caps["referencesProvider"] is True
+assert caps["renameProvider"] is True
+legend = caps["semanticTokensProvider"]["legend"]["tokenTypes"]
+for expected in ("function","parameter","variable","keyword","number"):
+    assert expected in legend, (expected, legend)
+assert caps["semanticTokensProvider"]["full"] is True
 
 hover = by_id[2]["result"]
 assert hover["contents"]["value"] == "int", hover
@@ -276,7 +292,25 @@ for expected in ("input","output","twice","print"):
 signature = by_id[5]["result"]
 assert signature["signatures"][0]["label"] == "int twice(int value)", signature
 assert signature["activeParameter"] == 0
-assert by_id[6]["result"] is None
+
+references = by_id[6]["result"]
+reference_starts = [item["range"]["start"] for item in references]
+assert reference_starts == [
+    {"line":4,"character":4},
+    {"line":5,"character":6},
+], references
+
+rename = by_id[7]["result"]["changes"][uri]
+assert [edit["newText"] for edit in rename] == ["result","result"], rename
+assert [edit["range"]["start"] for edit in rename] == reference_starts, rename
+
+semantic = by_id[8]["result"]["data"]
+assert semantic and len(semantic) % 5 == 0, semantic
+observed_types = {legend[semantic[index + 3]] for index in range(0,len(semantic),5)}
+for expected in ("function","parameter","variable","keyword","number"):
+    assert expected in observed_types, (expected, observed_types)
+
+assert by_id[9]["result"] is None
 PY
 
 mkdir -p "$TMP/package-source" "$TMP/package-home"

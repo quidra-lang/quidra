@@ -6864,6 +6864,50 @@ extern "C" char* quidra_string_index(const char* text, long long index,
         std::string_view(text + bounds.start, bounds.end - bounds.start), 1);
 }
 
+extern "C" bool quidra_string_index_equal_ascii(
+    const char* text, long long index, unsigned char expected,
+    unsigned long long line, unsigned long long column) {
+    if (!text) runtime_text_failure("null string");
+    if (index < 0) {
+        std::fprintf(stderr,
+                     "Quidra runtime error[INDEX_BOUNDS] at %llu:%llu: string index %lld is negative\n",
+                     line, column, index);
+        std::exit(101);
+    }
+
+    if (auto* allocation = exact_managed_string(text);
+        allocation && allocation->string_ascii_known &&
+        allocation->string_ascii) {
+        const auto position = static_cast<std::size_t>(index);
+        if (position >= allocation->string_byte_length) {
+            std::fprintf(stderr,
+                         "Quidra runtime error[INDEX_BOUNDS] at %llu:%llu: string index %lld outside length %zu\n",
+                         line, column, index, allocation->string_byte_length);
+            std::exit(101);
+        }
+        return static_cast<unsigned char>(text[position]) == expected;
+    }
+
+    const auto bounds = utf8_index_bounds(text, static_cast<std::size_t>(index));
+    if (!bounds.found) {
+        ManagedAllocation* allocation = nullptr;
+        const auto source = cached_string_view(text, allocation);
+        const auto length = allocation && allocation->string_codepoint_length_known
+            ? allocation->string_codepoint_length
+            : utf8_length(source);
+        if (allocation) {
+            allocation->string_codepoint_length_known = true;
+            allocation->string_codepoint_length = length;
+        }
+        std::fprintf(stderr,
+                     "Quidra runtime error[INDEX_BOUNDS] at %llu:%llu: string index %lld outside length %zu\n",
+                     line, column, index, length);
+        std::exit(101);
+    }
+    return bounds.end == bounds.start + 1 &&
+           static_cast<unsigned char>(text[bounds.start]) == expected;
+}
+
 extern "C" long long quidra_string_length(const char* text) {
     ManagedAllocation* allocation = nullptr;
     std::size_t length = 0;

@@ -239,6 +239,138 @@ if [[ "$convolve_output" != "$convolve_expected" ]]; then
     exit 1
 fi
 
+cat > "$TMP/convolve-coverage.qui" <<'QUI'
+class ConvCoverage
+    neural.Parameter<float32> weight
+    neural.Parameter<float32> bias
+
+ConvCoverage pointwise = ConvCoverage(
+    weight = neural.Parameter<float32>(
+        value = tensor.ones<float32>([3, 2, 1, 1])
+    ),
+    bias = neural.Parameter<float32>(
+        value = tensor.ones<float32>([3])
+    )
+)
+tensor<float32> batch = tensor.ones<float32>([2, 2, 3, 5])
+tensor<float32> point = neural.convolve2d(
+    batch, pointwise.weight, pointwise.bias, 1, 0
+)
+print(point.shape()[0])
+print(point.shape()[1])
+print(point.shape()[2])
+print(point.shape()[3])
+print(point[1, 2, 2, 4].item())
+
+tensor<float32> point_stride = neural.convolve2d(
+    batch, pointwise.weight, pointwise.bias, 2, 0
+)
+print(point_stride.shape()[2])
+print(point_stride.shape()[3])
+print(point_stride[1, 1, 1, 2].item())
+
+ConvCoverage three = ConvCoverage(
+    weight = neural.Parameter<float32>(
+        value = tensor.ones<float32>([3, 2, 3, 3])
+    ),
+    bias = neural.Parameter<float32>(
+        value = tensor.ones<float32>([3])
+    )
+)
+tensor<float32> three_plain = neural.convolve2d(
+    tensor.ones<float32>([2, 2, 5, 7]),
+    three.weight, three.bias, 1, 0
+)
+print(three_plain.shape()[2])
+print(three_plain.shape()[3])
+print(three_plain[1, 2, 2, 4].item())
+
+tensor<float32> three_padded = neural.convolve2d(
+    tensor.ones<float32>([2, 2, 5, 7]),
+    three.weight, three.bias, 1, 1
+)
+print(three_padded.shape()[2])
+print(three_padded.shape()[3])
+print(three_padded[0, 0, 0, 0].item())
+print(three_padded[0, 0, 2, 3].item())
+
+tensor<float32> three_stride = neural.convolve2d(
+    tensor.ones<float32>([2, 2, 5, 7]),
+    three.weight, three.bias, 2, 1
+)
+print(three_stride.shape()[2])
+print(three_stride.shape()[3])
+print(three_stride[0, 0, 0, 0].item())
+print(three_stride[0, 0, 1, 1].item())
+
+ConvCoverage five = ConvCoverage(
+    weight = neural.Parameter<float32>(
+        value = tensor.ones<float32>([1, 1, 5, 5])
+    ),
+    bias = neural.Parameter<float32>(
+        value = tensor.ones<float32>([1])
+    )
+)
+tensor<float32> five_out = neural.convolve2d(
+    tensor.ones<float32>([1, 1, 6, 8]),
+    five.weight, five.bias, 1, 0
+)
+print(five_out.shape()[2])
+print(five_out.shape()[3])
+print(five_out[0, 0, 1, 3].item())
+
+class ConvBackward
+    neural.Parameter<float32> pixels
+    neural.Parameter<float32> weight
+    neural.Parameter<float32> bias
+
+ConvBackward backward = ConvBackward(
+    pixels = neural.Parameter<float32>(
+        value = tensor.ones<float32>([1, 1, 3, 3])
+    ),
+    weight = neural.Parameter<float32>(
+        value = tensor.ones<float32>([1, 1, 3, 3])
+    ),
+    bias = neural.Parameter<float32>(
+        value = tensor.zeros<float32>([1])
+    )
+)
+neural<float32> tracked_out = neural.convolve2d(
+    backward.pixels.track(), backward.weight, backward.bias, 1, 0
+)
+neural.Gradients grads = neural.grad(neural.mean(tracked_out))
+neural.update(&backward, grads, rate = 1.0)
+print(backward.pixels.raw()[0, 0, 1, 1].item())
+print(backward.weight.raw()[0, 0, 2, 2].item())
+print(backward.bias.raw()[0].item())
+
+class Conv64
+    neural.Parameter<float> weight
+    neural.Parameter<float> bias
+
+Conv64 wide = Conv64(
+    weight = neural.Parameter<float>(
+        value = tensor.ones<float>([1, 1, 3, 3])
+    ),
+    bias = neural.Parameter<float>(
+        value = tensor.ones<float>([1])
+    )
+)
+tensor<float> wide_out = neural.convolve2d(
+    tensor.ones<float>([1, 1, 3, 3]),
+    wide.weight, wide.bias, 1, 0
+)
+print(wide_out[0, 0, 0, 0].item())
+QUI
+
+coverage_output="$("$QUIDRA" "$TMP/convolve-coverage.qui")"
+coverage_expected="$(printf '2\n3\n3\n5\n3.0\n2\n3\n3.0\n3\n5\n19.0\n5\n7\n9.0\n19.0\n3\n4\n9.0\n19.0\n2\n4\n26.0\n0.0\n0.0\n-1.0\n10.0')"
+if [[ "$coverage_output" != "$coverage_expected" ]]; then
+    echo "unexpected convolution coverage output:" >&2
+    printf '%s\n' "$coverage_output" >&2
+    exit 1
+fi
+
 cat > "$TMP/persistence.qui" <<QUI
 class Model
     neural.Parameter<float32> weight

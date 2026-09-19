@@ -639,7 +639,27 @@ std::string ptx_conv2d_source(int dtype) {
         << " mul.lo.u64 %rd14,%rd12," << bytes << ";\n add.u64 %rd15,%rd4,%rd14;\n";
     if(f32) out<<" ld.global.f32 %f1,[%rd15];\n";
     else out<<" ld.global.f64 %fd1,[%rd15];\n";
-    out << " mov.u64 %rd16,0;\nCI_LOOP:\n"
+    out << " setp.ne.u64 %p7,%rd23,1;\n @%p7 bra CI_LOOP_INIT;\n"
+           " setp.ne.u64 %p7,%rd24,1;\n @%p7 bra CI_LOOP_INIT;\n"
+           " setp.ne.u64 %p7,%rd28,0;\n @%p7 bra CI_LOOP_INIT;\n"
+           " mul.lo.u64 %rd40,%rd10,%rd27;\n"
+           " mul.lo.u64 %rd41,%rd8,%rd27;\n"
+           " mov.u64 %rd16,0;\nP1_CI:\n"
+           " setp.ge.u64 %p2,%rd16,%rd6;\n @%p2 bra STORE;\n"
+           " mul.lo.u64 %rd42,%rd13,%rd6;\n add.u64 %rd42,%rd42,%rd16;\n"
+           " mul.lo.u64 %rd42,%rd42,%rd20;\n add.u64 %rd42,%rd42,%rd40;\n"
+           " mul.lo.u64 %rd42,%rd42,%rd21;\n add.u64 %rd42,%rd42,%rd41;\n"
+        << " mul.lo.u64 %rd42,%rd42," << bytes << ";\n add.u64 %rd44,%rd2,%rd42;\n"
+           " mul.lo.u64 %rd43,%rd12,%rd6;\n add.u64 %rd43,%rd43,%rd16;\n"
+        << " mul.lo.u64 %rd43,%rd43," << bytes << ";\n add.u64 %rd45,%rd3,%rd43;\n";
+    if(f32)
+        out<<" ld.global.f32 %f2,[%rd44];\n ld.global.f32 %f3,[%rd45];\n"
+              " mul.f32 %f4,%f2,%f3;\n add.f32 %f1,%f1,%f4;\n";
+    else
+        out<<" ld.global.f64 %fd2,[%rd44];\n ld.global.f64 %fd3,[%rd45];\n"
+              " mul.f64 %fd4,%fd2,%fd3;\n add.f64 %fd1,%fd1,%fd4;\n";
+    out << " add.u64 %rd16,%rd16,1;\n bra P1_CI;\n"
+           "CI_LOOP_INIT:\n mov.u64 %rd16,0;\nCI_LOOP:\n"
            " setp.ge.u64 %p2,%rd16,%rd6;\n @%p2 bra STORE;\n"
            " mov.u64 %rd17,0;\nKY_LOOP:\n"
            " setp.ge.u64 %p3,%rd17,%rd23;\n @%p3 bra NEXT_CI;\n"
@@ -767,6 +787,9 @@ std::string hip_neural_conv2d_source(int dtype) {
       "unsigned long long q=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;if(q>=total)return;"
       "unsigned long long g=q,ox=g%ow;g/=ow;unsigned long long oy=g%oh;g/=oh;unsigned long long oc=g%co;unsigned long long n=g/co;"
       +std::string(type)+" sum=bias[oc];"
+      "if(kh==1&&kw==1&&padding==0){unsigned long long iy=oy*stride,ix=ox*stride;"
+      "for(unsigned long long ic=0;ic<ci;++ic){unsigned long long ii=((n*ci+ic)*h+iy)*w+ix;"
+      "sum+=input[ii]*weight[oc*ci+ic];}out[q]=sum;return;}"
       "for(unsigned long long ic=0;ic<ci;++ic)for(unsigned long long ky=0;ky<kh;++ky)for(unsigned long long kx=0;kx<kw;++kx){"
       "long long iy=(long long)(oy*stride+ky)-(long long)padding;long long ix=(long long)(ox*stride+kx)-(long long)padding;"
       "if(iy<0||ix<0||iy>=(long long)h||ix>=(long long)w)continue;"
@@ -846,6 +869,9 @@ std::string msl_conv2d_source() {
            "uint gid [[thread_position_in_grid]]) {"
            " ulong g=ulong(gid); if(g>=total)return; ulong ox=g%ow; g/=ow;"
            " ulong oy=g%oh; g/=oh; ulong oc=g%co; ulong n=g/co; float sum=bias[oc];"
+           " if(kh==1&&kw==1&&padding==0){ulong iy=oy*stride,ix=ox*stride;"
+           " for(ulong ic=0;ic<ci;++ic){ulong ii=((n*ci+ic)*h+iy)*w+ix;"
+           " sum+=input[ii]*weight[oc*ci+ic];}out[gid]=sum;return;}"
            " for(ulong ic=0;ic<ci;++ic)for(ulong y=0;y<kh;++y)for(ulong x=0;x<kw;++x){"
            " long iy=long(oy*stride+y)-long(padding); long ix=long(ox*stride+x)-long(padding);"
            " if(iy<0||ix<0||iy>=long(h)||ix>=long(w))continue;"

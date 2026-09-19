@@ -742,8 +742,14 @@ Type Checker::check_address_target(const Expr& expression, bool allow_tensor_ele
         } else if (!current_class_.empty()) {
             const auto* field = find_field(current_class_, name->name);
             if (!field) error("UNKNOWN_NAME", "Unknown storage name '" + name->name + "'.", expression.span);
+            if (field->is_private && current_class_ != field->owner) {
+                error("PRIVATE_MEMBER",
+                      "Private field '" + name->name + "' is only accessible inside class '" +
+                          field->owner + "'.",
+                      expression.span);
+            }
             type = field->type;
-            field_accesses_[&expression] = FieldAccessInfo{current_class_, field->index, field->type};
+            field_accesses_[&expression] = FieldAccessInfo{field->owner, field->index, field->type};
         } else {
             error("UNKNOWN_NAME", "Unknown storage name '" + name->name + "'.", expression.span);
         }
@@ -766,8 +772,14 @@ Type Checker::check_address_target(const Expr& expression, bool allow_tensor_ele
         }
         const auto* field = find_field(base.class_name, member->name);
         if (!field) error("UNKNOWN_MEMBER", "Unknown class field '" + member->name + "'.", expression.span);
+        if (field->is_private && current_class_ != field->owner) {
+            error("PRIVATE_MEMBER",
+                  "Private field '" + member->name + "' is only accessible inside class '" +
+                      field->owner + "'.",
+                  expression.span);
+        }
         type = field->type;
-        field_accesses_[&expression] = FieldAccessInfo{base.class_name, field->index, field->type};
+        field_accesses_[&expression] = FieldAccessInfo{field->owner, field->index, field->type};
     } else if (const auto* index = std::get_if<IndexExpr>(&expression.data)) {
         auto base = stable_writable_storage(*index->base)
             ? check_address_target(*index->base)
@@ -1549,11 +1561,17 @@ Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value
             if (!field) {
                 error("UNKNOWN_NAME", "Unknown name '" + node->name + "'.", expression.span);
             }
+            if (field->is_private && current_class_ != field->owner) {
+                error("PRIVATE_MEMBER",
+                      "Private field '" + node->name + "' is only accessible inside class '" +
+                          field->owner + "'.",
+                      expression.span);
+            }
             if (!current_receiver_effect_.initializes.contains(node->name)) {
                 current_receiver_effect_.required.insert(node->name);
             }
             type = field->type;
-            field_accesses_[&expression] = FieldAccessInfo{current_class_, field->index, field->type};
+            field_accesses_[&expression] = FieldAccessInfo{field->owner, field->index, field->type};
         } else {
             error("UNKNOWN_NAME", "Unknown name '" + node->name + "'.", expression.span);
         }
@@ -1613,7 +1631,7 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
                 }
             }
             type = field->type;
-            field_accesses_[&expression] = FieldAccessInfo{base.class_name, field->index, field->type};
+            field_accesses_[&expression] = FieldAccessInfo{field->owner, field->index, field->type};
             if (type.kind == TypeKind::Class) {
                 class_expr_initialized_paths_[&expression] = initialized_paths_for_expr(expression);
             }
@@ -5558,8 +5576,14 @@ void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
             } else if (!current_class_.empty()) {
                 const auto* field = find_field(current_class_, name->name);
                 if (!field) error("UNKNOWN_NAME", "Undefined assignment target.", statement.span);
+                if (field->is_private && current_class_ != field->owner) {
+                    error("PRIVATE_MEMBER",
+                          "Private field '" + name->name + "' is only accessible inside class '" +
+                              field->owner + "'.",
+                          node.target->span);
+                }
                 type = field->type;
-                field_accesses_[node.target.get()] = FieldAccessInfo{current_class_, field->index, field->type};
+                field_accesses_[node.target.get()] = FieldAccessInfo{field->owner, field->index, field->type};
                 expr_types_[node.target.get()] = raw_types_[node.target.get()] = type;
                 check_expr(*node.value, &type);
                 record_current_receiver_assignment(name->name, type, *node.value);
@@ -6532,6 +6556,14 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
 
                 const auto inherited = info.methods.find(method.name);
                 if (inherited != info.methods.end()) {
+                    const auto inherited_private = info.private_methods.find(method.name);
+                    if (inherited_private != info.private_methods.end() &&
+                        inherited_private->second != declaration.name) {
+                        error("SHADOWING",
+                              "Method name conflicts with inherited private method from class '" +
+                                  inherited_private->second + "'.",
+                              method.span);
+                    }
                     if (!method.is_override) {
                         error("OVERRIDE_REQUIRED", "Overriding an inherited method requires override.", method.span);
                     }

@@ -7,7 +7,7 @@ namespace quidra {
 enum class TokenKind {
     Eof, Newline, Indent, Dedent, Pipe, Ampersand,
     Identifier, Integer, Float, String,
-    KwClass, KwOverride, KwImport, KwSuper, KwConst,
+    KwClass, KwOverride, KwPrivate, KwImport, KwSuper, KwConst,
     KwReturn, KwIf, KwElif, KwElse, KwWhile, KwFor, KwIn, KwMatch, KwTry,
     KwBreak, KwContinue,
     KwTrue, KwFalse, KwNot, KwAnd, KwOr,

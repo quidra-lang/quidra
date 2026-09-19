@@ -57,6 +57,7 @@ struct ClassFieldType {
     std::size_t index{};
     const Expr* default_value{};
     bool is_const{};
+    bool is_private{};
 };
 
 struct ClassTypeInfo {
@@ -64,6 +65,7 @@ struct ClassTypeInfo {
     std::optional<std::string> parent;
     std::vector<ClassFieldType> fields;
     std::unordered_map<std::string, std::string> methods;
+    std::unordered_set<std::string> private_methods;
 };
 
 struct FieldAccessInfo {

@@ -32,6 +32,7 @@ bool word_like(TokenKind kind) {
         case TokenKind::String:
         case TokenKind::KwClass:
         case TokenKind::KwOverride:
+        case TokenKind::KwPrivate:
         case TokenKind::KwImport:
         case TokenKind::KwSuper:
         case TokenKind::KwConst:

@@ -135,6 +135,7 @@ struct FunctionDecl {
     std::vector<StmtPtr> body;
     SourceSpan span{};
     bool is_override{};
+    bool is_private{};
     std::vector<std::string> type_parameters;
     std::optional<std::string> external_symbol;
 };
@@ -145,6 +146,7 @@ struct FieldDecl {
     SourceSpan span{};
     ExprPtr default_value;
     bool is_const{};
+    bool is_private{};
 };
 
 struct ClassDecl {

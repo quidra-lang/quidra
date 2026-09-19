@@ -232,6 +232,8 @@ struct StoreLocal {
     bool replace_without_release{};
 };
 struct CallArgument { ValueId value; std::optional<ValueId> writable_address; };
+struct FunctionRef { ValueId out; std::string function; Type type; };
+struct IndirectCall { ValueId out; ValueId callee; std::vector<ValueId> args; std::vector<Type> parameter_types; Type result; std::uint32_t line{}; std::uint32_t column{}; };
 struct Call { ValueId out; std::string callee; std::vector<CallArgument> args; Type result; std::uint32_t line{}; std::uint32_t column{}; };
 struct VariantMake { ValueId out; int tag; ValueId payload; Type container_type; Type payload_type; };
 struct VariantTag { ValueId out; ValueId container; };
@@ -281,7 +283,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  HttpGet, HttpHeader,
                                  NumericMinMax, ArrayGet, ArraySet, Clone, Retain, Release,
                                  Unary, Binary, ToString, FormatNumber, LoadLocal, StoreLocal,
-                                 Call, VariantMake, VariantTag, VariantPayload,
+                                 FunctionRef, IndirectCall, Call, VariantMake, VariantTag, VariantPayload,
                                  Print, Write, ReplDisplay, ReplReplayMode, Input, Exit, RangeCheckStep, Return, ReturnVoid, Jump, Branch>;
 
 struct Block { std::string label; std::vector<Instruction> instructions; };

@@ -573,6 +573,9 @@ void rename_type(
     for (auto& argument : type.arguments) {
         rename_type(argument, ns, local_classes, imports, type_parameters);
     }
+    for (auto& parameter : type.function_parameters) {
+        rename_type(parameter, ns, local_classes, imports, type_parameters);
+    }
 
     if (is_language_type_name(type.name) || type_parameters.contains(type.name)) return;
 
@@ -1344,6 +1347,8 @@ TypeName clone_type(const TypeName& source) {
     out.tensor_rank = source.tensor_rank;
     out.tensor_known_shape_prefix = source.tensor_known_shape_prefix;
     for (const auto& argument : source.arguments) out.arguments.push_back(clone_type(argument));
+    for (const auto& parameter : source.function_parameters)
+        out.function_parameters.push_back(clone_type(parameter));
     return out;
 }
 
@@ -1373,6 +1378,14 @@ std::string canonical_type(const TypeName& type) {
             out += canonical_type(type.arguments[i]);
         }
         out += ">";
+    }
+    if (type.name == "fn") {
+        out += "(";
+        for (std::size_t i = 0; i < type.function_parameters.size(); ++i) {
+            if (i) out += ",";
+            out += canonical_type(type.function_parameters[i]);
+        }
+        out += ")";
     }
     if (!type.tensor_shape_prefix.empty()) {
         out += "<";
@@ -1425,7 +1438,9 @@ std::string safe_name(std::string name) {
 bool contains_parameter(const TypeName& type, const std::unordered_set<std::string>& parameters) {
     if (parameters.contains(type.name)) return true;
     return std::any_of(type.arguments.begin(), type.arguments.end(),
-                       [&](const auto& argument) { return contains_parameter(argument, parameters); });
+                       [&](const auto& argument) { return contains_parameter(argument, parameters); }) ||
+           std::any_of(type.function_parameters.begin(), type.function_parameters.end(),
+                       [&](const auto& parameter) { return contains_parameter(parameter, parameters); });
 }
 
 bool standard_collection_key_type(const TypeName& type) {
@@ -1464,6 +1479,10 @@ TypeName substitute_raw(
     result.arguments.clear();
     for (const auto& argument : source.arguments) {
         result.arguments.push_back(substitute_raw(argument, substitution));
+    }
+    result.function_parameters.clear();
+    for (const auto& parameter : source.function_parameters) {
+        result.function_parameters.push_back(substitute_raw(parameter, substitution));
     }
     return result;
 }
@@ -2022,6 +2041,7 @@ private:
 
         if (pattern.name != actual.name ||
             pattern.arguments.size() != actual.arguments.size() ||
+            pattern.function_parameters.size() != actual.function_parameters.size() ||
             pattern.dimensions.size() != actual.dimensions.size()) {
             return false;
         }
@@ -2052,6 +2072,13 @@ private:
         for (std::size_t i = 0; i < pattern.arguments.size(); ++i) {
             if (!infer_generic_pattern(
                     pattern.arguments[i], actual.arguments[i], parameters, inferred)) {
+                return false;
+            }
+        }
+        for (std::size_t i = 0; i < pattern.function_parameters.size(); ++i) {
+            if (!infer_generic_pattern(
+                    pattern.function_parameters[i], actual.function_parameters[i],
+                    parameters, inferred)) {
                 return false;
             }
         }
@@ -2120,6 +2147,9 @@ private:
         for (auto& argument : type.arguments) {
             argument = materialize_type(argument, {}, deferred);
         }
+        for (auto& parameter : type.function_parameters) {
+            parameter = materialize_type(parameter, {}, deferred);
+        }
 
         if (!type.arguments.empty()) {
             if (contains_parameter(type, deferred)) return type;
@@ -2132,6 +2162,12 @@ private:
             if (type.name == "neural") {
                 if (type.arguments.size() != 1) {
                     frontend_error("GENERIC_ARITY", "neural accepts zero or one element type.", type.span);
+                }
+                return type;
+            }
+            if (type.name == "fn") {
+                if (type.arguments.size() != 1) {
+                    frontend_error("GENERIC_ARITY", "fn requires exactly one result type.", type.span);
                 }
                 return type;
             }

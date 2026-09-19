@@ -49,7 +49,8 @@ inline constexpr bool is_builtin_type_name(std::string_view name) {
 
 inline constexpr bool is_language_type_name(std::string_view name) {
     return is_builtin_type_name(name) || name == "tensor" || name == "neural" ||
-           name == "never" || name == "auto" || name == "union" || name == "extern";
+           name == "fn" || name == "never" || name == "auto" || name == "union" ||
+           name == "extern";
 }
 
 inline constexpr std::optional<std::string_view> canonical_builtin_type_name(std::string_view name) {
@@ -490,7 +491,7 @@ inline constexpr std::string_view builtin_text_constant(std::string_view name) {
 inline constexpr bool is_reserved_value_name(std::string_view name) {
     return is_builtin_text_constant(name) || is_builtin_callable(name) ||
            is_builtin_type_name(name) || is_standard_module(name) ||
-           name == "never" || name == "auto" || name == "union";
+           name == "fn" || name == "never" || name == "auto" || name == "union";
 }
 
 inline std::string builtin_types_json() {
@@ -501,7 +502,7 @@ inline std::string builtin_types_json() {
         first = false;
         out += "\"" + std::string(type.name) + "\"";
     }
-    out += ",\"never\",\"T[]\",\"T[n]\",\"T | U\",\"class Name\"]";
+    out += ",\"fn<R>(A, B)\",\"never\",\"T[]\",\"T[n]\",\"T | U\",\"class Name\"]";
     return out;
 }
 

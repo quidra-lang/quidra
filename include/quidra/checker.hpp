@@ -29,6 +29,7 @@ struct StorageEffect {
 
 enum class CallKind {
     Function,
+    FunctionValue,
     Builtin,
     NumericCast,
     Constructor
@@ -44,6 +45,7 @@ struct CallResolution {
 struct FunctionType {
     std::vector<FunctionParameterType> parameters;
     Type result{Type::simple(TypeKind::Void)};
+    bool external{};
     StorageEffect receiver_effect;
     std::unordered_map<std::string, StorageEffect> reference_effects;
     std::unordered_set<std::string> return_initialized_fields;
@@ -83,6 +85,7 @@ struct CheckedProgram {
     std::unordered_map<const Expr*, FieldAccessInfo> field_accesses;
     std::unordered_map<const Expr*, MethodCallInfo> method_calls;
     std::unordered_map<const Expr*, CallResolution> call_resolutions;
+    std::unordered_map<const Expr*, std::string> function_references;
     std::unordered_map<const Stmt*, Type> binding_types;
     std::unordered_map<const MatchCase*, Type> case_types;
     std::unordered_set<const Expr*> bounds_proven;
@@ -107,6 +110,7 @@ private:
     std::unordered_map<const Expr*, FieldAccessInfo> field_accesses_;
     std::unordered_map<const Expr*, MethodCallInfo> method_calls_;
     std::unordered_map<const Expr*, CallResolution> call_resolutions_;
+    std::unordered_map<const Expr*, std::string> function_references_;
     std::unordered_map<const Stmt*, Type> binding_types_;
     std::unordered_map<const MatchCase*, Type> case_types_;
     std::unordered_set<const Expr*> bounds_proven_;

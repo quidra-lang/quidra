@@ -30,7 +30,8 @@ std::string llvm_type(const Type& t) {
         case TypeKind::BigInt: case TypeKind::BigReal:
         case TypeKind::String: case TypeKind::Bin: case TypeKind::Error:
         case TypeKind::Array: case TypeKind::Tensor: case TypeKind::Neural:
-        case TypeKind::Gradients: case TypeKind::Union: case TypeKind::Class: return "ptr";
+        case TypeKind::Gradients: case TypeKind::Union: case TypeKind::Class:
+        case TypeKind::Function: return "ptr";
         case TypeKind::None: case TypeKind::Void: case TypeKind::Never: return "void";
         case TypeKind::Auto: case TypeKind::Range: case TypeKind::Invalid: return "void";
     }
@@ -2712,6 +2713,24 @@ struct FunctionEmitter {
                    <<", i32 "<<fractional<<", i32 "<<significant<<", i32 "<<(n.zero?1:0)<<")\n";
             }
         }
+        if constexpr(std::is_same_v<T,ir::FunctionRef>){
+            values[n.out]=n.type;
+            out<<"  "<<value(n.out)<<" = select i1 true, ptr @"<<call_symbol(n.function)<<", ptr null\n";
+        }
+        if constexpr(std::is_same_v<T,ir::IndirectCall>){
+            if(n.result.kind!=TypeKind::Void&&n.result.kind!=TypeKind::Never)values[n.out]=n.result;
+            out<<"  store i64 "<<n.line<<", ptr @.quidra.source.line\n"
+               <<"  store i64 "<<n.column<<", ptr @.quidra.source.column\n"
+               <<"  ";
+            if(n.result.kind!=TypeKind::Void&&n.result.kind!=TypeKind::Never)out<<value(n.out)<<" = ";
+            out<<"call "<<llvm_type(n.result)<<" "<<value(n.callee)<<"(";
+            for(std::size_t i=0;i<n.args.size();++i){
+                if(i)out<<", ";
+                out<<llvm_type(n.parameter_types[i])<<" "<<value(n.args[i]);
+            }
+            out<<")\n";
+            if(n.result.kind==TypeKind::Never)out<<"  unreachable\n";
+        }
         if constexpr(std::is_same_v<T,ir::Call>){
             if(n.result.kind!=TypeKind::Void&&n.result.kind!=TypeKind::Never) values[n.out]=n.result;
             const auto& sig=signatures.at(n.callee);
@@ -2889,7 +2908,7 @@ struct FunctionEmitter {
         }
     }
 
-    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type,parameter.is_const);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<")";if(debug_subprogram)out<<" !dbg !"<<*debug_subprogram;out<<" {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}emit_entry_scratch();for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";auto text=out.str();for(auto it=debug_segments.rbegin();it!=debug_segments.rend();++it)attach_debug_location_range(text,it->begin,it->end,it->location);return text;}
+    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type,parameter.is_const);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<")";if(debug_subprogram)out<<" !dbg !"<<*debug_subprogram;out<<" {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}emit_entry_scratch();for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never)||(std::holds_alternative<ir::IndirectCall>(last)&&std::get<ir::IndirectCall>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";auto text=out.str();for(auto it=debug_segments.rbegin();it!=debug_segments.rend();++it)attach_debug_location_range(text,it->begin,it->end,it->location);return text;}
 };
 
 
@@ -4159,6 +4178,12 @@ std::string emit_llvm(const ir::Module& module, bool debug_info) {
     }
     const auto array_layout = collect_array_layout_policy(module);
     const auto recursive = recursive_functions(module);
+    std::unordered_set<std::string> address_taken;
+    for (const auto& function : module.functions)
+        for (const auto& block : function.blocks)
+            for (const auto& instruction : block.instructions)
+                if (const auto* ref = std::get_if<ir::FunctionRef>(&instruction))
+                    address_taken.insert(ref->function);
 
     std::string primary_source;
     if(debug_info) {
@@ -4197,7 +4222,7 @@ std::string emit_llvm(const ir::Module& module, bool debug_info) {
         const auto& f=module.functions[i];
         auto emitted=FunctionEmitter{
             f, sigs, external_symbols, pool, layouts, array_layout,
-            recursive.contains(f.name), recursive, debug_subprograms[i],
+            recursive.contains(f.name) || address_taken.contains(f.name), recursive, debug_subprograms[i],
             debug_info?&next_debug_metadata:nullptr,
             debug_info?&debug_statement_locations:nullptr}.emit();
         if(debug_locations[i]) emitted=attach_debug_location(std::move(emitted),*debug_locations[i]);

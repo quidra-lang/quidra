@@ -1388,6 +1388,25 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
             : source.tensor_rank.value_or(-1);
         type = Type::neural(element, rank, source.tensor_shape_prefix,
                             source.tensor_known_shape_prefix);
+    } else if (source.name == "fn") {
+        if (source.arguments.size() != 1) {
+            error("GENERIC_ARITY", "fn requires exactly one result type.", source.span);
+        }
+        auto result = resolve_type(source.arguments.front());
+        if (result.kind == TypeKind::Auto || result.kind == TypeKind::Range ||
+            result.kind == TypeKind::Invalid) {
+            error("INVALID_TYPE", "fn result type must be explicit.", source.arguments.front().span);
+        }
+        std::vector<Type> parameters;
+        parameters.reserve(source.function_parameters.size());
+        for (const auto& parameter : source.function_parameters) {
+            auto current = resolve_type(parameter);
+            if (!is_storable(current)) {
+                error("INVALID_TYPE", "fn parameter types must be storable values.", parameter.span);
+            }
+            parameters.push_back(std::move(current));
+        }
+        type = Type::function(std::move(result), std::move(parameters));
     } else if (source.name == "$std.neural.Gradients") {
         type = simple(TypeKind::Gradients);
     } else if (const auto builtin = builtin_scalar_type(source.name)) {
@@ -1449,6 +1468,9 @@ void Checker::check_type_extent_expressions(const TypeName& source) {
     for (const auto& argument : source.arguments) {
         check_type_extent_expressions(argument);
     }
+    for (const auto& parameter : source.function_parameters) {
+        check_type_extent_expressions(parameter);
+    }
 }
 
 
@@ -1481,9 +1503,41 @@ Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value
                 class_expr_initialized_paths_[&expression] = paths;
             }
         } else if (functions_.contains(node->name)) {
-            error("FUNCTION_NOT_VALUE",
-                  "Function '" + node->name + "' is callable but is not a first-class value.",
-                  expression.span);
+            if (!expected || expected->kind != TypeKind::Function || !expected->first) {
+                error("FUNCTION_REFERENCE_CONTEXT",
+                      "Function '" + node->name +
+                      "' becomes a value only in an explicit fn<...>(...) type context.",
+                      expression.span);
+            }
+            const auto& function = functions_.at(node->name);
+            if (function.external) {
+                error("FUNCTION_REFERENCE_EXTERN",
+                      "extern functions are not function values; wrap the foreign call in a Quidra function.",
+                      expression.span);
+            }
+            if (std::any_of(function.parameters.begin(), function.parameters.end(),
+                            [](const auto& parameter) { return parameter.writable; })) {
+                error("FUNCTION_REFERENCE_SIGNATURE",
+                      "Function values currently require value parameters; reference parameters are not representable in fn signatures.",
+                      expression.span);
+            }
+            if (*expected->first != function.result ||
+                expected->parameters.size() != function.parameters.size()) {
+                error("FUNCTION_REFERENCE_SIGNATURE",
+                      "Function '" + node->name + "' does not match expected " +
+                      type_name(*expected) + ".",
+                      expression.span);
+            }
+            for (std::size_t i = 0; i < expected->parameters.size(); ++i) {
+                if (expected->parameters[i] != function.parameters[i].type) {
+                    error("FUNCTION_REFERENCE_SIGNATURE",
+                          "Function '" + node->name + "' does not match expected " +
+                          type_name(*expected) + ".",
+                          expression.span);
+                }
+            }
+            type = *expected;
+            function_references_[&expression] = node->name;
         } else if (!current_class_.empty()) {
             if (find_method(current_class_, node->name)) {
                 error("FUNCTION_NOT_VALUE",
@@ -4103,7 +4157,32 @@ Type Checker::check_call_expr(const Expr& expression,
             }
         }
 
-        if (!current_class_.empty() && find_method(current_class_, name)) {
+        if (const auto variable = variables_.find(name); variable != variables_.end()) {
+            const auto& callable = variable->second;
+            if (callable.kind != TypeKind::Function || !callable.first) {
+                error("NOT_CALLABLE", "Binding '" + name + "' is not callable.", expression.span);
+            }
+            if (node->args.size() != callable.parameters.size()) {
+                error("ARGUMENT_MISMATCH",
+                      "Function value requires exactly " +
+                      std::to_string(callable.parameters.size()) + " positional argument(s).",
+                      expression.span);
+            }
+            bool any_poison = false;
+            for (std::size_t i = 0; i < node->args.size(); ++i) {
+                const auto& argument = node->args[i];
+                if (argument.name || argument.writable) {
+                    error("ARGUMENT_MISMATCH",
+                          "Function-value calls use positional value arguments only.",
+                          argument.span);
+                }
+                const auto actual = check_expr(*argument.value, &callable.parameters[i]);
+                any_poison |= poisoned(actual);
+            }
+            type = any_poison ? simple(TypeKind::Invalid) : *callable.first;
+            call_resolutions_[&expression] =
+                CallResolution{CallKind::FunctionValue, name, std::nullopt, type};
+        } else if (!current_class_.empty() && find_method(current_class_, name)) {
             const auto internal = *find_method(current_class_, name);
             method_calls_[&expression] = MethodCallInfo{internal};
             call_resolutions_[&expression] =
@@ -6343,6 +6422,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
 
             FunctionType signature;
             signature.result = resolve_type(function.return_type);
+            signature.external = function.external_symbol.has_value();
             const auto ffi_scalar=[](const Type& type) {
                 switch(type.kind) {
                     case TypeKind::Int:
@@ -6806,8 +6886,8 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     }
 
     return CheckedProgram{std::move(program), functions_, classes_, expr_types_, raw_types_,
-                          field_accesses_, method_calls_, call_resolutions_, binding_types_, case_types_,
-                          bounds_proven_, class_expr_initialized_paths_};
+                          field_accesses_, method_calls_, call_resolutions_, function_references_,
+                          binding_types_, case_types_, bounds_proven_, class_expr_initialized_paths_};
 }
 
 } // namespace quidra

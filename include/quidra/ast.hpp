@@ -16,6 +16,8 @@ using ExprPtr = std::unique_ptr<Expr>;
 struct TypeName {
     std::string name;
     std::vector<TypeName> arguments;
+    // fn<Result>(Args...) keeps parameter types separate from generic arguments.
+    std::vector<TypeName> function_parameters;
     std::size_t array_depth{};
     std::vector<long long> dimensions;
     // Null means an unconstrained [] dimension. Non-null expressions are

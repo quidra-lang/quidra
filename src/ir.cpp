@@ -972,6 +972,12 @@ struct Lowerer {
             if(const auto it=checked.field_accesses.find(&e);it!=checked.field_accesses.end()){
                 auto object=receiver_value(),out=fresh();block->instructions.push_back(FieldGet{out,object,it->second.index,it->second.type});return out;
             }
+            if (const auto function = checked.function_references.find(&e);
+                function != checked.function_references.end()) {
+                auto out=fresh();
+                block->instructions.push_back(FunctionRef{out,function->second,checked.raw_types.at(&e)});
+                return out;
+            }
             auto out=fresh(); const auto raw=checked.raw_types.at(&e);
             if(is_source_reference(n->name)){
                 const auto& ir_name=source_reference(n->name); const auto t=references.at(ir_name);
@@ -1523,6 +1529,24 @@ struct Lowerer {
             throw std::logic_error("Checked CallExpr has no call resolution.");
         }
         const auto& resolution=resolution_it->second;
+
+        if(resolution.kind==CallKind::FunctionValue){
+            const auto local_name=source_local(resolution.target);
+            const auto callable_type=locals.at(local_name);
+            auto callee=fresh();
+            block->instructions.push_back(LoadLocal{callee,local_name,callable_type});
+            std::vector<ValueId> args;
+            args.reserve(n.args.size());
+            for(std::size_t i=0;i<n.args.size();++i)
+                args.push_back(destination_value(*n.args[i].value,callable_type.parameters[i]));
+            const auto result=*callable_type.first;
+            const auto out=(result.kind==TypeKind::Void||result.kind==TypeKind::Never)?0:fresh();
+            block->instructions.push_back(IndirectCall{
+                out,callee,std::move(args),callable_type.parameters,result,
+                static_cast<std::uint32_t>(e.span.start.line),
+                static_cast<std::uint32_t>(e.span.start.column)});
+            return out;
+        }
 
         if(const auto method=checked.method_calls.find(&e);method!=checked.method_calls.end()){
             const auto& sig=checked.functions.at(resolution.target);
@@ -3310,6 +3334,13 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     }
     if constexpr(std::is_same_v<T,LoadLocal>)out<<"%"<<n.out<<" = load "<<n.name;
     if constexpr(std::is_same_v<T,StoreLocal>)out<<(n.borrowed?"store.borrow ":"store ")<<n.name<<", %"<<n.value;
+    if constexpr(std::is_same_v<T,FunctionRef>)out<<"%"<<n.out<<" = fn.ref "<<n.function<<" : "<<type_name(n.type);
+    if constexpr(std::is_same_v<T,IndirectCall>){
+        if(n.result.kind!=TypeKind::Void&&n.result.kind!=TypeKind::Never)out<<"%"<<n.out<<" = ";
+        out<<"call.indirect %"<<n.callee<<"(";
+        for(std::size_t index=0;index<n.args.size();++index){if(index)out<<", ";out<<"%"<<n.args[index];}
+        out<<")";
+    }
     if constexpr(std::is_same_v<T,Call>){
         if(n.result.kind!=TypeKind::Void&&n.result.kind!=TypeKind::Never)out<<"%"<<n.out<<" = ";
         out<<"call "<<n.callee<<"(";

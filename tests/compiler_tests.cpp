@@ -350,6 +350,57 @@ print(signed_right)
  bad_code("extern int unsafe(int &value) = \"unsafe_symbol\"\n", "FFI_REFERENCE");
  bad_code("extern int unsafe(int value = 1) = \"unsafe_symbol\"\n", "FFI_DEFAULT");
  bad_code("extern int unsafe(int value) = \"bad-symbol\"\n", "FFI_SYMBOL");
+
+ good(R"(int twice(int value)
+    return value * 2
+
+int apply(fn<int>(int) operation, int value)
+    return operation(value)
+
+fn<int>(int) operation = twice
+int a = operation(3)
+int b = apply(operation, 4)
+print(a)
+print(b)
+)");
+ ir_contains(R"(int twice(int value)
+    return value * 2
+fn<int>(int) operation = twice
+int result = operation(3)
+)", "fn.ref twice");
+ ir_contains(R"(int twice(int value)
+    return value * 2
+fn<int>(int) operation = twice
+int result = operation(3)
+)", "call.indirect");
+ llvm_contains(R"(int twice(int value)
+    return value * 2
+fn<int>(int) operation = twice
+int result = operation(3)
+)", "select i1 true, ptr @n_twice, ptr null");
+ bad_code(R"(int twice(int value)
+    return value * 2
+fn<float>(int) operation = twice
+)", "FUNCTION_REFERENCE_SIGNATURE");
+ bad_code(R"(int mutate(int &value)
+    value = value + 1
+    return value
+fn<int>(int) operation = mutate
+)", "FUNCTION_REFERENCE_SIGNATURE");
+ bad_code(R"(extern int32 foreign(int32 value) = "foreign"
+fn<int32>(int32) operation = foreign
+)", "FUNCTION_REFERENCE_EXTERN");
+ bad_code(R"(int twice(int value)
+    return value * 2
+auto operation = twice
+)", "FUNCTION_REFERENCE_CONTEXT");
+ bad_code(R"(int twice(int value)
+    return value * 2
+fn<int>(int) left = twice
+fn<int>(int) right = twice
+bool same = left == right
+)", "TYPE_MISMATCH");
+
  root_source_override_with_import();
  string_input_ignores_package_lock();
  {

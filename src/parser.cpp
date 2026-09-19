@@ -389,7 +389,19 @@ TypeName Parser::type_name() {
         t.span.end = previous().span.end;
     };
 
-    if (at(TokenKind::Less)) {
+    if (t.name == "fn") {
+        consume(TokenKind::Less, "fn requires '<Result>' before its parameter list.");
+        if (at(TokenKind::Greater)) error(peek(), "fn requires a result type.");
+        t.arguments.push_back(type_name());
+        consume(TokenKind::Greater, "Expected '>' after fn result type.");
+        consume(TokenKind::LParen, "Expected '(' after fn result type.");
+        if (!at(TokenKind::RParen)) {
+            do {
+                t.function_parameters.push_back(type_name());
+            } while (match(TokenKind::Comma));
+        }
+        t.span.end = consume(TokenKind::RParen, "Expected ')' after fn parameter types.").span.end;
+    } else if (at(TokenKind::Less)) {
         if (t.name == "tensor") {
             consume(TokenKind::Less, "Expected '<' before tensor element type.");
             if (at(TokenKind::Greater)) error(peek(), "tensor requires an element type.");

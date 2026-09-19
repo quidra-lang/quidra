@@ -39,6 +39,7 @@ enum class TypeKind {
     Gradients,
     Union,
     Class,
+    Function,
     Auto,
     Range,
     Invalid
@@ -48,6 +49,7 @@ struct Type {
     TypeKind kind{TypeKind::Void};
     std::shared_ptr<Type> first;
     std::vector<Type> cases;
+    std::vector<Type> parameters;
     // Arrays use length as their static length. Tensor/neural values use it
     // for compiler-known rank; a source shape pattern fixes rank exactly.
     long long length{-1};
@@ -71,6 +73,13 @@ struct Type {
         auto type = simple(TypeKind::Array);
         type.first = std::make_shared<Type>(std::move(element));
         type.length = length;
+        return type;
+    }
+
+    static Type function(Type result, std::vector<Type> parameters = {}) {
+        auto type = simple(TypeKind::Function);
+        type.first = std::make_shared<Type>(std::move(result));
+        type.parameters = std::move(parameters);
         return type;
     }
 
@@ -100,7 +109,8 @@ struct Type {
 
     bool operator==(const Type& other) const {
         if (kind != other.kind || class_name != other.class_name ||
-            cases != other.cases || bool(first) != bool(other.first) ||
+            cases != other.cases || parameters != other.parameters ||
+            bool(first) != bool(other.first) ||
             (first && *first != *other.first)) {
             return false;
         }
@@ -141,6 +151,15 @@ inline std::string type_name(const Type& type) {
         case TypeKind::Range: return "range";
         case TypeKind::Invalid: return "<invalid>";
         case TypeKind::Class: return type.class_name;
+        case TypeKind::Function: {
+            std::string result = "fn<" + type_name(*type.first) + ">(";
+            for (std::size_t i = 0; i < type.parameters.size(); ++i) {
+                if (i) result += ", ";
+                result += type_name(type.parameters[i]);
+            }
+            result += ")";
+            return result;
+        }
         case TypeKind::Tensor: {
             std::string result = "tensor<" + type_name(*type.first) + ">";
             if (!type.tensor_shape_prefix.empty()) {
@@ -555,6 +574,7 @@ inline std::size_t runtime_storage_bytes(const Type& type) {
     if (type.kind == TypeKind::Float32) return 4;
     if (type.kind == TypeKind::Float) return 8;
     if (type.kind == TypeKind::Bool) return 1;
+    if (type.kind == TypeKind::Function) return 8;
     if (is_pointer_runtime_type(type)) return 8;
     return 0;
 }

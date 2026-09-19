@@ -1,0 +1,2 @@
+sum=Money(350) adds=1
+THREW java.lang.IllegalArgumentException

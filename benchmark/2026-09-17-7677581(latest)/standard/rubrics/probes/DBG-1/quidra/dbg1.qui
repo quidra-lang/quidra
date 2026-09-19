@@ -1,0 +1,17 @@
+class Item
+    int count
+    string name
+
+int accumulate(const Item[] &items, int iterations)
+    int total = 0
+    for i in range(0, iterations)
+        for item in items
+            total = (total * 31 + item.count + len(item.name)) % 1000000007
+    return total
+
+Item[] items = []
+items = items.append(Item(count = 7, name = "alpha"))
+items = items.append(Item(count = 11, name = "bravo"))
+items = items.append(Item(count = 13, name = "charlie"))
+int checksum = accumulate(&items, 300000000)
+print("checksum={checksum}")

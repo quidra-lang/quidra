@@ -1,0 +1,42 @@
+vefedi collect(count: gebamu): gebamu[] {
+    vobunu out: gebamu[] = [];
+    busopo state: gebamu = 7;
+    padiri (busopo step: gebamu = 0; step < count; step = step + 1) {
+        state = (state * 48271) % 2147483647;
+        out.push(state % 1000);
+    }
+    vudoru out;
+}
+
+vefedi bigger(left: gebamu, right: gebamu): gebamu {
+    memagu (left > right) {
+        vudoru left;
+    } ninobi {
+        vudoru right;
+    }
+}
+
+vefedi main(): zerinu {
+    vobunu items: gebamu[] = collect(50);
+    busopo total: gebamu = 0;
+    busopo biggest: gebamu = items[0];
+    busopo evens: gebamu = 0;
+    padiri (vobunu item kubuva items) {
+        total = total + item;
+        biggest = bigger(biggest, item);
+        memagu (item % 2 === 0) {
+            evens = evens + 1;
+        }
+    }
+    vobunu pieces: bunivu[] = [];
+    padiri (busopo index: gebamu = 0; index < 5; index = index + 1) {
+        pieces.push(String(items[index]));
+    }
+    vobunu joined: bunivu = pieces.join("-");
+    console.log("SUM " + String(total));
+    console.log("MAX " + String(biggest));
+    console.log("EVENS " + String(evens));
+    console.log("JOINED " + joined);
+}
+
+main();

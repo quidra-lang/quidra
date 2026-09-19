@@ -1,0 +1,1 @@
+kotlinc w.kt -include-runtime -d w.jar && java -jar w.jar   (kotlinc-jvm 2.3.21, JRE 24.0.2)

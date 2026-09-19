@@ -1,0 +1,12 @@
+int32 handled(string s)
+    // BEGIN PROBE F13.P2
+    int32 n
+    match int32.parse(s)
+        int32 v
+            n = v
+        error
+            n = 0
+    return n
+    // END PROBE F13.P2
+
+print(handled("21"))

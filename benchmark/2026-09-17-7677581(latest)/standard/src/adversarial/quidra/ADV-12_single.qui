@@ -1,0 +1,7 @@
+void observe()
+    int64 value
+    print("OBS=VAL:{value}")
+
+print("ADV-START")
+observe()
+print("ADV-END")

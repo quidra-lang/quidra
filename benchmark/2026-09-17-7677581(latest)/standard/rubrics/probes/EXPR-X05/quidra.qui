@@ -1,0 +1,8 @@
+// Quidra 0.2.0: "Function and method declarations are callable names, not
+// first-class values in the current language."  Probe attempts a function value
+// that captures an enclosing binding.
+int add_ten(int x)
+    return x + 10
+
+auto f = add_ten
+print("X05 {f(5)}")

@@ -1,0 +1,8 @@
+import mod_a = "./mod_a.qui"
+import mod_b = "./mod_b.qui"
+import test_project = "./test_project.qui"
+
+test_project.check_scale()
+test_project.check_scale_and_offset()
+print(mod_a.scale(2))
+print(mod_b.scale_and_offset(2))

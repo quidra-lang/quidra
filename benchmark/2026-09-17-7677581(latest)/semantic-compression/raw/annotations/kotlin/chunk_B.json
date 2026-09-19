@@ -1,0 +1,2337 @@
+{
+ "language": "Kotlin",
+ "language_key": "kotlin",
+ "chunk": "B",
+ "probes": [
+  {
+   "probe_id": "F06.P1",
+   "language": "Kotlin",
+   "language_key": "kotlin",
+   "support": "FULL",
+   "support_reason": "F-1: every numbered sub-requirement is delivered - (1) `mid` takes one parameter of Kotlin's normal growable integer sequence type, `MutableList<Int>`, and its body returns the element at index 1; (2) `xs` is bound to such a sequence containing 1, 2, 3 via `mutableListOf(1, 2, 3)`; (3) the call's result is bound to `y` in Kotlin's normal binding form `val y = ...`; (4) `return y`. F-2: kotlin-stdlib only (`mutableListOf`, `MutableList`). F-3: builds and runs under the frozen semantic_compression recipe (kotlinc -include-runtime -d; java -jar) printing 2. F-4: no third-party package, no codegen, no flag beyond the recipe. F-6: no normative prohibition or deprecation applies to any mechanism used. R10 note: `mid` is written as a local function so that the whole measured region is contiguous with no scaffolding braces inside it; the top-level-function alternative costs ~8 more tokens for the same observable behaviour, and the explicit `: Int` return-type alternative costs 2 more.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/kotlin/F06.P1.kt",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "2",
+    "diagnostics": ""
+   },
+   "token_count": 35,
+   "facts": [
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "parameter `v: MutableList<Int>`",
+     "value": "kotlin.collections.MutableList<Int>, element type kotlin.Int (32-bit signed)",
+     "locally_recoverable": true,
+     "justification": "The type is written at the site; Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K02 mutability",
+     "site": "parameter `v`",
+     "value": "the parameter binding is read-only and cannot be reassigned",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s4.2 'Function declaration': function parameters are read-only bindings (Kotlin has no `var` parameters), so the parameter name cannot be reassigned."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "parameter `v`",
+     "value": "writable alias: the callee reads and may write the very list object the caller passed; no copy is made",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3 'Classifier types': every classifier type is a reference type; a binding of such a type holds a reference, and assignment copies the reference, never the object. `MutableList` is the mutable-list interface, so the alias is writable."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "parameter `v`",
+     "value": "definitely initialized on entry from the argument",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s4.2 / s6 'Call expressions': a parameter without a default is bound to the corresponding argument value at the call, so it is definitely initialized on entry."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "parameter `v`",
+     "value": "(iii) a handle denoting storage owned by the caller",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3 'Classifier types': every classifier type is a reference type; a binding of such a type holds a reference, and assignment copies the reference, never the object."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "parameter `v`",
+     "value": "passing copies the reference only; the list object is neither copied nor moved (Kotlin has no move semantics)",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3 'Classifier types': every classifier type is a reference type; a binding of such a type holds a reference, and assignment copies the reference, never the object."
+    },
+    {
+     "fact_kind": "K13 lifetime_resource_effect",
+     "site": "parameter `v`",
+     "value": "no deterministic release point; the list is reclaimed by the garbage collector at an unspecified time",
+     "locally_recoverable": true,
+     "justification": "02 methodology s1.4/K13 frozen reclamation table, tracing-GC row: Kotlin/JVM objects have no deterministic release point; reclamation occurs by the garbage collector at an unspecified time. basis_class = universal-rule."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "signature `fun mid(v: MutableList<Int>) = v[1]` (return)",
+     "value": "the inferred return type is kotlin.Int",
+     "locally_recoverable": true,
+     "justification": "`kotlin.collections.List<E>.get(index: Int): E` with E pinned to Int by the parameter type written inside the fragment (hops_decl = 0, hops_stdlib = 1)."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "signature `fun mid(...)` (return)",
+     "value": "(ii) returns a value - the Int element - not a handle into the receiver's storage",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647). kotlin.Int is a built-in value type with no observable identity."
+    },
+    {
+     "fact_kind": "K12 control_flow_effect",
+     "site": "signature `fun mid(...) = v[1]`",
+     "value": "expression body: the function's single normal exit is the value of `v[1]`",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s4.2 'Function declaration', expression body: `fun f(...) = expr` has exactly one normal exit, the value of `expr`; the `=` is the local marker."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "`v[1]`",
+     "value": "no conversion: the index literal `1` is already kotlin.Int and the indexed-access convention passes it unchanged",
+     "locally_recoverable": true,
+     "justification": "Kotlin documentation, 'Indexed access operator': `a[i]` is `a.get(i)`; Kotlin performs no implicit numeric or reference conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions' ('Kotlin does not support implicit widening conversions for numbers'); the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference / Property declaration)."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`v[1]`",
+     "value": "may fail by throwing kotlin.IndexOutOfBoundsException when the index is out of range",
+     "locally_recoverable": true,
+     "justification": "kotlin.collections.List.get contract: 'Throws IndexOutOfBoundsException if the index is out of bounds of this list' (stdlib-contract, hops_stdlib = 1)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`v[1]`",
+     "value": "reads and copies the element value out; creates no reference into the list's storage",
+     "locally_recoverable": true,
+     "justification": "List.get returns the element; kotlin.Int is a value type, so no handle into the list can be produced."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "`val xs`",
+     "value": "(iii) a handle to a heap list object",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3 'Classifier types': every classifier type is a reference type; a binding of such a type holds a reference, and assignment copies the reference, never the object."
+    },
+    {
+     "fact_kind": "K02 mutability",
+     "site": "`val xs`",
+     "value": "the binding cannot be reassigned; `val` does not make the list itself immutable",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a `val` property has no setter and cannot be reassigned."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "`val xs`",
+     "value": "other names may refer to the same list object and may write it; `val` constrains only the binding",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3 'Classifier types': every classifier type is a reference type; a binding of such a type holds a reference, and assignment copies the reference, never the object."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "`val xs`",
+     "value": "initialized at the declaration with the initializer's value",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a local property with an initializer is initialized at its declaration."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "`val xs`",
+     "value": "kotlin.collections.MutableList<Int>, inferred from `mutableListOf(1, 2, 3)`",
+     "locally_recoverable": true,
+     "justification": "kotlin.collections.mutableListOf(vararg elements: T): MutableList<T> (stdlib-contract, hops_stdlib = 1)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`val xs`",
+     "value": "the binding stores a reference; the list object is not copied",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3 'Classifier types': every classifier type is a reference type; a binding of such a type holds a reference, and assignment copies the reference, never the object."
+    },
+    {
+     "fact_kind": "K13 lifetime_resource_effect",
+     "site": "`val xs`",
+     "value": "no deterministic release point; GC reclaims the list at an unspecified time",
+     "locally_recoverable": true,
+     "justification": "02 methodology s1.4/K13 frozen reclamation table, tracing-GC row: Kotlin/JVM objects have no deterministic release point; reclamation occurs by the garbage collector at an unspecified time. basis_class = universal-rule."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "initialization `=` of `xs`",
+     "value": "no conversion; the property's type is exactly the initializer's type",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric or reference conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions' ('Kotlin does not support implicit widening conversions for numbers'); the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference / Property declaration)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "initialization `=` of `xs`",
+     "value": "copies the reference produced by the initializer into the binding",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3 'Classifier types': every classifier type is a reference type; a binding of such a type holds a reference, and assignment copies the reference, never the object."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`mutableListOf(1, 2, 3)`",
+     "value": "allocates a new mutable list on the heap",
+     "locally_recoverable": true,
+     "justification": "kotlin.collections.mutableListOf contract: 'Returns a new MutableList with the given elements.'"
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "argument sub-sites `1`, `2`, `3`",
+     "value": "the integer literals are kotlin.Int (default type of an integer literal in Int range) and are passed unconverted as the vararg element type",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6.1 'Constant literals': an integer literal in Int range has type Int; Kotlin performs no implicit numeric or reference conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions' ('Kotlin does not support implicit widening conversions for numbers'); the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference / Property declaration). The three positions carry the identical answer and are counted once (02 s3.1/A3.3)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "argument sub-sites `1`, `2`, `3`",
+     "value": "each element value is copied into the newly allocated list",
+     "locally_recoverable": true,
+     "justification": "mutableListOf contract ('with the given elements') plus the Int value-type rule."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "`val y`",
+     "value": "(ii) an independent kotlin.Int value with no observable identity; it shares no storage with `xs`",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K02 mutability",
+     "site": "`val y`",
+     "value": "the binding cannot be reassigned",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a `val` property has no setter and cannot be reassigned."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "`val y`",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types': kotlin.Int / kotlin.Boolean are built-in value types, and Kotlin provides no address-of, reference or borrow form for a local, so no name can alias this storage. Absence entailed by a universal rule (02 s1.4 absence-facts rule)."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "`val y`",
+     "value": "initialized at the declaration with the call's result",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration'."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "`val y`",
+     "value": "kotlin.Int, 32-bit signed",
+     "locally_recoverable": true,
+     "justification": "`mid`'s return type is fixed inside this fragment (hops_decl = 0); Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`val y`",
+     "value": "the Int value is copied into the binding; no allocation",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K13 lifetime_resource_effect",
+     "site": "`val y`",
+     "value": "no cleanup runs; the binding holds a primitive value and no resource",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), Declarations: Kotlin has no destructors and no scope-exit cleanup construct, so determinately nothing runs at the end of this binding's scope; basis_class = universal-rule."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "initialization `=` of `y`",
+     "value": "no conversion; the initializer is already Int",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric or reference conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions' ('Kotlin does not support implicit widening conversions for numbers'); the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference / Property declaration)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "initialization `=` of `y`",
+     "value": "copy of the Int value into the binding",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K12 control_flow_effect",
+     "site": "`mid(xs)`",
+     "value": "control transfers into `mid`, whose entire body is the local expression `v[1]`, and returns here with its value",
+     "locally_recoverable": true,
+     "justification": "`mid` is declared inside the measured fragment (hops_decl = 0), so 02 s1.4/K12's opaque-call LOOKUP does not apply."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "argument sub-site `xs` in `mid(xs)`",
+     "value": "the reference is copied; the list is neither copied nor moved",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3 'Classifier types': every classifier type is a reference type; a binding of such a type holds a reference, and assignment copies the reference, never the object."
+    },
+    {
+     "fact_kind": "K12 control_flow_effect",
+     "site": "`return y`",
+     "value": "transfers control out of the enclosing function, yielding `y`",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Jump expressions': `return` transfers control out of the enclosing function with the given value."
+    }
+   ],
+   "fact_count": 37,
+   "determinacy_B": 2,
+   "determinacy_enumeration": [
+    "V1 - the intrinsic reading. Exactly one interpretation is compatible with the measured fragment: `mid` is the local function declared inside the fragment; `xs` denotes a freshly allocated MutableList<Int> holding 1, 2, 3; `mid(xs)` hands the callee a reference to that list, the callee only reads element 1, and the result is an independent kotlin.Int copy bound to `y`; no caller-observable mutation occurs, no allocation occurs at the call, and control falls through to `return y`. In-scope axes A1 (value_vs_storage), A1/A2 (aliasing_writable_aliasing), A4 (type_and_representation), A8 (allocation_copy_move_borrow_destroy) and A9 (control_flow_effect) each admit exactly one realizable class, because the callee's declaration and body, the sequence's construction and its length are all inside the measured fragment. The IndexOutOfBoundsException branch of A9/A6 is not realizable: the fragment itself builds a 3-element list and indexes position 1. Callee identity (which `mid`, which `mutableListOf`) is external in every language and adds no branch under 03 Rule 1.4.7.",
+    "V2 - a same-package `MutableList` / `mutableListOf` shadowing the kotlin.collections declarations. [CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] The fragment writes two SHADOWABLE stdlib SIMPLE names - the type name `MutableList` and the factory name `mutableListOf` - both of which reach it only through Kotlin's default `kotlin.collections.*` import, which Kotlin language specification 2.x 'Packages and imports / Importing' ranks LOWEST. Rust was charged two B branches (V2, V3) for exactly this structure with its unqualified prelude names; Java was charged V2 for `List`/`ArrayList`; Zig was charged V2 for `std`. Quidra, Go, TypeScript and Python legitimately keep B = 1 because their fragments write no shadowable library identifier at all (builtin type syntax and builtin literal syntax); Kotlin does not qualify for that group, and its own record already conceded the branch exists and then routed it to hidden_items only. WITNESS (built and run under the frozen recipe): with top-level `class MutableList<T>(val a: Array<Any?>) { operator fun get(i: Int): T = a[0] as T }` and `fun <T> mutableListOf(vararg e: T): MutableList<T> = MutableList(arrayOf<Any?>(*e))` declared outside the byte-identical fragment, the program prints 1 instead of 2: A4 becomes a user-defined type, A8's allocation shape changes, and the observable result changes. The shadowing is charged once here and once as the H3 event at local site 2, which is legitimate because B and Hidden Semantic Cost are different metrics (methodology 03 Rule 2.6.4 forbids double-charging only within one metric's own +1-and-flag pair)."
+   ],
+   "locality_lookups": 2,
+   "locality_detail": [
+    {
+     "hop": "import/stdlib declaration kotlin.collections.mutableListOf (SIG)",
+     "required_for_fact": "allocation_copy_move_borrow_destroy (that a new list is allocated) and type_and_representation of `xs`"
+    },
+    {
+     "hop": "stdlib interface declaration kotlin.collections.List - `get(index: Int): E` (IFACE)",
+     "required_for_fact": "value_vs_storage and type_and_representation of the returned element (E = Int)"
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 1 (`fun mid(v: MutableList<Int>) = v[1]`): MutableList is an interface, so the `get` body that runs is chosen by the receiver's runtime class; the site does not fix it."
+    },
+    {
+     "checklist_item": "H7 - Implicit representation change",
+     "why": "Local site 1: the element is stored as a boxed java.lang.Integer inside the list and is unboxed to a primitive Int on return, with nothing at the site naming the change; Kotlin documents that boxing does not preserve identity, so the change is observable."
+    },
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 2 (`val xs = mutableListOf(1, 2, 3)`): the target of `mutableListOf` is selected by overload resolution over a candidate set the site does not pin (a same-package declaration would shadow the stdlib one)."
+    },
+    {
+     "checklist_item": "H7 - Implicit representation change",
+     "why": "Local site 2: the three Int literals are boxed into java.lang.Integer when stored as the generic element type, with no boxing written at the site."
+    },
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 3 (`val y = mid(xs)`): `mid`'s declaration is in a different local site and is therefore not local under 04 s0.7; the site alone leaves an overload set of cardinality >= 2."
+    },
+    {
+     "checklist_item": "H2 - Hidden writable aliasing or mutation",
+     "why": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Local site 3 (`val y = mid(xs)`). The call hands the callee a reference through which every mutator of the list becomes reachable, and NOTHING at the call site marks a reference, a borrow or a mutation: Kotlin has no by-value class passing, no `&`, no `mut`, and no `inout`. Java was charged H2 at the byte-identical structure on the same JVM with the same semantics, and Python, C++, Go and TypeScript all charge H2 at their version of this site. The five languages that do not (Quidra, Rust, Swift, Zig) each have a language rule or a written token that discharges the exclusion - Kotlin has neither. The previous Kotlin record charged no H2 anywhere in this probe."
+    }
+   ],
+   "hidden_count": 6,
+   "complexity_units": 9,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "local function declaration with an expression body, `fun name(params) = expr`",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s4.2 'Function declaration'; Kotlin docs, Functions / Local functions"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "local `val` property declaration with an initializer and an inferred type",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration'; s9 'Type inference'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "indexed-access operator `a[i]`, which is the call `a.get(i)`",
+     "citation": "Kotlin docs, Operator overloading / 'Indexed access operator'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`return` jump expression",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Jump expressions'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "parameterized classifier type argument syntax `MutableList<Int>`",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s3 'Parameterized classifier types'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "arguments of classifier types are passed as references; the callee can mutate the caller's object and nothing is written at the call site",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s3 'Classifier types'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "a number used as a generic type argument is boxed, and boxing does not preserve identity",
+     "citation": "Kotlin docs, Numbers / 'Numbers representation on the JVM'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "overload resolution selects the callee from the candidates visible at the call",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s8 'Overload resolution'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "reclamation is by the JVM garbage collector; there is no deterministic release point and no destructor",
+     "citation": "Kotlin docs, Basic syntax / classes (Kotlin defines no destructor); JVM reclamation"
+    }
+   ]
+  },
+  {
+   "probe_id": "F06.P2",
+   "language": "Kotlin",
+   "language_key": "kotlin",
+   "support": "FULL",
+   "support_reason": "F-1: (1) `divmod2` takes two kotlin.Int parameters `a` and `b` and produces BOTH a/b and a%b from a single call using Kotlin's normal multiple-result mechanism, the standard tuple type kotlin.Pair built with the stdlib infix function `to`; (2) the call site binds the two results to `q` and `r` in ONE binding construct, Kotlin's destructuring declaration `val (q, r) = ...`; (3) `return q + r`. F-2: kotlin-stdlib only. F-3: builds and runs under the frozen recipe, printing 3 (7/3 = 2, 7%3 = 1). F-4/F-6: satisfied. R10 note: `a / b to a % b` (12 tokens in the body) was selected over `Pair(a / b, a % b)` (15) and over a local `data class` carrier (>= 25); all three satisfy R1-R3, so R10's fewest-tokens rule selects the first. Note this choice LOWERS Kotlin's fact count, because the type name `Pair` is then not written at the site.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/kotlin/F06.P2.kt",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "3",
+    "diagnostics": ""
+   },
+   "token_count": 36,
+   "facts": [
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "parameter `a: Int`",
+     "value": "kotlin.Int, 32-bit signed two's complement",
+     "locally_recoverable": true,
+     "justification": "Written annotation; Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K02 mutability",
+     "site": "parameter `a`",
+     "value": "read-only binding; cannot be reassigned",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s4.2 'Function declaration': function parameters are read-only bindings (Kotlin has no `var` parameters), so the parameter name cannot be reassigned."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "parameter `a`",
+     "value": "(ii) a value without observable identity; Int is a built-in value type",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "parameter `a`",
+     "value": "no alias can exist; the caller's storage is unreachable from the callee",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types': kotlin.Int / kotlin.Boolean are built-in value types, and Kotlin provides no address-of, reference or borrow form for a local, so no name can alias this storage. Absence entailed by a universal rule (02 s1.4 absence-facts rule)."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "parameter `a`",
+     "value": "definitely initialized on entry from the argument",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s4.2 / s6 'Call expressions': a parameter without a default is bound to the corresponding argument value at the call, so it is definitely initialized on entry."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "parameter `a`",
+     "value": "the argument's Int value is copied into the parameter; no allocation",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K13 lifetime_resource_effect",
+     "site": "parameter `a`",
+     "value": "no cleanup runs; holds a primitive value and no resource",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), Declarations: Kotlin has no destructors and no scope-exit cleanup construct, so determinately nothing runs at the end of this binding's scope; basis_class = universal-rule."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "parameter `b: Int`",
+     "value": "kotlin.Int, 32-bit signed two's complement",
+     "locally_recoverable": true,
+     "justification": "Written annotation; Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647). Different entity from `a` (02 s3.1/A3.4)."
+    },
+    {
+     "fact_kind": "K02 mutability",
+     "site": "parameter `b`",
+     "value": "read-only binding; cannot be reassigned",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s4.2 'Function declaration': function parameters are read-only bindings (Kotlin has no `var` parameters), so the parameter name cannot be reassigned."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "parameter `b`",
+     "value": "(ii) a value without observable identity",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "parameter `b`",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types': kotlin.Int / kotlin.Boolean are built-in value types, and Kotlin provides no address-of, reference or borrow form for a local, so no name can alias this storage. Absence entailed by a universal rule (02 s1.4 absence-facts rule)."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "parameter `b`",
+     "value": "definitely initialized on entry from the argument",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s4.2 / s6 'Call expressions': a parameter without a default is bound to the corresponding argument value at the call, so it is definitely initialized on entry."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "parameter `b`",
+     "value": "the argument's Int value is copied into the parameter",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K13 lifetime_resource_effect",
+     "site": "parameter `b`",
+     "value": "no cleanup runs",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), Declarations: Kotlin has no destructors and no scope-exit cleanup construct, so determinately nothing runs at the end of this binding's scope; basis_class = universal-rule."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "signature `fun divmod2(...) = ...` (return)",
+     "value": "the inferred return type is kotlin.Pair<Int, Int>",
+     "locally_recoverable": true,
+     "justification": "kotlin.to contract: 'Creates a tuple of type Pair from this and that.' (stdlib-contract, hops_stdlib = 1)."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "signature `fun divmod2(...)` (return)",
+     "value": "(iii) returns a handle to a newly created Pair object (Pair is a data class, a reference type)",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3 'Classifier types': every classifier type is a reference type; a binding of such a type holds a reference, and assignment copies the reference, never the object. kotlin.to contract: 'Creates a tuple of type Pair from this and that.' (stdlib-contract, hops_stdlib = 1)."
+    },
+    {
+     "fact_kind": "K12 control_flow_effect",
+     "site": "signature `fun divmod2(...) = ...`",
+     "value": "expression body: the single normal exit is the value of the `to` expression",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s4.2 'Function declaration', expression body: `fun f(...) = expr` has exactly one normal exit, the value of `expr`; the `=` is the local marker."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "`a / b`",
+     "value": "result is kotlin.Int",
+     "locally_recoverable": true,
+     "justification": "kotlin.Int.div(other: Int): Int, with both operands pinned to Int by the parameter annotations inside the fragment."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "`a / b`",
+     "value": "no conversion: both operands are already Int and the Int/Int overload is selected",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric or reference conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions' ('Kotlin does not support implicit widening conversions for numbers'); the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference / Property declaration)."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`a / b`",
+     "value": "may fail: integer division raises java.lang.ArithmeticException when the divisor is 0",
+     "locally_recoverable": true,
+     "justification": "kotlin.Int.div is the built-in integer division; a zero divisor raises ArithmeticException (observed under 04 s0.4 by the F08.P2 witness); tagged observed + stdlib-contract."
+    },
+    {
+     "fact_kind": "K09 overflow_exceptional_numeric",
+     "site": "`a / b`",
+     "value": "truncating division toward zero; a zero divisor raises ArithmeticException; Int.MIN_VALUE / -1 overflows and wraps to Int.MIN_VALUE",
+     "locally_recoverable": true,
+     "justification": "kotlin.Int.div contract: 'Divides this value by the other value, truncating the result to an integer that is closer to zero.'; Kotlin language specification 2.x (kotlinc 2.3.21), s3.2: kotlin.Int arithmetic is the built-in 32-bit signed operation and overflows modulo 2^32 (two's complement); the behaviour is fixed by the language on every target and no kotlinc option changes it (verified: `kotlinc -help` lists no arithmetic-checking flag). Corroborated by the observed run of this probe (Int.MAX_VALUE + 1 printed -2147483648); tagged `observed` under 04 s0.4 documentation symmetry."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`a / b`",
+     "value": "no allocation; the operation reads copies of two primitive values",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "`a % b`",
+     "value": "result is kotlin.Int",
+     "locally_recoverable": true,
+     "justification": "kotlin.Int.rem(other: Int): Int, operands pinned inside the fragment."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "`a % b`",
+     "value": "no conversion: both operands are already Int",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric or reference conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions' ('Kotlin does not support implicit widening conversions for numbers'); the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference / Property declaration)."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`a % b`",
+     "value": "may fail: a zero divisor raises java.lang.ArithmeticException",
+     "locally_recoverable": true,
+     "justification": "kotlin.Int.rem is the built-in remainder of truncating division; zero divisor raises ArithmeticException."
+    },
+    {
+     "fact_kind": "K09 overflow_exceptional_numeric",
+     "site": "`a % b`",
+     "value": "remainder of truncating division: the result is zero or has the SIGN OF THE DIVIDEND and an absolute value below |divisor|",
+     "locally_recoverable": true,
+     "justification": "kotlin.Int.rem contract: 'Calculates the remainder of truncating division of this value by the other value. The result is either zero or has the same sign as the dividend and has the absolute value less than the absolute value of the divisor.'"
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`a % b`",
+     "value": "no allocation",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`... to ...`",
+     "value": "allocates a new kotlin.Pair object on the heap",
+     "locally_recoverable": true,
+     "justification": "kotlin.to contract: 'Creates a tuple of type Pair from this and that.' (stdlib-contract, hops_stdlib = 1)."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "argument/receiver sub-sites of `to`",
+     "value": "each Int is boxed into the Pair's generic fields (Pair<Int, Int> stores java.lang.Integer)",
+     "locally_recoverable": true,
+     "justification": "Kotlin documentation, Basic types / Numbers, 'Numbers representation on the JVM': a number used as a generic type argument is boxed, and boxing does not preserve identity."
+    },
+    {
+     "fact_kind": "K12 control_flow_effect",
+     "site": "`divmod2(7, 3)`",
+     "value": "control transfers into `divmod2`, whose whole body is inside this fragment, and returns here with the Pair",
+     "locally_recoverable": true,
+     "justification": "`divmod2` is declared inside the measured fragment (hops_decl = 0)."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "argument sub-sites `7`, `3`",
+     "value": "the integer literals have type kotlin.Int and are passed unconverted",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6.1 'Constant literals'; Kotlin performs no implicit numeric or reference conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions' ('Kotlin does not support implicit widening conversions for numbers'); the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference / Property declaration)."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "`val (q, ...)` - binding `q`",
+     "value": "(ii) an independent kotlin.Int value",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K02 mutability",
+     "site": "binding `q`",
+     "value": "read-only; a destructuring declaration introduces `val` bindings here",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a `val` property has no setter and cannot be reassigned. Kotlin docs, 'Destructuring declarations'."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "binding `q`",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types': kotlin.Int / kotlin.Boolean are built-in value types, and Kotlin provides no address-of, reference or borrow form for a local, so no name can alias this storage. Absence entailed by a universal rule (02 s1.4 absence-facts rule)."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "binding `q`",
+     "value": "initialized at the declaration from `component1()`",
+     "locally_recoverable": true,
+     "justification": "Kotlin docs, 'Destructuring declarations': `val (a, b) = e` compiles to `val a = e.component1()`, `val b = e.component2()`."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "binding `q`",
+     "value": "kotlin.Int",
+     "locally_recoverable": true,
+     "justification": "Pair<Int, Int>.component1(): Int, with the Pair's type arguments fixed by the `to` call inside the fragment."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "binding `q`",
+     "value": "the component value is copied into the binding; no allocation",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K13 lifetime_resource_effect",
+     "site": "binding `q`",
+     "value": "no cleanup runs",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), Declarations: Kotlin has no destructors and no scope-exit cleanup construct, so determinately nothing runs at the end of this binding's scope; basis_class = universal-rule."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "binding `r`",
+     "value": "(ii) an independent kotlin.Int value",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K02 mutability",
+     "site": "binding `r`",
+     "value": "read-only binding",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a `val` property has no setter and cannot be reassigned."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "binding `r`",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types': kotlin.Int / kotlin.Boolean are built-in value types, and Kotlin provides no address-of, reference or borrow form for a local, so no name can alias this storage. Absence entailed by a universal rule (02 s1.4 absence-facts rule)."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "binding `r`",
+     "value": "initialized at the declaration from `component2()`",
+     "locally_recoverable": true,
+     "justification": "Kotlin docs, 'Destructuring declarations'."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "binding `r`",
+     "value": "kotlin.Int",
+     "locally_recoverable": true,
+     "justification": "Pair<Int, Int>.component2(): Int."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "binding `r`",
+     "value": "the component value is copied into the binding",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K13 lifetime_resource_effect",
+     "site": "binding `r`",
+     "value": "no cleanup runs",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), Declarations: Kotlin has no destructors and no scope-exit cleanup construct, so determinately nothing runs at the end of this binding's scope; basis_class = universal-rule."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "destructuring initialization `val (q, r) = ...`",
+     "value": "the Pair's boxed Integer components are unboxed to primitive Int; no other conversion is applied",
+     "locally_recoverable": true,
+     "justification": "Kotlin documentation, Basic types / Numbers, 'Numbers representation on the JVM': a number used as a generic type argument is boxed, and boxing does not preserve identity."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "`q + r`",
+     "value": "result is kotlin.Int",
+     "locally_recoverable": true,
+     "justification": "kotlin.Int.plus(other: Int): Int; both operands are Int by the destructuring of a Pair<Int, Int> established inside the fragment."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "`q + r`",
+     "value": "no conversion: both operands are Int",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric or reference conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions' ('Kotlin does not support implicit widening conversions for numbers'); the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference / Property declaration)."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`q + r`",
+     "value": "cannot fail: Int addition is total - overflow wraps rather than raising",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2: kotlin.Int arithmetic is the built-in 32-bit signed operation and overflows modulo 2^32 (two's complement); the behaviour is fixed by the language on every target and no kotlinc option changes it (verified: `kotlinc -help` lists no arithmetic-checking flag). Corroborated by the observed run of this probe (Int.MAX_VALUE + 1 printed -2147483648); tagged `observed` under 04 s0.4 documentation symmetry."
+    },
+    {
+     "fact_kind": "K09 overflow_exceptional_numeric",
+     "site": "`q + r`",
+     "value": "signed 32-bit addition wraps modulo 2^32 on overflow",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2: kotlin.Int arithmetic is the built-in 32-bit signed operation and overflows modulo 2^32 (two's complement); the behaviour is fixed by the language on every target and no kotlinc option changes it (verified: `kotlinc -help` lists no arithmetic-checking flag). Corroborated by the observed run of this probe (Int.MAX_VALUE + 1 printed -2147483648); tagged `observed` under 04 s0.4 documentation symmetry."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "`q + r`",
+     "value": "(ii) produces a value, not a place",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`q + r`",
+     "value": "no allocation; operates on copies of two primitive values",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin documentation, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K12 control_flow_effect",
+     "site": "`return q + r`",
+     "value": "transfers control out of the enclosing function with the sum",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Jump expressions': `return` transfers control out of the enclosing function with the given value."
+    }
+   ],
+   "fact_count": 53,
+   "determinacy_B": 2,
+   "determinacy_enumeration": [
+    "V1 - the enclosing function's declared result type is kotlin.Int. Exactly one interpretation is compatible with the measured fragment: `divmod2` is the local function declared inside it; both parameters are annotated kotlin.Int, so `a / b` and `a % b` are the built-in truncating division and remainder; `to` creates a new kotlin.Pair<Int, Int> whose two Int components are boxed; the destructuring declaration binds `q` and `r` to unboxed independent Int copies; `q + r` is the built-in 32-bit addition; control falls through to the return. In-scope axes A4 (type_and_representation), A1 (value_vs_storage), A8 (allocation_copy_move_borrow_destroy), A9 (control_flow_effect) and A6 (possible_failure) each admit exactly one realizable class, because the callee and both literal arguments (7 and 3) are inside the fragment: the divisor is the literal 3, so the ArithmeticException branch of A6 is not realizable here, and 2 + 1 cannot overflow. Which `to` or `divmod2` declaration is selected is callee identity, which adds no branch under 03 Rule 1.4.7.",
+    "V2 - the enclosing function's declared result type, which is OUTSIDE the measured fragment, is a supertype of Int. [CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] `return q + r` is inside the markers while `fun caller(): Int` is not, so 03 Rule 1.1.2 makes the declared result type external. A completion `fun caller(): Any { ...fragment... }` leaves the measured region byte-identical and BOXES the Int into a java.lang.Integer at the return: A4 moves from 'fixed-width signed integer' to 'boxed/reference-typed numeric' and A8 from 'no resource event at the return' to 'allocation may occur'. WITNESS (built and run under the frozen recipe): with `fun caller(): Any` the program prints `3 cls=java.lang.Integer`, against the frozen probe's unboxed primitive. This is the class Java enumerated as V2 at this probe; Go is the only honest B = 1 here, because Go permits no implicit conversion at a return."
+   ],
+   "locality_lookups": 2,
+   "locality_detail": [
+    {
+     "hop": "stdlib declaration kotlin.to - `infix fun <A, B> A.to(that: B): Pair<A, B>` (SIG)",
+     "required_for_fact": "type_and_representation of the call's result, allocation_copy_move_borrow_destroy (a new tuple is created) and value_vs_storage"
+    },
+    {
+     "hop": "stdlib type declaration kotlin.Pair, including its generated `component1`/`component2` members (TYPE)",
+     "required_for_fact": "type_and_representation and value_vs_storage of `q` and `r` reached by the destructuring declaration"
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 1 (`fun divmod2(a: Int, b: Int) = a / b to a % b`): the infix `to` is resolved against the extensions visible at the site, which the site does not pin; a more specific `to` in scope would win."
+    },
+    {
+     "checklist_item": "H7 - Implicit representation change",
+     "why": "Local site 1: both Int results are boxed into java.lang.Integer as the Pair's generic fields, with nothing at the site naming the boxing; Kotlin documents that boxing does not preserve identity."
+    },
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 2 (`val (q, r) = divmod2(7, 3)`): `divmod2`'s declaration is in a different local site and so is not local under 04 s0.7; the overload set compatible with the site has cardinality >= 2."
+    },
+    {
+     "checklist_item": "H7 - Implicit representation change",
+     "why": "Local site 2: the destructuring unboxes the Pair's java.lang.Integer components back to primitive Int, with no unboxing written."
+    },
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 3 (`return q + r`): `q` and `r` are declared in a different local site, so `+` may resolve to any type's `plus` operator function."
+    }
+   ],
+   "hidden_count": 5,
+   "complexity_units": 11,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "local function declaration with expression body",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s4.2 'Function declaration'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "infix function call form `a to b`",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Infix function call'; Kotlin docs, Functions / Infix notation"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "destructuring declaration `val (q, r) = e`",
+     "citation": "Kotlin docs, 'Destructuring declarations'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "integer division operator `/` and remainder operator `%` as the operator conventions `div` and `rem`",
+     "citation": "Kotlin docs, Operator overloading / Arithmetic operators"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`return` jump expression",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Jump expressions'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "infix call precedence: an infix function binds looser than the arithmetic operators, so `a / b to a % b` groups as `(a / b) to (a % b)`",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s2 'Expression grammar' precedence table"
+    },
+    {
+     "unit": "documented exception",
+     "description": "integer division and remainder raise ArithmeticException on a zero divisor, although Int arithmetic otherwise never raises",
+     "citation": "kotlin.Int.div / kotlin.Int.rem contracts"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Int.MIN_VALUE / -1 overflows and wraps, the one division that does not produce the mathematical quotient",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 built-in integer semantics"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "the destructuring declaration calls `component1()` / `component2()` on the initializer's type",
+     "citation": "Kotlin docs, 'Destructuring declarations'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "a number used as a generic type argument is boxed and unboxed implicitly",
+     "citation": "Kotlin docs, Numbers / 'Numbers representation on the JVM'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "overload and extension resolution selects `to` and `plus`",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s8 'Overload resolution'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F07.P1",
+   "language": "Kotlin",
+   "language_key": "kotlin",
+   "support": "FULL",
+   "support_reason": "F-1: the single statement (1) evaluates `a * b + c` with Kotlin's ordinary `*` and `+` operators at Kotlin's ordinary precedence and no redundant parentheses, and (2) binds the result to a new local `r`. F-2: no library is used at all. F-3: builds and runs under the frozen recipe, printing 10 for a=2, b=3, c=4. F-4/F-6: satisfied. R10 note: `val r = a * b + c` (8 tokens) was selected over `val r: Int = a * b + c` (10); both satisfy R1-R3, and the inferred form is what Kotlin's coding conventions prescribe for a local. The choice COSTS Kotlin facts here, because the result type is then not written at the site.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/kotlin/F07.P1.kt",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "10",
+    "diagnostics": ""
+   },
+   "token_count": 8,
+   "facts": [
+    {
+     "fact_kind": "K02 mutability",
+     "site": "`val r`",
+     "value": "the binding cannot be reassigned",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a `val` property has no setter and cannot be reassigned."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "`val r`",
+     "value": "initialized at the declaration with the expression's value",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a local property with an initializer is initialized at its declaration."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "initialization `=` of `r`",
+     "value": "no implicit conversion is applied at the binding; `r`'s type is exactly the type of `a * b + c`",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions'; the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference)."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`a * b`",
+     "value": "may fail: the operator is an invocation of a `times` function, and any Kotlin invocation may complete abruptly by throwing an unchecked exception",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Operator conventions' + s11 'Exceptions': an operator expression is an invocation of the corresponding operator function, and any Kotlin invocation may complete abruptly by throwing an unchecked exception (Kotlin has no checked exceptions and no call-site failure marker). basis_class = universal-rule; this is the same universal-rule treatment 02 s1.4/K07 gives Java's `f()`."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`... + c`",
+     "value": "may fail: the operator is an invocation of a `plus` function, and any Kotlin invocation may complete abruptly by throwing",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Operator conventions' + s11 'Exceptions': an operator expression is an invocation of the corresponding operator function, and any Kotlin invocation may complete abruptly by throwing an unchecked exception (Kotlin has no checked exceptions and no call-site failure marker). basis_class = universal-rule; this is the same universal-rule treatment 02 s1.4/K07 gives Java's `f()`. Counted separately from the `times` site because 02 s3.1/A3.3 makes a row DUP only for the same entity or the SAME operation."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "`val r`",
+     "value": "no alias can exist for this storage, for reading or for writing",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Absence fact under methodology 02 s1.4 clause (ii): Kotlin has no address-of operator and no reference-to-local type, so no name can alias a local. Java claimed 'no alias can exist, for reading or writing' on the identical JVM rule at this probe, and C++, Go, Rust, TypeScript, Swift and Zig all claimed the same absence fact; Kotlin has the identical rule and claimed nothing. basis_class universal-rule."
+    },
+    {
+     "fact_kind": "K13 lifetime_resource_effect",
+     "site": "`r`",
+     "value": "no deterministic release point; whatever `r` holds is reclaimed by the JVM garbage collector at an unspecified time, and no scope-bound destructor or deinitializer runs at the end of the fragment",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] methodology 02's frozen K13 reclamation table, tracing-GC row -> COUNT under Rule 2.5.1, whose remediation note records that the rule exists precisely to stop 'a systematic transfer of one-to-two facts per probe from the six GC/ARC languages'. Go, Python, Java, C++ and Rust all took their K13 row at this probe. basis_class universal-rule."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "`val r`",
+     "value": "a binding holding a value, not a handle into other storage and not an addressable place: Kotlin has no reference-binding form, so the category is fixed at the declaration whatever the operand types turn out to be",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Absence fact under methodology 02 s1.4 clause (ii). Swift claimed exactly this at its `let r` without needing the operand declarations; Kotlin previously pushed value_vs_storage wholesale into its locality hops. basis_class universal-rule."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "`a * b + c`",
+     "value": "LOOKUP. The result's type and representation are decided by the declarations of `a`, `b` and `c`, which are the enclosing function's parameters, outside the measured fragment.",
+     "locally_recoverable": false,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Disposition LOOKUP, hops_decl = 1, recorded explicitly so the denial is auditable - Python listed its three LOOKUP rows the same way and Kotlin listed none. methodology 03 Rule 2.2.1."
+    },
+    {
+     "fact_kind": "K09 overflow_exceptional_numeric",
+     "site": "`a * b`",
+     "value": "LOOKUP. Whether the intermediate product wraps modulo 2^n, rounds under IEEE-754, or cannot overflow at all is decided by the operand declarations outside the fragment.",
+     "locally_recoverable": false,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Disposition LOOKUP, hops_decl = 1. Recorded explicitly (see above)."
+    },
+    {
+     "fact_kind": "K09 overflow_exceptional_numeric",
+     "site": "`... + c`",
+     "value": "LOOKUP. Same for the addition, and it is not necessarily the same answer as the multiplication's, because the mixed-type operator overloads may widen one operand.",
+     "locally_recoverable": false,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Disposition LOOKUP, hops_decl = 1. Recorded explicitly (see above)."
+    }
+   ],
+   "fact_count": 8,
+   "determinacy_B": 5,
+   "determinacy_enumeration": [
+    "R2 - fixed-width wraparound: `a`, `b`, `c` are all kotlin.Int (or all Long); `*` and `+` are the built-in 32-/64-bit signed operations and both the intermediate product and the sum wrap modulo 2^n. Witness: the frozen wrapper itself (a, b, c: Int), built and run.",
+    "R6 - binary floating point: `a`, `b`, `c` are Double or Float; `*` and `+` are IEEE-754 operations with rounding, and the intermediate product may be Inf or NaN. Witness: a wrapper declaring them Double.",
+    "R7 - implicit promotion applied to an operand: the three locals do not all have the same built-in numeric type (e.g. `a`, `b`: Int and `c`: Double), so the declared mixed-type operator function widens the narrower operand before the operation and the result type changes. Witness: a wrapper declaring c: Double.",
+    "R1 - exact / arbitrary precision: the operands are java.math.BigInteger, for which kotlin-stdlib declares `times`/`plus` operator extensions; overflow is not possible at either operation. Witness: a wrapper declaring them BigInteger.",
+    "R8 - the operator's meaning is supplied by the operand types: any type declaring `operator fun times` / `operator fun plus` makes these operators user-defined, so the span may allocate, throw, mutate or be non-arithmetic (Kotlin's `+` on String is concatenation, for instance). Witness: a wrapper declaring a user class with those operator members. Recorded as NOT realizable, with reasons: R4 (Kotlin defines no undefined behaviour); R5 (no kotlinc option selects arithmetic behaviour - `kotlinc -help` carries none, so this is a LOW-B-BY-ABSENCE exclusion, and R5 is a flag rather than a +1 in any case); R9 (Kotlin has no pointer arithmetic); R10 (the fragment contains no division or remainder); R11 (no standard checked/saturating form is used here); R12 (the plain operators name no discipline at the site - a LOW-B-BY-ABSENCE exclusion, since Kotlin offers no wrapping/checked/saturating operator to write)."
+   ],
+   "locality_lookups": 3,
+   "locality_detail": [
+    {
+     "hop": "variable declaration of `a` (VAR, given context outside the fragment)",
+     "required_for_fact": "type_and_representation, conversion_behavior, overflow_exceptional_numeric, value_vs_storage"
+    },
+    {
+     "hop": "variable declaration of `b` (VAR)",
+     "required_for_fact": "the same four facts - the operand types jointly decide which operator function applies and whether a promotion occurs"
+    },
+    {
+     "hop": "variable declaration of `c` (VAR)",
+     "required_for_fact": "the same four facts; `c`'s type can change the result type of the whole expression independently of `a` and `b`"
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "The single local site resolves `*` and `+` to `times`/`plus` operator functions chosen by operand types declared elsewhere; the candidate set compatible with the site has cardinality >= 2, and nothing at the site pins it."
+    }
+   ],
+   "hidden_count": 1,
+   "complexity_units": 6,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "local `val` property declaration with an initializer and inferred type",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration'; s9 'Type inference'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "multiplication operator `*` as the operator convention `times`",
+     "citation": "Kotlin docs, Operator overloading / Arithmetic operators"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "addition operator `+` as the operator convention `plus`",
+     "citation": "Kotlin docs, Operator overloading / Arithmetic operators"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "operator precedence: `*` binds tighter than `+`, so the fragment needs no parentheses",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s2 expression grammar precedence table"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "overload resolution over the declared mixed-type arithmetic operator functions selects which operation runs and what it returns",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s8 'Overload resolution'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "integer overflow wraps modulo 2^n with no diagnostic and no local signal",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 built-in integer semantics (corroborated `observed`, 04 s0.4)"
+    }
+   ]
+  },
+  {
+   "probe_id": "F07.P2",
+   "language": "Kotlin",
+   "language_key": "kotlin",
+   "support": "FULL",
+   "support_reason": "F-1: the three statements, in order, (1) bind `q` with Kotlin's ordinary integer division operator `/` (which IS integer division for Int operands), (2) bind `m` with the ordinary remainder operator `%`, and (3) bind `d` to the 64-bit floating-point division of `a` by `b`, performing the conversion Kotlin requires - Kotlin has no implicit numeric widening, so `a.toDouble()` must be written. F-2: kotlin-stdlib only. F-3: builds and runs under the frozen recipe, printing `-3 -1 -3.5` for a = -7, b = 2, which exhibits truncation toward zero and a dividend-signed remainder. F-4/F-6: satisfied. R10 note: `a.toDouble() / b` (7 tokens) was selected over `a.toDouble() / b.toDouble()` (11) and `a / b.toDouble()` (7, tied on tokens; the tie is broken by documentation order, kotlin.Int.toDouble being reached from the left operand first).",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/kotlin/F07.P2.kt",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "-3 -1 -3.5",
+    "diagnostics": ""
+   },
+   "token_count": 22,
+   "facts": [
+    {
+     "fact_kind": "K02 mutability",
+     "site": "`val q`",
+     "value": "the binding cannot be reassigned",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a `val` property has no setter and cannot be reassigned."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "`val q`",
+     "value": "initialized at the declaration",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a local property with an initializer is initialized at its declaration."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "initialization `=` of `q`",
+     "value": "no implicit conversion; `q`'s type is exactly the type of `a / b`",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions'; the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference)."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`a / b`",
+     "value": "may fail: the operator is an invocation of a `div` function and any Kotlin invocation may complete abruptly by throwing",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Operator conventions' + s11 'Exceptions': an operator expression is an invocation of the corresponding operator function, and any Kotlin invocation may complete abruptly by throwing an unchecked exception (Kotlin has no checked exceptions and no call-site failure marker). basis_class = universal-rule; this is the same universal-rule treatment 02 s1.4/K07 gives Java's `f()`."
+    },
+    {
+     "fact_kind": "K02 mutability",
+     "site": "`val m`",
+     "value": "the binding cannot be reassigned",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a `val` property has no setter and cannot be reassigned."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "`val m`",
+     "value": "initialized at the declaration",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a local property with an initializer is initialized at its declaration."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "initialization `=` of `m`",
+     "value": "no implicit conversion; `m`'s type is exactly the type of `a % b`",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions'; the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference)."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`a % b`",
+     "value": "may fail: the operator is an invocation of a `rem` function and any Kotlin invocation may complete abruptly by throwing",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Operator conventions' + s11 'Exceptions': an operator expression is an invocation of the corresponding operator function, and any Kotlin invocation may complete abruptly by throwing an unchecked exception (Kotlin has no checked exceptions and no call-site failure marker). basis_class = universal-rule; this is the same universal-rule treatment 02 s1.4/K07 gives Java's `f()`."
+    },
+    {
+     "fact_kind": "K02 mutability",
+     "site": "`val d`",
+     "value": "the binding cannot be reassigned",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a `val` property has no setter and cannot be reassigned."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "`val d`",
+     "value": "initialized at the declaration",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a local property with an initializer is initialized at its declaration."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "initialization `=` of `d`",
+     "value": "no implicit conversion; `d`'s type is exactly the type of the division expression",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions'; the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference)."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "`a.toDouble()`",
+     "value": "a conversion to 64-bit binary floating point is applied, and Kotlin requires it to be WRITTEN: the language inserts no implicit widening anywhere, so the presence of `toDouble()` is what makes statement (3) a floating-point division",
+     "locally_recoverable": true,
+     "justification": "Kotlin docs, Basic types / Numbers, 'Explicit number conversions': 'Kotlin does not support implicit widening conversions for numbers'; every standard numeric type declares `toDouble(): Double`."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`a.toDouble()`",
+     "value": "may fail: any Kotlin invocation may complete abruptly by throwing an unchecked exception",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Operator conventions' + s11 'Exceptions': an operator expression is an invocation of the corresponding operator function, and any Kotlin invocation may complete abruptly by throwing an unchecked exception (Kotlin has no checked exceptions and no call-site failure marker). basis_class = universal-rule; this is the same universal-rule treatment 02 s1.4/K07 gives Java's `f()`."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`a.toDouble() / b`",
+     "value": "may fail: the division operator is an invocation of a `div` function",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Operator conventions' + s11 'Exceptions': an operator expression is an invocation of the corresponding operator function, and any Kotlin invocation may complete abruptly by throwing an unchecked exception (Kotlin has no checked exceptions and no call-site failure marker). basis_class = universal-rule; this is the same universal-rule treatment 02 s1.4/K07 gives Java's `f()`."
+    }
+   ],
+   "fact_count": 14,
+   "determinacy_B": 7,
+   "determinacy_enumeration": [
+    "R3 - may raise a run-time error: `a` and `b` are kotlin.Int (or Long) and `b` is 0, so `a / b` and `a % b` raise java.lang.ArithmeticException. Witness: the frozen wrapper with b = 0.",
+    "R2 - wraps modulo 2^n: `a`, `b` are fixed-width signed integers and `a` is Int.MIN_VALUE with `b` = -1, the one division whose result overflows and wraps back to Int.MIN_VALUE. Witness: a wrapper with those values.",
+    "R10 - the rounding direction of the division and the sign of the remainder are not fixed by the operator alone: the operand types are given context outside the fragment, and `/` and `%` mean whatever `div` and `rem` mean for those types (truncation toward zero and a dividend-signed remainder for kotlin.Int, floor division for a user type that declares it so). This is the probe's OBSERVATION TARGET; once the operand type is known to be Int, the kotlin-stdlib contracts DO fix both, at one hop.",
+    "R6 - binary floating point: `a`, `b` are Double or Float; statement (3) is in any case a Double division, so rounding, and Inf/NaN on a zero divisor, are reachable at the span.",
+    "R7 - an implicit promotion is applied to an operand: in statement (3) `Double.div(Int)` widens `b` from a 32-bit integer to Double before dividing, with nothing written at the operator. Witness: the frozen wrapper (b: Int).",
+    "R1 - exact / arbitrary precision: `a`, `b` are java.math.BigInteger, whose `div`/`rem` operator extensions are exact and cannot overflow.",
+    "R8 - the operator's meaning is supplied by the operand types: any type declaring `operator fun div` / `rem` / a member `toDouble()` makes these spans user-defined, so they may allocate, throw, or be non-arithmetic. Recorded as NOT realizable: R4 (no undefined behaviour in Kotlin); R5 (no build mode selects any of this - LOW-B-BY-ABSENCE); R9 (no pointer arithmetic); R11 (the fragment uses no checked/saturating form that turns the exceptional case into a value - Kotlin's standard library offers none); R12 (no operation in the fragment names its own numeric discipline and the fragment contains no guard - LOW-B-BY-ABSENCE)."
+   ],
+   "locality_lookups": 3,
+   "locality_detail": [
+    {
+     "hop": "variable declaration of `a` (VAR, given context)",
+     "required_for_fact": "type_and_representation, conversion_behavior, overflow_exceptional_numeric, possible_failure, value_vs_storage"
+    },
+    {
+     "hop": "variable declaration of `b` (VAR, given context)",
+     "required_for_fact": "the same facts; `b`'s type independently decides which `div`/`rem` overload applies and whether statement (3) promotes"
+    },
+    {
+     "hop": "stdlib type declaration kotlin.Int, whose `div`, `rem` and `toDouble` members are written inside its own text (TYPE, 1 hop under 03 Rule 2.2.2)",
+     "required_for_fact": "overflow_exceptional_numeric - the documented rounding direction of `/` (toward zero), the documented sign of `%` (that of the dividend) and the ArithmeticException on a zero divisor are stated in the stdlib API reference, not in the language specification"
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 1 (`val q = a / b`): `/` resolves to a `div` function chosen by operand types declared elsewhere."
+    },
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 2 (`val m = a % b`): `%` resolves to a `rem` function chosen by operand types declared elsewhere."
+    },
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 3 (`val d = a.toDouble() / b`): both `toDouble` and `div` are resolved against candidate sets the site does not pin."
+    },
+    {
+     "checklist_item": "H1 - Implicit conversions",
+     "why": "Local site 3: `b` is widened from Int to Double by the `Double.div(Int)` overload, with no conversion written for it - only `a`'s conversion is spelled. The change is material (it fixes the result's representation and its rounding behaviour) and occurs when the frozen program runs."
+    },
+    {
+     "checklist_item": "H5 - Implicit exception / failure propagation",
+     "why": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Local site 1 (`val q = a / b`). On the integer operand types the site admits, `a / b` raises java.lang.ArithmeticException when `b` is 0, and it leaves the enclosing function with NOTHING written at the site and nothing on any declaration: Kotlin has no checked exceptions (Kotlin documentation, 'Exceptions') and therefore not even Java's `throws` clause. Java was charged twice for the identical situation on the same JVM, and Rust, Go, Zig, Swift and Quidra were each charged twice; Kotlin was charged nothing. Verified on the frozen toolchain: `probe(-7, 0)` terminates with `java.lang.ArithmeticException: / by zero`."
+    },
+    {
+     "checklist_item": "H5 - Implicit exception / failure propagation",
+     "why": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Local site 2 (`val m = a % b`). The same rule at a different local site, which methodology 04 s1.3.2 makes a distinct event. Verified on the frozen toolchain by the same run."
+    },
+    {
+     "checklist_item": "H8 - Edge-case behavior not locally determined (H8b)",
+     "why": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Local site 1 (`val q = a / b`). H8b is stated over 'the set of numeric types the local form admits in this probe', and this record's own B enumeration admits kotlin.Int, kotlin.Long, kotlin.Double/Float and java.math.BigInteger at this site. The zero-divisor edge has THREE different documented outcomes across that set: the fixed-width integer types raise ArithmeticException, the floating types produce +/-Infinity or NaN, and BigInteger.divide raises. Verified on the frozen toolchain: `(-7) / 0` on Int terminates with ArithmeticException, while `(-7).toDouble() / 0` evaluates to -Infinity. Nothing at the site pins which set member applies. This is the ground on which C++, Go, Java, Rust, Swift, Zig and Quidra were each charged H8 at this probe; Kotlin recorded zero H8 events."
+    },
+    {
+     "checklist_item": "H8 - Edge-case behavior not locally determined (H8b)",
+     "why": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Local site 2 (`val m = a % b`). The same rule at a different local site, a distinct event under s1.3.2, and with its own edge set: integer `%` raises on a zero divisor while IEEE remainder yields NaN."
+    }
+   ],
+   "hidden_count": 8,
+   "complexity_units": 8,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "local `val` property declaration with an initializer and inferred type",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "division operator `/` as the operator convention `div`",
+     "citation": "Kotlin docs, Operator overloading / Arithmetic operators"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "remainder operator `%` as the operator convention `rem`",
+     "citation": "Kotlin docs, Operator overloading / Arithmetic operators"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "explicit numeric conversion call `x.toDouble()`",
+     "citation": "Kotlin docs, Numbers / 'Explicit number conversions'"
+    },
+    {
+     "unit": "documented exception",
+     "description": "integer `/` and `%` raise ArithmeticException on a zero divisor, although Kotlin's integer arithmetic otherwise never raises",
+     "citation": "kotlin.Int.div / kotlin.Int.rem contracts"
+    },
+    {
+     "unit": "documented exception",
+     "description": "integer division truncates TOWARD ZERO and the remainder takes the sign of the DIVIDEND - both stated as contract clauses rather than following from a single arithmetic rule",
+     "citation": "kotlin.Int.div ('truncating the result to an integer that is closer to zero') and kotlin.Int.rem ('either zero or has the same sign as the dividend')"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "mixed-type arithmetic: a declared operator overload such as `Double.div(Int)` widens the other operand with nothing written at the operator",
+     "citation": "kotlin.Double operator members; Kotlin docs, Numbers / 'Operations on numbers'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "overload resolution selects the operator function and hence the result type",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s8 'Overload resolution'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F08.P1",
+   "language": "Kotlin",
+   "language_key": "kotlin",
+   "support": "FULL",
+   "support_reason": "F-1: (1) `m` is a local of the signed 32-bit type initialized to the language's standard named maximum, `Int.MAX_VALUE`; (2) `m + 1` is bound to `o` using the operation whose overflow behaviour is determined by the operation itself; (3) `return o` produces the result. RUNG RECORD, in the canonical task's fixed order: rung (i) UNAVAILABLE - kotlin-stdlib declares no checked arithmetic operation yielding an optional or error value; the JDK's `Math.addExact`, reachable from Kotlin/JVM, signals overflow by THROWING ArithmeticException, which is an event and not an optional/error value, so it does not satisfy rung (i). Rung (ii) UNAVAILABLE as a distinct operation - kotlin-stdlib declares no separate wrapping operation, because the plain `+` already IS Kotlin's wrapping addition. Rung (iii) UNAVAILABLE - no saturating operation exists. Rung (iv) USED: the plain operator, whose Int behaviour is fixed by the language on every target and by no build mode (verified: `kotlinc -help` exposes no arithmetic-checking flag). F-2/F-3/F-4/F-6: satisfied; the program builds and runs under the frozen recipe, printing -2147483648.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/kotlin/F08.P1.kt",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "-2147483648",
+    "diagnostics": ""
+   },
+   "token_count": 14,
+   "facts": [
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "`val m`",
+     "value": "(ii) holds a kotlin.Int value with no observable identity",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin docs, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K02 mutability",
+     "site": "`val m`",
+     "value": "the binding cannot be reassigned",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a `val` property has no setter and cannot be reassigned."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "`val m`",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2: kotlin.Int / kotlin.Boolean are built-in value types and Kotlin provides no address-of, reference or borrow form for a local, so no name can alias this storage."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "`val m`",
+     "value": "initialized at the declaration with the maximum representable Int",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a local property with an initializer is initialized at its declaration."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "`val m`",
+     "value": "kotlin.Int, 32-bit signed two's complement, holding 2147483647",
+     "locally_recoverable": true,
+     "justification": "kotlin.Int.Companion.MAX_VALUE contract: 'A constant holding the maximum value an instance of Int can have' (stdlib-contract, hops_stdlib = 1); Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin docs, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`val m`",
+     "value": "no allocation; a compile-time constant value is copied into the binding",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin docs, Numbers table: size 32, min -2147483648, max 2147483647). MAX_VALUE is declared `const val`."
+    },
+    {
+     "fact_kind": "K13 lifetime_resource_effect",
+     "site": "`val m`",
+     "value": "no cleanup runs at scope exit",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21): Kotlin has no destructors and no scope-exit cleanup construct, so determinately nothing runs at the end of this binding's scope; basis_class = universal-rule."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "initialization `=` of `m`",
+     "value": "no conversion; `Int.MAX_VALUE` is already Int",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions'; the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "initialization `=` of `m`",
+     "value": "copy of the Int value into the binding",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin docs, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "`val o`",
+     "value": "(ii) holds a kotlin.Int value",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin docs, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K02 mutability",
+     "site": "`val o`",
+     "value": "the binding cannot be reassigned",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a `val` property has no setter and cannot be reassigned."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "`val o`",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2: kotlin.Int / kotlin.Boolean are built-in value types and Kotlin provides no address-of, reference or borrow form for a local, so no name can alias this storage."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "`val o`",
+     "value": "initialized at the declaration with the sum",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a local property with an initializer is initialized at its declaration."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "`val o`",
+     "value": "kotlin.Int - `Int.plus(Int)` returns Int, and the operand type is pinned inside the fragment by `Int.MAX_VALUE`",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin docs, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`val o`",
+     "value": "no allocation; the Int result is copied into the binding",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin docs, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K13 lifetime_resource_effect",
+     "site": "`val o`",
+     "value": "no cleanup runs at scope exit",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21): Kotlin has no destructors and no scope-exit cleanup construct, so determinately nothing runs at the end of this binding's scope; basis_class = universal-rule."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "initialization `=` of `o`",
+     "value": "no conversion; the initializer is already Int",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions'; the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "initialization `=` of `o`",
+     "value": "copy of the Int value",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin docs, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "`m + 1`",
+     "value": "no conversion: the literal `1` has type kotlin.Int and the Int/Int overload of `plus` is selected",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6.1 'Constant literals'; Kotlin performs no implicit numeric conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions'; the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference)."
+    },
+    {
+     "fact_kind": "K09 overflow_exceptional_numeric",
+     "site": "`m + 1`",
+     "value": "signed 32-bit addition WRAPS modulo 2^32 on overflow; at Int.MAX_VALUE + 1 the result is Int.MIN_VALUE (-2147483648)",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2: kotlin.Int arithmetic is the built-in 32-bit signed operation and overflows modulo 2^32 (two's complement); fixed by the language on every target, and no kotlinc option changes it (verified on the measurement host: `kotlinc -help` lists no arithmetic-checking flag, only -Wextra for diagnostics). Corroborated by this chunk's observed F08.P1 run (Int.MAX_VALUE + 1 printed -2147483648); tagged `observed` under 04 s0.4."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`m + 1`",
+     "value": "cannot fail: Kotlin integer addition is total - overflow wraps rather than raising, and there is no mode in which it traps",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2: kotlin.Int arithmetic is the built-in 32-bit signed operation and overflows modulo 2^32 (two's complement); fixed by the language on every target, and no kotlinc option changes it (verified on the measurement host: `kotlinc -help` lists no arithmetic-checking flag, only -Wextra for diagnostics). Corroborated by this chunk's observed F08.P1 run (Int.MAX_VALUE + 1 printed -2147483648); tagged `observed` under 04 s0.4. The absence is entailed by the same universal rule (02 s1.4 absence-facts test)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`m + 1`",
+     "value": "no allocation; the operation reads a copy of a primitive value",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types and their semantics': kotlin.Int is the 32-bit signed integer type (Kotlin docs, Numbers table: size 32, min -2147483648, max 2147483647)."
+    },
+    {
+     "fact_kind": "K12 control_flow_effect",
+     "site": "`return o`",
+     "value": "transfers control out of the enclosing function, yielding `o`",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Jump expressions': `return` transfers control out of the enclosing function with the given value."
+    }
+   ],
+   "fact_count": 23,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "R2 - wraps modulo 2^32, defined: `m` is declared INSIDE the measured fragment, so its type (kotlin.Int) and its value (2147483647) are local and free under 03 Rule 1.5.2.a; `m + 1` is therefore kotlin.Int.plus(Int), whose overflow wraps to Int.MIN_VALUE. No other class is realizable: R3/R11 would need a trapping or value-returning arithmetic operation, which kotlin-stdlib does not provide (LOW-B-BY-ABSENCE); R5 is not realizable because kotlinc exposes no arithmetic-checking flag, so no configuration artifact can select a different behaviour; R4 is not realizable because Kotlin defines no undefined behaviour; R8 is not realizable because Int is a final built-in type whose `plus` member cannot be overridden and would in any case win over an extension; R12 is not realizable because Kotlin has no distinct wrapping/checked/saturating operator to write (also LOW-B-BY-ABSENCE); R1, R6, R7, R9, R10 do not apply to a fixed-width integer addition with both operands pinned. Witness: the frozen program, built and run under the frozen recipe, printed -2147483648."
+   ],
+   "locality_lookups": 1,
+   "locality_detail": [
+    {
+     "hop": "stdlib declaration kotlin.Int.Companion.MAX_VALUE (TYPE/VAR - a `const val` member written inside kotlin.Int's own text)",
+     "required_for_fact": "type_and_representation - that `Int.MAX_VALUE` is itself an Int holding 2147483647, which the source does not state. overflow_exceptional_numeric, possible_failure, control_flow_effect and conversion_behavior are all fixed by the language for the tokens in the fragment (03 Rule 2.2.3) and cost nothing. |G| = 0 for this probe: Kotlin's integer overflow behaviour is fixed by the language rather than by a build flag: `kotlinc -help` on the measurement host lists no arithmetic-checking option (only `-Wextra`, a diagnostics switch), and the frozen semantic_compression recipe names exactly one build and one run entry. Under 03 Rule 2.6.2.a a G hop is charged only where the recipe's entries decide an annotated fact; here they decide none, so |G| = 0. This is the same position Java holds and the opposite of Rust, Zig and C++."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 2 (`val o = m + 1`): `m`'s declaration is in a different local site and so is not local under 04 s0.7; from this site alone `+` may resolve to any type's `plus` operator function. H8 does NOT trigger: Kotlin fixes one documented outcome for integer overflow across every integer type, in every build mode and on every target, so the H8 exclusion applies and the LED note's 'exactly one documented integer-overflow behavior' case is met."
+    },
+    {
+     "checklist_item": "H8 - Edge-case behavior not locally determined (H8b)",
+     "why": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Local site 2 (`val o = m + 1`). Two incompatible readings of H8b's type set were in use across the corpus and they split it. Go fires H8b at its structurally identical site-2 fragment (`o := m + 1`, no type token) on the reasoning that 'no token at site 2 pins the operand type, so the form admits integer and floating-point operands alike' and the reference gives two different edge outcomes across them. Kotlin declined on the reasoning that 'Kotlin fixes one documented outcome for integer overflow across every integer type' - which reads the exclusion over INTEGER types only, whereas H8b's text is over 'the set of numeric types the local form admits in this probe'. Go and Kotlin both have one uniform documented integer-overflow rule plus IEEE floating types, so one reading must govern both; under the reading Go applied, Kotlin has this second event. `m`'s declaration is at a DIFFERENT local site, which s0.7 excludes, so nothing here pins the operand type: signed 32-bit addition wraps modulo 2^32, IEEE-754 addition at the maximum yields +Infinity, and BigInteger addition has no overflow edge at all."
+    }
+   ],
+   "hidden_count": 2,
+   "complexity_units": 6,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "local `val` property declaration with an initializer",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "companion-object constant access `Int.MAX_VALUE`",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Companion object'; kotlin.Int.Companion.MAX_VALUE"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "addition operator `+` as the operator convention `plus`",
+     "citation": "Kotlin docs, Operator overloading / Arithmetic operators"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`return` jump expression",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Jump expressions'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "signed integer overflow wraps modulo 2^n silently, with no diagnostic, no trap and no local signal - the reader must know this to predict the result",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 built-in integer semantics; corroborated `observed` (04 s0.4) by this probe's run"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "the default type of an integer literal in Int range is kotlin.Int",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s6.1 'Constant literals'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F08.P2",
+   "language": "Kotlin",
+   "language_key": "kotlin",
+   "support": "FULL",
+   "support_reason": "F-1: (1) the division is written in a form that makes the zero-divisor outcome determinable at the site; (2) the outcome is bound to `q`, with the fallback integer 0 substituted for the exceptional case; (3) `return q` produces it. RUNG RECORD, in the canonical task's fixed order: rung (i) UNAVAILABLE - kotlin-stdlib declares no checked-division operation yielding an optional or error value; `kotlin.Int.div` raises java.lang.ArithmeticException on a zero divisor, an event rather than a value, and no `divOrNull`-shaped function exists. Rung (ii) USED: an explicit local guard on `b == 0`, written as Kotlin's `if` EXPRESSION, which selects the fallback 0. Rung (iii) not reached. F-2/F-3/F-4/F-6: satisfied; built and run under the frozen recipe with b = 0, printing 0. R10 note: Kotlin has no conditional operator, so the `if` expression is the only guard form; `val q = if (b == 0) 0 else a / b` (13 tokens) was selected over a `when` form (15).",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/kotlin/F08.P2.kt",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "0",
+    "diagnostics": ""
+   },
+   "token_count": 16,
+   "facts": [
+    {
+     "fact_kind": "K02 mutability",
+     "site": "`val q`",
+     "value": "the binding cannot be reassigned",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a `val` property has no setter and cannot be reassigned."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "`val q`",
+     "value": "initialized at the declaration by the selected arm of the conditional",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a local property with an initializer is initialized at its declaration."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "initialization `=` of `q`",
+     "value": "no implicit conversion; `q`'s type is exactly the conditional expression's type",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions'; the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference)."
+    },
+    {
+     "fact_kind": "K12 control_flow_effect",
+     "site": "`if (b == 0) 0 else a / b`",
+     "value": "a two-armed conditional: exactly one arm is evaluated, and the unselected arm - in particular the division - is not evaluated at all",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Conditional expression': an if-expression evaluates the condition and then exactly one of its branches."
+    },
+    {
+     "fact_kind": "K08 alternative_value_cases",
+     "site": "`if (b == 0) 0 else a / b`",
+     "value": "the value at this site is one of exactly two alternatives, the literal 0 or the quotient, and the handling is exhaustive: an `if` used as an expression MUST have an else branch",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Conditional expression': 'if used as an expression requires an else branch'. The alternative set is written inside the fragment (02 s2.2: hops_decl = 0)."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "`b == 0`",
+     "value": "the comparison produces kotlin.Boolean whatever the operand types are",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Equality operators': the type of an equality expression is kotlin.Boolean."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`b == 0`",
+     "value": "cannot fail on a null operand: `a == b` is defined as `a?.equals(b) ?: (b === null)`, so a null operand yields a Boolean rather than a NullPointerException",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Equality operators'."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`a / b`",
+     "value": "may fail: the operator is an invocation of a `div` function and any Kotlin invocation may complete abruptly by throwing",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Operator conventions' + s11 'Exceptions': an operator expression is an invocation of the corresponding operator function, and any Kotlin invocation may complete abruptly by throwing an unchecked exception (Kotlin has no checked exceptions and no call-site failure marker). basis_class = universal-rule; this is the same universal-rule treatment 02 s1.4/K07 gives Java's `f()`."
+    },
+    {
+     "fact_kind": "K12 control_flow_effect",
+     "site": "`return q`",
+     "value": "transfers control out of the enclosing function, yielding `q`",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Jump expressions': `return` transfers control out of the enclosing function with the given value."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "`val q`",
+     "value": "(ii) a binding holding a value with no observable identity, never a handle into other storage: Kotlin has no reference-binding form, so the category is fixed at the declaration whatever the operand types are",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Added by the per-site matrix walk of methodology 02 s1.2, which marks this row applicable at an S1 binding site. C++, Java, Go, Rust, TypeScript, Zig and Python were all credited for it at the isomorphic `q` binding; Kotlin and Quidra were the only two languages annotated with a sparse binding-site ledger and both were the losers for it. Absence fact under methodology 02 s1.4 clause (ii). basis_class universal-rule."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "`val q`",
+     "value": "no alias can exist for this storage, for reading or for writing",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Added by the per-site matrix walk of methodology 02 s1.2, which marks this row applicable at an S1 binding site. C++, Java, Go, Rust, TypeScript, Zig and Python were all credited for it at the isomorphic `q` binding; Kotlin and Quidra were the only two languages annotated with a sparse binding-site ledger and both were the losers for it. Kotlin has no address-of operator and no reference-to-local type. basis_class universal-rule."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`val q`",
+     "value": "the selected arm's value is copied into the binding; the declaration itself allocates nothing",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Added by the per-site matrix walk of methodology 02 s1.2, which marks this row applicable at an S1 binding site. C++, Java, Go, Rust, TypeScript, Zig and Python were all credited for it at the isomorphic `q` binding; Kotlin and Quidra were the only two languages annotated with a sparse binding-site ledger and both were the losers for it. Kotlin language specification 2.x, 'Property declaration'. basis_class universal-rule."
+    },
+    {
+     "fact_kind": "K13 lifetime_resource_effect",
+     "site": "`q`",
+     "value": "no deterministic release point; whatever `q` holds is reclaimed by the JVM garbage collector at an unspecified time and no scope-bound cleanup runs",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Added by the per-site matrix walk of methodology 02 s1.2, which marks this row applicable at an S1 binding site. C++, Java, Go, Rust, TypeScript, Zig and Python were all credited for it at the isomorphic `q` binding; Kotlin and Quidra were the only two languages annotated with a sparse binding-site ledger and both were the losers for it. methodology 02 K13 frozen reclamation table, tracing-GC row -> COUNT under Rule 2.5.1. basis_class universal-rule."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "`val q`",
+     "value": "LOOKUP. The binding's type is the least upper bound of the two arms, which is decided by the declarations of `a` and `b` outside the fragment.",
+     "locally_recoverable": false,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Added by the per-site matrix walk of methodology 02 s1.2, which marks this row applicable at an S1 binding site. C++, Java, Go, Rust, TypeScript, Zig and Python were all credited for it at the isomorphic `q` binding; Kotlin and Quidra were the only two languages annotated with a sparse binding-site ledger and both were the losers for it. Disposition LOOKUP, hops_decl = 1, recorded explicitly so the denial is auditable. methodology 03 Rule 2.2.1."
+    }
+   ],
+   "fact_count": 13,
+   "determinacy_B": 7,
+   "determinacy_enumeration": [
+    "R12 - the fragment names its own discipline for the exceptional case: the explicit guard `b == 0` is INSIDE the counting unit and closes the zero-divisor class, substituting the literal 0 (03 Rule 1.5.2.a, DIVZERO-SITE). Witness: the frozen program run with b = 0 printed 0 rather than raising.",
+    "R2 - wraps modulo 2^n: `a`, `b` are fixed-width signed integers and `a` is Int.MIN_VALUE with `b` = -1; the guard does not exclude that case and the quotient overflows and wraps to Int.MIN_VALUE.",
+    "R10 - the rounding direction of the division is not fixed by the operator alone: the operand declarations are given context outside the fragment, so `/` means whatever `div` means for their types.",
+    "R6 - binary floating point: `a`, `b` are Double; `b == 0` is true for 0.0 but NOT for -0.0 or NaN, so the span can still reach an IEEE division producing -Inf or NaN despite the guard.",
+    "R7 - an implicit promotion is applied to an operand: `a` and `b` have different built-in numeric types (e.g. Int and Long), so the selected `div` overload widens one operand before dividing.",
+    "R1 - exact / arbitrary precision: `a`, `b` are java.math.BigInteger, whose `div` operator extension is exact and cannot overflow.",
+    "R8 - the operator's meaning is supplied by the operand types: any type declaring `operator fun div` (and `equals`) makes both spans user-defined, so the guard may test something other than numeric zero and the division may allocate, throw or be non-arithmetic. Recorded as NOT realizable: R3 (with the guard present, the zero-divisor raise is unreachable for the integer types, and any remaining raise is an instance of R8); R4 (Kotlin has no undefined behaviour); R5 (no build mode selects any of this - LOW-B-BY-ABSENCE); R9 (no pointer arithmetic); R11 (Kotlin offers no standard checked-division operation that turns the exceptional case into a value - LOW-B-BY-ABSENCE; rung (i) was unavailable for exactly this reason). A7 adds no branch: the operators' redefinability is already class R8 and mere variability of the target across executions adds none (03 Rule 1.4.7)."
+   ],
+   "locality_lookups": 3,
+   "locality_detail": [
+    {
+     "hop": "variable declaration of `a` (VAR, given context)",
+     "required_for_fact": "type_and_representation, overflow_exceptional_numeric, possible_failure"
+    },
+    {
+     "hop": "variable declaration of `b` (VAR, given context)",
+     "required_for_fact": "type_and_representation and overflow_exceptional_numeric - `b`'s type decides which `div` overload applies and what `b == 0` tests"
+    },
+    {
+     "hop": "stdlib type declaration kotlin.Int, whose `div` and `equals` members are written inside its own text (TYPE)",
+     "required_for_fact": "overflow_exceptional_numeric and possible_failure - that integer division truncates toward zero and raises ArithmeticException on a zero divisor is stated in the stdlib API reference, not in the language specification"
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 1 (`val q = if (b == 0) 0 else a / b`): both `==` (which is an `equals` invocation) and `/` (a `div` invocation) are resolved against candidate sets the site does not pin, because `a` and `b` are declared elsewhere. H5 does NOT trigger: the only failure the frozen program's declared input domain can reach is the zero-divisor raise, and the locally written guard makes it unreachable - that is the LED working."
+    }
+   ],
+   "hidden_count": 1,
+   "complexity_units": 8,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "`if` used as an EXPRESSION, which requires an else branch and yields a value",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Conditional expression'; Kotlin docs, Control flow / 'If expression'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "structural equality operator `==`",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Equality operators'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "division operator `/` as the operator convention `div`",
+     "citation": "Kotlin docs, Operator overloading / Arithmetic operators"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "local `val` property declaration with an initializer",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`return` jump expression",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Jump expressions'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "`a == b` is compiled to `a?.equals(b) ?: (b === null)`, so equality is a null-safe virtual call rather than a primitive comparison in general",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Equality operators'"
+    },
+    {
+     "unit": "documented exception",
+     "description": "integer division raises ArithmeticException on a zero divisor, although Kotlin's integer arithmetic otherwise never raises",
+     "citation": "kotlin.Int.div contract"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "the type of a conditional expression is the least upper bound of its branch types, so the fallback literal's type participates in `q`'s type",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Conditional expression' typing rules; s9 'Type inference'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F09.P1",
+   "language": "Kotlin",
+   "language_key": "kotlin",
+   "support": "FULL",
+   "support_reason": "F-1: the single statement (1) compares `s1` and `s2` for sameness of CONTENTS - Kotlin's `==` is defined as `s1?.equals(s2) ?: (s2 === null)`, and kotlin.String.equals compares character contents, while identity comparison is the separate operator `===` - and (2) binds the Boolean result to a new local `eq`. F-2: no library beyond the built-in String. F-3: builds and runs under the frozen recipe with two distinct runtime-produced String objects of equal contents, printing `true`. F-4/F-6: satisfied. R10 note: `s1 == s2` (3 tokens in the expression) was selected over `s1.equals(s2)` (6) and `s1.contentEquals(s2)` (6); all satisfy R1-R3 and `==` is the form the specification presents first for structural equality.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/kotlin/F09.P1.kt",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "true",
+    "diagnostics": ""
+   },
+   "token_count": 6,
+   "facts": [
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "`val eq`",
+     "value": "(ii) holds a kotlin.Boolean value with no observable identity",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types': kotlin.Boolean is the built-in two-valued type; it is a value type with no observable identity."
+    },
+    {
+     "fact_kind": "K02 mutability",
+     "site": "`val eq`",
+     "value": "the binding cannot be reassigned",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a `val` property has no setter and cannot be reassigned."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "`val eq`",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2: kotlin.Boolean / kotlin.Int are built-in value types and Kotlin provides no address-of, reference or borrow form for a local, so no name can alias this storage."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "`val eq`",
+     "value": "initialized at the declaration with the comparison's value",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a local property with an initializer is initialized at its declaration."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "`val eq`",
+     "value": "kotlin.Boolean - the type of an equality expression is Boolean whatever the operand types are",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Equality operators': `a == b` is defined as `a?.equals(b) ?: (b === null)`; referential identity is the distinct operator `===`. Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types': kotlin.Boolean is the built-in two-valued type; it is a value type with no observable identity."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`val eq`",
+     "value": "no allocation; the Boolean value is copied into the binding",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types': kotlin.Boolean is the built-in two-valued type; it is a value type with no observable identity."
+    },
+    {
+     "fact_kind": "K13 lifetime_resource_effect",
+     "site": "`val eq`",
+     "value": "no cleanup runs at scope exit",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21): Kotlin has no destructors and no scope-exit cleanup construct, so determinately nothing runs at the end of this binding's scope; basis_class = universal-rule."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "initialization `=` of `eq`",
+     "value": "no conversion; the initializer is already Boolean",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions'; the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "initialization `=` of `eq`",
+     "value": "copy of the Boolean value",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types': kotlin.Boolean is the built-in two-valued type; it is a value type with no observable identity."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "`s1 == s2`",
+     "value": "storage identity is NOT what this operator tests: `==` dispatches to the left operand's `equals`, so whether the two operands alias the same object does not decide the result; identity comparison requires the distinct operator `===`",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Equality operators': `a == b` is defined as `a?.equals(b) ?: (b === null)`; referential identity is the distinct operator `===`."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`s1 == s2`",
+     "value": "cannot fail on a null operand: the operator's definition performs a safe call and falls back to a referential null test, so a null operand yields a Boolean rather than a NullPointerException",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Equality operators': `a == b` is defined as `a?.equals(b) ?: (b === null)`; referential identity is the distinct operator `===`."
+    }
+   ],
+   "fact_count": 11,
+   "determinacy_B": 5,
+   "determinacy_enumeration": [
+    "V1 - A4 = TEXT. The operands' runtime class declares a total `equals` - kotlin.String is the case the probe's given context supplies: the span compares character contents, cannot fail, produces kotlin.Boolean, applies no conversion and allocates nothing. Witness: the frozen program, which builds two distinct String objects with StringBuilder and printed `true`.",
+    "V2 - A4 = FIXED-WIDTH SIGNED INTEGER. [CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] The previous enumeration walked only axes A6 and A7 and never reached A4, although this probe's frozen `semantic_facts_expected` contains `type_and_representation`, which methodology 03 Rule 1.4.1 maps to A4, and the operand declarations are given context OUTSIDE the measured fragment (Rule 1.1.2). With Int operands the span compares two-s-complement bit patterns rather than character contents, and `==` compiles to a primitive comparison rather than a call to `equals`. WITNESS semantic-compression/witnesses/kotlin/chunk_B/f09p1_V2_int/w.kt, built and run under the frozen recipe, observed `eq=true` on `2147483647`.",
+    "V3 - A4 = FIXED-WIDTH UNSIGNED INTEGER. [CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] kotlin.UInt is an inline value class over the same 32 bits with a different ordering and a different set of representable values, which is a distinct closed A4 class under 03 s1.4. WITNESS semantic-compression/witnesses/kotlin/chunk_B/f09p1_V3_uint/w.kt, built and run, observed `eq=true` on `4294967295u`.",
+    "V4 - A4 = BINARY FLOATING POINT, and this leaf is materially different on the observable-result dimension. [CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] With statically-Double operands kotlinc emits IEEE 754 equality, under which NaN is unequal to itself - so the span can answer FALSE for two operands that are the SAME object, an outcome kotlin.String contents-equality cannot produce, and one that also differs from the boxed `Any` path. WITNESS semantic-compression/witnesses/kotlin/chunk_B/f09p1_V4_double/w.kt, built and run, observed `eq=false` for `val s2 = s1` with `s1 = Double.NaN`.",
+    "V5 - A4 = USER-DEFINED TYPE, carrying A6 = MAY THROW AN UNDECLARED EXCEPTION. The operands' runtime class overrides `equals` with a body that may complete abruptly: `equals` is an open member of kotlin.Any, so any class may override it, and the operand declarations are given context outside the measured fragment. The span may then throw an undeclared exception (axis A6) instead of producing a Boolean. [CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] The previous record asserted this witness without storing it, which Rule 1.3.2 forbids; it is now built, run and stored. WITNESS semantic-compression/witnesses/kotlin/chunk_B/f09p1_V5_user_equals_throws/w.kt, observed `THREW java.lang.IllegalStateException: equals threw`. EXCLUSIONS retained from the previous record: a conversion class on A5 is not realizable because Kotlin inserts no implicit conversion at an equality operator and forbids `==` between unrelated types; a second dispatch class on A7 adds no branch under 03 Rule 1.4.7, because mere variability of which `equals` runs is already covered by the classes above and `==` itself is not user-redefinable in Kotlin - it is always `equals`. NOT COUNTED, recorded for audit: 'boxed/reference-typed numeric' (operands declared `Number`) merges into V5 under Rule 1.4.5, because the observable vector - a virtual `equals` on a reference-typed operand - is the one already counted there."
+   ],
+   "locality_lookups": 3,
+   "locality_detail": [
+    {
+     "hop": "variable declaration of `s1` (VAR, given context)",
+     "required_for_fact": "type_and_representation, value_vs_storage, alternative_value_cases and possible_failure - which `equals` body runs, and whether the operand may be null, follow from `s1`'s declared type"
+    },
+    {
+     "hop": "variable declaration of `s2` (VAR, given context)",
+     "required_for_fact": "type_and_representation and conversion_behavior of the right operand"
+    },
+    {
+     "hop": "stdlib type declaration kotlin.String, whose `equals` override is written inside its own text (TYPE)",
+     "required_for_fact": "value_vs_storage and possible_failure - that the comparison is on contents rather than identity, and that it is total, is stated by String's contract"
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "The single local site (`val eq = s1 == s2`): `==` compiles to a virtual `equals` call on the left operand, whose declaration is given context outside the fragment; the set of candidate bodies compatible with the site is every class that overrides `equals`. H6 does NOT trigger: `==` gives a null operand total, defined semantics, which is H6's own exclusion, and Kotlin's type system marks optionality with `?` in any case."
+    }
+   ],
+   "hidden_count": 1,
+   "complexity_units": 5,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "structural equality operator `==`",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Equality operators'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "referential equality operator `===`, the separate form a reader must know exists in order to know that `==` is NOT identity",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Equality operators'; Kotlin docs, 'Equality'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "local `val` property declaration with an initializer",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "`a == b` expands to `a?.equals(b) ?: (b === null)`, so equality is a null-safe virtual call and never raises on a null left operand",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Equality operators'"
+    },
+    {
+     "unit": "documented semantic exception",
+     "description": "kotlin.String overrides `equals` to compare contents, whereas kotlin.Any's default `equals` is identity - so the answer to this probe depends on which override is reached",
+     "citation": "kotlin.Any.equals and kotlin.String.equals contracts"
+    }
+   ]
+  },
+  {
+   "probe_id": "F09.P2",
+   "language": "Kotlin",
+   "language_key": "kotlin",
+   "support": "FULL",
+   "support_reason": "F-1: (1) `xs` is ordered DESCENDING by `xs.sortDescending()`, which is a NAMED REVERSE-ORDERING OPERATION - one of the explicit forms the canonical task enumerates - so the fragment does not rely on the facility's default order; (2) `lt` is bound to `a < b` with the ordinary comparison operator. F-2: kotlin-stdlib only. F-3: builds and runs under the frozen recipe, printing `[3, 2, 1] true`. F-4/F-6: satisfied. R10 note: `xs.sortDescending()` (5 tokens) was selected over `xs.sortWith(reverseOrder())` (8), `xs.sortByDescending { it }` (7) and `xs.sortWith(compareByDescending { it })` (10); all four supply the descending order explicitly and satisfy R1-R3, so R10's fewest-tokens rule selects the first.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/kotlin/F09.P2.kt",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "[3, 2, 1] true",
+    "diagnostics": ""
+   },
+   "token_count": 11,
+   "facts": [
+    {
+     "fact_kind": "K02 mutability",
+     "site": "`xs.sortDescending()`",
+     "value": "the call modifies the already-initialized receiver: the elements are reordered IN PLACE, so `xs` itself is the sorted sequence",
+     "locally_recoverable": true,
+     "justification": "kotlin.collections.sortDescending contract: 'Sorts elements in the list in-place descending according to their natural sort order.' (stdlib-contract, hops_stdlib = 1)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`xs.sortDescending()`",
+     "value": "no new sequence is produced; the receiver's own elements are reordered (the contract says in-place, and the separate `sortedDescending()` is the copying form)",
+     "locally_recoverable": true,
+     "justification": "kotlin.collections.sortDescending contract: 'Sorts elements in the list in-place descending according to their natural sort order.' (stdlib-contract, hops_stdlib = 1). The value is narrowed to what the contract states: it does not state the absence of an internal temporary, which is unobservable and excluded by 04 s0.8 in any case."
+    },
+    {
+     "fact_kind": "K11 externally_visible_side_effects",
+     "site": "`xs.sortDescending()`",
+     "value": "the mutation is externally visible: `xs` is declared OUTSIDE the measured fragment, so reordering its elements changes state observable beyond the fragment",
+     "locally_recoverable": true,
+     "justification": "kotlin.collections.sortDescending contract: 'Sorts elements in the list in-place descending according to their natural sort order.' (stdlib-contract, hops_stdlib = 1). 02 s1.4/K11 frozen boundary rule: the entity mutated is not declared inside the probe region."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "`val lt`",
+     "value": "(ii) holds a kotlin.Boolean value with no observable identity",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types': kotlin.Boolean is the built-in two-valued type; it is a value type with no observable identity."
+    },
+    {
+     "fact_kind": "K02 mutability",
+     "site": "`val lt`",
+     "value": "the binding cannot be reassigned",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a `val` property has no setter and cannot be reassigned."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "`val lt`",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2: kotlin.Boolean / kotlin.Int are built-in value types and Kotlin provides no address-of, reference or borrow form for a local, so no name can alias this storage."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "`val lt`",
+     "value": "initialized at the declaration with the comparison's value",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a local property with an initializer is initialized at its declaration."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "`val lt`",
+     "value": "kotlin.Boolean - a comparison expression has type Boolean whatever the operand types are",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Comparison operators': `a < b` is defined as `a.compareTo(b) < 0` and its type is kotlin.Boolean."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`val lt`",
+     "value": "no allocation; the Boolean value is copied into the binding",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types': kotlin.Boolean is the built-in two-valued type; it is a value type with no observable identity."
+    },
+    {
+     "fact_kind": "K13 lifetime_resource_effect",
+     "site": "`val lt`",
+     "value": "no cleanup runs at scope exit",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21): Kotlin has no destructors and no scope-exit cleanup construct, so determinately nothing runs at the end of this binding's scope; basis_class = universal-rule."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "initialization `=` of `lt`",
+     "value": "no conversion; the initializer is already Boolean",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions'; the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference)."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "initialization `=` of `lt`",
+     "value": "copy of the Boolean value",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s3.2 'Built-in types': kotlin.Boolean is the built-in two-valued type; it is a value type with no observable identity."
+    }
+   ],
+   "fact_count": 12,
+   "determinacy_B": 7,
+   "determinacy_enumeration": [
+    "Element/operand type = fixed-width signed integer (kotlin.Int), and the span cannot fail: `sortDescending` reorders a mutable list of Int in place and `a < b` is the built-in numeric comparison. Witness: the frozen wrapper, built and run, printing `[3, 2, 1] true`. [CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] This entry and the five below are the A4 element/operand classes. The FAILURE limb that the previous record multiplied across every one of them is now a single class (the last entry): see the note there.",
+    "Element/operand type = fixed-width UNSIGNED integer (kotlin.UInt, which is Comparable), cannot fail: the descending order and the `<` comparison are the unsigned ones, so the same bit patterns order differently from the signed case.",
+    "Element/operand type = arbitrary-precision integer (java.math.BigInteger, which is Comparable), cannot fail.",
+    "Element/operand type = binary floating point (kotlin.Double), cannot fail: `sortDescending` uses Double's total order, in which NaN sorts above every other value and -0.0 below 0.0, and `a < b` is the IEEE comparison, which is false whenever either operand is NaN - a materially different observable result from the integer cases.",
+    "Element/operand type = text (kotlin.String, which is Comparable): descending LEXICOGRAPHIC order and a lexicographic `<`, cannot fail.",
+    "Element/operand type = a user-defined Comparable type, cannot fail: `sortDescending` and `<` both run that type's own `compareTo`, so the order is whatever it defines.",
+    "FAILURE CLASS, counted ONCE and not multiplied: the receiver is a MutableList VIEW over a fixed-size or read-only backing (for example java.util.Arrays.asList or java.util.Collections.unmodifiableList), so `xs.sortDescending()` throws java.lang.UnsupportedOperationException instead of reordering anything - A6 moves from 'cannot fail' to 'may throw an undeclared exception' and A2 from 'state referred to by the operand is mutated' to 'none'. `xs` is given context outside the measured fragment (03 Rule 1.1.2), so the class is realizable whatever the element type is. [CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] The previous record enumerated a full cross-product - 6 element/operand types x 2 failure limbs = 12 - which was more than double the next highest language on this probe (peers run 3 to 6) and the single largest outlier in it. No other language multiplied the failure limb across every type: Java recorded the unmodifiable-receiver failure as ONE class (V2) among five, and Go, Rust, Zig, TypeScript, Python, C++ and Swift all treat a failure branch as a single additional class. 03 Rule 1.4.5 ('Determinacy counts meanings, not spellings') and Rule 1.4.6 ('B_i is never many and never grows with the size of a program the analyst imagines') both cut against the multiplication: 'the backing is fixed-size, so the in-place sort throws' is ONE meaning, and it is a property of the BACKING, orthogonal to the element type. B is therefore 6 element/operand classes + 1 failure class = 7, which is the arithmetic Java's five (four type classes + one failure class) applies. The audit's suggested figure was '6', but its own parenthesis lists six type classes and then adds the failure class, so 7 is what that rule actually yields for Kotlin's six."
+   ],
+   "locality_lookups": 4,
+   "locality_detail": [
+    {
+     "hop": "variable declaration of `xs` (VAR, given context)",
+     "required_for_fact": "type_and_representation of the sequence and its elements, aliasing_writable_aliasing (whether the receiver is a reference to storage the caller shares) and possible_failure (whether the backing permits an in-place sort)"
+    },
+    {
+     "hop": "stdlib declaration kotlin.collections.sortDescending for that receiver type (SIG)",
+     "required_for_fact": "mutability (in place rather than returning a new sequence) and allocation_copy_move_borrow_destroy"
+    },
+    {
+     "hop": "variable declaration of `a` (VAR, given context)",
+     "required_for_fact": "type_and_representation of the comparison's operands"
+    },
+    {
+     "hop": "variable declaration of `b` (VAR, given context)",
+     "required_for_fact": "type_and_representation - `b`'s type independently decides which `compareTo` overload applies"
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 1 (`xs.sortDescending()`): the receiver's type is declared elsewhere, so which `sortDescending` extension runs - the MutableList one, an Array one, a primitive-array one - is not fixed by the site. H2 does NOT trigger here: `sortDescending` is a local token whose specified meaning IS the in-place mutation (04 s0.7's 'named construct whose specified meaning is B'), so the write is locally signalled."
+    },
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 2 (`val lt = a < b`): `<` compiles to a `compareTo` invocation whose target is chosen by operand types declared elsewhere."
+    }
+   ],
+   "hidden_count": 2,
+   "complexity_units": 7,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "member/extension call form `receiver.name()`",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Call and property access expressions'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "comparison operator `<` as the operator convention `compareTo`",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Comparison operators'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "local `val` property declaration with an initializer",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "extension-function resolution: which `sortDescending` applies depends on the static type of the receiver and on which extensions are in scope at the call",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s8 'Overload resolution' / extension receivers"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "`sortDescending` mutates its receiver in place and returns Unit, while the one-letter-different `sortedDescending` returns a new list - the reader must know which family a name belongs to",
+     "citation": "kotlin.collections.sortDescending and kotlin.collections.sortedDescending contracts"
+    },
+    {
+     "unit": "documented semantic exception",
+     "description": "the in-place sort raises UnsupportedOperationException when the MutableList is a view over a fixed-size or read-only backing, although the type says MutableList",
+     "citation": "kotlin.collections MutableList contract; java.util.List.sort"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "the natural order `sortDescending` reverses is the element type's `Comparable.compareTo`, so the order the call produces is supplied by a type declared elsewhere",
+     "citation": "kotlin.Comparable contract; kotlin.collections.sortDescending signature `<T : Comparable<T>>`"
+    }
+   ]
+  },
+  {
+   "probe_id": "F10.P1",
+   "language": "Kotlin",
+   "language_key": "kotlin",
+   "support": "FULL",
+   "support_reason": "F-1: (1) a signed 32-bit value is produced from `big`; (2) it is bound to `small`; (3) `return small` produces it. RUNG RECORD, in the canonical task's fixed order: rung (i) UNAVAILABLE - kotlin-stdlib declares no narrowing conversion that reports out-of-range as an optional or error value; the JDK's `Math.toIntExact`, reachable from Kotlin/JVM, signals by THROWING ArithmeticException, an event rather than a value, and there is no `toIntOrNull` for a Long receiver (`toIntOrNull` exists only on String). Rung (ii) USED: `big.toInt()`, Kotlin's ordinary explicit narrowing conversion. Rung (iii) not reached - and it could not be, since Kotlin performs no implicit narrowing at all. F-2/F-3/F-4/F-6: satisfied; built and run under the frozen recipe with big = 2147483648L, printing -2147483648, which exhibits the documented low-32-bits truncation.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/kotlin/F10.P1.kt",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "-2147483648",
+    "diagnostics": ""
+   },
+   "token_count": 10,
+   "facts": [
+    {
+     "fact_kind": "K02 mutability",
+     "site": "`val small`",
+     "value": "the binding cannot be reassigned",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a `val` property has no setter and cannot be reassigned."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "`val small`",
+     "value": "initialized at the declaration with the conversion's result",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a local property with an initializer is initialized at its declaration."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "initialization `=` of `small`",
+     "value": "no implicit conversion is applied at the binding; `small`'s type is exactly the conversion call's result type",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions'; the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference)."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "`big.toInt()`",
+     "value": "a conversion is applied here and Kotlin REQUIRES it to be written: the language inserts no implicit numeric conversion anywhere, widening or narrowing, so a narrowing can never happen silently in Kotlin and the `toInt()` call is the whole of it",
+     "locally_recoverable": true,
+     "justification": "Kotlin docs, Basic types / Numbers, 'Explicit number conversions': 'Kotlin does not support implicit widening conversions for numbers'; narrowing likewise requires an explicit `toX()` call. basis_class = universal-rule."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`big.toInt()`",
+     "value": "may fail: the conversion is an ordinary member invocation and any Kotlin invocation may complete abruptly by throwing an unchecked exception",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Operator conventions' + s11 'Exceptions': an operator expression is an invocation of the corresponding operator function, and any Kotlin invocation may complete abruptly by throwing an unchecked exception. basis_class = universal-rule, the same treatment 02 s1.4/K07 gives Java's `f()`."
+    },
+    {
+     "fact_kind": "K12 control_flow_effect",
+     "site": "`return small`",
+     "value": "transfers control out of the enclosing function, yielding `small`",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Jump expressions': `return` transfers control out of the enclosing function with the given value."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "`val small`",
+     "value": "(ii) a binding holding a value with no observable identity, not a handle into other storage",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Added by the per-site matrix walk of methodology 02 s1.2. Java claims every one of these at the structurally identical `int small = (int) big` and Kotlin claimed none; 6 was the lowest fact count in the set for this probe. Absence fact under methodology 02 s1.4 clause (ii): Kotlin has no reference-binding form. basis_class universal-rule."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "`val small`",
+     "value": "no alias can exist for this storage, for reading or for writing",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Added by the per-site matrix walk of methodology 02 s1.2. Java claims every one of these at the structurally identical `int small = (int) big` and Kotlin claimed none; 6 was the lowest fact count in the set for this probe. Kotlin has no address-of operator and no reference-to-local type. basis_class universal-rule."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "`val small`",
+     "value": "kotlin.Int: a 32-bit two's-complement signed integer, held unboxed in a frame slot - the name `toInt` fixes the destination type at the site whatever the receiver turns out to be",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Added by the per-site matrix walk of methodology 02 s1.2. Java claims every one of these at the structurally identical `int small = (int) big` and Kotlin claimed none; 6 was the lowest fact count in the set for this probe. kotlin.Int (SIZE_BITS = 32) with Kotlin documentation, 'Numbers representation on the JVM'. The destination type is pinned by the written conversion name, which is the fact the probe is about. basis_class local-marker."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`val small`",
+     "value": "no allocation and no boxing: a 32-bit value is copied into the binding",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Added by the per-site matrix walk of methodology 02 s1.2. Java claims every one of these at the structurally identical `int small = (int) big` and Kotlin claimed none; 6 was the lowest fact count in the set for this probe. Kotlin documentation, 'Numbers representation on the JVM' (boxing occurs only at nullable or generic positions). basis_class universal-rule."
+    },
+    {
+     "fact_kind": "K13 lifetime_resource_effect",
+     "site": "`small`",
+     "value": "no resource and no cleanup: a primitive-valued local has nothing to reclaim, and Kotlin/JVM runs no user-visible cleanup at scope exit",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Added by the per-site matrix walk of methodology 02 s1.2. Java claims every one of these at the structurally identical `int small = (int) big` and Kotlin claimed none; 6 was the lowest fact count in the set for this probe. methodology 02 K13 frozen reclamation table -> COUNT under Rule 2.5.1, the row explicitly marked COUNT for Kotlin/JVM. basis_class universal-rule."
+    }
+   ],
+   "fact_count": 11,
+   "determinacy_B": 5,
+   "determinacy_enumeration": [
+    "Receiver is an integer type wider than 32 bits (kotlin.Long, or a java.lang.Number such as BigInteger reached through `Number.toInt()`): the conversion is a narrowing that keeps the LEAST SIGNIFICANT 32 BITS, wraps rather than saturating, cannot fail, and produces kotlin.Int. Witness: the frozen program with big = 2147483648L, which printed -2147483648. [CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Narrowed to SIGNED wider integers (kotlin.Long, kotlin.Short widened, java.lang.Number reached through Number.toInt()); the unsigned receivers are now a class of their own, see the next entry.",
+    "Receiver is an UNSIGNED integer type wider than 32 bits (kotlin.ULong, or kotlin.UInt, each of which declares its OWN `toInt()`). [CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] The previous record folded these into the signed wider-integer class, collapsing the signed/unsigned A4 distinction that 03 s1.4's closed class list keeps separate ('fixed-width signed integer' and 'fixed-width unsigned integer' are two classes) and that Quidra and Zig treat as material at this probe. The conversion reinterprets the low 32 bits of an unsigned magnitude, so a receiver whose value is above Long.MAX_VALUE has no signed counterpart at all and the result's provenance differs.",
+    "Receiver is kotlin.Int or a narrower integer type: `toInt()` is the identity (or a widening) conversion, exact, cannot fail, and produces kotlin.Int - no value is lost and the out-of-range case cannot arise.",
+    "Receiver is a binary floating-point type (kotlin.Double / kotlin.Float): the conversion truncates toward zero and SATURATES - a value above Int.MAX_VALUE yields Int.MAX_VALUE, below Int.MIN_VALUE yields Int.MIN_VALUE, and NaN yields 0 - a materially different out-of-range behaviour from the wrapping case.",
+    "Receiver is a user-defined type declaring its own `toInt()`: the member is not the standard conversion at all, so the span may allocate, may complete abruptly, may not return, and may produce a value of a type other than kotlin.Int. Recorded as NOT realizable, with reasons: no class in which the narrowing is STATICALLY REJECTED is realizable, because Kotlin's `toInt()` is an ordinary member call with no range constraint; no class in which the narrowing is IMPLICIT is realizable, because Kotlin performs no implicit numeric conversion (a LOW-B-BY-ABSENCE exclusion in the favourable direction - the absence of implicit narrowing is what removes that branch); no build-mode class (R5-style) is realizable, because kotlinc exposes no conversion-checking flag, so |G| = 0 for this probe."
+   ],
+   "locality_lookups": 2,
+   "locality_detail": [
+    {
+     "hop": "variable declaration of `big` (VAR, given context)",
+     "required_for_fact": "type_and_representation, conversion_behavior, overflow_exceptional_numeric - which `toInt` member is invoked, and hence whether the out-of-range case truncates, saturates or cannot arise, follows from the receiver's declared type"
+    },
+    {
+     "hop": "stdlib type declaration kotlin.Long, whose `toInt()` member is written inside its own text (TYPE)",
+     "required_for_fact": "overflow_exceptional_numeric and conversion_behavior - 'The resulting Int value is represented by the least significant 32 bits of this Long value' is a stdlib contract clause, not a language-specification statement"
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "The single local site (`val small = big.toInt()`): `big`'s declaration is given context outside the fragment, so which `toInt` member runs - and therefore what the out-of-range case does - is not fixed by the site. H1 does NOT trigger: the conversion is written at the site, which is H1's own exclusion. H8 does NOT trigger: the edge behaviour is selected by a locally written call, which is H8's own exclusion."
+    }
+   ],
+   "hidden_count": 1,
+   "complexity_units": 8,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "explicit narrowing conversion call `x.toInt()`",
+     "citation": "Kotlin docs, Numbers / 'Explicit number conversions'; kotlin.Long.toInt"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "local `val` property declaration with an initializer",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`return` jump expression",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Jump expressions'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "the narrowing keeps the least significant 32 bits and reports nothing when the value does not fit - the out-of-range case is silent",
+     "citation": "kotlin.Long.toInt contract: 'The resulting Int value is represented by the least significant 32 bits of this Long value.'"
+    },
+    {
+     "unit": "documented semantic exception",
+     "description": "`toInt()` from a floating-point receiver SATURATES and maps NaN to 0, whereas from an integer receiver it truncates bits - the same spelling, two different out-of-range rules",
+     "citation": "kotlin.Double.toInt contract"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] the fixed-width type identity: kotlin.Int is exactly 32 bits on every target, which is what makes `toInt()` a narrowing at all (Java counts 'the primitive type int' here, Go and Quidra count the equivalent)",
+     "citation": "kotlin-stdlib Primitives.kt, Int.SIZE_BITS = 32; Kotlin documentation, 'Numbers representation on the JVM'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] type inference for the `val` binding: the property's type is taken from the initializer with no annotation written (Swift, Zig, TypeScript and Go all count this rule for the same work)",
+     "citation": "Kotlin language specification 2.x, 'Type inference'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] no implicit numeric conversion exists in Kotlin, which is exactly why the narrowing has to be written at all (counted by Quidra, Rust, Swift, Zig, Go and, as 'assignment conversion', by Java)",
+     "citation": "Kotlin documentation, Basic types / Numbers, 'Explicit number conversions'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F10.P2",
+   "language": "Kotlin",
+   "language_key": "kotlin",
+   "support": "FULL",
+   "support_reason": "F-1: the single statement (1) computes the sum of `i` and `d`, including any conversion the language requires to be WRITTEN and omitting any it performs implicitly - Kotlin declares `Int.plus(other: Double): Double` as a member operator, so the mixed-type sum is written with no conversion call and the widening is performed by the selected overload - and (2) binds the result to a new local `sum`. F-2: no library beyond the built-in numeric types. F-3: builds and runs under the frozen recipe, printing 3.5 for i = 3, d = 0.5. F-4/F-6: satisfied. R10 note: `val sum = i + d` (6 tokens) was selected over `val sum = i.toDouble() + d` (10); the canonical task directs the fragment to omit conversions the language performs itself, and Kotlin's declared mixed-type operator makes the explicit call redundant.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/kotlin/F10.P2.kt",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "3.5",
+    "diagnostics": ""
+   },
+   "token_count": 6,
+   "facts": [
+    {
+     "fact_kind": "K02 mutability",
+     "site": "`val sum`",
+     "value": "the binding cannot be reassigned",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a `val` property has no setter and cannot be reassigned."
+    },
+    {
+     "fact_kind": "K04 initialization_state",
+     "site": "`val sum`",
+     "value": "initialized at the declaration with the sum",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration': a local property with an initializer is initialized at its declaration."
+    },
+    {
+     "fact_kind": "K06 conversion_behavior",
+     "site": "initialization `=` of `sum`",
+     "value": "no implicit conversion is applied at the binding itself; `sum`'s type is exactly the type of `i + d`",
+     "locally_recoverable": true,
+     "justification": "Kotlin performs no implicit numeric conversion in a binding context: Kotlin documentation, Basic types / Numbers, 'Explicit number conversions'; the declared type of a property without an annotation is exactly the initializer's type (Kotlin language specification 2.x (kotlinc 2.3.21), Type inference)."
+    },
+    {
+     "fact_kind": "K07 possible_failure",
+     "site": "`i + d`",
+     "value": "may fail: the operator is an invocation of a `plus` function and any Kotlin invocation may complete abruptly by throwing an unchecked exception",
+     "locally_recoverable": true,
+     "justification": "Kotlin language specification 2.x (kotlinc 2.3.21), s6 'Operator conventions' + s11 'Exceptions': an operator expression is an invocation of the corresponding operator function, and any Kotlin invocation may complete abruptly by throwing an unchecked exception. basis_class = universal-rule, the same treatment 02 s1.4/K07 gives Java's `f()`."
+    },
+    {
+     "fact_kind": "K01 value_vs_storage",
+     "site": "`val sum`",
+     "value": "(ii) a binding holding a value with no observable identity, never a handle into other storage",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Added by the per-site matrix walk of methodology 02 s1.2, which marks K01/K02/K03/K04/K05/K08/K10/K13 applicable at an S1 binding site and states that gates 'depend only on the syntactic shape and class of the site and never on the language under annotation'. TypeScript's `const sum = i + d` (6 tokens) carries 9 rows, Python's `sum = i + d` (5 tokens) 10 and Swift's 10, against Kotlin's 4 on the same 6 tokens. Absence fact under methodology 02 s1.4 clause (ii): Kotlin has no reference-binding form. basis_class universal-rule."
+    },
+    {
+     "fact_kind": "K03 aliasing_writable_aliasing",
+     "site": "`val sum`",
+     "value": "no alias can exist for this storage - a universal-rule COUNT under methodology 02 s1.4 clause (ii), exactly as TypeScript claimed at its `const sum`",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Added by the per-site matrix walk of methodology 02 s1.2, which marks K01/K02/K03/K04/K05/K08/K10/K13 applicable at an S1 binding site and states that gates 'depend only on the syntactic shape and class of the site and never on the language under annotation'. TypeScript's `const sum = i + d` (6 tokens) carries 9 rows, Python's `sum = i + d` (5 tokens) 10 and Swift's 10, against Kotlin's 4 on the same 6 tokens. Kotlin has no address-of operator and no reference-to-local type. basis_class universal-rule."
+    },
+    {
+     "fact_kind": "K05 type_and_representation",
+     "site": "`i + d`",
+     "value": "the span's result is whatever the selected `plus` member declares; on the given context (`i`: Int, `d`: Double) it is kotlin.Double, 64-bit IEEE-754 binary floating point",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Added by the per-site matrix walk of methodology 02 s1.2, which marks K01/K02/K03/K04/K05/K08/K10/K13 applicable at an S1 binding site and states that gates 'depend only on the syntactic shape and class of the site and never on the language under annotation'. TypeScript's `const sum = i + d` (6 tokens) carries 9 rows, Python's `sum = i + d` (5 tokens) 10 and Swift's 10, against Kotlin's 4 on the same 6 tokens. kotlin.Int.plus(other: Double): Double, the stdlib member named by the operator convention at the site. hops_stdlib = 1, admitted for metric A by methodology 02 s2.2 and charged as a hop by methodology 03. basis_class stdlib-contract."
+    },
+    {
+     "fact_kind": "K09 overflow_exceptional_numeric",
+     "site": "`i + d`",
+     "value": "on the given context the addition is IEEE-754 binary64: it does not wrap and does not trap - it rounds to nearest-even, and overflows to +/-Infinity rather than to a wrapped value",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Added by the per-site matrix walk of methodology 02 s1.2, which marks K01/K02/K03/K04/K05/K08/K10/K13 applicable at an S1 binding site and states that gates 'depend only on the syntactic shape and class of the site and never on the language under annotation'. TypeScript's `const sum = i + d` (6 tokens) carries 9 rows, Python's `sum = i + d` (5 tokens) 10 and Swift's 10, against Kotlin's 4 on the same 6 tokens. kotlin.Double semantics, IEEE 754-2019 via the JVM (JLS 4.2.3 / 15.18.2). Every other language recorded the numeric-edge row at this site. basis_class stdlib-contract."
+    },
+    {
+     "fact_kind": "K10 allocation_copy_move_borrow_destroy",
+     "site": "`val sum`",
+     "value": "no allocation and no boxing on the given context: a 64-bit value is copied into the binding",
+     "locally_recoverable": true,
+     "justification": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] Added by the per-site matrix walk of methodology 02 s1.2, which marks K01/K02/K03/K04/K05/K08/K10/K13 applicable at an S1 binding site and states that gates 'depend only on the syntactic shape and class of the site and never on the language under annotation'. TypeScript's `const sum = i + d` (6 tokens) carries 9 rows, Python's `sum = i + d` (5 tokens) 10 and Swift's 10, against Kotlin's 4 on the same 6 tokens. Kotlin documentation, 'Numbers representation on the JVM'. basis_class universal-rule."
+    }
+   ],
+   "fact_count": 9,
+   "determinacy_B": 6,
+   "determinacy_enumeration": [
+    "Mixed built-in numeric operands of different width or kind - the case the probe's given context supplies (`i`: Int, `d`: Double): the declared member operator `Int.plus(Double): Double` widens the integer operand to 64-bit binary floating point before adding, the result is kotlin.Double, and IEEE rounding, Inf and NaN apply. Witness: the frozen program, which printed 3.5.",
+    "Both operands the same fixed-width integer type: no conversion is applied, the result is that integer type, and overflow wraps modulo 2^n. WITNESS semantic-compression/witnesses/kotlin/chunk_B/f10p2_V2_same_int/w.kt, built and run: `sum=4`, and `Int.MAX_VALUE + 1` observed as -2147483648.",
+    "Both operands binary floating point: no conversion is applied, the result is that floating type, and IEEE rounding, Inf and NaN apply. WITNESS semantic-compression/witnesses/kotlin/chunk_B/f10p2_V3_both_double/w.kt, built and run: `sum=3.5`, and `Double.MAX_VALUE + Double.MAX_VALUE` observed as Infinity.",
+    "Left operand is kotlin.String: `+` is `String.plus(Any?)`, so the span is textual concatenation - it allocates a new String, its result is text rather than a number, and no arithmetic occurs at all. WITNESS semantic-compression/witnesses/kotlin/chunk_B/f10p2_V4_string_left/w.kt, built and run: `sum=30.5 cls=java.lang.String`.",
+    "Operands are arbitrary-precision (java.math.BigInteger / BigDecimal, for which kotlin-stdlib declares `plus` operator extensions): the addition is exact and overflow is not possible. WITNESS semantic-compression/witnesses/kotlin/chunk_B/f10p2_V5_bigint/w.kt, built and run: 9223372036854775807 + 1 observed as 9223372036854775808, exact.",
+    "Either operand is a user-defined type declaring `operator fun plus`: the operator's meaning is supplied by that type, so the span may allocate, complete abruptly, mutate, or be non-arithmetic, and its result type is whatever the member declares. [CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] The previous record described this branch as 'Recorded as NOT realizable' while still counting it, and carried no witness for it or for any of classes 2-5 - Rule 1.3.1 is categorical ('No witness => no branch'). It IS realizable and is now witnessed: semantic-compression/witnesses/kotlin/chunk_B/f10p2_V6_user_plus/w.kt, built and run, declares `class Money { var adds = 0; operator fun plus(other: Money): Money { adds++; if (other.cents < 0) throw IllegalArgumentException(\"negative\"); ... } }` outside the byte-identical fragment and observes `sum=Money(350) adds=1` and then `THREW java.lang.IllegalArgumentException` - i.e. the span mutated state, allocated, and completed abruptly, none of which a built-in numeric `plus` can do. EXCLUSIONS, with the citations Rule 1.3.1.e requires: no undefined-behaviour class is realizable, because the Kotlin specification defines none (Kotlin language specification 2.x has no 'undefined behaviour' category); no build-mode class is realizable, because the frozen recipe for Kotlin is a single build/run pair with no arithmetic or conversion flag (environment.json -> semantic_compression_recipes -> kotlin), so |G| = 0 here and Rule 1.3.3 forbids appealing to a mode the recipe does not name; no pointer-arithmetic class is realizable, because Kotlin has no pointer type - flagged LOW-B-BY-ABSENCE under Rule 1.9.5."
+   ],
+   "locality_lookups": 3,
+   "locality_detail": [
+    {
+     "hop": "variable declaration of `i` (VAR, given context)",
+     "required_for_fact": "type_and_representation, conversion_behavior, overflow_exceptional_numeric, value_vs_storage - the left operand's type selects the `plus` member"
+    },
+    {
+     "hop": "variable declaration of `d` (VAR, given context)",
+     "required_for_fact": "the same facts - the right operand's type selects which overload of that member applies and therefore which operand is widened"
+    },
+    {
+     "hop": "stdlib type declaration kotlin.Int, whose mixed-type `plus(other: Double): Double` member is written inside its own text (TYPE)",
+     "required_for_fact": "conversion_behavior and type_and_representation - that the Int operand is widened to Double and that the result is Double is stated by that member's declaration, not by the language specification"
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H1 - Implicit conversions",
+     "why": "The single local site (`val sum = i + d`): the Int operand is widened to 64-bit binary floating point with no conversion operator, cast or call written anywhere at the site. The change is material - it fixes the result's representation, its rounding behaviour and its overflow class - and it occurs when the frozen program runs. This is the classic implicit-conversion site the probe exists to expose, and Kotlin does perform it despite documenting that it has no implicit widening conversions: the widening is inside a declared operator overload rather than in a coercion rule."
+    },
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "The same site: which `plus` member or extension runs is chosen by operand types declared elsewhere, and the candidate set compatible with the site has cardinality >= 2 (Int.plus(Double), Double.plus(Double), String.plus(Any?), any user `operator fun plus`)."
+    },
+    {
+     "checklist_item": "H8 - Edge-case behavior not locally determined (H8b)",
+     "why": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] The single local site. This record's own determinacy enumeration states three different documented outcomes for the overflow edge across the types the local form admits: classes 2 and 3 say `+` wraps modulo 2^n for fixed-width integers and applies IEEE rounding/Inf/NaN for floating types, and class 5 says it is exact with no overflow edge at all for BigInteger/BigDecimal. Nothing at the site pins which applies, because both operand declarations are outside the fragment. TypeScript was charged H8b on the identical structure. Witnesses built and run under the frozen recipe: semantic-compression/witnesses/kotlin/chunk_B/f10p2_V2_same_int/w.kt observes `overflow=-2147483648`, semantic-compression/witnesses/kotlin/chunk_B/f10p2_V3_both_double/w.kt observes `inf=Infinity`, semantic-compression/witnesses/kotlin/chunk_B/f10p2_V5_bigint/w.kt observes `9223372036854775808` (exact)."
+    },
+    {
+     "checklist_item": "H4 - Implicit allocation, copy, move, destruction, or cleanup",
+     "why": "[CROSS-LANGUAGE AUDIT CORRECTION 2026-09-18] The same site, a distinct rule. This record's own class 4 says a kotlin.String left operand makes `+` resolve to `String.plus(Any?)`, which ALLOCATES a new String, and class 5 reaches java.math.BigInteger.plus, which allocates a new BigInteger - with nothing written at the site to name any allocation. TypeScript was charged H4 on the identical 'a NEW String is produced by concatenation with nothing written for it' reasoning. Witnesses: semantic-compression/witnesses/kotlin/chunk_B/f10p2_V4_string_left/w.kt observes `sum=30.5 cls=java.lang.String`; semantic-compression/witnesses/kotlin/chunk_B/f10p2_V5_bigint/w.kt observes a freshly allocated BigInteger."
+    }
+   ],
+   "hidden_count": 4,
+   "complexity_units": 6,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "addition operator `+` as the operator convention `plus`",
+     "citation": "Kotlin docs, Operator overloading / Arithmetic operators"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "local `val` property declaration with an initializer and inferred type",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), 'Property declaration'; s9 'Type inference'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "mixed-type arithmetic is performed by declared operator overloads such as `Int.plus(Double): Double`, which widen the narrower operand with nothing written at the operator",
+     "citation": "kotlin.Int operator members; Kotlin docs, Numbers / 'Operations on numbers'"
+    },
+    {
+     "unit": "documented semantic exception",
+     "description": "Kotlin documents that it has NO implicit widening conversions, yet a mixed-type arithmetic expression widens an operand - the carve-out is that the widening lives in the operator's declared parameter type rather than in a coercion rule",
+     "citation": "Kotlin docs, Numbers / 'Explicit number conversions' read against the mixed-type operator members of kotlin.Int"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "overload resolution over the arithmetic operator members decides the result type of the expression, and hence the inferred type of `sum`",
+     "citation": "Kotlin language specification 2.x (kotlinc 2.3.21), s8 'Overload resolution'; s9 'Type inference'"
+    },
+    {
+     "unit": "documented semantic exception",
+     "description": "`+` on a String left operand is concatenation rather than arithmetic, so the same operator is not numeric for every operand type",
+     "citation": "kotlin.String.plus contract"
+    }
+   ]
+  }
+ ]
+}

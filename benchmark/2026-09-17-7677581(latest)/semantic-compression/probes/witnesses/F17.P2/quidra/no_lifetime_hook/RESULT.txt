@@ -1,0 +1,22 @@
+Refutation witness for F17.P2 (Quidra 0.2.0), attempting to realize a deterministic
+end-of-lifetime cleanup hook on a user-defined type.
+
+build/run command: quidra run refutation.qui
+observed stdout:
+1
+0
+
+The class declares a method named `deinit` taking `int &counter`. The Handle value's
+lifetime ends when the `if true` block ends. `released` is still 0 afterwards: no
+end-of-lifetime hook was invoked. Quidra 0.2.0 defines no destructor/drop/deinit hook,
+and no scoped-cleanup construct (`defer`, `with`, `using`, `try`-with-resources) exists:
+
+  $ printf 'int x = 1\ndefer print(x)\n' > b.qui && quidra check b.qui
+  b.qui:2:14: error[PARSE_ERROR] Expected parameter name.
+  $ printf 'with open("x")\n    print(1)\n' > c.qui && quidra check c.qui
+  c.qui:1:11: error[PARSE_ERROR] Expected an explicit type.
+
+Additionally, a method cannot reach a module-level counter at all:
+  d1.qui:7:9: error[UNKNOWN_NAME] Unknown name 'released'.
+(language.md, "Standard namespaces and imports"/cli: "Function bodies do not implicitly
+capture top-level bindings").

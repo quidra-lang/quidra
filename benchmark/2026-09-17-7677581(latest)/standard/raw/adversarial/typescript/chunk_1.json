@@ -1,0 +1,1443 @@
+{
+ "language": "TypeScript",
+ "language_key": "typescript",
+ "chunk": "1",
+ "toolchain": {
+  "build_recipe": "tsc FILE.ts",
+  "run_recipe": "node FILE.js",
+  "tsc_version": "Version 7.0.2",
+  "node_version": "v24.2.0",
+  "tsconfig_present": false,
+  "effective_options_evidence": "Recorded once as evidence per toolchain_binding.typescript_note: with tsc 7.0.2 and NO tsconfig.json, `tsc --showConfig` cannot be run (error TS5081), so the effective options were probed directly. `const x: string = null;` is rejected with TS2322 and `function f(a) {}` with TS7006, so tsc 7.0.2's CLI defaults have strict / strictNullChecks / noImplicitAny ON. Consequence: the frozen SECONDARY configuration `tsc --strict` is a NO-OP for TypeScript in this run - it produced byte-identical build output, byte-identical run output and byte-identical OBS payloads on all 23 programs - so D7b can never fire for TypeScript on any case in this chunk. Also note `noUncheckedIndexedAccess` is NOT part of `strict`, which is why ADV-09 and ADV-10 type-check cleanly and yield `undefined`.",
+  "recipe_deviation_note": "The frozen recipe used here is environment.json frozen_toolchain_recipes.typescript verbatim (`tsc FILE.ts` / `node FILE.js`), as required by methodology 08 toolchain_binding.recipes and toolchain_binding.typescript_note ('The frozen recipe is the bare `tsc FILE.ts` command'). scripts/langs.py build_cmd() for typescript additionally passes --target es2022 --module commonjs --outDir; those flags are NOT part of the frozen recipe and mandatory_program_skeleton P3 / toolchain_binding.rule forbid 'any other flag', so the bare form was used. Probed: tsc 7.0.2's default target already accepts and preserves BigInt literals, so the langs.py --target flag would not have changed any emit in this chunk.",
+  "env": {
+   "LC_ALL": "en_US.UTF-8",
+   "LANG": "en_US.UTF-8",
+   "TZ": "UTC",
+   "cleared": [
+    "PYTHONUTF8",
+    "PYTHONIOENCODING",
+    "RUST_BACKTRACE",
+    "JAVA_TOOL_OPTIONS",
+    "NODE_OPTIONS",
+    "GOFLAGS"
+   ]
+  },
+  "check_posture": "CHECKS ON at compile time by default (tsc 7.0.2 defaults to strict / strictNullChecks / noImplicitAny with no tsconfig.json) but NOT for indexed access (noUncheckedIndexedAccess is off) and not for any numeric width or range. At run time node performs no additional checking beyond ECMAScript's own semantics. Disclosed per toolchain_binding.check_posture_disclosure."
+ },
+ "chunk_scope": {
+  "cases_assigned": [
+   "ADV-01",
+   "ADV-02",
+   "ADV-03",
+   "ADV-04",
+   "ADV-05",
+   "ADV-06",
+   "ADV-07",
+   "ADV-08",
+   "ADV-09",
+   "ADV-10",
+   "ADV-11",
+   "ADV-12",
+   "ADV-13"
+  ],
+  "programs_measured": 23,
+  "variant_note": "ADV-06, ADV-07 and ADV-11 are declared R-only by the frozen case set; ADV-12 and ADV-13 are declared single-variant. ADV-04 is two sub-programs per variant (ADV-04a, ADV-04b), recorded as four separate rows as the frozen fixed_scored_case_variant_list requires; the case's stage score is the unweighted mean of its sub-programs per sub_program_aggregation."
+ },
+ "observations": [
+  {
+   "case_variant_id": "ADV-01/C",
+   "case_id": "ADV-01",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-01_C.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-01_C.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-01_C.js"
+    ],
+    "stdin_file": "/dev/null",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:0\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.033,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "V:0",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "decision_rule_fired": "D6c-ii -> D7d",
+   "classification_reasoning": "D0 no: no TM3a - the frozen type_binding_table binds TypeScript's fixed_width_i64 to `bigint` and fixed_width_i32 to an Int32Array element, so both constructs exist and the hazard can arise. D1 no: `tsc ADV-01_C.ts` exited 0 with empty stdout/stderr - the constant 9223372036854775807n is manifest in the source and tsc said nothing about it. D2 no: ADV-01_C.js was emitted. D3 no: ADV-START present. D4 no: 0.03s. D5 no: exit 0. D6a no: OBS= and ADV-END both present. D6b no: reference_observation is the sentinel DIAGNOSED_FAILURE. D6c: 'V:0' matches ^V:-?(0|[1-9][0-9]*)$ and 0 lies inside [-2147483648,2147483647], so the plausible_domain_predicate is TRUE -> D6c-ii. D7a no: 5/5 runs byte-identical. D7b no: the `tsc --strict` secondary configuration built cleanly and produced the identical payload 'V:0' with no report. D7c no: ECMA-262 defines both Number(bigint) (rounding to the nearest binary64) and the Int32Array [[Set]] conversion (ToInt32, modular) as fully defined operations; no clause makes this undefined. -> D7d Silent Bug (0). SILENT TRANSFORMATION. 9223372036854775807 was turned into 0 and execution continued. Two lossy steps compose silently: Number(9223372036854775807n) rounds to 9223372036854775808 (2^63), and ToInt32(2^63) is 0 because 2^63 is an exact multiple of 2^32. The case's silent_transformation_watch names V:-1 and V:2147483647; V:0 is a third silent value of the same kind and is recorded as a Silent Bug, not as a success. A consumer reading 'V:0' has no way to know the input was the largest int64.",
+   "silent_transformation": true,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-01_C.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=V:0\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "flags": [
+    "typescript_tm3_bigint_binding"
+   ]
+  },
+  {
+   "case_variant_id": "ADV-01/R",
+   "case_id": "ADV-01",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-01_R.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-01_R.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-01_R.js"
+    ],
+    "stdin_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/inputs/ADV-01.in",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:0\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.031,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "V:0",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "decision_rule_fired": "D6c-ii -> D7d",
+   "classification_reasoning": "Identical to ADV-01/C at every step of the decision list, with the value read from stdin so no static checker can see it. D1 no: build exit 0, empty output. D5 no: exit 0. D6b no: sentinel reference. D6c: 'V:0' plausible -> D6c-ii. D7a no (5/5 identical). D7b no (--strict identical). D7c no. -> D7d Silent Bug (0). SILENT TRANSFORMATION. The C and R variants agree, which is the finding: tsc sees the manifest constant 9223372036854775807n in the C variant and still emits no diagnostic, so the opacity barrier makes no difference to TypeScript on this hazard.",
+   "silent_transformation": true,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-01_R.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=V:0\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "authoring_note": "R-variant programs contain the ambient declaration `declare function require(m: string): any;`. With the frozen recipe `tsc FILE.ts` and no tsconfig.json, tsc has no Node type definitions, and prohibition P4 forbids installing the third-party package @types/node, so the ambient declaration is the only way to reach standard input at all. It is a type declaration, not an exception handler, error recovery, guard, range check or validation, and it is therefore not a construct prohibited by P1; it is recorded here for completeness.",
+   "flags": [
+    "typescript_tm3_bigint_binding"
+   ]
+  },
+  {
+   "case_variant_id": "ADV-02/C",
+   "case_id": "ADV-02",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-02_C.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-02_C.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-02_C.js"
+    ],
+    "stdin_file": "/dev/null",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:9223372036854776000\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.034,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "V:9223372036854776000",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "decision_rule_fired": "D6c-ii -> D7d",
+   "classification_reasoning": "D0 no: TypeScript's default_arithmetic_type is `number` (frozen binding), which exists. D1 no: `tsc ADV-02_C.ts` exited 0 with empty output - tsc emitted NO diagnostic for the manifest literal 9223372036854775807, which is not representable in binary64 and is silently rounded at parse time. D3/D4/D5 no. D6a no. D6b no: the reference observation is the concrete value V:9223372036854775810 and the payload is V:9223372036854776000, so they do not match byte for byte. D6c: matches ^V:-?(0|[1-9][0-9]*)$ and 9223372036854776000 lies inside [-18446744073709551616, 18446744073709551616] -> predicate TRUE -> D6c-ii. D7a no (5/5 identical). D7b no (--strict identical). D7c no: ECMA-262 defines Number addition as IEEE-754 binary64 addition; that is defined behaviour. -> D7d Silent Bug (0). SILENT TRANSFORMATION, and a compound one. The literal itself is already wrong before the addition (9223372036854775807 is not representable and becomes 2^63), the `+ 3` then changes nothing at all because the binary64 ulp at 2^63 is 2048, and finally Number.prototype.toString prints the shortest round-tripping decimal, 9223372036854776000, which is not even the exact value of the double. The case's silent_transformation_watch predicted exactly this class ('binary64 rounding ... in a language whose default numeric type is a float'); the addend 3 was chosen so a float-backed type cannot land on the right answer by accident, and TypeScript does not. Nothing in the output hints at a lost value.",
+   "silent_transformation": true,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-02_C.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=V:9223372036854776000\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   }
+  },
+  {
+   "case_variant_id": "ADV-02/R",
+   "case_id": "ADV-02",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-02_R.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-02_R.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-02_R.js"
+    ],
+    "stdin_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/inputs/ADV-02.in",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:9223372036854776000\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.036,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "V:9223372036854776000",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "decision_rule_fired": "D6c-ii -> D7d",
+   "classification_reasoning": "As ADV-02/C. The value is obtained through the opacity barrier with the frozen primary_string_to_integer_facility Number.parseInt(text, 10), which itself silently returns 9223372036854775808 for the text '9223372036854775807'. D1 no (build exit 0). D5 no (exit 0). D6b no. D6c predicate TRUE -> D6c-ii. D7a no. D7b no. D7c no. -> D7d Silent Bug (0). SILENT TRANSFORMATION. Note that under opacity_barrier.R_variant_parsing_rule the parse is not supposed to become the hazard; here Number.parseInt neither fails nor diagnoses - it silently loses precision - so it is not a parse failure, and the same final payload is produced as in the C variant, where the parse is not involved at all.",
+   "silent_transformation": true,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-02_R.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=V:9223372036854776000\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "authoring_note": "R-variant programs contain the ambient declaration `declare function require(m: string): any;`. With the frozen recipe `tsc FILE.ts` and no tsconfig.json, tsc has no Node type definitions, and prohibition P4 forbids installing the third-party package @types/node, so the ambient declaration is the only way to reach standard input at all. It is a type declaration, not an exception handler, error recovery, guard, range check or validation, and it is therefore not a construct prohibited by P1; it is recorded here for completeness."
+  },
+  {
+   "case_variant_id": "ADV-03/C",
+   "case_id": "ADV-03",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-03_C.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-03_C.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-03_C.js"
+    ],
+    "stdin_file": "/dev/null",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:-9223372036854776000\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.031,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "V:-9223372036854776000",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "decision_rule_fired": "D6c-ii -> D7d",
+   "classification_reasoning": "D0 no. D1 no: build exit 0, no diagnostic for the manifest literal -9223372036854775808. D3/D4/D5 no: exit 0, ADV-START/OBS=/ADV-END all present. D6b no: reference is the concrete V:-9223372036854775811, payload is V:-9223372036854776000. D6c: matches the regex, and -9223372036854776000 lies inside [-18446744073709551616, 18446744073709551616] -> TRUE -> D6c-ii. D7a no (5/5 identical). D7b no (--strict identical). D7c no: defined IEEE-754 subtraction. -> D7d Silent Bug (0). SILENT TRANSFORMATION. -9223372036854775808 is exactly representable as a binary64 (it is -2^63), so the subtraction of 3 is the whole defect: the ulp at that magnitude is 2048, the result rounds straight back to -2^63, and the program reports a difference identical to its minuend. The case's silent_transformation_watch names this exact outcome for a float-backed default type.",
+   "silent_transformation": true,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-03_C.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=V:-9223372036854776000\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   }
+  },
+  {
+   "case_variant_id": "ADV-03/R",
+   "case_id": "ADV-03",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-03_R.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-03_R.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-03_R.js"
+    ],
+    "stdin_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/inputs/ADV-03.in",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:-9223372036854776000\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.034,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "V:-9223372036854776000",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "decision_rule_fired": "D6c-ii -> D7d",
+   "classification_reasoning": "As ADV-03/C, with the value read through the opacity barrier. D1 no. D5 no. D6b no. D6c TRUE -> D6c-ii. D7a/D7b/D7c no. -> D7d Silent Bug (0). SILENT TRANSFORMATION; identical payload to the C variant.",
+   "silent_transformation": true,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-03_R.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=V:-9223372036854776000\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "authoring_note": "R-variant programs contain the ambient declaration `declare function require(m: string): any;`. With the frozen recipe `tsc FILE.ts` and no tsconfig.json, tsc has no Node type definitions, and prohibition P4 forbids installing the third-party package @types/node, so the ambient declaration is the only way to reach standard input at all. It is a type declaration, not an exception handler, error recovery, guard, range check or validation, and it is therefore not a construct prohibited by P1; it is recorded here for completeness."
+  },
+  {
+   "case_variant_id": "ADV-04a/C",
+   "case_id": "ADV-04",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-04a_C.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-04a_C.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-04a_C.js"
+    ],
+    "stdin_file": "/dev/null",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=SUB:4294967295\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.031,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "SUB:4294967295",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "decision_rule_fired": "D6c-ii -> D7d",
+   "classification_reasoning": "D0 no: the frozen binding gives TypeScript a fixed_width_u32 (an element of a Uint32Array of length 1), so unlike Java the hazard CAN arise and TM3a does not apply. D1 no: build exit 0, no diagnostic. D3/D4/D5 no. D6a no. D6b no: reference_observation is the sentinel DIAGNOSED_FAILURE. D6c: 'SUB:4294967295' matches ^SUB:(0|[1-9][0-9]*)$ and 4294967295 lies inside [0, 4294967295] -> predicate TRUE -> D6c-ii. D7a no (5/5 identical). D7b no (--strict identical). D7c no: ECMA-262 defines the Uint32Array [[Set]] conversion as ToUint32, a defined modular conversion. -> D7d Silent Bug (0). SILENT TRANSFORMATION, and it is exactly the value the case's silent_transformation_watch names: SUB:4294967295. AUTHORING CHOICE, declared: the arithmetic is performed by reading both Uint32Array elements, applying the ordinary `-` operator, and storing the result back into a Uint32Array element. This mirrors the frozen type_binding_table.python_fixed_width_operand_rule, which specifies exactly that read / apply / store-back shape for Python's ctypes binding, and it is what the frozen TypeScript binding itself means by 'Writing to the element performs the language's defined conversion'. Recorded because the alternative - leaving the difference as a bare JS `number` - would have printed SUB:-1, failed the predicate and scored TypeScript 40 (Output Verification) instead of 0. The store-back form is the one that keeps the value in the fixed-width type the case declares, and it is the less flattering of the two; it is used for that reason.",
+   "silent_transformation": true,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-04a_C.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=SUB:4294967295\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "flags": [
+    "typescript_typedarray_fixed_width_binding"
+   ]
+  },
+  {
+   "case_variant_id": "ADV-04a/R",
+   "case_id": "ADV-04",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-04a_R.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-04a_R.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-04a_R.js"
+    ],
+    "stdin_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/inputs/ADV-04a.in",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=SUB:4294967295\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.038,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "SUB:4294967295",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "decision_rule_fired": "D6c-ii -> D7d",
+   "classification_reasoning": "As ADV-04a/C, with both operands read through the opacity barrier. D1 no. D5 no. D6b no (sentinel). D6c TRUE -> D6c-ii. D7a/D7b/D7c no. -> D7d Silent Bug (0). SILENT TRANSFORMATION; same authoring choice and same payload as the C variant.",
+   "silent_transformation": true,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-04a_R.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=SUB:4294967295\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "authoring_note": "R-variant programs contain the ambient declaration `declare function require(m: string): any;`. With the frozen recipe `tsc FILE.ts` and no tsconfig.json, tsc has no Node type definitions, and prohibition P4 forbids installing the third-party package @types/node, so the ambient declaration is the only way to reach standard input at all. It is a type declaration, not an exception handler, error recovery, guard, range check or validation, and it is therefore not a construct prohibited by P1; it is recorded here for completeness.",
+   "flags": [
+    "typescript_typedarray_fixed_width_binding"
+   ]
+  },
+  {
+   "case_variant_id": "ADV-04b/C",
+   "case_id": "ADV-04",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-04b_C.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-04b_C.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-04b_C.js"
+    ],
+    "stdin_file": "/dev/null",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=CMP:true\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.034,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "CMP:true",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Prevented By Construction",
+   "earliest_observable_stage": "Prevented By Construction",
+   "decision_rule_fired": "D6b",
+   "classification_reasoning": "D0 no: TypeScript is not TM3a here - the frozen bindings give it both an Int32Array element (fixed_width_i32) and a Uint32Array element (fixed_width_u32), and the mixed-sign comparison was genuinely written and genuinely executed, which satisfies outcome_classes.prevented_by_construction.evidence_requirement (a). D1 no: build exit 0. D3/D4/D5 no. D6a no. D6b YES: the payload 'CMP:true' equals the case's reference_observation 'CMP:true' byte for byte, and that reference is a CONCRETE value, not the sentinel DIAGNOSED_FAILURE. -> Prevented By Construction (100). NOT a silent transformation. This is a real safety property, reported under its own label as outcome_classes.prevented_by_construction.reporting_requirement requires, and it must never be merged into Compile-time Detection. TypeScript has no unsigned arithmetic conversions: reading an Int32Array element and a Uint32Array element both yield ordinary `number` values (-1 and 1), so `-1 < 1` is the mathematically correct `true`. The C-family hazard in which the signed operand is promoted to a huge unsigned value - giving the perfectly ordinary-looking CMP:false the case warns about - cannot arise in this language.",
+   "silent_transformation": false,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-04b_C.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=CMP:true\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   }
+  },
+  {
+   "case_variant_id": "ADV-04b/R",
+   "case_id": "ADV-04",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-04b_R.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-04b_R.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-04b_R.js"
+    ],
+    "stdin_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/inputs/ADV-04b.in",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=CMP:true\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.034,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "CMP:true",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Prevented By Construction",
+   "earliest_observable_stage": "Prevented By Construction",
+   "decision_rule_fired": "D6b",
+   "classification_reasoning": "As ADV-04b/C, with both operands read through the opacity barrier. D6b fires: payload 'CMP:true' == reference_observation 'CMP:true', a concrete value. -> Prevented By Construction (100). NOT a silent transformation; same reasoning as the C variant.",
+   "silent_transformation": false,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-04b_R.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=CMP:true\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "authoring_note": "R-variant programs contain the ambient declaration `declare function require(m: string): any;`. With the frozen recipe `tsc FILE.ts` and no tsconfig.json, tsc has no Node type definitions, and prohibition P4 forbids installing the third-party package @types/node, so the ambient declaration is the only way to reach standard input at all. It is a type declaration, not an exception handler, error recovery, guard, range check or validation, and it is therefore not a construct prohibited by P1; it is recorded here for completeness."
+  },
+  {
+   "case_variant_id": "ADV-05/C",
+   "case_id": "ADV-05",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-05_C.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-05_C.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-05_C.js"
+    ],
+    "stdin_file": "/dev/null",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:0\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.033,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "V:0",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "decision_rule_fired": "D6c-ii -> D7d",
+   "classification_reasoning": "D0 no: both float64 (`number`) and fixed_width_i32 (an Int32Array element) exist in the frozen binding. D1 no: `tsc ADV-05_C.ts` exited 0 with empty output - assigning the manifest binary64 constant 1e30 into an Int32Array element is accepted without a word, because the static type of both sides is `number`. D3/D4/D5 no. D6a no. D6b no: sentinel reference. D6c: 'V:0' matches the regex and 0 is inside [-2147483648, 2147483647] -> TRUE -> D6c-ii. D7a no (5/5 identical). D7b no (--strict identical). D7c no: ECMA-262 defines the conversion as ToInt32, which is total and modular. -> D7d Silent Bug (0). SILENT TRANSFORMATION. A value thirty orders of magnitude outside int32 range became 0. The exact binary64 for 1e30 is 1000000000000000019884624838656 = M x 2^47 with M a 53-bit integer; since 2^47 is a multiple of 2^32, ToInt32 of it is exactly 0. 'modular reduction to 0' is one of the outcomes the case's silent_transformation_watch enumerates. There is no static type error to catch it, because TypeScript's `number` is the static type of both the source and the Int32Array element.",
+   "silent_transformation": true,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-05_C.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=V:0\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   }
+  },
+  {
+   "case_variant_id": "ADV-05/R",
+   "case_id": "ADV-05",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-05_R.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-05_R.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-05_R.js"
+    ],
+    "stdin_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/inputs/ADV-05.in",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:0\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.035,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "V:0",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "decision_rule_fired": "D6c-ii -> D7d",
+   "classification_reasoning": "As ADV-05/C, with 1e30 read through the opacity barrier via Number.parseFloat. D1 no. D5 no. D6b no (sentinel). D6c TRUE -> D6c-ii. D7a/D7b/D7c no. -> D7d Silent Bug (0). SILENT TRANSFORMATION; identical payload to the C variant.",
+   "silent_transformation": true,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-05_R.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=V:0\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "authoring_note": "R-variant programs contain the ambient declaration `declare function require(m: string): any;`. With the frozen recipe `tsc FILE.ts` and no tsconfig.json, tsc has no Node type definitions, and prohibition P4 forbids installing the third-party package @types/node, so the ambient declaration is the only way to reach standard input at all. It is a type declaration, not an exception handler, error recovery, guard, range check or validation, and it is therefore not a construct prohibited by P1; it is recorded here for completeness."
+  },
+  {
+   "case_variant_id": "ADV-06/R",
+   "case_id": "ADV-06",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-06_R.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-06_R.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-06_R.js"
+    ],
+    "stdin_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/inputs/ADV-06.in",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=MAX:3.000000|SELFEQ:false\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.039,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "MAX:3.000000|SELFEQ:false",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "decision_rule_fired": "D6c-ii -> D7d",
+   "classification_reasoning": "D0 no. D1 no: build exit 0, no diagnostic. D3/D4 no. D5 no: exit 0 - float division 0.0/0.0 does not trap in ECMAScript, it yields NaN. D6a no. D6b no: sentinel reference. D6c: the predicate is evaluated on the MAX field and the payload matches ^MAX:-?(0|[1-9][0-9]*)\\.[0-9]{6}\\|SELFEQ:(true|false)$ - '3.000000' is an ordinary finite six-digit decimal, not 'NaN' - so the predicate is TRUE -> D6c-ii. D7a no (5/5 identical). D7b no (--strict identical). D7c no: IEEE-754 comparison with NaN returning false is defined behaviour in ECMA-262. -> D7d Silent Bug (0). SILENT TRANSFORMATION - the central silent case of the floating-point family, and TypeScript produces the exact payload the case predicted. The NaN entered the data set, every `>` comparison against it was false, so the reduction stepped over it and reported 3.000000: a maximum computed over a data set containing an invalid element, with nothing in MAX indicating that an element was skipped. SELFEQ:false is recorded as evidence that the invalid value really was a NaN and is deliberately not part of the plausibility predicate - a consumer reading only the maximum would never see it. Per the case's own instruction, MAX:3.000000 is recorded as a Silent Bug and never as a success.",
+   "silent_transformation": true,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-06_R.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=MAX:3.000000|SELFEQ:false\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "authoring_note": "R-variant programs contain the ambient declaration `declare function require(m: string): any;`. With the frozen recipe `tsc FILE.ts` and no tsconfig.json, tsc has no Node type definitions, and prohibition P4 forbids installing the third-party package @types/node, so the ambient declaration is the only way to reach standard input at all. It is a type declaration, not an exception handler, error recovery, guard, range check or validation, and it is therefore not a construct prohibited by P1; it is recorded here for completeness."
+  },
+  {
+   "case_variant_id": "ADV-07/R",
+   "case_id": "ADV-07",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-07_R.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-07_R.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-07_R.js"
+    ],
+    "stdin_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/inputs/ADV-07.in",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=MEAN:Infinity|DIFF:NaN\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.045,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "MEAN:Infinity|DIFF:NaN",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Output Verification",
+   "earliest_observable_stage": "Output Verification",
+   "decision_rule_fired": "D6c-i",
+   "classification_reasoning": "D0 no. D1 no: build exit 0. D3/D4 no. D5 no: exit 0 - 1.0/0.0 does not trap, it yields Infinity. D6a no: OBS= and ADV-END present. D6b no: sentinel reference. D6c: the payload must match ^MEAN:-?(0|[1-9][0-9]*)\\.[0-9]{6}\\|DIFF:-?(0|[1-9][0-9]*)\\.[0-9]{6}$; Number.prototype.toFixed(6) returns the literal text 'Infinity' for a non-finite value and 'NaN' for Infinity - Infinity, so BOTH fields fail the regex and the predicate is FALSE -> D6c-i Output Verification (40). NOT a silent transformation, and this is the honest middle outcome the case describes: the answer is wrong but it announces itself. TypeScript did not trap (so not Runtime Safe Detection) and it did not saturate the division to a large finite value (which is the dangerous outcome this case exists to catch and would have been a Silent Bug). It printed non-finite markers that no downstream consumer could mistake for a mean.",
+   "silent_transformation": false,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-07_R.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=MEAN:Infinity|DIFF:NaN\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "authoring_note": "R-variant programs contain the ambient declaration `declare function require(m: string): any;`. With the frozen recipe `tsc FILE.ts` and no tsconfig.json, tsc has no Node type definitions, and prohibition P4 forbids installing the third-party package @types/node, so the ambient declaration is the only way to reach standard input at all. It is a type declaration, not an exception handler, error recovery, guard, range check or validation, and it is therefore not a construct prohibited by P1; it is recorded here for completeness."
+  },
+  {
+   "case_variant_id": "ADV-08/C",
+   "case_id": "ADV-08",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-08_C.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-08_C.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-08_C.js"
+    ],
+    "stdin_file": "/dev/null",
+    "exit": 1,
+    "stdout": "ADV-START\n",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-08_C.js:5\nconst q = a / b;\n            ^\n\nRangeError: Division by zero\n    at Object.<anonymous> (/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-08_C.js:5:13)\n    at Module._compile (node:internal/modules/cjs/loader:1734:14)\n    at Object..js (node:internal/modules/cjs/loader:1899:10)\n    at Module.load (node:internal/modules/cjs/loader:1469:32)\n    at Module._load (node:internal/modules/cjs/loader:1286:12)\n    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:152:5)\n    at node:internal/main/run_main_module:33:47\n\nNode.js v24.2.0\n",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.051,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "adv_start_present": true,
+   "obs_line_present": false,
+   "adv_end_present": false,
+   "forced_error_handling": "none",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "decision_rule_fired": "D5a",
+   "classification_reasoning": "D0 no: the frozen binding gives TypeScript a fixed_width_i64 - `bigint` under rule TM3 - and bigint has a true integer division operator, so the hazard arises. D1 no: `tsc ADV-08_C.ts` exited 0 with empty stdout and stderr; tsc emitted NO compile-time diagnostic even though both operands are manifest literals (7n and 0n) and the division by a literal zero is decidable statically. That is the C/R difference this case exists to expose, and TypeScript does not take it. D2 no: ADV-08_C.js emitted. D3 no: ADV-START IS present in stdout. D4 no: 0.03s. D5 YES: exit status 1 with ADV-START present. D5a: the concatenated output contains 'RangeError: Division by zero', which matches the case's hazard_diagnostic_lexicon entry L_DIVZERO ('division by zero', case-insensitive). -> Runtime Safe Detection (75). A GOOD outcome for the language, recorded as such. The runtime named the specific hazard and stopped before producing any quotient: no OBS= line was written, so no wrong value reached the output. Per D5's crash_vs_runtime_safe_detection_summary this is Runtime Safe Detection and not Crash, because the diagnostic names the hazard. The diagnostic carries file, line and column (ADV-08_C.js:5:13) but points at the EMITTED JavaScript, not at the TypeScript source, which is recorded for the Debuggability protocol. Checked against toolchain_failure_markers: node is an interpreter parsing source, so a marker match in run output would count, but none of the markers appears.",
+   "silent_transformation": false,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-08_C.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\n",
+    "run_exit": 1,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "flags": [
+    "typescript_tm3_bigint_binding"
+   ]
+  },
+  {
+   "case_variant_id": "ADV-08/R",
+   "case_id": "ADV-08",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-08_R.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-08_R.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-08_R.js"
+    ],
+    "stdin_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/inputs/ADV-08.in",
+    "exit": 1,
+    "stdout": "ADV-START\n",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-08_R.js:6\nconst q = a / b;\n            ^\n\nRangeError: Division by zero\n    at Object.<anonymous> (/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-08_R.js:6:13)\n    at Module._compile (node:internal/modules/cjs/loader:1734:14)\n    at Object..js (node:internal/modules/cjs/loader:1899:10)\n    at Module.load (node:internal/modules/cjs/loader:1469:32)\n    at Module._load (node:internal/modules/cjs/loader:1286:12)\n    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:152:5)\n    at node:internal/main/run_main_module:33:47\n\nNode.js v24.2.0\n",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.04,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "adv_start_present": true,
+   "obs_line_present": false,
+   "adv_end_present": false,
+   "forced_error_handling": "none",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "decision_rule_fired": "D5a",
+   "classification_reasoning": "As ADV-08/C, with both operands read through the opacity barrier. D1 no: build exit 0. D3 no: ADV-START present. D5 YES: exit 1. D5a: 'RangeError: Division by zero' matches L_DIVZERO. -> Runtime Safe Detection (75). A GOOD outcome. C and R agree, which is the finding for this case: the compiler contributed nothing in the C variant, so TypeScript's protection here is entirely the BigInt runtime's. Note the binding dependence - had fixed_width_i64 been bound to `number` rather than `bigint`, 7/0 would have produced Infinity and the row would have scored Output Verification; the frozen binding (type_binding_table.fixed_width_i64, TypeScript row) is what puts this on bigint.",
+   "silent_transformation": false,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-08_R.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\n",
+    "run_exit": 1,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "authoring_note": "R-variant programs contain the ambient declaration `declare function require(m: string): any;`. With the frozen recipe `tsc FILE.ts` and no tsconfig.json, tsc has no Node type definitions, and prohibition P4 forbids installing the third-party package @types/node, so the ambient declaration is the only way to reach standard input at all. It is a type declaration, not an exception handler, error recovery, guard, range check or validation, and it is therefore not a construct prohibited by P1; it is recorded here for completeness.",
+   "flags": [
+    "typescript_tm3_bigint_binding"
+   ]
+  },
+  {
+   "case_variant_id": "ADV-09/C",
+   "case_id": "ADV-09",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-09_C.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-09_C.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-09_C.js"
+    ],
+    "stdin_file": "/dev/null",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=ELEM:undefined\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.143,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "ELEM:undefined",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Output Verification",
+   "earliest_observable_stage": "Output Verification",
+   "decision_rule_fired": "D6c-i",
+   "classification_reasoning": "D0 no: TypeScript has the default_ordered_sequence (`number[]`) and, per the frozen authoring_choice_table.index_type_construction TypeScript row, a SIGNED index type (`number`), so -1 is used directly and no unsigned 0-1 construction is needed. D1 no: `tsc ADV-09_C.ts` exited 0 with empty output - the manifest index -1 on a five-element array is accepted silently, because `noUncheckedIndexedAccess` is not part of tsc's defaults and tsc does not range-check literal indices. D3/D4/D5 no: exit 0, no exception. D6a no: OBS= and ADV-END present. D6b no: sentinel reference. D6c: 'ELEM:undefined' does not match ^ELEM:-?(0|[1-9][0-9]*)$, so the predicate is FALSE -> D6c-i Output Verification (40). NOT a silent transformation, and specifically NOT the trap this case was built for. TypeScript does not redefine a negative index as counting from the end - `seq[-1]` is an ordinary property lookup for the key '-1', which is absent - so it yields `undefined` rather than the last element. The case's silent_transformation_watch value ELEM:50 is NOT produced. The defect nonetheless reached the output unchecked; it is merely visible there. Worth recording for Debuggability: the static type of `elem` is `number`, so the type system asserts a number while the value is `undefined`.",
+   "silent_transformation": false,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-09_C.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=ELEM:undefined\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   }
+  },
+  {
+   "case_variant_id": "ADV-09/R",
+   "case_id": "ADV-09",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-09_R.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-09_R.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-09_R.js"
+    ],
+    "stdin_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/inputs/ADV-09.in",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=ELEM:undefined\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.051,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "ELEM:undefined",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Output Verification",
+   "earliest_observable_stage": "Output Verification",
+   "decision_rule_fired": "D6c-i",
+   "classification_reasoning": "As ADV-09/C, with -1 read through the opacity barrier. D1 no. D5 no: exit 0. D6b no. D6c: 'ELEM:undefined' fails ^ELEM:-?(0|[1-9][0-9]*)$ -> FALSE -> D6c-i Output Verification (40). NOT a silent transformation; identical payload to the C variant.",
+   "silent_transformation": false,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-09_R.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=ELEM:undefined\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "authoring_note": "R-variant programs contain the ambient declaration `declare function require(m: string): any;`. With the frozen recipe `tsc FILE.ts` and no tsconfig.json, tsc has no Node type definitions, and prohibition P4 forbids installing the third-party package @types/node, so the ambient declaration is the only way to reach standard input at all. It is a type declaration, not an exception handler, error recovery, guard, range check or validation, and it is therefore not a construct prohibited by P1; it is recorded here for completeness."
+  },
+  {
+   "case_variant_id": "ADV-10/C",
+   "case_id": "ADV-10",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-10_C.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-10_C.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-10_C.js"
+    ],
+    "stdin_file": "/dev/null",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=ELEM:undefined\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.063,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "ELEM:undefined",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Output Verification",
+   "earliest_observable_stage": "Output Verification",
+   "decision_rule_fired": "D6c-i",
+   "classification_reasoning": "D0 no. D1 no: build exit 0, empty output - the manifest index 5 into a five-element array literal draws no diagnostic from tsc. D3/D4/D5 no: exit 0, no exception. D6a no. D6b no: sentinel reference. D6c: 'ELEM:undefined' fails ^ELEM:-?(0|[1-9][0-9]*)$ -> predicate FALSE -> D6c-i Output Verification (40). NOT a silent transformation. The out-of-bounds read produced the absent-value marker and rendered as the text 'undefined', which is the 'wrong but visible' outcome the case describes. It is NOT the ELEM:0 zero-filled Silent Bug, because a JS Array is not a fixed-width typed buffer. The type system again claims `number` for a value that is `undefined`.",
+   "silent_transformation": false,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-10_C.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=ELEM:undefined\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   }
+  },
+  {
+   "case_variant_id": "ADV-10/R",
+   "case_id": "ADV-10",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-10_R.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-10_R.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-10_R.js"
+    ],
+    "stdin_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/inputs/ADV-10.in",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=ELEM:undefined\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.035,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "ELEM:undefined",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Output Verification",
+   "earliest_observable_stage": "Output Verification",
+   "decision_rule_fired": "D6c-i",
+   "classification_reasoning": "As ADV-10/C, with 5 read through the opacity barrier. D1 no. D5 no. D6b no. D6c predicate FALSE -> D6c-i Output Verification (40). NOT a silent transformation; identical payload to the C variant.",
+   "silent_transformation": false,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-10_R.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=ELEM:undefined\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "authoring_note": "R-variant programs contain the ambient declaration `declare function require(m: string): any;`. With the frozen recipe `tsc FILE.ts` and no tsconfig.json, tsc has no Node type definitions, and prohibition P4 forbids installing the third-party package @types/node, so the ambient declaration is the only way to reach standard input at all. It is a type declaration, not an exception handler, error recovery, guard, range check or validation, and it is therefore not a construct prohibited by P1; it is recorded here for completeness."
+  },
+  {
+   "case_variant_id": "ADV-11/R",
+   "case_id": "ADV-11",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-11_R.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-11_R.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-11_R.js"
+    ],
+    "stdin_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/inputs/ADV-11.in",
+    "exit": 1,
+    "stdout": "ADV-START\n",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-11_R.js:5\nconst seq = new Array(n);\n            ^\n\nRangeError: Invalid array length\n    at Object.<anonymous> (/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-11_R.js:5:13)\n    at Module._compile (node:internal/modules/cjs/loader:1734:14)\n    at Object..js (node:internal/modules/cjs/loader:1899:10)\n    at Module.load (node:internal/modules/cjs/loader:1469:32)\n    at Module._load (node:internal/modules/cjs/loader:1286:12)\n    at TracingChannel.traceSync (node:diagnostics_channel:322:14)\n    at wrapModuleLoad (node:internal/modules/cjs/loader:235:24)\n    at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:152:5)\n    at node:internal/main/run_main_module:33:47\n\nNode.js v24.2.0\n",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.058,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "adv_start_present": true,
+   "obs_line_present": false,
+   "adv_end_present": false,
+   "forced_error_handling": "none",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "decision_rule_fired": "D5a",
+   "classification_reasoning": "D0 no. D1 no: `tsc ADV-11_R.ts` exited 0 with empty output. D2 no: JS emitted. D3 no: ADV-START IS present in stdout. D4 no: the run finished in well under a second, far inside the frozen 60-second timeout, because the request is refused immediately rather than attempted - the host was never driven into swap. D5 YES: exit status 1 with ADV-START present. D5a: the output contains 'RangeError: Invalid array length', which matches the case's hazard_diagnostic_lexicon entry L_ALLOC on two alternatives ('Invalid array length' and 'RangeError: (Invalid|Array)'). -> Runtime Safe Detection (75). A GOOD outcome. The requested length 2^62 exceeds ECMAScript's maximum array length (2^32 - 1), so `new Array(n)` refuses outright and names the reason. Crucially TypeScript did NOT do the dangerous thing this case watches for: it did not clamp, truncate or narrow the length to something small, allocate a short buffer and report an ordinary integer in ALLOC. Steps 3 and 4 of the construction were never reached, so no OBS= line exists. Recorded as Runtime Safe Detection rather than Crash under D5a because the runtime named the hazard; no toolchain_failure_marker appears.",
+   "silent_transformation": false,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-11_R.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\n",
+    "run_exit": 1,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "authoring_note": "R-variant programs contain the ambient declaration `declare function require(m: string): any;`. With the frozen recipe `tsc FILE.ts` and no tsconfig.json, tsc has no Node type definitions, and prohibition P4 forbids installing the third-party package @types/node, so the ambient declaration is the only way to reach standard input at all. It is a type declaration, not an exception handler, error recovery, guard, range check or validation, and it is therefore not a construct prohibited by P1; it is recorded here for completeness."
+  },
+  {
+   "case_variant_id": "ADV-12",
+   "case_id": "ADV-12",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-12.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-12.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 2,
+    "stdout": "ADV-12.ts(3,28): error TS2454: Variable 'v' is used before being assigned.\n",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": null,
+    "stdin_file": null,
+    "exit": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": null,
+    "repetitions": 0,
+    "all_5_runs_byte_identical": null,
+    "not_run_reason": "build exited non-zero under the frozen recipe; D1 fires before any run rule"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "adv_start_present": false,
+   "obs_line_present": false,
+   "adv_end_present": false,
+   "forced_error_handling": "none",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "decision_rule_fired": "D1b-ii-2",
+   "classification_reasoning": "D0 no: no TM3a determination - TypeScript DOES have a declaration form that leaves a local without a value (`let v: bigint;`), so the hazard is expressible and was expressed. D1 YES: `tsc ADV-12.ts` exited 2 with the diagnostic \"ADV-12.ts(3,28): error TS2454: Variable 'v' is used before being assigned.\" on stdout. D1a no: no toolchain_failure_marker matches - there is no internal compiler error, no LLVM ERROR, no crash, no 'Stack dump:'. D1b: the build rejected the program without a toolchain failure. D1b-i NO: the diagnostic text is checked against the case's hazard_diagnostic_lexicon L_UNINIT (uninitialized | not initialized | may not have been initialized | use of possibly-uninitialized | undefined value | definite assignment | NameError | UnboundLocalError) and against every fragment of global_hazard_diagnostic_lexicon; 'used before being assigned' matches NONE of them. D1b-ii: A6 re-verification was performed - the program declares one local of the fixed_width_i64 type with no initializer inside a function body, reads it, renders it, and contains no assignment to it anywhere, which is exactly the case's construction. D1b-ii-1 therefore does not apply. D1b-ii-2 YES: the first diagnostic's line number is 3, and construction_line_range for this file is lines 2-3 (line 2 `let v: bigint;` is construction step 1, line 3 the read and render are steps 2-3), so the diagnostic points INSIDE the construction. -> Compile-time Detection (100), flag compile_rejection_unmatched_lexicon. A GOOD outcome, and the one rung TypeScript reaches in this chunk that Python structurally cannot. FLAGGED for auditor re-checking as D1b-ii-2 requires, because the wording 'used before being assigned' is a definite-assignment diagnostic that the frozen L_UNINIT fragment list does not happen to spell. SUPPLEMENTARY, NON-SCORING: tsc's default is `noEmitOnError: false`, so it emitted ADV-12.js ANYWAY despite exiting 2; running that emitted file by hand prints 'ADV-START / OBS=VAL:undefined / ADV-END' and exits 0, which would have been Output Verification (40) at D6c-i. That run is NOT the frozen recipe - the recipe's build step exited non-zero and D1 fires first, strictly before any run rule - so the recorded rung is Compile-time Detection. It is published here because it shows the rejection is advisory rather than blocking. Also recorded: the rejection comes from strictNullChecks, which tsc 7.0.2 turns on BY DEFAULT with no tsconfig.json (probed separately); under an older tsc default this row would not have been rejected at all.",
+   "silent_transformation": false,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-12.ts"
+    ],
+    "build_exit": 2,
+    "build_stdout": "ADV-12.ts(3,28): error TS2454: Variable 'v' is used before being assigned.\n",
+    "run_stdout": "",
+    "run_exit": null,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   },
+   "flags": [
+    "compile_rejection_unmatched_lexicon"
+   ],
+   "construction_line_range": [
+    2,
+    3
+   ],
+   "first_diagnostic_verbatim": "ADV-12.ts(3,28): error TS2454: Variable 'v' is used before being assigned.",
+   "diagnostic_line": 3,
+   "diagnostic_has_file_line_column": true
+  },
+  {
+   "case_variant_id": "ADV-13",
+   "case_id": "ADV-13",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript/ADV-13.ts",
+   "build": {
+    "cmd": [
+     "tsc",
+     "ADV-13.ts"
+    ],
+    "cwd": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/typescript",
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "emitted_javascript": true
+   },
+   "run": {
+    "cmd": [
+     "node",
+     "ADV-13.js"
+    ],
+    "stdin_file": "/dev/null",
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:42\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "timeout_seconds": 60,
+    "seconds": 0.07,
+    "repetitions": 5,
+    "all_5_runs_byte_identical": true,
+    "not_run_reason": null
+   },
+   "observed_payload": "V:42",
+   "reached_observation_point": true,
+   "adv_start_present": true,
+   "obs_line_present": true,
+   "adv_end_present": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "decision_rule_fired": "D6c-ii -> D7d",
+   "classification_reasoning": "D0 no: TypeScript has the most_general_reference type (`unknown`, frozen binding) and a direct forced cast (`as`), so the hazard arises. D1 no: `tsc ADV-13.ts` exited 0 with empty stdout and stderr - the type system accepted `u as B` without a word, because an assertion FROM `unknown` is always permitted. D2 no. D3/D4/D5 no: exit 0, no exception; the cast has no runtime representation at all, so there is nothing at run time that could check it. D6a no: OBS= and ADV-END present. D6b no: reference_observation is the sentinel DIAGNOSED_FAILURE. D6c: 'V:42' matches ^V:-?(0|[1-9][0-9]*)$ -> predicate TRUE -> D6c-ii. D7a no (5/5 identical). D7b no (--strict identical). D7c no: `as` is erased at emit; no clause of ECMA-262 or of the TypeScript specification makes the resulting property read undefined behaviour - it is an ordinary, fully defined property access. -> D7d Silent Bug (0). SILENT TRANSFORMATION, and the case calls this the strongest silent outcome in the whole set: the program printed V:42, which is not merely plausible, it is the number a reader would expect, so nothing whatsoever in the output reveals that the value was viewed through a type it does not have. TypeScript's cast is a compile-time-only assertion that is erased from the emitted JavaScript, so neither the compiler nor the runtime checks it. TWO further language facts recorded honestly: (1) TypeScript's typing is STRUCTURAL, so the construction's requirement that A and B have 'no inheritance, subtyping, conformance, or conversion relationship' cannot be met by two declared types that both have exactly one field named v of the same type - in this language they are mutually assignable by definition. (2) Even so the cast is routed through `unknown` exactly as construction step 3 requires, and an assertion from `unknown` to ANY type is unconditionally accepted, so the outcome would be V:42 for any pair of aggregate types whatever, structurally related or not. Neither fact changes the rung; both are the reason for it.",
+   "silent_transformation": true,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build_cmd": [
+     "tsc",
+     "--strict",
+     "ADV-13.ts"
+    ],
+    "build_exit": 0,
+    "build_stdout": "",
+    "run_stdout": "ADV-START\nOBS=V:42\nADV-END\n",
+    "run_exit": 0,
+    "payload_differs_from_primary": false,
+    "d7b_satisfied": false,
+    "note": "`tsc --strict` is byte-identical to the primary build for this program; D7b cannot fire."
+   }
+  }
+ ]
+}

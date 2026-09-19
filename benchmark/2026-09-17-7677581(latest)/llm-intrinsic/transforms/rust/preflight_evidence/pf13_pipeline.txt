@@ -1,0 +1,15 @@
+PIPELINE for bare_body_submission.txt
+  extract      ok    2 fenced block(s); took the last one, 870 bytes
+  gate         ok    H_REAL events: none
+  ambiguity    ok    INVERSE_AMBIGUOUS: none
+  inverse      ok    788 bytes of real source produced
+  fixup H1     ok    wrote the submission to solution.rs (unstated convention)
+  fixups H2-H6 ok    none applied; 0 pack-documented fixups
+  build        ok    exit=0 stderr=''
+  run          ok    exit=0 stderr=''
+  oracle       ok    stdout byte-identical to expected_output.txt: yes
+RESULT: PASS
+PIPELINE for negative_submission_real_source.txt
+  extract      ok    1 fenced block(s); took the last one, 787 bytes
+  gate         FAIL  H_REAL events: ['String', 'else', 'fn', 'i64', 'if', 'let', 'main', 'mut', 'while']
+RESULT: FAIL

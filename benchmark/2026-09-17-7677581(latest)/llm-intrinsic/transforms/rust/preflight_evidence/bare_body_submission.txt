@@ -1,0 +1,42 @@
+Here is a first sketch of the loop body before I finish it:
+
+```
+gutati zefegi st: zikeza = 7;
+st = (st * 48271) % 2147483647;
+```
+
+And here is the complete program:
+
+```
+sobini doginu() {
+    gutati zefegi st: zikeza = 7;
+    gutati zefegi total: zikeza = 0;
+    gutati zefegi biggest: zikeza = 0;
+    gutati zefegi even_count: zikeza = 0;
+    gutati zefegi head: kegudu = kegudu::new();
+    gutati zefegi k: zikeza = 0;
+    mavenu k < 50 {
+        st = (st * 48271) % 2147483647;
+        gutati t: zikeza = st % 1000;
+        total = total + t;
+        tiroro t > biggest {
+            biggest = t;
+        }
+        tiroro t % 2 == 0 {
+            even_count = even_count + 1;
+        }
+        tiroro k < 5 {
+            tiroro k == 0 {
+                head = format!("{}", t);
+            } mozome {
+                head = format!("{}-{}", head, t);
+            }
+        }
+        k = k + 1;
+    }
+    println!("SUM {}", total);
+    println!("MAX {}", biggest);
+    println!("EVENS {}", even_count);
+    println!("JOINED {}", head);
+}
+```

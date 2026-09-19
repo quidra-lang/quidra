@@ -1,0 +1,10 @@
+{
+ "probe": "F03.P1",
+ "class_id": "B5-token-substitution",
+ "build_command": "clang++ -std=c++20 -O2 /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/witnesses/F03.P1/cpp/B5-token-substitution/witness.cpp -o /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/cppwork/w/F03.P1_B5-token-substitution",
+ "built": true,
+ "build_diagnostics": "",
+ "observer_output": "sub\n42",
+ "exit_code": 0,
+ "expected_build": true
+}

@@ -1,0 +1,6 @@
+print("ADV-START")
+uint32 a = 0
+uint32 b = 1
+uint32 result = a - b
+print("OBS=SUB:{result}")
+print("ADV-END")

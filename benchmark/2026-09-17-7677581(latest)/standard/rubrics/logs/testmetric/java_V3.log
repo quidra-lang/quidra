@@ -1,0 +1,47 @@
+$ which javac; javac --version
+/opt/homebrew/opt/openjdk/bin/javac
+javac 26.0.1
+$ javac -d build/java-test1 probes/TEST-1/java/Probe.java probes/TEST-1/java/ProbeTests.java
+probes/TEST-1/java/ProbeTests.java:4: エラー: パッケージorg.junit.jupiter.apiは存在しません
+import org.junit.jupiter.api.Test;
+                            ^
+probes/TEST-1/java/ProbeTests.java:5: エラー: パッケージorg.junit.jupiter.apiは存在しません
+import static org.junit.jupiter.api.Assertions.assertTrue;
+                                   ^
+probes/TEST-1/java/ProbeTests.java:5: エラー: static importはクラスとインタフェースからのみとなります
+import static org.junit.jupiter.api.Assertions.assertTrue;
+^
+probes/TEST-1/java/ProbeTests.java:8: エラー: シンボルを見つけられません
+    @Test
+     ^
+  シンボル:   クラス Test
+  場所: クラス ProbeTests
+probes/TEST-1/java/ProbeTests.java:11: エラー: シンボルを見つけられません
+    @Test
+     ^
+  シンボル:   クラス Test
+  場所: クラス ProbeTests
+probes/TEST-1/java/ProbeTests.java:14: エラー: シンボルを見つけられません
+    @Test
+     ^
+  シンボル:   クラス Test
+  場所: クラス ProbeTests
+probes/TEST-1/java/ProbeTests.java:9: エラー: シンボルを見つけられません
+    void passOne() { assertTrue(Probe.add(1, 1) == 2); }
+                     ^
+  シンボル:   メソッド assertTrue(boolean)
+  場所: クラス ProbeTests
+probes/TEST-1/java/ProbeTests.java:12: エラー: シンボルを見つけられません
+    void passTwo() { assertTrue(Probe.add(2, 3) == 5); }
+                     ^
+  シンボル:   メソッド assertTrue(boolean)
+  場所: クラス ProbeTests
+probes/TEST-1/java/ProbeTests.java:15: エラー: シンボルを見つけられません
+    void failOne() { assertTrue(Probe.add(1, 1) == 3); }
+                     ^
+  シンボル:   メソッド assertTrue(boolean)
+  場所: クラス ProbeTests
+エラー9個
+javac_exit=1
+$ find for junit-platform-console-standalone jar
+find_exit=done

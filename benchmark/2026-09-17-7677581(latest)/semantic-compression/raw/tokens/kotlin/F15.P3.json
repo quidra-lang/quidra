@@ -1,0 +1,470 @@
+{
+ "probe_id": "F15.P3",
+ "language": "kotlin",
+ "count": 75,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "interface",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "Named",
+   "line": 1,
+   "col": 11
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 1,
+   "col": 17
+  },
+  {
+   "tag": "KW",
+   "text": "fun",
+   "line": 2,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "tag",
+   "line": 2,
+   "col": 9
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 2,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 2,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 2,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "String",
+   "line": 2,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 3,
+   "col": 1
+  },
+  {
+   "tag": "KW",
+   "text": "class",
+   "line": 5,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "A",
+   "line": 5,
+   "col": 7
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 5,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "Named",
+   "line": 5,
+   "col": 11
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 5,
+   "col": 17
+  },
+  {
+   "tag": "KW",
+   "text": "override",
+   "line": 6,
+   "col": 5
+  },
+  {
+   "tag": "KW",
+   "text": "fun",
+   "line": 6,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "tag",
+   "line": 6,
+   "col": 18
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 6,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 6,
+   "col": 22
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 6,
+   "col": 23
+  },
+  {
+   "tag": "IDENT",
+   "text": "String",
+   "line": 6,
+   "col": 25
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 6,
+   "col": 32
+  },
+  {
+   "tag": "STR",
+   "text": "\"a\"",
+   "line": 6,
+   "col": 34
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 7,
+   "col": 1
+  },
+  {
+   "tag": "KW",
+   "text": "class",
+   "line": 9,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "B",
+   "line": 9,
+   "col": 7
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 9,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "Named",
+   "line": 9,
+   "col": 11
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 9,
+   "col": 17
+  },
+  {
+   "tag": "KW",
+   "text": "override",
+   "line": 10,
+   "col": 5
+  },
+  {
+   "tag": "KW",
+   "text": "fun",
+   "line": 10,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "tag",
+   "line": 10,
+   "col": 18
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 10,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 10,
+   "col": 22
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 10,
+   "col": 23
+  },
+  {
+   "tag": "IDENT",
+   "text": "String",
+   "line": 10,
+   "col": 25
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 10,
+   "col": 32
+  },
+  {
+   "tag": "STR",
+   "text": "\"b\"",
+   "line": 10,
+   "col": 34
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 11,
+   "col": 1
+  },
+  {
+   "tag": "KW",
+   "text": "fun",
+   "line": 13,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "firstTag",
+   "line": 13,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 13,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 13,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 13,
+   "col": 15
+  },
+  {
+   "tag": "IDENT",
+   "text": "String",
+   "line": 13,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 13,
+   "col": 24
+  },
+  {
+   "tag": "KW",
+   "text": "val",
+   "line": 14,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "items",
+   "line": 14,
+   "col": 9
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 14,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "List",
+   "line": 14,
+   "col": 16
+  },
+  {
+   "tag": "OP",
+   "text": "<",
+   "line": 14,
+   "col": 20
+  },
+  {
+   "tag": "IDENT",
+   "text": "Named",
+   "line": 14,
+   "col": 21
+  },
+  {
+   "tag": "OP",
+   "text": ">",
+   "line": 14,
+   "col": 26
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 14,
+   "col": 28
+  },
+  {
+   "tag": "IDENT",
+   "text": "listOf",
+   "line": 14,
+   "col": 30
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 14,
+   "col": 36
+  },
+  {
+   "tag": "IDENT",
+   "text": "A",
+   "line": 14,
+   "col": 37
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 14,
+   "col": 38
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 14,
+   "col": 39
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 14,
+   "col": 40
+  },
+  {
+   "tag": "IDENT",
+   "text": "B",
+   "line": 14,
+   "col": 42
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 14,
+   "col": 43
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 14,
+   "col": 44
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 14,
+   "col": 45
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 15,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "items",
+   "line": 15,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": "[",
+   "line": 15,
+   "col": 17
+  },
+  {
+   "tag": "NUM",
+   "text": "0",
+   "line": 15,
+   "col": 18
+  },
+  {
+   "tag": "DELIM",
+   "text": "]",
+   "line": 15,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 15,
+   "col": 20
+  },
+  {
+   "tag": "IDENT",
+   "text": "tag",
+   "line": 15,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 15,
+   "col": 24
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 15,
+   "col": 25
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 16,
+   "col": 1
+  }
+ ],
+ "class_histogram": {
+  "KW": 11,
+  "IDENT": 21,
+  "DELIM": 35,
+  "OP": 5,
+  "STR": 2,
+  "NUM": 1
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/kotlin/F15.P3.kt",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

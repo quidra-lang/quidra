@@ -1,0 +1,3 @@
+$ quidra run probes/TEST-1/quidra/test1.qui
+Quidra test assertion failed
+exit=1

@@ -1,0 +1,4 @@
+T identity<T>(T value)
+    return value
+
+print(identity<int>(7))

@@ -1,0 +1,17 @@
+string | error next_line()
+    auto received = try input()
+    match received
+        string text
+            return text
+        none
+            return error("no line")
+
+void | error run()
+    int64 value = try int64.parse(try next_line())
+    int64 result = value * 2
+    print("OBS=R:{result}")
+    return void
+
+print("ADV-START")
+run()
+print("ADV-END")

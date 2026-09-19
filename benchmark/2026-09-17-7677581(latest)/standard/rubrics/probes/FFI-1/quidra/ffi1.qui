@@ -1,0 +1,4 @@
+extern float64 c_cos(float64 x) = "cos"
+
+float64 v = c_cos(1.0)
+print("cos(1.0)={v:frac=10}")

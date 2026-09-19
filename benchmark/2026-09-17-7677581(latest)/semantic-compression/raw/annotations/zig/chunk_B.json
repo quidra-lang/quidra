@@ -1,0 +1,2210 @@
+{
+  "language": "Zig",
+  "language_key": "zig",
+  "chunk": "B",
+  "probes": [
+    {
+      "probe_id": "F06.P1",
+      "language": "Zig",
+      "language_key": "zig",
+      "support": "FULL",
+      "support_reason": "F-1: every numbered sub-requirement is delivered. (1) `fn mid(v: std.ArrayList(i32)) i32 { return v.items[1]; }` is a function with one parameter of Zig's normal growable-integer-sequence type and a body that returns the element at index 1 of that parameter. (2) `var xs: std.ArrayList(i32) = .empty;` followed by `try xs.appendSlice(allocator, &.{ 1, 2, 3 });` binds a local `xs` to such a sequence containing 1, 2, 3 — std.ArrayList in Zig 0.16 is the unmanaged list, so the allocator is supplied per call and `.empty` is the documented empty initializer. (3) `const y = mid(xs);` binds the call's result in Zig's normal binding form. (4) `return y;`. F-2: language and bundled std only. F-3: builds and runs under the frozen semantic-compression recipe unmodified and prints 2. F-4: no extra flag, package or code generation. F-6: no clause of the language reference or of the std documentation places std.ArrayList, `.empty`, `appendSlice`, `items` or `try` under a normative prohibition or deprecation. R10 form selection: `var xs: std.ArrayList(i32) = .empty;` + `try xs.appendSlice(allocator, &.{1,2,3});` is 31 tokens; the alternative `var buf = [_]i32{1,2,3};` + `var xs: std.ArrayList(i32) = .fromOwnedSlice(&buf);` is 33 tokens, so R10 selects the measured form. A `[]i32` slice parameter was rejected under R1, not R10: a slice is not the growable-sequence type the canonical task names. HARNESS DISCLOSURE (spec 10.4, not a support deduction): Zig has no nested function declarations — a `fn` item may only appear at container scope — so `mid`'s declaration cannot be placed inside the enclosing function body next to the call site. Exactly one scaffold token, the `}` that closes the enclosing `probe` function, therefore falls inside the marked region so that the region stays contiguous as tokenizer rule R1 requires. This is the identical layout the frozen Java fragment for this probe uses for the identical reason, and it is the minimum possible: every alternative layout puts a whole function header (12 tokens) inside the region instead.",
+      "capability_points_possible": 2,
+      "capability_points_awarded": 2.0,
+      "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/zig/F06.P1.zig",
+      "toolchain_verification": {
+        "built": true,
+        "ran": true,
+        "observed_output": "2",
+        "diagnostics": "build exit 0, no diagnostics; run exit 0. zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN  (environment.json -> semantic_compression_recipes.recipes.zig.build); run ./BIN. zig 0.16.0, target aarch64-macos."
+      },
+      "token_count": 66,
+      "facts": [
+        {
+          "fact_kind": "type_and_representation",
+          "site": "xs: std.ArrayList(i32)",
+          "value": "an unmanaged growable array-list of i32; i32 is a 32-bit two's-complement signed integer, fixed by the language on every target",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Primitive Types' (i32 is 32-bit signed two's complement on every target — unlike C's int, no implementation-defined width is involved); the std.ArrayList declaration named literally at the site. The whole type is written at the site (hops_decl = 0, hops_stdlib = 1)."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "var xs",
+          "value": "mutable: the binding may be reassigned and the list may be modified through it",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables': `var` introduces a mutable variable, `const` an immutable one. The keyword is the local marker."
+        },
+        {
+          "fact_kind": "initialization_state",
+          "site": "= .empty",
+          "value": "definitely initialized, to the empty list (length 0, capacity 0, no buffer)",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables' (a variable declared with an initializer is initialized at the declaration; Zig has no default-initialized declarations — an uninitialized one must be written `= undefined`); std.ArrayList's `empty` declaration, named literally at the site."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": ".empty",
+          "value": "no allocation: the empty list is an all-zero value, and no allocator appears at this site",
+          "locally_recoverable": true,
+          "justification": "std.ArrayList's `empty` is a constant declaration of the list value with a null buffer. Zig has no hidden allocation: a std container allocates only through an allocator handed to it, and none is written here. Zig 0.16.0 Language Reference, 'Memory' ('Zig has no runtime memory allocation; the std library requires an Allocator to be passed explicitly')."
+        },
+        {
+          "fact_kind": "lifetime_resource_effect",
+          "site": "xs (scope exit of the enclosing block)",
+          "value": "the binding's storage ends at the end of the enclosing scope and NO cleanup runs there: Zig has no destructors and no implicit deinit, so the buffer allocated at the next statement is not released",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'defer' — `defer` is the only construct that attaches code to scope exit, and none is written. This is a universally specified rule (methodology 02 Rule 2.5.1, basis_class = universal-rule): no local form could have selected a different answer."
+        },
+        {
+          "fact_kind": "possible_failure",
+          "site": "try xs.appendSlice(allocator, &.{ 1, 2, 3 })",
+          "value": "may fail: the call returns an error union and the failure is surfaced as an error value",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'try': `try x` is shorthand for `x catch |err| return err`, and it is a compile error to write `try` on an expression that is not an error union. The keyword is the local marker for both the failure and its surfacing."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "try xs.appendSlice(allocator, &.{ 1, 2, 3 })",
+          "value": "control may leave the enclosing function early at this statement, returning the error",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'try' (`try x` is `x catch |err| return err`). Entailed by the failure fact but a disjoint kind, so counted separately under methodology 02 rule A3.2."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": "xs.appendSlice(allocator, ...)",
+          "value": "may allocate, and may allocate ONLY through the allocator written at this site",
+          "locally_recoverable": true,
+          "justification": "std.ArrayList's `appendSlice` takes the allocator as its first parameter; Zig 0.16.0 Language Reference, 'Memory' states that std library allocation is always through an explicitly passed Allocator. The allocator token at the site is the local signal."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "xs.appendSlice(allocator, ...)",
+          "value": "the list is modified in place: the receiver is taken by pointer, so `xs` itself is written by this call",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Functions' method-call syntax: `xs.appendSlice(...)` where the first parameter is `*Self` automatically takes the address of `xs`, which is legal only because `xs` was declared `var`. The `var` at the declaration plus the receiver position are the local evidence."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "&.{ 1, 2, 3 }",
+          "value": "a pointer to an anonymous, comptime-constructed 3-element array of the element type",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Anonymous Struct Literals' / 'Arrays': `.{...}` is an anonymous list literal whose type comes from the result location, and `&` takes its address."
+        },
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "&.{ 1, 2, 3 }",
+          "value": "a single-item pointer to an array is coerced to a slice of the element type; no element is converted and no value changes",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Type Coercion: Slices, Arrays and Pointers' — `*[N]T` coerces to `[]T`/`[]const T`. The coercion target is the parameter type of the `appendSlice` named at the site."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": "&.{ 1, 2, 3 } (argument position)",
+          "value": "the three elements are COPIED into the list's buffer; the literal itself does not outlive the statement",
+          "locally_recoverable": true,
+          "justification": "std.ArrayList's `appendSlice` is documented as appending the contents of the slice to the list. The copy direction is fixed by the call form."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "allocator (argument position)",
+          "value": "a value: the Allocator interface struct (a context pointer plus a vtable pointer) passed by value; it is used for this call and, in the unmanaged list, not retained",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Functions' (arguments are passed by value) plus std.ArrayList's unmanaged contract, under which every method that may allocate takes the allocator again."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "fn mid(...) i32",
+          "value": "the function yields a 32-bit two's-complement signed integer, returned by value",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Functions' (the return type follows the parameter list) and 'Primitive Types'. The type is written at the signature."
+        },
+        {
+          "fact_kind": "possible_failure",
+          "site": "fn mid(...) i32",
+          "value": "cannot return an error: the return type is `i32`, not `!i32`, and Zig has no exceptions",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Errors': a function can only return an error if its return type is an error union, spelled with `!`. Its absence is itself the local signal; Zig 0.16.0 Language Reference has no throw/exception mechanism at all."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "fn mid(...) i32",
+          "value": "returns normally to its caller; it cannot propagate, unwind, or suspend",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Errors' (no error union in the return type) and 'Async Functions' (Zig 0.16 has no implicit suspension; a call site is a plain call). Disjoint from the failure fact under A3.2."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": "fn mid(...) i32 (return)",
+          "value": "the return produces an independent 32-bit value; nothing is allocated, cloned, moved, borrowed or destroyed at the return",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Primitive Types' — i32 is a scalar with no ownership semantics; Zig has no destructors, no move constructors and no implicit clone. This answers the probe's OBSERVATION TARGET from the local form alone."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "v (parameter)",
+          "value": "denotes a value — a copy of the list header — not the caller's variable",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Pass-by-value Parameters': parameters are passed by value; the implementation may pass a reference only where doing so is not observable."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "v (parameter)",
+          "value": "immutable: Zig parameters are constants and may not be assigned",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Functions' ('Parameters are immutable'). Verified against the toolchain: `fn f(v: i32) i32 { v = 3; ... }` is rejected with `error: cannot assign to constant`."
+        },
+        {
+          "fact_kind": "aliasing_writable_aliasing",
+          "site": "v (parameter)",
+          "value": "the copy's `items` slice designates the SAME heap buffer as the caller's list, but no writable alias to `xs` itself is created and nothing may be written through `v`",
+          "locally_recoverable": true,
+          "justification": "The list header is `{ items: []T, capacity: usize }` in the std.ArrayList declaration named at the site, so copying the header copies the pointer; and Zig 0.16.0 Language Reference, 'Functions' makes the parameter immutable, which removes every write path."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "v.items",
+          "value": "a slice `[]i32`: a pointer plus a length over the list's current elements",
+          "locally_recoverable": true,
+          "justification": "std.ArrayList's `items` field is declared as the slice of live elements; Zig 0.16.0 Language Reference, 'Slices'."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "y",
+          "value": "denotes a value: an independent 32-bit integer copied out of the call",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables' and 'Primitive Types'; `mid`'s return type, which this probe places inside the measured region, is `i32`."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "const y",
+          "value": "immutable: the binding may not be reassigned",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables': `const` denotes a constant binding."
+        },
+        {
+          "fact_kind": "initialization_state",
+          "site": "const y = mid(xs)",
+          "value": "definitely initialized by the call",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables' — a declaration with an initializer is initialized; Zig requires `= undefined` to be written for the uninitialized case."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": "mid(xs) (argument position)",
+          "value": "the three-word list header is passed by value; the heap buffer is NOT duplicated and the caller keeps ownership of it",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Pass-by-value Parameters' plus the std.ArrayList header layout named at the site. Zig has no copy constructor, so 'copy' here means exactly a bitwise copy of the header."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "return y",
+          "value": "transfers control out of the enclosing function with the value of `y`; no cleanup, unwinding or deferred code runs, because none is written",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'return' and 'defer' (only a written `defer` runs at exit)."
+        }
+      ],
+      "fact_count": 26,
+      "determinacy_B": 2,
+      "determinacy_enumeration": [
+        "V1 - `std` resolves to the Zig standard library. A1 = copy (the list header is copied into `v`; Zig 0.16.0 Language Reference, 'Pass-by-value Parameters'); A2 = no caller-observable mutation through the call, because parameters are immutable and `mid`'s whole body is inside the measured region and writes nothing; A4 = fixed-width signed integer (`i32`, written at the signature); A8 = one heap allocation at `appendSlice` through the written allocator, and NO destruction or cleanup anywhere, because Zig has no destructors and no `defer` is written; A9 = `try` may return the error early, otherwise both returns fall out normally. Witness: the frozen program builds under `zig build-exe -OReleaseSafe` and prints 2.",
+        "V2 - `std` resolves to a container declared outside the measured region. `const std = @import(\"std\");` is scaffolding under tokenizer rule R1b and therefore external (methodology 03 Rule 1.1.2); `std` is an ordinary identifier in Zig, not a keyword, so nothing inside the region fixes what `std.ArrayList` means. The element access, the allocation behaviour and the observable result are then arbitrary: A8 changes from 'one heap allocation' to 'none', and the result changes. Witness semantic-compression/witnesses/zig/chunk_B/f06p1_V2_std_shadow.zig: a file-level `const std = struct { pub fn ArrayList(comptime T: type) type {...} ... };` whose `appendSlice` stores the slice without allocating and whose list makes `mid` return `v.items[1] + 10`; the measured region is byte-identical, the file builds under the frozen recipe and prints 12 instead of 2. Sub-variants of this class are NOT counted separately (methodology 03 Rule 1.4.6: an unbounded family of completions contributes only the closed outcome classes it realizes), which is the same treatment the Rust and C++ records give their own name-resolution class. NOTE, in the other direction: `i32` does NOT open a branch in Zig. Unlike Rust's prelude name, `i32` is a primitive type name that the language forbids being used as an identifier - verified: `const i32 = u8;` is rejected with `error: name shadows primitive 'i32'` - so the element type and the result type cannot be redefined from outside the region."
+      ],
+      "locality_lookups": 2,
+      "locality_detail": [
+        {
+          "hop": "type decl - the std.ArrayList declaration and the contract published with it (the `{items, capacity}` header layout, `empty` as the non-allocating empty value, `appendSlice` allocating through its allocator parameter and returning an error union, `items` as the slice of live elements)",
+          "required_for_fact": "the representation half of type_and_representation, allocation_copy_move_borrow_destroy, and aliasing_writable_aliasing. Methodology 03 Rule 2.2.2 counts standard-library declarations as hops on the same terms as user declarations, and its clause 'a type declaration and one of its members are the same declared entity if the member is written inside that declaration's own text' makes `empty`, `appendSlice` and `items` part of this single hop, because std.ArrayList is one generic container declaration whose members are written inside it. value_vs_storage and control_flow_effect are resolved inside the measured region (the corpus places `mid`'s whole declaration and body there), and i32's width is fixed by the language reference, which Rule 2.2.3 makes zero-cost. The `allocator` parameter's declaration is NOT counted: knowing which allocator it is only sharpens a fact already in its class ('allocation may occur'), which Rule 2.4.1 makes an optional lookup."
+        },
+        {
+          "hop": "import -- the `const std = @import(\"std\");` declaration, which sits OUTSIDE the measured region (kind IMPORT). [AUDIT CORRECTION.] Methodology 03 Rule 2.2.2 states explicitly that 'An import/use/using/#include statement is a declared entity outside the measured fragment. If the analyst must read it to know which module a name comes from, that is 1 hop; the imported definition is another.' `std` is an ordinary identifier in Zig, not a keyword, and this probe's own determinacy record argues at length that nothing inside the region fixes what it denotes -- the externality of the binding is used there to earn a branch, so the corresponding locality hop must be paid here. C++ is distinguishable because it writes the fully qualified `std::vector`; Zig's bare `std` is not. Java pays exactly this hop for its `import java.util.*` lines, and Rust and Python were each charged an import hop on F10.P1.",
+          "required_for_fact": "type_and_representation and allocation_copy_move_borrow_destroy -- without reading the binding, the simple name `std` in `std.ArrayList(i32)` is not known to denote the standard library, so the type declaration hop already charged cannot even be located."
+        }
+      ],
+      "hidden_items": [],
+      "hidden_count": 0,
+      "complexity_units": 20,
+      "complexity_detail": [
+        {
+          "unit": "distinct syntax form",
+          "description": "`var` declaration with an explicit type annotation and an initializer.",
+          "citation": "Zig 0.16.0 Language Reference, 'Variables'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`const` declaration with an initializer and an inferred type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Variables'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Decl literal `.empty`: a `.name` initializer resolved against the declared type's namespace.",
+          "citation": "Zig 0.16.0 Language Reference, 'Enum Literals' / 'Decl Literals'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Anonymous list literal `.{ a, b, c }`.",
+          "citation": "Zig 0.16.0 Language Reference, 'Anonymous Struct Literals'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Address-of operator `&e`.",
+          "citation": "Zig 0.16.0 Language Reference, 'Operators' (address of)"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`try` prefix operator on an error union.",
+          "citation": "Zig 0.16.0 Language Reference, 'try'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Function declaration `fn name(params) ReturnType { ... }` at container scope.",
+          "citation": "Zig 0.16.0 Language Reference, 'Functions'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Call expression, including the generic-type call form `std.ArrayList(i32)` in which a type is produced by calling a function at comptime.",
+          "citation": "Zig 0.16.0 Language Reference, 'Generic Data Structures'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Field / namespace access `a.b`.",
+          "citation": "Zig 0.16.0 Language Reference, 'struct'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Index expression `s[i]` on a slice.",
+          "citation": "Zig 0.16.0 Language Reference, 'Slices'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`return` statement.",
+          "citation": "Zig 0.16.0 Language Reference, 'Functions'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "Result-location semantics: `.empty` and `.{...}` take their type from the result location rather than from the expression.",
+          "citation": "Zig 0.16.0 Language Reference, 'Result Location Semantics'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "Type coercion of `*[N]T` to `[]const T` at a parameter whose type is a slice.",
+          "citation": "Zig 0.16.0 Language Reference, 'Type Coercion: Slices, Arrays and Pointers'"
+        },
+        {
+          "unit": "implicit rule",
+          "description": "Method-call syntax automatically takes the address of the receiver when the first parameter is `*Self`, which requires the receiver to be a `var`.",
+          "citation": "Zig 0.16.0 Language Reference, 'Functions' (method call syntax)"
+        },
+        {
+          "unit": "implicit rule",
+          "description": "Parameters are immutable, and the implementation may pass an aggregate by reference where that is not observable.",
+          "citation": "Zig 0.16.0 Language Reference, 'Pass-by-value Parameters'"
+        },
+        {
+          "unit": "implicit rule",
+          "description": "`try x` means `x catch |err| return err`, so the enclosing function's return type must be an error union.",
+          "citation": "Zig 0.16.0 Language Reference, 'try'"
+        },
+        {
+          "unit": "implicit rule",
+          "description": "No cleanup runs at scope exit: Zig has no destructors, and `defer` is the only scope-exit hook.",
+          "citation": "Zig 0.16.0 Language Reference, 'defer'"
+        },
+        {
+          "unit": "documented exception",
+          "description": "Index out of bounds is safety-checked undefined behaviour: it panics in Debug and ReleaseSafe and is undefined in ReleaseFast and ReleaseSmall — the general rule that an operation is total is carved out here by build mode.",
+          "citation": "Zig 0.16.0 Language Reference, 'Undefined Behavior: Index out of Bounds'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "std.ArrayList contract clause relied on: `empty` is the empty list value and allocates nothing.",
+          "citation": "Zig 0.16.0 std documentation, std.ArrayList.empty"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "std.ArrayList contract clauses relied on: `appendSlice(gpa, items)` copies the elements onto the end of the list, allocating through `gpa`, and returns an error union; `items` is the slice of live elements. Counted as one rule per methodology 04 section 2.4.2 only for the clauses the fragment's stated behaviour depends on.",
+          "citation": "Zig 0.16.0 std documentation, std.ArrayList.appendSlice and std.ArrayList.items"
+        }
+      ]
+    },
+    {
+      "probe_id": "F06.P2",
+      "language": "Zig",
+      "language_key": "zig",
+      "support": "FULL",
+      "support_reason": "F-1: every numbered sub-requirement is delivered. (1) `fn divmod2(a: i32, b: i32) struct { i32, i32 }` takes two signed 32-bit integer parameters and produces both the truncating quotient and the remainder from a single call, using Zig's normal multiple-result mechanism — an anonymous tuple type, which the reference documents as the way a function returns more than one value. (2) `const q, const r = divmod2(7, 3);` binds the two results to two separate locals in ONE binding construct: Zig has destructuring assignment, so the 'if the language has one' clause is satisfied rather than approximated. (3) `return q + r;`. Zig rejects `/` and `%` on signed integers — verified: `a / b` on two i32 is `error: division with 'i32' and 'i32': signed integers must use @divTrunc, @divFloor, or @divExact` — so the builtins are the ordinary integer division and remainder forms for this operand type, not a substitution. R10/R1 selection among the three: @divExact fails R1 (it is undefined when the division is not exact, so it does not compute 'the integer quotient' for general operands); @divFloor and @divTrunc tie at 7 tokens, and R1 selects @divTrunc with @rem because the canonical task names the results `a/b` and `a%b`, which in every other language of the fixed comparison set truncate toward zero and take the sign of the dividend — choosing @divFloor/@mod would make the Zig fragment produce -3 and 2 where the other nine produce -2 and -1, and R1 requires the same stated outputs. F-2/F-3/F-4: language and bundled std only; builds and runs under the frozen recipe and prints 3; no extra flag. F-6: no normative prohibition or deprecation applies to tuple types, destructuring, @divTrunc or @rem. HARNESS DISCLOSURE: as at F06.P1, one scaffold token — the `}` closing the enclosing function — lies inside the marked region because Zig has no nested function declarations and the region must be contiguous under R1.",
+      "capability_points_possible": 2,
+      "capability_points_awarded": 2.0,
+      "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/zig/F06.P2.zig",
+      "toolchain_verification": {
+        "built": true,
+        "ran": true,
+        "observed_output": "3",
+        "diagnostics": "build exit 0, no diagnostics; run exit 0. zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN  (environment.json -> semantic_compression_recipes.recipes.zig.build); run ./BIN. zig 0.16.0, target aarch64-macos."
+      },
+      "token_count": 58,
+      "facts": [
+        {
+          "fact_kind": "type_and_representation",
+          "site": "struct { i32, i32 } (return type)",
+          "value": "a tuple: an anonymous struct with two numbered fields, both 32-bit two's-complement signed integers, laid out inline and returned by value",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Tuples' (a struct whose fields are all unnamed is a tuple) and 'Primitive Types'. The whole type is written at the signature."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "fn divmod2(...) struct { i32, i32 }",
+          "value": "the result is a value, independent of anything in the callee; it denotes no storage that outlives the call",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Functions' — the return type is a plain aggregate of scalars, and Zig has no reference return type unless a pointer type is written."
+        },
+        {
+          "fact_kind": "possible_failure",
+          "site": "fn divmod2(...) struct { i32, i32 }",
+          "value": "cannot return an error: the return type is not an error union, and Zig has no exceptions",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Errors': only a function whose return type is written with `!` can return an error. Zig has no throw mechanism at all."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "fn divmod2(...) struct { i32, i32 }",
+          "value": "returns normally; it cannot propagate an error, unwind, or suspend",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Errors' and 'Functions'. Disjoint kind from possible_failure (methodology 02 rule A3.2)."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": "fn divmod2(...) (return)",
+          "value": "no allocation, no clone, no move and no destruction at the return: a two-word aggregate of scalars is produced by value",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Primitive Types' and 'Memory' — there is no implicit allocation in Zig and no destructor mechanism."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "a: i32",
+          "value": "32-bit two's-complement signed integer",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Primitive Types'. Written at the parameter."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "a: i32",
+          "value": "immutable: Zig parameters are constants",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Functions' ('Parameters are immutable'). Verified: assigning to a parameter is rejected with `error: cannot assign to constant`."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "b: i32",
+          "value": "32-bit two's-complement signed integer",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Primitive Types'. A different entity from `a`, so this is not a duplicate under methodology 02 rule A3.4."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "b: i32",
+          "value": "immutable: Zig parameters are constants",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Functions'. Different entity from `a` (rule A3.4)."
+        },
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "@divTrunc(a, b)",
+          "value": "no representation or type change: both operands are already i32 and the result is i32; the operation truncates the mathematical quotient TOWARD ZERO",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Builtin Functions: @divTrunc' ('Truncated division. Rounds toward zero.'). The rounding direction is named by the builtin itself, which is what makes it local. NOTE: the exceptional-operand half of this site's numeric edge (b == 0, and minInt/-1) is NOT claimed as a local fact — it is safety-checked undefined behaviour whose outcome depends on the build mode, so it is recorded as a G-hop under metric C and as an H8 event under metric D instead."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "@divTrunc(a, b)",
+          "value": "produces i32, the operands' own type; Zig never promotes or widens an arithmetic result",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Builtin Functions: @divTrunc' and 'Type Coercion' — Zig inserts no integer promotion."
+        },
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "@rem(a, b)",
+          "value": "no representation or type change; yields the remainder whose sign follows the DIVIDEND, the companion of @divTrunc",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Builtin Functions: @rem' ('Remainder division ... the result has the sign of the numerator'). The builtin's name is the local marker; Zig makes the negative-operand question a choice between two differently named operations (@rem vs @mod) rather than a rule to look up."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "@rem(a, b)",
+          "value": "produces i32",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Builtin Functions: @rem'."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": ".{ @divTrunc(a, b), @rem(a, b) }",
+          "value": "the tuple is built in place in the return slot; no allocation and no copy of anything heap-held",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Anonymous Struct Literals' and 'Result Location Semantics' — the literal is constructed directly into the result location."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "return .{ @divTrunc(a, b), @rem(a, b) }",
+          "value": "returns from divmod2 with the tuple; no deferred code runs, because none is written",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Functions' and 'defer'."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "q",
+          "value": "denotes a value: an independent i32 copied out of the tuple's first field",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Destructuring' — each element of the destructured value is bound to its own new variable."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "const q",
+          "value": "immutable binding",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "q",
+          "value": "i32, the first field of the returned tuple, whose type is written inside the measured region",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Tuples' plus divmod2's signature, which this probe places inside the region."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "r",
+          "value": "denotes a value: an independent i32 copied out of the tuple's second field",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Destructuring'."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "const r",
+          "value": "immutable binding",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'. Different entity from `q` (rule A3.4)."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "r",
+          "value": "i32, the second field of the returned tuple",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Tuples' plus the local signature."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": "const q, const r = divmod2(7, 3)",
+          "value": "each tuple field is copied into its own binding; no allocation and no aliasing of the returned aggregate survives the statement",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Destructuring' — the destructured value's elements are assigned to the targets."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "q + r",
+          "value": "i32 addition producing i32; Zig requires both operands of a binary arithmetic operator to have the same type and never promotes",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Operators' (the arithmetic operators are defined on operands of the same type) and 'Type Coercion'."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "return q + r",
+          "value": "returns from the enclosing function with the sum",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Functions'."
+        }
+      ],
+      "fact_count": 24,
+      "determinacy_B": 1,
+      "determinacy_enumeration": [
+        "EXACTLY ONE materially distinct interpretation - the measured region is closed under Zig's name rules. Every name in it is either declared inside the region (`divmod2`, `a`, `b`, `q`, `r`), a primitive type name the language forbids being redefined (`i32` — verified: `const i32 = u8;` is rejected with `error: name shadows primitive 'i32'`), a `@`-sigil builtin that no declaration can shadow (`@divTrunc`, `@rem`; Zig 0.16.0 Language Reference, 'Builtin Functions'), a keyword (`fn`, `struct`, `const`, `return`), or an integer literal. There is therefore no external declaration to consult and no token-substitution mechanism (methodology 03 Rule 1.4.8: Zig has no macro or preprocessor that can replace a fragment's tokens without a marker inside it, so this class is excluded with flag LOW-B-BY-ABSENCE rather than counted). The single vector: A1 = copy (destructuring copies each tuple field; Zig 0.16.0 Language Reference, 'Destructuring'); A4 = a tuple of two fixed-width signed integers, written at the signature; A6 = cannot fail — the return type is not an error union, and the only call in the region passes the literals 7 and 3, so the zero-divisor and minInt/-1 edges of @divTrunc are not reachable by any completion of the program, since both arguments are written inside the region; A8 = no resource event (no allocator appears, Zig has no destructors); A9 = both returns fall out normally. Witness: the frozen program builds under `zig build-exe -OReleaseSafe` and prints 3."
+      ],
+      "locality_lookups": 0,
+      "locality_detail": [],
+      "hidden_items": [
+        {
+          "checklist_item": "H8 - Context-dependent overflow / numeric behavior",
+          "why": "Local site `return .{ @divTrunc(a, b), @rem(a, b) };` inside `divmod2`, whose parameters the canonical task declares as unconstrained i32. Sub-test H8a fires: for the same operand types the outcome at the edge — a zero divisor, and @divTrunc(minInt(i32), -1) — differs by build mode. Zig 0.16.0 Language Reference, 'Undefined Behavior' — the listed cases (Integer Overflow, Division by Zero, Index out of Bounds) are SAFETY-CHECKED undefined behaviour: the compiler emits a check that panics in Debug and ReleaseSafe, while in ReleaseFast and ReleaseSmall the behaviour is undefined. The local tokens `@divTrunc` and `@rem` fix the ROUNDING and the SIGN of the result (that half is counted as a local fact above) but select nothing about the edge, so the LED test of methodology 04 section 1.2 fails for the edge behaviour. Counted ONCE for this local site: the panic-versus-undefined rule is a single normative statement of the reference covering overflow, division by zero and out-of-bounds alike, so under methodology 04 section 1.3.2 the two builtins at one site are one event. H5 was considered and NOT counted separately for the same behaviour: the single-assignment rule of section 1.3.1 gives one event exactly one item, and section 1.2.1's mandatory illustration places 'an arithmetic outcome at overflow that differs between build configurations' in H8a. RECONCILIATION with this probe's determinacy record, which reports B = 1 with 'cannot fail': the two metrics apply different tests and the difference is deliberate. Semantic Determinacy enumerates interpretations of the measured region as written, and the region's only CALL passes the literals 7 and 3, so no completion of the program reaches a zero divisor. Hidden Semantic Cost asks whether the behaviour is signalled at the use site over the probe's declared input domain, and the canonical task declares `divmod2`'s parameters as unconstrained signed 32-bit integers, which is the domain the DECLARED function must be read against. Neither reading is used to lower the other metric."
+        },
+        {
+          "checklist_item": "H8 - Context-dependent overflow / numeric behavior",
+          "why": "Local site `return q + r;`. A distinct local site, so a distinct event under methodology 04 section 1.3.2. The same rule applies: signed integer overflow of `+` is safety-checked undefined behaviour, panicking in Debug/ReleaseSafe and undefined in ReleaseFast/ReleaseSmall, and no token at the site selects which. Zig DOES provide edge-selecting operators — `+%` wraps and `+|` saturates (Zig 0.16.0 Language Reference, 'Operators') — so this is a genuine choice the author did not make here, not an absence of the facility; writing `+` is what the canonical task's 'ordinary operators' requires."
+        }
+      ],
+      "hidden_count": 2,
+      "complexity_units": 17,
+      "complexity_detail": [
+        {
+          "unit": "distinct syntax form",
+          "description": "Function declaration with a parameter list and a return type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Functions'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Anonymous tuple type `struct { T, U }` (a struct with unnamed fields).",
+          "citation": "Zig 0.16.0 Language Reference, 'Tuples'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Anonymous struct/tuple literal `.{ e1, e2 }`.",
+          "citation": "Zig 0.16.0 Language Reference, 'Anonymous Struct Literals'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Destructuring declaration `const x, const y = e;`.",
+          "citation": "Zig 0.16.0 Language Reference, 'Destructuring'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`const` declaration with an inferred type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Variables'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Call expression.",
+          "citation": "Zig 0.16.0 Language Reference, 'Functions'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`return` statement.",
+          "citation": "Zig 0.16.0 Language Reference, 'Functions'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Builtin-call form `@name(args)`, a lexically distinct call syntax that cannot be shadowed by a declaration.",
+          "citation": "Zig 0.16.0 Language Reference, 'Builtin Functions'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`@divTrunc`: truncated division, rounding toward zero.",
+          "citation": "Zig 0.16.0 Language Reference, 'Builtin Functions: @divTrunc'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`@rem`: remainder with the sign of the numerator (distinct from `@mod`).",
+          "citation": "Zig 0.16.0 Language Reference, 'Builtin Functions: @rem'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Binary `+` on integers.",
+          "citation": "Zig 0.16.0 Language Reference, 'Operators'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Integer literal, whose type is `comptime_int` until it is coerced.",
+          "citation": "Zig 0.16.0 Language Reference, 'Integers' / 'comptime'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "Result-location semantics: `.{ ... }` takes its type from the function's declared return type rather than from the literal.",
+          "citation": "Zig 0.16.0 Language Reference, 'Result Location Semantics'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "A `comptime_int` literal argument coerces to the parameter's integer type, and the coercion is a compile error if the value does not fit.",
+          "citation": "Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats'"
+        },
+        {
+          "unit": "implicit rule",
+          "description": "Parameters are immutable constants.",
+          "citation": "Zig 0.16.0 Language Reference, 'Functions'"
+        },
+        {
+          "unit": "documented exception",
+          "description": "`/` and `%` are a compile ERROR on signed integer operands — the general rule that the arithmetic operators apply to every numeric type is carved out for signed integer division, which must name @divTrunc, @divFloor or @divExact.",
+          "citation": "Zig 0.16.0 Language Reference, 'Division' and 'Remainder Division'; verified against the toolchain: `error: division with 'i32' and 'i32': signed integers must use @divTrunc, @divFloor, or @divExact`"
+        },
+        {
+          "unit": "documented exception",
+          "description": "Integer overflow and division by zero are safety-checked undefined behaviour: a panic in Debug and ReleaseSafe, undefined in ReleaseFast and ReleaseSmall.",
+          "citation": "Zig 0.16.0 Language Reference, 'Undefined Behavior: Integer Overflow' and 'Undefined Behavior: Division by Zero'"
+        }
+      ]
+    },
+    {
+      "probe_id": "F07.P1",
+      "language": "Zig",
+      "language_key": "zig",
+      "support": "FULL",
+      "support_reason": "F-1: both numbered sub-requirements are delivered by the single statement `const r = a * b + c;`. (1) it evaluates a * b + c with Zig's ordinary multiplication and addition operators and Zig's ordinary precedence — the reference's precedence table puts `*` above `+`, so no parenthesis is written and none is redundant; (2) it binds the result to a new local `r`. The three operand declarations are given context and are outside the marked region, as the probe directs. F-2/F-3/F-4: nothing but the language; the file builds and runs under the frozen recipe and prints 47 for a = 6, b = 7, c = 5. F-6: no normative prohibition applies to the arithmetic operators. R10: `const r = a * b + c;` is the only form that satisfies R1-R3 at 9 tokens; `var r = ...` is the same length but changes the mutability fact and would be a different program, and the edge-selecting spellings `a *% b +% c` and `a *| b +| c` are excluded by the task's own words ('the language's ordinary multiplication and addition operators').",
+      "capability_points_possible": 2,
+      "capability_points_awarded": 2.0,
+      "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/zig/F07.P1.zig",
+      "toolchain_verification": {
+        "built": true,
+        "ran": true,
+        "observed_output": "47",
+        "diagnostics": "build exit 0, no diagnostics; run exit 0. zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN  (environment.json -> semantic_compression_recipes.recipes.zig.build); run ./BIN. zig 0.16.0, target aarch64-macos."
+      },
+      "token_count": 9,
+      "facts": [
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "const r",
+          "value": "denotes a value produced by the expression, not a named storage location shared with anything else",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables' — a `const` declaration binds a value; Zig creates a reference only where a pointer type is written."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "const r",
+          "value": "immutable: the binding may not be reassigned",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables' ('const ... cannot be reassigned')."
+        },
+        {
+          "fact_kind": "initialization_state",
+          "site": "const r = a * b + c",
+          "value": "definitely initialized by the initializer",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables' — Zig has no default-initialized declaration; the uninitialized case must be spelled `= undefined`."
+        },
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "a * b",
+          "value": "NO conversion is inserted between the operands: Zig requires both operands of a binary arithmetic operator to have the same type, and performs no integer promotion, no signed/unsigned mixing and no int/float mixing",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Operators' (the arithmetic operators take operands of the same type) and 'Type Coercion', which admits no lossy or sign-changing implicit conversion. This is a determinate fact about the SITE even though the operands' type is not: whatever the operands are, nothing is converted between them."
+        },
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "(a * b) + c",
+          "value": "no conversion is inserted at the addition either: the product and `c` must already have the same type",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Operators' and 'Type Coercion'. A different operation from the multiplication, so not a duplicate under methodology 02 rule A3.3, which excludes a repeat only for the same entity or the same operation."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "a * b",
+          "value": "the product has EXACTLY the operands' own type and width; Zig neither promotes nor widens an arithmetic result",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Operators' and 'Type Coercion'. The concrete type is not local (the operand declarations are outside the region — that is charged under Semantic Locality), but the RULE that the result type equals the operand type is, and it is a materially different answer from C's integer promotions."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "a * b + c",
+          "value": "neither operator can transfer control into user code: Zig has no operator overloading, so `*` and `+` are the built-in operations on built-in numeric types and nothing else",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Operators' ('Zig does not support operator overloading'). This closes, from the local form alone, the branch that a user-defined `*` could allocate, fail arbitrarily, or diverge."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": "const r = a * b + c",
+          "value": "no allocation, no clone, no move, no borrow and no destruction: an arithmetic result on built-in numeric types is produced in place",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Operators' (no operator overloading, so no user code runs) and 'Memory' (there is no implicit allocation in Zig)."
+        },
+        {
+          "fact_kind": "aliasing_writable_aliasing",
+          "site": "const r",
+          "value": "`r` is a fresh value and aliases no other storage; nothing in the statement creates a pointer",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Pointers' — a pointer exists only where `&` or a pointer type is written, and neither appears."
+        }
+      ],
+      "fact_count": 9,
+      "determinacy_B": 4,
+      "determinacy_enumeration": [
+        "CLASS 1 - typed SIGNED fixed-width integer operands (i8 ... i128, or any sized signed integer). A4 = fixed-width signed integer; A5 = none; A10 = exact unless the result leaves the type's range, at which point the frozen recipe's ReleaseSafe mode traps. Witness semantic-compression/witnesses/zig/chunk_B/f07p1_C1_signed.zig (a = 2147483647, b = 1, c = 0 as i32, measured region byte-identical): builds under the frozen recipe and prints 2147483647.",
+        "CLASS 2 - typed UNSIGNED fixed-width integer operands (u8 ... u128). Materially different from class 1 on dimension 8 (signedness and width of the value produced) and dimension 9 (observable result): the same written statement on u8 operands has a different representable range and therefore a different outcome for the same numerals. Witness semantic-compression/witnesses/zig/chunk_B/f07p1_C2_unsigned.zig (a = 200, b = 1, c = 56 as u8): builds under the frozen recipe and traps at run time with `panic: integer overflow`, where the i32 rendering of the same numerals produces 256.",
+        "CLASS 3 - binary floating-point operands (f16/f32/f64/f80/f128). A4 = binary floating point; A10 = IEEE-754 rounding, with infinities and NaN instead of a trap. Materially different from classes 1 and 2 on dimensions 8 and 9. Witness semantic-compression/witnesses/zig/chunk_B/f07p1_C3_float.zig (a = 2.5, b = 2.0, c = 0.5 as f64): builds and prints 5.5. NOTE ON FOLDING: `@Vector(N, T)` operands also accept `*` and `+` elementwise, and Zig's fixed-size integer widths are unbounded (i1 ... i65535). Both families are FOLDED into classes 1-3 rather than counted separately, because methodology 03 Rule 1.4.6 confines an unbounded family of completions to the closed outcome classes of section 1.4 that it can realize, and neither reaches a class those three do not. The fold is the anti-inflation direction and is disclosed rather than silently dropped.",
+        "CLASS 4 - all three operands are comptime-known constants of type `comptime_int`. The whole expression is then evaluated at compile time with ARBITRARY precision and `r` is itself `comptime_int`; overflow cannot occur at the operation. Materially different from class 1 on dimension 9. Witness semantic-compression/witnesses/zig/chunk_B/f07p1_C4_comptime_int.zig (`const a = 2147483647; const b = 2; const c = 0;`, measured region byte-identical): builds under the frozen recipe and prints 4294967294, where the i32 rendering of the same numerals traps. Zig 0.16.0 Language Reference, 'comptime' and 'Integers' (comptime_int is arbitrary precision)."
+      ],
+      "locality_lookups": 4,
+      "locality_detail": [
+        {
+          "hop": "variable decl - `a` (given context, outside the measured region)",
+          "required_for_fact": "type_and_representation. Until one operand's declaration is read, the same statement is signed fixed-width, unsigned fixed-width, floating-point or arbitrary-precision compile-time arithmetic. Reading `a` settles the class for the whole expression, because Zig 0.16.0 Language Reference, 'Operators' requires both operands of a binary arithmetic operator to have the same type."
+        },
+        {
+          "hop": "variable decl - `b`",
+          "required_for_fact": "conversion_behavior. Knowing `a` is (say) i32 does not say whether `b` is also i32 or a `comptime_int` constant that coerces at the operator; Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats' makes that a real difference in whether a conversion occurs at the site."
+        },
+        {
+          "hop": "variable decl - `c`",
+          "required_for_fact": "conversion_behavior at the addition. `c` is a separate declared entity (methodology 03 Rule 2.2.2 counts per distinct declared entity) and the same question arises independently at the `+`."
+        },
+        {
+          "hop": "compiler mode - the build recipe (a G-hop, methodology 03 section 2.6)",
+          "required_for_fact": "overflow_exceptional_numeric. Zig 0.16.0 Language Reference, 'Undefined Behavior: Integer Overflow' makes signed and unsigned overflow SAFETY-CHECKED undefined behaviour: it panics in Debug and ReleaseSafe and is undefined in ReleaseFast and ReleaseSmall. The source never says which mode built it, so a reader must leave the region to reach the build invocation. This is exactly the compiler-mode dependency methodology 02 section 2.5 predicts Zig will pay at plain arithmetic sites, and it is the only hop of the four that is not a variable declaration."
+        }
+      ],
+      "hidden_items": [
+        {
+          "checklist_item": "H8 - Context-dependent overflow / numeric behavior",
+          "why": "The single local site `const r = a * b + c;`. Sub-test H8a fires: for the same operand types the outcome at the edge differs by build mode. Zig 0.16.0 Language Reference, 'Undefined Behavior' — the listed cases (Integer Overflow, Division by Zero, Index out of Bounds) are SAFETY-CHECKED undefined behaviour: the compiler emits a check that panics in Debug and ReleaseSafe, while in ReleaseFast and ReleaseSmall the behaviour is undefined. No token at the site selects the edge behaviour, although Zig provides tokens that would — `*%`/`+%` wrap and `*|`/`+|` saturate (Zig 0.16.0 Language Reference, 'Operators') — so the LED test fails and this is a real concealment rather than an absent facility. Counted ONCE: `*` and `+` lie in the same top-level statement, which methodology 04 section 0.7 makes one local site, and they arise from one normative statement of the reference, so section 1.3.2 makes them one event."
+        }
+      ],
+      "hidden_count": 1,
+      "complexity_units": 8,
+      "complexity_detail": [
+        {
+          "unit": "distinct syntax form",
+          "description": "`const` declaration with an inferred type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Variables'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Binary `*` on numeric operands.",
+          "citation": "Zig 0.16.0 Language Reference, 'Operators'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Binary `+` on numeric operands.",
+          "citation": "Zig 0.16.0 Language Reference, 'Operators'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "Operator precedence: `*` binds tighter than `+`, so the statement means (a*b)+c without parentheses.",
+          "citation": "Zig 0.16.0 Language Reference, 'Operators' (precedence table)"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "Both operands of a binary arithmetic operator must have the same type; a comptime-known operand coerces to the other's type, and the coercion is a compile error if the value does not fit.",
+          "citation": "Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "If every operand is comptime-known the expression is evaluated at compile time with arbitrary precision, and the binding's type is `comptime_int` rather than a fixed-width integer.",
+          "citation": "Zig 0.16.0 Language Reference, 'comptime' and 'Integers'"
+        },
+        {
+          "unit": "implicit rule",
+          "description": "The result type of an arithmetic operator is the operands' own type: Zig performs no integer promotion and no implicit widening between different integer types at an operator.",
+          "citation": "Zig 0.16.0 Language Reference, 'Type Coercion'"
+        },
+        {
+          "unit": "documented exception",
+          "description": "Integer overflow is safety-checked undefined behaviour: a panic in Debug and ReleaseSafe, undefined in ReleaseFast and ReleaseSmall. Float operands instead follow IEEE-754 with infinities and NaN — the same written operator, a different edge rule per operand class.",
+          "citation": "Zig 0.16.0 Language Reference, 'Undefined Behavior: Integer Overflow' and 'Floats'"
+        }
+      ]
+    },
+    {
+      "probe_id": "F07.P2",
+      "language": "Zig",
+      "language_key": "zig",
+      "support": "FULL",
+      "support_reason": "F-1: all three numbered sub-requirements are delivered, in order. (1) `const q = @divTrunc(a, b);` — the probe allows 'the standard integer-division form R10 selects if the ordinary operator is not integer division', and in Zig the ordinary `/` is a COMPILE ERROR on signed integers (verified: `error: division with 'i32' and 'i32': signed integers must use @divTrunc, @divFloor, or @divExact`), so a named builtin is the standard form. Among the three, @divExact fails R1 (undefined when the division is not exact) and @divFloor/@divTrunc tie at 7 tokens; R1 selects @divTrunc because the canonical task asks for 'the integer quotient' in the sense the rest of the fixed comparison set computes it — truncation toward zero — and @divFloor would make Zig print -3 where the other nine print -2. (2) `const m = @rem(a, b);` — the ordinary remainder operator `%` is likewise a compile error on signed integers, and @rem is its companion (sign of the dividend), matching `%` in C++, Rust, Go, Java, C#-style languages; @mod would not. (3) `const d = @as(f64, @floatFromInt(a)) / @as(f64, @floatFromInt(b));` performs the conversion Zig requires to be written — verified that both operands need it: `@as(f64, @floatFromInt(a)) / @floatFromInt(b)` is rejected with `error: @floatFromInt must have a known result type` — and divides in f64. F-2/F-3/F-4: language only, builds and runs under the frozen recipe, printing `-2 -1 -2.3333333333333335` for a = -7, b = 3. F-6: no normative prohibition or deprecation applies to @divTrunc, @rem, @as or @floatFromInt. [AUDIT CORRECTION -- R10 record restated. The pre-correction tie-break between `@divFloor` and `@divTrunc` (both 7 tokens) was justified by agreement with the other nine languages' printed output. That is not R10's tie-break and its premise was false (Python's `//` floors, and Python's own record for this probe reports -7 // 3 = -3). R10's frozen tie-break is 'the form that appears first in the language's official reference or standard-library documentation for that operation'. Restated on that basis: in the Zig 0.16 Language Reference's 'Builtin Functions' list, `@divTrunc` is the form documented for the ordinary truncating integer quotient and is the selection. No metric value changes: B, H and the fact ledger are identical under either tie-break record, because the two builtins have the same arity, the same failure edges and the same build-mode dependence.]",
+      "capability_points_possible": 2,
+      "capability_points_awarded": 2.0,
+      "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/zig/F07.P2.zig",
+      "toolchain_verification": {
+        "built": true,
+        "ran": true,
+        "observed_output": "-2 -1 -2.3333333333333335",
+        "diagnostics": "build exit 0, no diagnostics; run exit 0. zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN  (environment.json -> semantic_compression_recipes.recipes.zig.build); run ./BIN. zig 0.16.0, target aarch64-macos."
+      },
+      "token_count": 49,
+      "facts": [
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "const q",
+          "value": "denotes a value, not storage shared with anything else",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "const q",
+          "value": "immutable binding",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "initialization_state",
+          "site": "const q = @divTrunc(a, b)",
+          "value": "definitely initialized",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables' (no default-initialized declarations; `= undefined` must be written)."
+        },
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "@divTrunc(a, b)",
+          "value": "no representation change; the mathematical quotient is rounded TOWARD ZERO — the rounding direction is named by the operation itself, so a reader does not have to know a language-wide division rule",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Builtin Functions: @divTrunc' ('Truncated division. Rounds toward zero.'). This is the probe's OBSERVATION TARGET for (1), and Zig answers it at the token. The exceptional-operand half of this site's edge (b == 0, minInt/-1) is NOT claimed here: it is safety-checked undefined behaviour whose outcome depends on the build mode, charged as a G-hop under metric C and an H8 event under metric D."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "@divTrunc(a, b)",
+          "value": "the quotient has exactly the operands' own type; Zig performs no promotion or widening at an operator",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Builtin Functions: @divTrunc' and 'Type Coercion'."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "const m",
+          "value": "denotes a value",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "const m",
+          "value": "immutable binding",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "initialization_state",
+          "site": "const m = @rem(a, b)",
+          "value": "definitely initialized",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "@rem(a, b)",
+          "value": "no representation change; the remainder takes the sign of the DIVIDEND — so for a negative `a` the result is negative",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Builtin Functions: @rem' ('the result has the sign of the numerator'). This is the probe's OBSERVATION TARGET for (2). Zig turns the negative-modulo question into a choice between two differently named builtins (@rem vs @mod) instead of a rule the reader must recall, and the choice is visible in the fragment. Observed: a = -7, b = 3 prints -1."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "@rem(a, b)",
+          "value": "the remainder has exactly the operands' own type",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Builtin Functions: @rem'."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "const d",
+          "value": "denotes a value",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "const d",
+          "value": "immutable binding",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "initialization_state",
+          "site": "const d = ...",
+          "value": "definitely initialized",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "@as(f64, @floatFromInt(a))",
+          "value": "a 64-bit IEEE-754 binary floating-point value — the target type is written at the site, so the representation of the division's operands is fixed locally regardless of what `a` and `b` are declared to be",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Builtin Functions: @as' (@as performs an explicit type coercion to the named type) and 'Primitive Types' (f64 is 64-bit IEEE-754 binary floating point)."
+        },
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "@floatFromInt(a)",
+          "value": "an integer-to-float conversion that Zig REQUIRES to be written: the value is converted to the nearest representable float, exactly when the integer fits the mantissa and rounded otherwise",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Builtin Functions: @floatFromInt' ('Converts an integer to the closest floating point representation'). Verified that it cannot be omitted or inferred through an operator: `@as(f64, @floatFromInt(a)) / @floatFromInt(b)` is rejected with `error: @floatFromInt must have a known result type`, so no int/float mixing can happen silently at this site."
+        },
+        {
+          "fact_kind": "possible_failure",
+          "site": "@as(f64, @floatFromInt(a))",
+          "value": "cannot fail: the integer-to-float conversion is total — every integer value has a nearest float — and no error union is produced",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Builtin Functions: @floatFromInt' and 'Errors' (failure in Zig is an error union, and none appears)."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "@as(f64, ...) / @as(f64, ...)",
+          "value": "an f64 division producing f64, because both operands are written as f64",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Operators' (both operands of `/` have the same type) and 'Primitive Types'."
+        },
+        {
+          "fact_kind": "overflow_exceptional_numeric",
+          "site": "@as(f64, ...) / @as(f64, ...)",
+          "value": "IEEE-754 semantics: a zero divisor yields a signed infinity and 0/0 yields NaN; the operation does NOT trap and is not build-mode dependent, unlike the integer division two lines above",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Floats' (Zig floats follow IEEE-754, with the default float mode `.strict`) and 'Undefined Behavior', whose Division by Zero entry is confined to integer operands. The operand type is written at this site by `@as(f64, ...)`, which is what makes the fact local here while the integer edge above is not."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": "the three statements",
+          "value": "no allocation, clone, move, borrow or destruction anywhere: all three bindings are scalars and no allocator, pointer or `defer` appears",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Memory' (there is no implicit allocation in Zig; std allocation requires an explicitly passed Allocator) and 'defer' (the only scope-exit hook)."
+        },
+        {
+          "fact_kind": "aliasing_writable_aliasing",
+          "site": "const q, const m, const d",
+          "value": "none of the three aliases any other storage; nothing in the region creates a pointer",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Pointers' — a pointer exists only where `&` or a pointer type is written."
+        }
+      ],
+      "fact_count": 20,
+      "determinacy_B": 3,
+      "determinacy_enumeration": [
+        "CLASS 1 - `a` and `b` are typed SIGNED fixed-width integers. A4 = fixed-width signed integer for (1) and (2), binary floating point for (3); A5 = none at @divTrunc and @rem, explicit int-to-float at the @as/@floatFromInt sites; A6 = @divTrunc and @rem may trap on a zero divisor under the frozen recipe's ReleaseSafe mode, the float division cannot fail; A10 = quotient truncated toward zero, remainder signed like the dividend, float division IEEE. Witness: the frozen program builds under `zig build-exe -OReleaseSafe` and prints `-2 -1 -2.3333333333333335`.",
+        "CLASS 2 - `a` and `b` are typed UNSIGNED fixed-width integers. @divTrunc and @rem accept unsigned operands, and the minInt/-1 overflow edge of class 1 does not exist while the sign question of (2) becomes vacuous. Materially different from class 1 on dimension 8 (signedness of the values produced and consumed) and dimension 9. Zig 0.16.0 Language Reference, 'Builtin Functions: @divTrunc', '@rem'.",
+        "CLASS 3 - `a` and `b` are comptime-known `comptime_int` constants. The whole region is then evaluated at compile time with arbitrary precision; a zero divisor becomes a COMPILE ERROR rather than a run-time outcome, and no fixed-width range exists. Materially different from classes 1 and 2 on dimensions 3 (failure) and 9. Zig 0.16.0 Language Reference, 'comptime' and 'Integers'. NOT REALIZABLE, and therefore NOT counted: floating-point operands. `@floatFromInt` is a compile error unless its operand is an integer (Zig 0.16.0 Language Reference, 'Builtin Functions: @floatFromInt'), so statement (3) closes the float branch that the same three statements leave open in languages whose float conversion is written as a cast over any numeric type. That is a branch Zig closes with a token, and it is recorded here rather than being silently absorbed. `@Vector` operands and the unbounded set of Zig integer widths are FOLDED into classes 1-3 under Rule 1.4.6, the anti-inflation direction."
+      ],
+      "locality_lookups": 3,
+      "locality_detail": [
+        {
+          "hop": "variable decl - `a` (given context, outside the measured region)",
+          "required_for_fact": "type_and_representation for statements (1) and (2). The region fixes the representation of statement (3)'s operands itself, through `@as(f64, ...)`, but says nothing about the integer type of `a` and `b`."
+        },
+        {
+          "hop": "variable decl - `b`",
+          "required_for_fact": "conversion_behavior at @divTrunc and @rem: whether one operand is a `comptime_int` that coerces at the call, which Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats' makes a real difference in whether a conversion occurs. A separate declared entity, so a separate hop under methodology 03 Rule 2.2.2."
+        },
+        {
+          "hop": "compiler mode - the build recipe (a G-hop, methodology 03 section 2.6)",
+          "required_for_fact": "overflow_exceptional_numeric and possible_failure at @divTrunc and @rem. Zig 0.16.0 Language Reference, 'Undefined Behavior: Division by Zero' makes the zero-divisor outcome safety-checked undefined behaviour — a panic in Debug and ReleaseSafe, undefined in ReleaseFast and ReleaseSmall — and the source never says which mode built it. Counted ONCE for the whole probe: it is one configuration artifact, and methodology 03 Rule 2.2.2 counts per distinct entity, not per fact or per site."
+        }
+      ],
+      "hidden_items": [
+        {
+          "checklist_item": "H8 - Context-dependent overflow / numeric behavior",
+          "why": "Local site 1, `const q = @divTrunc(a, b);`. Sub-test H8a fires: the zero-divisor and minInt/-1 outcomes differ by build mode. Zig 0.16.0 Language Reference, 'Undefined Behavior' — the listed numeric cases are SAFETY-CHECKED undefined behaviour: the compiler emits a check that panics in Debug and ReleaseSafe, while in ReleaseFast and ReleaseSmall the behaviour is undefined. The token `@divTrunc` fixes the ROUNDING (counted above as a local fact) but selects nothing about the edge, and Zig offers no checked division spelling in the language itself — `std.math.divTrunc`, used at F08.P2, is a library function, not a local operator — so the LED test fails here."
+        },
+        {
+          "checklist_item": "H8 - Context-dependent overflow / numeric behavior",
+          "why": "Local site 2, `const m = @rem(a, b);`. A distinct top-level statement and therefore a distinct local site under methodology 04 section 0.7, so a distinct event under section 1.3.2, even though it arises from the same normative statement. NOT counted at local site 3: the float division's edge behaviour IS fixed locally, because `@as(f64, ...)` writes the operand type at the site and Zig 0.16.0 Language Reference, 'Floats' gives IEEE-754 a single documented outcome (signed infinity, NaN) with no trap and no mode dependence. The `@setFloatMode` scope setting was considered and NOT counted: it is an in-source construct, absent from the frozen implementation, and none of the configuration sources H8a enumerates (build mode, compiler or runtime flag, optimization level, target, pointer or integer width) — counting it would charge a behaviour that does not occur when the frozen implementation is executed, which section 1.3 condition 1 forbids."
+        },
+        {
+          "checklist_item": "H5 -- Implicit exception / failure propagation",
+          "why": "Local site 1, `const q = @divTrunc(a, b);`. [AUDIT CORRECTION.] Under the frozen ReleaseSafe recipe the zero-divisor case, and for `@divTrunc` also the minInt/-1 case, terminate the process abnormally -- control leaves the local site abnormally with NO local token marking the possibility: no `try`, no `catch`, no `!`, no guard. Zig Language Reference 0.16, 'Undefined Behavior: Division by Zero' and 'Exact Division Remainder' make these safety-checked, and the check panics in Debug and ReleaseSafe. The failure is reachable within the probe's declared input domain: the canonical_task supplies `a` and `b` as given, already-declared signed 32-bit locals with no constraint excluding 0, and their declarations sit outside the measured region. This is a DIFFERENT registry rule from the H8a build-mode dependence already recorded at this site, so under methodology 04 section 1.3.2 ('Two different rules at one site are different events') it is a further event -- exactly as Swift's trap was counted."
+        },
+        {
+          "checklist_item": "H5 -- Implicit exception / failure propagation",
+          "why": "Local site 2, `const m = @rem(a, b);`. [AUDIT CORRECTION.] Under the frozen ReleaseSafe recipe the zero-divisor case, and for `@divTrunc` also the minInt/-1 case, terminate the process abnormally -- control leaves the local site abnormally with NO local token marking the possibility: no `try`, no `catch`, no `!`, no guard. Zig Language Reference 0.16, 'Undefined Behavior: Division by Zero' and 'Exact Division Remainder' make these safety-checked, and the check panics in Debug and ReleaseSafe. The failure is reachable within the probe's declared input domain: the canonical_task supplies `a` and `b` as given, already-declared signed 32-bit locals with no constraint excluding 0, and their declarations sit outside the measured region. This is a DIFFERENT registry rule from the H8a build-mode dependence already recorded at this site, so under methodology 04 section 1.3.2 ('Two different rules at one site are different events') it is a further event -- exactly as Swift's trap was counted."
+        }
+      ],
+      "hidden_count": 4,
+      "complexity_units": 14,
+      "complexity_detail": [
+        {
+          "unit": "distinct syntax form",
+          "description": "`const` declaration with an inferred type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Variables'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Builtin-call form `@name(args)`.",
+          "citation": "Zig 0.16.0 Language Reference, 'Builtin Functions'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`@divTrunc`: truncated division, rounding toward zero.",
+          "citation": "Zig 0.16.0 Language Reference, 'Builtin Functions: @divTrunc'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`@rem`: remainder with the sign of the numerator.",
+          "citation": "Zig 0.16.0 Language Reference, 'Builtin Functions: @rem'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`@as`: explicit coercion of an expression to a named type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Builtin Functions: @as'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`@floatFromInt`: integer-to-float conversion.",
+          "citation": "Zig 0.16.0 Language Reference, 'Builtin Functions: @floatFromInt'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Binary `/` on floating-point operands.",
+          "citation": "Zig 0.16.0 Language Reference, 'Operators'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "Result-location semantics: `@floatFromInt` has no result type of its own and must be given one by its context, which `@as` supplies.",
+          "citation": "Zig 0.16.0 Language Reference, 'Result Location Semantics'; verified: `error: @floatFromInt must have a known result type ... use @as to provide explicit result type`"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "Both operands of a binary arithmetic operator must have the same type; a comptime-known operand coerces.",
+          "citation": "Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "If every operand is comptime-known, the expression is evaluated at compile time with arbitrary precision.",
+          "citation": "Zig 0.16.0 Language Reference, 'comptime'"
+        },
+        {
+          "unit": "implicit rule",
+          "description": "No implicit int-to-float or float-to-int conversion exists anywhere in the language; the operand types of an operator must already agree.",
+          "citation": "Zig 0.16.0 Language Reference, 'Type Coercion'"
+        },
+        {
+          "unit": "documented exception",
+          "description": "`/` and `%` are a compile ERROR on signed integer operands and must be replaced by a named builtin.",
+          "citation": "Zig 0.16.0 Language Reference, 'Division' and 'Remainder Division'"
+        },
+        {
+          "unit": "documented exception",
+          "description": "Division by zero and @divTrunc(minInt, -1) are safety-checked undefined behaviour for INTEGER operands only: a panic in Debug and ReleaseSafe, undefined in ReleaseFast and ReleaseSmall.",
+          "citation": "Zig 0.16.0 Language Reference, 'Undefined Behavior: Division by Zero'"
+        },
+        {
+          "unit": "documented exception",
+          "description": "Floating-point operands instead follow IEEE-754 under the default `.strict` float mode: division by zero yields an infinity rather than trapping.",
+          "citation": "Zig 0.16.0 Language Reference, 'Floats'"
+        }
+      ]
+    },
+    {
+      "probe_id": "F08.P1",
+      "language": "Zig",
+      "language_key": "zig",
+      "support": "FULL",
+      "support_reason": "F-1: all three numbered sub-requirements are delivered. (1) `const m: i32 = std.math.maxInt(i32);` declares a local of a signed 32-bit type initialized to the maximum representable value, written with the standard named maximum. (2) `const o = std.math.add(i32, m, 1) catch 0;` computes m + 1 at RUNG (i) of the canonical task's own preference order: `std.math.add` is a standard checked operation whose documented contract is 'Returns the sum of a and b. Returns an error on overflow.', i.e. it yields an error value rather than a wrapped, saturated or trapping result, and `catch 0` substitutes the fallback integer 0 for the exceptional case. No higher rung exists to skip. (3) the fragment produces `o`, and the exceptional case is taken here, so the observed output is 0. RUNG DISCLOSURE as the task requires: rung (i) was available and was used, so rungs (ii) wrapping (`+%`), (iii) saturating (`+|`) and (iv) the plain operator were not reached; all three exist in Zig, which is why no PARTIAL condition applies. R10 among rung-(i) forms: the binding statement `const o = std.math.add(i32, m, 1) catch 0;` is 19 tokens; the language-level alternative `@addWithOverflow(m, 1)` yields a `struct { i32, u1 }` tuple rather than an optional or error value, so it does not satisfy rung (i) as written and would additionally need a destructure and a branch to substitute 0. F-2/F-3/F-4: bundled std only; builds and runs under the frozen recipe and prints 0; no extra flag. F-6: neither std.math.add nor std.math.maxInt carries a normative prohibition or deprecation.",
+      "capability_points_possible": 2,
+      "capability_points_awarded": 2.0,
+      "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/zig/F08.P1.zig",
+      "toolchain_verification": {
+        "built": true,
+        "ran": true,
+        "observed_output": "0",
+        "diagnostics": "build exit 0, no diagnostics; run exit 0. The observed 0 is the substituted fallback, which is the evidence that the overflow was detected and turned into a value rather than wrapping (which would print -2147483648) or trapping (which would abort). zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN  (environment.json -> semantic_compression_recipes.recipes.zig.build); run ./BIN. zig 0.16.0, target aarch64-macos."
+      },
+      "token_count": 35,
+      "facts": [
+        {
+          "fact_kind": "type_and_representation",
+          "site": "m: i32",
+          "value": "32-bit two's-complement signed integer",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Primitive Types'. Written at the binding."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "const m",
+          "value": "immutable binding",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "const m: i32 = std.math.maxInt(i32)",
+          "value": "a `comptime_int` is coerced to i32; the coercion is exact, and a value that did not fit would be a COMPILE error rather than a truncation",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats' — a comptime-known integer coerces only if it is representable, otherwise the program does not compile. `std.math.maxInt` is named literally at the site (hops_stdlib = 1)."
+        },
+        {
+          "fact_kind": "overflow_exceptional_numeric",
+          "site": "std.math.add(i32, m, 1)",
+          "value": "on overflow the operation produces `error.Overflow` as a VALUE; it does not wrap, saturate, trap, or depend on the build mode",
+          "locally_recoverable": true,
+          "justification": "std.math.add's documented contract, named literally at the site: 'Returns the sum of a and b. Returns an error on overflow.' This is the probe's OBSERVATION TARGET, and the function's own name and contract answer it without consulting the build recipe — which is exactly what the plain `+` at F07.P1 cannot do."
+        },
+        {
+          "fact_kind": "possible_failure",
+          "site": "std.math.add(i32, m, 1)",
+          "value": "may fail, and the failure is surfaced as a member of the closed error set `error{Overflow}` in an error union",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Errors' (failure is a value of an error-union type) plus std.math.add's signature `(error{Overflow}!T)`."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "std.math.add(i32, m, 1)",
+          "value": "the operand and result integer type is `i32`, written as the call's first argument, so the arithmetic width is fixed at the site and not inherited from `m`'s declaration",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Generic Data Structures' / 'comptime' (a `comptime T: type` parameter is written at the call) and std.math.add's signature."
+        },
+        {
+          "fact_kind": "alternative_value_cases",
+          "site": "std.math.add(i32, m, 1) catch 0",
+          "value": "a closed two-case set — the i32 payload or the single error `error.Overflow` — and both cases are exhaustively handled here",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'catch' (`catch` supplies a value for the error case, so the expression's type is the payload type) plus the declared error set `error{Overflow}`. Zig error sets are closed and inferred from the declaration."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "catch 0",
+          "value": "control does NOT leave the enclosing function: `catch` substitutes a value in place, unlike `try`, which would return the error",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'catch' and 'try'. The choice between the two keywords is the local marker for whether the site is an early exit."
+        },
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "catch 0",
+          "value": "the literal 0 is a `comptime_int` coerced to the payload type i32; exact, and a non-representable literal would not compile",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats'."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "const o",
+          "value": "denotes a value: either the sum or the substituted 0",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "const o",
+          "value": "immutable binding",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "initialization_state",
+          "site": "const o = ...",
+          "value": "definitely initialized on both the success and the error path",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'catch' — the expression yields a value in either case, so there is no path on which `o` is unset."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "const o",
+          "value": "i32 — the payload type of the error union, after `catch` removes the error case",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'catch' (the result type of `x catch y` is the payload type of `x`)."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": "the three statements",
+          "value": "no allocation, copy, move, borrow or destruction: all values are scalars and no allocator, pointer or `defer` appears",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Memory' and 'defer'."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "return o",
+          "value": "returns from the enclosing function with `o`; nothing runs at the exit",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Functions' and 'defer'."
+        },
+        {
+          "fact_kind": "possible_failure",
+          "site": "return o",
+          "value": "the returned value is a plain i32, not an error union, so the overflow is fully consumed inside the fragment and no failure escapes it",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Errors' — an error can leave a function only through an error-union return type, and `o`'s type is the payload type."
+        }
+      ],
+      "fact_count": 16,
+      "determinacy_B": 2,
+      "determinacy_enumeration": [
+        "V1 - `std` resolves to the Zig standard library. A4 = fixed-width signed integer, written twice as the literal type argument `i32`; A5 = comptime_int coercions only, both exact or a compile error; A6 = may yield `error.Overflow`, which `catch` consumes, so the region cannot fail; A9 = falls through — `catch` substitutes rather than returning — and then returns; A10 = overflow produces an error VALUE, with no wrap, no saturation, no trap and no build-mode dependence. Witness: the frozen program builds under `zig build-exe -OReleaseSafe` and prints 0, the substituted fallback.",
+        "V2 - `std` resolves to a container declared outside the measured region. `const std = @import(\"std\");` is scaffolding under tokenizer rule R1b and is therefore external (methodology 03 Rule 1.1.2); `std` is an ordinary identifier in Zig, not a keyword, so nothing inside the region fixes what it denotes. Witness class demonstrated at F06.P1 (semantic-compression/witnesses/zig/chunk_B/f06p1_V2_std_shadow.zig, byte-identical measured region, prints 12 instead of 2): a file-level `const std = struct { ... };` builds under the frozen recipe and changes the observable result. Sub-variants are not counted separately (Rule 1.4.6). The same region then names a different `math.add` and a different `math.maxInt`, and every one of A4, A5, A6, A9 and A10 can change. NOTE: `i32` does not open a further branch — Zig forbids an identifier that shadows a primitive type name (verified: `const i32 = u8;` gives `error: name shadows primitive 'i32'`) — and the arithmetic width is written at the call site rather than inherited from `m`, so under V1 the region is otherwise fully determined."
+      ],
+      "locality_lookups": 2,
+      "locality_detail": [
+        {
+          "hop": "callee signature - `std.math.add` and the contract published with it ('Returns the sum of a and b. Returns an error on overflow.', signature `(error{Overflow}!T)`)",
+          "required_for_fact": "overflow_exceptional_numeric, possible_failure and alternative_value_cases. Methodology 03 Rule 2.2.2 counts standard-library declarations as hops on the same terms as user declarations; one declaration resolves all three facts, and Rule 2.3.2's minimality makes that one hop. type_and_representation is written at the site (`i32` twice), conversion_behavior is fixed by the language's coercion rule (Rule 2.2.3, zero cost), and control_flow_effect is fixed by the `catch` keyword. `std.math.maxInt` is NOT counted: its contract would only tell a reader WHICH value `m` holds, and initialization_state is not in this probe's frozen semantic_facts_expected set, so Rule 2.4.2 (the fact set is the boundary) makes the lookup optional. There is NO compiler-mode G-hop at this probe, because the overflow outcome is fixed by the function contract rather than by the build mode — the contrast with F07.P1, where the same language pays one, is the measurement this probe exists to take."
+        },
+        {
+          "hop": "callee signature -- `std.math.maxInt` and the contract published with it (kind SIG). [AUDIT CORRECTION.] The pre-correction record excluded this hop by mapping the maximum's value to `initialization_state` and then invoking Rule 2.4.2. That mapping is the outlier: C++ (INT_MAX), Go (math.MaxInt32), Java (Integer.MAX_VALUE), Kotlin (Int.MAX_VALUE), Swift (FixedWidthInteger.max) and Rust (i32::MAX) all charge it, and Go and Swift tie it to `overflow_exceptional_numeric` in the same words. The majority mapping is the correct one and it is in this probe's fact set: whether this fragment's addition actually reaches the overflow edge -- i.e. whether `std.math.add(i32, m, 1)` returns `error.Overflow` at all rather than the sum -- depends on the value `maxInt(i32)` denotes, which the region does not state. Without it `overflow_exceptional_numeric` has no outcome class, so the lookup is required under Rule 2.4.1.",
+          "required_for_fact": "overflow_exceptional_numeric -- that `m` holds the largest representable i32 and therefore that `m + 1` is the overflowing case."
+        }
+      ],
+      "hidden_items": [],
+      "hidden_count": 0,
+      "complexity_units": 12,
+      "complexity_detail": [
+        {
+          "unit": "distinct syntax form",
+          "description": "`const` declaration with an explicit type annotation.",
+          "citation": "Zig 0.16.0 Language Reference, 'Variables'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`const` declaration with an inferred type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Variables'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Namespace/field access `a.b.c`.",
+          "citation": "Zig 0.16.0 Language Reference, 'struct'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Call expression with a `comptime T: type` argument written at the call.",
+          "citation": "Zig 0.16.0 Language Reference, 'Generic Data Structures' / 'comptime'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`catch` binary operator supplying a value for the error case.",
+          "citation": "Zig 0.16.0 Language Reference, 'catch'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`return` statement.",
+          "citation": "Zig 0.16.0 Language Reference, 'Functions'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Integer literal of type `comptime_int`.",
+          "citation": "Zig 0.16.0 Language Reference, 'Integers'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "A `comptime_int` coerces to a fixed-width integer type only if the value is representable; otherwise the program does not compile.",
+          "citation": "Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "The result type of `x catch y` is the payload type of `x`, and `y` is coerced to it.",
+          "citation": "Zig 0.16.0 Language Reference, 'catch'"
+        },
+        {
+          "unit": "implicit rule",
+          "description": "An error set is inferred and closed; an error can leave a function only through an error-union return type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Errors'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "std contract clause relied on: `std.math.add(T, a, b)` returns the sum and returns `error.Overflow` on overflow. Counted per methodology 04 section 2.4.2 for the clauses the stated behaviour depends on.",
+          "citation": "Zig 0.16.0 std documentation, std.math.add"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "std contract clause relied on: `std.math.maxInt(T)` is the maximum value of integer type T, as a `comptime_int`.",
+          "citation": "Zig 0.16.0 std documentation, std.math.maxInt"
+        }
+      ]
+    },
+    {
+      "probe_id": "F08.P2",
+      "language": "Zig",
+      "language_key": "zig",
+      "support": "FULL",
+      "support_reason": "F-1: all three numbered sub-requirements are delivered. (1) the division is written at RUNG (i) of the canonical task's own preference order: `std.math.divTrunc(i32, a, b)` is a standard checked-division operation whose documented contract is 'Divide numerator by denominator, rounding toward zero. Returns an error on overflow or when denominator is zero.', i.e. it yields an error value; no lower rung was needed and no explicit `b == 0` guard is written. (2) `catch 0` substitutes the fallback integer 0 and the result is bound to `q`. (3) `return q;` produces it. `a` and `b` are given context outside the region, as the probe directs. F-2/F-3/F-4: bundled std only; builds and runs under the frozen recipe with b = 0 and prints 0, which is the evidence that the zero-divisor case is reached and handled as a value. F-6: no normative prohibition or deprecation applies to std.math.divTrunc. R10: 21 tokens; the rung-(ii) guard form `const q = if (b == 0) 0 else @divTrunc(a, b);` is 19 tokens for the same statement (22 with the return), so it is both LONGER and a LOWER rung, and the canonical task's own preference order overrides R10 (methodology 03 Rule 1.1.3, doc 01 R10). [AUDIT CORRECTION -- experimental-setup disclosure, no metric change. Zig is the only language on this probe whose `a` and `b` are not runtime-supplied parameters: the probe declares `const a: i32 = 7;` and `const b: i32 = src;` inside a zero-argument `probe()`, with the file-scope `var src` defeating comptime folding on `b` only. `a` is therefore comptime-known and the most-negative/-1 edge is unreachable in the built witness, although every other language's probe can reach it and Quidra, Java, C++ and Rust all reason about it explicitly. The canonical_task says 'given already-declared locals `a` and `b`', so this is not a rule violation and no metric value is changed here, but it is not the same experimental setup and it makes Zig's residual-edge reasoning unwitnessable. The probe file should be re-frozen as `fn probe(a: i32, b: i32) i32` with both operands fed from the runtime source before the next run.]",
+      "capability_points_possible": 2,
+      "capability_points_awarded": 2.0,
+      "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/zig/F08.P2.zig",
+      "toolchain_verification": {
+        "built": true,
+        "ran": true,
+        "observed_output": "0",
+        "diagnostics": "build exit 0, no diagnostics; run exit 0. b is 0 at run time, so the printed 0 is the substituted fallback rather than a computed quotient. zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN  (environment.json -> semantic_compression_recipes.recipes.zig.build); run ./BIN. zig 0.16.0, target aarch64-macos."
+      },
+      "token_count": 21,
+      "facts": [
+        {
+          "fact_kind": "type_and_representation",
+          "site": "std.math.divTrunc(i32, a, b)",
+          "value": "the numerator, denominator and result are all `i32`, 32-bit two's-complement signed — written as the call's first argument, so the width is fixed at the site rather than inherited from `a`'s declaration",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Primitive Types' and 'comptime' (a `comptime T: type` parameter written at the call); std.math.divTrunc's signature `(comptime T: type, numerator: T, denominator: T) !T`."
+        },
+        {
+          "fact_kind": "overflow_exceptional_numeric",
+          "site": "std.math.divTrunc(i32, a, b)",
+          "value": "a zero divisor yields `error.DivisionByZero` and minInt(i32) / -1 yields `error.Overflow`, both as VALUES; the operation neither traps nor depends on the build mode",
+          "locally_recoverable": true,
+          "justification": "std.math.divTrunc's documented contract, named literally at the site: 'Divide numerator by denominator, rounding toward zero. Returns an error on overflow or when denominator is zero.' This is the probe's whole point, and Zig answers it at the site without the reader consulting the build recipe."
+        },
+        {
+          "fact_kind": "possible_failure",
+          "site": "std.math.divTrunc(i32, a, b)",
+          "value": "may fail; the failure is surfaced as a member of a closed error set carried in an error union",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Errors' plus the `!T` in the callee's signature."
+        },
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "std.math.divTrunc(i32, a, b)",
+          "value": "no representation change; the quotient is rounded TOWARD ZERO, named by the `divTrunc` in the function's own name",
+          "locally_recoverable": true,
+          "justification": "std.math.divTrunc's contract ('rounding toward zero'), named literally at the site."
+        },
+        {
+          "fact_kind": "alternative_value_cases",
+          "site": "std.math.divTrunc(i32, a, b) catch 0",
+          "value": "a closed two-case set — the i32 quotient or an error — and both cases are exhaustively handled at this site",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'catch' and 'Errors' (error sets are closed)."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "catch 0",
+          "value": "control does NOT leave the enclosing function: `catch` substitutes a value in place, where `try` would have returned the error",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'catch' and 'try'."
+        },
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "catch 0",
+          "value": "the literal 0 is a `comptime_int` coerced to the payload type i32; exact, or a compile error if it did not fit",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats'."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "const q",
+          "value": "denotes a value: the quotient or the substituted 0",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "const q",
+          "value": "immutable binding",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "initialization_state",
+          "site": "const q = ...",
+          "value": "definitely initialized on both paths",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'catch' — the expression yields a value in either case."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "const q",
+          "value": "i32, the payload type of the error union after `catch`",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'catch'."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": "the two statements",
+          "value": "no allocation, copy, move, borrow or destruction; scalars only, no allocator and no `defer`",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Memory' and 'defer'."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "return q",
+          "value": "returns from the enclosing function with `q`; nothing runs at the exit",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Functions' and 'defer'."
+        },
+        {
+          "fact_kind": "possible_failure",
+          "site": "return q",
+          "value": "no failure escapes the region: the returned value is a plain i32, not an error union",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Errors'."
+        }
+      ],
+      "fact_count": 14,
+      "determinacy_B": 2,
+      "determinacy_enumeration": [
+        "V1 - `std` resolves to the Zig standard library. A4 = fixed-width signed integer, written as the type argument; A6 = may yield an error, consumed by `catch`, so the region itself cannot fail; A8 = no resource event; A9 = falls through and returns; A10 = zero divisor and minInt/-1 become error values, with no trap and no mode dependence. Witness: the frozen program builds under `zig build-exe -OReleaseSafe`, is run with b = 0, and prints 0.",
+        "V2 - `std` resolves to a container declared outside the measured region. `const std = @import(\"std\");` is scaffolding under tokenizer rule R1b and is therefore external (methodology 03 Rule 1.1.2); `std` is an ordinary identifier in Zig, not a keyword, so nothing inside the region fixes what it denotes. Witness class demonstrated at F06.P1 (semantic-compression/witnesses/zig/chunk_B/f06p1_V2_std_shadow.zig, byte-identical measured region, prints 12 instead of 2): a file-level `const std = struct { ... };` builds under the frozen recipe and changes the observable result. Sub-variants are not counted separately (Rule 1.4.6). A different `math.divTrunc` changes A6, A10 and the observable result. No further branch is open: the arithmetic type is written at the site as `i32`, which Zig forbids being redefined (verified: `error: name shadows primitive 'i32'`), so unlike the plain-operator probes the operand type does not have to be guessed."
+      ],
+      "locality_lookups": 1,
+      "locality_detail": [
+        {
+          "hop": "callee signature - `std.math.divTrunc` and the contract published with it ('Divide numerator by denominator, rounding toward zero. Returns an error on overflow or when denominator is zero.', signature `(comptime T: type, numerator: T, denominator: T) !T`)",
+          "required_for_fact": "overflow_exceptional_numeric, possible_failure and alternative_value_cases. One declared entity resolves all three (methodology 03 Rules 2.2.2 and 2.3.2). type_and_representation is written at the site; control_flow_effect is fixed by `catch`. The declarations of `a` and `b` are NOT counted: `std.math.divTrunc(i32, ...)` requires both arguments to be `i32`, so their type is pinned by the fragment and reading them would only confirm a fact already in its class (Rule 2.4.1, optional lookup). There is NO compiler-mode G-hop, because the zero-divisor outcome is a contract, not a build mode."
+        }
+      ],
+      "hidden_items": [
+        {
+          "checklist_item": "H3 -- Overload or dynamic dispatch not locally evident",
+          "why": "Local site 1, `const q = std.math.divTrunc(i32, a, b) catch 0;`. [AUDIT CORRECTION.] This probe's own determinacy class V2 establishes, with a byte-identical-region witness, that `std` is an ordinary identifier that can be shadowed by a container declared outside the region, that nothing inside the region fixes what `std.math.divTrunc` denotes, and that 'a different math.divTrunc changes A6, A10 and the observable result'. That is exactly H3's counting condition: the set of candidate bodies compatible with the local site has cardinality >= 2. H3's exclusion for 'a locally written fully-qualified path' does not apply, because `std` is a resolvable identifier and not a path the reference defines as forbidding override, and the per-candidate equivalence exclusion is universal in scope, so section 1.4.0 governs it and nothing on the record discharges it. Swift was charged H3 for the structurally identical shadowing case."
+        }
+      ],
+      "hidden_count": 1,
+      "complexity_units": 11,
+      "complexity_detail": [
+        {
+          "unit": "distinct syntax form",
+          "description": "`const` declaration with an inferred type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Variables'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Namespace/field access `a.b.c`.",
+          "citation": "Zig 0.16.0 Language Reference, 'struct'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Call expression with a `comptime T: type` argument written at the call.",
+          "citation": "Zig 0.16.0 Language Reference, 'comptime'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`catch` binary operator supplying a value for the error case.",
+          "citation": "Zig 0.16.0 Language Reference, 'catch'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`return` statement.",
+          "citation": "Zig 0.16.0 Language Reference, 'Functions'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Integer literal of type `comptime_int`.",
+          "citation": "Zig 0.16.0 Language Reference, 'Integers'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "The result type of `x catch y` is the payload type of `x`, and `y` is coerced to it.",
+          "citation": "Zig 0.16.0 Language Reference, 'catch'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "A `comptime_int` coerces to a fixed-width integer only if representable.",
+          "citation": "Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats'"
+        },
+        {
+          "unit": "implicit rule",
+          "description": "Error sets are inferred and closed; an error can leave a function only through an error-union return type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Errors'"
+        },
+        {
+          "unit": "implicit rule",
+          "description": "An argument is coerced to the parameter type, which here is the `comptime T` written at the call, so the operands' own declared types must already agree with it.",
+          "citation": "Zig 0.16.0 Language Reference, 'Type Coercion'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "std contract clauses relied on: `std.math.divTrunc(T, n, d)` rounds toward zero, returns `error.DivisionByZero` when d is 0, and returns `error.Overflow` at minInt/-1.",
+          "citation": "Zig 0.16.0 std documentation, std.math.divTrunc"
+        }
+      ]
+    },
+    {
+      "probe_id": "F09.P1",
+      "language": "Zig",
+      "language_key": "zig",
+      "support": "FULL",
+      "support_reason": "F-1: both numbered sub-requirements are delivered by the single statement `const eq = std.mem.eql(u8, s1, s2);`. (1) it compares `s1` and `s2` for sameness of CONTENTS — std.mem.eql is documented as 'Returns true if and only if the slices have the same length and all elements compare true using equality operator' — and not for object identity; (2) it binds the boolean result to a new local `eq`. `s1` and `s2` are given context outside the region and are produced at run time by two separate `std.fmt.allocPrint` calls, so they are genuinely distinct allocations with identical contents, which is what the probe asks for. R10 selection among the forms the language and its std provide for this comparison: `std.mem.eql(u8, s1, s2)` is 12 tokens; `std.mem.order(u8, s1, s2) == .eq` is 16; `std.mem.startsWith`-style constructions do not compute the required predicate. Zig's `==` operator is NOT an alternative: it does not apply to slices at all, so there is no identity-versus-contents ambiguity to resolve in the first place. F-2/F-3/F-4: bundled std only; builds and runs under the frozen recipe and prints `true`. F-6: no normative prohibition or deprecation applies to std.mem.eql.",
+      "capability_points_possible": 2,
+      "capability_points_awarded": 2.0,
+      "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/zig/F09.P1.zig",
+      "toolchain_verification": {
+        "built": true,
+        "ran": true,
+        "observed_output": "true",
+        "diagnostics": "build exit 0, no diagnostics; run exit 0. The two operands are separate heap allocations produced by two separate std.fmt.allocPrint calls, so `true` is evidence of a contents comparison rather than an identity comparison. zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN  (environment.json -> semantic_compression_recipes.recipes.zig.build); run ./BIN. zig 0.16.0, target aarch64-macos."
+      },
+      "token_count": 16,
+      "facts": [
+        {
+          "fact_kind": "type_and_representation",
+          "site": "std.mem.eql(u8, s1, s2)",
+          "value": "the element type is written as `u8`, so this is a byte-wise comparison over slices of bytes — Zig's ordinary text-string representation, `[]const u8`",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Primitive Types' and 'Slices'; std.mem.eql's signature `(comptime T: type, a: []const T, b: []const T) bool`, named literally at the site."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "std.mem.eql(u8, s1, s2)",
+          "value": "the CONTENTS the two slices designate are compared, not the storage they denote: two distinct allocations holding the same bytes compare equal, and two slices of the same buffer holding different bytes do not",
+          "locally_recoverable": true,
+          "justification": "std.mem.eql's documented contract: 'Returns true if and only if the slices have the same length and all elements compare true using equality operator.' This is the probe's OBSERVATION TARGET and the function's name and contract settle it at the site. Zig offers no identity comparison on slices to be confused with it (Zig 0.16.0 Language Reference, 'Operators': `==` is not defined on slices)."
+        },
+        {
+          "fact_kind": "possible_failure",
+          "site": "std.mem.eql(u8, s1, s2)",
+          "value": "cannot fail: the return type is `bool`, not an error union, and the contract is total — unequal lengths return false rather than trapping",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Errors' (failure in Zig is an error-union value, and none appears here) plus std.mem.eql's contract."
+        },
+        {
+          "fact_kind": "alternative_value_cases",
+          "site": "std.mem.eql(u8, s1, s2)",
+          "value": "a closed two-case result: `true` or `false`; there is no third 'unknown' or 'incomparable' case and no null",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Primitive Types' (`bool` has exactly the values true and false) and 'Optionals' (an absent case exists only where `?` is written)."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "std.mem.eql(u8, s1, s2)",
+          "value": "the comparison cannot dispatch into user code: `u8` is a primitive and Zig has no operator overloading, so no user-defined equality can run here",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Operators' ('Zig does not support operator overloading'). This closes, from the local form, the branch that a user `==` could allocate, fail or diverge."
+        },
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "s1 (argument position)",
+          "value": "at most a const-qualification coercion `[]u8` -> `[]const u8`; no byte is converted, re-encoded or normalized before the comparison",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Type Coercion: Slices, Arrays and Pointers' (a mutable slice coerces to a const slice of the same element type). Zig performs no Unicode normalization or encoding change anywhere: `[]const u8` is a byte sequence, not an encoded text object."
+        },
+        {
+          "fact_kind": "aliasing_writable_aliasing",
+          "site": "std.mem.eql(u8, s1, s2)",
+          "value": "no writable alias is created and nothing is written: both parameters are `[]const T`",
+          "locally_recoverable": true,
+          "justification": "std.mem.eql's signature, named literally at the site; Zig 0.16.0 Language Reference, 'Pointers' (a const slice carries no write path)."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": "std.mem.eql(u8, s1, s2)",
+          "value": "no allocation and no copy of either string: the function takes no allocator and reads through the two slice headers",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Memory' (std library allocation requires an explicitly passed Allocator, and none appears at this site)."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "const eq",
+          "value": "denotes a value",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "const eq",
+          "value": "immutable binding",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "initialization_state",
+          "site": "const eq = ...",
+          "value": "definitely initialized by the call",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "const eq",
+          "value": "`bool`, a 1-bit logical value, not an integer and not a nullable object",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Primitive Types' (bool) — fixed by std.mem.eql's written return type."
+        }
+      ],
+      "fact_count": 12,
+      "determinacy_B": 2,
+      "determinacy_enumeration": [
+        "V1 - `std` resolves to the Zig standard library. A4 = text (slices of u8, with the element type written at the site); A1 = the operands are read, not bound or moved; A5 = at most a const-qualification coercion; A6 = cannot fail; A7 = the target is fixed at compile time — `std.mem.eql` is a generic function instantiated by the `u8` written at the call, and Zig has neither function overloading nor operator overloading, so no other body can run. Witness: the frozen program builds under `zig build-exe -OReleaseSafe` and prints `true` for two separately allocated strings with equal contents.",
+        "V2 - `std` resolves to a container declared outside the measured region. `const std = @import(\"std\");` is scaffolding under tokenizer rule R1b and is therefore external (methodology 03 Rule 1.1.2); `std` is an ordinary identifier in Zig, not a keyword, so nothing inside the region fixes what it denotes. Witness class demonstrated at F06.P1 (semantic-compression/witnesses/zig/chunk_B/f06p1_V2_std_shadow.zig, byte-identical measured region, prints 12 instead of 2). Sub-variants are not counted separately (Rule 1.4.6). A different `mem.eql` could compare identity, compare a prefix, or do anything else, so A6, A7 and the observable result all change. NOT counted as further branches: (a) an identity-versus-contents ambiguity inside V1 - Zig's `==` is not defined on slices at all, so the fragment cannot silently be an identity comparison; (b) a user-defined or dynamically dispatched equality - Zig 0.16.0 Language Reference, 'Operators' forbids operator overloading and Zig has no function overloading, no subtype polymorphism and no dynamic method lookup, so the candidate body set at this site has cardinality one. Both are exclusions by ABSENCE of a construct and are flagged LOW-B-BY-ABSENCE under Rule 1.9.5 rather than silently credited."
+      ],
+      "locality_lookups": 2,
+      "locality_detail": [
+        {
+          "hop": "callee signature - `std.mem.eql` and the contract published with it ('Returns true if and only if the slices have the same length and all elements compare true using equality operator'; signature `(comptime T: type, a: []const T, b: []const T) bool`)",
+          "required_for_fact": "value_vs_storage (contents versus storage), possible_failure, alternative_value_cases, and the operand half of type_and_representation. One declared entity resolves all four (methodology 03 Rules 2.2.2 and 2.3.2)."
+        },
+        {
+          "hop": "variable decl - `s1` (given context, outside the measured region)",
+          "required_for_fact": "conversion_behavior. Whether a coercion occurs at the argument depends on whether `s1` is declared `[]u8`, `[]const u8`, `[:0]u8` or `*const [N]u8`; Zig 0.16.0 Language Reference, 'Type Coercion: Slices, Arrays and Pointers' makes each of those a different answer to 'is a conversion applied here'. `s2`'s declaration is not counted: once the coercion question has a class, reading the second operand only confirms it (Rule 2.4.1, optional lookup)."
+        }
+      ],
+      "hidden_items": [],
+      "hidden_count": 0,
+      "complexity_units": 8,
+      "complexity_detail": [
+        {
+          "unit": "distinct syntax form",
+          "description": "`const` declaration with an inferred type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Variables'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Namespace/field access `a.b.c`.",
+          "citation": "Zig 0.16.0 Language Reference, 'struct'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Call expression with a `comptime T: type` argument written at the call.",
+          "citation": "Zig 0.16.0 Language Reference, 'comptime'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Slice type `[]const T` as the string representation.",
+          "citation": "Zig 0.16.0 Language Reference, 'Slices'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "Coercion of `[]T` and `*const [N]T` to `[]const T` at a parameter.",
+          "citation": "Zig 0.16.0 Language Reference, 'Type Coercion: Slices, Arrays and Pointers'"
+        },
+        {
+          "unit": "implicit rule",
+          "description": "A generic function is instantiated from the comptime type argument; there is no overload set and no dynamic dispatch to resolve.",
+          "citation": "Zig 0.16.0 Language Reference, 'Generic Data Structures' / 'comptime'"
+        },
+        {
+          "unit": "implicit rule",
+          "description": "Zig does not support operator overloading, so `==` can never run user code and is not defined on slices at all.",
+          "citation": "Zig 0.16.0 Language Reference, 'Operators'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "std contract clause relied on: `std.mem.eql(T, a, b)` is true iff the slices have equal length and all elements compare equal.",
+          "citation": "Zig 0.16.0 std documentation, std.mem.eql"
+        }
+      ]
+    },
+    {
+      "probe_id": "F09.P2",
+      "language": "Zig",
+      "language_key": "zig",
+      "support": "FULL",
+      "support_reason": "F-1: both numbered sub-requirements are delivered by exactly two statements. (1) `std.mem.sort(i32, xs.items, {}, std.sort.desc(i32));` orders the already-declared `xs` into DESCENDING order using Zig's standard ordering facility, supplying the descending order EXPLICITLY as a comparator function value produced by `std.sort.desc`, which the std documentation describes as 'Use to generate a comparator function for a given type'. The fragment does not rely on any default order: std.mem.sort has no default — its fourth parameter is mandatory. (2) `const lt = a < b;` binds the boolean of `a < b` using the ordinary comparison operator. R10 selection: `std.mem.sort` (25 tokens for statement 1) ties with `std.sort.pdq` and `std.sort.block`; the tie is broken by documentation order, and `std.mem.sort` is the entry the std documentation presents as the general sorting function, with `std.sort.block`/`pdq` documented as the specific algorithms it delegates to. F-2/F-3/F-4: bundled std only; builds and runs under the frozen recipe and prints `3 true`, where 3 is `xs.items[0]` after sorting [1, 3, 2] descending. F-6: no normative prohibition or deprecation applies.",
+      "capability_points_possible": 2,
+      "capability_points_awarded": 2.0,
+      "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/zig/F09.P2.zig",
+      "toolchain_verification": {
+        "built": true,
+        "ran": true,
+        "observed_output": "3 true",
+        "diagnostics": "build exit 0, no diagnostics; run exit 0. `xs` is built as [1, 3, 2]; the printed 3 is xs.items[0] after the sort, which is the evidence that the order is descending and that `xs` itself was reordered rather than a new sequence being returned. zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN  (environment.json -> semantic_compression_recipes.recipes.zig.build); run ./BIN. zig 0.16.0, target aarch64-macos."
+      },
+      "token_count": 32,
+      "facts": [
+        {
+          "fact_kind": "mutability",
+          "site": "std.mem.sort(i32, xs.items, {}, std.sort.desc(i32))",
+          "value": "the elements are reordered IN PLACE: `xs` itself is modified and no new sequence is produced — the call's value is `void`, so there is nothing else it could have returned",
+          "locally_recoverable": true,
+          "justification": "std.mem.sort's documented contract, named literally at the site: 'Sorts a slice in-place using a stable algorithm', with return type `void`. This is the probe's OBSERVATION TARGET, and the contract plus the statement form (a bare call, not a binding) settle it."
+        },
+        {
+          "fact_kind": "aliasing_writable_aliasing",
+          "site": "xs.items (argument position)",
+          "value": "a WRITABLE alias into the list's own buffer is handed to the callee: `items` is `[]i32`, a mutable slice, so every reordering is visible through `xs` after the call",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Slices' (`[]T` carries a write path; `[]const T` does not) plus std.mem.sort's parameter type `items: []T`. The mutability is in the written type, not inferred from the callee's behaviour."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": "std.mem.sort(i32, xs.items, {}, std.sort.desc(i32))",
+          "value": "NO heap allocation and no copy of the sequence: the function takes no allocator, and its documented space complexity is O(log n) for recursive calls only",
+          "locally_recoverable": true,
+          "justification": "std.mem.sort's contract ('Space complexity: O(log n) for recursive calls') plus Zig 0.16.0 Language Reference, 'Memory' — a std function that may allocate takes an Allocator parameter, and none is written here. This answers the probe's second OBSERVATION TARGET from the local form."
+        },
+        {
+          "fact_kind": "possible_failure",
+          "site": "std.mem.sort(i32, xs.items, {}, std.sort.desc(i32))",
+          "value": "cannot fail: the return type is `void`, not an error union, and Zig has no exceptions",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Errors' plus std.mem.sort's signature."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "std.mem.sort(i32, xs.items, {}, std.sort.desc(i32))",
+          "value": "returns normally; it cannot propagate an error, unwind, or suspend",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Errors' and 'Functions'."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "std.mem.sort(i32, ...)",
+          "value": "the element type is written at the call as `i32`, so `xs.items` is a `[]i32` — a pointer plus a length over 32-bit two's-complement signed integers",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Primitive Types' and 'Slices'; std.mem.sort's signature `(comptime T: type, items: []T, context: anytype, comptime lessThanFn: fn (@TypeOf(context), T, T) bool) void`."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "std.sort.desc(i32)",
+          "value": "produces a comparator FUNCTION VALUE of type `fn (void, i32, i32) bool`, generated for the element type written at the site",
+          "locally_recoverable": true,
+          "justification": "std.sort.desc's signature and contract ('Use to generate a comparator function for a given type'), named literally at the site."
+        },
+        {
+          "fact_kind": "alternative_value_cases",
+          "site": "std.sort.desc(i32)",
+          "value": "the ordering actually used is DESCENDING, and it is named at the site rather than defaulted: std.mem.sort's comparator parameter has no default value, so the order cannot come from anywhere else",
+          "locally_recoverable": true,
+          "justification": "std.sort.desc's contract plus std.mem.sort's mandatory fourth parameter. This is what makes the non-default order locally evident."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "{} (context argument)",
+          "value": "the `void` value: this sort carries no comparator context, and the comparator's first parameter type is therefore `void`",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'void' and 'Anonymous Struct Literals' — `{}` is the empty block/void value; std.mem.sort's `context: anytype` is instantiated with it."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "{} (context argument)",
+          "value": "a value with no storage: `void` has size 0",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'void'."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "const lt",
+          "value": "denotes a value",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "const lt",
+          "value": "immutable binding",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "initialization_state",
+          "site": "const lt = a < b",
+          "value": "definitely initialized",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "a < b",
+          "value": "produces `bool`",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Operators' (the comparison operators yield bool) and 'Primitive Types'."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "a < b",
+          "value": "the comparison cannot dispatch into user code and cannot fail: Zig has no operator overloading, so `<` is the built-in ordering on built-in numeric types",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Operators' ('Zig does not support operator overloading')."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": "const lt = a < b",
+          "value": "no allocation, copy, move, borrow or destruction; a bool is produced in place",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Operators' and 'Memory'."
+        }
+      ],
+      "fact_count": 16,
+      "determinacy_B": 3,
+      "determinacy_enumeration": [
+        "CLASS 1 - `std` resolves to the Zig standard library and `a`, `b` are integers (or comptime integers). A1/A2 = `xs.items` is a writable alias and the caller's buffer is reordered in place; A4 = fixed-width signed integer elements, written at the call; A6 = neither statement can fail; A8 = no allocation; `a < b` is a TOTAL order, so exactly one of `a < b`, `a == b`, `a > b` holds. Witness: the frozen program builds under `zig build-exe -OReleaseSafe` and prints `3 true`.",
+        "CLASS 2 - `std` resolves to the standard library and `a`, `b` are floating point. `<` is defined on floats, and the order is then PARTIAL: with a NaN operand both `a < b` and `a >= b` are false, so the observable result of statement (2) differs from class 1 for operands that are equal as integers would be. Materially different on dimensions 8 and 9. Zig 0.16.0 Language Reference, 'Floats' (IEEE-754 semantics) and 'Operators'. NOT a further branch: pointer, bool, optional or error-union operands - Zig 0.16.0 Language Reference, 'Operators' defines `<` only on integers and floats, so those completions do not compile.",
+        "CLASS 3 - `std` resolves to a container declared outside the measured region. `const std = @import(\"std\");` is scaffolding under tokenizer rule R1b and is therefore external (methodology 03 Rule 1.1.2); `std` is an ordinary identifier in Zig, not a keyword, so nothing inside the region fixes what it denotes. Witness class demonstrated at F06.P1 (semantic-compression/witnesses/zig/chunk_B/f06p1_V2_std_shadow.zig, byte-identical measured region, prints 12 instead of 2). Sub-variants are not counted separately (Rule 1.4.6). A different `mem.sort` could allocate, could return a new sequence instead of mutating, could fail, and could use any order, so A2, A6, A8 and the observable result all change. NOT counted as a further branch: which sorting ALGORITHM std.mem.sort delegates to. Methodology 03 Rule 1.2.2 makes a difference observable only as elapsed time or instruction count immaterial, and stability is fixed by the contract ('using a stable algorithm'), so the delegation is one outcome, not several."
+      ],
+      "locality_lookups": 3,
+      "locality_detail": [
+        {
+          "hop": "callee signature - `std.mem.sort` and the contract published with it ('Sorts a slice in-place using a stable algorithm'; 'Space complexity: O(log n) for recursive calls'; signature `(comptime T: type, items: []T, context: anytype, comptime lessThanFn: fn (@TypeOf(context), T, T) bool) void`)",
+          "required_for_fact": "mutability (in place versus a new sequence), aliasing_writable_aliasing, allocation_copy_move_borrow_destroy, possible_failure, and the element half of type_and_representation. One declared entity resolves all five (methodology 03 Rules 2.2.2 and 2.3.2). `std.sort.desc` is NOT counted: the comparator's TYPE is already fixed by std.mem.sort's own signature, and which order it implements is not a member of this probe's frozen semantic_facts_expected set, so Rule 2.4.2 (the fact set is the boundary) makes that lookup optional however interesting it is."
+        },
+        {
+          "hop": "variable decl - `a` (given context, outside the measured region)",
+          "required_for_fact": "type_and_representation at statement (2). The region says only that `a` and `b` are ordered by `<`, which Zig 0.16.0 Language Reference, 'Operators' defines on both integers and floats; their representation, and with it whether the order is total or partial, is not in the region. `b`'s declaration is not counted: Zig 0.16.0 Language Reference, 'Operators' requires the operands of `<` to have the same type after coercion, so reading `a` settles the class (Rule 2.4.1)."
+        },
+        {
+          "hop": "import -- the `const std = @import(\"std\");` declaration, which sits OUTSIDE the measured region (kind IMPORT). [AUDIT CORRECTION.] Methodology 03 Rule 2.2.2 states explicitly that 'An import/use/using/#include statement is a declared entity outside the measured fragment. If the analyst must read it to know which module a name comes from, that is 1 hop; the imported definition is another.' `std` is an ordinary identifier in Zig, not a keyword, and this probe's own determinacy record argues at length that nothing inside the region fixes what it denotes -- the externality of the binding is used there to earn a branch, so the corresponding locality hop must be paid here. C++ is distinguishable because it writes the fully qualified `std::vector`; Zig's bare `std` is not. Java pays exactly this hop for its `import java.util.*` lines, and Rust and Python were each charged an import hop on F10.P1.",
+          "required_for_fact": "type_and_representation, allocation_copy_move_borrow_destroy and externally_visible_side_effects -- every fact resolved through `std.mem.sort` and `std.sort.desc` requires the `std` binding to be read first. (The absence of an `xs` hop is legitimate and unchanged: the comptime `i32` argument written at the call pins the element type locally.)"
+        }
+      ],
+      "hidden_items": [
+        {
+          "checklist_item": "H2 -- Hidden writable aliasing or mutation",
+          "why": "Local site 1, `std.mem.sort(i32, xs.items, {}, std.sort.desc(i32));`. [AUDIT CORRECTION.] The call rewrites the caller's buffer through `xs.items`, which is storage reachable from outside the local site, and `xs.items` is NOT the assignment target of this site -- there is no assignment here at all. No `&`, `*`, `mut`, `inout`, `ref` or `out` token is written at the site; the writability lives in the type of `items` (`[]i32`), declared in `ArrayList` outside the site, which section 0.7 excludes from local. H2's only stated exclusion is 'mutation of a name that appears as the assignment target at the local site', which does not apply. This is the exact shape for which Go was charged H2 at `sort.IntSlice(xs)`, and for which C++, Rust, Java, Python, TypeScript and Swift were each charged H2 at their own sort call. The one language excused, Kotlin, was excused because the token `sortDescending` itself specifies in-place mutation; `std.mem.sort` carries no such specified meaning at the site."
+        },
+        {
+          "checklist_item": "H3 -- Overload or dynamic dispatch not locally evident",
+          "why": "Local site 1, same site, different registry rule, so a distinct event under methodology 04 section 1.3.2. This probe's own determinacy CLASS 3 states that `std` is an ordinary identifier that nothing inside the region fixes, and that a different `std` could allocate, return a new sequence, fail, or use any order. That gives a candidate body set of cardinality >= 2 for `std.mem.sort` and for `std.sort.desc` at this site, which is H3's counting condition. Charged on the same terms as the H3 now recorded at F08.P2."
+        }
+      ],
+      "hidden_count": 2,
+      "complexity_units": 12,
+      "complexity_detail": [
+        {
+          "unit": "distinct syntax form",
+          "description": "Expression statement: a bare call whose `void` result is discarded.",
+          "citation": "Zig 0.16.0 Language Reference, 'Functions' / 'void'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`const` declaration with an inferred type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Variables'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Namespace/field access `a.b.c`.",
+          "citation": "Zig 0.16.0 Language Reference, 'struct'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Call expression with a `comptime T: type` argument written at the call.",
+          "citation": "Zig 0.16.0 Language Reference, 'comptime'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`{}` as the `void` value in an argument position.",
+          "citation": "Zig 0.16.0 Language Reference, 'void'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "A function value used as an argument (the comparator).",
+          "citation": "Zig 0.16.0 Language Reference, 'Function Pointers'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Binary `<` on numeric operands.",
+          "citation": "Zig 0.16.0 Language Reference, 'Operators'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Slice type `[]T` as a mutable view.",
+          "citation": "Zig 0.16.0 Language Reference, 'Slices'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "`anytype` parameters are instantiated from the argument's type at the call, and a `comptime` parameter must be comptime-known there.",
+          "citation": "Zig 0.16.0 Language Reference, 'comptime' / 'Function Parameter Type Inference'"
+        },
+        {
+          "unit": "implicit rule",
+          "description": "Zig does not support operator overloading, so `<` cannot run user code.",
+          "citation": "Zig 0.16.0 Language Reference, 'Operators'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "std contract clauses relied on: `std.mem.sort` sorts in place, is stable, returns void, and has O(log n) auxiliary space.",
+          "citation": "Zig 0.16.0 std documentation, std.mem.sort"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "std contract clause relied on: `std.sort.desc(T)` generates a descending comparator for T.",
+          "citation": "Zig 0.16.0 std documentation, std.sort.desc"
+        }
+      ]
+    },
+    {
+      "probe_id": "F10.P1",
+      "language": "Zig",
+      "language_key": "zig",
+      "support": "FULL",
+      "support_reason": "F-1: all three numbered sub-requirements are delivered. (1) the narrowing is written at RUNG (i) of the canonical task's own preference order: `std.math.cast(i32, big)` is a standard conversion that reports out-of-range as an OPTIONAL — its documented contract is 'Cast an integer to a different integer type. If the value doesn't fit, return null.' — and `orelse 0` substitutes the fallback integer 0 for the out-of-range case. Rungs (ii) the ordinary explicit narrowing (`@intCast`, which is safety-checked undefined behaviour out of range) and (iii) an implicit narrowing (which Zig does not perform at all) were therefore not reached. (2) the value is bound to `small`; (3) `return small;` produces it. `big` is given context outside the region. F-2/F-3/F-4: bundled std only; builds and runs under the frozen recipe with big = 5000000000 and prints 0, which is the evidence that the out-of-range case is reached and handled as a value. F-6: no normative prohibition or deprecation applies to std.math.cast. R10 among rung-(i) forms: the binding statement `const small = std.math.cast(i32, big) orelse 0;` is 16 tokens; there is no shorter standard form that reports out-of-range as a value.",
+      "capability_points_possible": 2,
+      "capability_points_awarded": 2.0,
+      "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/zig/F10.P1.zig",
+      "toolchain_verification": {
+        "built": true,
+        "ran": true,
+        "observed_output": "0",
+        "diagnostics": "build exit 0, no diagnostics; run exit 0. big is 5000000000, which is outside the i32 range, so the printed 0 is the substituted fallback and not a truncated or wrapped value (truncation would print 705032704). zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN  (environment.json -> semantic_compression_recipes.recipes.zig.build); run ./BIN. zig 0.16.0, target aarch64-macos."
+      },
+      "token_count": 19,
+      "facts": [
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "std.math.cast(i32, big)",
+          "value": "a narrowing integer conversion that REPORTS the out-of-range case as an absent value; it does not truncate, wrap, saturate or trap",
+          "locally_recoverable": true,
+          "justification": "std.math.cast's documented contract, named literally at the site: 'Cast an integer to a different integer type. If the value doesn't fit, return null.' This is the probe's OBSERVATION TARGET and the function's contract answers it without the build recipe — in contrast to the language's own `@intCast`, which is safety-checked undefined behaviour out of range (Zig 0.16.0 Language Reference, 'Builtin Functions: @intCast')."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "std.math.cast(i32, big)",
+          "value": "the result type is `?i32`: an optional 32-bit two's-complement signed integer, with the target type written at the site",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Optionals' (`?T`) and 'Primitive Types'; std.math.cast's signature `(comptime T: type, x: anytype) ?T`."
+        },
+        {
+          "fact_kind": "overflow_exceptional_numeric",
+          "site": "std.math.cast(i32, big)",
+          "value": "the out-of-range outcome is `null` — a value — with no wraparound, no saturation, no trap and no dependence on the build mode",
+          "locally_recoverable": true,
+          "justification": "std.math.cast's contract; Zig's optional is a language-level construct, so the absent case is in the type. Contrast the language-level narrowing at the same place: `@intCast` is safety-checked UB and would make this fact build-mode dependent."
+        },
+        {
+          "fact_kind": "possible_failure",
+          "site": "std.math.cast(i32, big) orelse 0",
+          "value": "cannot fail: the absent case is a value rather than an error, and `orelse` consumes it at the site, so nothing can propagate out",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'orelse' and 'Errors' — optional absence is not an error and cannot escape a function."
+        },
+        {
+          "fact_kind": "alternative_value_cases",
+          "site": "std.math.cast(i32, big) orelse 0",
+          "value": "a closed two-case set — present or absent — exhaustively handled here, with the absent case bound to the written fallback 0",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Optionals' (an optional has exactly the payload case and `null`) and 'orelse'."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "orelse 0",
+          "value": "control does NOT leave the enclosing function: `orelse` substitutes a value in place, where an `orelse return` or `.?` would have done something else",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'orelse'."
+        },
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "orelse 0",
+          "value": "the literal 0 is a `comptime_int` coerced to the payload type i32; exact, or a compile error if it did not fit",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats'."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "const small",
+          "value": "denotes a value: the narrowed integer or the substituted 0",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "const small",
+          "value": "immutable binding",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "initialization_state",
+          "site": "const small = ...",
+          "value": "definitely initialized on both the present and the absent path",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'orelse' — the expression yields a value in either case."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "const small",
+          "value": "`i32` — the payload type, after `orelse` removes the optional",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'orelse' (the result type of `x orelse y` is the payload type of `x`)."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": "the two statements",
+          "value": "no allocation, copy, move, borrow or destruction; scalars only, no allocator, pointer or `defer`",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Memory' and 'defer'."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "return small",
+          "value": "returns from the enclosing function with `small`; nothing runs at the exit",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Functions' and 'defer'."
+        }
+      ],
+      "fact_count": 13,
+      "determinacy_B": 3,
+      "determinacy_enumeration": [
+        "CLASS 1 - `std` resolves to the Zig standard library and `big` is a SIGNED integer type. A5 = narrowing that yields the absent case out of range; A4 = the result is `?i32` and, after `orelse`, `i32`; A6 = cannot fail; A9 = falls through and returns; A10 = null out of range, with no wrap and no trap. Witness: the frozen program builds under `zig build-exe -OReleaseSafe`, is run with big = 5000000000, and prints 0.",
+        "CLASS 2 - `std` resolves to the standard library and `big` is an UNSIGNED integer type. `std.math.cast` accepts `x: anytype` and asserts only that it is an integer, so the completion compiles; the set of source values that map to the absent case is then one-sided (no negative half exists) and the observable result for a given bit pattern differs. Materially different on dimension 8 (signedness of the value consumed) and dimension 9. std.math.cast's signature `(comptime T: type, x: anytype) ?T` and its `comptime assert(@typeInfo(@TypeOf(x)) == .int)`.",
+        "CLASS 3 - `std` resolves to a container declared outside the measured region. `const std = @import(\"std\");` is scaffolding under tokenizer rule R1b and is therefore external (methodology 03 Rule 1.1.2); `std` is an ordinary identifier in Zig, not a keyword, so nothing inside the region fixes what it denotes. Witness class demonstrated at F06.P1 (semantic-compression/witnesses/zig/chunk_B/f06p1_V2_std_shadow.zig, byte-identical measured region, prints 12 instead of 2). Sub-variants are not counted separately (Rule 1.4.6). A different `math.cast` could truncate, wrap or trap instead of returning null, so A5, A6, A10 and the observable result all change. NOT counted as a further branch: an implicit narrowing. Zig 0.16.0 Language Reference, 'Type Coercion' admits no implicit lossy conversion in any direction, so no completion of this program can make the narrowing happen silently; that is an exclusion by ABSENCE and is flagged LOW-B-BY-ABSENCE under Rule 1.9.5."
+      ],
+      "locality_lookups": 3,
+      "locality_detail": [
+        {
+          "hop": "callee signature - `std.math.cast` and the contract published with it ('Cast an integer to a different integer type. If the value doesn't fit, return null.'; signature `(comptime T: type, x: anytype) ?T`)",
+          "required_for_fact": "conversion_behavior, overflow_exceptional_numeric and possible_failure. One declared entity resolves all three (methodology 03 Rules 2.2.2 and 2.3.2)."
+        },
+        {
+          "hop": "variable decl - `big` (given context, outside the measured region)",
+          "required_for_fact": "the source half of type_and_representation. The target type is written at the site as `i32`, but `x: anytype` means the region says nothing about the source width or signedness, and Zig 0.16.0 Language Reference, 'Type Coercion' makes that a real difference in which values reach the absent case. control_flow_effect needs no hop: `orelse` fixes it."
+        },
+        {
+          "hop": "import -- the `const std = @import(\"std\");` declaration, which sits OUTSIDE the measured region (kind IMPORT). [AUDIT CORRECTION.] Methodology 03 Rule 2.2.2 states explicitly that 'An import/use/using/#include statement is a declared entity outside the measured fragment. If the analyst must read it to know which module a name comes from, that is 1 hop; the imported definition is another.' `std` is an ordinary identifier in Zig, not a keyword, and this probe's own determinacy record argues at length that nothing inside the region fixes what it denotes -- the externality of the binding is used there to earn a branch, so the corresponding locality hop must be paid here. C++ is distinguishable because it writes the fully qualified `std::vector`; Zig's bare `std` is not. Java pays exactly this hop for its `import java.util.*` lines, and Rust and Python were each charged an import hop on F10.P1.",
+          "required_for_fact": "type_and_representation and possible_failure -- this probe's own determinacy CLASS 3 concedes that 'nothing inside the region fixes what `std` denotes', so the contract of `std.math.cast` cannot be located without first reading the binding. Rust and Python were each charged an import hop for exactly this on this probe; the same rule cannot be read both ways in one probe."
+        }
+      ],
+      "hidden_items": [],
+      "hidden_count": 0,
+      "complexity_units": 9,
+      "complexity_detail": [
+        {
+          "unit": "distinct syntax form",
+          "description": "`const` declaration with an inferred type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Variables'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Namespace/field access `a.b.c`.",
+          "citation": "Zig 0.16.0 Language Reference, 'struct'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Call expression with a `comptime T: type` argument written at the call.",
+          "citation": "Zig 0.16.0 Language Reference, 'comptime'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Optional type `?T`.",
+          "citation": "Zig 0.16.0 Language Reference, 'Optionals'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`orelse` binary operator supplying a value for the absent case.",
+          "citation": "Zig 0.16.0 Language Reference, 'orelse'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`return` statement.",
+          "citation": "Zig 0.16.0 Language Reference, 'Functions'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "The result type of `x orelse y` is the payload type of `x`, and `y` is coerced to it.",
+          "citation": "Zig 0.16.0 Language Reference, 'orelse'"
+        },
+        {
+          "unit": "implicit rule",
+          "description": "No implicit narrowing conversion exists in the language; a lossy integer conversion must be written (`@intCast`) or performed by a checked library call.",
+          "citation": "Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "std contract clause relied on: `std.math.cast(T, x)` returns the value as T, or null when it does not fit.",
+          "citation": "Zig 0.16.0 std documentation, std.math.cast"
+        }
+      ]
+    },
+    {
+      "probe_id": "F10.P2",
+      "language": "Zig",
+      "language_key": "zig",
+      "support": "FULL",
+      "support_reason": "F-1: both numbered sub-requirements are delivered by the single statement `const sum = @as(f64, @floatFromInt(i)) + d;`. (1) it computes the sum of `i` and `d`, INCLUDING the conversion Zig requires to be written and omitting none that Zig performs implicitly — Zig performs no implicit integer-to-float conversion at all, so the `@floatFromInt` is mandatory rather than decorative. This was verified against the toolchain in both of the shorter spellings a reader might expect: `const sum: f64 = @floatFromInt(i) + d;` and `const s2: f64 = d + @floatFromInt(i);` are BOTH rejected with `error: @floatFromInt must have a known result type ... use @as to provide explicit result type`, so the result type does not propagate through the operator and the `@as` cannot be dropped. (2) the result is bound to a new local `sum`. `i` and `d` are given context outside the region. F-2/F-3/F-4: nothing but the language; builds and runs under the frozen recipe and prints 3.5 for i = 3, d = 0.5. F-6: no normative prohibition applies to `@as` or `@floatFromInt`. R10: 17 tokens; `d + @as(f64, @floatFromInt(i))` is the same length, and the measured order is the one the canonical task states ('the sum of `i` and `d`'). [AUDIT CORRECTION -- R10 alternative-form record, previously missing. R10 requires 'every alternative form considered ... recorded in the probe's evidence record together with its token count and the documentation citation'. ALTERNATIVE CONSIDERED: `const sum: f64 = @floatFromInt(i) + d;` = 13 tokens, which would have been selected over the measured 17-token form had it been legal. REJECTED, mechanically, not by judgement: built under the frozen recipe during this correction, zig 0.16.0 rejects it with 'error: @floatFromInt must have a known result type' and the note 'use @as to provide explicit result type'. Result-location inference does not reach through the `+`, so the `@as(f64, ...)` wrapper is required and the 17-token form is the fewest-token form satisfying R1. Citation: Zig Language Reference 0.16, 'Builtin Functions: @floatFromInt' (the result type must be known). token_count is unchanged at 17.]",
+      "capability_points_possible": 2,
+      "capability_points_awarded": 2.0,
+      "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/zig/F10.P2.zig",
+      "toolchain_verification": {
+        "built": true,
+        "ran": true,
+        "observed_output": "3.5",
+        "diagnostics": "build exit 0, no diagnostics; run exit 0. zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN  (environment.json -> semantic_compression_recipes.recipes.zig.build); run ./BIN. zig 0.16.0, target aarch64-macos."
+      },
+      "token_count": 17,
+      "facts": [
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "@floatFromInt(i)",
+          "value": "an integer-to-float conversion that Zig REQUIRES to be written: the integer is converted to the nearest representable float, exactly when it fits the mantissa and rounded otherwise. Zig performs no implicit int/float conversion anywhere, so this is the only conversion at the statement and it is visible",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Builtin Functions: @floatFromInt' ('Converts an integer to the closest floating point representation') and 'Type Coercion', which admits no implicit conversion between integers and floats. Verified: both `@floatFromInt(i) + d` and `d + @floatFromInt(i)` under a declared f64 result type are rejected with `error: @floatFromInt must have a known result type`, so the conversion cannot be inferred away."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "@as(f64, @floatFromInt(i))",
+          "value": "the converted operand is `f64`, 64-bit IEEE-754 binary floating point — written at the site, so which operand changed representation is answered by the fragment itself",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Builtin Functions: @as' and 'Primitive Types'. This is the probe's OBSERVATION TARGET: the integer operand is the one that changed representation, and the token that changes it is written around it."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "@as(f64, @floatFromInt(i)) + d",
+          "value": "the static type of the sum is `f64`: `+` requires both operands to have the same type and Zig performs no promotion of the result, so the left operand's written type is the result type",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Operators' and 'Type Coercion' — the peer type of the operands is the result type, and it is written here."
+        },
+        {
+          "fact_kind": "conversion_behavior",
+          "site": "+ d",
+          "value": "no conversion is WRITTEN at the addition, so `d` must already be of a type that coerces to f64; Zig's only implicit numeric coercions are lossless widenings, so whatever happens to `d` here cannot lose a value",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats' ('A float type can be coerced to a larger float type'; no narrowing and no int/float coercion is implicit). The fact that any coercion here is value-preserving is local even though which coercion (if any) occurs is not."
+        },
+        {
+          "fact_kind": "overflow_exceptional_numeric",
+          "site": "@as(f64, ...) + d",
+          "value": "IEEE-754 addition: round to nearest; overflow yields an infinity and NaN propagates; the operation does not trap and does not depend on the build mode, unlike integer `+` in the same language",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Floats' (Zig floats follow IEEE-754, and the default float mode is `.strict`) and 'Undefined Behavior', whose Integer Overflow entry is confined to integer operands. The operand type is written at this site, which is what makes the edge rule local here."
+        },
+        {
+          "fact_kind": "possible_failure",
+          "site": "@as(f64, @floatFromInt(i))",
+          "value": "cannot fail: the conversion is total and produces no error union",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Builtin Functions: @floatFromInt' and 'Errors'."
+        },
+        {
+          "fact_kind": "control_flow_effect",
+          "site": "@as(f64, @floatFromInt(i)) + d",
+          "value": "no control transfer: Zig has no operator overloading, so `+` is the built-in floating-point addition and cannot run user code",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Operators' ('Zig does not support operator overloading')."
+        },
+        {
+          "fact_kind": "value_vs_storage",
+          "site": "const sum",
+          "value": "denotes a value",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "mutability",
+          "site": "const sum",
+          "value": "immutable binding",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "initialization_state",
+          "site": "const sum = ...",
+          "value": "definitely initialized",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables'."
+        },
+        {
+          "fact_kind": "type_and_representation",
+          "site": "const sum",
+          "value": "`f64`, inferred from the initializer whose type is written at the site",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Variables' and 'Builtin Functions: @as'."
+        },
+        {
+          "fact_kind": "allocation_copy_move_borrow_destroy",
+          "site": "const sum = ...",
+          "value": "no allocation, copy, move, borrow or destruction; a scalar produced in place",
+          "locally_recoverable": true,
+          "justification": "Zig 0.16.0 Language Reference, 'Memory' and 'Operators'."
+        }
+      ],
+      "fact_count": 12,
+      "determinacy_B": 5,
+      "determinacy_enumeration": [
+        "CLASS 1 -- `i` is a SIGNED integer all of whose values fit the f64 mantissa (<= 53 significant bits, e.g. i32) and `d` is itself f64. A5 = one explicit, exact integer-to-float conversion at `@floatFromInt` and NO conversion at the `+`; A4 = f64 throughout, written; A10 = IEEE-754. The produced value may be negative. Witness: the frozen program builds under `zig build-exe -OReleaseSafe` and prints 3.5; the negative-source observer (`var src: i32 = -3;`, measured region byte-identical) builds under the frozen recipe and prints -2.5, which no unsigned source can produce.",
+        "CLASS 2 -- `i` is an UNSIGNED integer all of whose values fit the f64 mantissa (e.g. u32). [AUDIT CORRECTION: the pre-correction enumeration merged signed and unsigned sources into one class -- the same dimension-8 merge the audit flagged for Go -- while Quidra counted them separately. Materiality dimension 8 is the representation of the operand and dimension 9 the observable result: `@floatFromInt` on an unsigned source can never produce a negative value, so the two classes are distinguishable by an observer and may not be merged.] The conversion is exact as in class 1, but the produced value is non-negative for every input. Witness: `var src: u32 = 3; const i: u32 = src;` with the measured region byte-identical, built under `zig build-exe -OReleaseSafe` and run on the frozen host, prints 3.5; the negative-source program of class 1 is not expressible here, which is the distinguishing observation.",
+        "CLASS 2 - `d` is a NARROWER float (f16, f32 or f80's smaller peers). An implicit lossless widening to f64 then occurs at the `+`, with nothing written for it; the result type is still f64. Materially different from class 1 on dimension 4 (whether a conversion occurs at the operator). Witness semantic-compression/witnesses/zig/chunk_B/f10p2_V2_f32_widen.zig (`const d: f32 = ...`, measured region byte-identical): builds under the frozen recipe, prints 3.5, and `@TypeOf(sum)` is f64 — confirming that the widening is real and silent. Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats'.",
+        "CLASS 4 -- `i` is an UNSIGNED integer WIDER than the f64 mantissa (u64, u128 ...). The conversion rounds to the nearest representable float exactly as in class 3, but again no negative value is reachable, and the rounding boundary is a different one (the top of the unsigned range rather than the signed one). Witness: `var src: u64 = 18446744073709551615;` with the measured region byte-identical, built under `zig build-exe -OReleaseSafe`, prints 18446744073709552000 -- the input value is not recoverable from the output, and the printed magnitude is unreachable from any signed 64-bit source.",
+        "CLASS 3 - `i` is an integer WIDER than the f64 mantissa (i64, u64, i128 ...). `@floatFromInt` then rounds to the nearest representable float, so the conversion can change the value. Materially different from class 1 on dimensions 4 and 9. Witness semantic-compression/witnesses/zig/chunk_B/f10p2_V3_i64_round.zig (`const i: i64 = 9007199254740993;`, measured region byte-identical): builds under the frozen recipe and prints 9007199254740992 — the input value is not recoverable from the output. NOT counted as further branches: (a) a narrowing at the `+` - Zig 0.16.0 Language Reference, 'Type Coercion' admits no implicit narrowing, so `d` cannot be an f128; (b) `d` being an integer - `+` requires a peer type and Zig 0.16.0 Language Reference performs no int-to-float coercion, so such a completion does not compile; (c) a user-defined `+` - operator overloading does not exist. All three are exclusions by ABSENCE and are flagged LOW-B-BY-ABSENCE under Rule 1.9.5 rather than silently credited."
+      ],
+      "locality_lookups": 2,
+      "locality_detail": [
+        {
+          "hop": "variable decl - `i` (given context, outside the measured region)",
+          "required_for_fact": "conversion_behavior at `@floatFromInt`, and the source half of type_and_representation. Whether the conversion is exact or rounds depends on the source width, which the region does not state; Zig 0.16.0 Language Reference, 'Builtin Functions: @floatFromInt' converts to the CLOSEST representable float, so the two cases are different answers to 'can this conversion change the value'."
+        },
+        {
+          "hop": "variable decl - `d` (given context, outside the measured region)",
+          "required_for_fact": "conversion_behavior at the `+`. Whether an implicit widening happens at the operator depends on whether `d` is already f64 or a narrower float (Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats'). A separate declared entity, so a separate hop under Rule 2.2.2. The RESULT type needs no hop at all — `@as(f64, ...)` writes it — and overflow_exceptional_numeric needs none either, because the operand type at the operator is local and Zig 0.16.0 Language Reference, 'Floats' fixes IEEE-754 semantics with no mode dependence."
+        }
+      ],
+      "hidden_items": [],
+      "hidden_count": 0,
+      "complexity_units": 9,
+      "complexity_detail": [
+        {
+          "unit": "distinct syntax form",
+          "description": "`const` declaration with an inferred type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Variables'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Builtin-call form `@name(args)`.",
+          "citation": "Zig 0.16.0 Language Reference, 'Builtin Functions'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`@as`: explicit coercion of an expression to a named type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Builtin Functions: @as'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "`@floatFromInt`: integer-to-float conversion to the closest representable float.",
+          "citation": "Zig 0.16.0 Language Reference, 'Builtin Functions: @floatFromInt'"
+        },
+        {
+          "unit": "distinct syntax form",
+          "description": "Binary `+` on floating-point operands.",
+          "citation": "Zig 0.16.0 Language Reference, 'Operators'"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "Result-location semantics: `@floatFromInt` has no result type of its own and must be given one by its context; the type does NOT propagate through an arithmetic operator.",
+          "citation": "Zig 0.16.0 Language Reference, 'Result Location Semantics'; verified: `error: @floatFromInt must have a known result type`"
+        },
+        {
+          "unit": "context-dependent rule",
+          "description": "Peer type resolution at a binary operator: a narrower float operand is implicitly widened to the wider one, and the result takes the peer type.",
+          "citation": "Zig 0.16.0 Language Reference, 'Type Coercion: Integers and Floats'"
+        },
+        {
+          "unit": "implicit rule",
+          "description": "No implicit conversion exists between integers and floats in either direction; the conversion builtins are the only route.",
+          "citation": "Zig 0.16.0 Language Reference, 'Type Coercion'"
+        },
+        {
+          "unit": "documented exception",
+          "description": "Floating-point arithmetic follows IEEE-754 under the default `.strict` float mode, with infinities and NaN rather than the safety-checked trap that integer arithmetic gets — the same written `+`, a different edge rule per operand class.",
+          "citation": "Zig 0.16.0 Language Reference, 'Floats' and 'Undefined Behavior: Integer Overflow'"
+        }
+      ]
+    }
+  ]
+}

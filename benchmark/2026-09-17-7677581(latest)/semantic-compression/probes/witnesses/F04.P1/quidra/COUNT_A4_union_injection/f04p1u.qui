@@ -1,0 +1,11 @@
+int32 | error probe()
+    int32 slot = 4
+    int32 &port = &slot
+    port = 9
+    return slot
+
+match probe()
+    int32 x
+        print(x)
+    error e
+        print(e)

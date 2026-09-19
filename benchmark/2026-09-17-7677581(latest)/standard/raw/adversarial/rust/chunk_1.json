@@ -1,0 +1,1188 @@
+{
+ "language": "Rust",
+ "language_key": "rust",
+ "chunk": "1",
+ "toolchain": "rustc 1.95.0 (59807616e 2026-04-14) (Homebrew)",
+ "frozen_build_recipe": "rustc -O FILE.rs -o BIN",
+ "frozen_run_recipe": "./BIN",
+ "environment": {
+  "LC_ALL": "en_US.UTF-8",
+  "LANG": "en_US.UTF-8",
+  "TZ": "UTC",
+  "RUST_BACKTRACE": "unset for all primary builds and runs (set to 1 only for the non-scoring secondary configuration, per the frozen secondary_non_scoring_configurations entry)",
+  "run_timeout_seconds": 60,
+  "repetitions": 5,
+  "timeout_tool": "GNU timeout is not present on this macOS host; an equivalent perl fork/alarm/SIGKILL wrapper was used, exit 124 on timeout. No case in this chunk timed out."
+ },
+ "language_note_answer": "`rustc -O` sets opt-level=3 and leaves debug-assertions OFF, so RUNTIME integer overflow checks are disabled and arithmetic wraps silently (ADV-02/R, ADV-03/R, ADV-04a/R all wrapped with exit 0). COMPILE-TIME detection is unaffected by -O: the deny-by-default lints arithmetic_overflow and unconditional_panic still const-evaluate manifest constants and reject the program (ADV-02/C, ADV-03/C, ADV-04a/C, ADV-08/C, ADV-09/C). Bounds checks, allocation size checks and Any's dynamic type check are NOT debug-assertion-gated and remain on at -O (ADV-08/R, ADV-09/R, ADV-10/C, ADV-10/R, ADV-11/R, ADV-13). The C/R split is therefore the whole story for Rust arithmetic: constants are caught at 100, the identical hazard through stdin is not caught at all.",
+ "observations": [
+  {
+   "case_variant_id": "ADV-01/C",
+   "case_id": "ADV-01",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-01_C.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-01_C.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-01_C"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-01_C"
+    ],
+    "stdin_tokens": [],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:-1\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "adv_start_present": true,
+    "obs_present": true,
+    "adv_end_present": true,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true
+   },
+   "observed_payload": "V:-1",
+   "reached_observation_point": true,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 n/a (Rust has i64 and i32, no TM3). D1 n/a: build exited 0 with no diagnostic. D2 n/a: binary produced. D3 n/a: ADV-START present. D4 n/a: 0.00s. D5 n/a: exit 0. D6a n/a: OBS= and ADV-END both present. D6b n/a: reference_observation is the sentinel DIAGNOSED_FAILURE, not a concrete value. D6c: plausible_domain_predicate ^V:-?(0|[1-9][0-9]*)$ matches 'V:-1' and -1 lies inside [-2147483648,2147483647], so the predicate is TRUE -> D6c-ii -> D7. D7a: all 5 runs byte-identical. D7b: the frozen Rust secondary configuration `rustc -g -C debug-assertions=on` produced the IDENTICAL payload 'OBS=V:-1' and emitted no report; debug assertions do not instrument `as` casts. D7b does not fire. D7c: no clause declares this undefined - the Rust Reference, 'Type cast expressions', defines a numeric cast to a narrower integer type as truncation of the two's-complement representation. D7d -> Silent Bug (0). This is exactly the outcome the case's silent_transformation_watch names: V:-1, an ordinary-looking 32-bit integer fabricated from i64::MAX with no diagnostic anywhere.",
+   "silent_transformation": true,
+   "normative_status": {
+    "status": "defined",
+    "document": "The Rust Reference",
+    "version": "rustc 1.95.0",
+    "clause": "Type cast expressions - numeric cast: casting to a narrower integer truncates"
+   },
+   "secondary_configuration": {
+    "cmd": [
+     "rustc",
+     "-g",
+     "-C",
+     "debug-assertions=on",
+     "ADV-01_C.rs",
+     "-o",
+     "BIN"
+    ],
+    "exit": 0,
+    "obs": "OBS=V:-1",
+    "report": "none",
+    "d7b_fires": false
+   }
+  },
+  {
+   "case_variant_id": "ADV-01/R",
+   "case_id": "ADV-01",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-01_R.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-01_R.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-01_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-01_R"
+    ],
+    "stdin_tokens": [
+     "9223372036854775807"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:-1\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "adv_start_present": true,
+    "obs_present": true,
+    "adv_end_present": true,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true
+   },
+   "observed_payload": "V:-1",
+   "reached_observation_point": true,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "Identical decision path to ADV-01/C. The value crossed the opacity barrier (stdin token '9223372036854775807' parsed with text.trim().parse::<i64>().unwrap(), the frozen Rust primary_string_to_integer_facility) so no compiler could see it, and `as i32` still produced V:-1 with exit 0 and no diagnostic. D6c TRUE -> D7a identical across 5 runs -> D7b secondary build gives the same payload and no report -> D7c cast truncation is defined -> D7d Silent Bug. The C/R pair shows Rust does NOT catch this one statically either: the constant is just as invisible to rustc as the stdin value.",
+   "silent_transformation": true,
+   "normative_status": {
+    "status": "defined",
+    "document": "The Rust Reference",
+    "version": "rustc 1.95.0",
+    "clause": "Type cast expressions - numeric cast truncation"
+   },
+   "secondary_configuration": {
+    "cmd": [
+     "rustc",
+     "-g",
+     "-C",
+     "debug-assertions=on",
+     "ADV-01_R.rs",
+     "-o",
+     "BIN"
+    ],
+    "exit": 0,
+    "obs": "OBS=V:-1",
+    "report": "none",
+    "d7b_fires": false
+   }
+  },
+  {
+   "case_variant_id": "ADV-02/C",
+   "case_id": "ADV-02",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-02_C.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-02_C.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-02_C"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "error: this arithmetic operation will overflow\n --> /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-02_C.rs:9:18\n  |\n9 |     let v: i64 = a + 3;\n  |                  ^^^^^ attempt to compute `i64::MAX + 3_i64`, which would overflow\n  |\n  = note: `#[deny(arithmetic_overflow)]` on by default\n\nerror: aborting due to 1 previous error\n\n"
+   },
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "build rejected the program; nothing was run"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 n/a. D1 fires: the frozen build `rustc -O` exited 1. D1a n/a: no toolchain_failure_marker matched (no ICE, no LLVM ERROR, no signal). D1b-i: the concatenated build output matches the case lexicon fragment L_OVERFLOW (and also L_NARROW) on the word 'overflow' -> Compile-time Detection, stage Compile-time Detection, 100. First diagnostic line verbatim: 'error: this arithmetic operation will overflow'. Matched fragment: L_OVERFLOW. The diagnostic carries file, line 9 and column 18. Note this is the deny-by-default lint `arithmetic_overflow`, which fires at -O even though -O turns runtime overflow checks OFF - the manifest constant is const-evaluated and rejected.",
+   "silent_transformation": false,
+   "first_diagnostic_line": "error: this arithmetic operation will overflow",
+   "matched_lexicon": "L_OVERFLOW",
+   "construction_line_range": [
+    8,
+    9
+   ],
+   "diagnostic_line": 9,
+   "decision_rule_fired": "D1b-i"
+  },
+  {
+   "case_variant_id": "ADV-02/R",
+   "case_id": "ADV-02",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-02_R.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-02_R.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-02_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-02_R"
+    ],
+    "stdin_tokens": [
+     "9223372036854775807"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:-9223372036854775806\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "adv_start_present": true,
+    "obs_present": true,
+    "adv_end_present": true,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true
+   },
+   "observed_payload": "V:-9223372036854775806",
+   "reached_observation_point": true,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Undefined Behavior",
+   "earliest_observable_stage": "Undefined Behavior",
+   "classification_reasoning": "D1 n/a: build exited 0 - once the operand crosses the opacity barrier rustc cannot const-evaluate it and the arithmetic_overflow lint cannot fire. D3/D4/D5 n/a: ADV-START present, exit 0, no timeout. D6a n/a: OBS= and ADV-END present. D6b n/a: payload 'V:-9223372036854775806' != reference 'V:9223372036854775810'. D6c: predicate matches and -9223372036854775806 is inside the declared interval, so TRUE -> D7. D7a: 5/5 byte-identical. D7b FIRES: the frozen Rust secondary configuration `rustc -g -C debug-assertions=on` terminates with 'attempt to add with overflow' - a report that names erroneous behaviour for this exact operation (the no_observation_clause is satisfied through D7b's FIRST condition, not the different-payload condition). Result: Undefined Behavior, stage Undefined Behavior, 5, evidence checked_build_divergence. HONESTY NOTE: Rust's own reference does NOT call this undefined behavior - it defines the result as two's-complement wrapping when overflow-checks are off. The rung is 5 rather than 0 purely because the frozen D7b test is satisfied by Rust having a checked build. Substantively the observed behaviour under the SCORED recipe is a silent transformation: i64::MAX+3 became a large NEGATIVE number, exit 0, no diagnostic. silent_transformation is recorded true accordingly. This is exactly what the LANGUAGE NOTE about `rustc -O` asked to be recorded: -O leaves debug-assertions off, so Rust wraps silently at run time.",
+   "silent_transformation": true,
+   "normative_status": {
+    "status": "defined",
+    "document": "The Rust Reference",
+    "version": "rustc 1.95.0",
+    "clause": "Expressions/Operator expressions - Overflow: when overflow checks are disabled the operation wraps in two's complement; it is NOT undefined behavior"
+   },
+   "secondary_configuration": {
+    "cmd": [
+     "rustc",
+     "-g",
+     "-C",
+     "debug-assertions=on",
+     "ADV-02_R.rs",
+     "-o",
+     "BIN"
+    ],
+    "exit": 101,
+    "obs": null,
+    "report": "thread 'main' panicked at ADV-02_R.rs:13:18: attempt to add with overflow",
+    "d7b_fires": true
+   },
+   "decision_rule_fired": "D7b"
+  },
+  {
+   "case_variant_id": "ADV-03/C",
+   "case_id": "ADV-03",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-03_C.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-03_C.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-03_C"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "error: this arithmetic operation will overflow\n --> /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-03_C.rs:9:18\n  |\n9 |     let v: i64 = a - 3;\n  |                  ^^^^^ attempt to compute `i64::MIN - 3_i64`, which would overflow\n  |\n  = note: `#[deny(arithmetic_overflow)]` on by default\n\nerror: aborting due to 1 previous error\n\n"
+   },
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "build rejected the program; nothing was run"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "Same path as ADV-02/C. D1 fires (build exit 1), D1a n/a, D1b-i matches L_OVERFLOW on 'overflow'. First diagnostic verbatim: 'error: this arithmetic operation will overflow', with the label 'attempt to compute `i64::MIN - 3_i64`, which would overflow' at line 9 col 18. Compile-time Detection, 100. The literal -9223372036854775808 was accepted by rustc as a plain manifest i64 constant (no obfuscation was used).",
+   "silent_transformation": false,
+   "first_diagnostic_line": "error: this arithmetic operation will overflow",
+   "matched_lexicon": "L_OVERFLOW",
+   "construction_line_range": [
+    8,
+    9
+   ],
+   "diagnostic_line": 9,
+   "decision_rule_fired": "D1b-i"
+  },
+  {
+   "case_variant_id": "ADV-03/R",
+   "case_id": "ADV-03",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-03_R.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-03_R.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-03_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-03_R"
+    ],
+    "stdin_tokens": [
+     "-9223372036854775808"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:9223372036854775805\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "adv_start_present": true,
+    "obs_present": true,
+    "adv_end_present": true,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true
+   },
+   "observed_payload": "V:9223372036854775805",
+   "reached_observation_point": true,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Undefined Behavior",
+   "earliest_observable_stage": "Undefined Behavior",
+   "classification_reasoning": "Mirror of ADV-02/R. Build exit 0 (value opaque). Exit 0, ADV-START/OBS=/ADV-END all present. D6b n/a: 'V:9223372036854775805' != reference 'V:-9223372036854775811'. D6c TRUE (in the declared interval) -> D7. D7a 5/5 identical. D7b FIRES: secondary `rustc -g -C debug-assertions=on` panics 'attempt to subtract with overflow', naming erroneous behaviour for this operation -> Undefined Behavior, 5, checked_build_divergence. The observed value under the SCORED recipe is the exact silent outcome the case predicted: subtracting 3 from i64::MIN produced the large POSITIVE 9223372036854775805, silently, exit 0. Rust's reference defines this as wrapping, not UB; the 5 comes from D7b alone.",
+   "silent_transformation": true,
+   "normative_status": {
+    "status": "defined",
+    "document": "The Rust Reference",
+    "version": "rustc 1.95.0",
+    "clause": "Overflow - wraps in two's complement when overflow checks are disabled; not undefined behavior"
+   },
+   "secondary_configuration": {
+    "cmd": [
+     "rustc",
+     "-g",
+     "-C",
+     "debug-assertions=on",
+     "ADV-03_R.rs",
+     "-o",
+     "BIN"
+    ],
+    "exit": 101,
+    "obs": null,
+    "report": "thread 'main' panicked at ADV-03_R.rs:13:18: attempt to subtract with overflow",
+    "d7b_fires": true
+   },
+   "decision_rule_fired": "D7b"
+  },
+  {
+   "case_variant_id": "ADV-04a/C",
+   "case_id": "ADV-04",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-04a_C.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-04a_C.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-04a_C"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "error: this arithmetic operation will overflow\n  --> /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-04a_C.rs:10:18\n   |\n10 |     let v: u32 = a - b;\n   |                  ^^^^^ attempt to compute `0_u32 - 1_u32`, which would overflow\n   |\n   = note: `#[deny(arithmetic_overflow)]` on by default\n\nerror: aborting due to 1 previous error\n\n"
+   },
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "build rejected the program; nothing was run"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "Sub-program ADV-04a (unsigned 0 - 1). D1 fires: build exit 1. D1a n/a. D1b-i: build output matches L_OVERFLOW ('overflow') -> Compile-time Detection, 100. First diagnostic verbatim: 'error: this arithmetic operation will overflow', label 'attempt to compute `0_u32 - 1_u32`, which would overflow', line 10 col 18, from the deny-by-default lint arithmetic_overflow.",
+   "silent_transformation": false,
+   "first_diagnostic_line": "error: this arithmetic operation will overflow",
+   "matched_lexicon": "L_OVERFLOW",
+   "construction_line_range": [
+    8,
+    10
+   ],
+   "diagnostic_line": 10,
+   "sub_program": "ADV-04a",
+   "decision_rule_fired": "D1b-i"
+  },
+  {
+   "case_variant_id": "ADV-04a/R",
+   "case_id": "ADV-04",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-04a_R.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-04a_R.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-04a_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-04a_R"
+    ],
+    "stdin_tokens": [
+     "0",
+     "1"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=SUB:4294967295\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "adv_start_present": true,
+    "obs_present": true,
+    "adv_end_present": true,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true
+   },
+   "observed_payload": "SUB:4294967295",
+   "reached_observation_point": true,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Undefined Behavior",
+   "earliest_observable_stage": "Undefined Behavior",
+   "classification_reasoning": "Sub-program ADV-04a with both operands through the opacity barrier (stdin '0','1' parsed with parse::<u32>().unwrap()). Build exit 0. Run exit 0, all three skeleton lines present. D6b n/a (reference is the DIAGNOSED_FAILURE sentinel). D6c: 'SUB:4294967295' matches ^SUB:(0|[1-9][0-9]*)$ and 4294967295 is inside [0,4294967295] -> TRUE -> D7. D7a 5/5 identical. D7b FIRES: secondary debug-assertions build panics 'attempt to subtract with overflow' -> Undefined Behavior, 5, checked_build_divergence. Under the SCORED recipe the outcome is precisely the silent one the case names: SUB:4294967295, an entirely ordinary u32, exit 0, no diagnostic.",
+   "silent_transformation": true,
+   "normative_status": {
+    "status": "defined",
+    "document": "The Rust Reference",
+    "version": "rustc 1.95.0",
+    "clause": "Overflow - wrapping when overflow checks are disabled"
+   },
+   "secondary_configuration": {
+    "cmd": [
+     "rustc",
+     "-g",
+     "-C",
+     "debug-assertions=on",
+     "ADV-04a_R.rs",
+     "-o",
+     "BIN"
+    ],
+    "exit": 101,
+    "obs": null,
+    "report": "thread 'main' panicked at ADV-04a_R.rs:17:18: attempt to subtract with overflow",
+    "d7b_fires": true
+   },
+   "sub_program": "ADV-04a",
+   "decision_rule_fired": "D7b"
+  },
+  {
+   "case_variant_id": "ADV-04b/C",
+   "case_id": "ADV-04",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-04b_C.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-04b_C.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-04b_C"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "error[E0308]: mismatched types\n  --> /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-04b_C.rs:10:23\n   |\n10 |     let v: bool = s < u;\n   |                   -   ^ expected `i32`, found `u32`\n   |                   |\n   |                   expected because this is `i32`\n   |\nhelp: you can convert a `u32` to an `i32` and panic if the converted value doesn't fit\n   |\n10 |     let v: bool = s < u.try_into().unwrap();\n   |                        ++++++++++++++++++++\n\nerror: aborting due to 1 previous error\n\nFor more information about this error, try `rustc --explain E0308`.\n"
+   },
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "build rejected the program; nothing was run"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "Sub-program ADV-04b (mixed-sign comparison i32 < u32, written with no cast or widening on either operand, per construction step 2). D1 fires: build exit 1. D1a n/a: no toolchain_failure_marker. D1b-i: build output matches the GLOBAL fragment L_TYPE via both 'mismatched types' and 'expected .*, found' -> Compile-time Detection, 100. First diagnostic line verbatim: 'error[E0308]: mismatched types', line 10 col 23, label 'expected `i32`, found `u32`'. Rust's type system has no implicit integer promotion, so the classic signed/unsigned comparison hazard cannot be written at all.",
+   "silent_transformation": false,
+   "first_diagnostic_line": "error[E0308]: mismatched types",
+   "matched_lexicon": "L_TYPE (global fragment; the case lexicon L_OVERFLOW did not match)",
+   "construction_line_range": [
+    8,
+    10
+   ],
+   "diagnostic_line": 10,
+   "sub_program": "ADV-04b",
+   "decision_rule_fired": "D1b-i"
+  },
+  {
+   "case_variant_id": "ADV-04b/R",
+   "case_id": "ADV-04",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-04b_R.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-04b_R.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-04b_R"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "error[E0308]: mismatched types\n  --> /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-04b_R.rs:17:23\n   |\n17 |     let v: bool = s < u;\n   |                   -   ^ expected `i32`, found `u32`\n   |                   |\n   |                   expected because this is `i32`\n   |\nhelp: you can convert a `u32` to an `i32` and panic if the converted value doesn't fit\n   |\n17 |     let v: bool = s < u.try_into().unwrap();\n   |                        ++++++++++++++++++++\n\nerror: aborting due to 1 previous error\n\nFor more information about this error, try `rustc --explain E0308`.\n"
+   },
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "build rejected the program; nothing was run"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "Sub-program ADV-04b with both operands read through the opacity barrier. The opacity barrier hides the VALUES but not the TYPES, and Rust's rejection is a type rejection, so the R variant is rejected identically to the C variant: build exit 1, D1b-i matches L_TYPE on 'mismatched types' -> Compile-time Detection, 100. First diagnostic verbatim: 'error[E0308]: mismatched types' at line 17 col 23. This is the one case in this chunk where Rust's static answer is unaffected by the C/R distinction.",
+   "silent_transformation": false,
+   "first_diagnostic_line": "error[E0308]: mismatched types",
+   "matched_lexicon": "L_TYPE (global fragment)",
+   "construction_line_range": [
+    17,
+    17
+   ],
+   "diagnostic_line": 17,
+   "sub_program": "ADV-04b",
+   "decision_rule_fired": "D1b-i"
+  },
+  {
+   "case_variant_id": "ADV-05/C",
+   "case_id": "ADV-05",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-05_C.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-05_C.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-05_C"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-05_C"
+    ],
+    "stdin_tokens": [],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:2147483647\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "adv_start_present": true,
+    "obs_present": true,
+    "adv_end_present": true,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true
+   },
+   "observed_payload": "V:2147483647",
+   "reached_observation_point": true,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D1 n/a: build exit 0, no diagnostic - rustc does not lint an out-of-range float-to-int `as` cast even when the operand is the manifest constant 1e30. D3/D4/D5 n/a. D6a n/a. D6b n/a (sentinel reference). D6c: 'V:2147483647' matches the predicate and lies inside [-2147483648,2147483647] -> TRUE -> D7. D7a 5/5 identical. D7b: secondary `rustc -g -C debug-assertions=on` produced the IDENTICAL payload V:2147483647 and no report - debug assertions do not instrument float casts - so D7b does not fire. D7c: not undefined; the Rust Reference specifies float-to-int `as` as a SATURATING cast (this was made defined in Rust 1.45; it was UB before that). D7d -> Silent Bug (0). The case's silent_transformation_watch lists 'saturation to 2147483647' as an expected silent outcome and that is exactly what Rust produced: a value thirty orders of magnitude out of range became an ordinary i32 with nothing said.",
+   "silent_transformation": true,
+   "normative_status": {
+    "status": "defined",
+    "document": "The Rust Reference",
+    "version": "rustc 1.95.0",
+    "clause": "Type cast expressions - float to int cast saturates (stabilised Rust 1.45)"
+   },
+   "secondary_configuration": {
+    "cmd": [
+     "rustc",
+     "-g",
+     "-C",
+     "debug-assertions=on",
+     "ADV-05_C.rs",
+     "-o",
+     "BIN"
+    ],
+    "exit": 0,
+    "obs": "OBS=V:2147483647",
+    "report": "none",
+    "d7b_fires": false
+   },
+   "decision_rule_fired": "D7d"
+  },
+  {
+   "case_variant_id": "ADV-05/R",
+   "case_id": "ADV-05",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-05_R.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-05_R.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-05_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-05_R"
+    ],
+    "stdin_tokens": [
+     "1e30"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:2147483647\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "adv_start_present": true,
+    "obs_present": true,
+    "adv_end_present": true,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true
+   },
+   "observed_payload": "V:2147483647",
+   "reached_observation_point": true,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "Identical decision path to ADV-05/C with 1e30 arriving through the opacity barrier (stdin '1e30' parsed with parse::<f64>().unwrap()). Build exit 0, run exit 0, payload V:2147483647, 5/5 identical, secondary build identical with no report, float-to-int `as` saturation is defined -> D7d Silent Bug (0).",
+   "silent_transformation": true,
+   "normative_status": {
+    "status": "defined",
+    "document": "The Rust Reference",
+    "version": "rustc 1.95.0",
+    "clause": "Type cast expressions - saturating float to int cast"
+   },
+   "secondary_configuration": {
+    "cmd": [
+     "rustc",
+     "-g",
+     "-C",
+     "debug-assertions=on",
+     "ADV-05_R.rs",
+     "-o",
+     "BIN"
+    ],
+    "exit": 0,
+    "obs": "OBS=V:2147483647",
+    "report": "none",
+    "d7b_fires": false
+   },
+   "decision_rule_fired": "D7d"
+  },
+  {
+   "case_variant_id": "ADV-06/R",
+   "case_id": "ADV-06",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-06_R.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-06_R.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-06_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-06_R"
+    ],
+    "stdin_tokens": [
+     "0.0",
+     "0.0"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=MAX:3.000000|SELFEQ:false\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "adv_start_present": true,
+    "obs_present": true,
+    "adv_end_present": true,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true
+   },
+   "observed_payload": "MAX:3.000000|SELFEQ:false",
+   "reached_observation_point": true,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "The central silent case, and Rust fails it. Build exit 0, run exit 0, all three skeleton lines present. 0.0/0.0 produced NaN; the hand-written comparison loop of construction step 4 skipped it because every `>` comparison with NaN is false; best stayed at the first element 3.0. D6b n/a (sentinel reference). D6c: 'MAX:3.000000|SELFEQ:false' matches ^MAX:-?(0|[1-9][0-9]*)\\.[0-9]{6}\\|SELFEQ:(true|false)$ - the MAX field renders as an ordinary finite decimal - so the predicate is TRUE -> D7. D7a 5/5 byte-identical. D7b: secondary `rustc -g -C debug-assertions=on` produced the IDENTICAL payload and no report (debug assertions do not affect IEEE-754 arithmetic). D7c: not undefined - Rust f64 arithmetic is IEEE 754 binary64, 0.0/0.0 is defined to be NaN and NaN comparisons are defined to be false. D7d -> Silent Bug (0). The observation is byte-for-byte the outcome the frozen document named in advance: MAX:3.000000|SELFEQ:false - a maximum of 3 over a data set that contained an invalid element, with nothing in the output indicating the invalid element was discarded. SELFEQ:false is recorded as evidence only and does not enter the predicate.",
+   "silent_transformation": true,
+   "normative_status": {
+    "status": "defined",
+    "document": "The Rust Reference",
+    "version": "rustc 1.95.0",
+    "clause": "Types/Numeric types - f64 is IEEE 754-2008 binary64; PartialOrd on floats follows IEEE total-comparison rules (all comparisons with NaN are false)"
+   },
+   "secondary_configuration": {
+    "cmd": [
+     "rustc",
+     "-g",
+     "-C",
+     "debug-assertions=on",
+     "ADV-06_R.rs",
+     "-o",
+     "BIN"
+    ],
+    "exit": 0,
+    "obs": "OBS=MAX:3.000000|SELFEQ:false",
+    "report": "none",
+    "d7b_fires": false
+   },
+   "decision_rule_fired": "D7d"
+  },
+  {
+   "case_variant_id": "ADV-07/R",
+   "case_id": "ADV-07",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-07_R.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-07_R.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-07_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-07_R"
+    ],
+    "stdin_tokens": [
+     "1.0",
+     "0.0"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=MEAN:inf|DIFF:NaN\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "adv_start_present": true,
+    "obs_present": true,
+    "adv_end_present": true,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true
+   },
+   "observed_payload": "MEAN:inf|DIFF:NaN",
+   "reached_observation_point": true,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Output Verification",
+   "earliest_observable_stage": "Output Verification",
+   "classification_reasoning": "Build exit 0, run exit 0, all three skeleton lines present, so D1-D5 do not fire. D6a n/a. D6b n/a (sentinel reference). D6c: the payload 'MEAN:inf|DIFF:NaN' does NOT match ^MEAN:-?(0|[1-9][0-9]*)\\.[0-9]{6}\\|DIFF:-?(0|[1-9][0-9]*)\\.[0-9]{6}$ - the predicate requires BOTH fields to render as ordinary finite decimals and neither does. Predicate FALSE -> D6c-i -> Output Verification, stage Output Verification, 40. Rust did not trap on float division by zero (1.0/0.0 = +inf per IEEE 754) and did not saturate it to a finite value either; `{:.6}` printed 'inf' and 'NaN' unchanged, so the defect reached the output but announces itself to any consumer. This is the 'honest middle outcome' the case describes, not the dangerous saturation outcome.",
+   "silent_transformation": false,
+   "decision_rule_fired": "D6c-i",
+   "note": "Rust's {:.6} formatting of a non-finite f64 emits 'inf' / 'NaN' with no fractional digits; no special-casing was written in the program."
+  },
+  {
+   "case_variant_id": "ADV-08/C",
+   "case_id": "ADV-08",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-08_C.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-08_C.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-08_C"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "error: this operation will panic at runtime\n  --> /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-08_C.rs:10:18\n   |\n10 |     let q: i64 = a / b;\n   |                  ^^^^^ attempt to divide `7_i64` by zero\n   |\n   = note: `#[deny(unconditional_panic)]` on by default\n\nerror: aborting due to 1 previous error\n\n"
+   },
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "build rejected the program; nothing was run"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D1 fires: build exit 1. D1a n/a: no toolchain_failure_marker. D1b-i does NOT fire: the build output was matched mechanically against the case lexicon (L_DIVZERO) and against every global fragment and NOTHING matched - rustc words it 'attempt to divide `7_i64` by zero', and L_DIVZERO's alternatives ('divide by zero', 'division by zero', '/ by zero', ...) all require the words to be adjacent. D1b-ii: the A6 precondition was re-performed and the program IS the program the construction describes (a=7, b=0, q=a/b with the ordinary `/` operator, literal 0 divisor as the C variant requires). D1b-ii-2: the first diagnostic carries line 10, which is inside construction_line_range [8,10]. -> Compile-time Detection, stage Compile-time Detection, 100, with flag compile_rejection_unmatched_lexicon; this row belongs in the published 'unmatched compile rejections' table. First diagnostic line verbatim: 'error: this operation will panic at runtime' (deny-by-default lint unconditional_panic).",
+   "silent_transformation": false,
+   "first_diagnostic_line": "error: this operation will panic at runtime",
+   "matched_lexicon": null,
+   "flags": [
+    "compile_rejection_unmatched_lexicon"
+   ],
+   "construction_line_range": [
+    8,
+    10
+   ],
+   "diagnostic_line": 10,
+   "decision_rule_fired": "D1b-ii-2",
+   "unmatched_lexicon_note": "rustc's label is 'attempt to divide `7_i64` by zero'; L_DIVZERO requires 'divide by zero' contiguously, so the operand rendering between the words defeats the frozen regex. The runtime wording in ADV-08/R ('attempt to divide by zero') does match."
+  },
+  {
+   "case_variant_id": "ADV-08/R",
+   "case_id": "ADV-08",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-08_R.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-08_R.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-08_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-08_R"
+    ],
+    "stdin_tokens": [
+     "7",
+     "0"
+    ],
+    "exit": 101,
+    "stdout": "ADV-START\n",
+    "stderr": "\nthread 'main' (18146637) panicked at /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-08_R.rs:17:18:\nattempt to divide by zero\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+    "timed_out": false,
+    "adv_start_present": true,
+    "obs_present": false,
+    "adv_end_present": false,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "classification_reasoning": "Build exit 0 (the divisor is opaque so the unconditional_panic lint cannot fire). D3 n/a: ADV-START IS present on stdout. D4 n/a. D5 fires: ADV-START present and the process terminated abnormally (exit 101, Rust's panic exit status). D5a: stderr matches the case lexicon fragment L_DIVZERO - 'attempt to divide by zero' contains 'divide by zero' -> Runtime Safe Detection, stage Runtime Safe Detection, 75. Per D5a's own note this is the paradigm case: the runtime named the specific hazard, gave file:line:column, and stopped before doing anything with the invalid value. No value was produced, so OBS= and ADV-END never appeared.",
+   "silent_transformation": false,
+   "matched_lexicon": "L_DIVZERO",
+   "decision_rule_fired": "D5a",
+   "diagnostic_verbatim": "thread 'main' panicked at .../ADV-08_R.rs:17:18: attempt to divide by zero"
+  },
+  {
+   "case_variant_id": "ADV-09/C",
+   "case_id": "ADV-09",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-09_C.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-09_C.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-09_C"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "error: this arithmetic operation will overflow\n  --> /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-09_C.rs:10:20\n   |\n10 |     let i: usize = z - 1;\n   |                    ^^^^^ attempt to compute `0_usize - 1_usize`, which would overflow\n   |\n   = note: `#[deny(arithmetic_overflow)]` on by default\n\nerror: aborting due to 1 previous error\n\n"
+   },
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "build rejected the program; nothing was run"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "INDEX CONSTRUCTION, recorded as construction step 2 requires: Rust's default_ordered_sequence Vec<i64> is indexed by the UNSIGNED type usize, so the frozen authoring_choice_table entry index_type_construction/Rust applies - the program obtains 0 as a usize and computes 0 - 1 with the ordinary subtraction operator, rather than reading -1 directly. In the C variant the 0 is a manifest constant. D1 fires: build exit 1. D1a n/a. D1b-i: the case lexicon L_BOUNDS does NOT match, but the GLOBAL fragment L_OVERFLOW matches on 'overflow' -> Compile-time Detection, 100. First diagnostic verbatim: 'error: this arithmetic operation will overflow', label 'attempt to compute `0_usize - 1_usize`, which would overflow', line 10 col 20. Rust rejected the program one step BEFORE the indexing hazard, at the construction of the below-range index itself.",
+   "silent_transformation": false,
+   "first_diagnostic_line": "error: this arithmetic operation will overflow",
+   "matched_lexicon": "L_OVERFLOW (global fragment; case lexicon L_BOUNDS did not match)",
+   "construction_line_range": [
+    8,
+    11
+   ],
+   "diagnostic_line": 10,
+   "decision_rule_fired": "D1b-i",
+   "index_type_construction": "unsigned usize: read/write 0 and compute 0 - 1 (frozen authoring_choice_table)"
+  },
+  {
+   "case_variant_id": "ADV-09/R",
+   "case_id": "ADV-09",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-09_R.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-09_R.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-09_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-09_R"
+    ],
+    "stdin_tokens": [
+     "0"
+    ],
+    "exit": 101,
+    "stdout": "ADV-START\n",
+    "stderr": "\nthread 'main' (18146722) panicked at /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-09_R.rs:16:20:\nindex out of bounds: the len is 5 but the index is 18446744073709551615\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+    "timed_out": false,
+    "adv_start_present": true,
+    "obs_present": false,
+    "adv_end_present": false,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "classification_reasoning": "Same unsigned-index construction; the token supplied on stdin is therefore '0' (not '-1'), exactly as construction step 2 directs for an unsigned index type, and 0 - 1 is computed at run time. Build exit 0. Under `rustc -O` the subtraction wrapped silently to usize::MAX (debug assertions off), so the arithmetic itself was NOT caught - but the subsequent index was. D5 fires (ADV-START present, exit 101). D5a: stderr matches the case lexicon L_BOUNDS on 'index out of bounds' -> Runtime Safe Detection, 75. Diagnostic verbatim: 'index out of bounds: the len is 5 but the index is 18446744073709551615'. The printed index 18446744073709551615 is the visible fingerprint of the silent usize wrap that preceded it; the bounds check, not the arithmetic, is what stopped the program.",
+   "silent_transformation": false,
+   "matched_lexicon": "L_BOUNDS",
+   "decision_rule_fired": "D5a",
+   "diagnostic_verbatim": "thread 'main' panicked at .../ADV-09_R.rs:16:20: index out of bounds: the len is 5 but the index is 18446744073709551615",
+   "index_type_construction": "unsigned usize: stdin token '0', then 0 - 1"
+  },
+  {
+   "case_variant_id": "ADV-10/C",
+   "case_id": "ADV-10",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-10_C.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-10_C.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-10_C"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-10_C"
+    ],
+    "stdin_tokens": [],
+    "exit": 101,
+    "stdout": "ADV-START\n",
+    "stderr": "\nthread 'main' (18146797) panicked at /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-10_C.rs:10:20:\nindex out of bounds: the len is 5 but the index is 5\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+    "timed_out": false,
+    "adv_start_present": true,
+    "obs_present": false,
+    "adv_end_present": false,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "classification_reasoning": "D1 n/a: build exited 0. NOTE for the C/R comparison: rustc did NOT reject the literal index 5 at compile time. The frozen default_ordered_sequence for Rust is Vec<i64>, whose indexing goes through the Index trait and a runtime length check, so the manifest constant gives the compiler nothing to const-evaluate (a fixed-size [i64; 5] array would have been rejected statically; the frozen binding is Vec). D5 fires: ADV-START present, exit 101. D5a: L_BOUNDS matches 'index out of bounds' -> Runtime Safe Detection, 75. Diagnostic verbatim: 'index out of bounds: the len is 5 but the index is 5', with file, line 10 and column 20.",
+   "silent_transformation": false,
+   "matched_lexicon": "L_BOUNDS",
+   "decision_rule_fired": "D5a",
+   "diagnostic_verbatim": "thread 'main' panicked at .../ADV-10_C.rs:10:20: index out of bounds: the len is 5 but the index is 5",
+   "note": "C variant did not improve on R: the constant index was not seen statically because Vec indexing is a runtime-checked trait call."
+  },
+  {
+   "case_variant_id": "ADV-10/R",
+   "case_id": "ADV-10",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-10_R.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-10_R.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-10_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-10_R"
+    ],
+    "stdin_tokens": [
+     "5"
+    ],
+    "exit": 101,
+    "stdout": "ADV-START\n",
+    "stderr": "\nthread 'main' (18146863) panicked at /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-10_R.rs:15:20:\nindex out of bounds: the len is 5 but the index is 5\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+    "timed_out": false,
+    "adv_start_present": true,
+    "obs_present": false,
+    "adv_end_present": false,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "classification_reasoning": "Index 5 read through the opacity barrier as usize. Build exit 0, D5 fires (ADV-START present, exit 101), D5a matches L_BOUNDS -> Runtime Safe Detection, 75. Diagnostic verbatim: 'index out of bounds: the len is 5 but the index is 5'. Byte-identical stderr to the C variant apart from file/line, confirming that for Vec indexing Rust's answer is purely dynamic.",
+   "silent_transformation": false,
+   "matched_lexicon": "L_BOUNDS",
+   "decision_rule_fired": "D5a",
+   "diagnostic_verbatim": "thread 'main' panicked at .../ADV-10_R.rs:15:20: index out of bounds: the len is 5 but the index is 5"
+  },
+  {
+   "case_variant_id": "ADV-11/R",
+   "case_id": "ADV-11",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-11_R.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-11_R.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-11_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-11_R"
+    ],
+    "stdin_tokens": [
+     "4611686018427387904"
+    ],
+    "exit": 101,
+    "stdout": "ADV-START\n",
+    "stderr": "\nthread 'main' (18146990) panicked at /rustc/59807616e1fa2540724bfbac14d7976d7e4a3860/library/alloc/src/raw_vec/mod.rs:28:5:\ncapacity overflow\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+    "timed_out": false,
+    "adv_start_present": true,
+    "obs_present": false,
+    "adv_end_present": false,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "classification_reasoning": "n = 4611686018427387904 read through the opacity barrier as i64, then `vec![0i64; n as usize]` - the ordinary Rust way to create a sequence of a given length, with no try_reserve, no fallible allocation API and no capacity check. Build exit 0. D4 n/a: the run terminated in well under the 60-second timeout (the request is unsatisfiable rather than merely large, so nothing was ever allocated and the host was never driven into swap). D5 fires: ADV-START present, exit 101. D5a: stderr matches the case lexicon L_ALLOC on 'capacity overflow' -> Runtime Safe Detection, 75. Diagnostic verbatim: 'capacity overflow', raised from library/alloc/src/raw_vec/mod.rs:28:5. IMPORTANT for the silent_transformation_watch: Rust did NOT clamp, truncate or narrow the requested length - the 2^62-element * 8-byte size computation was checked and refused before any allocator call, so no small buffer was silently substituted. The one debuggability cost is that the panic location points into the standard library, not at the user's line.",
+   "silent_transformation": false,
+   "matched_lexicon": "L_ALLOC",
+   "decision_rule_fired": "D5a",
+   "diagnostic_verbatim": "thread 'main' panicked at /rustc/.../library/alloc/src/raw_vec/mod.rs:28:5: capacity overflow",
+   "timed_out": false,
+   "note": "Global fragments L_OVERFLOW and L_NARROW also match on the word 'overflow'; the case lexicon L_ALLOC matched, so D5a (not D5a_prime) fired."
+  },
+  {
+   "case_variant_id": "ADV-12",
+   "case_id": "ADV-12",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-12.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-12.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-12"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "error[E0381]: used binding `x` isn't initialized\n  --> /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-12.rs:10:33\n   |\n 8 |     let x: i64;\n   |         - binding declared here but left uninitialized\n 9 |\n10 |     writeln!(out, \"OBS=VAL:{}\", x).unwrap();\n   |                                 ^ `x` used here but it isn't initialized\n   |\nhelp: consider assigning a value\n   |\n 8 |     let x: i64 = 42;\n   |                ++++\n\nerror: aborting due to 1 previous error\n\nFor more information about this error, try `rustc --explain E0381`.\n"
+   },
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "build rejected the program; nothing was run"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none for the hazard. Rust forces .unwrap() on the std::io Write/flush Results and on str::parse (rule A3 canonical Rust form); these concern I/O and the opacity barrier only, never the hazardous operation.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "TM3 determination made BEFORE running: TM3a does NOT apply. Rust has a declaration form that leaves a local's value unspecified (`let x: i64;` with no initializer), so the hazardous program is expressible and was genuinely written; what Rust has instead is enforced definite assignment, which the case's own notes direct to be recorded as Compile-time Detection at D1b, not as Prevented By Construction. D1 fires: build exit 1. D1a n/a: no toolchain_failure_marker. D1b-i: build output matches the case lexicon fragment L_UNINIT on 'left uninitialized' -> Compile-time Detection, stage Compile-time Detection, 100. First diagnostic line verbatim: \"error[E0381]: used binding `x` isn't initialized\", at line 10 col 33, with the secondary span at line 8 labelled 'binding declared here but left uninitialized' and a help suggestion. The program contains no assignment to x anywhere, as construction step 3 requires.",
+   "silent_transformation": false,
+   "first_diagnostic_line": "error[E0381]: used binding `x` isn't initialized",
+   "matched_lexicon": "L_UNINIT (matched on 'left uninitialized')",
+   "construction_line_range": [
+    8,
+    10
+   ],
+   "diagnostic_line": 10,
+   "decision_rule_fired": "D1b-i",
+   "tm3_applied": "none (TM3a explicitly rejected: the uninitialized declaration form exists in Rust and was used)"
+  },
+  {
+   "case_variant_id": "ADV-13",
+   "case_id": "ADV-13",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-13.rs",
+   "build": {
+    "cmd": [
+     "rustc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-13.rs",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-13"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "warning: field `v` is never read\n --> /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-13.rs:4:5\n  |\n3 | struct A {\n  |        - field in this struct\n4 |     v: i64,\n  |     ^\n  |\n  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default\n\nwarning: 1 warning emitted\n\n"
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advrust/out/ADV-13"
+    ],
+    "stdin_tokens": [],
+    "exit": 101,
+    "stdout": "ADV-START\n",
+    "stderr": "\nthread 'main' (18147079) panicked at /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/rust/ADV-13.rs:18:39:\ncalled `Result::unwrap()` on an `Err` value: Any { .. }\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n",
+    "timed_out": false,
+    "adv_start_present": true,
+    "obs_present": false,
+    "adv_end_present": false,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "YES - recorded as required. Rust has no infallible downcast: std::any::Any exposes only downcast (-> Result) and downcast_ref/downcast_mut (-> Option). The language FORCES the author to touch a failure channel to express this cast at all, and rule A3's shortest direct use, .unwrap(), was used. Being forced to acknowledge the error IS Rust's safety behaviour here and is exactly what spec 17 asks to be measured; it is the reason no wrong-typed field read was ever possible.",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "classification_reasoning": "Construction: two distinct one-field structs A and B with no relationship, an A{v:42} placed in the frozen most_general_reference binding Box<dyn std::any::Any>, then converted to B. AUTHORING NOTE (rule A4/A3): Rust offers NO forced cast from Box<dyn Any> to a concrete type - every route returns a failure channel - so rule A4's 'use the forced form' has no Rust spelling and rule A3 applies instead, giving `r.downcast::<B>().unwrap()`, the form that converts the binding itself and yields a B as construction step 4 demands. D1 n/a: build exit 0 (only a dead_code warning on A::v). D3 n/a: ADV-START present. D5 fires: exit 101. D5a: the concatenation of stdout and stderr was matched mechanically against the case lexicon L_CAST and NOTHING matched - the panic text is \"called `Result::unwrap()` on an `Err` value: Any { .. }\", which contains no form of the word cast ('downcast' does not satisfy L_CAST's \\\\bcast word boundary) and no 'type assertion' / 'cannot be cast' / 'is not of type'. D5a_prime: matched against ALL SIXTEEN global fragments; none matched either (verified mechanically). D5b -> Crash, stage Crash, 20. HONESTY / DISCLOSURE, since this is a 55-point fork: substantively Rust behaved well - the runtime checked the dynamic type, refused the conversion, never read the field through the wrong type and aborted at a precise file:line:column - but the frozen D5a/D5b test is a string comparison on captured bytes and Rust's generic unwrap message names the FAILURE CHANNEL rather than the HAZARD, so the frozen procedure yields Crash. The alternative A3 spelling `r.downcast_ref::<B>().unwrap()` was also built and run and panics with \"called `Option::unwrap()` on a `None` value\", which DOES match global fragment L_NULL (\\\\bnone\\\\b) and would have scored Runtime Safe Detection (75) at D5a_prime. The scored row uses `downcast`, because construction step 4 asks for the form that yields a B and step 5 reads the field through the B-typed result, while downcast_ref yields only a &B. The fork is published here so an auditor can re-check it. This row also belongs in the Diagnostics evidence: the message is a symptom of Rust's ergonomics, not of the hazard.",
+   "silent_transformation": false,
+   "matched_lexicon": null,
+   "decision_rule_fired": "D5b",
+   "diagnostic_verbatim": "thread 'main' panicked at .../ADV-13.rs:18:39: called `Result::unwrap()` on an `Err` value: Any { .. }",
+   "disclosed_fork": {
+    "alternative_form": "r.downcast_ref::<B>().unwrap()",
+    "alternative_stderr": "thread 'main' panicked at alt13.rs:9:40: called `Option::unwrap()` on a `None` value",
+    "alternative_would_classify_as": "Runtime Safe Detection (75) via D5a_prime, global fragment L_NULL",
+    "why_not_chosen": "construction step 4 requires the form that yields a B; downcast_ref yields &B. Disclosed because the two spellings differ by 55 points."
+   }
+  }
+ ]
+}

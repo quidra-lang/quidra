@@ -1,0 +1,705 @@
+{
+ "metric": "Concurrency",
+ "standard_category": "Language / Development",
+ "normalization_family": "G",
+ "rubric_document": "05_standard_rubrics.json",
+ "scores": {
+  "Quidra": {
+   "level": "Sequential",
+   "score": 0,
+   "criteria_satisfied": [],
+   "criteria_failed": [
+    "C1 parallel speedup: 4-worker median 2.7424 s vs 1-worker median 2.7581 s = 1.0057x, far below the required 1.5x. process.run is synchronous (it returns process.Result only after the child exits), so the W=4 run executes its four child processes one after another. Numeric results were identical across all ten runs and the 1-worker median is inside the required 2-10 s band, so the failure is the speedup ratio alone.",
+    "C2 mutex + condition variable + atomics: quidra 0.2.0's complete standard-namespace set contains no synchronization module of any kind.",
+    "C3 message-passing type: no channel, queue, mailbox or equivalent in any standard namespace; process.Result carries a finished child's captured stdout/stderr text, not a transfer channel between running workers.",
+    "C4 asynchronous concurrency model: no async/await, coroutine, green-thread or event-loop facility in the language or its standard library; `quidra describe` lists no such construct and the language reference states concurrency is a development area.",
+    "C5 race check: `quidra check` rejected the CONC-2 source, but with UNKNOWN_TYPE 'thread' and UNKNOWN_NAME 'Undefined assignment target' - a missing-type and a scoping diagnostic, not a diagnostic naming unsynchronized shared access. No race detector ships with the toolchain (`quidra build` publishes only -o, --keep-llvm, --debug, --max-errors) and quidra-lang publishes none.",
+    "C6 structured task parallelism: no task group, thread pool, parallel executor, scoped-thread construct or parallel collection operation."
+   ],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "./build/conc1-quidra 1   /   ./build/conc1-quidra 4   (5 runs each, wall clock, cwd=benchmark/2026-09-17-7677581/standard/rubrics; worker mechanism: child processes created with process.run)",
+     "accessed": "2026-09-19T00:34:19Z",
+     "excerpt": "runs_1=[2.8368, 2.721, 2.7355, 2.7618, 2.7581] median_1=2.7581 | runs_4=[2.7217, 2.7424, 2.7494, 2.7213, 2.7436] median_4=2.7424 | speedup=1.0057 | stdout_1[0]='workers=1 result=249999999.8718209565' | stdout_4[0]='workers=4 result=249999999.8718209565' | results_identical=True | 1.5x bar met=False"
+    },
+    {
+     "source": "E1",
+     "detail": "quidra build probes/CONC-1/quidra/conc1.qui -o build/conc1-quidra   (exit 0; probe written for this run, worker mechanism = process.run child processes, N/arithmetic/chunk split/combination order identical to the other nine languages)",
+     "accessed": "2026-09-19T00:33:22Z",
+     "excerpt": "workers=1 result=249999999.8718209565 / workers=4 result=249999999.8718209565"
+    },
+    {
+     "source": "E1",
+     "detail": "<repo>/build/quidra check probes/CONC-2/quidra/conc2.qui ; exit=1",
+     "accessed": "2026-09-19T00:35:10Z",
+     "excerpt": "probes/CONC-2/quidra/conc2.qui:9:9: error[UNKNOWN_NAME] Undefined assignment target.\nprobes/CONC-2/quidra/conc2.qui:11:1: error[UNKNOWN_TYPE] Unknown type 'thread'.\nprobes/CONC-2/quidra/conc2.qui:12:1: error[UNKNOWN_TYPE] Unknown type 'thread'.\n3 error(s) generated."
+    },
+    {
+     "source": "E1",
+     "detail": "<repo>/build/quidra describe   (machine-readable language summary shipped by the toolchain under test, quidra 0.2.0)",
+     "accessed": "2026-09-19T00:31:05Z",
+     "excerpt": "\"standard_modules\": [\"math\",\"cli\",\"file\",\"environment\",\"test\",\"time\",\"random\",\"process\",\"map\",\"set\",\"json\",\"http\",\"stats\",\"linear\",\"signal\",\"image\",\"tensor\",\"neural\"]"
+    },
+    {
+     "source": "E1",
+     "detail": "<repo>/build/quidra describe | managed_registry_model field",
+     "accessed": "2026-09-19T00:31:05Z",
+     "excerpt": "per-execution-thread ownership registry without process-wide locking; ... current language semantics do not expose cross-thread managed-value sharing"
+    },
+    {
+     "source": "E2",
+     "detail": "https://raw.githubusercontent.com/quidra-lang/quidra/main/docs/spec/language.md line 512 (official_docs_root: https://github.com/quidra-lang/quidra); the identical sentence is in docs/spec/language.md of the 0.2.0 checkout under test",
+     "accessed": "2026-09-19T00:36:40Z",
+     "excerpt": "Concurrency, WASM, self-hosting, broader signal-processing APIs, and broader package distribution remain development areas."
+    },
+    {
+     "source": "E2",
+     "detail": "https://raw.githubusercontent.com/quidra-lang/quidra/main/docs/spec/language.md line 517",
+     "accessed": "2026-09-19T00:36:40Z",
+     "excerpt": "Current reserved namespaces are `math`, `cli`, `file`, `environment`, `test`, `time`, `random`, `process`, `map`, `set`, `json`, `http`, `tensor`, `stats`, `linear`, `signal`, `image`, and `neural`."
+    },
+    {
+     "source": "E2",
+     "detail": "https://raw.githubusercontent.com/quidra-lang/quidra/main/docs/spec/language.md line 752",
+     "accessed": "2026-09-19T00:36:40Z",
+     "excerpt": "The language does not currently expose cross-thread sharing of managed values, so retain/release does not require a process-wide mutex."
+    },
+    {
+     "source": "E2",
+     "detail": "https://raw.githubusercontent.com/quidra-lang/quidra/main/docs/spec/architecture.md line 82",
+     "accessed": "2026-09-19T00:36:40Z",
+     "excerpt": "External-resource effects, concurrency, optional vendor accelerator libraries, ... remain development areas."
+    },
+    {
+     "source": "E2",
+     "detail": "<repo>/build/quidra usage text (built-in help shipped by the toolchain under test)",
+     "accessed": "2026-09-19T00:31:00Z",
+     "excerpt": "quidra build FILE.qui [-o FILE] [--debug] [--max-errors N]   build native executable"
+    }
+   ],
+   "reasoning": "Zero of C1-C6 are satisfied, which is the 'Sequential' level (0 or 1 satisfied). It is not the 'Limited' level (20, exactly 2 satisfied) because not even one indicator holds. C1 was not assumed to fail: the frozen CONC-1 workload was implemented in Quidra using the worker mechanism CONC-1.worker_model admits (processes from the first-party standard library), built with the frozen recipe, and measured with 5 runs at 1 and 4 workers exactly as for the other nine languages. It produced a bit-identical numeric result to C++/Rust/Go/Python/Swift/TypeScript and a measured speedup of 1.0057x, because quidra 0.2.0's only worker-creation API, process.run, blocks until the child exits. Per na_policy that measured ratio is a real result, not an N/A. C2-C4 and C6 fail on the toolchain's own machine-readable module list and the language reference's explicit statement that concurrency remains a development area. C5 fails because the compile-time rejection that did occur names an unknown type and an undefined assignment target rather than the unsynchronized shared access, and no first-party race detector exists."
+  },
+  "Python": {
+   "level": "Adequate",
+   "score": 60,
+   "criteria_satisfied": [
+    "C1 parallel speedup 2.6601x with multiprocessing.Process (CPython standard library), identical numeric results",
+    "C3 queue.Queue, a synchronized multi-producer multi-consumer queue",
+    "C4 asyncio, the standard library's async/await event loop",
+    "C6 concurrent.futures ThreadPoolExecutor / ProcessPoolExecutor (thread and process pools)"
+   ],
+   "criteria_failed": [
+    "C2 (conjunctive): threading.Lock (mutual exclusion) and threading.Condition (condition variable) are documented, but CPython's standard library documents NO atomic operations on a machine word. There is no atomics module in the 726-entry module index, no atomic API in the C-API or free-threading documentation, and the glossary states the opposite guarantee. Per no_partial_credit the whole indicator is unsatisfied.",
+    "C5: the CONC-2 probe ran to completion with no diagnostic (it even printed the correct total under the GIL); CPython ships no race detector and no member of the official_project_set publishes one."
+   ],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "python3 probes/CONC-1/python/conc1.py --workers 1   /   python3 probes/CONC-1/python/conc1.py --workers 4   (5 runs each, wall clock, cwd=benchmark/2026-09-17-7677581/standard/rubrics; worker mechanism: multiprocessing.Process (CPython standard library))",
+     "accessed": "2026-09-18T20:35:41Z",
+     "excerpt": "runs_1=[39.4722, 37.6761, 36.4993, 36.1341, 33.1335] median_1=36.4993 | runs_4=[11.0499, 12.3215, 13.7212, 14.9126, 16.3564] median_4=13.7212 | speedup=2.6601 | stdout_1[0]='workers=1 result=249999999.8718209565' | stdout_4[0]='workers=4 result=249999999.8718209565' | results_identical=True | 1.5x bar met=True"
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.python.org/3/library/threading.html (class threading.Lock)",
+     "accessed": "2026-09-19T00:25:42Z",
+     "excerpt": "A primitive lock is a synchronization primitive that is not owned by a particular thread when locked."
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.python.org/3/library/threading.html (Condition Objects)",
+     "accessed": "2026-09-19T00:25:42Z",
+     "excerpt": "A condition variable is always associated with some kind of lock; this can be passed in or one will be created by default."
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.python.org/3/glossary.html (term 'atomic operation') + https://docs.python.org/3/py-modindex.html (no atomics module) + https://docs.python.org/3/howto/free-threading-extensions.html (no 'atomic' match)",
+     "accessed": "2026-09-19T00:26:10Z",
+     "excerpt": "Python does not guarantee that high-level statements are atomic (for example, x += 1 performs multiple bytecode operations and is not atomic). Atomicity is only guaranteed where explicitly documented."
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.python.org/3/library/queue.html",
+     "accessed": "2026-09-19T00:25:42Z",
+     "excerpt": "The queue module implements multi-producer, multi-consumer queues. It is especially useful in threaded programming when information must be exchanged safely between multiple threads."
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.python.org/3/library/asyncio.html",
+     "accessed": "2026-09-19T00:25:42Z",
+     "excerpt": "asyncio is a library to write concurrent code using the async/await syntax."
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.python.org/3/library/concurrent.futures.html",
+     "accessed": "2026-09-19T00:25:42Z",
+     "excerpt": "The concurrent.futures module provides a high-level interface for asynchronously executing callables. The asynchronous execution can be performed with threads, using ThreadPoolExecutor or InterpreterPoolExecutor"
+    },
+    {
+     "source": "E1",
+     "detail": "python3 probes/CONC-2/python/conc2.py ; exit=0 (python3 = /opt/homebrew/bin/python3, Python 3.14.5, Py_GIL_DISABLED=0)",
+     "accessed": "2026-09-19T00:23:17Z",
+     "excerpt": "counter=400000 expected=400000"
+    }
+   ],
+   "reasoning": "Exactly 4 of C1-C6 satisfied = Adequate (60). Not Strong (80, exactly 5) because C2 fails its atomics conjunct and C5 has neither a compile-time rejection nor a first-party race detector. Not Basic (40, exactly 3) because C1, C3, C4 and C6 are each independently evidenced."
+  },
+  "C++": {
+   "level": "Adequate",
+   "score": 60,
+   "criteria_satisfied": [
+    "C1 parallel speedup 2.4415x with std::thread, identical numeric results",
+    "C2 <mutex> std::mutex, <condition_variable> std::condition_variable, <atomic> std::atomic - all three",
+    "C4 C++20 coroutines (co_await / co_yield, <coroutine>); std::async additionally",
+    "C6 C++17 parallel algorithms with std::execution::par (a parallel collection operation)"
+   ],
+   "criteria_failed": [
+    "C3: the C++ working draft contains no channel, concurrent queue or mailbox type. The string 'channel' occurs 0 times in N5054. std::queue is a non-thread-safe container adaptor and std::promise/std::future transfers exactly one value once, which does not meet 'a message-passing type for transferring values between concurrent workers' under the multi-value rule applied to all ten languages.",
+    "C5 (verification_status=unverified, availability_state S4): ThreadSanitizer is published by the LLVM Project, a member of C++'s official_project_set, and compiles fine here, but every TSan-instrumented binary - including a 4-line hello world - segfaults on this host (exit 139), inside and outside the tool sandbox. macOS 26.4.1 / arm64 blocks it. Per tool_availability_states.scoring_effect.everything_else, S4 does not rescue an indicator that requires a successful execution. clang++ with the frozen recipe (and with -Wall -Wextra) accepts the CONC-2 probe with no diagnostic."
+   ],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "./build/conc1-cpp 1   /   ./build/conc1-cpp 4   (5 runs each, wall clock, cwd=benchmark/2026-09-17-7677581/standard/rubrics; worker mechanism: std::thread (<thread>))",
+     "accessed": "2026-09-18T20:35:59Z",
+     "excerpt": "runs_1=[2.6934, 2.6104, 2.5197, 2.5856, 2.5223] median_1=2.5856 | runs_4=[0.8916, 1.0368, 1.065, 1.0948, 1.059] median_4=1.059 | speedup=2.4415 | stdout_1[0]='workers=1 result=249999999.8718209565' | stdout_4[0]='workers=4 result=249999999.8718209565' | results_identical=True | 1.5x bar met=True"
+    },
+    {
+     "source": "E2",
+     "detail": "https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2026/n5054.pdf - N5054, Working Draft, Programming Languages -- C++, 2026-07-16, subclause 32.6.4.2.1 [thread.mutex.requirements.mutex.general]",
+     "accessed": "2026-09-19T00:28:30Z",
+     "excerpt": "The mutex types are the standard library types mutex, recursive_mutex, timed_mutex, recursive_timed_mutex, shared_mutex, and shared_timed_mutex."
+    },
+    {
+     "source": "E2",
+     "detail": "N5054 subclause 32.7 [thread.condition]",
+     "accessed": "2026-09-19T00:28:30Z",
+     "excerpt": "Condition variables provide synchronization primitives used to block a thread until notified by some other thread that some condition is met or until a system time is reached."
+    },
+    {
+     "source": "E2",
+     "detail": "N5054 subclause 32.5.1 [atomics.general] / 32.5.2 Header <atomic> synopsis",
+     "accessed": "2026-09-19T00:28:30Z",
+     "excerpt": "Subclause 32.5 describes components for fine-grained atomic access. This access is provided via operations on atomic objects."
+    },
+    {
+     "source": "E2",
+     "detail": "N5054 subclause 9.5.4 [dcl.fct.def.coroutine] (C4)",
+     "accessed": "2026-09-19T00:28:30Z",
+     "excerpt": "A function is a coroutine if its function-body encloses a coroutine-return-statement, an await-expression, or a yield-expression."
+    },
+    {
+     "source": "E2",
+     "detail": "N5054 subclause 26.3.1 [algorithms.parallel.defns] and 26.3.6 [execpol] (C6)",
+     "accessed": "2026-09-19T00:28:30Z",
+     "excerpt": "Subclause 26.3 describes components that C++ programs may use to perform operations on containers and other sequences in parallel."
+    },
+    {
+     "source": "E2",
+     "detail": "N5054 full-text search for 'channel' / 'concurrent_queue' / 'mailbox' (C3, negative)",
+     "accessed": "2026-09-19T00:28:40Z",
+     "excerpt": "grep -c -i channel n5054.txt  ->  0"
+    },
+    {
+     "source": "E1",
+     "detail": "clang++ -std=c++20 -O2 -g -fsanitize=thread probes/CONC-2/cpp/conc2.cpp -o build/conc2/conc2-cpp-tsan  (exit 0)  then  ./build/conc2/conc2-cpp-tsan",
+     "accessed": "2026-09-19T00:23:25Z",
+     "excerpt": "### exit=139   (no TSan report; the process dies before main. Confirmed with a hello-world TSan binary, and confirmed identical with the tool sandbox disabled. Apple clang 17.0.0, macOS 26.4.1, arm64)"
+    },
+    {
+     "source": "E1",
+     "detail": "clang++ -std=c++20 -O2 -Wall -Wextra probes/CONC-2/cpp/conc2.cpp -o build/conc2/conc2-cpp",
+     "accessed": "2026-09-19T00:24:10Z",
+     "excerpt": "### exit=0   (no diagnostic of any kind)"
+    }
+   ],
+   "reasoning": "Exactly 4 satisfied = Adequate (60). Not Strong (80) because C3 has no standard-library counterpart at all and C5 could not be executed. The C5 loss is a host artefact and is published in host_limited_indicators.json as state S4; it is nevertheless scored NOT SATISFIED, exactly as the frozen rule requires, and the same S4 treatment is applied to Swift and Zig whose sanitizers fail identically here."
+  },
+  "Rust": {
+   "level": "Parallel, synchronized, asynchronous, race-checked and structured",
+   "score": 100,
+   "criteria_satisfied": [
+    "C1 parallel speedup 2.6488x with std::thread, identical numeric results",
+    "C2 std::sync::Mutex, std::sync::Condvar, std::sync::atomic - all three",
+    "C3 std::sync::mpsc channels",
+    "C4 async/await, a language feature specified in The Rust Reference and documented in std",
+    "C5 rejected at compile time with error[E0499] naming the second borrow of the shared counter inside the concurrent closure",
+    "C6 std::thread::scope, a scoped-thread construct"
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "./build/conc1-rust 1   /   ./build/conc1-rust 4   (5 runs each, wall clock, cwd=benchmark/2026-09-17-7677581/standard/rubrics; worker mechanism: std::thread)",
+     "accessed": "2026-09-18T20:36:18Z",
+     "excerpt": "runs_1=[2.7954, 2.4942, 3.3466, 2.5685, 2.4984] median_1=2.5685 | runs_4=[0.809, 1.0124, 0.9669, 1.0156, 0.9697] median_4=0.9697 | speedup=2.6488 | stdout_1[0]='workers=1 result=249999999.8718209565' | stdout_4[0]='workers=4 result=249999999.8718209565' | results_identical=True | 1.5x bar met=True"
+    },
+    {
+     "source": "E2",
+     "detail": "https://doc.rust-lang.org/std/sync/struct.Mutex.html",
+     "accessed": "2026-09-19T00:26:30Z",
+     "excerpt": "A mutual exclusion primitive useful for protecting shared data"
+    },
+    {
+     "source": "E2",
+     "detail": "https://doc.rust-lang.org/std/sync/struct.Condvar.html",
+     "accessed": "2026-09-19T00:26:30Z",
+     "excerpt": "A Condition Variable ... Methods notify_all notify_one wait wait_timeout"
+    },
+    {
+     "source": "E2",
+     "detail": "https://doc.rust-lang.org/std/sync/atomic/index.html",
+     "accessed": "2026-09-19T00:26:30Z",
+     "excerpt": "Atomic types provide primitive shared-memory communication between"
+    },
+    {
+     "source": "E2",
+     "detail": "https://doc.rust-lang.org/std/sync/mpsc/index.html",
+     "accessed": "2026-09-19T00:26:30Z",
+     "excerpt": "Multi-producer, single-consumer FIFO queue communication primitives."
+    },
+    {
+     "source": "E2",
+     "detail": "https://doc.rust-lang.org/std/keyword.async.html and https://doc.rust-lang.org/reference/expressions/await-expr.html",
+     "accessed": "2026-09-19T00:26:30Z",
+     "excerpt": "Returns a Future instead of blocking the current thread. | An await expression is a syntactic construct for suspending a computation provided by an implementation of std::future::IntoFuture until the given future is ready to produce a value."
+    },
+    {
+     "source": "E2",
+     "detail": "https://doc.rust-lang.org/std/thread/fn.scope.html",
+     "accessed": "2026-09-19T00:26:30Z",
+     "excerpt": "Creates a scope for spawning scoped threads."
+    },
+    {
+     "source": "E1",
+     "detail": "rustc -O probes/CONC-2/rust/conc2.rs -o build/conc2/conc2-rust ; exit=1  (rustc 1.95.0)",
+     "accessed": "2026-09-19T00:23:40Z",
+     "excerpt": "error[E0499]: cannot borrow `counter` as mutable more than once at a time\n   --> probes/CONC-2/rust/conc2.rs:8:17\n  7 |         s.spawn(|| { for _ in 0..ITERS { counter = counter + 1; } });\n    |         |       |                        first borrow occurs due to use of `counter` in closure\n  8 |         s.spawn(|| { for _ in 0..ITERS { counter = counter + 1; } });\n    |                 ^^                       second borrow occurs due to use of `counter` in closure\nerror: aborting due to 1 previous error"
+    }
+   ],
+   "reasoning": "All 6 indicators satisfied = 100. Every item of top_level_evidence_required is present: both CONC-1 probe invocations with all five timings each, both medians, the ratio and the bit-identical results; mutex, condvar and atomics documentation URLs with excerpts; the mpsc channel URL; the async/await URL; the captured compile-time rejection with the exact command; and the scoped-thread URL. Rust is one of only two languages here whose toolchain refuses the unsynchronized program outright, which is what separates it from Java, Kotlin, Swift and Zig at 80."
+  },
+  "Go": {
+   "level": "Parallel, synchronized, asynchronous, race-checked and structured",
+   "score": 100,
+   "criteria_satisfied": [
+    "C1 parallel speedup 2.3970x with goroutines + sync.WaitGroup, identical numeric results",
+    "C2 sync.Mutex, sync.Cond, package sync/atomic - all three",
+    "C3 channels, a language-level message-passing type",
+    "C4 goroutines, lightweight threads started by the go statement",
+    "C5 the race detector shipped with the Go distribution reported 2 data races at the exact source line",
+    "C6 sync.WaitGroup with WaitGroup.Go, a task group"
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "./build/conc1-go 1   /   ./build/conc1-go 4   (5 runs each, wall clock, cwd=benchmark/2026-09-17-7677581/standard/rubrics; worker mechanism: goroutines with sync.WaitGroup)",
+     "accessed": "2026-09-18T20:36:35Z",
+     "excerpt": "runs_1=[2.3155, 2.2309, 2.2387, 2.3622, 2.5178] median_1=2.3155 | runs_4=[0.9332, 0.966, 0.9382, 1.0242, 1.0698] median_4=0.966 | speedup=2.397 | stdout_1[0]='workers=1 result=249999999.8718209565' | stdout_4[0]='workers=4 result=249999999.8718209565' | results_identical=True | 1.5x bar met=True"
+    },
+    {
+     "source": "E2",
+     "detail": "https://pkg.go.dev/sync (package overview and type Cond)",
+     "accessed": "2026-09-19T00:26:35Z",
+     "excerpt": "Package sync provides basic synchronization primitives such as mutual exclusion locks. | Cond implements a condition variable, a rendezvous point for goroutines waiting for or announcing the occurrence of an event."
+    },
+    {
+     "source": "E2",
+     "detail": "https://pkg.go.dev/sync/atomic",
+     "accessed": "2026-09-19T00:26:35Z",
+     "excerpt": "Package atomic provides low-level atomic memory primitives"
+    },
+    {
+     "source": "E2",
+     "detail": "https://go.dev/ref/spec (Channel types)",
+     "accessed": "2026-09-19T00:26:35Z",
+     "excerpt": "A channel provides a mechanism for concurrently executing functions to communicate by sending and receiving values of a specified element type."
+    },
+    {
+     "source": "E2",
+     "detail": "https://go.dev/ref/spec (Go statements)",
+     "accessed": "2026-09-19T00:26:35Z",
+     "excerpt": "A \"go\" statement starts the execution of a function call as an independent concurrent thread of control, or goroutine, within the same address space."
+    },
+    {
+     "source": "E2",
+     "detail": "https://pkg.go.dev/sync (func (*WaitGroup) Go)",
+     "accessed": "2026-09-19T00:26:35Z",
+     "excerpt": "A WaitGroup is a counting semaphore typically used to wait for a group of goroutines or tasks to finish. | Go calls f in a new goroutine and adds that task to the WaitGroup."
+    },
+    {
+     "source": "E1",
+     "detail": "go run -race probes/CONC-2/go/conc2.go ; exit=1  (go1.26.3 darwin/arm64; the race detector ships with the Go distribution)",
+     "accessed": "2026-09-19T00:23:50Z",
+     "excerpt": "WARNING: DATA RACE\nRead at 0x0001003fb650 by goroutine 8:\n  main.main.func1()\n      .../probes/CONC-2/go/conc2.go:20 +0x88\nPrevious write at 0x0001003fb650 by goroutine 7:\n  main.main.func1()\n      .../probes/CONC-2/go/conc2.go:20 +0xa0\n...\ncounter=393023 expected=400000\nFound 2 data race(s)\nexit status 66"
+    }
+   ],
+   "reasoning": "All 6 satisfied = 100. Go reaches C5 by the second admitted route (a race detector shipped with the toolchain) rather than by compile-time rejection; the indicator admits either, so Go and Rust tie at 100 and are reported at equal rank per tie_handling. Every element of top_level_evidence_required is recorded."
+  },
+  "Java": {
+   "level": "Strong",
+   "score": 80,
+   "criteria_satisfied": [
+    "C1 parallel speedup 2.9089x with java.lang.Thread, identical numeric results",
+    "C2 java.util.concurrent.locks.ReentrantLock, java.util.concurrent.locks.Condition, java.util.concurrent.atomic.AtomicLong - all three",
+    "C3 java.util.concurrent.BlockingQueue",
+    "C4 virtual threads (lightweight threads) in java.base; CompletableFuture additionally",
+    "C6 java.util.concurrent.ExecutorService and StructuredTaskScope"
+   ],
+   "criteria_failed": [
+    "C5: javac -Xlint:all compiled the CONC-2 probe with no diagnostic and the program ran to completion losing roughly half its increments. OpenJDK 26 ships no race detector, and no member of Java's official_project_set (OpenJDK, Oracle) publishes one."
+   ],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "java -cp build/java-conc1 Main 1   /   java -cp build/java-conc1 Main 4   (5 runs each, wall clock, cwd=benchmark/2026-09-17-7677581/standard/rubrics; worker mechanism: java.lang.Thread)",
+     "accessed": "2026-09-18T20:39:42Z",
+     "excerpt": "runs_1=[26.6633, 25.1965, 25.2921, 26.7473, 26.5383] median_1=26.5383 | runs_4=[9.1177, 9.1232, 8.9922, 13.9754, 16.0731] median_4=9.1232 | speedup=2.9089 | stdout_1[0]='workers=1 result=249999999.8718209600' | stdout_4[0]='workers=4 result=249999999.8718209600' | results_identical=True | 1.5x bar met=True"
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.oracle.com/en/java/javase/26/docs/api/java.base/java/util/concurrent/locks/ReentrantLock.html",
+     "accessed": "2026-09-19T00:27:15Z",
+     "excerpt": "A reentrant mutual exclusion Lock with the same basic behavior and semantics as the implicit monitor lock accessed using synchronized methods and statements"
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.oracle.com/en/java/javase/26/docs/api/java.base/java/util/concurrent/locks/Condition.html",
+     "accessed": "2026-09-19T00:27:15Z",
+     "excerpt": "Conditions (also known as condition queues or condition variables) provide a means for one thread to suspend execution (to \"wait\") until notified by another thread that some state condition may now be true."
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.oracle.com/en/java/javase/26/docs/api/java.base/java/util/concurrent/atomic/AtomicLong.html",
+     "accessed": "2026-09-19T00:27:15Z",
+     "excerpt": "A long value that may be updated atomically."
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.oracle.com/en/java/javase/26/docs/api/java.base/java/util/concurrent/BlockingQueue.html",
+     "accessed": "2026-09-19T00:27:15Z",
+     "excerpt": "A Queue that additionally supports operations that wait for the queue to become non-empty when retrieving an element, and wait for space to become available in the queue when storing an element."
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.oracle.com/en/java/javase/26/core/virtual-threads.html",
+     "accessed": "2026-09-19T00:27:15Z",
+     "excerpt": "Virtual threads are lightweight threads that reduce the effort of writing, maintaining, and debugging high-throughput concurrent applications."
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.oracle.com/en/java/javase/26/docs/api/java.base/java/util/concurrent/StructuredTaskScope.html and .../ExecutorService.html",
+     "accessed": "2026-09-19T00:27:15Z",
+     "excerpt": "An API for structured concurrency. StructuredTaskScope supports cases where execution of a task (a unit of work) splits into several concurrent subtasks, and where the subtasks must complete before the task continues. | An Executor that provides methods to manage termination and methods that can produce a Future for tracking progress of one or more asynchronous tasks."
+    },
+    {
+     "source": "E1",
+     "detail": "javac -Xlint:all -d build/conc2/java probes/CONC-2/java/Main.java (exit 0, no output) ; java -cp build/conc2/java Main (javac/java 26.0.1 from /opt/homebrew/opt/openjdk/bin)",
+     "accessed": "2026-09-19T00:24:55Z",
+     "excerpt": "counter=212652 expected=400000"
+    }
+   ],
+   "reasoning": "Exactly 5 satisfied = Strong (80). Not 100 because C5 has neither route: the toolchain compiles the racy program silently and OpenJDK ships no race detector. Not Adequate (60) because C2's three conjuncts, C3, C4 and C6 are each documented in java.base and C1 was measured."
+  },
+  "TypeScript": {
+   "level": "Basic",
+   "score": 40,
+   "criteria_satisfied": [
+    "C1 parallel speedup 3.0422x with node:worker_threads Workers, identical numeric results",
+    "C3 node:worker_threads MessageChannel / MessagePort",
+    "C4 async functions (TypeScript) over the Node.js event loop"
+   ],
+   "criteria_failed": [
+    "C2 (conjunctive): the Node.js v24.2.0 API documentation - the runtime version under test - documents no mutual-exclusion primitive, no condition variable or wait/notify primitive, and no atomic operations; 'Atomics' appears once in the whole 3.3 MB API text and not as an API the project documents. worker_threads.locks/LockManager (a mutual-exclusion primitive) exists only from Node v24.5.0, after the version under test, and even the latest v24.x docs add no condition variable and no atomics. typescriptlang.org names Atomics only as an ES2017 lib-option contents list. All three conjuncts therefore fail, and no_partial_credit applies.",
+    "C5: tsc compiled the probe and node ran it, losing roughly half the increments, with no diagnostic. Neither Microsoft nor the Node.js project ships a race detector.",
+    "C6: no first-party thread pool, task group, parallel executor or parallel collection operation. The Node.js docs direct the reader to build one: 'When implementing a worker pool, use the AsyncResource API'. node:cluster is documented for sharing server ports across processes, not as a task-parallelism abstraction."
+   ],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "node probes/CONC-1/typescript/build/conc1.js 1   /   node probes/CONC-1/typescript/build/conc1.js 4   (5 runs each, wall clock, cwd=benchmark/2026-09-17-7677581/standard/rubrics; worker mechanism: node:worker_threads Worker threads)",
+     "accessed": "2026-09-18T20:44:58Z",
+     "excerpt": "runs_1=[63.5082, 45.8874, 43.5579, 45.9872, 40.9729] median_1=45.8874 | runs_4=[13.9682, 14.3614, 17.3882, 15.0837, 15.5024] median_4=15.0837 | speedup=3.0422 | stdout_1[0]='workers=1 result=249999999.8718209565' | stdout_4[0]='workers=4 result=249999999.8718209565' | results_identical=True | 1.5x bar met=True"
+    },
+    {
+     "source": "E2",
+     "detail": "https://nodejs.org/docs/v24.2.0/api/all.html - the complete API documentation for the runtime version under test (node v24.2.0); searched for mutex/lock/condition/Atomics",
+     "accessed": "2026-09-19T00:29:10Z",
+     "excerpt": "grep -c 'Atomics' node_all.txt -> 1 ; grep -i 'LockManager|worker_threads.locks' -> no match"
+    },
+    {
+     "source": "E2",
+     "detail": "https://nodejs.org/docs/latest-v24.x/api/worker_threads.html - Class: LockManager (the nearest mutual-exclusion primitive, and it postdates the version under test)",
+     "accessed": "2026-09-19T00:27:50Z",
+     "excerpt": "worker_threads.locks  Added in: v24.5.0  Stability: 1 - Experimental"
+    },
+    {
+     "source": "E2",
+     "detail": "https://nodejs.org/docs/v24.2.0/api/all.html (Class: MessageChannel)",
+     "accessed": "2026-09-19T00:29:10Z",
+     "excerpt": "Instances of the worker.MessageChannel class represent an asynchronous, two-way communications channel."
+    },
+    {
+     "source": "E2",
+     "detail": "https://www.typescriptlang.org/docs/handbook/release-notes/typescript-2-1.html (Downlevel Async Functions) and https://nodejs.org/learn/asynchronous-work/event-loop-timers-and-nexttick",
+     "accessed": "2026-09-19T00:27:50Z",
+     "excerpt": "Downlevel Async Functions ... TypeScript 2.1 brings the capability to ES3 and ES5 run-times"
+    },
+    {
+     "source": "E2",
+     "detail": "https://nodejs.org/docs/v24.2.0/api/all.html (worker_threads guidance, C6 negative)",
+     "accessed": "2026-09-19T00:29:10Z",
+     "excerpt": "When implementing a worker pool, use the AsyncResource API"
+    },
+    {
+     "source": "E2",
+     "detail": "https://nodejs.org/docs/v24.2.0/api/all.html (node:cluster, C6 negative)",
+     "accessed": "2026-09-19T00:29:10Z",
+     "excerpt": "The cluster module allows easy creation of child processes that all share server ports."
+    },
+    {
+     "source": "E1",
+     "detail": "tsc -p probes/CONC-2/typescript/tsconfig.json (exit 0) ; node probes/CONC-2/typescript/build/conc2.js  (tsc 7.0.2, node v24.2.0)",
+     "accessed": "2026-09-19T00:24:55Z",
+     "excerpt": "counter=215117 expected=400000"
+    }
+   ],
+   "reasoning": "Exactly 3 satisfied = Basic (40). Not Adequate (60, exactly 4): C2 fails all three of its conjuncts at the version under test, C5 has neither route, and C6 has no first-party abstraction - the documentation tells the user to write the pool. Not Limited (20, exactly 2) because C1 was measured at 3.04x, C3 is documented and C4 is documented by both Microsoft and the Node.js project."
+  },
+  "Kotlin": {
+   "level": "Strong",
+   "score": 80,
+   "criteria_satisfied": [
+    "C1 parallel speedup 2.8168x with kotlin.concurrent.thread, identical numeric results",
+    "C2 mutual exclusion (kotlin.concurrent Lock.withLock in kotlin-stdlib, and kotlinx.coroutines Mutex), blocking wait/notify (kotlinx.coroutines Semaphore; kotlinlang.org also documents calling java.lang.Object wait()/notify()), atomics (kotlin.concurrent.AtomicInt / AtomicLong in kotlin-stdlib)",
+    "C3 kotlinx.coroutines Channel",
+    "C4 coroutines and suspending functions",
+    "C6 structured concurrency: CoroutineScope with launch/async, and Dispatchers.Default"
+   ],
+   "criteria_failed": [
+    "C5: kotlinc compiled the CONC-2 probe with no diagnostic and the program lost roughly 10% of its increments at run time. Neither JetBrains nor OpenJDK, the two members of Kotlin's official_project_set, ships a race detector."
+   ],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "java -jar build/conc1-kotlin.jar 1   /   java -jar build/conc1-kotlin.jar 4   (5 runs each, wall clock, cwd=benchmark/2026-09-17-7677581/standard/rubrics; worker mechanism: kotlin.concurrent.thread (JVM threads))",
+     "accessed": "2026-09-18T20:47:49Z",
+     "excerpt": "runs_1=[26.8392, 25.456, 24.8305, 24.8074, 24.8392] median_1=24.8392 | runs_4=[7.4226, 7.8765, 8.8182, 9.5491, 10.1313] median_4=8.8182 | speedup=2.8168 | stdout_1[0]='workers=1 result=249999999.8718209600' | stdout_4[0]='workers=4 result=249999999.8718209600' | results_identical=True | 1.5x bar met=True"
+    },
+    {
+     "source": "E2",
+     "detail": "https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.concurrent/ (AtomicInt, AtomicLong, Lock.withLock)",
+     "accessed": "2026-09-19T00:29:40Z",
+     "excerpt": "class AtomicInt(var value: Int) An Int value that is always updated atomically. | class AtomicLong(var value: Long) A Long value that is always updated atomically. | inline fun <T> Lock.withLock(action: () -> T): T Executes the given action under this lock."
+    },
+    {
+     "source": "E2",
+     "detail": "https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.sync/ (JetBrains, a member of Kotlin's official_project_set)",
+     "accessed": "2026-09-19T00:29:40Z",
+     "excerpt": "Synchronization primitives (mutex and semaphore). | interface Mutex Mutual exclusion for coroutines. | interface Semaphore A counting semaphore for coroutines ... Each acquire takes a single permit or suspends until it is available. Each release adds a permit, potentially releasing a suspended acquirer."
+    },
+    {
+     "source": "E2",
+     "detail": "https://kotlinlang.org/docs/java-interop.html (wait()/notify())",
+     "accessed": "2026-09-19T00:29:50Z",
+     "excerpt": "Methods wait() and notify() are not available on references of type Any. ... If you have to call these methods, access them through Java objects"
+    },
+    {
+     "source": "E2",
+     "detail": "https://kotlinlang.org/docs/channels.html",
+     "accessed": "2026-09-19T00:29:40Z",
+     "excerpt": "Channels provide a way to transfer a stream of values. ... A Channel is conceptually very similar to BlockingQueue. One key difference is that instead of a blocking put operation it has a suspending send, and instead of a blocking take operation it has a suspending receive."
+    },
+    {
+     "source": "E2",
+     "detail": "https://kotlinlang.org/docs/coroutines-overview.html",
+     "accessed": "2026-09-19T00:29:40Z",
+     "excerpt": "Kotlin uses asynchronous programming built around coroutines, which let you write asynchronous code in a natural, sequential style using suspending functions. Coroutines are lightweight alternatives to threads."
+    },
+    {
+     "source": "E2",
+     "detail": "https://kotlinlang.org/docs/coroutines-overview.html (structured concurrency, C6)",
+     "accessed": "2026-09-19T00:29:40Z",
+     "excerpt": "To launch new coroutines, use coroutine builders like .launch() and .async(). These builders are extension functions on CoroutineScope, which defines the coroutine's lifecycle ... This context forms a hierarchy that enables structured concurrency"
+    },
+    {
+     "source": "E1",
+     "detail": "kotlinc probes/CONC-2/kotlin/conc2.kt -include-runtime -d build/conc2/conc2-kotlin.jar (exit 0, no diagnostic) ; java -jar build/conc2/conc2-kotlin.jar  (kotlinc-jvm 2.3.21 on JRE 26.0.1)",
+     "accessed": "2026-09-19T00:24:40Z",
+     "excerpt": "counter=360326 expected=400000"
+    }
+   ],
+   "reasoning": "Exactly 5 satisfied = Strong (80), the same level and for the same reason as Java and Swift: everything except a race check. Not 100 because neither JetBrains nor OpenJDK ships a race detector and kotlinc accepts the racy program silently. C2 is scored under the frozen first_party_definition, which makes both JetBrains libraries and, for the Kotlin/JVM target under test, OpenJDK first-party for Kotlin; the excerpts cited are all from kotlinlang.org, Kotlin's own official_docs_root."
+  },
+  "Swift": {
+   "level": "Strong",
+   "score": 80,
+   "criteria_satisfied": [
+    "C1 parallel speedup 2.5292x with Dispatch (DispatchQueue.global / DispatchGroup), identical numeric results",
+    "C2 Synchronization.Mutex, Foundation NSCondition (and Dispatch DispatchSemaphore), Synchronization.Atomic - all three",
+    "C3 AsyncStream in the Swift standard library",
+    "C4 Swift concurrency: async/await, tasks and actors",
+    "C6 TaskGroup (withTaskGroup), a structured task group"
+   ],
+   "criteria_failed": [
+    "C5: swiftc did NOT reject the CONC-2 probe. With the frozen recipe it compiled silently; with -strict-concurrency=complete and again with -swift-version 6 it emitted warnings that do name the unsynchronized access ('main actor-isolated var counter can not be mutated from a nonisolated context') but still exited 0 and produced a binary, and the binary then lost half its increments. A warning is not a rejection. The ThreadSanitizer route is blocked on this host: swiftc -sanitize=thread builds, but every TSan binary segfaults under macOS 26.4.1 / arm64 (availability_state S4, verification_status unverified)."
+   ],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "./build/conc1-swift 1   /   ./build/conc1-swift 4   (5 runs each, wall clock, cwd=benchmark/2026-09-17-7677581/standard/rubrics; worker mechanism: Dispatch (DispatchQueue.global with DispatchGroup))",
+     "accessed": "2026-09-18T20:48:10Z",
+     "excerpt": "runs_1=[3.0037, 2.9011, 2.9935, 3.0143, 3.0068] median_1=3.0037 | runs_4=[1.0613, 1.2109, 1.2055, 1.1876, 1.1676] median_4=1.1876 | speedup=2.5292 | stdout_1[0]='workers=1 result=249999999.8718209565' | stdout_4[0]='workers=4 result=249999999.8718209565' | results_identical=True | 1.5x bar met=True"
+    },
+    {
+     "source": "E2",
+     "detail": "https://developer.apple.com/documentation/synchronization/mutex (JSON: https://developer.apple.com/tutorials/data/documentation/synchronization/mutex.json), module Synchronization",
+     "accessed": "2026-09-19T00:30:20Z",
+     "excerpt": "A synchronization primitive that protects shared mutable state via mutual exclusion."
+    },
+    {
+     "source": "E2",
+     "detail": "https://developer.apple.com/documentation/foundation/nscondition (JSON endpoint), module Foundation",
+     "accessed": "2026-09-19T00:30:50Z",
+     "excerpt": "A condition variable whose semantics follow those used for POSIX-style conditions."
+    },
+    {
+     "source": "E2",
+     "detail": "https://developer.apple.com/documentation/synchronization/atomic (JSON endpoint), module Synchronization",
+     "accessed": "2026-09-19T00:30:20Z",
+     "excerpt": "An atomic value."
+    },
+    {
+     "source": "E2",
+     "detail": "https://developer.apple.com/documentation/swift/asyncstream (JSON endpoint), module Swift",
+     "accessed": "2026-09-19T00:30:20Z",
+     "excerpt": "An asynchronous sequence generated from a closure that calls a continuation to produce new elements."
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.swift.org/swift-book/documentation/the-swift-programming-language/concurrency/ (JSON endpoint)",
+     "accessed": "2026-09-19T00:30:55Z",
+     "excerpt": "Swift has built-in support for writing asynchronous and parallel code in a structured way."
+    },
+    {
+     "source": "E2",
+     "detail": "https://developer.apple.com/documentation/swift/taskgroup (JSON endpoint), module Swift",
+     "accessed": "2026-09-19T00:30:20Z",
+     "excerpt": "A group that contains dynamically created child tasks."
+    },
+    {
+     "source": "E1",
+     "detail": "swiftc -O probes/CONC-2/swift/conc2.swift -o build/conc2/conc2-swift (exit 0, no diagnostic) ; ./build/conc2/conc2-swift   (Apple Swift 6.2.3)",
+     "accessed": "2026-09-19T00:24:40Z",
+     "excerpt": "counter=200000 expected=400000"
+    },
+    {
+     "source": "E1",
+     "detail": "swiftc -O -swift-version 6 probes/CONC-2/swift/conc2.swift -o build/conc2/conc2-swift-v6 ; exit=0 ; binary produced (55456 bytes). Same shape with -strict-concurrency=complete.",
+     "accessed": "2026-09-19T00:25:30Z",
+     "excerpt": "probes/CONC-2/swift/conc2.swift:11:30: warning: main actor-isolated var 'counter' can not be mutated from a nonisolated context"
+    },
+    {
+     "source": "E1",
+     "detail": "swiftc -g -sanitize=thread probes/CONC-2/swift/conc2.swift -o build/conc2/conc2-swift-tsan (exit 0) ; ./build/conc2/conc2-swift-tsan",
+     "accessed": "2026-09-19T00:24:45Z",
+     "excerpt": "### exit=139   (no TSan report; identical host failure to C++ and Zig, availability_state S4)"
+    }
+   ],
+   "reasoning": "Exactly 5 satisfied = Strong (80). Not 100: C5 requires a compile-time REJECTION or an executed race-detector report, and Swift produced neither on this host. The Swift book states that 'most data races produce a compile-time error', but the executed check on the frozen probe - and on a function-scoped variant re-checked to rule out a top-level-code artefact - produced warnings and a working binary under swiftc, so the documentation claim is recorded and the measured outcome is what is scored. Not Adequate (60) because C2's three conjuncts, C3, C4 and C6 are each documented first-party and C1 was measured."
+  },
+  "Zig": {
+   "level": "Strong",
+   "score": 80,
+   "criteria_satisfied": [
+    "C1 parallel speedup 2.6045x with std.Thread, identical numeric results",
+    "C2 std.Io.Mutex, std.Io.Condition, and @atomicRmw/@atomicLoad/@atomicStore plus std.atomic.Value - all three",
+    "C3 std.Io.Queue, a many-producer many-consumer thread-safe queue",
+    "C4 std.Io.async with std.Io.Future, backed by first-party event-loop implementations (Io.Kqueue, Io.Uring, Io.Threaded) and std.Io.fiber green threads",
+    "C6 std.Io.Group, a task group"
+   ],
+   "criteria_failed": [
+    "C5: zig build-exe accepted the CONC-2 probe with no diagnostic and the binary ran to completion. zig build-exe -fsanitize-thread builds, but the TSan binary segfaults on this host exactly as C++'s and Swift's do (availability_state S4, verification_status unverified)."
+   ],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "./build/conc1-zig 1   /   ./build/conc1-zig 4   (5 runs each, wall clock, cwd=benchmark/2026-09-17-7677581/standard/rubrics; worker mechanism: std.Thread)",
+     "accessed": "2026-09-18T20:48:31Z",
+     "excerpt": "runs_1=[3.1067, 2.9444, 3.0818, 3.0001, 2.9654] median_1=3.0001 | runs_4=[1.0382, 1.1843, 1.173, 1.1519, 1.1468] median_4=1.1519 | speedup=2.6045 | stdout_1[0]='workers=1 result=249999999.8718209600' | stdout_4[0]='workers=4 result=249999999.8718209600' | results_identical=True | 1.5x bar met=True"
+    },
+    {
+     "source": "E2",
+     "detail": "https://ziglang.org/documentation/0.16.0/std/ (autodoc; the site serves the documented standard-library source as sources.tar) - std/Io.zig line 1587. Cross-checked against the installed toolchain at /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/Io.zig, same line number.",
+     "accessed": "2026-09-19T00:31:30Z",
+     "excerpt": "/// Mutex is a synchronization primitive which enforces atomic access to a\n/// shared region of code known as the \"critical section\".\npub const Mutex = extern struct {"
+    },
+    {
+     "source": "E2",
+     "detail": "https://ziglang.org/documentation/0.16.0/std/ - std/Io.zig line 1653 (pub const Condition, with wait/timedWait/signal/broadcast)",
+     "accessed": "2026-09-19T00:31:30Z",
+     "excerpt": "pub const Condition = struct {\n    state: std.atomic.Value(State),\n    /// Incremented whenever the condition is signaled\n    epoch: std.atomic.Value(u32),"
+    },
+    {
+     "source": "E2",
+     "detail": "https://ziglang.org/documentation/0.16.0/ (langref, @atomicRmw) and std/atomic.zig",
+     "accessed": "2026-09-19T00:31:00Z",
+     "excerpt": "@atomicRmw(comptime T: type, ptr: *T, comptime op: AtomicRmwOp, operand: T, comptime ordering: AtomicOrder) T - This builtin function dereferences a pointer to a T and atomically modifies the value and returns the previous value."
+    },
+    {
+     "source": "E2",
+     "detail": "https://ziglang.org/documentation/0.16.0/std/ - std/Io.zig line 2184 (pub fn Queue)",
+     "accessed": "2026-09-19T00:31:30Z",
+     "excerpt": "/// Many producer, many consumer, thread-safe, runtime configurable buffer size.\n/// When buffer is empty, consumers suspend and are resumed by producers.\n/// When buffer is full, producers suspend and are resumed by consumers."
+    },
+    {
+     "source": "E2",
+     "detail": "https://ziglang.org/documentation/0.16.0/std/ - std/Io.zig line 2326 (pub fn async), line 1176 (pub fn Future), std/Io/fiber.zig",
+     "accessed": "2026-09-19T00:31:30Z",
+     "excerpt": "/// Calls `function` with `args`, such that the return value of the function is\n/// not guaranteed to be available until `await` is called."
+    },
+    {
+     "source": "E2",
+     "detail": "https://ziglang.org/documentation/0.16.0/std/ - std/Io.zig line 1218 (pub const Group)",
+     "accessed": "2026-09-19T00:31:30Z",
+     "excerpt": "/// Equivalent to `Io.async`, except the task is spawned in this `Group`\n/// instead of becoming associated with a `Future`."
+    },
+    {
+     "source": "E2",
+     "detail": "https://ziglang.org/documentation/0.16.0/ (langref, Async Functions) - recorded because it qualifies the C4 finding: language-level async fn is absent in 0.16 and the async model is the std.Io one cited above",
+     "accessed": "2026-09-19T00:31:00Z",
+     "excerpt": "Async functions regressed with the release of 0.11.0. The current plan is to reintroduce them as a lower level primitive that powers I/O implementations."
+    },
+    {
+     "source": "E1",
+     "detail": "zig build-exe -OReleaseFast probes/CONC-2/zig/conc2.zig -femit-bin=build/conc2/conc2-zig (exit 0, no diagnostic) ; ./build/conc2/conc2-zig   (zig 0.16.0)",
+     "accessed": "2026-09-19T00:24:45Z",
+     "excerpt": "counter=400000 expected=400000"
+    },
+    {
+     "source": "E1",
+     "detail": "zig build-exe -fsanitize-thread probes/CONC-2/zig/conc2.zig -femit-bin=build/conc2/conc2-zig-tsan (exit 0) ; ./build/conc2/conc2-zig-tsan",
+     "accessed": "2026-09-19T00:24:50Z",
+     "excerpt": "### exit=139   (no TSan report; identical host failure to C++ and Swift, availability_state S4)"
+    }
+   ],
+   "reasoning": "Exactly 5 satisfied = Strong (80). C4 is satisfied through std.Io (async/Future, fiber green threads, and first-party event loops), not through the language-level async fn that the langref records as regressed since 0.11.0; both facts are in the evidence so an auditor can see which one carried the indicator. Not 100 because C5 has neither route available here: zig rejects nothing and its ThreadSanitizer cannot run on this host. Not Adequate (60) because C1, C2, C3 and C6 are each independently evidenced from the published std source and the langref, cross-checked against the installed toolchain."
+  }
+ },
+ "cross_language_consistency_note": "One rubric, six binary indicators, applied in the frozen evidence_collection_order (Python, C++, Rust, Go, Java, TypeScript, Kotlin, Swift, Zig, Quidra LAST); the level is the mechanical count, with no holistic step. C1: the identical frozen workload (N=500000000, 4 fixed chunks, chunk c handled by worker w where c%W==w so the combination order is the same at W=1 and W=4), built with each language's frozen conc1_build_and_run recipe, 5 runs at 1 worker and 5 at 4 workers, median compared against median/1.5 on this 8-logical-CPU host. Nine languages printed the bit-identical value 249999999.8718209565 (Java and Kotlin print 249999999.8718209600 because they accumulate in the same order but format from the JVM's double formatter; each was compared against itself at W=1 vs W=4, which is what the indicator asks). Quidra's probe was written to the same specification with the mechanism CONC-1.worker_model admits for it, and was measured, not presumed. C2 is conjunctive and was scored with no_partial_credit: Python fails on atomics only, TypeScript fails on all three at the version under test, and no language was given the indicator for two out of three. C3 was applied with one rule fixed before any language was scored and applied to all ten: the type must transfer a SEQUENCE of values between concurrent workers, which is what 'channel, queue, mailbox' denote. That admitted queue.Queue, mpsc, Go channels, BlockingQueue, MessagePort, Kotlin Channel, AsyncStream and std.Io.Queue, and excluded C++'s one-shot promise/future (C++ has no channel type at all: 'channel' occurs zero times in the C++ working draft). C4 counts a model provided by the language OR its first-party standard library and usable without a third-party package; a hand-written driver is not a third-party package, so Rust's async/await and C++'s coroutines qualify on the same footing as asyncio, goroutines, virtual threads, Kotlin coroutines, Swift tasks and std.Io.async. C5 was executed for all ten with the same two admitted routes, in the same order: (1) does the toolchain REJECT the frozen CONC-2 probe at compile time with a diagnostic naming the unsynchronized shared access, and (2) does a race detector shipped with the toolchain or published by the official_project_set report it when run. Only Rust (route 1) and Go (route 2) passed. Swift's Swift-6/strict-concurrency diagnostics name the access but are warnings that still produce a binary, so they are route-1 failures, and the same warning-is-not-rejection line was applied to every language. ThreadSanitizer is admissible for C++, Swift and Zig and builds for all three, but every TSan binary on this host segfaults (verified down to a hello world, and verified identically with the tool sandbox disabled), so all three lose C5 for the same recorded reason, state S4. C6 required a named first-party abstraction ABOVE raw threads; documentation telling the reader to implement one (Node.js: 'When implementing a worker pool, use the AsyncResource API') was not accepted for any language. Cross-check of the ten assignments together: the three 80s (Java, Kotlin, Swift) and Zig all fail exactly C5 and nothing else; the two 100s (Rust, Go) differ from them only by having a working race check, and are reported at equal rank per tie_handling; the two 60s (Python, C++) each fail exactly two indicators; TypeScript at 40 fails three; Quidra at 0 fails all six. No two languages with the same satisfied set received different levels, and no two with different satisfied sets received the same level by accident rather than by count.",
+ "limitations": [
+  "C5 for C++, Swift and Zig is verification_status=unverified / availability_state S4: ThreadSanitizer compiles for all three but no TSan-instrumented binary runs on macOS 26.4.1 arm64 (exit 139 even for a 4-line hello world, inside and outside the tool sandbox). The frozen rule states explicitly that S4 does not rescue an indicator requiring execution, so all three are scored NOT SATISFIED; this belongs in host_limited_indicators.json. Had TSan run, C++ would plausibly be 80, and Swift and Zig 100.",
+  "rubric_verification_recipes freezes a conc1_build_and_run command per language but freezes NO command for CONC-2. The C5 check was therefore defined at scoring time and applied uniformly: compile with the frozen build recipe, then, where the language documents a stricter data-race checking mode or ships/names a race detector, run that too. The exact commands for all ten are in standard/rubrics/logs/conc2_c5.log.",
+  "The Quidra CONC-1 probe (probes/CONC-1/quidra/conc1.qui) and the Quidra CONC-2 probe (probes/CONC-2/quidra/conc2.qui) did not exist when this metric was resumed and were written for this run, after all nine other languages' CONC-1 timings had already been recorded (2026-09-18T20:35Z-20:48Z) and after their C5 checks. That ordering satisfies evidence_collection_order; it also means the Quidra probes were not reviewed by a second party, unlike the nine that were built earlier.",
+  "Quidra's CONC-1 probe hard-codes its own executable path as the default of a --self option ('./build/conc1-quidra') because quidra 0.2.0's cli binding exposes no argv[0]. The frozen recipe's command lines ('./build/conc1-quidra 1' and '... 4') run unchanged.",
+  "A /bin/sh-mediated variant (process.run('/bin/sh', ['-c', 'worker0 & worker1 & ... wait'])) would give Quidra real parallel speedup. It was NOT measured or counted, because CONC-1.worker_model requires a mechanism 'provided by the language itself or by its first-party standard library' and the concurrency there is supplied by the shell's job control, not by Quidra. No other language was permitted to shell out either. This is recorded so the exclusion is visible rather than silent.",
+  "Rust's std documentation was served at version 1.98.1 (released 2026-09-01) while the toolchain under test is rustc 1.95.0; E2 admits 'the toolchain version under test or the nearest published version'. Every API cited (Mutex, Condvar, atomic, mpsc, thread::scope, async/await) predates 1.95.0.",
+  "For C++ the frozen official_docs_root list does not include a browsable standard-library reference. C2/C3/C4/C6 were therefore taken from N5054, the C++ Working Draft published at open-std.org, which IS a frozen official_docs_root. Text was extracted from the PDF locally; clause numbers are given so any reader can check the quotes.",
+  "Zig's standard-library reference at ziglang.org/documentation/0.16.0/std/ is a WASM application that serves the documented source as sources.tar. The doc comments quoted were read from that published tarball and cross-checked line-for-line against the installed toolchain's std. No rendered HTML page carries these sentences.",
+  "All documentation pages were accessed on 2026-09-19, after the 2026-09-17 evidence cutoff, but every cited artifact is dated on or before the cutoff (N5054 2026-07-16, Java SE 26 2026-04-21, Rust 1.98.1 2026-09-01, node v24.2.0, zig 0.16.0, Kotlin docs 2026-09-01). This treatment is identical for all ten languages. Accession timestamps are recorded to the minute from the fetch logs.",
+  "Kotlin's C2 and C3 rely on kotlinx.coroutines and, for the condition-variable conjunct, on JetBrains' and OpenJDK's documented primitives. Both publishers are in Kotlin's frozen official_project_set, and all excerpts are from kotlinlang.org, Kotlin's own official_docs_root; a narrower reading that restricted 'first-party standard library' to kotlin-stdlib alone would cost Kotlin C3 and move it to 60.",
+  "TypeScript's C2 was scored against the Node.js v24.2.0 documentation because v24.2.0 is the runtime under test. Node v24.5.0 adds worker_threads.locks (a mutual-exclusion primitive, Stability 1 - Experimental); even counting it, C2 still fails on the condition-variable and atomics conjuncts, so the level does not change."
+ ]
+}

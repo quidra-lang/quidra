@@ -1,0 +1,15 @@
+// CONC-2: two concurrent workers increment a shared counter without synchronization.
+// quidra 0.2.0 exposes no thread, task, coroutine or spawn facility, so the two
+// workers are written against the nearest names a concurrency facility would use.
+// The compiler's response to this source is the recorded evidence for C5.
+int counter = 0
+
+void bump()
+    for i in range(0, 200000)
+        counter = counter + 1
+
+thread t1 = thread.spawn(bump)
+thread t2 = thread.spawn(bump)
+t1.join()
+t2.join()
+print("counter={counter} expected=400000")

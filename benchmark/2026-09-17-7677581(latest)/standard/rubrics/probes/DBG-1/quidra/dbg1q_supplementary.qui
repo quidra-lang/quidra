@@ -1,0 +1,21 @@
+class Item
+    int count = 0
+    string name = ""
+
+int accumulate(const int[] &values, int iterations)
+    int total = 0
+    for i in range(0, iterations)
+        for v in values
+            total = (total * 31 + v) % 1000000007
+    return total
+
+Item a = Item(count = 7, name = "alpha")
+Item b = Item(count = 11, name = "bravo")
+Item c = Item(count = 13, name = "charlie")
+Item[] items = []
+items = items.append(a)
+items = items.append(b)
+items = items.append(c)
+int[] values = [a.count + len(a.name), b.count + len(b.name), c.count + len(c.name)]
+int checksum = accumulate(&values, 100000000)
+print("checksum={checksum} len={len(items)} first={a.count}/{a.name}")

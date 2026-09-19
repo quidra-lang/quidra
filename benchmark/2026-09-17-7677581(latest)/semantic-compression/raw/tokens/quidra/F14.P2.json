@@ -1,0 +1,199 @@
+{
+ "probe_id": "F14.P2",
+ "language": "quidra",
+ "count": 30,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "float",
+   "line": 1,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "area",
+   "line": 1,
+   "col": 11
+  },
+  {
+   "tag": "KW",
+   "text": "match",
+   "line": 2,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "s",
+   "line": 2,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "Circle",
+   "line": 3,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "c",
+   "line": 3,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "area",
+   "line": 4,
+   "col": 13
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 4,
+   "col": 18
+  },
+  {
+   "tag": "NUM",
+   "text": "3.141592653589793",
+   "line": 4,
+   "col": 20
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 4,
+   "col": 38
+  },
+  {
+   "tag": "IDENT",
+   "text": "c",
+   "line": 4,
+   "col": 40
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 4,
+   "col": 41
+  },
+  {
+   "tag": "IDENT",
+   "text": "r",
+   "line": 4,
+   "col": 42
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 4,
+   "col": 44
+  },
+  {
+   "tag": "IDENT",
+   "text": "c",
+   "line": 4,
+   "col": 46
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 4,
+   "col": 47
+  },
+  {
+   "tag": "IDENT",
+   "text": "r",
+   "line": 4,
+   "col": 48
+  },
+  {
+   "tag": "IDENT",
+   "text": "Rect",
+   "line": 5,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "t",
+   "line": 5,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "area",
+   "line": 6,
+   "col": 13
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 6,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "t",
+   "line": 6,
+   "col": 20
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 6,
+   "col": 21
+  },
+  {
+   "tag": "IDENT",
+   "text": "w",
+   "line": 6,
+   "col": 22
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 6,
+   "col": 24
+  },
+  {
+   "tag": "IDENT",
+   "text": "t",
+   "line": 6,
+   "col": 26
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 6,
+   "col": 27
+  },
+  {
+   "tag": "IDENT",
+   "text": "h",
+   "line": 6,
+   "col": 28
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 7,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "area",
+   "line": 7,
+   "col": 12
+  }
+ ],
+ "class_histogram": {
+  "KW": 3,
+  "IDENT": 17,
+  "OP": 5,
+  "NUM": 1,
+  "DELIM": 4
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F14.P2.qui",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

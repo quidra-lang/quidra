@@ -1,0 +1,17 @@
+string | error next_line()
+    auto received = try input()
+    match received
+        string text
+            return text
+        none
+            return error("no line")
+
+void | error run()
+    int base = try int.parse(try next_line())
+    int difference = base - 3
+    print("OBS=V:{difference}")
+    return void
+
+print("ADV-START")
+run()
+print("ADV-END")

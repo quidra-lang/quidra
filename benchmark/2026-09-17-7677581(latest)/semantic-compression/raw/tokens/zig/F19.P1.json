@@ -1,0 +1,740 @@
+{
+ "probe_id": "F19.P1",
+ "language": "zig",
+ "count": 120,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "std",
+   "line": 1,
+   "col": 7
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 1,
+   "col": 11
+  },
+  {
+   "tag": "DELIM",
+   "text": "@",
+   "line": 1,
+   "col": 13
+  },
+  {
+   "tag": "IDENT",
+   "text": "import",
+   "line": 1,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 1,
+   "col": 20
+  },
+  {
+   "tag": "STR",
+   "text": "\"std\"",
+   "line": 1,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 1,
+   "col": 26
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 1,
+   "col": 27
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 2,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "S",
+   "line": 2,
+   "col": 7
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 2,
+   "col": 9
+  },
+  {
+   "tag": "KW",
+   "text": "struct",
+   "line": 2,
+   "col": 11
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 2,
+   "col": 18
+  },
+  {
+   "tag": "KW",
+   "text": "fn",
+   "line": 3,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "first",
+   "line": 3,
+   "col": 8
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 3,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 3,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "i32",
+   "line": 3,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 3,
+   "col": 20
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 4,
+   "col": 9
+  },
+  {
+   "tag": "NUM",
+   "text": "20",
+   "line": 4,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 4,
+   "col": 18
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 5,
+   "col": 5
+  },
+  {
+   "tag": "KW",
+   "text": "fn",
+   "line": 6,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "second",
+   "line": 6,
+   "col": 8
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 6,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 6,
+   "col": 15
+  },
+  {
+   "tag": "IDENT",
+   "text": "i32",
+   "line": 6,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 6,
+   "col": 21
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 7,
+   "col": 9
+  },
+  {
+   "tag": "NUM",
+   "text": "22",
+   "line": 7,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 7,
+   "col": 18
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 8,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 9,
+   "col": 1
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 9,
+   "col": 2
+  },
+  {
+   "tag": "KW",
+   "text": "var",
+   "line": 10,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "threaded",
+   "line": 10,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 10,
+   "col": 13
+  },
+  {
+   "tag": "IDENT",
+   "text": "std",
+   "line": 10,
+   "col": 15
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 10,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "Io",
+   "line": 10,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 10,
+   "col": 21
+  },
+  {
+   "tag": "IDENT",
+   "text": "Threaded",
+   "line": 10,
+   "col": 22
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 10,
+   "col": 31
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 10,
+   "col": 33
+  },
+  {
+   "tag": "IDENT",
+   "text": "init",
+   "line": 10,
+   "col": 34
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 10,
+   "col": 38
+  },
+  {
+   "tag": "IDENT",
+   "text": "allocator",
+   "line": 10,
+   "col": 39
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 10,
+   "col": 48
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 10,
+   "col": 50
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 10,
+   "col": 51
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 10,
+   "col": 52
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 10,
+   "col": 53
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 10,
+   "col": 54
+  },
+  {
+   "tag": "KW",
+   "text": "defer",
+   "line": 11,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "threaded",
+   "line": 11,
+   "col": 7
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 11,
+   "col": 15
+  },
+  {
+   "tag": "IDENT",
+   "text": "deinit",
+   "line": 11,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 11,
+   "col": 22
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 11,
+   "col": 23
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 11,
+   "col": 24
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 12,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "io",
+   "line": 12,
+   "col": 7
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 12,
+   "col": 10
+  },
+  {
+   "tag": "IDENT",
+   "text": "threaded",
+   "line": 12,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 12,
+   "col": 20
+  },
+  {
+   "tag": "IDENT",
+   "text": "io",
+   "line": 12,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 12,
+   "col": 23
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 12,
+   "col": 24
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 12,
+   "col": 25
+  },
+  {
+   "tag": "KW",
+   "text": "var",
+   "line": 13,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "f1",
+   "line": 13,
+   "col": 5
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 13,
+   "col": 8
+  },
+  {
+   "tag": "IDENT",
+   "text": "io",
+   "line": 13,
+   "col": 10
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 13,
+   "col": 12
+  },
+  {
+   "tag": "KW",
+   "text": "async",
+   "line": 13,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 13,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "S",
+   "line": 13,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 13,
+   "col": 20
+  },
+  {
+   "tag": "IDENT",
+   "text": "first",
+   "line": 13,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 13,
+   "col": 26
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 13,
+   "col": 28
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 13,
+   "col": 29
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 13,
+   "col": 30
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 13,
+   "col": 31
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 13,
+   "col": 32
+  },
+  {
+   "tag": "KW",
+   "text": "var",
+   "line": 14,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "f2",
+   "line": 14,
+   "col": 5
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 14,
+   "col": 8
+  },
+  {
+   "tag": "IDENT",
+   "text": "io",
+   "line": 14,
+   "col": 10
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 14,
+   "col": 12
+  },
+  {
+   "tag": "KW",
+   "text": "async",
+   "line": 14,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 14,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "S",
+   "line": 14,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 14,
+   "col": 20
+  },
+  {
+   "tag": "IDENT",
+   "text": "second",
+   "line": 14,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 14,
+   "col": 27
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 14,
+   "col": 29
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 14,
+   "col": 30
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 14,
+   "col": 31
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 14,
+   "col": 32
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 14,
+   "col": 33
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 15,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "sum",
+   "line": 15,
+   "col": 7
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 15,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "f1",
+   "line": 15,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 15,
+   "col": 15
+  },
+  {
+   "tag": "KW",
+   "text": "await",
+   "line": 15,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 15,
+   "col": 21
+  },
+  {
+   "tag": "IDENT",
+   "text": "io",
+   "line": 15,
+   "col": 22
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 15,
+   "col": 24
+  },
+  {
+   "tag": "OP",
+   "text": "+",
+   "line": 15,
+   "col": 26
+  },
+  {
+   "tag": "IDENT",
+   "text": "f2",
+   "line": 15,
+   "col": 28
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 15,
+   "col": 30
+  },
+  {
+   "tag": "KW",
+   "text": "await",
+   "line": 15,
+   "col": 31
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 15,
+   "col": 36
+  },
+  {
+   "tag": "IDENT",
+   "text": "io",
+   "line": 15,
+   "col": 37
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 15,
+   "col": 39
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 15,
+   "col": 40
+  }
+ ],
+ "class_histogram": {
+  "KW": 17,
+  "IDENT": 31,
+  "OP": 8,
+  "DELIM": 61,
+  "STR": 1,
+  "NUM": 2
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/zig/F19.P1.zig",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

@@ -1,0 +1,876 @@
+{
+ "language": "Zig",
+ "language_key": "zig",
+ "chunk": "2",
+ "toolchain": "zig 0.16.0",
+ "frozen_build_recipe": "zig build-exe -OReleaseFast FILE.zig -femit-bin=BIN",
+ "frozen_run_recipe": "./BIN",
+ "release_fast_safety_note": "Recorded honestly as the language note requires. -OReleaseFast is Zig's unchecked optimized mode: integer overflow, out-of-bounds indexing, invalid casts and similar runtime safety checks are DISABLED and those operations become undefined behaviour (Zig Language Reference 0.16, 'Undefined Behavior' / build mode table). No case in this chunk was rebuilt at -OReleaseSafe or -ODebug to obtain a different safety outcome; those modes appear only in the non-scoring secondary_configuration fields, and per secondary_configurations_never_set_the_stage they set no rung except through D7b, which no row in this chunk satisfied. Where -OReleaseFast changed the outcome it did so by code generation rather than by check removal: ADV-19 and ADV-20 show the accumulator-recursion transformation eliminating the stack growth that -ODebug still exhibits.",
+ "run_environment": {
+  "LC_ALL": "en_US.UTF-8",
+  "LANG": "en_US.UTF-8",
+  "TZ": "UTC",
+  "cleared": [
+   "PYTHONUTF8",
+   "PYTHONIOENCODING",
+   "RUST_BACKTRACE",
+   "JAVA_TOOL_OPTIONS",
+   "NODE_OPTIONS",
+   "GOFLAGS"
+  ],
+  "build_timeout_seconds": 300,
+  "run_timeout_seconds": 60,
+  "repetitions_primary": 5
+ },
+ "observations": [
+  {
+   "case_variant_id": "ADV-14/R",
+   "case_id": "ADV-14",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-14_R.zig",
+   "build": {
+    "cmd": [
+     "zig",
+     "build-exe",
+     "-OReleaseFast",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-14_R.zig",
+     "-femit-bin=/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-14_R/prog"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "ADV-14_R.zig:17:21: error: expected type 'i64', found '[]const u8'\n    const v = scale(text);\n                    ^~~~\nADV-14_R.zig:3:13: note: parameter type declared here\nfn scale(n: i64) i64 {\n            ^~~\nreferenced by:\n    callMain [inlined]: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:698:59\n    callMainWithArgs [inlined]: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:638:20\n    main: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:663:28\n    1 reference(s) hidden; use '-freference-trace=4' to see all references\n",
+    "timed_out": false
+   },
+   "run": null,
+   "run_repetitions": {
+    "repetitions": 0,
+    "all_five_obs_identical": null,
+    "all_exit_statuses": [],
+    "all_timed_out": []
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "`try` in a `pub fn main() !void`. Zig forces an error-union call site to be discharged in order to compile; rule A3 of the frozen skeleton designates `try` inside a `!void` main as Zig's shortest direct-use form, and it is used for the stdout writes, the stdin line read and the string-to-integer conversion. It inspects nothing and recovers from nothing: an error propagates out of main.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "first_diagnostic_verbatim": "ADV-14_R.zig:17:21: error: expected type 'i64', found '[]const u8'",
+   "matched_lexicon": [
+    "L_TYPE (global fragment alternative `expected .*, found`)"
+   ],
+   "diagnostic_carries_file_line_column": true,
+   "classification_reasoning": "D0 does not fire: Zig has fixed_width_i64 (i64) and default_string_type ([]const u8), so no TM3 capability absence. D1 fires: the frozen recipe `zig build-exe -OReleaseFast` exits 1. D1a does not fire: no fatal signal and no toolchain_failure_marker in the build output. D1b-i fires: the concatenated build output matches the case lexicon entry L_TYPE via the alternative `expected .*, found`. Stage = Compile-time Detection (100). The hazardous call `scale(text)` was never executed, so no payload exists.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-15",
+   "case_id": "ADV-15",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-15.zig",
+   "build": {
+    "cmd": [
+     "zig",
+     "build-exe",
+     "-OReleaseFast",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-15.zig",
+     "-femit-bin=/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-15/prog"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-15/prog"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=ITERS:5|LEN:6\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_repetitions": {
+    "repetitions": 5,
+    "all_five_obs_identical": true,
+    "all_exit_statuses": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "all_timed_out": [
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "observed_payload": "ITERS:5|LEN:6",
+   "reached_observation_point": true,
+   "forced_error_handling": "`try` in a `pub fn main() !void`. Zig forces an error-union call site to be discharged in order to compile; rule A3 of the frozen skeleton designates `try` inside a `!void` main as Zig's shortest direct-use form, and it is used for the stdout writes, the stdin line read and the string-to-integer conversion. It inspects nothing and recovers from nothing: an error propagates out of main. Here `try` additionally discharges `std.mem.Allocator.Error` from `appendSlice`/`append`; nothing inspects it.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "authoring_choices": {
+    "growable_sequence": "std.ArrayList(i64) with std.heap.page_allocator. The frozen authoring_choice_table.growable_sequence_substitution row for Zig reads 'a slice of a fixed [5]i64 array where the case does not grow the sequence (ADV-09, ADV-10, ADV-15); std.ArrayList(i64) only where a case appends'. That row is self-contradictory for ADV-15, whose step 3 appends 99: a fixed [5]i64 cannot express the append at all, and ADV-15 step 1 mandates a GROWABLE sequence with TM3b. The governing clause of the same table ('std.ArrayList(i64) only where a case appends') and the case construction both select std.ArrayList(i64); it is used, and the conflict is published here.",
+    "iteration_form": "`for (xs.items) |x|`, Zig's ordinary for-each over a sequence."
+   },
+   "memory_evidence": "A separate probe (work/adv_zig_chunk2/probe15.zig, not a measured program) shows cap_before=23, cap_after=23, realloc=no: the append fits inside the list's existing capacity, so no reallocation and no read of freed memory occurred in this execution. The loop walked the 5-element slice value captured at loop entry, which is defined behaviour.",
+   "secondary_configuration": {
+    "ReleaseSafe": {
+     "build_exit": 0,
+     "build_stderr": "",
+     "runs": [
+      {
+       "exit": 0,
+       "stdout": "ADV-START\nOBS=ITERS:5|LEN:6\nADV-END\n",
+       "stderr": "",
+       "timed_out": false
+      }
+     ]
+    },
+    "Debug": {
+     "build_exit": 0,
+     "build_stderr": "",
+     "runs": [
+      {
+       "exit": 0,
+       "stdout": "ADV-START\nOBS=ITERS:5|LEN:6\nADV-END\n",
+       "stderr": "",
+       "timed_out": false
+      }
+     ]
+    }
+   },
+   "classification_reasoning": "D0 no. D1 no: build exits 0. D2 no: artifact produced. D3 no: ADV-START present. D4 no: 0.01 s, far under the 60 s timeout. D5 no: exit status 0. D6 reached. D6a no: OBS= and ADV-END both present. D6b no: reference_observation is the sentinel DIAGNOSED_FAILURE, not a concrete value. D6c: the plausible_domain_predicate `^ITERS:(0|[1-9][0-9]*)\\|LEN:(0|[1-9][0-9]*)$` with ITERS in [0,1000] is TRUE for ITERS:5|LEN:6, so D6c-ii sends this to D7. D7a no: all 5 runs byte-identical. D7b no: the frozen Zig secondary configurations -OReleaseSafe and -ODebug both build, both print the identical payload ITERS:5|LEN:6, and neither emits any report of undefined, illegal or erroneous behaviour. D7c no: no clause of the Zig Language Reference makes this undefined - the for loop iterates the slice value captured at loop entry, and the probe above shows no reallocation occurred, so no pointer was invalidated. D7d therefore fires: Silent Bug (0). ITERS:5|LEN:6 is verbatim the first of the two outcomes ADV-15's silent_transformation_watch names as Silent Bugs: the iteration length was fixed before the loop, the appended element was never visited, and nothing in the output records that the sequence was mutated underneath the iteration.",
+   "silent_transformation": true
+  },
+  {
+   "case_variant_id": "ADV-16",
+   "case_id": "ADV-16",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-16.zig",
+   "build": {
+    "cmd": [
+     "zig",
+     "build-exe",
+     "-OReleaseFast",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-16.zig",
+     "-femit-bin=/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-16/prog"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "ADV-16.zig:10:5: error: cannot assign to constant\n    v = 20;\n    ^\nreferenced by:\n    callMain [inlined]: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:698:59\n    callMainWithArgs [inlined]: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:638:20\n    main: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:663:28\n    1 reference(s) hidden; use '-freference-trace=4' to see all references\n",
+    "timed_out": false
+   },
+   "run": null,
+   "run_repetitions": {
+    "repetitions": 0,
+    "all_five_obs_identical": null,
+    "all_exit_statuses": [],
+    "all_timed_out": []
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "`try` in a `pub fn main() !void`. Zig forces an error-union call site to be discharged in order to compile; rule A3 of the frozen skeleton designates `try` inside a `!void` main as Zig's shortest direct-use form, and it is used for the stdout writes, the stdin line read and the string-to-integer conversion. It inspects nothing and recovers from nothing: an error propagates out of main.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "first_diagnostic_verbatim": "ADV-16.zig:10:5: error: cannot assign to constant",
+   "matched_lexicon": [
+    "L_IMMUTABLE (alternative `cannot assign`)"
+   ],
+   "diagnostic_carries_file_line_column": true,
+   "authoring_choices": {
+    "strongest_immutable_binding_form": "`const`, exactly as frozen in authoring_choice_table.strongest_immutable_binding_form for Zig. Zig Language Reference 0.16, 'Variables': `const` denotes a compile-time-enforced immutable binding and is the strongest form available inside a function body."
+   },
+   "classification_reasoning": "D0 does not fire: Zig can express the constraint, so this is not a TM3a capability absence. D1 fires (build exits 1); D1a does not (no signal, no toolchain_failure_marker); D1b-i fires on the case lexicon L_IMMUTABLE via `cannot assign`. Stage = Compile-time Detection (100). The value was never assigned and the program never ran.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-17",
+   "case_id": "ADV-17",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-17.zig",
+   "build": {
+    "cmd": [
+     "zig",
+     "build-exe",
+     "-OReleaseFast",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-17.zig",
+     "-femit-bin=/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-17/prog"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "ADV-17.zig:10:16: error: optional type '?[]const u8' does not support field access\n    const n = s.len;\n              ~^~~~\nADV-17.zig:10:16: note: consider using '.?', 'orelse', or 'if'\nreferenced by:\n    callMain [inlined]: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:698:59\n    callMainWithArgs [inlined]: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:638:20\n    main: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:663:28\n    1 reference(s) hidden; use '-freference-trace=4' to see all references\n",
+    "timed_out": false
+   },
+   "run": null,
+   "run_repetitions": {
+    "repetitions": 0,
+    "all_five_obs_identical": null,
+    "all_exit_statuses": [],
+    "all_timed_out": []
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "`try` in a `pub fn main() !void`. Zig forces an error-union call site to be discharged in order to compile; rule A3 of the frozen skeleton designates `try` inside a `!void` main as Zig's shortest direct-use form, and it is used for the stdout writes, the stdin line read and the string-to-integer conversion. It inspects nothing and recovers from nothing: an error propagates out of main.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "first_diagnostic_verbatim": "ADV-17.zig:10:16: error: optional type '?[]const u8' does not support field access",
+   "matched_lexicon": [],
+   "flag": "compile_rejection_unmatched_lexicon",
+   "construction_line_range": [
+    9,
+    13
+   ],
+   "diagnostic_line": 10,
+   "diagnostic_carries_file_line_column": true,
+   "authoring_choices": {
+    "null_or_absent_value": "`null` in a `?[]const u8` binding (frozen type_binding_table).",
+    "string_length_member": "`s.len` written straight onto the optional binding, with no `.?`, no `orelse`, no `if`, no cast (frozen authoring_choice_table)."
+   },
+   "classification_reasoning": "D0 no. D1 fires (exit 1). D1a no. D1b-i does NOT fire: the build output contains no pattern of the case lexicon L_NULL and no fragment of the global lexicon - Zig words the rejection as 'optional type ... does not support field access' and its note as \"consider using '.?', 'orelse', or 'if'\", and neither contains the word null, nil or none, nor any L_TYPE alternative. D1b-ii therefore applies. D1b-ii-1 does not apply: A6 re-verification confirms the program is exactly the construction (optional binding set to the absent value, then the most direct length read, no unwrap). D1b-ii-2 fires: the first diagnostic is at line 10, inside construction_line_range [9,13]. Stage = Compile-time Detection (100), flagged compile_rejection_unmatched_lexicon and listed for the published 'unmatched compile rejections' table. The lexicon miss is a Diagnostics observation, not a stage change: Zig's type system separates absent from present and refused the access.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-18",
+   "case_id": "ADV-18",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-18.zig",
+   "build": {
+    "cmd": [
+     "zig",
+     "build-exe",
+     "-OReleaseFast",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-18.zig",
+     "-femit-bin=/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-18/prog"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "ADV-18.zig:3:18: error: function with non-void return type 'i64' implicitly returns\nfn pick(b: bool) i64 {\n                 ^~~\nADV-18.zig:5:1: note: control flow reaches end of body here\n}\n^\nreferenced by:\n    main: ADV-18.zig:17:24\n    callMain [inlined]: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:698:59\n    callMainWithArgs [inlined]: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:638:20\n    main: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:663:28\n    1 reference(s) hidden; use '-freference-trace=5' to see all references\n",
+    "timed_out": false
+   },
+   "run": null,
+   "run_repetitions": {
+    "repetitions": 0,
+    "all_five_obs_identical": null,
+    "all_exit_statuses": [],
+    "all_timed_out": []
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "`try` in a `pub fn main() !void`. Zig forces an error-union call site to be discharged in order to compile; rule A3 of the frozen skeleton designates `try` inside a `!void` main as Zig's shortest direct-use form, and it is used for the stdout writes, the stdin line read and the string-to-integer conversion. It inspects nothing and recovers from nothing: an error propagates out of main.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "first_diagnostic_verbatim": "ADV-18.zig:3:18: error: function with non-void return type 'i64' implicitly returns",
+   "matched_lexicon": [],
+   "flag": "compile_rejection_unmatched_lexicon",
+   "construction_line_range": [
+    3,
+    20
+   ],
+   "diagnostic_line": 3,
+   "diagnostic_carries_file_line_column": true,
+   "authoring_choices": {
+    "boolean_conversion": "`std.mem.eql(u8, line, \"1\")` - the text `1` is true, anything else (the frozen input `0`) is false. This mirrors Rust's `line.trim() == \"1\"` used for the same case, so rule A1 equivalence holds."
+   },
+   "classification_reasoning": "D0 no. D1 fires (exit 1). D1a no. D1b-i does NOT fire: the diagnostic reads 'function with non-void return type ... implicitly returns' with the note 'control flow reaches end of body here'; L_RETURN's nearest alternative is the literal `control reaches end of non-void function`, which does not match Zig's wording, and no L_TYPE or L_NULL alternative matches either. D1b-ii applies. D1b-ii-1 does not: A6 re-verification confirms `fn pick(b: bool) i64 { if (b) return 1; }` is exactly the construction, the boolean is read through the opacity barrier, and the product is formed with the ordinary `*`. D1b-ii-2 fires: the first diagnostic is at line 3, inside construction_line_range [3,20] (step 1 occupies lines 3-5, step 2 line 15, step 3 line 17). Stage = Compile-time Detection (100), flagged compile_rejection_unmatched_lexicon. Zig rejects the missing return even though the taken path is unknowable at compile time, so the R:0 silent outcome the case watches for cannot arise.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-19",
+   "case_id": "ADV-19",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig",
+   "build": {
+    "cmd": [
+     "zig",
+     "build-exe",
+     "-OReleaseFast",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig",
+     "-femit-bin=/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-19/prog"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-19/prog"
+    ],
+    "exit": null,
+    "stdout": "ADV-START\n",
+    "stderr": "",
+    "timed_out": true
+   },
+   "run_repetitions": {
+    "repetitions": 5,
+    "all_five_obs_identical": true,
+    "all_exit_statuses": [
+     null,
+     null,
+     null,
+     null,
+     null
+    ],
+    "all_timed_out": [
+     true,
+     true,
+     true,
+     true,
+     true
+    ]
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "`try` in a `pub fn main() !void`. Zig forces an error-union call site to be discharged in order to compile; rule A3 of the frozen skeleton designates `try` inside a `!void` main as Zig's shortest direct-use form, and it is used for the stdout writes, the stdin line read and the string-to-integer conversion. It inspects nothing and recovers from nothing: an error propagates out of main.",
+   "class": "Output Verification",
+   "earliest_observable_stage": "Output Verification",
+   "sublabel": "nontermination",
+   "secondary_configuration": {
+    "ReleaseSafe": {
+     "build_exit": 0,
+     "build_stderr": "",
+     "runs": [
+      {
+       "exit": -6,
+       "stdout": "ADV-START\n",
+       "stderr": "Segmentation fault at address 0x16a583ff0\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:3: 0x1048bb268 in f (ADV-19)\nfn f(n: i64) i64 {\n\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1048bb27b in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1048bb27b in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1048bb27b in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1048bb27b in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1048bb27b in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1048bb27b in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1048bb27b in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1048bb27b in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1048bb27b in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1048bb27b in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1048bb27b in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1048bb27b in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1048bb27b in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1048bb27b in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/",
+       "timed_out": false
+      }
+     ]
+    },
+    "Debug": {
+     "build_exit": 0,
+     "build_stderr": "",
+     "runs": [
+      {
+       "exit": -6,
+       "stdout": "ADV-START\n",
+       "stderr": "Segmentation fault at address 0x16e9ebfe8\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:3: 0x1005133a0 in f (ADV-19)\nfn f(n: i64) i64 {\n\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1005133cf in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1005133cf in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1005133cf in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1005133cf in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1005133cf in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1005133cf in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1005133cf in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1005133cf in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1005133cf in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1005133cf in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1005133cf in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1005133cf in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1005133cf in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-19.zig:4:17: 0x1005133cf in f (ADV-19)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/",
+       "timed_out": false
+      }
+     ]
+    }
+   },
+   "classification_reasoning": "D0 no. D1 no: the build exits 0 with no diagnostic - Zig accepts an unconditionally self-recursive function. D2 no. D3 no: ADV-START is present. D4 FIRES: all 5 runs were killed at the frozen 60-second run timeout with ADV-START on stdout, nothing on stderr and no OBS line. Stage = Output Verification (40), sublabel nontermination. What happened is worth recording precisely: under -OReleaseFast, LLVM's accumulator-recursion transformation converted `return 1 + f(n + 1)` into an iterative loop despite the mandatory addition after the call, so the program consumed NO stack and never overflowed - it simply spun. The stack-exhaustion diagnostic L_STACK the case expects never appeared. The non-scoring secondary configurations show the contrast directly: under -OReleaseSafe and -ODebug the same source dies by signal 6 at 'Segmentation fault at address ...' after exhausting the stack, i.e. the optimisation level, not the language, decided whether this hazard was observable as a fault or as a hang. Per secondary_configurations_never_set_the_stage that observation does not move the primary rung, and D7b is unreachable here because the decision terminated at D4.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-20",
+   "case_id": "ADV-20",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig",
+   "build": {
+    "cmd": [
+     "zig",
+     "build-exe",
+     "-OReleaseFast",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig",
+     "-femit-bin=/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-20/prog"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-20/prog"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=R:1000000\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_repetitions": {
+    "repetitions": 5,
+    "all_five_obs_identical": true,
+    "all_exit_statuses": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "all_timed_out": [
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "observed_payload": "R:1000000",
+   "reached_observation_point": true,
+   "forced_error_handling": "`try` in a `pub fn main() !void`. Zig forces an error-union call site to be discharged in order to compile; rule A3 of the frozen skeleton designates `try` inside a `!void` main as Zig's shortest direct-use form, and it is used for the stdout writes, the stdin line read and the string-to-integer conversion. It inspects nothing and recovers from nothing: an error propagates out of main.",
+   "class": "Prevented By Construction",
+   "earliest_observable_stage": "Prevented By Construction",
+   "secondary_configuration": {
+    "ReleaseSafe": {
+     "build_exit": 0,
+     "build_stderr": "",
+     "runs": [
+      {
+       "exit": 0,
+       "stdout": "ADV-START\nOBS=R:1000000\nADV-END\n",
+       "stderr": "",
+       "timed_out": false
+      }
+     ]
+    },
+    "Debug": {
+     "build_exit": 0,
+     "build_stderr": "",
+     "runs": [
+      {
+       "exit": -6,
+       "stdout": "ADV-START\n",
+       "stderr": "Segmentation fault at address 0x16e543ff0\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig:3: 0x1009bb398 in f (ADV-20)\nfn f(n: i64) i64 {\n\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig:5:17: 0x1009bb3ff in f (ADV-20)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig:5:17: 0x1009bb3ff in f (ADV-20)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig:5:17: 0x1009bb3ff in f (ADV-20)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig:5:17: 0x1009bb3ff in f (ADV-20)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig:5:17: 0x1009bb3ff in f (ADV-20)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig:5:17: 0x1009bb3ff in f (ADV-20)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig:5:17: 0x1009bb3ff in f (ADV-20)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig:5:17: 0x1009bb3ff in f (ADV-20)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig:5:17: 0x1009bb3ff in f (ADV-20)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig:5:17: 0x1009bb3ff in f (ADV-20)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig:5:17: 0x1009bb3ff in f (ADV-20)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig:5:17: 0x1009bb3ff in f (ADV-20)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig:5:17: 0x1009bb3ff in f (ADV-20)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-20.zig:5:17: 0x1009bb3ff in f (ADV-20)\n    return 1 + f(n + 1);\n                ^\n/private/tmp/claude-501/",
+       "timed_out": false
+      }
+     ]
+    }
+   },
+   "classification_reasoning": "D0 no: this is not a TM3a capability absence; the recursion was genuinely written and genuinely attempted. D1-D5 do not fire: build exits 0, ADV-START present, completed well inside the 60 s timeout, exit status 0 on all 5 runs. D6a no. D6b FIRES: obs_payload 'R:1000000' equals the case's reference_observation 'R:1000000' byte for byte and that reference is a concrete value. Stage = Prevented By Construction (100), which the case's own silent_transformation_watch pre-registers as the correct record for a language that completes the recursion. Evidence requirement (a) is satisfied by the source, which performs the specified non-tail recursion to depth 1000000. Honest mechanism note: under -OReleaseFast the same accumulator-recursion transformation seen in ADV-19 turns the recursion into a loop, so the default 8 MiB stack is never at risk; under the non-scoring -ODebug configuration the identical source dies by signal 6 with 'Segmentation fault at address ...'. The 100 recorded here is therefore earned by the frozen release recipe's code generation rather than by a large or growable stack, and that must be read alongside the ADV-19 row where the same transformation produced a hang.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-21",
+   "case_id": "ADV-21",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-21.zig",
+   "build": {
+    "cmd": [
+     "zig",
+     "build-exe",
+     "-OReleaseFast",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-21.zig",
+     "-femit-bin=/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-21/prog"
+    ],
+    "exit": -10,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run": null,
+   "run_repetitions": {
+    "repetitions": 0,
+    "all_five_obs_identical": null,
+    "all_exit_statuses": [],
+    "all_timed_out": []
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "`try` in a `pub fn main() !void`. Zig forces an error-union call site to be discharged in order to compile; rule A3 of the frozen skeleton designates `try` inside a `!void` main as Zig's shortest direct-use form, and it is used for the stdout writes, the stdin line read and the string-to-integer conversion. It inspects nothing and recovers from nothing: an error propagates out of main.",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "sublabel": "toolchain_crash",
+   "generator": "scripts/gen_adv21_zig.py (frozen_generators.parser_nesting; DEPTH=100000, 200401 bytes)",
+   "secondary_depths": {
+    "1000": {
+     "build_exit": 0,
+     "stdout": "ADV-START\nOBS=V:1\nADV-END\n"
+    },
+    "10000": {
+     "build_exit": 0,
+     "stdout": "ADV-START\nOBS=V:1\nADV-END\n"
+    },
+    "note": "Non-scoring. Both secondary depths compile and print OBS=V:1, so Zig 0.16's parser limit on this host lies between 10000 and 100000 nested parentheses."
+   },
+   "secondary_configuration": {
+    "ReleaseSafe": {
+     "build_exit": -10,
+     "build_stderr": "",
+     "runs": []
+    },
+    "Debug": {
+     "build_exit": -10,
+     "build_stderr": "",
+     "runs": []
+    }
+   },
+   "classification_reasoning": "D0 no. D1 fires: the build terminated with a non-zero status - in fact it did not exit at all, it was killed by signal 10 (SIGBUS), reported as exit -10. D1a FIRES on its first clause, 'the build process died by a fatal signal'. Stage = Crash (20), sublabel toolchain_crash. The compiler produced NO output whatsoever: build stdout and build stderr are both empty, so there is no diagnostic to quote and nothing for the lexicon to match - this is the compiler falling over on its own parser recursion, not a graceful rejection. Per the D2 note this must also be reported under Compiler / Interpreter Robustness. The same crash reproduces under the non-scoring -OReleaseSafe and -ODebug configurations, so it is not an artefact of the optimisation level. The build was nowhere near the 300 s build timeout, so the build_timeout sublabel does not apply.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-22a",
+   "case_id": "ADV-22",
+   "variant": "single",
+   "sub_program_of": "ADV-22",
+   "sub_program": "ADV-22a",
+   "sub_program_aggregation": "ADV-22's recorded stage score is the unweighted mean of the ADV-22a and ADV-22b stage scores (spec 25.2): (100 + 100) / 2 = 100.",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-22a.zig",
+   "build": {
+    "cmd": [
+     "zig",
+     "build-exe",
+     "-OReleaseFast",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-22a.zig",
+     "-femit-bin=/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-22a/prog"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "ADV-22a.zig:11:17: error: expected '=', found 'EOF'\n    var outputbu\n                ^\n",
+    "timed_out": false
+   },
+   "run": null,
+   "run_repetitions": {
+    "repetitions": 0,
+    "all_five_obs_identical": null,
+    "all_exit_statuses": [],
+    "all_timed_out": []
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none",
+   "valid_file_note": "ADV-22-valid.zig (421 bytes) builds under the frozen recipe and prints ADV-START / OBS=V:1 / ADV-END. Authoring precondition checked before mutation: the file contains no comment at all, and its midpoint byte (offset 210) is the ';' terminating the ADV-START write, outside every string literal. The buffer identifier was lengthened to `outputbuffer` purely to move the midpoint out of the \"ADV-START\\n\" literal; rule A5 leaves identifier names unconstrained. Mutations produced by the shared frozen generator scripts/gen_adv22.py (L=421, cut=252, mid=210).",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "first_diagnostic_verbatim": "ADV-22a.zig:11:17: error: expected '=', found 'EOF'",
+   "matched_lexicon": [
+    "case pattern `syntax error|parse error|unexpected|expected|unterminated|SyntaxError|error:`"
+   ],
+   "diagnostic_carries_file_line_column": true,
+   "classification_reasoning": "Mutation: first floor(0.60 * 421) = 252 bytes of the valid file, truncating mid-identifier at `var outputbu`. D0 no. D1 fires (exit 1). D1a no: no fatal signal and no toolchain_failure_marker. D1b-i fires: the build output matches the case lexicon on both `expected` and `error:`. Stage = Compile-time Detection (100). The toolchain diagnosed the truncated program cleanly with file, line and column and produced no binary, so the silent outcome the case watches for - a toolchain accepting a malformed program - did not occur.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-22b",
+   "case_id": "ADV-22",
+   "variant": "single",
+   "sub_program_of": "ADV-22",
+   "sub_program": "ADV-22b",
+   "sub_program_aggregation": "See ADV-22a.",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-22b.zig",
+   "build": {
+    "cmd": [
+     "zig",
+     "build-exe",
+     "-OReleaseFast",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-22b.zig",
+     "-femit-bin=/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-22b/prog"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "ADV-22b.zig:7:49: error: expected ';' after statement\n    try out.writeStreamingAll(io, \"ADV-START\\n\")@#$;\n                                                ^~~~\n",
+    "timed_out": false
+   },
+   "run": null,
+   "run_repetitions": {
+    "repetitions": 0,
+    "all_five_obs_identical": null,
+    "all_exit_statuses": [],
+    "all_timed_out": []
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none",
+   "valid_file_note": "ADV-22-valid.zig (421 bytes) builds under the frozen recipe and prints ADV-START / OBS=V:1 / ADV-END. Authoring precondition checked before mutation: the file contains no comment at all, and its midpoint byte (offset 210) is the ';' terminating the ADV-START write, outside every string literal. The buffer identifier was lengthened to `outputbuffer` purely to move the midpoint out of the \"ADV-START\\n\" literal; rule A5 leaves identifier names unconstrained. Mutations produced by the shared frozen generator scripts/gen_adv22.py (L=421, cut=252, mid=210).",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "first_diagnostic_verbatim": "ADV-22b.zig:7:49: error: expected ';' after statement",
+   "matched_lexicon": [
+    "case pattern `syntax error|parse error|unexpected|expected|unterminated|SyntaxError|error:`"
+   ],
+   "diagnostic_carries_file_line_column": true,
+   "classification_reasoning": "Mutation: the three bytes 0x40 0x23 0x24 ('@#$') inserted at byte offset floor(421/2) = 210, landing between the ADV-START write and its ';'. D0 no. D1 fires (exit 1). D1a no. D1b-i fires on the same case pattern (`expected`, `error:`). Stage = Compile-time Detection (100).",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-23",
+   "case_id": "ADV-23",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-23.zig",
+   "build": {
+    "cmd": [
+     "zig",
+     "build-exe",
+     "-OReleaseFast",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-23.zig",
+     "-femit-bin=/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-23/prog"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-23/prog"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=CP:13\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_repetitions": {
+    "repetitions": 5,
+    "all_five_obs_identical": true,
+    "all_exit_statuses": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "all_timed_out": [
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "observed_payload": "CP:13",
+   "reached_observation_point": true,
+   "forced_error_handling": "`try` in a `pub fn main() !void`. Zig forces an error-union call site to be discharged in order to compile; rule A3 of the frozen skeleton designates `try` inside a `!void` main as Zig's shortest direct-use form, and it is used for the stdout writes, the stdin line read and the string-to-integer conversion. It inspects nothing and recovers from nothing: an error propagates out of main. Here `try` additionally discharges the error union of `readFileAlloc`; the read succeeds, so nothing is inspected.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "authoring_choices": {
+    "read_facility": "`std.Io.Dir.cwd().readFileAlloc(io, \"inputs/ADV-23.bin\", gpa, .unlimited)` - Zig 0.16's ordinary whole-file read, with no encoding argument and no replacement policy, returning `[]u8`.",
+    "length_member": "`s.len`. Zig's default_string_type is `[]const u8`, a slice of bytes; `len` is its only length and it counts BYTES. Zig Language Reference 0.16, 'Slices' / 'String Literals and Unicode Code Point Literals': Zig string values are byte arrays and carry no encoding invariant."
+   },
+   "secondary_configuration": {
+    "ReleaseSafe": {
+     "build_exit": 0,
+     "build_stderr": "",
+     "runs": [
+      {
+       "exit": 0,
+       "stdout": "ADV-START\nOBS=CP:13\nADV-END\n",
+       "stderr": "",
+       "timed_out": false
+      }
+     ]
+    },
+    "Debug": {
+     "build_exit": 0,
+     "build_stderr": "",
+     "runs": [
+      {
+       "exit": 0,
+       "stdout": "ADV-START\nOBS=CP:13\nADV-END\n",
+       "stderr": "",
+       "timed_out": false
+      }
+     ]
+    }
+   },
+   "classification_reasoning": "D0 does not fire. TM3a was considered and rejected before running: Zig can perform the operation, so the hazard genuinely arises; what Zig lacks is any validation, which is the measurement, not an absence of the construct. D1-D5 do not fire: build exits 0, ADV-START present, all 5 runs exit 0 well inside the timeout. D6a no. D6b no: the reference_observation is the sentinel DIAGNOSED_FAILURE. D6c: the predicate `^CP:(0|[1-9][0-9]*)$` with CP in [0,10000] is TRUE for CP:13, so D6c-ii sends this to D7. D7a no: 5 byte-identical payloads. D7b no: -OReleaseSafe and -ODebug both print CP:13 and emit no report of undefined, illegal or erroneous behaviour - Zig has no UTF-8 check to enable, so its checked builds cannot report this hazard class at all. D7c no: reading bytes into a byte slice is fully defined. D7d fires: Silent Bug (0). This is exactly the emblematic case: the 13 bytes include an invalid two-byte sequence C3 28, a surrogate ED A0 80, an above-U+10FFFF sequence F4 90 80 80, and a lone continuation byte 80, and the program reported the ordinary small integer 13 and exited 0. A consumer of CP:13 has no way to know the input was not text. Zig did not replace the bad bytes with U+FFFD - it never looked at them - but the observable effect is the same: invalid input became an apparently valid string length and execution continued.",
+   "silent_transformation": true
+  },
+  {
+   "case_variant_id": "ADV-24",
+   "case_id": "ADV-24",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-24.zig",
+   "build": {
+    "cmd": [
+     "zig",
+     "build-exe",
+     "-OReleaseFast",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-24.zig",
+     "-femit-bin=/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-24/prog"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "ADV-24.zig:9:20: error: type 'i64' cannot represent integer value '9223372036854775809'\n    const v: i64 = 9223372036854775809;\n                   ^~~~~~~~~~~~~~~~~~~\nreferenced by:\n    callMain [inlined]: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:698:59\n    callMainWithArgs [inlined]: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:638:20\n    main: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:663:28\n    1 reference(s) hidden; use '-freference-trace=4' to see all references\n",
+    "timed_out": false
+   },
+   "run": null,
+   "run_repetitions": {
+    "repetitions": 0,
+    "all_five_obs_identical": null,
+    "all_exit_statuses": [],
+    "all_timed_out": []
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "`try` in a `pub fn main() !void`. Zig forces an error-union call site to be discharged in order to compile; rule A3 of the frozen skeleton designates `try` inside a `!void` main as Zig's shortest direct-use form, and it is used for the stdout writes, the stdin line read and the string-to-integer conversion. It inspects nothing and recovers from nothing: an error propagates out of main.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "first_diagnostic_verbatim": "ADV-24.zig:9:20: error: type 'i64' cannot represent integer value '9223372036854775809'",
+   "matched_lexicon": [],
+   "flag": "compile_rejection_unmatched_lexicon",
+   "construction_line_range": [
+    9,
+    12
+   ],
+   "diagnostic_line": 9,
+   "diagnostic_carries_file_line_column": true,
+   "classification_reasoning": "D0 no: Zig's default_arithmetic_type is i64 (frozen type_binding_table), so the literal is genuinely out of range and the hazard arises. D1 fires (exit 1). D1a no. D1b-i does NOT fire, narrowly: Zig writes 'cannot represent integer value', while L_OVERFLOW's nearest alternative is the passive `cannot be represented`, and the case's own extra patterns (`literal out of range`, `integer literal is too large`, `constant overflow`, `number too large`) do not match either. The diagnostic plainly names the hazard in English; the frozen lexicon simply does not contain Zig's wording, and the lexicon may not be widened after the fact. D1b-ii applies. D1b-ii-1 does not: A6 re-verification confirms the literal is written plainly with no suffix, separator, sign or wrapper. D1b-ii-2 fires: the first diagnostic is at line 9, inside construction_line_range [9,12]. Stage = Compile-time Detection (100), flagged compile_rejection_unmatched_lexicon for the published unmatched-rejections table. The silent outcome the case watches for, V:9223372036854775808, cannot arise in Zig because the literal is rejected before any storage happens.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-25/R",
+   "case_id": "ADV-25",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-25_R.zig",
+   "build": {
+    "cmd": [
+     "zig",
+     "build-exe",
+     "-OReleaseFast",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-25_R.zig",
+     "-femit-bin=/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-25_R/prog"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-25_R/prog"
+    ],
+    "exit": 1,
+    "stdout": "ADV-START\n",
+    "stderr": "error: InvalidCharacter\n",
+    "timed_out": false
+   },
+   "run_repetitions": {
+    "repetitions": 5,
+    "all_five_obs_identical": true,
+    "all_exit_statuses": [
+     1,
+     1,
+     1,
+     1,
+     1
+    ],
+    "all_timed_out": [
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "`try` in a `pub fn main() !void`. Zig forces an error-union call site to be discharged in order to compile; rule A3 of the frozen skeleton designates `try` inside a `!void` main as Zig's shortest direct-use form, and it is used for the stdout writes, the stdin line read and the string-to-integer conversion. It inspects nothing and recovers from nothing: an error propagates out of main. This is the case where A3 does the work: `try std.fmt.parseInt(i64, text, 10)` in a `!void` main is the frozen Zig form. Nothing catches the error; it propagates out of main and the Zig start code turns it into the stderr line and a non-zero exit status.",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "runtime_diagnostic_verbatim": "error: InvalidCharacter",
+   "matched_lexicon": [],
+   "flag": "diagnosed_but_unmatched_by_frozen_lexicon",
+   "authoring_choices": {
+    "primary_string_to_integer_facility": "`try std.fmt.parseInt(i64, text, 10)` inside a `!void` function, exactly as frozen in authoring_choice_table.primary_string_to_integer_facility for Zig."
+   },
+   "secondary_configuration": {
+    "ReleaseSafe": {
+     "build_exit": 0,
+     "build_stderr": "",
+     "runs": [
+      {
+       "exit": 1,
+       "stdout": "ADV-START\n",
+       "stderr": "error: InvalidCharacter\n",
+       "timed_out": false
+      }
+     ]
+    },
+    "Debug": {
+     "build_exit": 0,
+     "build_stderr": "",
+     "runs": [
+      {
+       "exit": 1,
+       "stdout": "ADV-START\n",
+       "stderr": "error: InvalidCharacter\n/opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/fmt.zig:578:24: 0x102f81f27 in charToDigit (ADV-25_R)\n    if (value >= base) return error.InvalidCharacter;\n                       ^\n/opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/fmt.zig:443:23: 0x103030f73 in parseIntWithSign__anon_27372 (ADV-25_R)\n        const digit = try charToDigit(math.cast(u8, c) orelse return error.InvalidCharacter, buf_base);\n                      ^\n/opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/fmt.zig:331:5: 0x10302f917 in parseIntWithGenericCharacter__anon_27366 (ADV-25_R)\n    return parseIntWithSign(Result, Character, buf, base, .pos);\n    ^\n/opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/fmt.zig:318:5: 0x10302f447 in parseInt__anon_27154 (ADV-25_R)\n    return parseIntWithGenericCharacter(T, u8, buf, base);\n    ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-25_R.zig:13:20: 0x10302dbc7 in main (ADV-25_R)\n    const n: i64 = try std.fmt.parseInt(i64, text, 10);\n                   ^\n",
+       "timed_out": false
+      }
+     ]
+    }
+   },
+   "classification_reasoning": "D0 no. D1 no: build exits 0. D2 no. D3 no: ADV-START is present on stdout, so execution began. D4 no. D5 reached: ADV-START present and the process exited 1 on all 5 runs. D5a does NOT fire: the concatenation of stdout and stderr is 'ADV-START\\nerror: InvalidCharacter\\n', and no alternative of the case lexicon L_PARSE matches it - `invalid (digit|number|literal|syntax)` requires one of those four words after 'invalid', and Zig writes the single token 'InvalidCharacter'. D5a_prime does NOT fire either: the frozen fragment set was evaluated mechanically against the captured bytes and no global fragment matches. D5b therefore fires: Crash (20). This must be reported with its qualification. Zig did not fault and did not corrupt anything: it refused the conversion, named the specific error, wrote it to stderr and exited 1 before the multiplication ever happened - behaviourally this is a refusal, and neither of the two silent outcomes the case watches for (R:24 from leading-digit parsing, R:0 from an uninspected error value) occurred. The 20 is what the frozen decision procedure produces because Zig's error names are CamelCase identifiers rather than English phrases, and D5's tests are string comparisons on captured bytes by design. Recording it as Runtime Safe Detection would require widening the frozen lexicon after seeing the result, which spec 25.4 forbids. The gap between the recorded rung and the observed behaviour is published here so an auditor can see it. The non-scoring -ODebug configuration prints the same error plus a stack trace through std/fmt.zig.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-26/R",
+   "case_id": "ADV-26",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-26_R.zig",
+   "build": {
+    "cmd": [
+     "zig",
+     "build-exe",
+     "-OReleaseFast",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/zig/ADV-26_R.zig",
+     "-femit-bin=/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-26_R/prog"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_zig_chunk2/ADV-26_R/prog"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=IDX:-1\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_repetitions": {
+    "repetitions": 5,
+    "all_five_obs_identical": true,
+    "all_exit_statuses": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ],
+    "all_timed_out": [
+     false,
+     false,
+     false,
+     false,
+     false
+    ]
+   },
+   "observed_payload": "IDX:-1",
+   "reached_observation_point": true,
+   "forced_error_handling": "`try` in a `pub fn main() !void`. Zig forces an error-union call site to be discharged in order to compile; rule A3 of the frozen skeleton designates `try` inside a `!void` main as Zig's shortest direct-use form, and it is used for the stdout writes, the stdin line read and the string-to-integer conversion. It inspects nothing and recovers from nothing: an error propagates out of main.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "authoring_choices": {
+    "sequence": "a fixed [7]i64 array and a slice of it, per authoring_choice_table.growable_sequence_substitution for Zig ('a slice of a fixed array where the case does not grow the sequence'); ADV-26 never grows the sequence.",
+    "integer_division": "`@divTrunc(lo + hi, 2)`. Zig has no unqualified `/` for signed integers - `a / b` on i64 is a compile error directing the author to @divTrunc/@divFloor/@divExact - so rule A4's 'where the language offers only one form' clause applies and @divTrunc, truncation toward zero, is the form matching the other nine languages. lo + hi is non-negative throughout this search, so all three built-ins agree.",
+    "indexing": "`xs[@intCast(mid)]`; Zig indexes with usize, so the i64 mid is converted. @intCast is a width conversion, not a bounds or validity check."
+   },
+   "secondary_configuration": {
+    "ReleaseSafe": {
+     "build_exit": 0,
+     "build_stderr": "",
+     "runs": [
+      {
+       "exit": 0,
+       "stdout": "ADV-START\nOBS=IDX:-1\nADV-END\n",
+       "stderr": "",
+       "timed_out": false
+      }
+     ]
+    },
+    "Debug": {
+     "build_exit": 0,
+     "build_stderr": "",
+     "runs": [
+      {
+       "exit": 0,
+       "stdout": "ADV-START\nOBS=IDX:-1\nADV-END\n",
+       "stderr": "",
+       "timed_out": false
+      }
+     ]
+    }
+   },
+   "classification_reasoning": "D0 no: Zig has no contract, refinement type or checked-construction facility that could express the sortedness precondition, but that is not TM3a - the hazard arises and is measured. D1-D5 do not fire: build exits 0, ADV-START present, all 5 runs exit 0 promptly. D6a no. D6b no: obs_payload 'IDX:-1' differs from the reference_observation 'IDX:4'. D6c: the predicate `^IDX:(-1|[0-6])$` is TRUE for IDX:-1 - 'not found' is the most ordinary answer a search can give - so D6c-ii sends this to D7. D7a no: 5 byte-identical payloads. D7b no: -OReleaseSafe and -ODebug both print IDX:-1 with no report; every individual operation is legal, so no checked build has anything to complain about. D7c no: nothing here is undefined in the Zig Language Reference. D7d fires: Silent Bug (0). The target 3 is present at index 4; the search visited mid=3 (14>3, hi=2), mid=1 (9>3, hi=0), mid=0 (5>3, hi=-1) and terminated, exactly as the case's verification predicts. The program reported a clean, plausible, wrong answer and exited 0. This is the purest instance of the hazard spec 17 asks to be watched for, and the case pre-registers that most or all languages will score 0 here.",
+   "silent_transformation": true
+  }
+ ]
+}

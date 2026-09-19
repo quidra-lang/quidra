@@ -1,0 +1,2 @@
+start
+[killed after 5s: the span did not return]

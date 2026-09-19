@@ -1,0 +1,13 @@
+{
+  "file": "reference_pack.md",
+  "lines": 249,
+  "characters": 9057,
+  "prose_characters": 7639,
+  "code_characters": 1370,
+  "target_band_lines": [
+    150,
+    250
+  ],
+  "within_band": true,
+  "sha256": "9203e88d2be1fd3366901aad4f6c9b292f00362c7396abefb42d7dbd903145e8"
+}

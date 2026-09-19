@@ -1,0 +1,4 @@
+print("ADV-START")
+int64 value = 1
+pr@#$int("OBS=V:{value}")
+print("ADV-END")

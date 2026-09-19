@@ -1,0 +1,20 @@
+string | error next_line()
+    auto received = try input()
+    match received
+        string text
+            return text
+        none
+            return error("no line")
+
+void | error run()
+    float a = try float.parse(try next_line())
+    float b = try float.parse(try next_line())
+    float h = a / b
+    float mean = (1.0 + h + 3.0) / 3.0
+    float diff = h - h
+    print("OBS=MEAN:{mean:frac=6}|DIFF:{diff:frac=6}")
+    return void
+
+print("ADV-START")
+run()
+print("ADV-END")

@@ -1,0 +1,10 @@
+// BEGIN PROBE F15.P1
+T head<T>(T[] values)
+    return values[0]
+
+int32 a = head<int32>([4, 5, 6])
+string b = head(["p", "q"])
+string result = a.string() + b
+// END PROBE F15.P1
+
+print(result)

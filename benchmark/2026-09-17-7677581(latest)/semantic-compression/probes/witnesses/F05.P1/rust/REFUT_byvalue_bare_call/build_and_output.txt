@@ -1,0 +1,1 @@
+rustc -O -C debug-assertions=on w1.rs : error[E0382]: borrow of moved value: x -- the bare call f(x) with a by-value Vec<i32> parameter moves x, so sub-requirement (3) cannot be delivered

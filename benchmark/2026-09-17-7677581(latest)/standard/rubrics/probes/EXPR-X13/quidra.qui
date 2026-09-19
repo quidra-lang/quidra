@@ -1,0 +1,3 @@
+import x13 = "./quidra_mod.qui"
+
+print("X13 {x13.pub_fn()}")

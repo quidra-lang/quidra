@@ -1,0 +1,5 @@
+float probe()
+    const int n = 7
+    return n
+
+print(probe())

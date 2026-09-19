@@ -1,0 +1,14 @@
+EXTRACTION               PASS  563 bytes from the last fenced block
+CONFORMANCE_GATE         PASS
+FIXUPS_DOCUMENTED        PASS  must be zero; applied []
+FIXUPS_UNSTATED          ['H1 entry file name']
+BUILD                    PASS  recipe: quidra build solution.qui -o solution -> exit 0
+RUN_EXIT_ZERO            PASS  exit 0
+STDERR_EMPTY             PASS  ''
+STDOUT_EXACT             PASS
+--- produced ---
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+HARNESS SIM: PASS

@@ -1,0 +1,15 @@
+probe: F02.P2
+language: quidra
+class_id: COUNT_A4_union_injection
+purpose: Counted class 4: `uint8 | error probe()`.
+
+recipe entry: semantic_compression_recipes.quidra.interpreter_run
+command: quidra run b_un.qui
+exit status: 0
+stdout:
+1
+
+stderr:
+
+
+Cross-mode note (Rule 1.3.3): the frozen recipe lists two execution modes for Quidra ('run' = `quidra build FILE.qui -o BIN` then `./BIN`, and 'interpreter_run' = `quidra run FILE.qui`). Both were exercised for the arithmetic-abort witnesses and produced identical output and exit status; the identity is recorded rather than assumed.

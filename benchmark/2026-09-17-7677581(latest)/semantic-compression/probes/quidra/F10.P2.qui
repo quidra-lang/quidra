@@ -1,0 +1,7 @@
+int32 i = 3
+float d = 0.5
+// BEGIN PROBE F10.P2
+float sum = float(i) + d
+// END PROBE F10.P2
+
+print(sum)

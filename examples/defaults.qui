@@ -1,0 +1,16 @@
+void replace(int[] &values, int count = 3)
+    values = array(count, fill = 7)
+
+int[] data = []
+replace(&values = &data)
+print(data[2])
+
+int choose(bool condition, int fallback = 20)
+    int answer
+    if condition
+        answer = 10
+    else
+        answer = fallback
+    return answer
+
+print(choose(false))

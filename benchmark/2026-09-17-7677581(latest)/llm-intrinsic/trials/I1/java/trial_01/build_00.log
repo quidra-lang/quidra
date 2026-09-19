@@ -1,0 +1,1 @@
+javac exit=0

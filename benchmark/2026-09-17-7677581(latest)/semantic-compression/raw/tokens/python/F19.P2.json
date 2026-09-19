@@ -1,0 +1,367 @@
+{
+ "probe_id": "F19.P2",
+ "language": "python",
+ "count": 58,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "import",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "threading",
+   "line": 1,
+   "col": 8
+  },
+  {
+   "tag": "KW",
+   "text": "from",
+   "line": 2,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "concurrent",
+   "line": 2,
+   "col": 6
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 2,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "futures",
+   "line": 2,
+   "col": 17
+  },
+  {
+   "tag": "KW",
+   "text": "import",
+   "line": 2,
+   "col": 25
+  },
+  {
+   "tag": "IDENT",
+   "text": "ThreadPoolExecutor",
+   "line": 2,
+   "col": 32
+  },
+  {
+   "tag": "IDENT",
+   "text": "counter",
+   "line": 4,
+   "col": 1
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 4,
+   "col": 9
+  },
+  {
+   "tag": "NUM",
+   "text": "0",
+   "line": 4,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "lock",
+   "line": 5,
+   "col": 1
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 5,
+   "col": 6
+  },
+  {
+   "tag": "IDENT",
+   "text": "threading",
+   "line": 5,
+   "col": 8
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 5,
+   "col": 17
+  },
+  {
+   "tag": "IDENT",
+   "text": "Lock",
+   "line": 5,
+   "col": 18
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 5,
+   "col": 22
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 5,
+   "col": 23
+  },
+  {
+   "tag": "KW",
+   "text": "def",
+   "line": 8,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "bump",
+   "line": 8,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 8,
+   "col": 9
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 8,
+   "col": 10
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 8,
+   "col": 11
+  },
+  {
+   "tag": "KW",
+   "text": "global",
+   "line": 9,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "counter",
+   "line": 9,
+   "col": 12
+  },
+  {
+   "tag": "KW",
+   "text": "for",
+   "line": 10,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "_",
+   "line": 10,
+   "col": 9
+  },
+  {
+   "tag": "KW",
+   "text": "in",
+   "line": 10,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "range",
+   "line": 10,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 10,
+   "col": 19
+  },
+  {
+   "tag": "NUM",
+   "text": "1000",
+   "line": 10,
+   "col": 20
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 10,
+   "col": 24
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 10,
+   "col": 25
+  },
+  {
+   "tag": "KW",
+   "text": "with",
+   "line": 11,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "lock",
+   "line": 11,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 11,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "counter",
+   "line": 12,
+   "col": 13
+  },
+  {
+   "tag": "OP",
+   "text": "+=",
+   "line": 12,
+   "col": 21
+  },
+  {
+   "tag": "NUM",
+   "text": "1",
+   "line": 12,
+   "col": 24
+  },
+  {
+   "tag": "KW",
+   "text": "with",
+   "line": 15,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "ThreadPoolExecutor",
+   "line": 15,
+   "col": 6
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 15,
+   "col": 24
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 15,
+   "col": 25
+  },
+  {
+   "tag": "KW",
+   "text": "as",
+   "line": 15,
+   "col": 27
+  },
+  {
+   "tag": "IDENT",
+   "text": "pool",
+   "line": 15,
+   "col": 30
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 15,
+   "col": 34
+  },
+  {
+   "tag": "IDENT",
+   "text": "pool",
+   "line": 16,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 16,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "submit",
+   "line": 16,
+   "col": 10
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 16,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "bump",
+   "line": 16,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 16,
+   "col": 21
+  },
+  {
+   "tag": "IDENT",
+   "text": "pool",
+   "line": 17,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 17,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "submit",
+   "line": 17,
+   "col": 10
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 17,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "bump",
+   "line": 17,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 17,
+   "col": 21
+  }
+ ],
+ "class_histogram": {
+  "KW": 10,
+  "IDENT": 22,
+  "DELIM": 20,
+  "OP": 3,
+  "NUM": 3
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/python/F19.P2.py",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

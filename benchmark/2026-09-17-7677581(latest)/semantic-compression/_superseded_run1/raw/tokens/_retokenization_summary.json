@@ -1,0 +1,80 @@
+{
+ "pass": "authoritative re-tokenization (CORRECTIONS D-4)",
+ "tokenizer_script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "token_profiles_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "languages": {
+  "python": {
+   "probes_tokenized": 17,
+   "total_tokens": 236,
+   "counts": {
+    "F01.P1": 5,
+    "F01.P2": 8,
+    "F02.P1": 16,
+    "F02.P2": 17,
+    "F03.P1": 3,
+    "F03.P2": 6,
+    "F05.P1": 18,
+    "F06.P1": 35,
+    "F06.P2": 41,
+    "F07.P1": 7,
+    "F07.P2": 15,
+    "F08.P1": 14,
+    "F08.P2": 13,
+    "F09.P1": 5,
+    "F09.P2": 10,
+    "F10.P1": 18,
+    "F10.P2": 5
+   }
+  },
+  "quidra": {
+   "probes_tokenized": 36,
+   "total_tokens": 756,
+   "counts": {
+    "F01.P1": 7,
+    "F01.P2": 9,
+    "F02.P1": 13,
+    "F02.P2": 16,
+    "F03.P1": 3,
+    "F03.P2": 6,
+    "F04.P1": 15,
+    "F04.P2": 14,
+    "F05.P1": 21,
+    "F05.P2": 25,
+    "F06.P1": 34,
+    "F06.P2": 55,
+    "F07.P1": 8,
+    "F07.P2": 24,
+    "F08.P1": 12,
+    "F08.P2": 17,
+    "F09.P1": 6,
+    "F09.P2": 13,
+    "F10.P1": 9,
+    "F10.P2": 9,
+    "F11.P1": 11,
+    "F11.P2": 36,
+    "F12.P1": 23,
+    "F12.P2": 31,
+    "F13.P1": 22,
+    "F13.P2": 22,
+    "F14.P1": 21,
+    "F14.P2": 32,
+    "F15.P1": 50,
+    "F15.P2": 33,
+    "F16.P1": 25,
+    "F16.P2": 65,
+    "F17.P1": 25,
+    "F18.P1": 4,
+    "F18.P2": 23,
+    "F20.P1": 17
+   }
+  }
+ },
+ "failures": [],
+ "skipped_non_source_files": [
+  {
+   "language": "quidra",
+   "file": "data.txt",
+   "reason": "not a source file for this language (fixture/input)"
+  }
+ ]
+}

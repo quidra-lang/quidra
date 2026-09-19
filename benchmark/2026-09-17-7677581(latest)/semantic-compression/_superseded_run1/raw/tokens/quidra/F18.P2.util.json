@@ -1,0 +1,155 @@
+{
+ "probe_id": "F18.P2",
+ "language": "quidra",
+ "count": 23,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "int32",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "secret",
+   "line": 1,
+   "col": 7
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 1,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 1,
+   "col": 14
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 2,
+   "col": 5
+  },
+  {
+   "tag": "NUM",
+   "text": "1",
+   "line": 2,
+   "col": 12
+  },
+  {
+   "tag": "KW",
+   "text": "int32",
+   "line": 4,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "pub_add",
+   "line": 4,
+   "col": 7
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 4,
+   "col": 14
+  },
+  {
+   "tag": "KW",
+   "text": "int32",
+   "line": 4,
+   "col": 15
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 4,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 4,
+   "col": 22
+  },
+  {
+   "tag": "KW",
+   "text": "int32",
+   "line": 4,
+   "col": 24
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 4,
+   "col": 30
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 4,
+   "col": 31
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 5,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 5,
+   "col": 12
+  },
+  {
+   "tag": "OP",
+   "text": "+",
+   "line": 5,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 5,
+   "col": 16
+  },
+  {
+   "tag": "OP",
+   "text": "+",
+   "line": 5,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "secret",
+   "line": 5,
+   "col": 20
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 5,
+   "col": 26
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 5,
+   "col": 27
+  }
+ ],
+ "class_histogram": {
+  "KW": 6,
+  "IDENT": 7,
+  "DELIM": 7,
+  "NUM": 1,
+  "OP": 2
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938"
+}

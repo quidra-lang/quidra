@@ -1,0 +1,8 @@
+string base = "ab"
+string s1 = base + "c"
+string s2 = "a" + base[1] + "c"
+// BEGIN PROBE F09.P1
+bool eq = s1 == s2
+// END PROBE F09.P1
+
+print(eq)

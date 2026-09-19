@@ -1,0 +1,2 @@
+string t = "héllo"
+print("X15 {len(t)}")

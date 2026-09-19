@@ -1,0 +1,16 @@
+probe: F07.P2
+language: quidra
+class_id: OBSERVED_rounding_and_remainder
+purpose: Observed rules (04 s0.4): -7 / 2 -> -3 (truncation toward zero) and -7 %% 2 -> -1 (sign of the dividend); neither is stated in any pinned Quidra document.
+
+recipe entry: semantic_compression_recipes.quidra.interpreter_run
+command: quidra run dv.qui
+exit status: 0
+stdout:
+-3
+-1
+
+stderr:
+
+
+Cross-mode note (Rule 1.3.3): the frozen recipe lists two execution modes for Quidra ('run' = `quidra build FILE.qui -o BIN` then `./BIN`, and 'interpreter_run' = `quidra run FILE.qui`). Both were exercised for the arithmetic-abort witnesses and produced identical output and exit status; the identity is recorded rather than assumed.

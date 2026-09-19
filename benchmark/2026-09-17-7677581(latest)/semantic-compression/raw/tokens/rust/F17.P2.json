@@ -1,0 +1,367 @@
+{
+ "probe_id": "F17.P2",
+ "language": "rust",
+ "count": 58,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "struct",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "Handle",
+   "line": 1,
+   "col": 8
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 1,
+   "col": 15
+  },
+  {
+   "tag": "IDENT",
+   "text": "id",
+   "line": 2,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 2,
+   "col": 7
+  },
+  {
+   "tag": "IDENT",
+   "text": "i32",
+   "line": 2,
+   "col": 9
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 2,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 3,
+   "col": 1
+  },
+  {
+   "tag": "KW",
+   "text": "impl",
+   "line": 5,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "Drop",
+   "line": 5,
+   "col": 6
+  },
+  {
+   "tag": "KW",
+   "text": "for",
+   "line": 5,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "Handle",
+   "line": 5,
+   "col": 15
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 5,
+   "col": 22
+  },
+  {
+   "tag": "KW",
+   "text": "fn",
+   "line": 6,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "drop",
+   "line": 6,
+   "col": 8
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 6,
+   "col": 12
+  },
+  {
+   "tag": "OP",
+   "text": "&",
+   "line": 6,
+   "col": 13
+  },
+  {
+   "tag": "KW",
+   "text": "mut",
+   "line": 6,
+   "col": 14
+  },
+  {
+   "tag": "KW",
+   "text": "self",
+   "line": 6,
+   "col": 18
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 6,
+   "col": 22
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 6,
+   "col": 24
+  },
+  {
+   "tag": "IDENT",
+   "text": "RELEASED",
+   "line": 7,
+   "col": 9
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 7,
+   "col": 17
+  },
+  {
+   "tag": "IDENT",
+   "text": "fetch_add",
+   "line": 7,
+   "col": 18
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 7,
+   "col": 27
+  },
+  {
+   "tag": "NUM",
+   "text": "1",
+   "line": 7,
+   "col": 28
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 7,
+   "col": 29
+  },
+  {
+   "tag": "IDENT",
+   "text": "Ordering",
+   "line": 7,
+   "col": 31
+  },
+  {
+   "tag": "OP",
+   "text": "::",
+   "line": 7,
+   "col": 39
+  },
+  {
+   "tag": "IDENT",
+   "text": "Relaxed",
+   "line": 7,
+   "col": 41
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 7,
+   "col": 48
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 7,
+   "col": 49
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 8,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 9,
+   "col": 1
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 11,
+   "col": 1
+  },
+  {
+   "tag": "KW",
+   "text": "let",
+   "line": 12,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "_h",
+   "line": 12,
+   "col": 9
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 12,
+   "col": 12
+  },
+  {
+   "tag": "IDENT",
+   "text": "Handle",
+   "line": 12,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 12,
+   "col": 21
+  },
+  {
+   "tag": "IDENT",
+   "text": "id",
+   "line": 12,
+   "col": 23
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 12,
+   "col": 25
+  },
+  {
+   "tag": "NUM",
+   "text": "1",
+   "line": 12,
+   "col": 27
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 12,
+   "col": 29
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 12,
+   "col": 30
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 13,
+   "col": 1
+  },
+  {
+   "tag": "KW",
+   "text": "let",
+   "line": 15,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "result",
+   "line": 15,
+   "col": 5
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 15,
+   "col": 12
+  },
+  {
+   "tag": "IDENT",
+   "text": "RELEASED",
+   "line": 15,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 15,
+   "col": 22
+  },
+  {
+   "tag": "IDENT",
+   "text": "load",
+   "line": 15,
+   "col": 23
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 15,
+   "col": 27
+  },
+  {
+   "tag": "IDENT",
+   "text": "Ordering",
+   "line": 15,
+   "col": 28
+  },
+  {
+   "tag": "OP",
+   "text": "::",
+   "line": 15,
+   "col": 36
+  },
+  {
+   "tag": "IDENT",
+   "text": "Relaxed",
+   "line": 15,
+   "col": 38
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 15,
+   "col": 45
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 15,
+   "col": 46
+  }
+ ],
+ "class_histogram": {
+  "KW": 8,
+  "IDENT": 18,
+  "DELIM": 25,
+  "OP": 5,
+  "NUM": 2
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/rust/F17.P2.rs",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

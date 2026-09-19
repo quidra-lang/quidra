@@ -1,0 +1,4 @@
+int32 add2(int32 a, int32 b)
+    return a + b
+
+print(add2(2, 3))

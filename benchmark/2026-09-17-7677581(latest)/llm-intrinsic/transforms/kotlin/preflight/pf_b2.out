@@ -1,0 +1,5 @@
+extracted_chars:         656
+gate_conformant:         False
+gate_events:             ['else', 'for', 'fun', 'if', 'in', 'val', 'var']
+verdict:                 FAIL
+reason:                  CONFORMANT check failed (section 4.2a)

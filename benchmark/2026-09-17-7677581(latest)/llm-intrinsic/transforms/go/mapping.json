@@ -1,0 +1,118 @@
+{
+  "condition": "I1",
+  "language_id": "go",
+  "seed": 20260918,
+  "generated_at": "2026-09-18T16:42:24+00:00",
+  "generator": "PW-1 / methodology 10 sections 5.1-5.3",
+  "primitives": {
+    "rng": "park-miller-48271",
+    "hash": "fnv1a32",
+    "pick_divisor": 128,
+    "pattern": "CVCVCV, exactly 6 lowercase ASCII characters",
+    "key_format": "<condition>|<language_id>|<seed>|<role_token_key>"
+  },
+  "wordlist_sha256": {
+    "en_common": "54056731d43f793f8d0ea08285d4f736b18438694dc7c6813c1e3acbd1f01a00",
+    "prog_terms": "dfea414450548daad073a375e585dfcb7d9c2e4eda64254598d6aab4dc3fa92b",
+    "reserved_union": "d8b112ebaae29508258ad8dd0fe2c6112a827471ec6b5f4cbeeb7fbf22d97f03"
+  },
+  "not_transformed_in_I1": {
+    "note": "methodology 10 section 7.1: V-roles keep their real spelling in I1; ordinary user identifiers are never renamed.",
+    "v_roles": {
+      "V01": "fmt.Println",
+      "V10": "strconv.FormatInt",
+      "V16": "fmt, strconv"
+    },
+    "user_identifiers": [
+      "state",
+      "sum",
+      "largest",
+      "evens",
+      "joined",
+      "i",
+      "term"
+    ]
+  },
+  "mapping": {
+    "K01": {
+      "real": "func",
+      "pseudo": "mizufi",
+      "role_prose": "introduces a function definition",
+      "chars": 6
+    },
+    "K02": {
+      "real": "var",
+      "pseudo": "vuzuvi",
+      "role_prose": "introduces a named value binding",
+      "chars": 6
+    },
+    "K04": {
+      "real": "if",
+      "pseudo": "feguzi",
+      "role_prose": "introduces a conditional branch",
+      "chars": 6
+    },
+    "K07": {
+      "real": "for",
+      "pseudo": "lunuso",
+      "role_prose": "introduces bounded iteration",
+      "chars": 6
+    },
+    "K14": {
+      "real": "import",
+      "pseudo": "pitudo",
+      "role_prose": "introduces an import of an external module",
+      "chars": 6
+    },
+    "K15": {
+      "real": "package",
+      "pseudo": "nemetu",
+      "role_prose": "declares the compilation unit's module",
+      "chars": 6
+    },
+    "K21a": {
+      "real": "int64",
+      "pseudo": "nebala",
+      "role_prose": "the 64-bit signed integer type name",
+      "chars": 6
+    },
+    "K21c": {
+      "real": "string",
+      "pseudo": "sopona",
+      "role_prose": "the text type name",
+      "chars": 6
+    },
+    "K22": {
+      "real": "main",
+      "pseudo": "lemuma",
+      "role_prose": "the toolchain-fixed name of the module that holds the entry point and of the entry-point function itself",
+      "chars": 6
+    }
+  },
+  "reverse": {
+    "mizufi": "func",
+    "vuzuvi": "var",
+    "feguzi": "if",
+    "lunuso": "for",
+    "pitudo": "import",
+    "nemetu": "package",
+    "nebala": "int64",
+    "sopona": "string",
+    "lemuma": "main"
+  },
+  "collision_redraws": {
+    "K01": 0,
+    "K02": 1,
+    "K04": 0,
+    "K07": 0,
+    "K14": 0,
+    "K15": 0,
+    "K21a": 0,
+    "K21c": 0,
+    "K22": 0
+  },
+  "rejection_filters_fired": {
+    "substring": 1
+  },
+  "anonymized_token_count": 9
+}

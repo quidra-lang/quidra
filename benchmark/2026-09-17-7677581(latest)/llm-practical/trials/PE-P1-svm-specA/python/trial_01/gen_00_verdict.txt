@@ -1,0 +1,20 @@
+actual : gen_00_stdout.txt
+golden : /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/algo/reference/WL-SVM/golden/expected_stdout.txt
+
+max abs difference over all F6/F12 fields : 0
+numerical error  max |a-g|/(1+|g|)        : 0
+tolerance ALGO-TOL-1 : abs=1e-09 rel=1e-06, print_ulp F6=1e-06 F12=1e-12
+
+section 2.6 invariants:
+  [ok] |ALPHA_Y_SUM| <= 1.0                                 0.047792639128
+  [ok] 0 <= alpha[i] <= C for all i                         min=0.000000 max=0.130354
+  [ok] NS_MARGIN+NS_INSIDE <= N and NS_MARGIN >= 1          65+0=65, N=200
+  [ok] TEST_ACC*100 is an integer count                     0.990000 -> 99
+  [ok] PRED has 100 entries, each +1 or -1                  n=100, set=[-1, 1]
+  [ok] NS_MARGIN/NS_INSIDE consistent with printed ALPHA    recomputed 65/0 vs printed 65/0
+  [ok] ALPHA_SUM consistent with printed ALPHA vector       sum(printed alpha)=2.581095 vs ALPHA_SUM=2.581096
+  [ok] ALPHA_CHECKSUM consistent with printed ALPHA vector  recomputed=126.024486 vs printed=126.024432
+  [ok] TEST_CORRECT consistent with PRED                    from PRED 49 50 99 vs printed [49, 50, 99]
+
+
+VERDICT: PASS

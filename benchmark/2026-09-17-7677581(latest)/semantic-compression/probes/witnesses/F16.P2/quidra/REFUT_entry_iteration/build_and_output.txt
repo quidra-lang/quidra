@@ -1,0 +1,16 @@
+probe: F16.P2
+language: quidra
+class_id: REFUT_entry_iteration
+purpose: Support evidence (P-a): `for e in mp` -> error[TYPE_MISMATCH] 'for requires an array, bytes, or range' - Quidra has no entry-iteration construct for a map.
+
+recipe entry: semantic_compression_recipes.quidra.interpreter_run
+command: quidra run m1.qui
+exit status: 1
+stdout:
+
+stderr:
+/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/witnesses/F16.P2/quidra/REFUT_entry_iteration/m1.qui:3:1: error[TYPE_MISMATCH] for requires an array, bytes, or range.
+1 error(s) generated.
+
+
+Cross-mode note (Rule 1.3.3): the frozen recipe lists two execution modes for Quidra ('run' = `quidra build FILE.qui -o BIN` then `./BIN`, and 'interpreter_run' = `quidra run FILE.qui`). Both were exercised for the arithmetic-abort witnesses and produced identical output and exit status; the identity is recorded rather than assumed.

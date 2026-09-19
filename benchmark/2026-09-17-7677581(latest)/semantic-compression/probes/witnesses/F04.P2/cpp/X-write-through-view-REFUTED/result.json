@@ -1,0 +1,9 @@
+{
+ "probe": "F04.P2",
+ "class_id": "X-write-through-view-REFUTED",
+ "build_command": "clang++ -std=c++20 -O2 witness.cpp -o BIN",
+ "built": false,
+ "expected_build": false,
+ "build_diagnostics": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/witnesses/F04.P2/cpp/X-write-through-view-REFUTED/witness.cpp:7:15: error: cannot assign to return value because function 'operator[]' returns a const value     7 |     window[0] = 1;              // the only change from the frozen fragment ",
+ "observer_output": ""
+}

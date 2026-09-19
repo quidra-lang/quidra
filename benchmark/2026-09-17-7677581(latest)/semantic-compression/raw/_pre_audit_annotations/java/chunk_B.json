@@ -1,0 +1,2401 @@
+{
+ "language": "Java",
+ "language_key": "java",
+ "chunk": "B",
+ "probes": [
+  {
+   "probe_id": "F06.P1",
+   "language": "Java",
+   "language_key": "java",
+   "support": "FULL",
+   "support_reason": "F-1: every numbered sub-requirement is delivered. (1) `static int mid(List<Integer> s) { return s.get(1); }` is a function with one parameter of Java's normal growable-integer-sequence type (`java.util.List<Integer>`, the interface every growable list implements) whose body returns the element at index 1. (2) `var xs = new ArrayList<>(List.of(1, 2, 3));` binds a local to such a sequence containing 1, 2, 3 (`java.util.ArrayList` is the JDK's resizable-array List). (3) `int y = mid(xs);` binds the call's result in Java's normal binding form. (4) `return y;`. F-2: only JLS-documented features and the java.base standard library shipped with the frozen JDK. F-3: builds and runs under the frozen recipe unmodified and prints 2, the element at index 1. F-4: no extra flag, package, or code generation. F-6: no sentence of the JLS or of the Java SE 26 API documentation places `ArrayList`, `List`, `List.of` or `List.get` under a normative prohibition or deprecation. R10 form selection: `var xs = new ArrayList<>(List.of(1, 2, 3));` (20 tokens) was measured rather than `List<Integer> xs = new ArrayList<>(List.of(1, 2, 3));` (23 tokens); both satisfy R1-R3 and the shorter one is selected mechanically, although it is the form that costs this probe a COUNT (see the type_and_representation row for `xs`). `List<Integer> xs = List.of(1, 2, 3)` was rejected under R1, not R10: `List.of` returns an unmodifiable list, which is not the growable sequence type the canonical task names. HARNESS NOTE on the measured region: Java has no way to put a method declaration and a call site of that method in one contiguous token range without crossing a method boundary, so the region contains exactly one scaffolding token - the `}` that closes the calling method. Placing `mid` first instead would have put the 6-token header `static int caller() {` inside the region, so the measured form is the R10 minimum.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/java/F06.P1.java",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "2",
+    "diagnostics": "build exit 0, no diagnostics; run exit 0. javac -d OUT FILE.java ; java -cp OUT Main  (environment.json -> semantic_compression_recipes.recipes.java). javac 26.0.1 / openjdk 26.0.1 (Homebrew, arm64), JAVA_HOME=/opt/homebrew/opt/openjdk. "
+   },
+   "token_count": 52,
+   "facts": [
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "xs",
+     "value": "(iii) a handle: the variable holds a reference to an object, never the object itself",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.3.1: the reference types are class, interface, type-variable and array types, and a variable of a reference type holds a reference to an object. The `new` in the initializer makes the initializer's type a class type, so no lookup is needed to know the variable is a handle."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "xs",
+     "value": "reassignable: the local carries no `final`, so another reference may be assigned to it later",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.4 (a final variable may be assigned only once) read against 14.4, which permits but does not require `final` on a local variable declaration. The absence of the modifier at this site selects the reassignable value."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "new ArrayList<>(List.of(1, 2, 3))",
+     "value": "at this point `xs` is the only name reaching the object, because a class instance creation expression always yields a reference to a newly created object; and no name can ever alias the variable `xs` itself",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.9.4 (the value of a class instance creation expression is a reference to the newly created object). Java has no address-of operator and no reference-to-variable type (there is no production for one in JLS 15), so a second path to a local variable's own storage cannot exist in any Java program."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "var xs = new ArrayList<>(...)",
+     "value": "definitely initialized with the constructor's result; a Java local has no default value and the compiler rejects any read before assignment",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.5 (a local variable must be explicitly given a value before it is used) and 16 (definite assignment). The declarator's initializer supplies the value at the point of declaration."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "xs",
+     "value": "java.util.ArrayList - a resizable-array implementation of List, held by reference (value narrowed: see the justification for why the element type is NOT counted here)",
+     "locally_recoverable": true,
+     "justification": "The `var` is resolved from the initializer (JLS SE26 14.4.1), whose class is named literally at the site, so one standard-library contract (java.util.ArrayList) establishes the type identity: hops_decl = 0, hops_stdlib = 1. The ELEMENT type `Integer` is deliberately NOT part of the recorded value: establishing it requires a SECOND standard-library contract (java.util.List.of's signature, to know the inferred E), which is hops_stdlib = 2 and therefore not recoverable under methodology 02 2.2. The value is narrowed to the part the single admitted contract supports, as the absence-facts rule of methodology 02 1.4 permits."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "new ArrayList<>(...)",
+     "value": "allocates a new object on the heap and yields a reference to it; the reference, not the object, is what the binding stores",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.9.4: evaluation of a class instance creation expression creates a new object of the named class. The `new` keyword is the local marker; no lookup is required to know that an allocation happens here."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "new ArrayList<>(...)",
+     "value": "may fail, and the only mechanism by which it can fail is a thrown exception; no error value and no checked exception is involved, because the expression has no `throws` obligation at the site",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 11.2 (unchecked exception classes need not be declared) with 15.9.4. This is the universal-rule disposition methodology 02 1.4/K07 records for Java ('any invocation may complete abruptly by throwing; the mechanism is exceptions'). Resource-exhaustion failures are excluded by U-07.1."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "the arguments 1, 2, 3 of List.of(...)",
+     "value": "each `int` literal undergoes a boxing conversion to `java.lang.Integer` before the call, because List.of's parameter is a reference type; the conversion is value-preserving but changes the representation",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.1.7 (boxing conversion) applied in the method invocation context of 5.3; java.util.List.of's declared parameter type is the type variable E, a reference type (hops_decl = 0, hops_stdlib = 1). The conversion is written nowhere at the site, which is exactly why it is also charged as a hidden item."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "List.of(1, 2, 3)",
+     "value": "creates a new unmodifiable List containing exactly the three arguments; that list is a separate object from the ArrayList the constructor then builds",
+     "locally_recoverable": true,
+     "justification": "java.util.List.of(E,E,E) contract, Java SE 26 API ('Returns an unmodifiable list containing three elements'), named literally at the site: hops_decl = 0, hops_stdlib = 1."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "y",
+     "value": "`int`: a 32-bit two's-complement signed integer, the same on every implementation and every target",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.1: the values of type int are the 32-bit signed two's-complement integers. `int` is a reserved keyword (JLS 3.9), so unlike a library type name it cannot be shadowed or re-imported; the width is fixed by the language rather than left implementation-defined."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "y",
+     "value": "(i) storage holding a primitive value; it is not a reference and it has no identity another name could reach",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2 (the primitive types are predefined value types) and 4.12.1. A primitive local holds its value directly, so the entity here is a value in its own storage rather than a handle to storage owned elsewhere."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "y",
+     "value": "reassignable: the local carries no `final`",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.4 with 14.4; the absence of `final` at this declaration selects the reassignable value."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "y",
+     "value": "no alias can exist, for reading or for writing: no other name in any Java program can reach this variable's storage",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15 contains no address-of or reference-to-variable operator and 4.3.1 admits no reference to a local variable, so the absence is entailed by a universal language rule rather than merely unmentioned (methodology 02 1.4 absence-facts rule, clause (ii))."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int y = mid(xs)",
+     "value": "definitely initialized with the value the call produces",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.5 and 16: a local with an initializer is definitely assigned at its declaration and the compiler rejects any earlier read."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "int y = mid(xs)",
+     "value": "no conversion: `mid` is declared inside this fragment with return type `int`, so the assignment is an identity conversion and no boxing, widening or narrowing occurs",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.2 (assignment context) with the declaration of `mid` visible inside the measured fragment, so hops_decl = 0. Java performs no implicit narrowing in an assignment context, so this is determinate."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "the argument `xs` of mid(xs)",
+     "value": "the callee necessarily receives a writable alias of the same list object: every method of the parameter's declared interface that mutates the list is reachable through it, while assigning to the parameter itself cannot change the caller's variable",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 8.4.1 (arguments are passed by value; for a reference type the value passed is the reference) with 4.3.1. This is the disposition methodology 02 1.4/K03 records for Java at exactly this construct. Whether `mid` actually writes is a different row (K11/K02), and it is resolved here only because `mid`'s body is inside the fragment."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "the argument `xs` of mid(xs)",
+     "value": "the reference is copied into the parameter; the list object itself is never copied and nothing is allocated by the argument passing",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 8.4.1 and 15.26.1 (assignment of a reference-typed value copies the reference, not the object). Java has no copy constructor invoked implicitly and no value semantics for class types."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "the argument `xs` of mid(xs)",
+     "value": "a widening reference conversion ArrayList -> List is applied; it changes no value and no representation, and it cannot fail",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.1.5 (widening reference conversion never requires a run-time check and never fails) applied in the invocation context of 5.3; `mid`'s parameter type is written inside the fragment and java.util.ArrayList is documented to implement List (hops_decl = 0, hops_stdlib = 1)."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "mid(xs)",
+     "value": "control transfers to `mid` and returns to this point; the callee cannot loop, suspend, defer or diverge, because its whole body is the single statement `return s.get(1);` written inside this fragment - the only abnormal exit available to it is an exception propagating out",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.12.4 (method invocation) with 14.17. Methodology 02 1.4/K12 makes an opaque call a LOOKUP in every language precisely because the callee's body decides this; here the body is inside the measured fragment, so hops_decl = 0 and the row counts."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "mid(xs)",
+     "value": "can fail only by an exception thrown inside the callee and propagating out; no checked exception is declared and no error value is returned",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 8.4.6 (a method that declares no throws clause may still complete abruptly for an unchecked exception) and 11.2. Because `mid`'s body is local, the reachable failure is the one named at the `s.get(1)` row rather than an unbounded set."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "static int mid(List<Integer> s)",
+     "value": "declared return type `int`: the method hands back a 32-bit two's-complement value, not a reference",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 8.4.5 (result type) and 4.2.1. Recorded once, at the signature site; the same value is not re-counted at the call, which would be a DUP under methodology 02 3.1/A3.3."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "static int mid(...) return semantics",
+     "value": "returning copies a 32-bit value; no allocation, no boxing and no ownership transfer happen at the return",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.17 with 4.2: the value of a primitive-typed expression is returned by value. Java has no implicit boxing at a return whose declared type is primitive."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "the parameter `s`",
+     "value": "java.util.List<Integer>: a reference to an object implementing the List interface, whose element type is written at the site",
+     "locally_recoverable": true,
+     "justification": "The parameter's type is written inside the measured fragment (hops_decl = 0) and java.util.List's contract is one standard-library consultation (hops_stdlib = 1). Unlike `xs`, the element type IS counted here, because the fragment spells `List<Integer>` rather than inferring it."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "the parameter `s`",
+     "value": "(iii) a handle denoting an object owned by the caller",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.3.1 with 8.4.1: the parameter holds a copy of the caller's reference, so it denotes storage the caller's object owns rather than an independent object."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "the parameter `s`",
+     "value": "definitely initialized by the invocation before the body runs",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 8.4.1 and 15.12.4.5: the argument values are assigned to the freshly created parameter variables before the body is executed."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "s.get(1)",
+     "value": "can fail, and the mechanism is an unchecked IndexOutOfBoundsException when the index is out of range",
+     "locally_recoverable": true,
+     "justification": "java.util.List.get(int) contract, Java SE 26 API ('Throws: IndexOutOfBoundsException - if the index is out of range'), named literally at the site: hops_decl = 0, hops_stdlib = 1."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "return s.get(1)",
+     "value": "an unboxing conversion Integer -> int is applied to the returned element, because the method's result type is `int`; it is value-preserving but throws NullPointerException if the element is null",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.1.8 (unboxing conversion; a null reference causes a NullPointerException) applied in the assignment context of 14.17. The method's declared result type is inside the fragment; List.get's element type is one standard-library consultation."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return s.get(1)",
+     "value": "terminates `mid` and transfers the value to the invoker; no other statement of the method can run afterwards",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.17: a return statement with an expression attempts to transfer control to the invoker of the method."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return y",
+     "value": "terminates the enclosing method with y's value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.17. Different subject from the previous row (the enclosing method rather than `mid`), so this is not a DUP under methodology 02 3.1/A3.4."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "xs (and the list objects it and List.of create)",
+     "value": "no deterministic release point: the objects are reclaimed by the garbage collector at an unspecified time, and no local form can change that",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 12.6 (reclamation is performed by the garbage collector at an unspecified time; no local form can name a release point). This is the disposition methodology 02 1.4/K13 fixes for every tracing-GC language of the fixed set, with basis_class universal-rule."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "y",
+     "value": "the variable's storage ceases to exist when the method completes, and no user-visible cleanup runs for it",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.4.2 (the scope and lifetime of a local variable end with the block) and 4.2 (primitive values have no finalization). No destructor, deinitializer or finalizer exists for a primitive local in Java."
+    }
+   ],
+   "fact_count": 31,
+   "determinacy_B": 3,
+   "determinacy_enumeration": [
+    "V1 - the simple names `ArrayList` and `List` denote the java.util types (which is what the frozen program's import declarations, outside the measured fragment, make them). `new` allocates a resizable-array list holding the three boxed Integers, `mid` receives a writable alias of that same object (A1 = alias to the operand's own storage is NOT reached - the reference is copied, so A1 = copy of the handle), `get(1)` returns the element, which is unboxed to int, `y` is an independent primitive (A4 = fixed-width signed integer), an allocation occurs (A8), and control falls through to the return (A9). Witness: the frozen program builds under the frozen recipe and prints 2; observer semantic-compression/witnesses/java/chunk_B/f06p1_refute_privatealias.java prints '2 independent-of-xs=true', showing the produced value is a primitive copy rather than a view of the list.",
+    "V2 - the simple names denote user-declared types. Import declarations and same-package type declarations live OUTSIDE the measured fragment, and JLS SE26 6.5.5/7.5 make a simple type name mean whichever declaration is in scope, so the identical fragment can construct a user class, call a user `of` and a user `get`: arbitrary code runs, the allocation is a different one, arbitrary state may be mutated and the produced value differs. Materially different on dimensions 6 (resource behaviour) and 9 (observable result). Witness semantic-compression/witnesses/java/chunk_B/f06p1_V2_usertypes.java (byte-identical fragment, user `List`/`ArrayList` declared in the same file instead of the imports): builds under the frozen recipe and prints 'user List.of / user ArrayList ctor / user get / 1' - the fragment's result is 1, not 2.",
+    "V3 - the enclosing method's declared return type, which is outside the fragment, is a reference type (or a wider primitive). `return y` then applies a boxing (or widening) conversion to the fragment's result under JLS SE26 14.17 and 5.2: A4 changes from fixed-width signed integer to a boxed reference-typed numeric and A8 from 'no resource event at the return' to 'allocation may occur'. Witness semantic-compression/witnesses/java/chunk_B/f06p1_V3_boxedreturn.java (byte-identical fragment, enclosing method declared `static Object caller()`): builds under the frozen recipe and prints 'java.lang.Integer 2'."
+   ],
+   "locality_lookups": 5,
+   "locality_detail": [
+    {
+     "hop": "type decl - java.util.List (the interface declaration, with `of` and `get` written inside its own text, so one hop under methodology 03 Rule 2.2.2)",
+     "required_for_fact": "type_and_representation (the element type of `xs`, which the fragment's `var` does not spell and which needs List.of's signature) and aliasing_writable_aliasing (whether the alias handed to `mid` is a WRITABLE one depends on whether the declared interface exposes mutators)"
+    },
+    {
+     "hop": "type decl - java.util.ArrayList",
+     "required_for_fact": "allocation_copy_move_borrow_destroy (whether the ArrayList(Collection) constructor copies the elements out of the List.of list or shares them) and type_and_representation (the array-backed representation)"
+    },
+    {
+     "hop": "import - the `import java.util.List;` declaration outside the measured fragment",
+     "required_for_fact": "type_and_representation: without it the simple name `List` is not known to denote the java.util interface at all (witness V2 above shows the same fragment with a user `List`)"
+    },
+    {
+     "hop": "import - the `import java.util.ArrayList;` declaration outside the measured fragment",
+     "required_for_fact": "type_and_representation and allocation_copy_move_borrow_destroy, for the same reason"
+    },
+    {
+     "hop": "callee signature - the enclosing method declaration `static int caller()`",
+     "required_for_fact": "type_and_representation of the value the fragment finally produces, and allocation_copy_move_borrow_destroy at `return y`: whether the return boxes the int into a freshly allocated object is decided by that declaration (determinacy class V3)"
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H1 - Implicit conversions",
+     "why": "Local site 1 (`var xs = new ArrayList<>(List.of(1, 2, 3));`). A boxing conversion int -> Integer is inserted at each of the three arguments (JLS SE26 5.1.7 via 5.3). It occurs when the frozen implementation runs, no cast or boxing token is written at the site, and the LED fails because the only thing that could fix it - List.of's declared parameter type - is written in java.util.List, which 0.7 excludes from the local site. It changes the representation and the identity behaviour of the values, so the value-preserving exclusion does not apply."
+    },
+    {
+     "checklist_item": "H1 - Implicit conversions",
+     "why": "Local site 4 (the `mid` declaration). An unboxing conversion Integer -> int is inserted at `return s.get(1)` because the declared result type is int (JLS SE26 5.1.8 via 14.17). Distinct event from the previous one: different rule, different local site (1.3.2). No local token names it, and List.get's element type is not local."
+    },
+    {
+     "checklist_item": "H2 - Hidden writable aliasing or mutation",
+     "why": "Local site 2 (`int y = mid(xs);`). The call hands the callee a reference through which every mutator of the list becomes reachable, so it creates a handle through which a write to storage reachable from outside the site later becomes possible. Nothing at the site distinguishes this from passing a copy: Java has no by-value class-type parameter and no call-site marker. This is verbatim the mandated LED illustration 'a call f(x) ... with nothing at the call site distinguishing this from a by-value call -> LED does NOT apply, H2 triggers'. The exclusion for an assignment target does not apply (xs is not assigned here) and the exclusion for guaranteed copy semantics does not apply (JLS SE26 8.4.1 passes the reference)."
+    },
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 1. Overload resolution (JLS SE26 15.12.2) genuinely runs here over two candidate sets that are declared elsewhere - java.util.List.of (twelve overloads, of which the fixed-arity of(E,E,E) and the varargs of(E...) differ materially: the varargs form allocates an array) and the three ArrayList constructors (Collection, int, and no-arg, which build entirely different lists). One event: both are the same registry rule at the same local site (1.3.2). The 'reference fixes exactly one meaning language-wide' exclusion does not apply, because the candidates are library declarations and 0.7 excludes them from the local site."
+    },
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 4 (`s.get(1)`). `get` is an interface method invoked on a receiver whose runtime class decides the body (JLS SE26 15.12.4.4, invokeinterface); every List implementation in java.base and every user implementation is a candidate. Witness semantic-compression/witnesses/java/chunk_B/f06p1_V2_usertypes.java shows a different `get` body running under the byte-identical fragment. Distinct rule from the overload-resolution event at site 1, and a distinct site. NOTE: `mid(xs)` at site 2 does NOT trigger H3 - the frozen program declares exactly one `mid`, so no ambiguity occurs under condition 1 of 1.3, and a static method is not dispatched on a receiver."
+    }
+   ],
+   "hidden_count": 5,
+   "complexity_units": 21,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Local variable declaration statement.",
+     "citation": "JLS SE26 14.4"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "`var`: the local's type is inferred from the initializer, and only in this position.",
+     "citation": "JLS SE26 14.4.1"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Class instance creation expression `new`.",
+     "citation": "JLS SE26 15.9"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Diamond `<>`: the type arguments are inferred from the invocation context and the arguments.",
+     "citation": "JLS SE26 15.9.1, 18.5.1"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Method invocation expression, qualified (`List.of`, `s.get`) and unqualified (`mid`).",
+     "citation": "JLS SE26 15.12"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Static method declaration with a formal parameter list.",
+     "citation": "JLS SE26 8.4, 8.4.1"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Parameterized type `List<Integer>`.",
+     "citation": "JLS SE26 4.5"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "The primitive type int, 32-bit two's complement.",
+     "citation": "JLS SE26 4.2.1"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Return statement with an expression.",
+     "citation": "JLS SE26 14.17"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Overload resolution: which declaration a call denotes depends on the argument types and on which declarations are in scope.",
+     "citation": "JLS SE26 15.12.2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Run-time dispatch: for an instance method the body that executes is chosen by the receiver's runtime class, not its static type.",
+     "citation": "JLS SE26 15.12.4.4"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Assignment and method-invocation conversion contexts decide which conversions may be inserted.",
+     "citation": "JLS SE26 5.2, 5.3"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "A simple type name denotes whichever declaration the import declarations and the enclosing package put in scope.",
+     "citation": "JLS SE26 6.5.5, 7.5"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Boxing conversion int -> Integer, inserted with no written token.",
+     "citation": "JLS SE26 5.1.7"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Unboxing conversion Integer -> int, inserted with no written token, and throwing NullPointerException on null.",
+     "citation": "JLS SE26 5.1.8"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Class types are reference types: assignment and argument passing copy the reference, never the object.",
+     "citation": "JLS SE26 4.3.1, 8.4.1, 15.26.1"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Every reference-typed expression may be null, with no marker distinguishing it.",
+     "citation": "JLS SE26 4.3.1"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Reclamation is by the garbage collector at an unspecified time; no local form names a release point.",
+     "citation": "JLS SE26 12.6"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Unchecked exceptions need not be declared and may propagate out of any invocation.",
+     "citation": "JLS SE26 11.2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Static acceptance (static_only): definite assignment - a local variable must be definitely assigned before any read, which is what makes the initialization_state fact determinate.",
+     "citation": "JLS SE26 16, 4.12.5"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Standard-library clauses relied on: ArrayList(Collection) builds a list containing the collection's elements; List.of(E,E,E) returns an unmodifiable list of exactly those elements; List.get(int) returns the element at the index and throws IndexOutOfBoundsException otherwise.",
+     "citation": "Java SE 26 API: java.util.ArrayList(Collection), java.util.List.of(E,E,E), java.util.List.get(int)"
+    }
+   ]
+  },
+  {
+   "probe_id": "F06.P2",
+   "language": "Java",
+   "language_key": "java",
+   "support": "FULL",
+   "support_reason": "F-1: every numbered sub-requirement is delivered. (1) `static QR divmod2(int a, int b)` takes two signed 32-bit integer parameters and produces BOTH the quotient and the remainder from one call, using Java's normal multiple-result mechanism - a record, which the JLS documents as the transparent carrier for an immutable tuple of values (JLS SE26 8.10) and which needs no third-party package. (2) the record pattern `case QR(int q, int r)` binds the two results to the two separate local names `q` and `r` in ONE binding construct, which is the construct Java provides for destructuring a record (JLS SE26 14.30.1). (3) `q + r` is the value of the switch expression and is returned. F-2/F-4: language features and no library call at all. F-3: builds and runs under the frozen recipe unmodified and prints 3 (7/3 = 2, 7%3 = 1). F-6: no normative prohibition or deprecation covers records, record patterns or switch expressions. R10 form selection: the accessor form `var t = divmod2(7, 3); return t.q() + t.r();` is 61 tokens against this form's 64, but it was rejected under R1 rather than R10 - it binds nothing to `q` and `r` and therefore drops sub-requirement (2). An `instanceof` record pattern needs a second, unreachable `return` to satisfy definite assignment, which R6 forbids as dead code. HARNESS NOTE: as at F06.P1, the region contains one scaffolding token, the `}` closing the calling method, because Java cannot place a declaration and its call site in one contiguous range otherwise; putting the declarations first would cost 6 tokens instead of 1.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/java/F06.P2.java",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "3",
+    "diagnostics": "build exit 0, no diagnostics; run exit 0. javac -d OUT FILE.java ; java -cp OUT Main  (environment.json -> semantic_compression_recipes.recipes.java). javac 26.0.1 / openjdk 26.0.1 (Homebrew, arm64), JAVA_HOME=/opt/homebrew/opt/openjdk. "
+   },
+   "token_count": 64,
+   "facts": [
+    {
+     "fact_kind": "type_and_representation",
+     "site": "record QR(int q, int r) {}",
+     "value": "a record class with exactly two components, both `int` (32-bit two's complement); the class is implicitly final and its state description is the whole of its state",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 8.10 (record declarations), 8.10.1 (record components) and 4.2.1. The declaration is inside the measured fragment, so hops_decl = 0."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "record QR(int q, int r) {}",
+     "value": "(iii) instances are objects reached by reference; a QR-typed variable holds a handle, not the two integers inline",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 8.10 with 4.3.1: a record class is a class, and class types are reference types."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "record QR(int q, int r) {}",
+     "value": "immutable: the field corresponding to each record component is final, so no QR instance can be modified after construction",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 8.10.1: for each record component there is a corresponding private final field. No `setter` can be declared for it because the field is final (4.12.4)."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "record QR(int q, int r) {}",
+     "value": "no writable alias to a QR's state can exist anywhere: every path to its components is through final fields and the generated accessors, which return copies of the int values",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 8.10.1 (final fields) and 8.10.3 (the implicitly declared accessor returns the field's value). The absence is entailed by these rules rather than merely unmentioned (methodology 02 1.4 absence rule (ii))."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "new QR(a / b, a % b)",
+     "value": "allocates a new object and yields a reference to it; the two int arguments are copied into its final fields",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.9.4 (a new object is created) with 8.10.4 (the canonical constructor assigns each component field). The `new` keyword is the local marker."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "the QR instance",
+     "value": "no deterministic release point: reclamation is by the garbage collector at an unspecified time",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 12.6 (reclamation is performed by the garbage collector at an unspecified time; no local form can name a release point). This is the disposition methodology 02 1.4/K13 fixes for every tracing-GC language of the fixed set, with basis_class universal-rule."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "static QR divmod2(int a, int b)",
+     "value": "declared result type QR - a reference to a record object - and two `int` parameters, all written inside the fragment",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 8.4.5 (result type) and 8.4.1 (formal parameters), with the QR declaration in the same fragment: hops_decl = 0."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "static QR divmod2(int a, int b)",
+     "value": "the method declares no checked exception, so it can complete abruptly only by an unchecked exception; within this fragment the only one reachable is the ArithmeticException of integer division",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 8.4.6 (throws clause) and 11.2 (unchecked exception classes). The body is inside the fragment, so the reachable set is bounded without any lookup."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "a / b",
+     "value": "integer division truncates toward zero; dividing by zero throws ArithmeticException; and the single overflow case MIN_VALUE / -1 yields MIN_VALUE rather than trapping",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.17.2: 'Integer division rounds toward zero'; 'if the value of the divisor is zero, an ArithmeticException is thrown'; 'the quotient ... is equal to the dividend' in the overflow case. The rule is the same on every implementation and in every mode - Java has no arithmetic build flag."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "a % b",
+     "value": "the remainder takes the sign of the DIVIDEND, is exact, and throws ArithmeticException only when the divisor is zero; it cannot overflow",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.17.3: the result of the remainder operation has the same sign as the dividend, and the operation throws ArithmeticException if the divisor is zero."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "a / b (and a % b)",
+     "value": "can fail, by throwing the unchecked ArithmeticException, and only when the divisor is zero",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.17.2, 15.17.3. In this fragment the divisor reaching the method is the literal 3, so the failure is unreachable here - see the possible_failure row at the call site."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "the arguments of new QR(a / b, a % b)",
+     "value": "no conversion is applied: both arguments are already `int` and the components are declared `int`, so the invocation context applies an identity conversion; Java never inserts an implicit narrowing here",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.3 (method invocation conversion permits widening, boxing and unchecked conversion but no narrowing) with the component types written in the fragment."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return new QR(a / b, a % b)",
+     "value": "terminates divmod2 and hands the reference to the invoker",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.17."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "divmod2(7, 3)",
+     "value": "the call's result is a QR reference; the record's declaration is inside the fragment, so the two component types are known at the call site without any lookup",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.12.3 (the invocation's type is the method's result type) with the local declarations."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "divmod2(7, 3)",
+     "value": "cannot fail: the callee's whole body is inside this fragment, its only fallible operation is integer division, and the divisor written here is the literal 3",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.17.2 makes zero the only divisor value that throws; 15.9.4's object creation introduces no other failure (resource exhaustion is excluded by methodology 02 U-07.1). The absence is entailed by these rules given the literal operands, so it counts under the absence-facts rule (ii) rather than being an unsupported absence."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "divmod2(7, 3)",
+     "value": "the two int arguments are passed by value; nothing is copied or aliased at the argument positions, and the only allocation reachable through the call is the QR created in the callee",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 8.4.1 (pass by value) with 4.2 (primitives are values). No boxing occurs because the parameters are declared `int`."
+    },
+    {
+     "fact_kind": "alternative_value_cases",
+     "site": "switch (divmod2(7, 3)) { case QR(int q, int r) -> ... }",
+     "value": "the selector's type is the final record class QR declared in this fragment, and the single record pattern is unconditional, so it covers every possible value of the selector: the switch is exhaustive with one arm and no default is permitted to be missing",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.11.1.1 (exhaustive switch blocks; a pattern that is unconditional for the selector type covers it) and 14.30.1 (a record pattern whose component patterns are unconditional type patterns is itself unconditional). The alternative set is closed by a declaration INSIDE the probe region, which methodology 02 2.1 counts as local surface form."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "the switch expression",
+     "value": "exactly one arm is evaluated and its value becomes the expression's value; the arrow form cannot fall through to another arm, and the switch cannot complete normally without a value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.11.2 (switch rules with `->` do not fall through) and 15.28 (a switch expression must complete with a value)."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return switch (...)",
+     "value": "terminates the enclosing method with the switch expression's value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.17, on a different subject (the enclosing method) from the return inside divmod2, so not a DUP."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "the pattern variables q and r",
+     "value": "each is an `int` local introduced by the record pattern, with the component's declared type",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.30.1: a record pattern's component patterns declare pattern variables whose types are the declared component types; the component types are written in this fragment."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "the pattern variables q and r",
+     "value": "definitely assigned wherever the arm's body runs, and in scope only there",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 6.3.2 (scope of a pattern variable) and 16 (definite assignment for pattern variables): a pattern variable is definitely assigned exactly where the pattern has matched."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "case QR(int q, int r)",
+     "value": "the components are bound without any conversion, because each component pattern's type is the component's own declared type",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.30.2 (record pattern matching binds each component after a type test; an unconditional type pattern of the same type applies no conversion)."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "q + r",
+     "value": "int addition wraps modulo 2^32 on overflow and cannot fail; the operators never signal overflow",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.2 ('The built-in integer operators do not indicate overflow or underflow in any way') and 15.18.2. The rule is fixed by the language on every implementation and in every build mode."
+    },
+    {
+     "fact_kind": "externally_visible_side_effects",
+     "site": "the whole fragment",
+     "value": "no externally visible side effect: every declaration the fragment calls into is written inside it, the only state touched is the fresh QR object and two locals, and no I/O, field of another object, static field or synchronization appears",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.12.4 with the callee's body inside the measured fragment; the absence is entailed by reading the called code rather than merely unmentioned (methodology 02 1.4 absence rule (ii))."
+    }
+   ],
+   "fact_count": 24,
+   "determinacy_B": 2,
+   "determinacy_enumeration": [
+    "V1 - the fragment as written: every name it uses (QR, divmod2, q, r, a, b) is declared inside the measured fragment and every type it names is either that record or the keyword `int`, which JLS SE26 3.9 makes a reserved word that no declaration can shadow. A4 = fixed-width signed integer for the produced value, A6 = cannot fail (the divisor is the literal 3), A8 = one allocation, at the `new` written in the fragment, A9 = the switch evaluates exactly one arm and the method returns. Witness: the frozen program builds under the frozen recipe and prints 3.",
+    "V2 - the enclosing method's declared return type, which lies outside the measured fragment, is a reference type or a wider primitive. `return switch (...)` then applies a boxing or widening conversion to the fragment's int result (JLS SE26 14.17, 5.2): A4 becomes boxed/reference-typed numeric and A8 gains a second allocation that the fragment does not spell. Witness semantic-compression/witnesses/java/chunk_B/f06p2_V2_boxedreturn.java (byte-identical fragment, enclosing method declared `static Object caller()`): builds under the frozen recipe and prints 'java.lang.Integer 3'. No other class is realizable: Java has no operator overloading (JLS SE26 15.17, 15.18 define `/`, `%` and `+` only for the numeric and String types), no user-definable literal types, and no arithmetic build mode, and the record, its constructor and the callee are all inside the fragment."
+   ],
+   "locality_lookups": 1,
+   "locality_detail": [
+    {
+     "hop": "callee signature - the enclosing method declaration `static int caller()`",
+     "required_for_fact": "type_and_representation and allocation_copy_move_borrow_destroy of the value the fragment produces: whether `return switch (...)` hands back the int unchanged or boxes it into a freshly allocated object is decided there (determinacy class V2). Every other fact in this probe's frozen set - value_vs_storage, control_flow_effect, possible_failure, and the rest of type_and_representation and allocation - is resolved from the measured fragment plus the JLS, because the record, the callee and both literals are inside the fragment."
+    }
+   ],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 17,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Record declaration with a header of components.",
+     "citation": "JLS SE26 8.10, 8.10.1"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "A record implicitly declares a private final field, a public accessor, a canonical constructor, and equals/hashCode/toString, none of which is written.",
+     "citation": "JLS SE26 8.10.1, 8.10.3, 8.10.4"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Switch expression with arrow rules.",
+     "citation": "JLS SE26 15.28, 14.11.2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Exhaustiveness: a switch EXPRESSION must be exhaustive, and an unconditional pattern for the selector type makes it so without a default label.",
+     "citation": "JLS SE26 14.11.1.1"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Record pattern, which destructures the selector and declares one pattern variable per component.",
+     "citation": "JLS SE26 14.30.1"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Scope and definite assignment of a pattern variable: it exists only where the pattern has matched.",
+     "citation": "JLS SE26 6.3.2, 16"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Class instance creation expression `new`.",
+     "citation": "JLS SE26 15.9"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Static method declaration with formal parameters.",
+     "citation": "JLS SE26 8.4, 8.4.1"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Method invocation expression.",
+     "citation": "JLS SE26 15.12"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Return statement with an expression.",
+     "citation": "JLS SE26 14.17"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "The primitive type int, 32-bit two's complement.",
+     "citation": "JLS SE26 4.2.1"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Division and remainder operators.",
+     "citation": "JLS SE26 15.17.2, 15.17.3"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Integer division rounds toward zero and MIN_VALUE / -1 yields MIN_VALUE - a documented carve-out from the general 'the quotient is the mathematical quotient' rule.",
+     "citation": "JLS SE26 15.17.2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "The remainder takes the sign of the dividend, not of the divisor.",
+     "citation": "JLS SE26 15.17.3"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Integer overflow wraps modulo 2^n and is never signalled, in every implementation and build mode.",
+     "citation": "JLS SE26 4.2.2, 15.18.2"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Class types are reference types reclaimed by the garbage collector at an unspecified time.",
+     "citation": "JLS SE26 4.3.1, 12.6"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Static acceptance (static_only): a switch expression must be exhaustive and must complete with a value on every path, which is what makes the alternative_value_cases and control_flow_effect facts determinate.",
+     "citation": "JLS SE26 14.11.1.1, 15.28"
+    }
+   ]
+  },
+  {
+   "probe_id": "F07.P1",
+   "language": "Java",
+   "language_key": "java",
+   "support": "FULL",
+   "support_reason": "F-1: both numbered sub-requirements are delivered by the single statement `int r = a * b + c;`. (1) it evaluates a * b + c with Java's ordinary `*` and `+` operators and Java's ordinary precedence (JLS SE26 15.17 binds tighter than 15.18), with no redundant parentheses; (2) it binds the value to a new local `r`. F-2/F-4: language only, no library, no flag beyond the frozen recipe. F-3: builds and runs under the frozen recipe and prints 10 for a=2, b=3, c=4. F-6: no normative prohibition covers the arithmetic operators. R10: no shorter form satisfying R1-R3 exists - `var r = a * b + c;` is the same token count (9) and was rejected under R2 rather than R10 (a professional Java author writes the type for a scalar local whose type the reader would otherwise have to infer from three declarations elsewhere), and it would in any case leave the result type unpinned, which is a determinacy question rather than a support one.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/java/F07.P1.java",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "10",
+    "diagnostics": "build exit 0, no diagnostics; run exit 0. javac -d OUT FILE.java ; java -cp OUT Main  (environment.json -> semantic_compression_recipes.recipes.java). javac 26.0.1 / openjdk 26.0.1 (Homebrew, arm64), JAVA_HOME=/opt/homebrew/opt/openjdk. "
+   },
+   "token_count": 9,
+   "facts": [
+    {
+     "fact_kind": "type_and_representation",
+     "site": "r",
+     "value": "`int`: a 32-bit two's-complement signed integer",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.1: the values of type int are the 32-bit two's-complement signed integers. `int` is a reserved keyword (3.9), so the type name cannot be shadowed, aliased or re-imported, and the width is fixed by the language on every implementation and target."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "r",
+     "value": "(i) storage holding a primitive value, not a handle",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2 and 4.12.1: a variable of a primitive type holds its value directly, so the entity is storage holding a value rather than a handle to storage owned elsewhere."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "r",
+     "value": "reassignable: no `final` at this declaration",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.4 with 14.4: a local variable is reassignable unless it is declared `final`, and the modifier is absent at this declaration."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "r",
+     "value": "no alias can exist, for reading or writing",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15 provides no address-of operator and no reference-to-variable type, and 4.3.1 admits no reference to a local variable, so no name in any Java program can reach this variable's storage. The absence is entailed by a universal language rule (methodology 02 1.4 absence rule (ii))."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int r = a * b + c",
+     "value": "definitely initialized with the expression's value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.5 and 16: a Java local has no default value, must be definitely assigned before any read, and a declarator with an initializer is definitely assigned at its declaration."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "int r = a * b + c",
+     "value": "no conversion is applied at the binding: the initializer must already be assignable to int, and Java inserts no implicit narrowing in an assignment context",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.2: assignment contexts allow widening primitive, boxing and unchecked conversions, but a narrowing primitive conversion only for constant expressions. Refutation witness semantic-compression/witnesses/java/chunk_B/f07p1_refute_R6_floatoperands.java (byte-identical fragment, `double a, b, c`): javac rejects it with 'incompatible types: possible lossy conversion from double to int', so no floating operand set is even expressible here."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "a * b",
+     "value": "whatever conversion the operands undergo, it is value-preserving: the only conversions Java may insert at an arithmetic operator are widening primitive conversions and unboxing, never a narrowing one",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.6.2 (binary numeric promotion applies unboxing and then widening primitive conversion) with 5.1.2 (widening primitive conversions among the integral types are exact). The kind of conversion is therefore bounded by the local form even though the operands' declarations, which decide whether one is applied at all, are outside the fragment."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "a * b (and the `+` that consumes it; the second operator's row is DUP under methodology 02 3.1/A3.3 because the value is identical)",
+     "value": "the operation is performed at 32-bit width and wraps modulo 2^32; overflow is never signalled, and no build mode, flag or target can change that",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.2 permits no implicit narrowing in an assignment context, so the declared `int` target forces the whole expression - and therefore every operand after binary numeric promotion (5.6.2) - to be an int operation. JLS SE26 4.2.2 then fixes the outcome: 'The built-in integer operators do not indicate overflow or underflow in any way', and 15.17.1 / 15.18.2 define the result as the low-order 32 bits of the mathematical result. Java exposes no build flag, mode or target that changes this, so no configuration hop is involved."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "a * b + c",
+     "value": "cannot fail: `*` and `+` on integral operands have no failure case at all - unlike `/` and `%`, they throw nothing",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.17.1 and 15.18.2 define a total result for every pair of operand values; only 15.17.2 and 15.17.3 introduce ArithmeticException, and neither operator appears here. Resource exhaustion is excluded by methodology 02 U-07.1."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "r",
+     "value": "the variable's storage ends with the enclosing block and no cleanup runs",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.4.2 (a local variable's lifetime ends with its block) and 4.2: primitive values have no finalizer, destructor or cleanup hook, so nothing runs at scope exit."
+    }
+   ],
+   "fact_count": 10,
+   "determinacy_B": 2,
+   "determinacy_enumeration": [
+    "R2 (wraps modulo 2^n, defined) - realizable, and it is what the frozen fragment does. The declared `int r` forces the expression's type to int (JLS SE26 5.2 admits no implicit narrowing), binary numeric promotion brings both operands to int, and 4.2.2 fixes wraparound with no signal, identically in every implementation and build mode. Witness: the frozen program builds under the frozen recipe and prints 10; the wraparound half of the class is witnessed at F08.P1, whose fragment is the same operator at the edge and prints -2147483648.",
+    "R3 (may trap / throw) - realizable. The operands are declared outside the measured fragment (methodology 03 Rule 1.1.2), and a boxed numeric operand is compatible with the same statement: binary numeric promotion then inserts an unboxing conversion, which throws NullPointerException for a null operand (JLS SE26 5.1.8). A6 changes from 'cannot fail' to 'may throw an undeclared exception'. Witness semantic-compression/witnesses/java/chunk_B/f07p1_R3_boxednpe.java (byte-identical fragment, `Integer a, b, c`, a = null): builds under the frozen recipe and aborts with exit 1 and 'java.lang.NullPointerException: Cannot invoke \"java.lang.Integer.intValue()\"'. EXCLUSIONS, each with a specification citation and a refutation witness as methodology 03 Rule 1.3.1.e requires. R6 (binary floating point): not realizable - JLS SE26 5.2 forbids the implicit narrowing that a floating expression would need to reach `int r`; refutation witness semantic-compression/witnesses/java/chunk_B/f07p1_refute_R6_floatoperands.java fails to build with 'possible lossy conversion from double to int'. R8 (user-redefinable operator): not realizable - JLS SE26 15.17.1 and 15.18 define `*` and `+` only for the numeric types (and `+` additionally for String), and Java has no operator overloading; refutation witness semantic-compression/witnesses/java/chunk_B/f07p1_refute_R8_useroperator.java fails to build with \"bad operand types for binary operator '*'\". R5 (behaviour selected by a build mode) and R4 (undefined behaviour): not realizable - 4.2.2 states the outcome unconditionally and the JLS defines every case, so there is no mode to consult and no undefined case. R1, R9, R10, R11, R12: not realizable - Java has no arbitrary-precision operator arithmetic, no pointer arithmetic, no rounding choice at `*`/`+`, no value-returning exceptional form for them, and neither operator names a discipline at the site (the language rule does). A narrower primitive operand (byte, short, char) is NOT a separate class: binary numeric promotion makes the operation an int operation with an exact, value-preserving promotion, so no observer program can distinguish it from the int case, and Rule 1.4.5 merges it into R2."
+   ],
+   "locality_lookups": 3,
+   "locality_detail": [
+    {
+     "hop": "variable decl - `a` (given context, outside the measured fragment)",
+     "required_for_fact": "type_and_representation and conversion_behavior at the first operand position: the fragment pins the RESULT to int but not each operand's own width, signedness or boxing, and therefore not whether a promotion or an unboxing is applied to it."
+    },
+    {
+     "hop": "variable decl - `b`",
+     "required_for_fact": "the same two facts at the second operand position; reading `a` does not settle them, because JLS SE26 5.6.2 promotes each operand independently and Java permits mixed integral operand types."
+    },
+    {
+     "hop": "variable decl - `c`",
+     "required_for_fact": "the same two facts at the third operand position. NOTE: Java needs NO configuration hop here. overflow_exceptional_numeric is resolved from the fragment plus JLS SE26 4.2.2, which fixes wraparound for every implementation and mode; there is no Java analogue of a debug/release overflow-check flag to read, so the G hop that methodology 03 2.6 charges for a mode-selected outcome does not arise."
+    }
+   ],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 11,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Local variable declaration statement with an initializer.",
+     "citation": "JLS SE26 14.4"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Multiplication operator.",
+     "citation": "JLS SE26 15.17.1"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Additive operator + on numeric operands.",
+     "citation": "JLS SE26 15.18.2"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "The primitive type int and its 32-bit two's-complement representation.",
+     "citation": "JLS SE26 4.2.1"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Operator precedence and left associativity: * binds tighter than +, which is what lets the fragment omit parentheses.",
+     "citation": "JLS SE26 15.17, 15.18 (grammar)"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Binary numeric promotion: the operand types decide the type at which the operation is performed, with everything narrower than int promoted to int.",
+     "citation": "JLS SE26 5.6.2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Assignment conversion: the initializer's type must be assignable to the declared type, and no implicit narrowing is permitted except for constant expressions.",
+     "citation": "JLS SE26 5.2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Evaluation order: the left operand is fully evaluated before the right, which is observable when an operand has a side effect.",
+     "citation": "JLS SE26 15.7.1"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Integer overflow wraps modulo 2^n and is never signalled - a single rule covering every integral type, implementation and build mode.",
+     "citation": "JLS SE26 4.2.2, 15.18.2"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Unboxing may be inserted at an arithmetic operator when an operand is a boxed numeric type, and it throws NullPointerException on null.",
+     "citation": "JLS SE26 5.1.8, 5.6.2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Static acceptance (static_only): definite assignment - the read of a, b and c is legal only because they are definitely assigned, and `r` may not be read before this statement.",
+     "citation": "JLS SE26 16, 4.12.5"
+    }
+   ]
+  },
+  {
+   "probe_id": "F07.P2",
+   "language": "Java",
+   "language_key": "java",
+   "support": "FULL",
+   "support_reason": "F-1: all three numbered sub-requirements are delivered, in order. (1) `int q = a / b;` uses Java's ordinary integer division operator, which on integral operands IS integer division (JLS SE26 15.17.2), so the 'standard integer-division form' fallback of the canonical task is not needed. (2) `int m = a % b;` uses the ordinary remainder operator (15.17.3). (3) `double d = (double) a / b;` performs the 64-bit floating-point division of a by b, writing the one conversion Java requires - Java will not produce a floating result from two integral operands without it - and letting binary numeric promotion carry the second operand. F-2/F-4: language only. F-3: builds and runs under the frozen recipe and prints '-3 -1 -3.5' for a=-7, b=2. F-6: no normative prohibition applies. R10 form selection: `(double) a / b` (7 tokens in statement 3) was measured against the equal-length `a / (double) b` and the longer `(double) a / (double) b` (9 tokens) and `Double.valueOf(a) / b` (10 tokens); the two 7-token forms tie and the tie is broken by documentation order - JLS SE26 15.16 presents the cast applied to the left-hand operand of the division in its own examples, and 5.6.2 then promotes the right operand.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/java/F07.P2.java",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "-3 -1 -3.5",
+    "diagnostics": "build exit 0, no diagnostics; run exit 0. javac -d OUT FILE.java ; java -cp OUT Main  (environment.json -> semantic_compression_recipes.recipes.java). javac 26.0.1 / openjdk 26.0.1 (Homebrew, arm64), JAVA_HOME=/opt/homebrew/opt/openjdk. The output shows the two OBSERVATION TARGET answers directly: -7/2 = -3 (truncation toward zero, not floor) and -7%2 = -1 (the remainder takes the sign of the dividend)."
+   },
+   "token_count": 24,
+   "facts": [
+    {
+     "fact_kind": "type_and_representation",
+     "site": "q",
+     "value": "`int`: 32-bit two's-complement signed integer",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.1: the values of type int are the 32-bit two's-complement signed integers. `int` is a reserved keyword (3.9), so the type name cannot be shadowed, aliased or re-imported, and the width is fixed by the language on every implementation and target."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "q",
+     "value": "(i) storage holding a primitive value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2 and 4.12.1: a variable of a primitive type holds its value directly, so the entity is storage holding a value rather than a handle to storage owned elsewhere."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "q",
+     "value": "reassignable: no `final`",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.4 with 14.4: a local variable is reassignable unless it is declared `final`, and the modifier is absent at this declaration."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "q",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15 provides no address-of operator and no reference-to-variable type, and 4.3.1 admits no reference to a local variable, so no name in any Java program can reach this variable's storage. The absence is entailed by a universal language rule (methodology 02 1.4 absence rule (ii))."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int q = a / b",
+     "value": "definitely initialized with the quotient",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.5 and 16: a Java local has no default value, must be definitely assigned before any read, and a declarator with an initializer is definitely assigned at its declaration."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "q",
+     "value": "storage ends with the block; no cleanup runs",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.4.2 (a local variable's lifetime ends with its block) and 4.2: primitive values have no finalizer, destructor or cleanup hook, so nothing runs at scope exit."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "m",
+     "value": "`int`: 32-bit two's-complement signed integer",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.1: the values of type int are the 32-bit two's-complement signed integers. `int` is a reserved keyword (3.9), so the type name cannot be shadowed, aliased or re-imported, and the width is fixed by the language on every implementation and target."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "m",
+     "value": "(i) storage holding a primitive value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2 and 4.12.1: a variable of a primitive type holds its value directly, so the entity is storage holding a value rather than a handle to storage owned elsewhere."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "m",
+     "value": "reassignable: no `final`",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.4 with 14.4: a local variable is reassignable unless it is declared `final`, and the modifier is absent at this declaration."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "m",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15 provides no address-of operator and no reference-to-variable type, and 4.3.1 admits no reference to a local variable, so no name in any Java program can reach this variable's storage. The absence is entailed by a universal language rule (methodology 02 1.4 absence rule (ii))."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int m = a % b",
+     "value": "definitely initialized with the remainder",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.5 and 16: a Java local has no default value, must be definitely assigned before any read, and a declarator with an initializer is definitely assigned at its declaration."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "m",
+     "value": "storage ends with the block; no cleanup runs",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.4.2 (a local variable's lifetime ends with its block) and 4.2: primitive values have no finalizer, destructor or cleanup hook, so nothing runs at scope exit."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "d",
+     "value": "`double`: IEEE 754 binary64, including the two zeroes, the two infinities and NaN",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.3: the floating-point types are double (64-bit IEEE 754) with the specified special values. `double` is a reserved keyword (3.9), so the type cannot be shadowed and its precision is not implementation-defined."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "d",
+     "value": "(i) storage holding a primitive value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2 and 4.12.1: a variable of a primitive type holds its value directly, so the entity is storage holding a value rather than a handle to storage owned elsewhere."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "d",
+     "value": "reassignable: no `final`",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.4 with 14.4: a local variable is reassignable unless it is declared `final`, and the modifier is absent at this declaration."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "d",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15 provides no address-of operator and no reference-to-variable type, and 4.3.1 admits no reference to a local variable, so no name in any Java program can reach this variable's storage. The absence is entailed by a universal language rule (methodology 02 1.4 absence rule (ii))."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "double d = (double) a / b",
+     "value": "definitely initialized with the quotient",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.5 and 16: a Java local has no default value, must be definitely assigned before any read, and a declarator with an initializer is definitely assigned at its declaration."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "d",
+     "value": "storage ends with the block; no cleanup runs",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.4.2 (a local variable's lifetime ends with its block) and 4.2: primitive values have no finalizer, destructor or cleanup hook, so nothing runs at scope exit."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "a / b",
+     "value": "integer division TRUNCATES TOWARD ZERO (it is not floor division), throws ArithmeticException when the divisor is zero, and has exactly one overflow case - MIN_VALUE / -1, whose result is the dividend itself, wrapped rather than trapped",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.17.2: 'Integer division rounds toward zero'; 'if the value of the divisor in an integer division is 0, then an ArithmeticException is thrown'; and the overflow carve-out 'the quotient ... is equal to the dividend'. Every clause is unconditional - there is no Java build mode, flag or target that alters it. This is the probe's OBSERVATION TARGET for the rounding direction, and it is answered by the operator plus the specification, with no lookup."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "a / b",
+     "value": "can fail, and only in one way: an unchecked ArithmeticException when the divisor is zero; there is no error value, no optional and no checked exception",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.17.2 with 11.2 (ArithmeticException is an unchecked exception class that need not be declared)."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "a % b",
+     "value": "the remainder takes the sign of the DIVIDEND, satisfies (a/b)*b + (a%b) == a, cannot overflow, and throws ArithmeticException only when the divisor is zero",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.17.3: the remainder operation's result 'has the same sign as the dividend' and the identity with integer division holds; a zero divisor throws ArithmeticException. This answers the probe's second OBSERVATION TARGET at the operator."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "a % b",
+     "value": "can fail only by ArithmeticException on a zero divisor - the same mechanism, a different operation, so this is a separate subject and not a DUP",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.17.3 with 11.2."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "(double) a",
+     "value": "an explicit widening primitive conversion from an integral type to double, written at the site; for every operand type statement (1) admits it is exact, so it cannot change the value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.16 (cast expression) and 5.1.2 (widening primitive conversion; conversions from int to double are exact). The operand cannot be a long here, because statement (1) binds `a / b` to an int and 5.2 forbids the implicit narrowing that a long quotient would need - a constraint the reader recovers from the fragment itself."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "(double) a / b",
+     "value": "the RIGHT operand is converted too, implicitly: binary numeric promotion widens `b` to double before the division, with nothing written for it at the site; for every operand type statement (1) admits, that widening is exact",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.6.2 (binary numeric promotion: if either operand is double, the other is converted to double) with 5.1.2. The conversion's presence is locally recoverable because the cast on the left operand is written here and statement (1) bounds `b` to an integral type; only the operand's exact width is not."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "(double) a / b",
+     "value": "floating division never throws: a zero divisor yields +Infinity or -Infinity, 0.0/0.0 yields NaN, and every result is rounded to nearest with ties to even",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.17.2 (floating-point division follows IEEE 754: division of a nonzero finite value by zero results in a signed infinity, and 0.0/0.0 results in NaN) with 4.2.4 (floating-point operations round to nearest)."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "(double) a / b",
+     "value": "cannot fail: the floating division is total on binary64, including the zero-divisor case, which produces a value rather than an exception",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.17.2 states the result for every operand pair, which entails the absence rather than leaving it unmentioned (methodology 02 1.4 absence rule (ii))."
+    }
+   ],
+   "fact_count": 26,
+   "determinacy_B": 3,
+   "determinacy_enumeration": [
+    "R2 (wraps modulo 2^n, defined) - realizable at statements (1) and (2), and it is the class the frozen program exercises. Integral operands make `/` and `%` the truncating integer operations, whose only overflow case (MIN_VALUE / -1) is defined to yield the dividend rather than to trap. Witness semantic-compression/witnesses/java/chunk_B/f07p2_R2_minoverflow.java (byte-identical fragment, a = Integer.MIN_VALUE, b = -1): builds under the frozen recipe and prints '-2147483648 0 2.147483648E9' - the quotient wrapped to the dividend, the remainder 0, and no exception.",
+    "R3 (may trap / throw) - realizable at statements (1) and (2). JLS SE26 15.17.2 and 15.17.3 make a zero divisor throw ArithmeticException, and the operands are declared outside the measured fragment (methodology 03 Rule 1.1.2), so b = 0 is compatible with the fragment. Witness semantic-compression/witnesses/java/chunk_B/f07p2_R3_divzero.java (byte-identical fragment, a = -7, b = 0): builds under the frozen recipe and aborts with exit 1 and 'java.lang.ArithmeticException: / by zero'. A boxed operand reaches the same class by a different route (NullPointerException from the unboxing of 5.1.8), and Rule 1.4.5 merges it here: both vectors are A6 = may throw an undeclared exception.",
+    "R6 (binary floating point - rounding, NaN, Inf) - realizable, and present in the frozen fragment itself at statement (3), where the SAME operands that make statement (1) throw instead produce an infinity. Witness semantic-compression/witnesses/java/chunk_B/f07p2_R6_floatdiv.java (byte-identical fragment, a = 1, b = 3): builds and prints '0 1 0.3333333333333333' - the integer quotient 0 beside the rounded binary64 quotient, showing the two divisions in the same fragment are different operations. EXCLUSIONS with citations and refutations. R10 (the rounding direction or remainder sign is not determined by the operator alone): NOT realizable for Java - JLS SE26 15.17.2 fixes truncation toward zero and 15.17.3 fixes the dividend's sign, unconditionally and for every integral type; the frozen run prints '-3 -1' for a = -7, b = 2, which is the truncating-and-dividend-signed answer rather than the flooring one. R7 (an implicit promotion is applied before the operation): realizable as a fact - `b` is promoted at statement (3) - but NOT counted as a separate class, because for every operand type the fragment admits the promotion is exact (5.1.2) and no observer program can distinguish its presence from its absence; Rule 1.4.5 merges it into R6, and the promotion is charged instead as a hidden item (H1) and as a locality hop. R4 and R5: not realizable - the JLS defines every case, and Java has no arithmetic build mode. R8, R9, R1, R11, R12: not realizable - no operator overloading (15.17 defines these operators only for the numeric types), no pointer arithmetic, no arbitrary-precision operator arithmetic, no value-returning exceptional form, and no operation in the fragment names its own discipline."
+   ],
+   "locality_lookups": 2,
+   "locality_detail": [
+    {
+     "hop": "variable decl - `a` (given context, outside the measured fragment)",
+     "required_for_fact": "type_and_representation and conversion_behavior: the fragment bounds `a` to an integral type (statement (1) assigns `a / b` to an int) but not to a width, so whether the cast at statement (3) is a widening from int, short, char or byte - and whether an unboxing precedes it - is not resolved here. possible_failure and overflow_exceptional_numeric are NOT what require this hop: JLS SE26 15.17.2 and 15.17.3 give one and the same answer for every integral operand type."
+    },
+    {
+     "hop": "variable decl - `b`",
+     "required_for_fact": "the same two facts for the divisor; reading `a` does not settle them, because Java permits mixed integral operand types and promotes each operand independently (5.6.2). NOTE: no configuration or build-mode hop arises for Java at this probe - there is no flag that changes division, remainder or overflow behaviour."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H1 - Implicit conversions",
+     "why": "Local site 3 (`double d = (double) a / b;`). The cast is written for the LEFT operand only; the right operand is converted to double by binary numeric promotion (JLS SE26 5.6.2) with no token written for it. It occurs when the frozen implementation runs, and the LED fails because `b`'s declaration is outside the local site, so the site plus the JLS do not fix whether a conversion is applied there at all. The value-preserving exclusion does not rescue it: the promotion is what turns the operation from an integer division (which throws on a zero divisor) into a floating division (which yields an infinity), so it affects the overflow/edge behaviour observably."
+    },
+    {
+     "checklist_item": "H5 - Implicit exception / failure propagation",
+     "why": "Local site 1 (`int q = a / b;`). ArithmeticException may propagate out of the enclosing method with no local token: Java requires no `throws` clause for an unchecked exception (JLS SE26 11.2) and no call-site marker. The failure is reachable in the probe's declared input domain - the canonical task constrains `a` to possibly-negative and says nothing that excludes b = 0 - and witness semantic-compression/witnesses/java/chunk_B/f07p2_R3_divzero.java exhibits it. LED fails: nothing in the site marks the failure edge."
+    },
+    {
+     "checklist_item": "H5 - Implicit exception / failure propagation",
+     "why": "Local site 2 (`int m = a % b;`). The same rule (JLS SE26 15.17.3's zero-divisor clause is a separate normative statement from 15.17.2's) at a different local site, so a distinct event under 1.3.2."
+    },
+    {
+     "checklist_item": "H8 - Context-dependent overflow / numeric behavior",
+     "why": "Sub-test H8b at local site 1. For the integral operand types this site admits, the reference does NOT give one and the same documented outcome across the edge classes the site can reach: a zero divisor throws (15.17.2) while the MIN_VALUE / -1 overflow silently yields the dividend (15.17.2's carve-out), and no local token selects either. Distinct from the H5 event at the same site: that event is the propagation rule for the zero divisor, this one is the silent-wrap carve-out, a different normative statement (1.3.2). Sub-test H8a does NOT fire - Java's outcome is identical in every build mode and on every target, so the mode-dependence that H8a exists for is absent."
+    },
+    {
+     "checklist_item": "H8 - Context-dependent overflow / numeric behavior",
+     "why": "Sub-test H8b at local site 2, for the remainder's own edge rules (sign of the result follows the dividend; zero divisor throws; no overflow case), which are stated in a different clause (15.17.3) and at a different local site. NOTE: local site 3 does NOT trigger H8 - the written cast fixes the operation as a floating division, for which 15.17.2 and 4.2.4 give one documented outcome per edge class (signed infinity, NaN, round-to-nearest) in every mode and on every target, so the LED applies."
+    }
+   ],
+   "hidden_count": 5,
+   "complexity_units": 17,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Local variable declaration statement with an initializer.",
+     "citation": "JLS SE26 14.4"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Division operator.",
+     "citation": "JLS SE26 15.17.2"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Remainder operator.",
+     "citation": "JLS SE26 15.17.3"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Cast expression.",
+     "citation": "JLS SE26 15.16"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "The primitive type int, 32-bit two's complement.",
+     "citation": "JLS SE26 4.2.1"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "The primitive type double, IEEE 754 binary64 with signed zeroes, infinities and NaN.",
+     "citation": "JLS SE26 4.2.3"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "One operator symbol, two operations: `/` is integer division when both promoted operands are integral and floating division otherwise, with different totality.",
+     "citation": "JLS SE26 15.17.2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Binary numeric promotion decides the type at which the operation runs, and converts the other operand.",
+     "citation": "JLS SE26 5.6.2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "A cast binds tighter than a multiplicative operator, so `(double) a / b` is `((double) a) / b` and not `(double) (a / b)`.",
+     "citation": "JLS SE26 15.16, 15.17 (grammar)"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Assignment conversion: no implicit narrowing, which is what bounds the operand types the fragment admits.",
+     "citation": "JLS SE26 5.2"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Widening primitive conversion int -> double is exact; long -> double is not.",
+     "citation": "JLS SE26 5.1.2"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Unchecked exceptions (here ArithmeticException) propagate out of any expression with no declaration and no local marker.",
+     "citation": "JLS SE26 11.2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Integer division rounds TOWARD ZERO rather than toward negative infinity.",
+     "citation": "JLS SE26 15.17.2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "The remainder's sign follows the dividend, so it can be negative.",
+     "citation": "JLS SE26 15.17.3"
+    },
+    {
+     "unit": "documented exception",
+     "description": "MIN_VALUE / -1 overflows to MIN_VALUE instead of throwing - the one integer-division case where the result is not the mathematical quotient.",
+     "citation": "JLS SE26 15.17.2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Floating division by zero yields a signed infinity and 0.0/0.0 yields NaN, where integer division by zero throws.",
+     "citation": "JLS SE26 15.17.2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Static acceptance (static_only): definite assignment of a, b and of each declared local.",
+     "citation": "JLS SE26 16, 4.12.5"
+    }
+   ]
+  },
+  {
+   "probe_id": "F08.P1",
+   "language": "Java",
+   "language_key": "java",
+   "support": "FULL",
+   "support_reason": "F-1: all three numbered sub-requirements are delivered. (1) `int m = Integer.MAX_VALUE;` declares a local of the signed 32-bit type initialized to the maximum representable value, written with Java's standard named maximum. (2) `int o = m + 1;` computes m + 1 with the operation whose overflow behaviour is determined by the operation itself. (3) `return o;` produces o. RUNG RECORD, as the canonical task requires. Rung (i) - a standard checked operation yielding an OPTIONAL OR ERROR VALUE - is unavailable in Java: the standard checked arithmetic is java.lang.Math.addExact, which signals overflow by THROWING ArithmeticException rather than by yielding a value, and java.base contains no Optional-returning or result-returning integer addition. Rung (ii) - a standard wrapping operation - is what was used, in the only spelling Java has for it: the `+` operator itself IS Java's wrapping addition, because JLS SE26 4.2.2 states that the built-in integer operators do not indicate overflow in any way and 15.18.2 defines the result as the low-order 32 bits of the mathematical sum. Java offers no separate wrapping method, so rungs (ii) and (iv) coincide in this language, and the operation's overflow behaviour is fixed by the language rather than by the build recipe - the note in the canonical task about the checked-mode pinning has no work to do for Java, which has no arithmetic mode. Rung (iii), saturating addition, does not exist in java.base for int. F-2/F-4: language plus one java.lang constant, no flag beyond the frozen recipe. F-3: builds and runs under the frozen recipe and prints -2147483648, the wrapped result. F-6: no normative prohibition applies. R10: `int m = Integer.MAX_VALUE;` (7 tokens) rather than the literal 2147483647 (5 tokens) because the canonical task requires the standard named maximum where one exists, which is a sub-requirement and therefore filters before R10.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/java/F08.P1.java",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "-2147483648",
+    "diagnostics": "build exit 0, no diagnostics; run exit 0. javac -d OUT FILE.java ; java -cp OUT Main  (environment.json -> semantic_compression_recipes.recipes.java). javac 26.0.1 / openjdk 26.0.1 (Homebrew, arm64), JAVA_HOME=/opt/homebrew/opt/openjdk. The output is the wraparound result required by JLS SE26 15.18.2; no exception is thrown and no flag was involved."
+   },
+   "token_count": 17,
+   "facts": [
+    {
+     "fact_kind": "type_and_representation",
+     "site": "m",
+     "value": "`int`: 32-bit two's-complement signed integer",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.1: the values of type int are the 32-bit two's-complement signed integers. `int` is a reserved keyword (3.9), so the type name cannot be shadowed, aliased or re-imported, and the width is fixed by the language on every implementation and target."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "m",
+     "value": "(i) storage holding a primitive value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2 and 4.12.1: a variable of a primitive type holds its value directly, so the entity is storage holding a value rather than a handle to storage owned elsewhere."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "m",
+     "value": "reassignable: no `final`",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.4 with 14.4: a local variable is reassignable unless it is declared `final`, and the modifier is absent at this declaration."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "m",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15 provides no address-of operator and no reference-to-variable type, and 4.3.1 admits no reference to a local variable, so no name in any Java program can reach this variable's storage. The absence is entailed by a universal language rule (methodology 02 1.4 absence rule (ii))."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int m = Integer.MAX_VALUE",
+     "value": "definitely initialized with the largest value the type can represent",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.5 and 16: a Java local has no default value, must be definitely assigned before any read, and a declarator with an initializer is definitely assigned at its declaration."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "m",
+     "value": "storage ends with the block; no cleanup runs",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.4.2 (a local variable's lifetime ends with its block) and 4.2: primitive values have no finalizer, destructor or cleanup hook, so nothing runs at scope exit."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "Integer.MAX_VALUE",
+     "value": "a compile-time constant of type int whose value is 2^31 - 1 = 2147483647",
+     "locally_recoverable": true,
+     "justification": "java.lang.Integer.MAX_VALUE contract, Java SE 26 API ('A constant holding the maximum value an int can have, 2^31-1'), named literally at the site: hops_decl = 0, hops_stdlib = 1. No import declaration is needed for it, because JLS SE26 7.3 automatically imports java.lang - so unlike F06.P1 this name costs no import hop."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "Integer.MAX_VALUE",
+     "value": "cannot fail: it is a constant variable, so the field access is replaced by its value at compile time and no class initialization, dispatch or run-time access occurs",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.4 (a constant variable is a final variable of primitive type initialized with a constant expression) and 13.1 (a reference to a constant variable is resolved at compile time to its value). The absence is entailed by those rules rather than merely unmentioned."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "o",
+     "value": "`int`: 32-bit two's-complement signed integer",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.1: the values of type int are the 32-bit two's-complement signed integers. `int` is a reserved keyword (3.9), so the type name cannot be shadowed, aliased or re-imported, and the width is fixed by the language on every implementation and target."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "o",
+     "value": "(i) storage holding a primitive value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2 and 4.12.1: a variable of a primitive type holds its value directly, so the entity is storage holding a value rather than a handle to storage owned elsewhere."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "o",
+     "value": "reassignable: no `final`",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.4 with 14.4: a local variable is reassignable unless it is declared `final`, and the modifier is absent at this declaration."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "o",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15 provides no address-of operator and no reference-to-variable type, and 4.3.1 admits no reference to a local variable, so no name in any Java program can reach this variable's storage. The absence is entailed by a universal language rule (methodology 02 1.4 absence rule (ii))."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int o = m + 1",
+     "value": "definitely initialized with the sum",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.5 and 16: a Java local has no default value, must be definitely assigned before any read, and a declarator with an initializer is definitely assigned at its declaration."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "o",
+     "value": "storage ends with the block; no cleanup runs",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.4.2 (a local variable's lifetime ends with its block) and 4.2: primitive values have no finalizer, destructor or cleanup hook, so nothing runs at scope exit."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "m + 1",
+     "value": "at the maximum this wraps to Integer.MIN_VALUE: the result is the low-order 32 bits of the mathematical sum, the overflow is not signalled in any way, and no build mode, compiler flag or target can change that behaviour",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.2 permits no implicit narrowing in an assignment context, so the declared `int` target forces the whole expression - and therefore every operand after binary numeric promotion (5.6.2) - to be an int operation. JLS SE26 4.2.2 then fixes the outcome: 'The built-in integer operators do not indicate overflow or underflow in any way', and 15.17.1 / 15.18.2 define the result as the low-order 32 bits of the mathematical result. Java exposes no build flag, mode or target that changes this, so no configuration hop is involved. Both operands are pinned AT THE SITE - `m` by the `int` declaration one line above inside the same fragment, and `1` by being an int literal (3.10.1) - so the reader needs no declaration outside the fragment and no build recipe to state the outcome exactly."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "m + 1",
+     "value": "cannot fail: integer addition is total on int and throws nothing, at the overflow edge or anywhere else",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.2 ('The built-in integer operators do not indicate overflow or underflow in any way') and 15.18.2, which give a result for every operand pair. Resource exhaustion is excluded by U-07.1."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "m + 1",
+     "value": "no conversion is applied to either operand: both are already int, so binary numeric promotion is the identity, and there is no boxing, widening or narrowing here",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.6.2 with the `int` declaration of `m` inside the fragment and the int literal 1 (3.10.1)."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return o",
+     "value": "terminates the enclosing method with o's value; no other statement of the method runs afterwards",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.17."
+    }
+   ],
+   "fact_count": 18,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "R2 (wraps modulo 2^n, defined) - the ONLY realizable class, so the fragment is fully determined. Both operands of the measured operation are pinned inside the measured fragment: `m` by its own `int` declaration (which methodology 03 Rule 1.5.2.a states is local for this probe) and `1` by being an int literal, and `int` is a reserved keyword that no external declaration can shadow (JLS SE26 3.9). JLS SE26 4.2.2 and 15.18.2 then fix the outcome unconditionally. Witness: the frozen program builds under the frozen recipe and prints -2147483648. EXCLUSIONS, each with a specification citation and a refutation witness (Rule 1.3.1.e). R3 (may trap/throw) and R4 (undefined): excluded by 4.2.2, which states that the built-in integer operators do not indicate overflow in any way, and by 15.18.2, which defines the result for every operand pair; refutation witness: the frozen program itself overflows and terminates with exit 0 rather than an exception. R5 (behaviour selected by a build mode): excluded because Java exposes no arithmetic-checking flag at all - the frozen recipe `javac -d OUT` / `java -cp OUT Main` has no counterpart to Rust's -C debug-assertions or Zig's -OReleaseSafe, and 4.2.2 is unconditional. R6, R9, R1: excluded - no floating, pointer or arbitrary-precision reading of `m + 1` is possible once `m` is declared `int` at the site. R8 (user-redefinable): excluded - Java has no operator overloading; refutation witness semantic-compression/witnesses/java/chunk_B/f07p1_refute_R8_useroperator.java shows javac rejecting `*` on a user type with 'bad operand types'. R11 and R12: excluded by the rung record - Java has no value-returning or discipline-naming addition (java.lang.Math.addExact throws instead of yielding a value), so the fragment cannot name its discipline at the site even though the language fixes it. RECORDED, NOT COUNTED: the simple name `Integer` is resolved through the automatic java.lang import and can be shadowed by a user-declared class, which changes the VALUE `m` starts from - witness semantic-compression/witnesses/java/chunk_B/f08p1_shadowed_Integer.java (byte-identical fragment, a same-file `Integer` class with MAX_VALUE = 5) builds and prints 6. That openness changes no Table NUM outcome class (the operation is still R2), and methodology 03 Rule 1.4 forbids inventing a class for it, so it is recorded here and charged instead as a locality hop."
+   ],
+   "locality_lookups": 2,
+   "locality_detail": [
+    {
+     "hop": "variable decl - java.lang.Integer.MAX_VALUE (the field declaration in the standard library)",
+     "required_for_fact": "type_and_representation of the initializer, and with it the reason the addition is AT the overflow edge: the fragment does not say what value the name denotes, and the witness above shows a same-file declaration can change it. No IMPORT hop accompanies it, because JLS SE26 7.3 imports java.lang automatically."
+    },
+    {
+     "hop": "callee signature - the enclosing method declaration `static int overflowAtMax()`",
+     "required_for_fact": "conversion_behavior at `return o`: whether the returned int is handed back unchanged or widened or boxed by the assignment conversion of JLS SE26 14.17 is decided by that declaration. NOTE what is NOT a hop here: overflow_exceptional_numeric and possible_failure are resolved from the fragment plus 4.2.2, and Java has no build-mode artifact to read, so the G hop that methodology 03 2.6.2 charges to languages whose overflow behaviour is mode-selected does not arise."
+    }
+   ],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 10,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Local variable declaration statement with an initializer.",
+     "citation": "JLS SE26 14.4"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Field access expression on a type name.",
+     "citation": "JLS SE26 15.11"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Additive operator + on numeric operands.",
+     "citation": "JLS SE26 15.18.2"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "The primitive type int, 32-bit two's complement, with a fixed maximum.",
+     "citation": "JLS SE26 4.2.1"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Return statement with an expression.",
+     "citation": "JLS SE26 14.17"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Integer overflow wraps modulo 2^n and is never signalled - one rule for every integral type, implementation, target and build mode.",
+     "citation": "JLS SE26 4.2.2, 15.18.2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Binary numeric promotion decides the width at which the addition is performed.",
+     "citation": "JLS SE26 5.6.2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Types of the java.lang package are imported automatically, so `Integer` needs no import but can still be shadowed by a nearer declaration.",
+     "citation": "JLS SE26 7.3, 6.5.5"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "A reference to a constant variable is replaced by its value at compile time, so the field access performs no run-time work.",
+     "citation": "JLS SE26 4.12.4, 13.1"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Standard-library clause relied on: Integer.MAX_VALUE is a constant of type int holding 2^31-1.",
+     "citation": "Java SE 26 API: java.lang.Integer.MAX_VALUE"
+    }
+   ]
+  },
+  {
+   "probe_id": "F08.P2",
+   "language": "Java",
+   "language_key": "java",
+   "support": "FULL",
+   "support_reason": "F-1: all three numbered sub-requirements are delivered by `int q = b == 0 ? 0 : a / b;` plus `return q;`. (1) the division is written in a form that makes the zero-divisor outcome determinable at the site, (2) the outcome is bound to the local `q` with the fallback integer 0 substituted for the exceptional case, and (3) `q` is produced. RUNG RECORD, as the canonical task requires. Rung (i) - a standard checked-division operation yielding an optional or error VALUE - is unavailable in Java: java.base offers no Optional- or result-returning integer division; java.lang.Math.divideExact and Math.floorDiv both signal by THROWING ArithmeticException, which is an event rather than a value, and would still need a catch to substitute 0. Rung (ii), an explicit local guard on `b == 0` selecting the fallback 0, is therefore the rung used, and it is spelled with the conditional operator so that the guard and the division stay in one statement. F-2/F-4: language only. F-3: builds and runs under the frozen recipe and prints 0 for guarded(7, 0), i.e. the fallback is reached with no exception. F-6: no normative prohibition applies. R10 form selection among rung-(ii) forms: the conditional expression (11 tokens for statement 1) was measured against the `if (b == 0) { q = 0; } else { q = a / b; }` statement form (18 tokens with the separate declaration) and against `int q = b == 0 ? 0 : a / b;` written with redundant parentheses (rejected by R4/R7 anyway); the conditional is the R10 minimum.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/java/F08.P2.java",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "0",
+    "diagnostics": "build exit 0, no diagnostics; run exit 0. javac -d OUT FILE.java ; java -cp OUT Main  (environment.json -> semantic_compression_recipes.recipes.java). javac 26.0.1 / openjdk 26.0.1 (Homebrew, arm64), JAVA_HOME=/opt/homebrew/opt/openjdk. guarded(7, 0) returns the substituted fallback 0 rather than throwing, which is the canonical task's stated result for the exceptional case."
+   },
+   "token_count": 16,
+   "facts": [
+    {
+     "fact_kind": "type_and_representation",
+     "site": "q",
+     "value": "`int`: 32-bit two's-complement signed integer",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.1: the values of type int are the 32-bit two's-complement signed integers. `int` is a reserved keyword (3.9), so the type name cannot be shadowed, aliased or re-imported, and the width is fixed by the language on every implementation and target."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "q",
+     "value": "(i) storage holding a primitive value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2 and 4.12.1: a variable of a primitive type holds its value directly, so the entity is storage holding a value rather than a handle to storage owned elsewhere."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "q",
+     "value": "reassignable: no `final`",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.4 with 14.4: a local variable is reassignable unless it is declared `final`, and the modifier is absent at this declaration."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "q",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15 provides no address-of operator and no reference-to-variable type, and 4.3.1 admits no reference to a local variable, so no name in any Java program can reach this variable's storage. The absence is entailed by a universal language rule (methodology 02 1.4 absence rule (ii))."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int q = b == 0 ? 0 : a / b",
+     "value": "definitely initialized on both paths: the conditional operator yields a value on either branch, so `q` is definitely assigned whichever branch is taken",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.5 and 16: a Java local has no default value, must be definitely assigned before any read, and a declarator with an initializer is definitely assigned at its declaration."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "q",
+     "value": "storage ends with the block; no cleanup runs",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.4.2 (a local variable's lifetime ends with its block) and 4.2: primitive values have no finalizer, destructor or cleanup hook, so nothing runs at scope exit."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "b == 0",
+     "value": "a numerical equality test after binary numeric promotion; it is total, cannot overflow and cannot fail for the operand types this statement admits",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.21.1 (numerical equality operators, applied after binary numeric promotion 5.6.2). The operand types are bounded by the same statement: `a / b` is assigned to an int, so 5.2 admits only integral operands."
+    },
+    {
+     "fact_kind": "alternative_value_cases",
+     "site": "b == 0 ? 0 : a / b",
+     "value": "exactly two alternatives, both written at the site: the literal fallback 0 for the zero-divisor case and the quotient otherwise; the set is closed by the operator itself and the handling is exhaustive",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.25: the conditional operator has exactly two result expressions and evaluates exactly one of them. The alternative set is local surface form - no declaration outside the fragment can add a case."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "b == 0 ? 0 : a / b",
+     "value": "only the selected branch is evaluated: when `b` is zero the division is NOT evaluated at all, which is what makes the guard effective rather than decorative",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.25: the conditional operator evaluates the condition and then exactly one of the second and third operand expressions; the other is not evaluated."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "b == 0 ? 0 : a / b",
+     "value": "the conditional expression's type is int, forced by the declared target and by the numeric-conditional rules",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.25.2 (numeric conditional expressions apply binary numeric promotion to the two result expressions) with 5.2 at the declaration."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "a / b",
+     "value": "integer division truncating toward zero, whose only two exceptional cases are the zero divisor - excluded at this very site by the guard written beside it - and MIN_VALUE / -1, which yields the dividend rather than trapping",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.17.2 ('Integer division rounds toward zero'; the zero divisor throws ArithmeticException; the overflow case's quotient 'is equal to the dividend'). Witness for the overflow half: semantic-compression/witnesses/java/chunk_B/f08p2_R2_minoverflow.java prints -2147483648 for guarded(Integer.MIN_VALUE, -1)."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "a / b under the guard",
+     "value": "cannot fail as written: the single value of `b` that JLS SE26 15.17.2 makes throw is the one the guard excludes, and the conditional operator does not evaluate the division on that path",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.17.2 with 15.25. The absence is entailed by those two clauses read together with the guard written at the site (methodology 02 1.4 absence rule (ii)), not merely unmentioned."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "int q = ...",
+     "value": "no conversion at the binding: the conditional expression is already int, and Java inserts no implicit narrowing in an assignment context",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.2 with 15.25.2."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return q",
+     "value": "terminates the enclosing method with q's value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.17."
+    }
+   ],
+   "fact_count": 14,
+   "determinacy_B": 3,
+   "determinacy_enumeration": [
+    "R12 (the operation names its own discipline at the site) - realizable, and it is what the frozen fragment does for the zero-divisor edge: the guard `b == 0 ?` is inside the counting unit, JLS SE26 15.25 guarantees the division is not evaluated on that path, and the fallback 0 is written beside it. Witness: the frozen program builds under the frozen recipe and prints 0 for guarded(7, 0).",
+    "R2 (wraps modulo 2^n, defined) - realizable, and NOT closed by the guard: the division has a second exceptional case the guard says nothing about, MIN_VALUE / -1, which JLS SE26 15.17.2 defines to yield the dividend rather than to throw. Witness semantic-compression/witnesses/java/chunk_B/f08p2_R2_minoverflow.java (byte-identical fragment, a = Integer.MIN_VALUE, b = -1): builds under the frozen recipe and prints -2147483648, with no exception.",
+    "R3 (may trap / throw) - realizable. `a` and `b` are declared outside the measured fragment (methodology 03 Rule 1.1.2) and boxed numeric operands are compatible with this statement: `b == 0` then unboxes `b` (JLS SE26 15.21.1 via 5.6.2), which throws NullPointerException for a null operand - and it throws at the GUARD, before any division is attempted. Witness semantic-compression/witnesses/java/chunk_B/f08p2_R3_boxednpe.java (byte-identical fragment, `Integer a, b`, b = null): builds under the frozen recipe and aborts with exit 1 and 'java.lang.NullPointerException: Cannot invoke \"java.lang.Integer.intValue()\"'. EXCLUSIONS with citations and refutations. A7 (dispatch kind), in scope here because the probe's frozen fact set contains alternative_value_cases: no class is added - the conditional operator is not user-redefinable and neither is `==` on numeric operands (JLS SE26 15.25, 15.21.1), so R8 is not realizable; refutation witness semantic-compression/witnesses/java/chunk_B/f07p1_refute_R8_useroperator.java shows javac rejecting an operator applied to a user type. R11 (the exceptional case becomes a value): not realizable - java.base has no checked-division operation returning an optional or error value, as the rung record states. R6: not realizable - `int q = ... a / b` forbids floating operands (5.2); refutation witness semantic-compression/witnesses/java/chunk_B/f07p1_refute_R6_floatoperands.java shows the same rejection for the analogous fragment. R10: not realizable - 15.17.2 fixes truncation toward zero for every integral type. R4, R5: not realizable - the JLS defines every case and Java has no arithmetic build mode."
+   ],
+   "locality_lookups": 3,
+   "locality_detail": [
+    {
+     "hop": "variable decl - `a` (given context, outside the measured fragment)",
+     "required_for_fact": "type_and_representation of the dividend, and with it whether an unboxing conversion precedes the division (which decides whether possible_failure has the additional NullPointerException class of determinacy branch R3)."
+    },
+    {
+     "hop": "variable decl - `b`",
+     "required_for_fact": "the same facts for the divisor, and additionally possible_failure at the GUARD: `b == 0` unboxes a boxed operand, so whether the guard itself can throw is decided by this declaration. Reading `a` does not settle it - Java permits the two operands to have different numeric types."
+    },
+    {
+     "hop": "callee signature - the enclosing method declaration `static int guarded(int a, int b)`",
+     "required_for_fact": "type_and_representation of the value the fragment produces at `return q`: whether it is handed back as an int or widened or boxed is decided there (JLS SE26 14.17, 5.2). alternative_value_cases, overflow_exceptional_numeric and control_flow_effect need no hop at all: the guard, the fallback and the division are all inside the fragment and 15.17.2 / 15.25 fix their outcomes for every integral operand type and in every build mode."
+    }
+   ],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 12,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Local variable declaration statement with an initializer.",
+     "citation": "JLS SE26 14.4"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Conditional operator ?: .",
+     "citation": "JLS SE26 15.25"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Numerical equality operator ==.",
+     "citation": "JLS SE26 15.21.1"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Division operator.",
+     "citation": "JLS SE26 15.17.2"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "The primitive type int, 32-bit two's complement.",
+     "citation": "JLS SE26 4.2.1"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Return statement with an expression.",
+     "citation": "JLS SE26 14.17"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Only the selected branch of a conditional expression is evaluated, which is what makes a guard effective.",
+     "citation": "JLS SE26 15.25"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "The type of a numeric conditional expression is computed from both result expressions by binary numeric promotion, and can differ from either one's type.",
+     "citation": "JLS SE26 15.25.2, 5.6.2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Assignment conversion: no implicit narrowing, which bounds the operand types this statement admits.",
+     "citation": "JLS SE26 5.2"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Integer division by zero throws the unchecked ArithmeticException, which needs no declaration and no local marker.",
+     "citation": "JLS SE26 15.17.2, 11.2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "MIN_VALUE / -1 yields MIN_VALUE rather than throwing or trapping - the one division case a `b == 0` guard does not cover.",
+     "citation": "JLS SE26 15.17.2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Static acceptance (static_only): definite assignment, which the conditional operator satisfies on both paths and which is what makes the initialization_state fact determinate.",
+     "citation": "JLS SE26 16, 4.12.5"
+    }
+   ]
+  },
+  {
+   "probe_id": "F09.P1",
+   "language": "Java",
+   "language_key": "java",
+   "support": "FULL",
+   "support_reason": "F-1: both numbered sub-requirements are delivered by the single statement `boolean eq = s1.equals(s2);`. (1) it compares s1 and s2 for sameness of CONTENTS - java.lang.String.equals is documented to compare the sequence of characters, and the frozen program feeds it two Strings built at run time through StringBuilder so that they are distinct objects with equal contents; (2) it binds the boolean result to a new local `eq`. F-2/F-4: language plus one java.lang method. F-3: builds and runs under the frozen recipe and prints true, which is the contents answer - `s1 == s2` on the same two objects would print false, so the run itself demonstrates the distinction the probe asks for. F-6: no normative prohibition or deprecation covers String.equals. R10 form selection: `s1.equals(s2)` (10 tokens for the statement) was measured against `java.util.Objects.equals(s1, s2)` (14 tokens), `s1.contentEquals(s2)` (10 tokens) and `s1.compareTo(s2) == 0` (13 tokens). The two 10-token forms tie, and the tie is broken by documentation order: java.lang.String declares equals(Object) before contentEquals(CharSequence), and the JLS discusses equals as the contents comparison for String in 15.21.3's note contrasting it with ==.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/java/F09.P1.java",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "true",
+    "diagnostics": "build exit 0, no diagnostics; run exit 0. javac -d OUT FILE.java ; java -cp OUT Main  (environment.json -> semantic_compression_recipes.recipes.java). javac 26.0.1 / openjdk 26.0.1 (Homebrew, arm64), JAVA_HOME=/opt/homebrew/opt/openjdk. The two operands are produced by two separate StringBuilder chains outside the measured region, so they are distinct objects; the printed `true` is therefore a contents answer."
+   },
+   "token_count": 10,
+   "facts": [
+    {
+     "fact_kind": "type_and_representation",
+     "site": "eq",
+     "value": "`boolean`: exactly two values, true and false",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.5: the boolean type has exactly the two values true and false, and it is a primitive type, so no null or absent state exists for it. `boolean` is a reserved keyword (3.9)."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "eq",
+     "value": "(i) storage holding a primitive value, not a handle",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2 and 4.12.1: a variable of a primitive type holds its value directly, so the entity is storage holding a value rather than a handle to storage owned elsewhere."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "eq",
+     "value": "reassignable: no `final`",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.4 with 14.4: a local variable is reassignable unless it is declared `final`, and the modifier is absent at this declaration."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "eq",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15 provides no address-of operator and no reference-to-variable type, and 4.3.1 admits no reference to a local variable, so no name in any Java program can reach this variable's storage. The absence is entailed by a universal language rule (methodology 02 1.4 absence rule (ii))."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "boolean eq = s1.equals(s2)",
+     "value": "definitely initialized with the comparison's result",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.5 and 16: a Java local has no default value, must be definitely assigned before any read, and a declarator with an initializer is definitely assigned at its declaration."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "eq",
+     "value": "storage ends with the block; no cleanup runs",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.4.2 (a local variable's lifetime ends with its block) and 4.2: primitive values have no finalizer, destructor or cleanup hook, so nothing runs at scope exit."
+    },
+    {
+     "fact_kind": "alternative_value_cases",
+     "site": "eq",
+     "value": "exactly two alternatives, true and false; no third state - a boolean local cannot be null or absent",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.5: the boolean type has exactly the two values true and false, and it is a primitive type, so no null or absent state exists for it. `boolean` is a reserved keyword (3.9). Java's null belongs to the reference types only (4.3.1), so the declared primitive type closes the alternative set at the site."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "s1.equals(s2)",
+     "value": "the invocation's value is a boolean (or a Boolean immediately unboxed to one): the declared target forces it, whatever the receiver's class turns out to be",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.2 (assignment context: the expression must be assignable to boolean, and the only conversions available are identity and unboxing) with 4.2.5. No lookup is needed for this row even though the receiver's declaration is outside the fragment."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "s1.equals(s2)",
+     "value": "can fail, and the only mechanism available to it is a thrown exception - a NullPointerException if the receiver is null, or any unchecked exception the invoked body throws; no error value and no checked exception is involved",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.12.4.4 (if the target reference is null, a NullPointerException is thrown) and 11.2 (unchecked exception classes need not be declared): any invocation may complete abruptly by throwing, and an exception is the only mechanism by which it can signal failure. This is the universal-rule disposition methodology 02 1.4/K07 records for Java. Resource exhaustion is excluded by U-07.1. Methodology 02 U-07.2 makes this row about whether and how, not about the exhaustive set of failure modes, which is what Determinacy and Locality measure."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "the argument s2",
+     "value": "the invoked method necessarily receives a reference to the same object as `s2`, not a copy of it; and assigning to its parameter cannot change the caller's variable",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 8.4.1 (arguments are passed by value; for a reference type the value is the reference) with 4.3.1. This is the disposition methodology 02 1.4/K03 records for Java at a call argument."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "the argument s2",
+     "value": "the argument crosses into the call under method invocation conversion, so at most a widening reference conversion or a boxing conversion is applied to it and never a narrowing one - and if `s2` is a primitive it is boxed here, because the parameter of the equals contract is a reference type",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.3 (method invocation contexts allow identity, widening primitive, widening reference, boxing and unchecked conversions, but no narrowing) with the java.lang.Object.equals(Object) contract named through the method name at the site (hops_stdlib = 1). Witness for the boxing case: semantic-compression/witnesses/java/chunk_B/f09p1_V4_boxedarg.java."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "the argument s2",
+     "value": "a reference is copied into the parameter; no object is copied by the argument passing itself",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 8.4.1 and 15.26.1: assignment of a reference-typed value copies the reference, never the object. Java has no implicitly invoked copy constructor for class types."
+    }
+   ],
+   "fact_count": 12,
+   "determinacy_B": 4,
+   "determinacy_enumeration": [
+    "V1 - both operands are java.lang.String and the receiver is non-null: `equals` is String's own override, which compares the character contents, is total, allocates nothing and cannot fail (A4 = text, A5 = none at the argument, A6 = cannot fail, A7 = the body is fixed once the receiver's class is). Witness: the frozen program builds under the frozen recipe and prints true for two distinct objects with equal contents.",
+    "V2 - the receiver is of a class with its own `equals` override. `s1` is declared outside the measured fragment (methodology 03 Rule 1.1.2), and JLS SE26 15.12.4.4 selects the body from the receiver's RUNTIME class, so the same statement may run arbitrary user code that prints, allocates, mutates state, or throws - and may answer on identity, on contents, or on neither. A6 becomes 'may throw an undeclared exception', A7 becomes 'target may differ between executions of this same span'. Witness semantic-compression/witnesses/java/chunk_B/f09p1_V2_userequals.java (byte-identical fragment, a `Text` class whose equals prints and throws): builds under the frozen recipe and aborts with exit 1 after printing 'user equals'.",
+    "V3 - the receiver is a String-typed variable holding null. The same statement then throws NullPointerException before any comparison happens, which is materially different from V1 on dimension 3 (failure): V1's class says the span cannot fail. Witness semantic-compression/witnesses/java/chunk_B/f09p1_V3_nullreceiver.java (byte-identical fragment, `String s1 = null`): builds under the frozen recipe and aborts with exit 1 and 'NullPointerException: Cannot invoke \"String.equals(Object)\"'.",
+    "V4 - the argument is a primitive or a value of an unrelated reference type. Because the equals contract takes Object, the call site accepts any argument at all: a primitive is boxed at the site (JLS SE26 5.3, 5.1.7), A5 changes from 'none' to 'boxing', and the comparison necessarily answers false rather than comparing anything. Witness semantic-compression/witnesses/java/chunk_B/f09p1_V4_boxedarg.java (byte-identical fragment, `int s2 = 3`): builds under the frozen recipe and prints false. EXCLUSIONS: A5 = narrowing or textual coercion is not realizable (5.3 admits no narrowing in an invocation context), and no class is added for an operator reading - `equals` is a method, not an operator, and Java has no operator overloading."
+   ],
+   "locality_lookups": 3,
+   "locality_detail": [
+    {
+     "hop": "variable decl - `s1` (given context, outside the measured fragment)",
+     "required_for_fact": "type_and_representation and value_vs_storage of the receiver, and through them possible_failure and alternative_value_cases: until the receiver's declared type is known, contents comparison, identity comparison and arbitrary user code are all compatible with the statement (determinacy classes V1-V3)."
+    },
+    {
+     "hop": "variable decl - `s2`",
+     "required_for_fact": "conversion_behavior at the argument position: because the parameter type is Object, the site admits an identity pass, a widening reference conversion or a boxing conversion, and only `s2`'s declaration decides which. Reading `s1` does not settle it."
+    },
+    {
+     "hop": "callee signature - java.lang.String.equals(Object) (the override actually selected, a distinct declared entity from java.lang.Object.equals it overrides)",
+     "required_for_fact": "the CONTENTS-versus-IDENTITY answer itself, which is the probe's observation target, and possible_failure: this is the declaration that states the comparison examines the character sequence and returns without throwing."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 1 (the single statement). The body that runs is chosen from the receiver's runtime class (JLS SE26 15.12.4.4, invokevirtual), and `equals` is overridable by every class in the program, so far more than two candidate bodies are compatible with this site; `s1`'s declaration, which would narrow them, is outside the local site by 0.7. Witnesses in both directions: semantic-compression/witnesses/java/chunk_B/f09p1_V2_userequals.java runs a user body that prints and throws under the byte-identical fragment, while the frozen program runs String's. The candidate-equivalence exclusion is universal in scope and is not discharged - those two candidates differ on failure, side effects and result. Counted ONCE: the overload-resolution rule (15.12.2) and the run-time-dispatch rule (15.12.4.4) both apply here, but the single-assignment rule 1.3.1 assigns the event to H3 exactly once. H5 is NOT counted separately for the exception in the user witness: it arises from the same site and would be the same event."
+    }
+   ],
+   "hidden_count": 1,
+   "complexity_units": 11,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Local variable declaration statement with an initializer.",
+     "citation": "JLS SE26 14.4"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Instance method invocation expression on a receiver.",
+     "citation": "JLS SE26 15.12"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "The primitive type boolean with exactly two values.",
+     "citation": "JLS SE26 4.2.5"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Overload resolution chooses the method signature from the argument types at compile time.",
+     "citation": "JLS SE26 15.12.2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Run-time dispatch chooses the body from the receiver's runtime class, so the compile-time signature does not fix what executes.",
+     "citation": "JLS SE26 15.12.4.4"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Method invocation conversion: which conversions may be applied to an argument, including boxing, and that narrowing is not among them.",
+     "citation": "JLS SE26 5.3"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "A null receiver makes the invocation throw NullPointerException, with nothing written at the site.",
+     "citation": "JLS SE26 15.12.4.4"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "`==` on reference types compares references, not contents - the rule the reader must know in order to know why a method call is used here at all.",
+     "citation": "JLS SE26 15.21.3"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Standard-library clause relied on: String.equals(Object) returns true exactly when the argument is a String representing the same sequence of characters.",
+     "citation": "Java SE 26 API: java.lang.String.equals(Object)"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Standard-library clause relied on: Object.equals is specified to be an equivalence relation, but every class may override it, so `equals` guarantees nothing beyond what the runtime class documents.",
+     "citation": "Java SE 26 API: java.lang.Object.equals(Object)"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Standard-library clause relied on: String objects are immutable, which is why a contents comparison of two distinct String objects is stable.",
+     "citation": "Java SE 26 API: java.lang.String (class description)"
+    }
+   ]
+  },
+  {
+   "probe_id": "F09.P2",
+   "language": "Java",
+   "language_key": "java",
+   "support": "FULL",
+   "support_reason": "F-1: both numbered sub-requirements are delivered by exactly two statements. (1) `xs.sort(Comparator.reverseOrder());` orders the already-declared growable integer sequence into DESCENDING order using Java's standard ordering facility (java.util.List.sort) and supplies the descending order EXPLICITLY as a comparator value - java.util.Comparator.reverseOrder() - so the fragment does not rely on the facility's default order; (2) `boolean lt = a < b;` binds the strict-less-than result of the ordinary comparison operator. F-2/F-4: language plus java.util, no flag beyond the frozen recipe. F-3: builds and runs under the frozen recipe and prints '[3, 2, 1] true' for xs = [2, 3, 1], a = 4, b = 9 - descending order, and the printed list is the SAME list object the fragment sorted. F-6: no normative prohibition or deprecation covers List.sort or Comparator.reverseOrder. R10 form selection: `xs.sort(Comparator.reverseOrder())` (11 tokens) was measured against `xs.sort(Comparator.<Integer>reverseOrder())` (14), `xs.sort((x, y) -> y - x)` (13, and additionally rejected under R1 because subtraction is not a total order for extreme int values), `xs.sort(Collections.reverseOrder())` (11, a tie broken by documentation order in favour of Comparator.reverseOrder, which the Comparator class declares as its own reverse-ordering factory) and `Collections.sort(xs, Comparator.reverseOrder())` (13).",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/java/F09.P2.java",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "[3, 2, 1] true",
+    "diagnostics": "build exit 0, no diagnostics; run exit 0. javac -d OUT FILE.java ; java -cp OUT Main  (environment.json -> semantic_compression_recipes.recipes.java). javac 26.0.1 / openjdk 26.0.1 (Homebrew, arm64), JAVA_HOME=/opt/homebrew/opt/openjdk. The printed list is `xs` itself after the call, which shows the sort reordered the existing list rather than returning a new one."
+   },
+   "token_count": 18,
+   "facts": [
+    {
+     "fact_kind": "type_and_representation",
+     "site": "Comparator.reverseOrder()",
+     "value": "a java.util.Comparator that imposes the REVERSE of the natural ordering of its operands - the descending order the task asks for is named at the site, not inferred from a default",
+     "locally_recoverable": true,
+     "justification": "java.util.Comparator.reverseOrder() contract, Java SE 26 API ('Returns a comparator that imposes the reverse of the natural ordering'), named literally at the site: hops_decl = 0, hops_stdlib = 1."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "Comparator.reverseOrder()",
+     "value": "the comparator it returns throws NullPointerException when comparing null, and requires the elements to implement Comparable, so a non-Comparable element makes the comparison throw ClassCastException",
+     "locally_recoverable": true,
+     "justification": "java.util.Comparator.reverseOrder() contract, Java SE 26 API ('The returned comparator is serializable and throws NullPointerException when comparing null') with the declared bound <T extends Comparable<? super T>>: hops_stdlib = 1."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "Comparator.reverseOrder()",
+     "value": "produces a comparator value the statement immediately consumes; the fragment does not retain it, so nothing in the fragment can observe its identity afterwards",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.8 (expression statement: the value of the argument expression is used only for the invocation) with the Comparator.reverseOrder contract, which promises a comparator but commits to no object identity - the implementation may return a new object or a cached one, which methodology 02 Rule 2.5.1 counts as a universally specified indeterminacy rather than an INDET."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "the receiver `xs` of xs.sort(...)",
+     "value": "the invocation hands the invoked method a reference to the receiver object itself, as `this`, so the callee necessarily holds a writable alias of whatever object `xs` denotes for the duration of the call",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.12.4.4: the target reference is the value of the receiver expression and becomes the `this` of the invoked method. Whether the callee writes through it is a separate row, and that one is not local."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "xs.sort(...)",
+     "value": "can fail, and only by throwing: NullPointerException if the receiver is null, and any unchecked exception the invoked body raises; no error value is returned and no checked exception is declared",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.12.4.4 (if the target reference is null, a NullPointerException is thrown) and 11.2 (unchecked exception classes need not be declared): any invocation may complete abruptly by throwing, and an exception is the only mechanism by which it can signal failure. This is the universal-rule disposition methodology 02 1.4/K07 records for Java. Resource exhaustion is excluded by U-07.1."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "xs.sort(...);",
+     "value": "an expression statement: whatever the invocation returns is discarded, so the statement is executed for its effect alone and control falls through to the next statement",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.8: an expression statement's value, if any, is discarded."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "the argument of xs.sort(...)",
+     "value": "the comparator crosses into the call under method invocation conversion, so at most a widening reference, boxing or unchecked conversion is applied and never a narrowing one",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.3."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "the argument of xs.sort(...)",
+     "value": "the comparator reference is copied into the parameter; no comparator object is copied",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 8.4.1, 15.26.1."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "the comparator object",
+     "value": "no deterministic release point: it is reclaimed by the garbage collector at an unspecified time, and the fragment names no release point for it",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 12.6 (reclamation is performed by the garbage collector at an unspecified time; no local form can name a release point). This is the disposition methodology 02 1.4/K13 fixes for every tracing-GC language of the fixed set, with basis_class universal-rule."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "lt",
+     "value": "`boolean`: exactly two values, true and false",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.5: the boolean type has exactly the two values true and false, and it is a primitive type, so no null or absent state exists for it. `boolean` is a reserved keyword (3.9)."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "lt",
+     "value": "(i) storage holding a primitive value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2 and 4.12.1: a variable of a primitive type holds its value directly, so the entity is storage holding a value rather than a handle to storage owned elsewhere."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "lt",
+     "value": "reassignable: no `final`",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.4 with 14.4: a local variable is reassignable unless it is declared `final`, and the modifier is absent at this declaration."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "lt",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15 provides no address-of operator and no reference-to-variable type, and 4.3.1 admits no reference to a local variable, so no name in any Java program can reach this variable's storage. The absence is entailed by a universal language rule (methodology 02 1.4 absence rule (ii))."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "boolean lt = a < b",
+     "value": "definitely initialized with the comparison's result",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.5 and 16: a Java local has no default value, must be definitely assigned before any read, and a declarator with an initializer is definitely assigned at its declaration."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "lt",
+     "value": "storage ends with the block; no cleanup runs",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.4.2 (a local variable's lifetime ends with its block) and 4.2: primitive values have no finalizer, destructor or cleanup hook, so nothing runs at scope exit."
+    },
+    {
+     "fact_kind": "alternative_value_cases",
+     "site": "lt",
+     "value": "exactly two alternatives, true and false, with no absent case",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.5: the boolean type has exactly the two values true and false, and it is a primitive type, so no null or absent state exists for it. `boolean` is a reserved keyword (3.9). A relational operator's result is always boolean (15.20.1), so no other value can reach `lt`."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "a < b",
+     "value": "the operands must be numeric (primitive or boxed numeric - `<` is defined for nothing else), and the result is always a boolean",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.20.1: the relational operators require operands of numeric type (with binary numeric promotion, 5.6.2) and the type of the relational expression is always boolean. Java has no operator overloading, so no user type can reach this operator."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "a < b",
+     "value": "if it can fail at all it fails by throwing - the only failure available to a relational operator is the NullPointerException of an unboxing conversion; there is no error value and no checked exception",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.20.1 with 5.1.8 (unboxing throws NullPointerException on null). U-07.2 makes this row about whether and how rather than the exhaustive set."
+    }
+   ],
+   "fact_count": 18,
+   "determinacy_B": 5,
+   "determinacy_enumeration": [
+    "V1 - `xs` is a modifiable java.util.List of Comparable elements (the frozen program's ArrayList<Integer>). The call hands the callee a writable alias of that list and reorders its elements IN PLACE (A2 = the state referred to by the operand is mutated), the ordering is the reverse natural order named at the site, an auxiliary allocation is permitted by the List.sort contract (A8 = allocation may occur), and the scalar comparison is a total order that cannot fail (A6). Witness: the frozen program builds under the frozen recipe and prints '[3, 2, 1] true', with the printed list being `xs` itself.",
+    "V2 - `xs` is an UNMODIFIABLE list. `xs`'s declaration is outside the measured fragment (methodology 03 Rule 1.1.2), and java.util.List.of, List.copyOf and Collections.unmodifiableList all produce lists whose sort throws UnsupportedOperationException: the same statement then mutates nothing at all and terminates the method abruptly (A2 = none, A6 = may throw). Witness semantic-compression/witnesses/java/chunk_B/f09p2_V2_unmodifiable.java (byte-identical fragment, xs = List.of(2, 3, 1)): builds under the frozen recipe and aborts with exit 1 and 'java.lang.UnsupportedOperationException'.",
+    "V3 - `xs`'s type, or the simple name `Comparator`, denotes a user declaration. Import declarations live outside the fragment and JLS SE26 6.5.5/7.5 make a simple name mean whichever declaration is in scope, while 15.12.4.4 selects `sort`'s body from the receiver's runtime class: the same statement may then run arbitrary code that sorts nothing, allocates elsewhere, prints, or mutates other state. Witness semantic-compression/witnesses/java/chunk_B/f09p2_V3_usertypes.java (byte-identical fragment, a user `Comparator` interface and a user receiver class): builds under the frozen recipe and prints 'user reverseOrder / user sort: nothing is reordered / [2, 3, 1] true' - the list is unchanged.",
+    "V4 - the scalars `a` and `b` are floating-point. `<` is then the IEEE 754 comparison, which is a PARTIAL order: with a NaN operand both a < b and b < a are false, so the fragment's boolean no longer decides the order (A4 = binary floating point; dimension 9 differs). Witness semantic-compression/witnesses/java/chunk_B/f09p2_V4_floatscalars.java (byte-identical fragment, a = Double.NaN, b = 9.0): builds under the frozen recipe and prints '[3, 2, 1] false'.",
+    "V5 - the scalars are boxed numerics. Binary numeric promotion then inserts an unboxing conversion at the comparison, which throws NullPointerException for a null operand (JLS SE26 5.1.8, 15.20.1): A6 changes from 'cannot fail' to 'may throw an undeclared exception' for a statement that contains no call at all. Witness semantic-compression/witnesses/java/chunk_B/f09p2_V5_boxedscalars.java (byte-identical fragment, `Integer a = null`): builds under the frozen recipe and aborts with exit 1 and 'NullPointerException: Cannot invoke \"java.lang.Integer.intValue()\"'. EXCLUSIONS: no class is added for a user-redefined `<` (JLS SE26 15.20.1 admits only numeric operands and Java has no operator overloading; refutation witness semantic-compression/witnesses/java/chunk_B/f07p1_refute_R8_useroperator.java shows javac rejecting an operator on a user type), and none for a non-sorting reading of a java.util List.sort call, whose contract fixes in-place reordering."
+   ],
+   "locality_lookups": 6,
+   "locality_detail": [
+    {
+     "hop": "callee signature - java.util.List.sort(Comparator) and the contract published with it",
+     "required_for_fact": "mutability and aliasing_writable_aliasing (that the call REORDERS THIS LIST rather than returning a new one - the site itself only shows that a returned value would be discarded), allocation_copy_move_borrow_destroy (the contract permits obtaining an array of the elements), and possible_failure (UnsupportedOperationException, ClassCastException, IllegalArgumentException)."
+    },
+    {
+     "hop": "variable decl - `xs` (given context, outside the measured fragment)",
+     "required_for_fact": "type_and_representation of the sequence, and with it whether the receiver is a modifiable list at all - the difference between determinacy classes V1 and V2."
+    },
+    {
+     "hop": "callee signature - java.util.Comparator.reverseOrder() ",
+     "required_for_fact": "the ordering actually used (reverse natural order) and the possible_failure it carries (NullPointerException on a null element, ClassCastException for a non-Comparable element). Counted although the name is literally at the site: methodology 03 Rule 2.2.2 charges standard-library declarations as hops on the same terms as user declarations, which is the declared divergence from methodology 02's COUNT test."
+    },
+    {
+     "hop": "import - the `import java.util.Comparator;` declaration outside the measured fragment",
+     "required_for_fact": "type_and_representation: without it the simple name `Comparator` is not known to denote the java.util interface (determinacy class V3 exhibits a user `Comparator` under the byte-identical fragment)."
+    },
+    {
+     "hop": "variable decl - `a` (given context)",
+     "required_for_fact": "type_and_representation of the scalars and possible_failure of statement (2): integral, floating and boxed operands give three different answers (classes V1, V4, V5)."
+    },
+    {
+     "hop": "variable decl - `b`",
+     "required_for_fact": "the same facts. Reading `a` does not settle them, because JLS SE26 5.6.2 permits the two operands of a relational operator to have DIFFERENT numeric types and promotes them to a common one, so a floating or boxed `b` changes the answer even when `a` is a plain int."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H2 - Hidden writable aliasing or mutation",
+     "why": "Local site 1 (`xs.sort(Comparator.reverseOrder());`). The call writes storage reachable through `xs` - it reorders the elements of the caller's list - and the site contains no token marking mutation: there is no assignment target, no `mut`, no `inout`, and the same spelling would be used by a method that returns a new list and changes nothing. The exclusion for an assignment target does not apply (nothing is assigned here) and the exclusion for guaranteed copy semantics does not apply (JLS SE26 15.12.4.4 passes the receiver reference). LED fails because the List.sort contract is outside the local site."
+    },
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 1. Two layers of non-local selection genuinely run here: `sort`'s body is chosen from the receiver's runtime class (JLS SE26 15.12.4.4 - java.util.List declares sort as a default method and ArrayList overrides it, so at least two distinct bodies exist in java.base alone), and the comparison the sort performs is an interface call on the comparator. Witness semantic-compression/witnesses/java/chunk_B/f09p2_V3_usertypes.java runs an entirely different `sort` body under the byte-identical fragment. Counted once: same rule, same local site (1.3.2)."
+    },
+    {
+     "checklist_item": "H4 - Implicit allocation, copy, move, destruction, or cleanup",
+     "why": "Local site 1. The List.sort contract states that the implementation obtains an array containing all elements of the list and sorts that array, so an allocation proportional to the list's length may occur, and nothing at the site names it - there is no `new`, no constructor and no factory call for it. The exclusion for allocation named by a local token does not apply, and the exclusion for unobservable optimization does not apply because the contract itself permits the copy. Distinct from the H2 and H3 events at this site: a different rule (the library clause about how the sort is performed) rather than the mutation or the dispatch rule. NOTE: local site 2 (`boolean lt = a < b;`) triggers nothing - for the integer operands the probe declares, the comparison applies no conversion, cannot fail, and has no edge case that JLS SE26 15.20.1 leaves open."
+    }
+   ],
+   "hidden_count": 3,
+   "complexity_units": 15,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Expression statement (an invocation executed for its effect, with its value discarded).",
+     "citation": "JLS SE26 14.8"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Local variable declaration statement with an initializer.",
+     "citation": "JLS SE26 14.4"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Instance method invocation on a receiver.",
+     "citation": "JLS SE26 15.12"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Static method invocation qualified by a type name.",
+     "citation": "JLS SE26 15.12"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Relational operator <.",
+     "citation": "JLS SE26 15.20.1"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "The primitive type boolean.",
+     "citation": "JLS SE26 4.2.5"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Run-time dispatch selects the body from the receiver's runtime class, including for an interface's default method.",
+     "citation": "JLS SE26 15.12.4.4, 9.4.1"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Overload resolution, including the applicability of a generic method.",
+     "citation": "JLS SE26 15.12.2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Generic method type inference: reverseOrder()'s type argument is inferred from the invocation context, and its bound T extends Comparable<? super T> is what makes the call applicable at all.",
+     "citation": "JLS SE26 18.5.1, 4.4"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Binary numeric promotion at a relational operator, which admits operands of different numeric types and promotes them to a common one.",
+     "citation": "JLS SE26 5.6.2, 15.20.1"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "A simple type name denotes whichever declaration the imports and the enclosing package bring into scope.",
+     "citation": "JLS SE26 6.5.5, 7.5"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Unboxing at a relational operator, which throws NullPointerException on a null operand.",
+     "citation": "JLS SE26 5.1.8"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Standard-library clauses relied on: List.sort(Comparator) sorts THIS list according to the comparator; it obtains an array of the elements to do so; and it throws UnsupportedOperationException when the list's list-iterator does not support set.",
+     "citation": "Java SE 26 API: java.util.List.sort(Comparator)"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Standard-library clause relied on: Comparator.reverseOrder() returns a comparator imposing the reverse of natural ordering and throwing NullPointerException when comparing null.",
+     "citation": "Java SE 26 API: java.util.Comparator.reverseOrder()"
+    },
+    {
+     "unit": "documented exception",
+     "description": "IEEE 754 comparison is a partial order: with a NaN operand every relational operator yields false, so `<` is not the negation of `>=` for floating operands.",
+     "citation": "JLS SE26 15.20.1, 4.2.3"
+    }
+   ]
+  },
+  {
+   "probe_id": "F10.P1",
+   "language": "Java",
+   "language_key": "java",
+   "support": "FULL",
+   "support_reason": "F-1: all three numbered sub-requirements are delivered by `int small = (int) big;` and `return small;`. (1) a value of the signed 32-bit type is produced from `big`; (2) it is bound to the local `small`; (3) `small` is produced. RUNG RECORD, as the canonical task requires. Rung (i) - a standard conversion that REPORTS out-of-range as an optional or error VALUE - is unavailable in Java: the standard checked narrowing is java.lang.Math.toIntExact(long), which signals by THROWING ArithmeticException rather than by yielding a value, and java.base has no Optional-returning or result-returning narrowing conversion; substituting the fallback 0 would additionally require a try/catch, which is not a conversion 'that reports out-of-range as a value'. Rung (ii), Java's ordinary explicit narrowing conversion, is therefore the rung used: the cast `(int)`, which JLS SE26 5.1.3 defines as discarding all but the low-order 32 bits. Rung (iii) does not arise, because Java performs no implicit narrowing at all (5.2), which is itself the fact this probe measures. F-2/F-4: language only. F-3: builds and runs under the frozen recipe and prints -2147483648 for big = 2147483648L, which is the truncated value. F-6: no normative prohibition covers the cast. R10: `(int) big` (5 tokens for the binding) is the minimum form; `Math.toIntExact(big)` is 7 tokens and belongs to a rung the task ranks higher only if it yielded a value, which it does not.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/java/F10.P1.java",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "-2147483648",
+    "diagnostics": "build exit 0, no diagnostics; run exit 0. javac -d OUT FILE.java ; java -cp OUT Main  (environment.json -> semantic_compression_recipes.recipes.java). javac 26.0.1 / openjdk 26.0.1 (Homebrew, arm64), JAVA_HOME=/opt/homebrew/opt/openjdk. The input 2147483648L is exactly one past Integer.MAX_VALUE, so the printed value is the wrapped low-order 32 bits - the answer to the probe's observation target for this source type."
+   },
+   "token_count": 11,
+   "facts": [
+    {
+     "fact_kind": "type_and_representation",
+     "site": "small",
+     "value": "`int`: 32-bit two's-complement signed integer",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.1: the values of type int are the 32-bit two's-complement signed integers. `int` is a reserved keyword (3.9), so the type name cannot be shadowed, aliased or re-imported, and the width is fixed by the language on every implementation and target."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "small",
+     "value": "(i) storage holding a primitive value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2 and 4.12.1: a variable of a primitive type holds its value directly, so the entity is storage holding a value rather than a handle to storage owned elsewhere."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "small",
+     "value": "reassignable: no `final`",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.4 with 14.4: a local variable is reassignable unless it is declared `final`, and the modifier is absent at this declaration."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "small",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15 provides no address-of operator and no reference-to-variable type, and 4.3.1 admits no reference to a local variable, so no name in any Java program can reach this variable's storage. The absence is entailed by a universal language rule (methodology 02 1.4 absence rule (ii))."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int small = (int) big",
+     "value": "definitely initialized with the converted value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.5 and 16: a Java local has no default value, must be definitely assigned before any read, and a declarator with an initializer is definitely assigned at its declaration."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "small",
+     "value": "storage ends with the block; no cleanup runs",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.4.2 (a local variable's lifetime ends with its block) and 4.2: primitive values have no finalizer, destructor or cleanup hook, so nothing runs at scope exit."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "(int) big",
+     "value": "a conversion IS applied and it is WRITTEN here: Java performs no implicit narrowing in an assignment context, so a narrowing from any wider type can only reach this binding through the cast the fragment spells; and a casting conversion can never be a user-defined conversion, because Java has none",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.2 (an assignment context permits a narrowing primitive conversion only for a constant expression) and 5.5 (casting conversion, whose permitted conversions are enumerated - identity, widening and narrowing primitive, widening and narrowing reference, boxing and unboxing; there is no user-defined conversion in the language). Refutation witness semantic-compression/witnesses/java/chunk_B/f10p1_refute_boxedwider.java shows the enumeration biting: `(int)` applied to a `Long` is rejected by javac with 'incompatible types: Long cannot be converted to int', because no single casting conversion unboxes AND narrows."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "(int) big",
+     "value": "the conversion has a DEFINED result for every source value and every source type the cast admits - there is no undefined, unspecified or implementation-defined case, and no build mode or target can change the outcome; the result is never a trap",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.1.3 enumerates the outcome for each source kind: an integral source discards all but the low-order n bits, and a floating source rounds toward zero and clamps to the type's maximum or minimum, with NaN becoming zero. Both clauses are unconditional. This is the row Java wins where the C-family loses it: 5.1.3 leaves nothing undefined."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "(int) big",
+     "value": "if this conversion fails at all it fails by throwing - a ClassCastException or the NullPointerException of an unboxing - never by yielding an error value or a sentinel; and for a primitive source it cannot fail at all",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.5.3 (checked casts throw ClassCastException) and 5.1.8 (unboxing throws NullPointerException on null), with 5.1.2/5.1.3 which define primitive conversions as total. Methodology 02 U-07.2 makes this row about whether and how. Witnesses for the two reference-source cases: semantic-compression/witnesses/java/chunk_B/f10p1_V3_boxedsource.java and semantic-compression/witnesses/java/chunk_B/f10p1_V3b_objectsource.java."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return small",
+     "value": "terminates the enclosing method with small's value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.17."
+    }
+   ],
+   "fact_count": 10,
+   "determinacy_B": 4,
+   "determinacy_enumeration": [
+    "V1 - the source is a wider signed integral primitive (the frozen program's long). The cast is a narrowing primitive conversion that silently discards all but the low-order 32 bits, so it may change both magnitude and SIGN, and it cannot fail (A5 = narrowing/lossy, A6 = cannot fail, A10 = wraps modulo 2^32). Witness: the frozen program builds under the frozen recipe and prints -2147483648 for 2147483648L.",
+    "V2 - the source is a floating-point primitive. `big` is declared outside the measured fragment (methodology 03 Rule 1.1.2), and JLS SE26 5.1.3 gives floating-to-integral narrowing an entirely different rule: it rounds toward zero and SATURATES at Integer.MAX_VALUE or MIN_VALUE, and turns NaN into 0. A10 changes from 'wraps' to 'saturates', which is material on dimension 9. Witness semantic-compression/witnesses/java/chunk_B/f10p1_V2_floatsource.java (byte-identical fragment, `double big`): builds under the frozen recipe and prints '2147483647 0' for 1e30 and NaN.",
+    "V3 - the source is a boxed or reference-typed value. The cast is then a casting conversion through unboxing (JLS SE26 5.5), so the same fragment may throw: NullPointerException for a null Integer, ClassCastException for an Object that is not an Integer. A6 changes from 'cannot fail' to 'may throw an undeclared exception', and A5 from narrowing to unboxing. Witnesses semantic-compression/witnesses/java/chunk_B/f10p1_V3_boxedsource.java (`Integer big = null` - NullPointerException) and semantic-compression/witnesses/java/chunk_B/f10p1_V3b_objectsource.java (`Object big = \"not a number\"` - ClassCastException), both byte-identical fragments built under the frozen recipe. NOTE the boundary this class does NOT cross: `Long` is not admissible, because 5.5 has no casting conversion that unboxes and then narrows - refutation witness semantic-compression/witnesses/java/chunk_B/f10p1_refute_boxedwider.java fails to build.",
+    "V4 - the source is int, or a narrower primitive (byte, short, char). The cast is then an identity or a WIDENING conversion, so no value can change and nothing can be lost - materially different from V1 on dimension 4 ('whether the conversion can change the value'). Witness semantic-compression/witnesses/java/chunk_B/f10p1_V4_narrowsource.java (byte-identical fragment, `char big`, value 60000): builds under the frozen recipe and prints 60000, the zero-extended value. EXCLUSIONS: no class for a trapping or error-value reading - JLS SE26 5.1.3 defines every primitive narrowing as total and Java has no user-defined conversion operator, so the cast cannot run user code; and no class for an undefined outcome, which 5.1.3 forecloses."
+   ],
+   "locality_lookups": 2,
+   "locality_detail": [
+    {
+     "hop": "variable decl - `big` (the enclosing method's parameter, outside the measured fragment)",
+     "required_for_fact": "conversion_behavior, type_and_representation of the source, overflow_exceptional_numeric and possible_failure: the same cast truncates for an integral source, saturates for a floating source, and may throw for a boxed or reference source (determinacy classes V1-V4). One hop resolves all four, so the greedy algorithm of methodology 03 2.3 selects it first."
+    },
+    {
+     "hop": "callee signature - the enclosing method declaration `static int probe(long big)`",
+     "required_for_fact": "conversion_behavior at `return small`: whether the produced int is handed back unchanged or widened or boxed by the assignment conversion of JLS SE26 14.17 is decided there. control_flow_effect needs no hop - 14.17 fixes it at the site."
+    }
+   ],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 9,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Cast expression.",
+     "citation": "JLS SE26 15.16"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Local variable declaration statement with an initializer.",
+     "citation": "JLS SE26 14.4"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Return statement with an expression.",
+     "citation": "JLS SE26 14.17"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "The primitive type int, 32-bit two's complement.",
+     "citation": "JLS SE26 4.2.1"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Casting conversion: which conversion a cast denotes is decided by the source and target types, from a closed enumeration that contains no user-defined conversion.",
+     "citation": "JLS SE26 5.5"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Assignment conversion: no implicit narrowing except for constant expressions, which is why the cast is required.",
+     "citation": "JLS SE26 5.2"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Narrowing primitive conversion from an integral type discards all but the low-order n bits, so it may change the sign and gives no indication of loss.",
+     "citation": "JLS SE26 5.1.3"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Narrowing from a floating-point type does NOT truncate bits: it rounds toward zero, saturates at the target's extremes, and maps NaN to zero - a different rule under the same syntax.",
+     "citation": "JLS SE26 5.1.3"
+    },
+    {
+     "unit": "documented exception",
+     "description": "No single casting conversion both unboxes and narrows, so `(int)` applied to a Long is a compile error although `(int)` applied to a long is not - a static-acceptance rule (static_only) a reader must know to predict which sources this fragment admits.",
+     "citation": "JLS SE26 5.5, 5.1.8"
+    }
+   ]
+  },
+  {
+   "probe_id": "F10.P2",
+   "language": "Java",
+   "language_key": "java",
+   "support": "FULL",
+   "support_reason": "F-1: both numbered sub-requirements are delivered by the single statement `double sum = i + d;`. (1) it computes the sum of `i` and `d`, writing no conversion because Java requires none here - binary numeric promotion converts the int operand to double implicitly (JLS SE26 5.6.2), and the canonical task directs that conversions the language performs implicitly be OMITTED; (2) it binds the result to a new local `sum`. F-2/F-4: language only. F-3: builds and runs under the frozen recipe and prints 3.5 for i = 3, d = 0.5. F-6: no normative prohibition applies. R10: `double sum = i + d;` (7 tokens) is the minimum; `var sum = i + d;` is also 7 but was rejected under R2 (a professional author pins the type of a mixed-arithmetic result rather than leaving the reader to infer it from two declarations elsewhere), and `(double) i + d` (9 tokens) is rejected by the canonical task's own instruction to omit conversions the language performs implicitly.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/java/F10.P2.java",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "3.5",
+    "diagnostics": "build exit 0, no diagnostics; run exit 0. javac -d OUT FILE.java ; java -cp OUT Main  (environment.json -> semantic_compression_recipes.recipes.java). javac 26.0.1 / openjdk 26.0.1 (Homebrew, arm64), JAVA_HOME=/opt/homebrew/opt/openjdk. "
+   },
+   "token_count": 7,
+   "facts": [
+    {
+     "fact_kind": "type_and_representation",
+     "site": "sum",
+     "value": "`double`: IEEE 754 binary64, including signed zeroes, the infinities and NaN",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.3. `double` is a reserved keyword (3.9), so the type cannot be shadowed and the precision is fixed by the language rather than by the implementation."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "sum",
+     "value": "(i) storage holding a primitive value",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2 and 4.12.1: a variable of a primitive type holds its value directly, so the entity is storage holding a value rather than a handle to storage owned elsewhere."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "sum",
+     "value": "reassignable: no `final`",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.4 with 14.4: a local variable is reassignable unless it is declared `final`, and the modifier is absent at this declaration."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "sum",
+     "value": "no alias can exist",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15 provides no address-of operator and no reference-to-variable type, and 4.3.1 admits no reference to a local variable, so no name in any Java program can reach this variable's storage. The absence is entailed by a universal language rule (methodology 02 1.4 absence rule (ii))."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "double sum = i + d",
+     "value": "definitely initialized with the sum",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.12.5 and 16: a Java local has no default value, must be definitely assigned before any read, and a declarator with an initializer is definitely assigned at its declaration."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "sum",
+     "value": "storage ends with the block; no cleanup runs",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 14.4.2 (a local variable's lifetime ends with its block) and 4.2: primitive values have no finalizer, destructor or cleanup hook, so nothing runs at scope exit."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "i + d",
+     "value": "a conversion is applied to at least one operand and the reader knows its DIRECTION without any lookup: binary numeric promotion only ever unboxes and widens, so whichever operand changes, it is converted UPWARDS toward the wider type and never narrowed",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.6.2 (binary numeric promotion applies unboxing conversion and then widening primitive conversion, converting to double if either operand is double, else float, else long, else int) with 5.1.2. Which operand is converted is NOT recoverable here - that is recorded as a lookup, and it is the probe's observation target."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "double sum = i + d",
+     "value": "at the binding, at most a widening primitive conversion is applied: an assignment context in Java admits no implicit narrowing, so the value that reaches `sum` cannot have been silently truncated by the assignment",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 5.2. Witness of the rule biting in the other direction: semantic-compression/witnesses/java/chunk_B/f07p1_refute_R6_floatoperands.java, where an assignment in the opposite direction is rejected outright."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "i + d",
+     "value": "every case of this addition has a defined outcome and none of them is a trap or an undefined behaviour: an integral addition wraps modulo 2^n and signals nothing (4.2.2), a floating addition rounds to nearest and produces a signed infinity or NaN at its edges (15.18.2, 4.2.4), and no build mode, flag or target can change either rule",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 4.2.2, 4.2.4 and 15.18.2 together enumerate the outcome for every operand-type class the operator admits. Java exposes no arithmetic mode, so the outcome is not a compiler-configuration question here, which is why this row counts rather than being a configuration lookup."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "i + d",
+     "value": "if this expression can fail at all, the only mechanism available is a thrown exception from an unboxing conversion; the addition itself, at every width, is total",
+     "locally_recoverable": true,
+     "justification": "JLS SE26 15.18.2 (defined for every operand pair) with 5.1.8 (unboxing throws NullPointerException on null). Witness of the single failure route: semantic-compression/witnesses/java/chunk_B/f10p2_V5_boxednpe.java."
+    }
+   ],
+   "fact_count": 10,
+   "determinacy_B": 5,
+   "determinacy_enumeration": [
+    "V1 - `i` is an int and `d` is a double (the frozen program). Binary numeric promotion widens `i` to double, which is EXACT for every int value, and the addition is IEEE binary64 (A5 = lossless widening, A4 = binary floating point, A10 = rounding/NaN/Inf). Witness: the frozen program builds under the frozen recipe and prints 3.5.",
+    "V2 - `i` is a long. Both operands are declared outside the measured fragment (methodology 03 Rule 1.1.2), and the same promotion is then LOSSY: a long above 2^53 is rounded when it is converted to double (JLS SE26 5.1.2 states explicitly that a widening conversion from long to double may lose precision). A5 changes to 'narrowing/lossy in effect', which dimension 4 lists as material. Witness semantic-compression/witnesses/java/chunk_B/f10p2_V2_longsource.java (byte-identical fragment, i = 9007199254740993L): builds under the frozen recipe and prints 9.007199254740992E15 - the input rounded.",
+    "V3 - `d` is a float and `i` an integral type. The addition is then performed in binary32 and only the RESULT is widened to double at the assignment, so the arithmetic carries single precision: materially different on dimension 8. Witness semantic-compression/witnesses/java/chunk_B/f10p2_V6_floatprecision.java (byte-identical fragment, `float d`, i = 16777217): builds under the frozen recipe and prints 1.6777216E7 rather than 1.6777217E7.",
+    "V4 - BOTH operands are integral. Nothing in the fragment says `d` is a floating value - only its name does - so `i + d` may be an INTEGER addition that wraps modulo 2^32, whose result is widened to double only afterwards by the assignment conversion (JLS SE26 5.2). A10 changes from 'rounding' to 'wraps modulo 2^n', and the observable result differs in sign. Witness semantic-compression/witnesses/java/chunk_B/f10p2_V4_bothintegral.java (byte-identical fragment, `int i, int d`, i = Integer.MAX_VALUE, d = 1): builds under the frozen recipe and prints -2.147483648E9.",
+    "V5 - one or both operands are boxed numerics. Binary numeric promotion then inserts an unboxing conversion, and the same statement throws NullPointerException for a null operand (JLS SE26 5.1.8): A6 changes from 'cannot fail' to 'may throw an undeclared exception'. Witness semantic-compression/witnesses/java/chunk_B/f10p2_V5_boxednpe.java (byte-identical fragment, `Integer i, Double d`, d = null): builds under the frozen recipe and aborts with exit 1 and 'NullPointerException: Cannot invoke \"java.lang.Double.doubleValue()\"'. EXCLUSIONS, with citations and refutations. A String reading of `+` (JLS SE26 15.18.1 makes `+` string concatenation when either operand is a String) is NOT realizable here: the result would be a String, which 5.2 will not assign to `double`; refutation witness semantic-compression/witnesses/java/chunk_B/f07p1_refute_R6_floatoperands.java exhibits the same assignment rule rejecting a non-assignable operand type at compile time. A user-defined `+` is not realizable - Java has no operator overloading (refutation witness semantic-compression/witnesses/java/chunk_B/f07p1_refute_R8_useroperator.java). A build-mode class is not realizable - Java has no arithmetic mode, and 4.2.4 fixes the floating-point semantics on every implementation (strictfp is no longer a semantic distinction in Java SE 17 and later)."
+   ],
+   "locality_lookups": 2,
+   "locality_detail": [
+    {
+     "hop": "variable decl - `i` (given context, outside the measured fragment)",
+     "required_for_fact": "conversion_behavior and type_and_representation: which operand is converted, and whether that conversion is exact, is decided by the operand declarations. This is exactly the probe's observation target, and the fragment does not answer it: `double sum` pins the type of the VARIABLE, not the type at which the addition is performed (determinacy class V4)."
+    },
+    {
+     "hop": "variable decl - `d`",
+     "required_for_fact": "the same facts, plus overflow_exceptional_numeric: reading `i` alone cannot settle whether the addition is a binary64 addition that rounds, a binary32 addition, or an integer addition that wraps, because JLS SE26 5.6.2 chooses the operation's type from BOTH operands."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H1 - Implicit conversions",
+     "why": "Local site 1 (the single statement). A widening primitive conversion is inserted at one operand by binary numeric promotion (JLS SE26 5.6.2) with no cast, constructor or conversion token written anywhere at the site; it occurs when the frozen implementation runs (the int operand is converted to double). The value-preserving exclusion does not apply: the conversion is what decides whether the operator is an integer addition that wraps modulo 2^32 or a binary64 addition that rounds, so it affects the overflow behaviour and the set of representable values observably - witness semantic-compression/witnesses/java/chunk_B/f10p2_V4_bothintegral.java prints -2.147483648E9 for the same statement when no promotion to double occurs. LED fails because both operand declarations are outside the local site, so the site plus the JLS do not fix which conversion is inserted. H7 is NOT counted separately for the representation change: the single-assignment rule 1.3.1 assigns this event to H1. H8 is NOT counted: for the operand types the probe declares (int and double) JLS SE26 4.2.4 and 15.18.2 give exactly one documented outcome per edge class, in every mode and on every target, and the variation that arises only from what the operands were declared to be elsewhere is explicitly routed by H8's own exclusion to Semantic Locality and Semantic Determinacy, where this annotation charges it."
+    }
+   ],
+   "hidden_count": 1,
+   "complexity_units": 9,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Local variable declaration statement with an initializer.",
+     "citation": "JLS SE26 14.4"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Additive operator + on numeric operands.",
+     "citation": "JLS SE26 15.18.2"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "The primitive type double, IEEE 754 binary64.",
+     "citation": "JLS SE26 4.2.3"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Binary numeric promotion: the operand types choose the type at which the addition is performed, and therefore choose between wraparound and rounding.",
+     "citation": "JLS SE26 5.6.2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "One operator symbol, two operations: `+` is string concatenation when either operand is a String and numeric addition otherwise.",
+     "citation": "JLS SE26 15.18.1, 15.18.2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Assignment conversion: a widening primitive conversion is inserted at the binding when the expression's type is narrower than the declared type; no narrowing is permitted.",
+     "citation": "JLS SE26 5.2"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Widening primitive conversion is exact from int to double but MAY LOSE PRECISION from long or from int to float.",
+     "citation": "JLS SE26 5.1.2"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Unboxing may be inserted at an arithmetic operator and throws NullPointerException on null.",
+     "citation": "JLS SE26 5.1.8"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Floating-point arithmetic rounds to nearest and produces signed infinities and NaN at its edges, identically on every implementation.",
+     "citation": "JLS SE26 4.2.4, 15.18.2"
+    }
+   ]
+  }
+ ]
+}

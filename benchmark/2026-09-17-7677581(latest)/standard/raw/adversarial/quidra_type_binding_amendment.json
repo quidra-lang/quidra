@@ -1,0 +1,107 @@
+{
+  "document_id": "quidra_type_binding_amendment",
+  "required_by": "methodology/08_adversarial_cases.json -> type_binding_table.quidra_binding_amendment",
+  "benchmark_run_id": "2026-09-17-7677581",
+  "authored_by": "adversarial measurement operator (chunk 1 agent)",
+  "authored_at": "2026-09-19",
+  "PROVENANCE_WARNING": "THIS AMENDMENT WAS NOT PRESENT WHEN THE ADVERSARIAL MEASUREMENT BEGAN. The frozen methodology requires it to be published and checksummed BEFORE the first Quidra adversarial program is written. It was not. It was authored at measurement time by the operator of adversarial chunk 1, from Quidra's own documentation ONLY, and BEFORE any Quidra construct was compiled or run for any adversarial case (satisfying quidra_binding_amendment.no_run_time_selection in substance but NOT its timing requirement). The scoring operator must decide whether this satisfies the amendment requirement or whether quidra_binding_amendment.if_not_produced applies, in which case every Quidra adversarial row is `na_authoring_defect` and none is scored. This file does not assert that it satisfies the requirement.",
+  "no_run_time_selection_attestation": "No .qui file was compiled, run, or checked by any Quidra tool for any adversarial case before this file was written. Every binding below was read out of the documentation files listed in `sources`, at the frozen head_sha 7677581.",
+  "sources": [
+    {"document": "docs/spec/language.md", "version": "Quidra Language 0.1", "sha": "7677581"},
+    {"document": "docs/spec/numeric-and-bytes.md", "version": "0.2.0", "sha": "7677581"},
+    {"document": "docs/spec/architecture.md", "version": "0.2.0", "sha": "7677581"},
+    {"document": "docs/spec/diagnostics.md", "version": "0.2.0", "sha": "7677581"}
+  ],
+  "bindings": {
+    "default_arithmetic_type": {
+      "construct": "int",
+      "citation": {"document": "docs/spec/language.md", "clause": "Types", "quote": "`int` and `int64` are the same signed 64-bit type ... Integer literal magnitudes are accepted through the full `uint64` range; magnitudes above signed `int` maximum require an explicit `uint64` context."},
+      "tm3_branch": "not_applicable"
+    },
+    "fixed_width_i64": {
+      "construct": "int64",
+      "citation": {"document": "docs/spec/numeric-and-bytes.md", "clause": "Built-in scalar types", "quote": "Quidra provides these numeric scalar types: `int8`, `int16`, `int32`, `int`, `int64` ... `int` and `int64` are the same signed 64-bit type."},
+      "tm3_branch": "not_applicable"
+    },
+    "fixed_width_i32": {
+      "construct": "int32",
+      "citation": {"document": "docs/spec/numeric-and-bytes.md", "clause": "Built-in scalar types"},
+      "tm3_branch": "not_applicable"
+    },
+    "fixed_width_u32": {
+      "construct": "uint32",
+      "citation": {"document": "docs/spec/numeric-and-bytes.md", "clause": "Built-in scalar types", "quote": "`uint8`, `uint16`, `uint32`, `uint64`"},
+      "tm3_branch": "not_applicable"
+    },
+    "float64": {
+      "construct": "float (spelled `float`; `float` and `float64` are the same type)",
+      "citation": {"document": "docs/spec/numeric-and-bytes.md", "clause": "Built-in scalar types", "quote": "`float` and `float64` are the same IEEE-754 binary64 type."},
+      "tm3_branch": "not_applicable"
+    },
+    "default_string_type": {
+      "construct": "string",
+      "citation": {"document": "docs/spec/language.md", "clause": "Types", "quote": "`bool`, `string`, `bytes`, and `error` hold booleans, immutable text, mutable raw binary data, and error information."},
+      "tm3_branch": "not_applicable"
+    },
+    "default_ordered_sequence": {
+      "construct": "int64[] (runtime-length array of int64)",
+      "citation": {"document": "docs/spec/language.md", "clause": "Arrays and shapes", "quote": "`T[]` has runtime length. ... Indexing requires `int`, starts at zero, and checks bounds. ... `len(array)` returns the runtime length as `int`."},
+      "tm3_branch": "not_applicable"
+    },
+    "most_general_reference": {
+      "construct": "an explicit union type over the declared alternatives, i.e. `A | B`",
+      "citation": {"document": "docs/spec/language.md", "clause": "Types / Classes", "quote": "`T | U` is an untagged surface description of a runtime tagged union: exactly one alternative is active. ... Inheritance is member reuse and override, not implicit subtyping: `Base value = derived` and `Base &value = &derived` are invalid. Use an explicit union such as `Base | Derived` when a value may contain either type."},
+      "tm3_branch": "TM3b",
+      "tm3_justification": "Quidra has no universal reference type (no Object, no Any, no void*, no dynamic dispatch: 'Method selection is static; there is no dynamic dispatch, `virtual`, or object slicing.'). TM3a is NOT claimed: the documentation establishes the absence of the universal-reference SPELLING but does not establish that the hazard cannot arise, because the language's ordinary alternative -- an explicit union -- carries a value of type A through a binding whose static type is not A, which is exactly the situation ADV-13 constructs. Under TM3b that ordinary alternative is used and the case proceeds normally.",
+      "adv13_forced_cast_spelling": "The most direct 'treat this as a B' form Quidra provides is the destination-type call form `B(value)`, which is the spelling the documentation designates for explicit conversion ('Explicit numeric conversion uses the destination type as a call', numeric-and-bytes.md; 'Explicit numeric casts use the destination type directly', language.md Strings and arithmetic). This spelling is pre-declared here and is used unconditionally in ADV-13, whatever the compiler does with it."
+    },
+    "null_or_absent_value": {
+      "construct": "none, in a `string | none` binding",
+      "citation": {"document": "docs/spec/language.md", "clause": "Types", "quote": "`none` is the absence alternative of a union. `string | none` can hold text or normal absence ... Standalone `none` declarations, function returns typed solely `none`, and `auto x = none` are invalid."},
+      "tm3_branch": "not_applicable"
+    }
+  },
+  "authoring_choice_table": {
+    "primary_string_to_integer_facility": {
+      "construct": "int64.parse(text) -> int64 | error, consumed with `try` inside a function whose declared return type admits `error`",
+      "citation": {"document": "docs/spec/language.md", "clause": "Strings and arithmetic / Error propagation and match", "quote": "Numeric types expose `Type.parse(text) -> T | error`. ... `try` requires an expression whose union includes `error`, inside a function that can return that error. On error it returns the same error from the current function."},
+      "tm3_branch": "not_applicable",
+      "a3_note": "This is the exact structural analogue of the frozen Zig row ('try std.fmt.parseInt(i64, text, 10), inside a function whose return type is !void'). The failure channel is propagated, never inspected."
+    },
+    "line_reading_facility": {
+      "construct": "input() -> string | none | error",
+      "citation": {"document": "docs/spec/language.md", "clause": "Strings and arithmetic", "quote": "`input()` returns `string | none | error`: a valid UTF-8 line without embedded NUL produces a string with the trailing LF removed, EOF produces `none`, and an input or text-validation failure produces `error`."},
+      "forced_construct_declaration": "`try` removes only the `error` alternative ('Normal absence is not propagated by `try`'), leaving `string | none`, which is not assignable to `string`. Quidra therefore FORCES a `match` on the residual `none` alternative in order to compile at all. Under mandatory_program_skeleton prohibition P1 this is the single permitted forced construct; it is written in its shortest form, it concerns the LINE READING plumbing and not any case's hazard, and it is recorded verbatim in every affected observation record's `forced_error_handling` field."
+    },
+    "strongest_immutable_binding_form": {
+      "construct": "const int64",
+      "citation": {"document": "docs/spec/architecture.md", "clause": "Core contracts", "quote": "`const T` is an immutable initialized value binding."},
+      "tm3_branch": "not_applicable"
+    },
+    "string_length_member": {
+      "construct": "len(s)",
+      "citation": {"document": "docs/spec/language.md", "clause": "Text and dynamic array operations", "quote": "`len(text)` counts Unicode code points rather than UTF-8 bytes."},
+      "tm3_branch": "not_applicable"
+    },
+    "index_type_construction": {
+      "construct": "signed index (int): read -1 directly through the opacity barrier",
+      "citation": {"document": "docs/spec/language.md", "clause": "Arrays and shapes", "quote": "Indexing requires `int`, starts at zero, and checks bounds."},
+      "tm3_branch": "not_applicable",
+      "note": "Quidra's index type is the SIGNED 64-bit `int`, so ADV-09 takes the signed branch of its construction step 2, exactly as Python, Go, Java, TypeScript, Kotlin and Swift do."
+    },
+    "growable_sequence_substitution": {
+      "construct": "int64[] built from an array literal where the case does not grow the sequence (ADV-09, ADV-10); `array(n)` where a case creates a sequence of a given runtime length (ADV-11)",
+      "citation": {"document": "docs/spec/language.md", "clause": "Arrays and shapes", "quote": "`array(count)` creates runtime-sized storage whose elements are initially uninitialized. It therefore requires an explicit array type context. ... `array(count, fill = value)` creates a fully initialized array"},
+      "tm3_branch": "not_applicable",
+      "adv11_note": "ADV-11 construction step 2 says 'using the language's ordinary way of creating a sequence of a given length' and step 3 assigns element 0 before reading it, so `array(n)` (uninitialized elements, written before read) is the correct ordinary form and not a fallible/try-allocate API."
+    }
+  },
+  "adv12_determination": {
+    "case": "ADV-12 uninitialized value",
+    "construct_present": true,
+    "construct": "a local declaration without an initializer, e.g. `int64 value`",
+    "citation": {"document": "docs/spec/language.md", "clause": "Bindings and definite initialization", "quote": "A declaration without an initializer leaves a scalar or ordinary aggregate binding uninitialized."},
+    "tm3_branch": "not_applicable",
+    "note": "TM3a is explicitly NOT claimed. The declaration form the case requires exists in Quidra, so the case is implemented and run and whatever the checker does with it is the measurement."
+  }
+}

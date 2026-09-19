@@ -1,0 +1,9 @@
+$ python3 forward.py fixture_real.py /tmp/f.py && python3 inverse.py /tmp/f.py /tmp/b.py && cmp fixture_real.py /tmp/b.py
+byte-identical, exit=0
+$ python3 forward.py reference_solution.py /tmp/fs.py && python3 inverse.py /tmp/fs.py /tmp/bs.py && cmp reference_solution.py /tmp/bs.py
+byte-identical, exit=0
+$ python3 validate.py submission preflight_bare_submission_anon.py expected_output.txt
+ACCEPTED
+exit=0
+$ python3 inverse.py preflight_bare_submission_anon.py > /tmp/solution.py && python3 /tmp/solution.py | diff - expected_output.txt
+output identical, exit=0

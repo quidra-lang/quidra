@@ -1,0 +1,246 @@
+// MB-11 collections: hash map, hash set, and dynamic array.
+//
+// Quidra's standard `set.Set<T>` and the built-in growable array cover the set
+// and list phases directly, exactly as section 4.12(d) pins them.
+//
+// FORCED SUBSTITUTION for the map phase. Section 4.12(d) pins `map.Map<int,int>`,
+// but v0.1's `map.Map` has NO removal operation and MB-11's delete phase requires
+// one. Verified in the compiler's own desugared definition of the container
+// (quidra/src/frontend.cpp:305-383): the methods are `__hash`, `__find`,
+// `__place`, `__rehash`, `has`, `get`, `set`, `size`, `keys`, `values` -- there is
+// no `remove`, `delete`, `erase` or `discard`. MB-11's stated fallback clause
+// therefore fires (contrary to 06_micro_workloads.md:1074-1079, which records it
+// as verified inert), and the map phase uses the workload's pinned reference
+// container: open addressing with linear probing, power-of-two capacity from 16,
+// hash (key * 0x9E3779B1) mod 2^32 masked to the capacity, load factor 0.75,
+// doubling with a full rehash, and tombstone-free deletion by backward shift.
+// Quidra has no bitwise operators, so the mask is written as a remainder by the
+// power-of-two capacity, which is the same value. Per the fallback's own
+// consequences this row must be published separately, recorded as a
+// missing-capability result, and never presented as Quidra's standard-container
+// number.
+//
+// Mode selection (methodology 06 section 5.2). Quidra's `cli` module has no
+// OPTIONAL positional argument: `argument()` is positional but mandatory (a bare
+// `./BIN` then exits with CLI status 2, which would break the frozen `once`
+// recipe), and `option(default = ...)` is optional but named. The optional form
+// is the one that preserves section 5.2's semantics, so the mode is spelled
+// `--mode steady --iters K` instead of `argv[1] argv[2]`.
+//
+// Section 5.2 also requires each ITER line to be flushed immediately, and
+// Quidra v0.1 cannot do that: `print` lowers to C `puts` on block-buffered
+// stdout (quidra/src/llvm_backend.cpp:2195, :2202, :2209; `declare i32 @puts`
+// at :2829) and the standard library exposes no flush call. Measured: this
+// program run in steady mode with stdout redirected to a file and SIGKILLed
+// after three iterations had completed produced 0 bytes of output. Section
+// 5.4's partial-retention rule (rule 1) is therefore inert for this
+// configuration; a steady process stopped at the timeout falls to rule 2.
+
+cli args
+    string mode = option(default = "once")
+    int iters = option(default = 7)
+
+class IntMap
+    int[] slot_keys = array(16, fill = 0)
+    int[] slot_values = array(16, fill = 0)
+    bool[] slot_used = array(16, fill = false)
+    int entries = 0
+
+    int slot_of(int key, int capacity)
+        return key * 2654435761 % 4294967296 % capacity
+
+    int locate(int key)
+        int capacity = len(slot_used)
+        int index = slot_of(key, capacity)
+        while slot_used[index]
+            if slot_keys[index] == key
+                return index
+            index += 1
+            if index == capacity
+                index = 0
+        return -1
+
+    void rehash(int capacity)
+        int[] old_keys = slot_keys
+        int[] old_values = slot_values
+        bool[] old_used = slot_used
+        slot_keys = array(capacity, fill = 0)
+        slot_values = array(capacity, fill = 0)
+        slot_used = array(capacity, fill = false)
+        for source in range(0, len(old_used))
+            if old_used[source]
+                int index = slot_of(old_keys[source], capacity)
+                while slot_used[index]
+                    index += 1
+                    if index == capacity
+                        index = 0
+                slot_keys[index] = old_keys[source]
+                slot_values[index] = old_values[source]
+                slot_used[index] = true
+        return
+
+    int size()
+        return entries
+
+    bool has(int key)
+        return locate(key) >= 0
+
+    int | none get(int key)
+        int index = locate(key)
+        if index >= 0
+            return slot_values[index]
+        return none
+
+    void put(int key, int value)
+        int capacity = len(slot_used)
+        int index = slot_of(key, capacity)
+        while slot_used[index]
+            if slot_keys[index] == key
+                slot_values[index] = value
+                return
+            index += 1
+            if index == capacity
+                index = 0
+        slot_keys[index] = key
+        slot_values[index] = value
+        slot_used[index] = true
+        entries += 1
+        if entries * 4 > capacity * 3
+            rehash(capacity * 2)
+        return
+
+    void remove(int key)
+        int capacity = len(slot_used)
+        int hole = locate(key)
+        if hole < 0
+            return
+        slot_used[hole] = false
+        entries -= 1
+        int probe = hole
+        while true
+            probe += 1
+            if probe == capacity
+                probe = 0
+            if not slot_used[probe]
+                return
+            int ideal = slot_of(slot_keys[probe], capacity)
+            // Leave the entry alone when its ideal slot lies cyclically in (hole, probe].
+            bool settled = false
+            if hole <= probe
+                settled = hole < ideal and ideal <= probe
+            else
+                settled = hole < ideal or ideal <= probe
+            if settled
+                continue
+            slot_keys[hole] = slot_keys[probe]
+            slot_values[hole] = slot_values[probe]
+            slot_used[hole] = true
+            slot_used[probe] = false
+            hole = probe
+        return
+
+    // The pinned pseudocode's single `for each (k, v) in m` pass. `mchk` uses
+    // only commutative accumulation, so slot order is a permitted iteration order.
+    int checksum(int modulus)
+        int total = 0
+        for index in range(0, len(slot_used))
+            if slot_used[index]
+                total = (total + slot_keys[index] % modulus * slot_values[index]) % modulus
+        return total
+
+class Result
+    int accumulator = 0
+    int size1 = 0
+    int found = 0
+    int value_sum = 0
+    int map_check = 0
+    int size2 = 0
+    int size3 = 0
+    int list_sum = 0
+
+Result workload()
+    const int count = 1000000
+    const int rounds = 3
+    const int key_modulus = 500009
+    const int set_modulus = 100003
+    const int modulus = 1000000007
+    int state = 20271917
+
+    int[] keys = array(count, fill = 0)
+    for i in range(0, count)
+        state = (state * 48271) % 2147483647
+        keys[i] = state
+
+    int accumulator = 0
+    int size1 = 0
+    int found = 0
+    int value_sum = 0
+    int map_check = 0
+    int size2 = 0
+    int size3 = 0
+    int list_sum = 0
+
+    for round in range(0, rounds)
+        keys[round] += 1000000
+
+        IntMap counts = IntMap()
+        for i in range(0, count)
+            int k = keys[i] % key_modulus
+            match counts.get(k)
+                int previous
+                    counts.put(k, previous + 1)
+                none
+                    counts.put(k, 1)
+        size1 = counts.size()
+
+        found = 0
+        value_sum = 0
+        for i in range(0, count)
+            int k = (keys[i] + 7) % key_modulus
+            match counts.get(k)
+                int value
+                    found += 1
+                    value_sum += value
+                none
+                    continue
+
+        map_check = counts.checksum(1000003)
+
+        // `remove` is already a no-op for an absent key, so it is called
+        // unconditionally -- the direct counterpart of C++ `erase`, Rust and
+        // Java `remove`, and one `locate` cheaper than a `has` guard.
+        for i in range(0, count, 2)
+            counts.remove(keys[i] % key_modulus)
+        size2 = counts.size()
+
+        set.Set<int> unique = set.Set<int>()
+        for i in range(0, count)
+            unique.add(keys[i] % set_modulus)
+        size3 = unique.size()
+
+        int[] values = []
+        for i in range(0, count)
+            values = values.append(keys[i] % 1000)
+        list_sum = 0
+        for value in values
+            list_sum += value
+
+        int[] fields = [size1, found, value_sum, map_check, size2, size3, list_sum]
+        for value in fields
+            accumulator = (accumulator * 31 + value) % modulus
+
+    return Result(accumulator = accumulator, size1 = size1, found = found,
+                  value_sum = value_sum, map_check = map_check, size2 = size2,
+                  size3 = size3, list_sum = list_sum)
+
+Result out = Result()
+if args.mode == "steady"
+    for k in range(0, args.iters)
+        time.Instant started = time.now()
+        out = workload()
+        time.Duration elapsed = time.since(started)
+        int nanoseconds = math.floor(elapsed.seconds() * 1000000000.0)
+        print("ITER {k} {nanoseconds}")
+else
+    out = workload()
+print("MB11 {out.accumulator} {out.size1} {out.found} {out.value_sum} {out.map_check} {out.size2} {out.size3} {out.list_sum}")

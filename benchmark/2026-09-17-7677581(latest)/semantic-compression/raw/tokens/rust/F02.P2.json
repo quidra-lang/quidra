@@ -1,0 +1,253 @@
+{
+ "probe_id": "F02.P2",
+ "language": "rust",
+ "count": 39,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "let",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "KW",
+   "text": "mut",
+   "line": 1,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "buf",
+   "line": 1,
+   "col": 9
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 1,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": "[",
+   "line": 1,
+   "col": 15
+  },
+  {
+   "tag": "IDENT",
+   "text": "MaybeUninit",
+   "line": 1,
+   "col": 16
+  },
+  {
+   "tag": "OP",
+   "text": "::",
+   "line": 1,
+   "col": 27
+  },
+  {
+   "tag": "OP",
+   "text": "<",
+   "line": 1,
+   "col": 29
+  },
+  {
+   "tag": "IDENT",
+   "text": "u8",
+   "line": 1,
+   "col": 30
+  },
+  {
+   "tag": "OP",
+   "text": ">",
+   "line": 1,
+   "col": 32
+  },
+  {
+   "tag": "OP",
+   "text": "::",
+   "line": 1,
+   "col": 33
+  },
+  {
+   "tag": "IDENT",
+   "text": "uninit",
+   "line": 1,
+   "col": 35
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 1,
+   "col": 41
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 1,
+   "col": 42
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 1,
+   "col": 43
+  },
+  {
+   "tag": "NUM",
+   "text": "16",
+   "line": 1,
+   "col": 45
+  },
+  {
+   "tag": "DELIM",
+   "text": "]",
+   "line": 1,
+   "col": 47
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 1,
+   "col": 48
+  },
+  {
+   "tag": "IDENT",
+   "text": "buf",
+   "line": 2,
+   "col": 1
+  },
+  {
+   "tag": "DELIM",
+   "text": "[",
+   "line": 2,
+   "col": 4
+  },
+  {
+   "tag": "NUM",
+   "text": "0",
+   "line": 2,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": "]",
+   "line": 2,
+   "col": 6
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 2,
+   "col": 7
+  },
+  {
+   "tag": "IDENT",
+   "text": "write",
+   "line": 2,
+   "col": 8
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 2,
+   "col": 13
+  },
+  {
+   "tag": "NUM",
+   "text": "1",
+   "line": 2,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 2,
+   "col": 15
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 2,
+   "col": 16
+  },
+  {
+   "tag": "KW",
+   "text": "unsafe",
+   "line": 3,
+   "col": 1
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 3,
+   "col": 8
+  },
+  {
+   "tag": "IDENT",
+   "text": "buf",
+   "line": 3,
+   "col": 10
+  },
+  {
+   "tag": "DELIM",
+   "text": "[",
+   "line": 3,
+   "col": 13
+  },
+  {
+   "tag": "NUM",
+   "text": "0",
+   "line": 3,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": "]",
+   "line": 3,
+   "col": 15
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 3,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "assume_init",
+   "line": 3,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 3,
+   "col": 28
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 3,
+   "col": 29
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 3,
+   "col": 31
+  }
+ ],
+ "class_histogram": {
+  "KW": 3,
+  "IDENT": 8,
+  "OP": 5,
+  "DELIM": 19,
+  "NUM": 4
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/rust/F02.P2.rs",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

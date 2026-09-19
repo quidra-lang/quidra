@@ -1,0 +1,2153 @@
+{
+ "language": "C++",
+ "language_key": "cpp",
+ "chunk": "B",
+ "probes": [
+  {
+   "probe_id": "F06.P1",
+   "language": "C++",
+   "language_key": "cpp",
+   "support": "FULL",
+   "support_reason": "F-1: every numbered sub-requirement is delivered. (1) `int mid(const std::vector<int>& v) { return v[1]; }` is a function with one parameter of C++'s normal growable-integer-sequence type (std::vector<int>, [vector.overview]) whose body returns the element at index 1. (2) `std::vector<int> xs = {1, 2, 3};` binds a local to such a sequence containing 1, 2, 3. (3) `int y = mid(xs);` binds the call's result in C++'s normal binding form (a simple-declaration with an initializer, [dcl.init]). (4) `return y;`. F-2: only the language and the bundled standard library are used. F-3: builds and runs under `clang++ -std=c++20 -O2` and prints 2, the element at index 1. F-4: no extra flag, package or code generation. F-6: no clause of the C++ standard or of the libc++ documentation places std::vector, reference parameters or subscripting under a normative prohibition or deprecation. R10 form selection: the parameter form `const std::vector<int>&` (21 tokens for the definition) was measured rather than the 19-token by-value `std::vector<int> v`, because R2 filters before R10 and a by-value growable-sequence parameter used only to read one element is not what a competent professional writes for production code (C++ Core Guidelines F.16: pass cheaply-copied types by value and others by reference to const). `int y = ...` and `auto y = ...` tie at 8 tokens; the tie is broken by documentation order, fundamental-type simple-type-specifiers ([basic.fundamental], [dcl.type.simple]) preceding the placeholder specifier ([dcl.spec.auto]). HARNESS DISCLOSURE (spec 10.4, not a support deduction): C++ requires a name to be declared before use, so `mid`'s prototype is placed outside the markers as entry scaffolding, exactly as the enclosing `int caller() {` header is; the full definition of `mid` is inside the measured region, so no fact is moved out of it. The caller's closing `}` falls inside the region because the region must be contiguous - 1 token.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/cpp/F06.P1.cpp",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "2",
+    "diagnostics": "clang++ -std=c++20 -O2 FILE.cpp -o BIN  (environment.json -> semantic_compression_recipes.cpp.build); exit 0, no diagnostics; run exit 0. Apple clang 17.0.0 (clang-1700.6.3.2), target arm64-apple-darwin25.4.0."
+   },
+   "token_count": 49,
+   "facts": [
+    {
+     "fact_kind": "type_and_representation",
+     "site": "std::vector<int> xs",
+     "value": "std::vector<int>: a class type holding its int elements contiguously in one separately allocated block; the element type is int, whose width is implementation-defined",
+     "locally_recoverable": true,
+     "justification": "[vector.overview]/1: the elements of a vector are stored contiguously. [basic.fundamental]/2. The type is written in full at the site, so no declaration outside the probe region is consulted (hops_decl = 0, hops_stdlib = 1)."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "xs",
+     "value": "(i) an object with automatic storage duration",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]/1; the declarator contains no `&`, so xs is an object and not a reference ([dcl.ref])."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "xs",
+     "value": "modifiable: elements may be written and the sequence resized through this name",
+     "locally_recoverable": true,
+     "justification": "[dcl.type.cv]/1 - no cv-qualifier appears, and C++ makes objects modifiable by default."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "std::vector<int> xs = {1, 2, 3}",
+     "value": "initialized with exactly the three specified elements 1, 2, 3",
+     "locally_recoverable": true,
+     "justification": "[dcl.init.list]/3.2 and [over.match.list]: a braced-init-list selects the initializer_list constructor, which [vector.cons] specifies as constructing a vector equal to the list's contents."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "std::vector<int> xs = {1, 2, 3}",
+     "value": "allocates: storage for three ints is obtained through the allocator and the three values are copied into it",
+     "locally_recoverable": true,
+     "justification": "[vector.cons] (initializer_list constructor) with [sequence.reqmts]; std::vector is named literally at the site, so this is one named standard-library contract (hops_stdlib = 1) under methodology 02 section 2.2."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "xs",
+     "value": "automatic storage duration: ~vector runs at the closing brace of the block and deallocates the block of storage - a deterministic, locally named release point",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]/1 with [class.dtor]/13 (destructors for block-scope objects are called on block exit) and [vector.overview] (the destructor deallocates)."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int y",
+     "value": "int: a fixed-width signed integer, two's complement since C++20; its width is implementation-defined (32 bits under the frozen recipe on this host)",
+     "locally_recoverable": true,
+     "justification": "[basic.fundamental]/2-3: `int` is a standard signed integer type whose width is implementation-defined, and since C++20 signed integers are two's complement. Methodology 02 K05 representation sub-rule: the type identity is pinned by the declaration, so the row counts with `representation: implementation-defined`."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "y",
+     "value": "(i) an independent object with automatic storage duration - not a handle into xs",
+     "locally_recoverable": true,
+     "justification": "[dcl.ref]/1: a reference requires `&` in the declarator, and none appears; [expr.call] makes the call a prvalue because `mid`'s declared return type (written inside this fragment) is not a reference type, so the initializer cannot make y alias the container."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "y",
+     "value": "modifiable; no cv-qualifier",
+     "locally_recoverable": true,
+     "justification": "[dcl.type.cv]/1."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int y = mid(xs)",
+     "value": "initialized with the value produced by the call",
+     "locally_recoverable": true,
+     "justification": "[dcl.init]/16: copy-initialization from the initializer expression."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "int y = mid(xs)",
+     "value": "no allocation and no copy of the container: a scalar value is copied into automatic storage",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]; the initializer is a prvalue of type int ([expr.call])."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "const std::vector<int>& v",
+     "value": "an lvalue reference to a const-qualified std::vector<int>; a reference is not an object and introduces no storage of its own",
+     "locally_recoverable": true,
+     "justification": "[dcl.ref]/4: a reference declared with `&` denotes the object it is bound to. The whole declarator is written inside the fragment."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "v",
+     "value": "the referenced container cannot be modified through v",
+     "locally_recoverable": true,
+     "justification": "[dcl.type.cv]/4: an lvalue of const-qualified type is not modifiable; no member that would remove the qualification is written in the body."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "mid(xs) / the parameter v",
+     "value": "the callee necessarily receives a read alias to the caller's own container object - no copy is made and no writable path exists, because the reference is to a const-qualified type",
+     "locally_recoverable": true,
+     "justification": "[dcl.init.ref]/5.1: a reference to a const-qualified type binds directly to a reference-compatible lvalue, so v and xs denote the same object. Both the parameter declaration and the call are inside the probe region, so hops_decl = 0. Adjudicated on the complete surface form (`const ... &` plus the direct-binding rule), not on the glyph `&` alone, per spec 6.1.4.B."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "mid(xs)",
+     "value": "no copy, no move and no allocation at the argument: an lvalue of the same type binds directly to the reference parameter",
+     "locally_recoverable": true,
+     "justification": "[dcl.init.ref]/5.1 (direct binding, no temporary is created)."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "mid(xs)",
+     "value": "no conversion is applied to the argument: it is an lvalue of exactly the referenced type, so the identity conversion applies",
+     "locally_recoverable": true,
+     "justification": "[dcl.init.ref]/5.1 and [over.ics.ref]: binding a reference to a reference-compatible lvalue is an identity conversion."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "int mid(...) - the signature's return semantics",
+     "value": "(ii) the call yields a prvalue - a value with no observable identity; `y` is therefore independent of `xs`",
+     "locally_recoverable": true,
+     "justification": "[expr.call]: a function call is a prvalue unless the declared return type is a reference type. The return type `int` is written inside the fragment. This is the probe's observation target and C++ answers it from the fragment."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "v[1]",
+     "value": "a const int lvalue designating the element at index 1 of the caller's container",
+     "locally_recoverable": true,
+     "justification": "[sequence.reqmts]/[vector.data]: vector::operator[] returns const_reference for a const vector, i.e. `const int&`. One named standard-library contract."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "return v[1]",
+     "value": "the int is copied out of the container into the return object; no allocation occurs and no reference into xs's buffer escapes the call",
+     "locally_recoverable": true,
+     "justification": "[stmt.return]/2 (the return object is copy-initialized from the operand) with [conv.lval] (lvalue-to-rvalue conversion of the element) and [expr.call] (the result is a prvalue of type int)."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return y",
+     "value": "control leaves the enclosing function with the value of y; no other exit path exists in the fragment",
+     "locally_recoverable": true,
+     "justification": "[stmt.return]/2."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "the block's closing brace",
+     "value": "xs is destroyed here, after the returned value has been initialized, releasing the allocated block",
+     "locally_recoverable": true,
+     "justification": "[stmt.jump]/2: on exit from a scope, destructors are called for all constructed objects with automatic storage duration declared in that scope, in reverse order of construction."
+    }
+   ],
+   "fact_count": 21,
+   "determinacy_B": 3,
+   "determinacy_enumeration": [
+    "V1 - as written: the argument binds a non-writable alias to the caller's container (A1 = alias to the operand's own storage), no caller-visible mutation is possible (A2 = none), the call yields an int prvalue (A4 = fixed-width signed integer), the only resource events are the initializer-list allocation at xs's construction and its deallocation at block exit (A8), and control falls through to the return (A9). Witness: the frozen program builds under `clang++ -std=c++20 -O2` and prints 2; an observer that replaces the global operator new counts exactly 1 allocation (scratch witness obs_plain.cpp -> `result=2 allocs=1`).",
+    "V2 - a better-matching overload declared outside the fragment is selected. `mid`'s definition being inside the fragment does NOT close the call: C++ resolves `mid(xs)` against the whole candidate set visible at the call, and a non-const lvalue argument prefers a `std::vector<int>&` parameter to a `const std::vector<int>&` one ([over.ics.ref], [over.match.best]). The callee then holds a WRITABLE alias to xs, may mutate the sequence (A2 = state referred to by the operand may be mutated), and returns a different value. Witness: scratch witness w_f06p1_overload.cpp, fragment byte-identical, adds `int mid(std::vector<int>& v) { v.push_back(4); return 99; }` outside the region; builds under the frozen recipe and prints 99 instead of 2 (materiality dimensions 1, 6 and 9).",
+    "V3 - preprocessor token substitution (Rule 1.4.8, exactly one additional outcome). C++ macros replace the fragment's tokens before semantic analysis with nothing written inside the fragment to mark it ([cpp.replace]). Witness: scratch witness obs_macro.cpp adds `#define vector deque` outside the region; the fragment is byte-identical, builds under the frozen recipe, and the operator-new observer reports `result=2 allocs=2` against the plain build's `allocs=1` - a dimension-6 difference observed through the replaceable global allocation function, which Rule 1.2.2 names as a defined observation channel."
+   ],
+   "locality_lookups": 2,
+   "locality_detail": [
+    {
+     "hop": "type decl - the std::vector class template and the members written inside it (the initializer_list constructor, operator[], the destructor)",
+     "required_for_fact": "allocation_copy_move_borrow_destroy and the representation half of type_and_representation. Methodology 03 Rule 2.2.2: standard-library declarations are hops on the same terms as user declarations, and members written inside the class's own text are the same declared entity, so all three clauses are one hop."
+    },
+    {
+     "hop": "compiler mode - the frozen build invocation and the host it names (`clang++ -std=c++20 -O2`, arm64-apple-darwin25.4.0)",
+     "required_for_fact": "type_and_representation: the source does not state the width of `int`, which [basic.fundamental]/2 leaves implementation-defined. Methodology 03 Rule 2.6.1 and positive example P-5; one G hop, counted once per distinct artifact."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H2 - Hidden writable aliasing or mutation",
+     "why": "Local site 2, `int y = mid(xs);`. Nothing at the call distinguishes a by-value parameter, a const-reference parameter and a writable-reference parameter; `mid`'s declaration is written elsewhere and is therefore not local to this site (section 0.7). This is verbatim the mandated LED illustration in section 1.2.1 (`a call f(x) ... with nothing at the call site distinguishing this from a by-value call -> LED does NOT apply, H2 triggers`), and V2 of the determinacy enumeration is the built and run demonstration that the writable case is reachable."
+    },
+    {
+     "checklist_item": "H4 - Implicit allocation, copy, move, destruction, or cleanup",
+     "why": "The block exit inside the fragment runs ~vector, which deallocates the element block, with no `defer`, `using`, `with` or explicit release token written anywhere at the site. Mandated LED illustration: `a scope exit that runs a user-visible destructor with no locally written token naming it -> H4 triggers`. NOT counted at local site 1: `std::vector<int> xs = {1, 2, 3}` is a constructor invocation with a container literal, which is exactly H4's first exclusion, so the allocation there is locally named. NOT counted a second time at site 2: the possibility that the call copies the container arises from the same rule at the same site already charged under H2 (single-assignment rule, section 1.3.1, H2 precedes H4). H5 does NOT trigger: over the probe's declared input domain the callee's body - which is `return v[1]` with a size-3 container - cannot throw, so condition 1 (occurrence) fails; bad_alloc is excluded by the universal resource-exhaustion exclusion (section 0.8)."
+    }
+   ],
+   "hidden_count": 2,
+   "complexity_units": 18,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Simple declaration with an initializer (copy-initialization).",
+     "citation": "ISO C++20 [dcl.init]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Template-id naming a class template specialization, `std::vector<int>`.",
+     "citation": "ISO C++20 [temp.names]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Braced-init-list `{1, 2, 3}` as an initializer.",
+     "citation": "ISO C++20 [dcl.init.list]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Function definition: declarator plus compound-statement body.",
+     "citation": "ISO C++20 [dcl.fct]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Reference declarator `&` on a parameter.",
+     "citation": "ISO C++20 [dcl.ref]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "cv-qualifier `const` in a decl-specifier-seq.",
+     "citation": "ISO C++20 [dcl.type.cv]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Subscript expression `v[1]`.",
+     "citation": "ISO C++20 [expr.sub]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Function call expression.",
+     "citation": "ISO C++20 [expr.call]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Return statement.",
+     "citation": "ISO C++20 [stmt.return]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Reference initialization: which initializers bind directly to a reference and which materialise a temporary; a const lvalue reference binds directly to a reference-compatible lvalue without a copy.",
+     "citation": "ISO C++20 [dcl.init.ref]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Overload resolution: the call's target is chosen from the whole candidate set visible at the call, and a non-const lvalue argument ranks a `T&` parameter above a `const T&` one.",
+     "citation": "ISO C++20 [over.match], [over.ics.ref]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Name lookup requires a declaration to precede its use at namespace scope, which is what forces the fragment's declaration order.",
+     "citation": "ISO C++20 [basic.scope.pdecl], [basic.lookup.unqual]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "`int` has an implementation-defined width; only its minimum range is fixed by the standard.",
+     "citation": "ISO C++20 [basic.fundamental]/2"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Lvalue-to-rvalue conversion applied to `v[1]` in the return statement, which is what makes the returned int independent of the container.",
+     "citation": "ISO C++20 [conv.lval]"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Destruction of block-scope objects at scope exit, in reverse order of construction, sequenced after the return object is initialized.",
+     "citation": "ISO C++20 [basic.stc.auto], [stmt.jump]/2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "List-initialization is a documented carve-out from ordinary overload resolution: when a braced-init-list is used, initializer_list constructors are considered first and strongly preferred.",
+     "citation": "ISO C++20 [over.match.list]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Standard-library clause relied on: the std::vector initializer_list constructor allocates and copies the listed elements (methodology 04 section 2.4.2, one clause).",
+     "citation": "ISO C++20 [vector.cons], [sequence.reqmts]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Standard-library clause relied on: vector::operator[] returns a reference (const_reference for a const vector) and has a narrow contract - no bounds check is performed (methodology 04 section 2.4.2, one clause).",
+     "citation": "ISO C++20 [sequence.reqmts], [vector.data]"
+    }
+   ]
+  },
+  {
+   "probe_id": "F06.P2",
+   "language": "C++",
+   "language_key": "cpp",
+   "support": "FULL",
+   "support_reason": "F-1: every numbered sub-requirement is delivered. (1) `std::pair<int, int> divmod2(int a, int b) { return {a / b, a % b}; }` takes two signed-32-bit-integer parameters and produces both the quotient and the remainder from a single call using C++'s normal multiple-result mechanism, a small standard aggregate pair ([pairs.pair]); no third-party package is used. (2) `auto [q, r] = divmod2(7, 3);` binds the two results to two separate local names in ONE binding construct - the structured binding declaration C++17 added for exactly this ([dcl.struct.bind]). (3) `return q + r;`. F-2/F-4: standard library only, no extra flags. F-3: builds under the frozen recipe and prints 3 (7/3 = 2 plus 7%3 = 1). F-6: no normative prohibition or deprecation applies to std::pair or structured bindings. R10: the alternatives considered were a program-defined `struct QR { int q; int r; };` plus a separate definition (35 tokens for the definition part against 29 for std::pair) and out-parameters `void divmod2(int, int, int&, int&)` (which loses sub-requirement (2) - there is no one binding construct - and would be PARTIAL under P-a). The measured form is the fewest-token form that delivers all three sub-requirements. HARNESS DISCLOSURE as for F06.P1: the prototype outside the markers and the caller's closing `}` inside them are the contiguity scaffold, not language content.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/cpp/F06.P2.cpp",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "3",
+    "diagnostics": "clang++ -std=c++20 -O2 FILE.cpp -o BIN  (environment.json -> semantic_compression_recipes.cpp.build); exit 0, no diagnostics; run exit 0. Apple clang 17.0.0 (clang-1700.6.3.2), target arm64-apple-darwin25.4.0."
+   },
+   "token_count": 49,
+   "facts": [
+    {
+     "fact_kind": "type_and_representation",
+     "site": "std::pair<int, int> (the declared return type)",
+     "value": "a class type with two public data members `first` and `second`, both int; no indirection and no separately allocated storage",
+     "locally_recoverable": true,
+     "justification": "[pairs.pair]: pair has members `first` of type T1 and `second` of type T2. The specialization is written in full at the site (hops_stdlib = 1)."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "divmod2(7, 3)",
+     "value": "(ii) a prvalue of class type - a value with no observable identity, not a handle to storage inside the callee",
+     "locally_recoverable": true,
+     "justification": "[expr.call]: a function call is a prvalue unless the declared return type is a reference type; the return type is written inside the fragment and is not a reference."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "auto [q, r] = divmod2(7, 3)",
+     "value": "the declaration introduces one unique hidden variable initialized from the call; `q` and `r` are NAMES for that variable's elements, not independent objects",
+     "locally_recoverable": true,
+     "justification": "[dcl.struct.bind]/1 and /4: a structured binding declaration introduces a variable `e` and the identifiers name lvalues referring to its corresponding elements."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "q",
+     "value": "int",
+     "locally_recoverable": true,
+     "justification": "[dcl.struct.bind]/4 with [pair.astuple]: for a type with a complete `tuple_size` specialization, the i-th name has the type `tuple_element<i, E>::type`, which for `std::pair<int,int>` is int."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "r",
+     "value": "int",
+     "locally_recoverable": true,
+     "justification": "[dcl.struct.bind]/4, [pair.astuple] - as for `q`, second element."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "q",
+     "value": "modifiable: the deduced type carries no cv-qualifier",
+     "locally_recoverable": true,
+     "justification": "[dcl.struct.bind]/1 (the hidden variable is declared with the written decl-specifier-seq, here plain `auto`) and [dcl.type.cv]/1."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "r",
+     "value": "modifiable: the deduced type carries no cv-qualifier",
+     "locally_recoverable": true,
+     "justification": "[dcl.struct.bind]/1, [dcl.type.cv]/1 - a separate entity from `q`, so a separate row (methodology 02 A3.4)."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "auto [q, r] = divmod2(7, 3)",
+     "value": "the hidden variable is initialized from the call's result, so both names denote initialized elements",
+     "locally_recoverable": true,
+     "justification": "[dcl.struct.bind]/1: the hidden variable is initialized by the initializer of the structured binding declaration."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "auto [q, r] = divmod2(7, 3)",
+     "value": "no allocation and no user-visible copy or move: the prvalue initializes the hidden variable directly",
+     "locally_recoverable": true,
+     "justification": "[dcl.init]/(a prvalue initializer initializes the destination object itself - guaranteed elision since C++17) with [pairs.pair] (the members are ints, so nothing is allocated)."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "the hidden variable behind `[q, r]`",
+     "value": "automatic storage duration; the release point is the enclosing block's exit and no cleanup code runs, because std::pair<int,int>'s destructor is trivial",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]/1, [class.dtor] and [pairs.pair] (pair's destructor is defaulted; for int members it is trivial)."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "q, r",
+     "value": "no alias to any storage of the callee is created: the names refer to elements of a local hidden variable, because the return type is not a reference type",
+     "locally_recoverable": true,
+     "justification": "[expr.call] (prvalue result) with [dcl.struct.bind]/1 (the hidden variable is a new object)."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int a",
+     "value": "int: a fixed-width signed integer, two's complement since C++20; its width is implementation-defined (32 bits under the frozen recipe on this host)",
+     "locally_recoverable": true,
+     "justification": "[basic.fundamental]/2-3: `int` is a standard signed integer type whose width is implementation-defined, and since C++20 signed integers are two's complement. Methodology 02 K05 representation sub-rule: the type identity is pinned by the declaration, so the row counts with `representation: implementation-defined`."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int b",
+     "value": "int: a fixed-width signed integer, two's complement since C++20; its width is implementation-defined (32 bits under the frozen recipe on this host)",
+     "locally_recoverable": true,
+     "justification": "[basic.fundamental]/2-3: `int` is a standard signed integer type whose width is implementation-defined, and since C++20 signed integers are two's complement. Methodology 02 K05 representation sub-rule: the type identity is pinned by the declaration, so the row counts with `representation: implementation-defined`. Separate entity from `a` (A3.4)."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "a, b",
+     "value": "objects with automatic storage duration belonging to the callee",
+     "locally_recoverable": true,
+     "justification": "[dcl.fct] and [basic.stc.auto]: a parameter is a block-scope object of the function."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "a, b",
+     "value": "modifiable inside the callee; no cv-qualifier is written",
+     "locally_recoverable": true,
+     "justification": "[dcl.type.cv]/1."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "a, b",
+     "value": "initialized from the corresponding argument at the call",
+     "locally_recoverable": true,
+     "justification": "[expr.call]: each parameter is initialized with its corresponding argument."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "int a, int b (the parameter declarations)",
+     "value": "no writable aliasing is possible: neither declarator contains `&` or `*`, so each parameter is a distinct object copy-initialized from the argument, and a write to it cannot be observed by the caller",
+     "locally_recoverable": true,
+     "justification": "[dcl.fct] with [dcl.ref]/1 (a reference parameter must be spelled with `&`) and [expr.call] (parameters are initialized from the arguments). This is a universal rule, not an inference from the glyph's absence being read as a default."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "divmod2(7, 3)",
+     "value": "no conversion is applied to either argument: an unsuffixed decimal literal whose value fits in int has type int, and both parameters are int, so the identity conversion applies",
+     "locally_recoverable": true,
+     "justification": "[lex.icon]/2 (type of an integer literal) with [dcl.init]/[over.ics.scs]."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "divmod2(7, 3)",
+     "value": "cannot fail: the callee's entire body is inside the fragment, its only exceptional cases are the zero divisor and a non-representable quotient, and the literal arguments 7 and 3 exclude both",
+     "locally_recoverable": true,
+     "justification": "[expr.mul]/4 names exactly those two exceptional cases for `/` and `%`; the arguments that decide them are written at the site, so the absence is entailed rather than merely unmentioned (methodology 02 absence-facts rule, route (ii))."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "return {a / b, a % b}",
+     "value": "the return object is initialized directly from the braced-init-list: no temporary pair is copied or moved and nothing is allocated",
+     "locally_recoverable": true,
+     "justification": "[stmt.return]/2 (copy-initialization of the return object) with [dcl.init.list] and [pairs.pair] (int members)."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return {a / b, a % b}",
+     "value": "control leaves divmod2 with the pair value; the body contains no branch, loop or throw",
+     "locally_recoverable": true,
+     "justification": "[stmt.return]/2."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return q + r",
+     "value": "control leaves the enclosing function with the sum",
+     "locally_recoverable": true,
+     "justification": "[stmt.return]/2."
+    }
+   ],
+   "fact_count": 22,
+   "determinacy_B": 2,
+   "determinacy_enumeration": [
+    "V1 - as written: the call is closed by the fragment itself. `divmod2`'s definition is inside the measured region and the arguments are the int literals 7 and 3, so the exact-match non-template candidate wins over any externally declared candidate ([over.match.best]: a non-template is preferred to a template specialization, and no declaration can be a better match than an exact match without being a redefinition). Hence A1 = copy (the parameters are by-value objects), A4 = fixed-width signed integer elements in a class aggregate, A6 = cannot fail (the literal divisor 3 excludes [expr.mul]/4's two exceptional cases), A8 = no observable resource event (guaranteed elision, trivial destructor), A9 = falls through. Witness: the frozen program builds under the frozen recipe and prints 3.",
+    "V2 - preprocessor token substitution (Rule 1.4.8, exactly one additional outcome; [cpp.replace]). Witness: scratch witness wit/f06p2_macro.cpp, fragment byte-identical, adds `#define std my` outside the region with a program-defined `my::pair` whose constructor runs user code. It builds under the frozen recipe and prints `my::pair ctor ran` before `3` - a dimension-6 difference (a copy/construction that runs user code) and a dimension-8 difference (a program-defined layout replaces the library type), neither of which V1 admits."
+   ],
+   "locality_lookups": 3,
+   "locality_detail": [
+    {
+     "hop": "type decl - std::pair and the members written inside it",
+     "required_for_fact": "type_and_representation of the returned object and allocation_copy_move_borrow_destroy (that the members are the element types themselves, with no indirection or allocation). Methodology 03 Rule 2.2.2."
+    },
+    {
+     "hop": "type decl - the tuple-interface specializations for std::pair (tuple_size, tuple_element, get), declared outside the pair class's own text",
+     "required_for_fact": "type_and_representation of `q` and `r`: [dcl.struct.bind]/4 routes the element types through tuple_element, which is a distinct declared entity from pair itself (Rule 2.2.2, member-defined-out-of-line clause)."
+    },
+    {
+     "hop": "compiler mode - the frozen build invocation and host (`clang++ -std=c++20 -O2`, arm64)",
+     "required_for_fact": "type_and_representation: the width of `int` is implementation-defined and the source does not state it. Rule 2.6.1, example P-5."
+    }
+   ],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 20,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Template-id naming a class template specialization, `std::pair<int, int>`.",
+     "citation": "ISO C++20 [temp.names]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Function definition with a parameter-declaration-clause.",
+     "citation": "ISO C++20 [dcl.fct]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Return statement.",
+     "citation": "ISO C++20 [stmt.return]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Braced-init-list as the operand of a return statement (copy-list-initialization of the return object).",
+     "citation": "ISO C++20 [stmt.return]/2, [dcl.init.list]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Structured binding declaration `auto [q, r] = e;`.",
+     "citation": "ISO C++20 [dcl.struct.bind]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Placeholder type specifier `auto` and its deduction.",
+     "citation": "ISO C++20 [dcl.spec.auto]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Binary `/`.",
+     "citation": "ISO C++20 [expr.mul]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Binary `%`.",
+     "citation": "ISO C++20 [expr.mul]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Binary `+`.",
+     "citation": "ISO C++20 [expr.add]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Function call expression.",
+     "citation": "ISO C++20 [expr.call]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Each parameter is copy-initialized from its corresponding argument; a parameter is by value unless its declarator contains `&`.",
+     "citation": "ISO C++20 [expr.call], [dcl.ref]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Which of the three structured-binding cases applies is decided by the initializer's type: array, a type with a complete `tuple_size` specialization (the tuple protocol), or a class with all public non-static data members in one class.",
+     "citation": "ISO C++20 [dcl.struct.bind]/2-4"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "`int` has an implementation-defined width.",
+     "citation": "ISO C++20 [basic.fundamental]/2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Name lookup requires a declaration to precede its use at namespace scope.",
+     "citation": "ISO C++20 [basic.scope.pdecl]"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Guaranteed copy elision: a prvalue initializer initializes the destination object directly, so no copy or move constructor is called for the returned pair.",
+     "citation": "ISO C++20 [dcl.init], [class.temporary]"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Lvalue-to-rvalue conversion applied to `q` and `r` in `q + r`.",
+     "citation": "ISO C++20 [conv.lval]"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Destruction of the hidden structured-binding variable at block exit.",
+     "citation": "ISO C++20 [basic.stc.auto], [stmt.jump]/2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "`%` is a documented carve-out from the multiplicative-operator rule: unlike `*` and `/`, its operands must be of integral or unscoped enumeration type.",
+     "citation": "ISO C++20 [expr.mul]/2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Division or remainder by zero, and a quotient not representable in the result type, are undefined behaviour - a carve-out from the otherwise total arithmetic operators.",
+     "citation": "ISO C++20 [expr.mul]/4"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Standard-library clauses relied on: std::pair holds its two arguments as the public members `first` and `second` of the element types (methodology 04 section 2.4.2), and the tuple-interface specializations make it structured-bindable.",
+     "citation": "ISO C++20 [pairs.pair], [pair.astuple]"
+    }
+   ]
+  },
+  {
+   "probe_id": "F07.P1",
+   "language": "C++",
+   "language_key": "cpp",
+   "support": "FULL",
+   "support_reason": "F-1: (1) `a * b + c` uses C++'s ordinary multiplicative and additive operators ([expr.mul], [expr.add]) at their ordinary precedence, with no redundant parentheses - the grammar already groups it as `(a * b) + c`. (2) the value is bound to a new local `r`. F-2/F-4: core language only, frozen recipe only. F-3: builds and prints 47 for the given a=7, b=6, c=5. F-6: no prohibition. R10: `int r = a * b + c;` and `auto r = a * b + c;` both tokenize to 9; the tie is broken by documentation order in favour of the fundamental-type simple-type-specifier ([basic.fundamental], [dcl.type.simple]) over the placeholder specifier ([dcl.spec.auto]). Determinacy is NOT a support criterion (doc 01 support_rubric.determinacy_is_not_a_support_criterion): C++ scores FULL here and pays for the operand-type openness and the undefined overflow in metrics B, C and D.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/cpp/F07.P1.cpp",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "47",
+    "diagnostics": "clang++ -std=c++20 -O2 FILE.cpp -o BIN  (environment.json -> semantic_compression_recipes.cpp.build); exit 0, no diagnostics; run exit 0. Apple clang 17.0.0 (clang-1700.6.3.2), target arm64-apple-darwin25.4.0."
+   },
+   "token_count": 9,
+   "facts": [
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "r",
+     "value": "(i) an object with automatic storage duration whose address is observable",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: a block-scope variable with no storage-class specifier has automatic storage duration and is an object; `&r` is well-formed. The declarator contains no `&`, so it is not a reference ([dcl.ref])."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "r",
+     "value": "modifiable through this name for the rest of the block",
+     "locally_recoverable": true,
+     "justification": "[dcl.type.cv]/1: an object is modifiable unless its type is const-qualified. No cv-qualifier appears in `int r = a * b + c`, and C++ has no default immutability, so the universal rule fixes the value."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "r",
+     "value": "this declaration creates no alias; any second name reaching this storage would require an explicitly written `&` or `*` elsewhere",
+     "locally_recoverable": true,
+     "justification": "[dcl.ref]/1 and [expr.unary.op]/3: a reference must be declared with `&` and a pointer obtained with `&`; neither appears at this site, so no alias is introduced here."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int r = a * b + c",
+     "value": "initialized with the value of the expression",
+     "locally_recoverable": true,
+     "justification": "[dcl.init]/16: the declarator has an initializer, so the object is copy-initialized from it; no path in the fragment leaves it unset."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "r",
+     "value": "int: a fixed-width signed integer, two's complement since C++20; its width is implementation-defined (32 bits under the frozen recipe on this host)",
+     "locally_recoverable": true,
+     "justification": "[basic.fundamental]/2-3: `int` is a standard signed integer type whose width is implementation-defined, and since C++20 signed integers are two's complement. Methodology 02 K05 representation sub-rule: the type identity is pinned by the declaration, so the row counts with `representation: implementation-defined`."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "int r = a * b + c",
+     "value": "no dynamic allocation: the object occupies automatic storage and the initialization copies a scalar value",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: automatic storage is provided by the implementation for the block, not by an allocation expression; no `new`, no allocator and no container appears at the site."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "r",
+     "value": "automatic storage duration: the lifetime ends when the enclosing block exits, and because the type is scalar no destructor code runs",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]/1 (lifetime bounded by the block) together with [class.dtor]: only class types have destructors, so a scalar release point is the block exit and runs no user code."
+    }
+   ],
+   "fact_count": 7,
+   "determinacy_B": 5,
+   "determinacy_enumeration": [
+    "R2 (wraps modulo 2^n, defined) - realizable. The three operand declarations are OUTSIDE the measured fragment and, per methodology 03 Rule 1.1.2, must not be consulted. With unsigned operands, [basic.fundamental]/2 makes the arithmetic modular. Witness wit/f07p1_R2.cpp (fragment byte-identical, `unsigned a = 3000000000u, b = 3u, c = 0u` outside it): builds under the frozen recipe and prints 410065408, the exact modular result.",
+    "R4 (undefined behaviour on the exceptional case) - realizable, and this is what the frozen program itself admits. With signed 32-bit operands, [expr.pre]/4 makes an out-of-range result undefined, and the intermediate product is inside the fragment, so a product that overflows while the final result would not is also reachable (Rule 1.5.2.a). Evidenced by the specification clause rather than by a run, as Rule 1.3.1(b) requires for R4.",
+    "R6 (binary floating point - rounding, NaN, Inf) - realizable with floating-point operands. Witness wit/f07p1_R6.cpp (`double a = 0.1, b = 3.0, c = 0.0`): builds and prints `0 0.30000000000000004`, showing the rounded binary64 value that the int binding then truncates.",
+    "R7 (an implicit promotion/conversion is applied to an operand before the operation) - realizable. With operands narrower than int, [conv.prom] promotes them before the operator is applied; with mixed operand types [expr.arith.conv] converts one of them. Witness wit/f07p1_R7.cpp (`short a = 300, b = 300, c = 1`): builds and prints 90001, i.e. the multiplication was performed in int after promotion rather than in short.",
+    "R8 (the operator's meaning is supplied by the operand types - user-redefinable) - realizable. [over.oper] permits `operator*` and `operator+` to be overloaded for class operands, so the site may run arbitrary code that allocates, mutates or throws. Witness wit/f07p1_R8.cpp (a class `M` with member `operator int`, an `operator*` that adds and an `operator+` that multiplies): builds and prints `20 calls=2`."
+   ],
+   "locality_lookups": 4,
+   "locality_detail": [
+    {
+     "hop": "variable decl - `a` (given context, outside the measured fragment)",
+     "required_for_fact": "type_and_representation, and through it conversion_behavior and overflow_exceptional_numeric: none of them has an outcome class until the operand types are known (the same construct is modular, undefined, rounded or user-defined depending on them - see the determinacy enumeration)."
+    },
+    {
+     "hop": "variable decl - `b`",
+     "required_for_fact": "type_and_representation of the intermediate product `a * b`, which decides which usual arithmetic conversion [expr.arith.conv] applies at the addition"
+    },
+    {
+     "hop": "variable decl - `c`",
+     "required_for_fact": "conversion_behavior at the addition and at the initialization of `r`: whether the initializer's type differs from `int`, and therefore whether a conversion is inserted at the binding, is decided by `c` as well as by the product"
+    },
+    {
+     "hop": "compiler mode - the frozen build invocation and host (`clang++ -std=c++20 -O2`, arm64)",
+     "required_for_fact": "type_and_representation: the width of `int` is implementation-defined and the source does not say. This is methodology 03's own positive example P-5, named at this probe; one G hop. The same artifact also carries whether the recipe enables `-fwrapv`, `-ftrapv` or `-fsanitize=undefined`, which would change the overflow behaviour, so Rule 2.6.1's once-per-distinct-artifact rule keeps it at one hop."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H8 - Context-dependent overflow / numeric behavior",
+     "why": "Local site 1, `int r = a * b + c;` (sub-test H8a). For the probe's declared operand types the reference labels the edge outcome UNDEFINED: [expr.pre]/4 makes a result outside the representable range of a signed integer type undefined behaviour, and the same expression's edge behaviour additionally differs under `-fwrapv` (modular), `-ftrapv` (trap) and `-fsanitize=undefined` (diagnosed), none of which the frozen recipe carries. No token at the site selects a discipline and C++20 offers no wrapping, checked or saturating alternative operator to write instead. The H8 exclusion does not apply: it requires the reference to fix exactly one documented outcome independent of mode and target, which is a universal-scope exclusion under section 1.4.0 and is contradicted here by [expr.pre]/4 itself. H1 is NOT counted: over the declared input domain both operands are the same signed 32-bit type, so [expr.arith.conv] inserts nothing and the lvalue-to-rvalue conversions are value-preserving and unobservable, which is H1's fourth exclusion. H3 is NOT counted: the operand-type-driven variation of which `operator*` runs is exactly the variation H8's third exclusion assigns to Semantic Locality and Semantic Determinacy and forbids re-charging here, and it is charged there (4 hops, B = 5)."
+    }
+   ],
+   "hidden_count": 1,
+   "complexity_units": 11,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Simple declaration with an initializer (copy-initialization).",
+     "citation": "ISO C++20 [dcl.init]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Binary `*`.",
+     "citation": "ISO C++20 [expr.mul]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Binary `+`.",
+     "citation": "ISO C++20 [expr.add]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Operator precedence and left-to-right associativity fixed by the expression grammar: `a * b + c` groups as `(a * b) + c`.",
+     "citation": "ISO C++20 [expr.compound], grammar of multiplicative-expression / additive-expression"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "The usual arithmetic conversions, whose result depends on both operand types and on the implementation's integer ranks.",
+     "citation": "ISO C++20 [expr.arith.conv]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Integral promotion of operands of rank lower than int before the operator is applied.",
+     "citation": "ISO C++20 [conv.prom]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "`int` has an implementation-defined width; only its minimum range is fixed.",
+     "citation": "ISO C++20 [basic.fundamental]/2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "The operands of a binary operator are indeterminately sequenced with respect to each other, so a reader cannot assume an evaluation order.",
+     "citation": "ISO C++20 [intro.execution]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Operator overloading: `*` and `+` may be user-defined when at least one operand is a class or enumeration type, in which case the site is a function call.",
+     "citation": "ISO C++20 [over.oper]/7, [over.match.oper]"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Signed integer overflow is undefined behaviour, in explicit contrast to unsigned arithmetic, which the same standard defines as modular.",
+     "citation": "ISO C++20 [expr.pre]/4, [basic.fundamental]/2"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Copy-initialization applies an implicit conversion sequence from the initializer's type to the declared type, with no token written for it.",
+     "citation": "ISO C++20 [dcl.init], [conv]"
+    }
+   ]
+  },
+  {
+   "probe_id": "F07.P2",
+   "language": "C++",
+   "language_key": "cpp",
+   "support": "FULL",
+   "support_reason": "F-1: (1) `int q = a / b;` uses C++'s ordinary integer division operator, which [expr.mul]/4 defines as integer division for integral operands; (2) `int m = a % b;` uses the ordinary remainder operator; (3) `double d = static_cast<double>(a) / b;` performs the conversion C++ requires to reach a 64-bit floating-point division - exactly one operand must be converted, after which [expr.arith.conv] converts the other. F-2/F-4: core language only. F-3: builds and prints `-3 -1 -3.500000` for a = -7, b = 2, showing truncation toward zero and a remainder taking the dividend's sign. F-6: no prohibition. R10: `double(a) / b` and `(double)a / b` both tokenize to 10 against 13 for `static_cast<double>(a) / b`, but R2 filters before R10: C++ Core Guidelines ES.49 and the standard's own named-cast design make `static_cast` the form a professional writes, and the C-style and functional casts are not production forms here. The 13-token named cast is therefore the measured form. The observation target (rounding direction and remainder sign for negative operands) is expressly not a support requirement and is scored by B and D.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/cpp/F07.P2.cpp",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "-3 -1 -3.500000",
+    "diagnostics": "clang++ -std=c++20 -O2 FILE.cpp -o BIN  (environment.json -> semantic_compression_recipes.cpp.build); exit 0, no diagnostics; run exit 0. Apple clang 17.0.0 (clang-1700.6.3.2), target arm64-apple-darwin25.4.0."
+   },
+   "token_count": 27,
+   "facts": [
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "q",
+     "value": "(i) an object with automatic storage duration whose address is observable",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: a block-scope variable with no storage-class specifier has automatic storage duration and is an object; `&q` is well-formed. The declarator contains no `&`, so it is not a reference ([dcl.ref])."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "q",
+     "value": "modifiable through this name for the rest of the block",
+     "locally_recoverable": true,
+     "justification": "[dcl.type.cv]/1: an object is modifiable unless its type is const-qualified. No cv-qualifier appears in `int q = a / b`, and C++ has no default immutability, so the universal rule fixes the value."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "q",
+     "value": "this declaration creates no alias; any second name reaching this storage would require an explicitly written `&` or `*` elsewhere",
+     "locally_recoverable": true,
+     "justification": "[dcl.ref]/1 and [expr.unary.op]/3: a reference must be declared with `&` and a pointer obtained with `&`; neither appears at this site, so no alias is introduced here."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int q = a / b",
+     "value": "initialized with the quotient",
+     "locally_recoverable": true,
+     "justification": "[dcl.init]/16: copy-initialization from the initializer expression."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "q",
+     "value": "int: a fixed-width signed integer, two's complement since C++20; its width is implementation-defined (32 bits under the frozen recipe on this host)",
+     "locally_recoverable": true,
+     "justification": "[basic.fundamental]/2-3: `int` is a standard signed integer type whose width is implementation-defined, and since C++20 signed integers are two's complement. Methodology 02 K05 representation sub-rule: the type identity is pinned by the declaration, so the row counts with `representation: implementation-defined`."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "int q = a / b",
+     "value": "no dynamic allocation: the object occupies automatic storage and the initialization copies a scalar value",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: automatic storage is provided by the implementation for the block, not by an allocation expression; no `new`, no allocator and no container appears at the site."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "q",
+     "value": "automatic storage duration: the lifetime ends when the enclosing block exits, and because the type is scalar no destructor code runs",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]/1 (lifetime bounded by the block) together with [class.dtor]: only class types have destructors, so a scalar release point is the block exit and runs no user code."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "m",
+     "value": "(i) an object with automatic storage duration whose address is observable",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: a block-scope variable with no storage-class specifier has automatic storage duration and is an object; `&m` is well-formed. The declarator contains no `&`, so it is not a reference ([dcl.ref])."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "m",
+     "value": "modifiable through this name for the rest of the block",
+     "locally_recoverable": true,
+     "justification": "[dcl.type.cv]/1: an object is modifiable unless its type is const-qualified. No cv-qualifier appears in `int m = a % b`, and C++ has no default immutability, so the universal rule fixes the value."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "m",
+     "value": "this declaration creates no alias; any second name reaching this storage would require an explicitly written `&` or `*` elsewhere",
+     "locally_recoverable": true,
+     "justification": "[dcl.ref]/1 and [expr.unary.op]/3: a reference must be declared with `&` and a pointer obtained with `&`; neither appears at this site, so no alias is introduced here."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int m = a % b",
+     "value": "initialized with the remainder",
+     "locally_recoverable": true,
+     "justification": "[dcl.init]/16: copy-initialization from the initializer expression."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "m",
+     "value": "int: a fixed-width signed integer, two's complement since C++20; its width is implementation-defined (32 bits under the frozen recipe on this host)",
+     "locally_recoverable": true,
+     "justification": "[basic.fundamental]/2-3: `int` is a standard signed integer type whose width is implementation-defined, and since C++20 signed integers are two's complement. Methodology 02 K05 representation sub-rule: the type identity is pinned by the declaration, so the row counts with `representation: implementation-defined`."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "int m = a % b",
+     "value": "no dynamic allocation: the object occupies automatic storage and the initialization copies a scalar value",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: automatic storage is provided by the implementation for the block, not by an allocation expression; no `new`, no allocator and no container appears at the site."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "m",
+     "value": "automatic storage duration: the lifetime ends when the enclosing block exits, and because the type is scalar no destructor code runs",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]/1 (lifetime bounded by the block) together with [class.dtor]: only class types have destructors, so a scalar release point is the block exit and runs no user code."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "d",
+     "value": "(i) an object with automatic storage duration whose address is observable",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: a block-scope variable with no storage-class specifier has automatic storage duration and is an object; `&d` is well-formed. The declarator contains no `&`, so it is not a reference ([dcl.ref])."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "d",
+     "value": "modifiable through this name for the rest of the block",
+     "locally_recoverable": true,
+     "justification": "[dcl.type.cv]/1: an object is modifiable unless its type is const-qualified. No cv-qualifier appears in `double d = static_cast<double>(a) / b`, and C++ has no default immutability, so the universal rule fixes the value."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "d",
+     "value": "this declaration creates no alias; any second name reaching this storage would require an explicitly written `&` or `*` elsewhere",
+     "locally_recoverable": true,
+     "justification": "[dcl.ref]/1 and [expr.unary.op]/3: a reference must be declared with `&` and a pointer obtained with `&`; neither appears at this site, so no alias is introduced here."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "double d = static_cast<double>(a) / b",
+     "value": "initialized with the quotient of the two operands converted to double",
+     "locally_recoverable": true,
+     "justification": "[dcl.init]/16."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "d",
+     "value": "double: a binary floating-point type; the C++ standard does NOT mandate IEEE-754, so the value representation is implementation-defined (binary64 under the frozen recipe on this host)",
+     "locally_recoverable": true,
+     "justification": "[basic.fundamental]/12-13: the value representation of floating-point types is implementation-defined. Methodology 02 K05 representation sub-rule: the type identity is pinned by the declaration, so the row counts with `representation: implementation-defined`."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "double d = static_cast<double>(a) / b",
+     "value": "no dynamic allocation: the object occupies automatic storage and the initialization copies a scalar value",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: automatic storage is provided by the implementation for the block, not by an allocation expression; no `new`, no allocator and no container appears at the site."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "d",
+     "value": "automatic storage duration: the lifetime ends when the enclosing block exits, and because the type is scalar no destructor code runs",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]/1 (lifetime bounded by the block) together with [class.dtor]: only class types have destructors, so a scalar release point is the block exit and runs no user code."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "static_cast<double>(a)",
+     "value": "a conversion to type double occurs here and is WRITTEN at the site; nothing is converted implicitly at this operand",
+     "locally_recoverable": true,
+     "justification": "[expr.static.cast]: the named cast performs the conversion explicitly. Which conversion rule applies ([conv.fpint]/2 for an integral source, [conv.double] for a floating source) needs `a`'s declaration and is recorded as the LOOKUP part; the value recorded here is the part the site alone supports (methodology 02 absence-facts narrowing rule)."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "static_cast<double>(a) / b",
+     "value": "the division is performed in floating point: whichever operand is not already of the common floating type is converted to it before the operator is applied, with nothing written for that conversion",
+     "locally_recoverable": true,
+     "justification": "[expr.arith.conv]/1.3: if either operand has floating-point type, the other is converted to the common type. The left operand's type is fixed by the cast written at the site, so the rule's outcome is pinned without consulting `b`'s declaration."
+    }
+   ],
+   "fact_count": 23,
+   "determinacy_B": 5,
+   "determinacy_enumeration": [
+    "R2 (wraps modulo 2^n, defined) - realizable at the BINDINGS. `a` and `b` are declared outside the fragment (Rule 1.1.2), so if they are wider than int, `int q = a / b;` performs an integral conversion that C++20 defines as the unique value congruent modulo 2^32 ([conv.integral]/3 - this was implementation-defined before C++20). Witness wit/f07p2_R2.cpp (`long long a = 8589934592LL, b = 1LL`): builds under the frozen recipe and prints `0 0 8589934592.000000`.",
+    "R4 (undefined or illegal behaviour on the exceptional case) - realizable. [expr.mul]/4: if the second operand of `/` or `%` is zero the behaviour is undefined, and so is a quotient not representable in the result type (INT_MIN / -1). Evidenced by the specification clause, as Rule 1.3.1(b) requires for R4.",
+    "R6 (binary floating point - rounding, NaN, Inf) - realizable and present in the frozen fragment itself: statement (3) is a binary64 division whose result is rounded. Witness wit/f07p2_R6.cpp (a = 1, b = 3): builds and prints `0 1 0.33333333333333331`, the rounded value. NOTE the exclusion that goes the other way: floating-point OPERANDS are not realizable for the probe, because statement (2)'s `%` requires operands of integral or unscoped enumeration type ([expr.mul]/2) - refutation witness wit/f07p2_R6.cpp's first attempt with `double a, b` fails to build: `invalid operands to binary expression ('double' and 'double')`.",
+    "R7 (an implicit promotion/conversion is applied to an operand before the operation) - realizable and present in the frozen fragment itself: in statement (3) `b` is converted from the operand type to the floating type by [expr.arith.conv] with nothing written for it, and with operands narrower than int [conv.prom] promotes both operands of statements (1) and (2). Witness wit/f07p2_R7.cpp (`short a = -7, b = 2`): builds and prints `-3 -1 -3.500000` with the division performed in int after promotion.",
+    "R8 (the operator's meaning is supplied by the operand types - user-redefinable) - realizable. Witness wit/f07p2_R8.cpp (a class `M` with `operator double`, an `operator/` that subtracts and an `operator%` that adds): builds and prints `5 9 3.500000 calls=2`, i.e. the three statements ran user code. EXCLUDED CLASS, recorded here with its refutation because it is the class the probe is built to expose (Rule 1.3.1.e): R10 (the rounding direction of an integer division, or the sign of a remainder, is not determined by the operator alone) is NOT realizable for C++. [expr.mul]/4 fixes both - the quotient is truncated toward zero and `(a/b)*b + a%b == a`, so the remainder takes the dividend's sign. Refutation witness: the frozen program itself, with a = -7 and b = 2, prints `-3 -1` rather than the flooring or Euclidean alternatives `-4 1`. A user-defined operator could of course do anything, but that class is already counted once as R8 and Rule 1.4.5 forbids counting the same vector twice."
+   ],
+   "locality_lookups": 3,
+   "locality_detail": [
+    {
+     "hop": "variable decl - `a` (given context, outside the measured fragment)",
+     "required_for_fact": "type_and_representation, conversion_behavior (which conversion the written static_cast performs) and overflow_exceptional_numeric / possible_failure (integral operands give [expr.mul]/4's undefined cases; a class operand gives whatever the user-defined operator does)"
+    },
+    {
+     "hop": "variable decl - `b`",
+     "required_for_fact": "possible_failure and overflow_exceptional_numeric at statements (1) and (2): whether the zero-divisor and non-representable-quotient cases of [expr.mul]/4 apply at all is decided by `b`'s type"
+    },
+    {
+     "hop": "compiler mode - the frozen build invocation and host (`clang++ -std=c++20 -O2`, arm64)",
+     "required_for_fact": "type_and_representation: the width of `int` and the value representation of `double` are both implementation-defined ([basic.fundamental]/2, /12) and the source does not state either. One G hop per Rule 2.6.1."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H1 - Implicit conversions",
+     "why": "Local site 3, `double d = static_cast<double>(a) / b;`. The cast converts the LEFT operand and is locally written, but the right operand `b` is converted to the floating type by [expr.arith.conv] with nothing at the site naming it. The conversion changes representation observably - it turns what would otherwise be an integer division into a floating-point one - so H1's fourth exclusion (value-preserving and unable to affect overflow, equality or representation) does not apply. Counted once at this site under the single-assignment rule; the same event is NOT additionally charged to H7."
+    },
+    {
+     "checklist_item": "H8 - Context-dependent overflow / numeric behavior",
+     "why": "Local site 1, `int q = a / b;` (H8a). [expr.mul]/4 labels the zero-divisor case and the non-representable-quotient case UNDEFINED, and `b` may be 0 within the probe's declared input domain (the task fixes only that `a` may be negative). Nothing at the site selects a discipline and C++20 supplies no checked-division operation to write instead."
+    },
+    {
+     "checklist_item": "H8 - Context-dependent overflow / numeric behavior",
+     "why": "Local site 2, `int m = a % b;` - the same rule at a different local site, which section 1.3.2 counts as a distinct event. [expr.mul]/4 makes a zero right operand undefined for `%` as well."
+    },
+    {
+     "checklist_item": "H8 - Context-dependent overflow / numeric behavior",
+     "why": "Local site 3, `double d = static_cast<double>(a) / b;`. [expr.mul]/4's zero-divisor sentence is unconditional in C++20 and therefore reaches the floating-point division too, and [basic.fundamental]/12 leaves the floating representation and hence the rounding and infinity behaviour implementation-defined - H8a's `the reference labels the outcome undefined, unspecified, or implementation-defined` limb, on both counts. NOT counted anywhere in this probe: H5, because C++ signals none of these as a failure (there is no exception, no error value and no defined trap) - the concealment is charged once, here, rather than twice."
+    }
+   ],
+   "hidden_count": 4,
+   "complexity_units": 14,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Simple declaration with an initializer.",
+     "citation": "ISO C++20 [dcl.init]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Binary `/`.",
+     "citation": "ISO C++20 [expr.mul]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Binary `%`.",
+     "citation": "ISO C++20 [expr.mul]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`static_cast<T>(v)` named-cast expression.",
+     "citation": "ISO C++20 [expr.static.cast]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`double` type-specifier.",
+     "citation": "ISO C++20 [basic.fundamental]/12"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "The usual arithmetic conversions decide the common type of a binary operator's operands from both operand types.",
+     "citation": "ISO C++20 [expr.arith.conv]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Integral promotion of operands of rank lower than int.",
+     "citation": "ISO C++20 [conv.prom]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "`int` has an implementation-defined width.",
+     "citation": "ISO C++20 [basic.fundamental]/2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "The value representation of the floating-point types, and hence rounding, infinities and NaN, is implementation-defined; IEEE-754 is not mandated.",
+     "citation": "ISO C++20 [basic.fundamental]/12-13"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "`static_cast` selects, from a documented ordered list, which conversion it performs for the given source and destination types.",
+     "citation": "ISO C++20 [expr.static.cast]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Integer-to-floating conversion is exact when the value is representable and otherwise an implementation-defined choice between the two adjacent representable values.",
+     "citation": "ISO C++20 [conv.fpint]/2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Integer division truncates toward zero and the remainder satisfies `(a/b)*b + a%b == a`, so it takes the sign of the dividend - the rule that makes the probe's observation target answerable in C++.",
+     "citation": "ISO C++20 [expr.mul]/4"
+    },
+    {
+     "unit": "documented exception",
+     "description": "`%` requires integral or unscoped enumeration operands, unlike `*` and `/`.",
+     "citation": "ISO C++20 [expr.mul]/2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Division or remainder by zero, and a quotient not representable in the result type, are undefined behaviour.",
+     "citation": "ISO C++20 [expr.mul]/4"
+    }
+   ]
+  },
+  {
+   "probe_id": "F08.P1",
+   "language": "C++",
+   "language_key": "cpp",
+   "support": "FULL",
+   "support_reason": "F-1, with the canonical task's own rung order recorded as it requires. (1) `int m = INT_MAX;` declares a local of a signed 32-bit integer type initialized to the maximum representable value using C++'s standard named maximum ([climits.syn]); the alternative `std::numeric_limits<int>::max()` delivers the same value in 10 tokens against 1 and is rejected by R10. (2) RUNG USED: (iv), the plain operator. Rung (i) is unavailable: C++20's standard library contains no checked addition yielding an optional or error value (`std::ckd_add` is C23's <stdckdint.h>, not a C++20 header, and <numeric>, <limits> and <cstdlib> contain no such operation). Rung (ii) is unavailable: there is no standard wrapping addition; unsigned arithmetic is modular, but that is a property of a different TYPE, not an operation that can be selected at the site while keeping the required signed 32-bit type. Rung (iii) is unavailable: saturating arithmetic (`std::add_sat`) arrives in C++26, not C++20. (3) `return o;` produces the outcome. F-2/F-4: standard library only, frozen recipe only. F-3: builds and runs to completion, printing -2147483648. F-6: no prohibition. The probe's observation target - whether a reader can state what happens at the overflow from the fragment alone - is expressly NOT a support requirement (doc 01 observation_target_clauses), and C++'s answer to it is charged in B, C and D instead.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/cpp/F08.P1.cpp",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "-2147483648",
+    "diagnostics": "clang++ -std=c++20 -O2 FILE.cpp -o BIN  (environment.json -> semantic_compression_recipes.cpp.build); exit 0, no diagnostics (the frozen recipe carries no -Wall, -ftrapv, -fwrapv or -fsanitize); run exit 0. Apple clang 17.0.0 (clang-1700.6.3.2), target arm64-apple-darwin25.4.0. IMPORTANT: this output is an OBSERVATION, not a guarantee - `m + 1` at INT_MAX is undefined behaviour under [expr.pre]/4, so the printed value records what this build of this compiler did and establishes nothing about what any other build must do."
+   },
+   "token_count": 15,
+   "facts": [
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "m",
+     "value": "(i) an object with automatic storage duration whose address is observable",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: a block-scope variable with no storage-class specifier has automatic storage duration and is an object; `&m` is well-formed. The declarator contains no `&`, so it is not a reference ([dcl.ref])."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "m",
+     "value": "modifiable through this name for the rest of the block",
+     "locally_recoverable": true,
+     "justification": "[dcl.type.cv]/1: an object is modifiable unless its type is const-qualified. No cv-qualifier appears in `int m = INT_MAX`, and C++ has no default immutability, so the universal rule fixes the value."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "m",
+     "value": "this declaration creates no alias; any second name reaching this storage would require an explicitly written `&` or `*` elsewhere",
+     "locally_recoverable": true,
+     "justification": "[dcl.ref]/1 and [expr.unary.op]/3: a reference must be declared with `&` and a pointer obtained with `&`; neither appears at this site, so no alias is introduced here."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int m = INT_MAX",
+     "value": "initialized to the largest value representable in type int",
+     "locally_recoverable": true,
+     "justification": "[climits.syn]: INT_MAX is the maximum value for an object of type int. The macro is named literally at the site, so this is one named standard-library contract (hops_stdlib = 1); its numeric value is implementation-defined and is the LOOKUP part."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "m",
+     "value": "int: a fixed-width signed integer, two's complement since C++20; its width is implementation-defined (32 bits under the frozen recipe on this host)",
+     "locally_recoverable": true,
+     "justification": "[basic.fundamental]/2-3: `int` is a standard signed integer type whose width is implementation-defined, and since C++20 signed integers are two's complement. Methodology 02 K05 representation sub-rule: the type identity is pinned by the declaration, so the row counts with `representation: implementation-defined`."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "int m = INT_MAX",
+     "value": "no dynamic allocation: the object occupies automatic storage and the initialization copies a scalar value",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: automatic storage is provided by the implementation for the block, not by an allocation expression; no `new`, no allocator and no container appears at the site."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "m",
+     "value": "automatic storage duration: the lifetime ends when the enclosing block exits, and because the type is scalar no destructor code runs",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]/1 (lifetime bounded by the block) together with [class.dtor]: only class types have destructors, so a scalar release point is the block exit and runs no user code."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "o",
+     "value": "(i) an object with automatic storage duration whose address is observable",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: a block-scope variable with no storage-class specifier has automatic storage duration and is an object; `&o` is well-formed. The declarator contains no `&`, so it is not a reference ([dcl.ref])."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "o",
+     "value": "modifiable through this name for the rest of the block",
+     "locally_recoverable": true,
+     "justification": "[dcl.type.cv]/1: an object is modifiable unless its type is const-qualified. No cv-qualifier appears in `int o = m + 1`, and C++ has no default immutability, so the universal rule fixes the value."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "o",
+     "value": "this declaration creates no alias; any second name reaching this storage would require an explicitly written `&` or `*` elsewhere",
+     "locally_recoverable": true,
+     "justification": "[dcl.ref]/1 and [expr.unary.op]/3: a reference must be declared with `&` and a pointer obtained with `&`; neither appears at this site, so no alias is introduced here."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int o = m + 1",
+     "value": "initialized with the value of `m + 1`",
+     "locally_recoverable": true,
+     "justification": "[dcl.init]/16: copy-initialization from the initializer expression."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "o",
+     "value": "int: a fixed-width signed integer, two's complement since C++20; its width is implementation-defined (32 bits under the frozen recipe on this host)",
+     "locally_recoverable": true,
+     "justification": "[basic.fundamental]/2-3: `int` is a standard signed integer type whose width is implementation-defined, and since C++20 signed integers are two's complement. Methodology 02 K05 representation sub-rule: the type identity is pinned by the declaration, so the row counts with `representation: implementation-defined`."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "int o = m + 1",
+     "value": "no dynamic allocation: the object occupies automatic storage and the initialization copies a scalar value",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: automatic storage is provided by the implementation for the block, not by an allocation expression; no `new`, no allocator and no container appears at the site."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "o",
+     "value": "automatic storage duration: the lifetime ends when the enclosing block exits, and because the type is scalar no destructor code runs",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]/1 (lifetime bounded by the block) together with [class.dtor]: only class types have destructors, so a scalar release point is the block exit and runs no user code."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "m + 1",
+     "value": "int: both operands are already int - `m` by the declaration written one line above inside the fragment, and the unsuffixed literal 1 by [lex.icon] - so the operation is performed in int and yields int",
+     "locally_recoverable": true,
+     "justification": "[lex.icon]/2 (an unsuffixed decimal literal has the first of int, long int, long long int in which it fits) with [expr.arith.conv]. Unlike F07.P1, the operand type is LOCAL here because the canonical task places `m`'s declaration inside the measured fragment."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "m + 1",
+     "value": "no conversion is applied to either operand: int is its own promoted type and both operands already have it",
+     "locally_recoverable": true,
+     "justification": "[conv.prom] (only types of rank lower than int are promoted) with [expr.arith.conv]."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "int o = m + 1",
+     "value": "no conversion at the binding: the initializer is already of the declared type",
+     "locally_recoverable": true,
+     "justification": "[dcl.init]/16 with the identity conversion of [over.ics.scs]."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return o",
+     "value": "control leaves the enclosing function with the value of o; the fragment contains no branch, loop or throw",
+     "locally_recoverable": true,
+     "justification": "[stmt.return]/2."
+    }
+   ],
+   "fact_count": 18,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "R4 (undefined or illegal behaviour on the exceptional case) - the ONLY realizable class, and therefore B = 1: the measured fragment admits exactly one materially different interpretation. `m` is declared inside the fragment (Rule 1.5.2.a states this explicitly for F08.P1), so its type `int` and its value INT_MAX are local and free; the addition therefore certainly overflows, and [expr.pre]/4 makes a result outside the representable range of a signed integer type undefined behaviour. Evidenced by the specification clause, as Rule 1.3.1(b) requires for R4. FLAG (Rule 1.9.5, LOW-B-BY-ABSENCE): this B of 1 is produced by the ABSENCE of any alternative, not by the fragment pinning a useful answer - the one interpretation the fragment admits is that the program has no defined meaning. Refutation witnesses for the classes that are NOT realizable: R2 and R3 would require `-fwrapv` or `-ftrapv`, which the frozen recipe does not name, and Rule 1.5.2.a rules that a class realizable only under a mode the recipe does not name is not realizable - the same sentence that pins Rust and Zig to their checked modes, applied to C++ in the direction that LOWERS its count. R8 is not realizable: `m` is declared `int` inside the fragment and [over.oper]/7 requires an operator function to have a parameter of class or enumeration type, so `+` here cannot be user-defined - a genuine and unusual C++ determinacy credit at this probe. R6, R7, R9, R10 and R11 are unreachable for the same reason (the operand type is local). R12 is not realizable because C++20 has no operation that names its own overflow discipline at the site. R5 is recorded as a FLAG and contributes no +1: the behaviour would be selected differently by `-fwrapv`/`-ftrapv`/`-fsanitize=undefined`, and that non-locality is charged in Part 2 as the G hop below."
+   ],
+   "locality_lookups": 1,
+   "locality_detail": [
+    {
+     "hop": "compiler mode - the frozen build invocation and the host it names (`clang++ -std=c++20 -O2`, arm64-apple-darwin25.4.0)",
+     "required_for_fact": "type_and_representation and overflow_exceptional_numeric. The source does not state the width of `int` ([basic.fundamental]/2) nor, therefore, the value of INT_MAX ([climits.syn] makes it implementation-defined); the same artifact also carries whether any of -fwrapv / -ftrapv / -fsanitize=undefined is in force, which is what would decide the overflow outcome if it were defined at all. One configuration artifact resolves all of these, and Rule 2.3.2 (minimality) with Rule 2.6.1 (once per distinct artifact) keeps it at one hop. Everything else is inside the fragment: `m`'s declaration, its initializer and the operation."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H8 - Context-dependent overflow / numeric behavior",
+     "why": "Local site 2, `int o = m + 1;`, sub-test H8a on both limbs. (a) the reference labels the outcome UNDEFINED - [expr.pre]/4; (b) for the same operand types the outcome differs by compiler flag - `-fwrapv` makes it modular, `-ftrapv` makes it trap, `-fsanitize=undefined` diagnoses it, and the frozen recipe carries none of them, so the source cannot tell the reader which applies. The edge is certainly reached: `m` is INT_MAX by the line above. The H8 exclusion for a form whose edge behaviour is selected by a locally written operator does not apply, because C++20 has no wrapping, checked or saturating operator to write; and the exclusion for a single documented outcome independent of mode and target is universal in scope (section 1.4.0) and is contradicted by [expr.pre]/4. The observed run printing -2147483648 does NOT discharge it: section 1.4.0 is explicit that a single run under a single mode never discharges a universal-scope exclusion. H5 is NOT counted: undefined behaviour is not a signalled failure, and charging it there as well would count one behaviour twice (section 1.3.1)."
+    }
+   ],
+   "hidden_count": 1,
+   "complexity_units": 9,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Simple declaration with an initializer.",
+     "citation": "ISO C++20 [dcl.init]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Binary `+`.",
+     "citation": "ISO C++20 [expr.add]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Return statement.",
+     "citation": "ISO C++20 [stmt.return]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Integer literal and the rule fixing its type.",
+     "citation": "ISO C++20 [lex.icon]/2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "`int` has an implementation-defined width, so the value the named maximum denotes is not fixed by the source.",
+     "citation": "ISO C++20 [basic.fundamental]/2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Integral promotion and the usual arithmetic conversions, which a reader must apply to know the operation is performed in int and not in a wider type.",
+     "citation": "ISO C++20 [conv.prom], [expr.arith.conv]"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Signed integer overflow is undefined behaviour, in explicit contrast to unsigned arithmetic, which is defined as modular.",
+     "citation": "ISO C++20 [expr.pre]/4, [basic.fundamental]/2"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Lvalue-to-rvalue conversion applied to `m`.",
+     "citation": "ISO C++20 [conv.lval]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Standard-library clause relied on: INT_MAX is the maximum value for an object of type int, and its value is implementation-defined (methodology 04 section 2.4.2, one clause).",
+     "citation": "ISO C++20 [climits.syn]"
+    }
+   ]
+  },
+  {
+   "probe_id": "F08.P2",
+   "language": "C++",
+   "language_key": "cpp",
+   "support": "FULL",
+   "support_reason": "F-1, with the canonical task's own rung order recorded as it requires. RUNG USED: (ii), an explicit local guard on `b == 0` selecting the fallback integer 0. Rung (i) is unavailable: C++20's standard library contains no checked-division operation yielding an optional or error value - `std::div` ([c.math.abs]) returns a `div_t` aggregate and inherits the same undefined behaviour for a zero divisor, and there is no `checked_div`, `try_div` or equivalent in any C++20 header. So: (1) the division is written in a form that makes the zero-divisor outcome determinable at the site, `b == 0 ? 0 : a / b`; (2) the outcome is bound to `q` with the fallback integer 0 substituted for the exceptional case; (3) `return q;` produces it. F-2/F-4: core language only. F-3: builds and runs, printing 0 for guarded(7, 0) - the guarded path. F-6: no prohibition. R10 among the forms rung (ii) leaves acceptable: the conditional-operator form is 13 tokens against 20 for the `if (b == 0) { q = 0; } else { q = a / b; }` form over a default-initialized `int q;`, so the conditional is measured.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/cpp/F08.P2.cpp",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "0",
+    "diagnostics": "clang++ -std=c++20 -O2 FILE.cpp -o BIN  (environment.json -> semantic_compression_recipes.cpp.build); exit 0, no diagnostics; run exit 0. Apple clang 17.0.0 (clang-1700.6.3.2), target arm64-apple-darwin25.4.0."
+   },
+   "token_count": 16,
+   "facts": [
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "q",
+     "value": "(i) an object with automatic storage duration whose address is observable",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: a block-scope variable with no storage-class specifier has automatic storage duration and is an object; `&q` is well-formed. The declarator contains no `&`, so it is not a reference ([dcl.ref])."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "q",
+     "value": "modifiable through this name for the rest of the block",
+     "locally_recoverable": true,
+     "justification": "[dcl.type.cv]/1: an object is modifiable unless its type is const-qualified. No cv-qualifier appears in `int q = b == 0 ? 0 : a / b`, and C++ has no default immutability, so the universal rule fixes the value."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "q",
+     "value": "this declaration creates no alias; any second name reaching this storage would require an explicitly written `&` or `*` elsewhere",
+     "locally_recoverable": true,
+     "justification": "[dcl.ref]/1 and [expr.unary.op]/3: a reference must be declared with `&` and a pointer obtained with `&`; neither appears at this site, so no alias is introduced here."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int q = b == 0 ? 0 : a / b",
+     "value": "initialized on both paths: the conditional operator yields a value whichever branch is taken, so no path through the fragment leaves q unset",
+     "locally_recoverable": true,
+     "justification": "[expr.cond]/(exactly one of the second and third operands is evaluated and its value is the result) with [dcl.init]/16."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "q",
+     "value": "int: a fixed-width signed integer, two's complement since C++20; its width is implementation-defined (32 bits under the frozen recipe on this host)",
+     "locally_recoverable": true,
+     "justification": "[basic.fundamental]/2-3: `int` is a standard signed integer type whose width is implementation-defined, and since C++20 signed integers are two's complement. Methodology 02 K05 representation sub-rule: the type identity is pinned by the declaration, so the row counts with `representation: implementation-defined`."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "int q = b == 0 ? 0 : a / b",
+     "value": "no dynamic allocation: the object occupies automatic storage and the initialization copies a scalar value",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: automatic storage is provided by the implementation for the block, not by an allocation expression; no `new`, no allocator and no container appears at the site."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "q",
+     "value": "automatic storage duration: the lifetime ends when the enclosing block exits, and because the type is scalar no destructor code runs",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]/1 (lifetime bounded by the block) together with [class.dtor]: only class types have destructors, so a scalar release point is the block exit and runs no user code."
+    },
+    {
+     "fact_kind": "alternative_value_cases",
+     "site": "b == 0 ? 0 : a / b",
+     "value": "exactly two alternatives, both written at the site - the fallback integer 0 and the quotient - and the set is closed and exhaustively handled here, because the conditional operator has no third path",
+     "locally_recoverable": true,
+     "justification": "[expr.cond]: the first operand is contextually converted to bool and exactly one of the second and third operands is evaluated. Both alternatives are inside the probe region, so hops_decl = 0."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "b == 0 ? 0 : a / b",
+     "value": "the condition is evaluated and sequenced before exactly one of the two arms; the division is not evaluated at all on the zero-divisor path, which is what makes the guard effective rather than decorative",
+     "locally_recoverable": true,
+     "justification": "[expr.cond]/(the first expression is sequenced before the second or third) - a sequencing guarantee, not a convention."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return q",
+     "value": "control leaves the enclosing function with the value of q",
+     "locally_recoverable": true,
+     "justification": "[stmt.return]/2."
+    }
+   ],
+   "fact_count": 10,
+   "determinacy_B": 6,
+   "determinacy_enumeration": [
+    "R12 (the operation names its own discipline at the site - here an explicit local guard the fragment contains) - realizable, and it is what the frozen fragment does: Rule 1.5.2.a states that where the fragment contains an explicit guard, the guard is inside the counting unit and closes the classes it decides. Witness: the frozen program calls guarded(7, 0) and prints 0 rather than trapping.",
+    "R4 (undefined or illegal behaviour on the exceptional case) - realizable, because the guard closes only ONE of [expr.mul]/4's two exceptional cases. The other, a quotient not representable in the result type (INT_MIN / -1 for a signed 32-bit type), is not guarded and remains undefined behaviour. Evidenced by the specification clause per Rule 1.3.1(b).",
+    "R2 (wraps modulo 2^n, defined) - realizable at the binding. `a` and `b` are declared outside the fragment (Rule 1.1.2); if they are wider than int, `int q = ...` performs the integral conversion C++20 defines as the unique value congruent modulo 2^32 ([conv.integral]/3). Witness wit/f08p2_R2.cpp (`long long a, b`, called with 2^33 and 1): builds under the frozen recipe and prints 0.",
+    "R6 (binary floating point - rounding, NaN, Inf) - realizable: with floating-point operands the same fragment is a floating-point division whose result is then converted to int by truncation. Witness wit/f08p2_R6.cpp (`double a, b`): builds and prints `-3 0` for (-7.5, 2.0) and (1.0, 0.0), the second showing the guard still selecting the fallback.",
+    "R7 (an implicit promotion/conversion is applied to an operand before the operation) - realizable: with operands narrower than int, [conv.prom] promotes both the comparison's and the division's operands, and with floating operands the literal 0 in `b == 0` is converted by [expr.arith.conv]. Witness wit/f08p2_R7.cpp (`short a, b`): builds and prints -3.",
+    "R8 (the operator's meaning is supplied by the operand types - user-redefinable) - realizable: `==` and `/` may both be user-defined for class operands ([over.oper]), so the guard itself may run arbitrary code and may not test what it appears to test. Witness wit/f08p2_R8.cpp (a class `M` with `operator==(M, int)` and an `operator/` that adds): builds and prints `9 calls=2`. NOT counted separately: R11 (the exceptional case is turned into a value) describes the same construct as R12 - the guard - and Table NUM's classes are mutually exclusive as behaviour classes, so counting both would count one behaviour twice. R10 is not realizable: [expr.mul]/4 fixes truncation toward zero for integral operands, and the user-defined case is already R8. R5 is recorded as a flag and contributes no +1."
+   ],
+   "locality_lookups": 3,
+   "locality_detail": [
+    {
+     "hop": "variable decl - `b` (given context, outside the measured fragment)",
+     "required_for_fact": "possible_failure and overflow_exceptional_numeric: whether `b == 0` is a built-in comparison or a user-defined one, and therefore whether the guard actually excludes the zero divisor, is decided by `b`'s type. Chosen first by the greedy rule of section 2.3 step 7 because it resolves the most facts."
+    },
+    {
+     "hop": "variable decl - `a`",
+     "required_for_fact": "type_and_representation and alternative_value_cases: the composite type of the conditional's two arms, and hence the type of the value bound to q, follows from `a / b`'s type"
+    },
+    {
+     "hop": "compiler mode - the frozen build invocation and host (`clang++ -std=c++20 -O2`, arm64)",
+     "required_for_fact": "type_and_representation: the width of `int` is implementation-defined ([basic.fundamental]/2) and decides which quotients are non-representable, i.e. where the residual undefined case begins. One G hop per Rule 2.6.1."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H8 - Context-dependent overflow / numeric behavior",
+     "why": "Local site 1, `int q = b == 0 ? 0 : a / b;` (H8a). The locally written guard removes the zero-divisor edge - and that removal is credited: it is why H8 is charged ONCE here rather than with the divide-by-zero limb as well. What survives is the second exceptional case of [expr.mul]/4, a quotient not representable in the result type, which the reference labels undefined and which the guard does not touch; it is reachable within the probe's declared input domain (a signed 32-bit `a` may be the minimum value and `b` may be -1). No token at the site selects a behaviour for it, and C++20 offers no checked-division operation to write instead. H5 is NOT counted: the surviving case is undefined behaviour rather than a signalled failure, and the fallback path is written at the site. H1 is NOT counted: over the declared input domain both arms of the conditional are already int, so [expr.cond]'s composite-type rule inserts nothing."
+    }
+   ],
+   "hidden_count": 1,
+   "complexity_units": 12,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Simple declaration with an initializer.",
+     "citation": "ISO C++20 [dcl.init]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Conditional operator `?:`.",
+     "citation": "ISO C++20 [expr.cond]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Equality operator `==`.",
+     "citation": "ISO C++20 [expr.eq]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Binary `/`.",
+     "citation": "ISO C++20 [expr.mul]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Return statement.",
+     "citation": "ISO C++20 [stmt.return]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "The conditional operator's result type and value category are computed from its second and third operands by a composite-type rule, so the type of `q`'s initializer depends on both arms.",
+     "citation": "ISO C++20 [expr.cond]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "The first operand of `?:` is contextually converted to bool.",
+     "citation": "ISO C++20 [expr.cond], [conv.bool]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Sequencing: the condition is sequenced before exactly one of the other two operands, which is the guarantee that makes a guard a guard rather than an ordering hope.",
+     "citation": "ISO C++20 [expr.cond], [intro.execution]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "The usual arithmetic conversions applied to the comparison's and the division's operands.",
+     "citation": "ISO C++20 [expr.arith.conv]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "`int` has an implementation-defined width, which is what decides which quotients are non-representable.",
+     "citation": "ISO C++20 [basic.fundamental]/2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Division by zero, and a quotient not representable in the result type, are undefined behaviour.",
+     "citation": "ISO C++20 [expr.mul]/4"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Integer division truncates toward zero.",
+     "citation": "ISO C++20 [expr.mul]/4"
+    }
+   ]
+  },
+  {
+   "probe_id": "F09.P1",
+   "language": "C++",
+   "language_key": "cpp",
+   "support": "FULL",
+   "support_reason": "F-1: (1) `s1 == s2` on C++'s ordinary text-string type compares CONTENTS, not object identity - [string.cmp] specifies `operator==(const basic_string&, const basic_string&)` as returning `lhs.compare(rhs) == 0`, a character-sequence comparison; the given context produces two distinct runtime-built string objects with identical contents (`base + \"cd\"` twice) and the fragment reports true. (2) the boolean result is bound to the new local `eq`. F-2/F-4: standard library only. F-3: builds and prints 1. F-6: no prohibition. R10 among the forms the standard library provides for a contents comparison: `s1 == s2` (7 tokens), `s1.compare(s2) == 0` (11), `std::equal(s1.begin(), s1.end(), s2.begin(), s2.end())` (21). The fewest-token form is measured. The observation target - whether a reader can tell contents from identity, and whether user-defined equality could run - is not a support requirement and is charged in B, C and D, where C++ does badly precisely because `==` looks the same for `std::string` and for `const char*`.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/cpp/F09.P1.cpp",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "1",
+    "diagnostics": "clang++ -std=c++20 -O2 FILE.cpp -o BIN  (environment.json -> semantic_compression_recipes.cpp.build); exit 0, no diagnostics; run exit 0. Apple clang 17.0.0 (clang-1700.6.3.2), target arm64-apple-darwin25.4.0."
+   },
+   "token_count": 7,
+   "facts": [
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "eq",
+     "value": "(i) an object with automatic storage duration whose address is observable",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: a block-scope variable with no storage-class specifier has automatic storage duration and is an object; `&eq` is well-formed. The declarator contains no `&`, so it is not a reference ([dcl.ref])."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "eq",
+     "value": "modifiable through this name for the rest of the block",
+     "locally_recoverable": true,
+     "justification": "[dcl.type.cv]/1: an object is modifiable unless its type is const-qualified. No cv-qualifier appears in `bool eq = s1 == s2`, and C++ has no default immutability, so the universal rule fixes the value."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "eq",
+     "value": "this declaration creates no alias; any second name reaching this storage would require an explicitly written `&` or `*` elsewhere",
+     "locally_recoverable": true,
+     "justification": "[dcl.ref]/1 and [expr.unary.op]/3: a reference must be declared with `&` and a pointer obtained with `&`; neither appears at this site, so no alias is introduced here."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "bool eq = s1 == s2",
+     "value": "initialized with the result of the comparison",
+     "locally_recoverable": true,
+     "justification": "[dcl.init]/16: copy-initialization from the initializer expression, which is contextually converted to bool ([conv.bool]) if it is not already bool."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "eq",
+     "value": "bool: a fundamental type whose value set is exactly {false, true}; its size is implementation-defined",
+     "locally_recoverable": true,
+     "justification": "[basic.fundamental]/10: values of type bool are true and false. Methodology 02 K05 representation sub-rule: the type identity is pinned by the declaration, so the row counts with `representation: implementation-defined`."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "bool eq = s1 == s2",
+     "value": "no dynamic allocation: the object occupies automatic storage and the initialization copies a scalar value",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: automatic storage is provided by the implementation for the block, not by an allocation expression; no `new`, no allocator and no container appears at the site."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "eq",
+     "value": "automatic storage duration: the lifetime ends when the enclosing block exits, and because the type is scalar no destructor code runs",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]/1 (lifetime bounded by the block) together with [class.dtor]: only class types have destructors, so a scalar release point is the block exit and runs no user code."
+    },
+    {
+     "fact_kind": "alternative_value_cases",
+     "site": "eq",
+     "value": "exactly two alternatives, false and true; the set is closed by the language itself and needs no declaration outside the fragment",
+     "locally_recoverable": true,
+     "justification": "[basic.fundamental]/10: the values of type bool are true and false, and there are no others."
+    }
+   ],
+   "fact_count": 8,
+   "determinacy_B": 4,
+   "determinacy_enumeration": [
+    "V1 - both operands are the standard text-string type (or a string_view over one): the library's `operator==` compares the character sequences ([string.cmp]) and is declared `noexcept`, so A6 = cannot fail, A5 = no conversion, A4 = text, A1 = the comparison yields a bool prvalue. Witness: the frozen program builds under the frozen recipe and prints 1 although `s1` and `s2` are two distinct objects.",
+    "V2 - both operands are pointers to characters. `s1` and `s2` are declared outside the fragment (Rule 1.1.2), and `const char*` is C++'s other ordinary spelling of a text string; the SAME fragment then invokes the BUILT-IN pointer equality of [expr.eq]/3, which compares addresses, so two distinct buffers with identical contents compare unequal. This is a materially different meaning of the identical surface form on dimension 9. Witness wit/f09p1_charptr.cpp (fragment byte-identical, two `char[]` buffers both holding \"abcd\"): builds under the frozen recipe and prints `0 (strcmp=0)` - the comparison says not-equal while the contents are equal.",
+    "V3 - the operands are of a class type with a user-defined `operator==`. [over.oper] and [over.match.oper] make `==` a call to arbitrary code that may allocate, mutate, throw, and need only return something contextually convertible to bool; Rule 1.4.7 counts this because it makes classes reachable that the built-in operator cannot reach. Witness wit/f09p1_user.cpp (a struct whose `operator==` prints and compares sizes): builds and prints `user op== ran` then `1 calls=1` for operands with different contents.",
+    "V4 - preprocessor token substitution (Rule 1.4.8, exactly one additional outcome; [cpp.replace]). Witness wit/f09p1_macro.cpp: `#define s2 s1` outside the byte-identical fragment makes the comparison reflexive; with `s1 = \"ab\"` and `s2 = \"zz\"` in the given context, the plain build prints 0 and this one prints 1."
+   ],
+   "locality_lookups": 3,
+   "locality_detail": [
+    {
+     "hop": "variable decl - `s1` (given context, outside the measured fragment)",
+     "required_for_fact": "type_and_representation, conversion_behavior and possible_failure: until the operand type is known, the site is compatible with a contents comparison, an address comparison and a call to arbitrary user code (determinacy V1-V3), and none of those facts has an outcome class"
+    },
+    {
+     "hop": "variable decl - `s2`",
+     "required_for_fact": "type_and_representation: C++20's rewritten-candidate rule ([over.match.oper]/3) lets `a == b` be resolved through a reversed candidate or one synthesized from `operator<=>`, so the right operand's declaration is required as well and the left one alone does not close the set"
+    },
+    {
+     "hop": "standard-library declaration - `operator==(const basic_string&, const basic_string&)`",
+     "required_for_fact": "the CENTRAL fact of the probe: that the comparison is of contents rather than of object identity, and that it cannot fail. [string.cmp] is where that is stated; methodology 03 Rule 2.2.2 counts a standard-library declaration as a hop on the same terms as a user declaration, and methodology 02 section 2.3 records that such a row earns density and still pays this hop."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 1, `bool eq = s1 == s2;`. The candidate set for `==` is not determined by the local site: C++ admits built-in candidates (arithmetic and pointer equality, [over.built]), every `operator==` found by argument-dependent lookup for the operand types ([basic.lookup.argdep]), and, since C++20, reversed and `operator<=>`-synthesized candidates ([over.match.oper]/3). For the frozen operand type alone the set already has cardinality >= 2 ([string.cmp] declares the basic_string/basic_string form and the basic_string/charT* form). The candidate-equivalence exclusion is universal in scope and would require a per-candidate record under section 1.4.0, which cannot be produced here. This is the concealment determinacy V1/V2/V3 demonstrates by building three different meanings from the same seven tokens. H5 is NOT counted: [string.cmp] declares the operator `noexcept`, which is a `documented` citation stating the totality that H5's universal-scope exclusion requires. H1 is NOT counted: over the declared input domain both operands are already the same type and no conversion is inserted."
+    }
+   ],
+   "hidden_count": 1,
+   "complexity_units": 9,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Simple declaration with an initializer.",
+     "citation": "ISO C++20 [dcl.init]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`bool` type-specifier.",
+     "citation": "ISO C++20 [basic.fundamental]/10"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Equality operator `==`.",
+     "citation": "ISO C++20 [expr.eq]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Operator overload resolution: the candidate set for `==` is built from member candidates, non-member candidates found by argument-dependent lookup, and the built-in candidates.",
+     "citation": "ISO C++20 [over.match.oper], [over.built], [basic.lookup.argdep]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Since C++20 an `==` expression may additionally be resolved through a reversed candidate, or through one synthesized from `operator<=>`.",
+     "citation": "ISO C++20 [over.match.oper]/3"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Contextual conversion of the initializer to bool.",
+     "citation": "ISO C++20 [conv.bool], [dcl.init]"
+    },
+    {
+     "unit": "documented exception",
+     "description": "For pointer operands - including `const char*`, C++'s other ordinary spelling of a text string - `==` compares addresses rather than the characters pointed to. The same token means two different comparisons depending on a declaration written elsewhere.",
+     "citation": "ISO C++20 [expr.eq]/3"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Standard-library clause relied on: `operator==` on basic_string returns `lhs.compare(rhs) == 0`, i.e. it compares the character sequences (methodology 04 section 2.4.2, one clause).",
+     "citation": "ISO C++20 [string.cmp]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Standard-library clause relied on: that operator is `noexcept`, which is what makes the fragment's failure fact assignable (one clause).",
+     "citation": "ISO C++20 [string.cmp]"
+    }
+   ]
+  },
+  {
+   "probe_id": "F09.P2",
+   "language": "C++",
+   "language_key": "cpp",
+   "support": "FULL",
+   "support_reason": "F-1: (1) `std::ranges::sort(xs, std::greater{});` orders `xs` into DESCENDING order using C++'s standard ordering facility and supplies the descending order EXPLICITLY, as a comparator function object value passed at the call - the facility's default `std::ranges::less` is not relied on. (2) `bool lt = a < b;` binds the ordinary relational comparison of two integers. F-2/F-4: standard library only, frozen recipe only. F-3: builds and prints `3 2 1 1`. F-6: no prohibition applies to ranges::sort or std::greater. R10 among the explicit forms the standard library provides: `std::ranges::sort(xs, std::greater{})` is 15 tokens; `std::sort(xs.begin(), xs.end(), std::greater{})` is 23; `std::ranges::sort(xs, std::ranges::greater{})` is 17; a lambda comparator `[](int x, int y) { return x > y; }` is longer still. The fewest-token form is measured.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/cpp/F09.P2.cpp",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "3 2 1 1",
+    "diagnostics": "clang++ -std=c++20 -O2 FILE.cpp -o BIN  (environment.json -> semantic_compression_recipes.cpp.build); exit 0, no diagnostics; run exit 0. Apple clang 17.0.0 (clang-1700.6.3.2), target arm64-apple-darwin25.4.0."
+   },
+   "token_count": 22,
+   "facts": [
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "lt",
+     "value": "(i) an object with automatic storage duration whose address is observable",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: a block-scope variable with no storage-class specifier has automatic storage duration and is an object; `&lt` is well-formed. The declarator contains no `&`, so it is not a reference ([dcl.ref])."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "lt",
+     "value": "modifiable through this name for the rest of the block",
+     "locally_recoverable": true,
+     "justification": "[dcl.type.cv]/1: an object is modifiable unless its type is const-qualified. No cv-qualifier appears in `bool lt = a < b`, and C++ has no default immutability, so the universal rule fixes the value."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "lt",
+     "value": "this declaration creates no alias; any second name reaching this storage would require an explicitly written `&` or `*` elsewhere",
+     "locally_recoverable": true,
+     "justification": "[dcl.ref]/1 and [expr.unary.op]/3: a reference must be declared with `&` and a pointer obtained with `&`; neither appears at this site, so no alias is introduced here."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "bool lt = a < b",
+     "value": "initialized with the result of the comparison",
+     "locally_recoverable": true,
+     "justification": "[dcl.init]/16 with [conv.bool]."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "lt",
+     "value": "bool: a fundamental type whose value set is exactly {false, true}; its size is implementation-defined",
+     "locally_recoverable": true,
+     "justification": "[basic.fundamental]/10: values of type bool are true and false. Methodology 02 K05 representation sub-rule: the type identity is pinned by the declaration, so the row counts with `representation: implementation-defined`."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "bool lt = a < b",
+     "value": "no dynamic allocation: the object occupies automatic storage and the initialization copies a scalar value",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: automatic storage is provided by the implementation for the block, not by an allocation expression; no `new`, no allocator and no container appears at the site."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "lt",
+     "value": "automatic storage duration: the lifetime ends when the enclosing block exits, and because the type is scalar no destructor code runs",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]/1 (lifetime bounded by the block) together with [class.dtor]: only class types have destructors, so a scalar release point is the block exit and runs no user code."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "std::ranges::sort(xs, std::greater{})",
+     "value": "the call MODIFIES the already-initialized range in place: the elements of `xs` are reordered, and no new sequence is produced",
+     "locally_recoverable": true,
+     "justification": "[alg.sort]: `ranges::sort` sorts the elements of the range and returns an iterator; the sorting is specified on the range itself. One named standard-library contract (hops_stdlib = 1)."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "the `xs` argument of std::ranges::sort",
+     "value": "a WRITABLE alias to the caller's sequence exists for the duration of the call: the range overload takes the range by forwarding reference and writes through it",
+     "locally_recoverable": true,
+     "justification": "[alg.sort] with [algorithms.requirements] and [range.access]: the range algorithms operate on the caller's range through its iterators and require it to be `sortable`, i.e. writable. Note that nothing at the call site says so - that concealment is charged under H2 below; the FACT is recoverable only because the library name is written at the site."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "std::greater{}",
+     "value": "a value of the transparent specialization `std::greater<void>`, obtained by class template argument deduction; its call operator yields `x > y` for any operand types that support it",
+     "locally_recoverable": true,
+     "justification": "[comparisons.greater] (the `void` specialization is the transparent one) with [over.match.class.deduct] (the implicit deduction guide from the default template argument)."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "std::greater{}",
+     "value": "a temporary comparison object is created at this site and destroyed at the end of the full-expression - a deterministic release point fixed by the language, not by a declaration elsewhere",
+     "locally_recoverable": true,
+     "justification": "[class.temporary]/4: temporary objects are destroyed as the last step in evaluating the full-expression that contains the point where they were created."
+    }
+   ],
+   "fact_count": 11,
+   "determinacy_B": 5,
+   "determinacy_enumeration": [
+    "V1 - as written over a growable integer sequence: the call takes a writable alias to `xs` (A1) and reorders its elements in place (A2 = the state referred to by the operand is mutated), the element type is a fixed-width signed integer (A4), the comparison cannot fail (A6), and the resource events are whatever the algorithm does internally plus the temporary comparator (A8). Witness: the frozen program builds under the frozen recipe and prints `3 2 1 1`.",
+    "V2 - the element type supplies its own `operator>`. `xs` is declared outside the fragment (Rule 1.1.2), and `std::greater<void>` is transparent: it forwards to `x > y`, so the sort runs user code that may allocate, mutate other state, or throw out of the algorithm - A6 = may throw an undeclared exception. Witness wit/f09p2_elemthrow.cpp (a struct whose `operator>` throws): builds under the frozen recipe and terminates with `libc++abi: terminating due to uncaught exception of type std::runtime_error: boom`, exit 134, instead of printing a sorted sequence.",
+    "V3 - `a` and `b` are of a class type with a user-defined `operator<`. Statement (2) then runs arbitrary user code (A4 = user-defined type, A6 = may throw, A8 = allocation may occur), which Rule 1.4.7 counts because a user-redefinable operator makes classes reachable that the built-in one cannot reach. Witness wit/f09p2_userlt.cpp (a struct whose `operator<` prints and reverses the test): builds and prints `user op< ran` then `3 2 1 0 calls=1` - note `lt` is now 0 where the frozen program gives 1.",
+    "V4 - `a` and `b` are pointers. `<` is then the BUILT-IN relational operator on pointers, whose result [expr.rel]/4-5 leaves unspecified for pointers to unrelated objects: a distinct A4 class (pointer/handle) and a distinct meaning, reached without any user code. Witness wit/f09p2_ptr.cpp: builds under the frozen recipe and prints `3 2 1 0`.",
+    "V5 - preprocessor token substitution (Rule 1.4.8, exactly one additional outcome; [cpp.replace]). Witness wit/f09p2_macro.cpp: `#define greater less` outside the byte-identical fragment builds under the frozen recipe and prints `1 2 3 1` - the sequence is now ASCENDING, i.e. the fragment's stated purpose is inverted with nothing inside it changed."
+   ],
+   "locality_lookups": 7,
+   "locality_detail": [
+    {
+     "hop": "standard-library declaration - `std::ranges::sort` and its contract",
+     "required_for_fact": "mutability and aliasing_writable_aliasing: only this clause establishes that the range is sorted IN PLACE and that the algorithm therefore holds a writable alias. Chosen first by the greedy rule (section 2.3 step 7) because it resolves the most facts. Rule 2.2.2 counts it as a hop on the same terms as a user declaration."
+    },
+    {
+     "hop": "variable decl - `xs` (given context, outside the measured fragment)",
+     "required_for_fact": "type_and_representation of the sequence and its elements, without which the element comparison's behaviour and possible_failure have no class"
+    },
+    {
+     "hop": "standard-library declaration - `std::greater` (the transparent `void` specialization)",
+     "required_for_fact": "type_and_representation of the comparator object and the ordering actually applied: the clause stating that its call operator yields `x > y` is what makes the sort descending rather than ascending"
+    },
+    {
+     "hop": "callee body - the libc++ implementation of `ranges::sort` (__algorithm/sort.h)",
+     "required_for_fact": "allocation_copy_move_borrow_destroy. [alg.sort] states the ordering guarantee, the in-place behaviour and an O(N log N) comparison bound, but says nothing about whether the algorithm allocates, so the fact has no outcome class until the implementation is read. Methodology 03 hop kind BODY, counted only because no declaration-level fact exists for this fact."
+    },
+    {
+     "hop": "variable decl - `a`",
+     "required_for_fact": "type_and_representation and possible_failure at statement (2): whether `<` is the built-in relational operator, a pointer comparison with an unspecified result, or a call to user code is decided by the operand declarations (determinacy V3, V4)"
+    },
+    {
+     "hop": "variable decl - `b`",
+     "required_for_fact": "type_and_representation: [over.match.oper] builds the candidate set from BOTH operand types, so the left declaration alone does not close it"
+    },
+    {
+     "hop": "compiler mode - the frozen build invocation and host (`clang++ -std=c++20 -O2`, arm64)",
+     "required_for_fact": "type_and_representation: the element width is implementation-defined ([basic.fundamental]/2) and the source does not state it. One G hop per Rule 2.6.1 and example P-5."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H2 - Hidden writable aliasing or mutation",
+     "why": "Local site 1, `std::ranges::sort(xs, std::greater{});`. The call rewrites the storage reachable through `xs` while `xs` appears only as an ARGUMENT, not as an assignment target, so H2's exclusion for locally evident mutation (`x = e`, `x[i] = e`, ...) does not apply; and no `&`, `ref`, `inout`, `out` or `mut` token marks the write at the site. Whether the call mutates or returns a new sequence is settled only by [alg.sort], which is not local. This is the item's canonical shape."
+    },
+    {
+     "checklist_item": "H3 - Overload or dynamic dispatch not locally evident",
+     "why": "Local site 2, `bool lt = a < b;`. The candidate set for `<` is built from the built-in relational candidates and every `operator<` reachable by argument-dependent lookup for the operand types, which the site does not fix; cardinality >= 2, and the per-candidate equivalence record that section 1.4.0 requires cannot be produced. Determinacy V3 and V4 are the built and run demonstrations. H3 is NOT counted at site 1: `std::ranges::sort` is written as a fully-qualified path and the argument form selects between the two documented overloads, which is H3's second exclusion. H4 is NOT counted at site 1: the temporary comparator is named by the local construct `std::greater{}` (H4's allocation-named-by-a-local-token exclusion), and for a sequence of integers the element moves the algorithm performs are not observable to a conforming program (section 0.8). H5 is NOT counted at either site: over the probe's declared input domain - a growable integer sequence and two integers - neither `int`'s `>` nor `int`'s `<` can throw, so condition 1 (occurrence) fails. H8 is NOT counted: a comparison of integers has no numeric edge case."
+    }
+   ],
+   "hidden_count": 2,
+   "complexity_units": 16,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Qualified-id naming an entity in a nested namespace, `std::ranges::sort`.",
+     "citation": "ISO C++20 [expr.prim.id.qual]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Function call expression.",
+     "citation": "ISO C++20 [expr.call]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "List-initialization of a class type, `std::greater{}`.",
+     "citation": "ISO C++20 [dcl.init.list]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Simple declaration with an initializer, `bool`.",
+     "citation": "ISO C++20 [dcl.init], [basic.fundamental]/10"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Relational operator `<`.",
+     "citation": "ISO C++20 [expr.rel]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Class template argument deduction from a braced-init-list, which here yields the transparent `std::greater<void>` rather than any `std::greater<T>`.",
+     "citation": "ISO C++20 [over.match.class.deduct]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "The range algorithms are customization point objects (niebloids), not ordinary functions: they are not found by argument-dependent lookup and cannot be explicitly specialized, so the qualified call is not an ordinary function call.",
+     "citation": "ISO C++20 [algorithms.requirements], [customization.point.object]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "The range overload is constrained: the argument must model `random_access_range` and the range must be `sortable` with the given comparator and projection, and which overload applies is decided by the argument form.",
+     "citation": "ISO C++20 [alg.sort]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Operator overload resolution for `<` from both operand types, including the built-in candidates.",
+     "citation": "ISO C++20 [over.match.oper], [over.built]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "`int` has an implementation-defined width.",
+     "citation": "ISO C++20 [basic.fundamental]/2"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "A temporary comparator object is materialized at the call and destroyed at the end of the full-expression.",
+     "citation": "ISO C++20 [class.temporary]/4"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Lvalue-to-rvalue conversion applied to `a` and `b`.",
+     "citation": "ISO C++20 [conv.lval]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Standard-library clause relied on: `ranges::sort` sorts the elements of the range IN PLACE (methodology 04 section 2.4.2).",
+     "citation": "ISO C++20 [alg.sort]"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Standard-library clause relied on: the comparator must induce a strict weak ordering; if it does not, the behaviour is undefined - a carve-out the fragment's correctness depends on.",
+     "citation": "ISO C++20 [alg.sorting], [algorithms.requirements]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Standard-library clause relied on: the complexity bound is O(N log N) comparisons and no allocation guarantee is stated, which is why the allocation fact is not resolvable from the contract.",
+     "citation": "ISO C++20 [alg.sort]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Standard-library clause relied on: `std::greater<void>::operator()(t, u)` returns `std::forward<T>(t) > std::forward<U>(u)` - the clause that makes the order descending.",
+     "citation": "ISO C++20 [comparisons.greater]"
+    }
+   ]
+  },
+  {
+   "probe_id": "F10.P1",
+   "language": "C++",
+   "language_key": "cpp",
+   "support": "FULL",
+   "support_reason": "F-1, with the canonical task's own rung order recorded as it requires. RUNG USED: (ii), the language's ordinary explicit narrowing conversion, `static_cast<int>(big)`. Rung (i) is unavailable: C++20's standard library contains no conversion that reports out-of-range as an optional or error value. The nearest candidates were checked and rejected on the record - `std::in_range<int>(big)` ([utility.intcmp], C++20) is a PREDICATE returning bool, not a conversion, and reports nothing; `gsl::narrow` is third-party and disqualified by R7 and by the rubric's baseline condition; `std::numeric_limits` supplies bounds, not a conversion. So (1) a signed 32-bit value is produced from `big` by the ordinary explicit narrowing conversion, (2) bound to `small`, (3) produced by `return small;`. F-2/F-4: core language only. F-3: builds and prints -2147483648 for the out-of-range input 2147483648. F-6: no prohibition; `static_cast` is the standard's own named cast. R10 among the forms rung (ii) leaves acceptable: `static_cast<int>(big)` (11 tokens for the binding) is measured over `(int)big` and `int(big)` (8 each), because R2 filters before R10 - C++ Core Guidelines ES.49 and ES.48 make the named cast the production form.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/cpp/F10.P1.cpp",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "-2147483648",
+    "diagnostics": "clang++ -std=c++20 -O2 FILE.cpp -o BIN  (environment.json -> semantic_compression_recipes.cpp.build); exit 0, no diagnostics; run exit 0. Apple clang 17.0.0 (clang-1700.6.3.2), target arm64-apple-darwin25.4.0. The result is DEFINED, not undefined: C++20 [conv.integral]/3 specifies the unique value congruent to the source modulo 2^32, which for 2147483648 is -2147483648. This was implementation-defined before C++20."
+   },
+   "token_count": 14,
+   "facts": [
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "small",
+     "value": "(i) an object with automatic storage duration whose address is observable",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: a block-scope variable with no storage-class specifier has automatic storage duration and is an object; `&small` is well-formed. The declarator contains no `&`, so it is not a reference ([dcl.ref])."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "small",
+     "value": "modifiable through this name for the rest of the block",
+     "locally_recoverable": true,
+     "justification": "[dcl.type.cv]/1: an object is modifiable unless its type is const-qualified. No cv-qualifier appears in `int small = static_cast<int>(big)`, and C++ has no default immutability, so the universal rule fixes the value."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "small",
+     "value": "this declaration creates no alias; any second name reaching this storage would require an explicitly written `&` or `*` elsewhere",
+     "locally_recoverable": true,
+     "justification": "[dcl.ref]/1 and [expr.unary.op]/3: a reference must be declared with `&` and a pointer obtained with `&`; neither appears at this site, so no alias is introduced here."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int small = static_cast<int>(big)",
+     "value": "initialized with the result of the conversion",
+     "locally_recoverable": true,
+     "justification": "[dcl.init]/16: copy-initialization from the initializer expression."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "small",
+     "value": "int: a fixed-width signed integer, two's complement since C++20; its width is implementation-defined (32 bits under the frozen recipe on this host)",
+     "locally_recoverable": true,
+     "justification": "[basic.fundamental]/2-3: `int` is a standard signed integer type whose width is implementation-defined, and since C++20 signed integers are two's complement. Methodology 02 K05 representation sub-rule: the type identity is pinned by the declaration, so the row counts with `representation: implementation-defined`."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "int small = static_cast<int>(big)",
+     "value": "no dynamic allocation: the object occupies automatic storage and the initialization copies a scalar value",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: automatic storage is provided by the implementation for the block, not by an allocation expression; no `new`, no allocator and no container appears at the site."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "small",
+     "value": "automatic storage duration: the lifetime ends when the enclosing block exits, and because the type is scalar no destructor code runs",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]/1 (lifetime bounded by the block) together with [class.dtor]: only class types have destructors, so a scalar release point is the block exit and runs no user code."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "static_cast<int>(big)",
+     "value": "a conversion to type int occurs here and is WRITTEN at the site; nothing about the destination type is left to an implicit rule",
+     "locally_recoverable": true,
+     "justification": "[expr.static.cast]: the named cast performs the conversion explicitly and names the destination type. Which conversion rule applies to the SOURCE - [conv.integral]/3's defined modular narrowing for an integral source, [conv.fpint]/1's truncation for a floating one - needs `big`'s declaration and is the LOOKUP part (methodology 02 absence-facts narrowing rule)."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "static_cast<int>(big)",
+     "value": "the expression has type int, whatever the source type is",
+     "locally_recoverable": true,
+     "justification": "[expr.static.cast]/1: the result of `static_cast<T>(v)` has type T."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "static_cast<int>(big)",
+     "value": "(ii) a prvalue - a value with no observable identity; it denotes no storage of the source object",
+     "locally_recoverable": true,
+     "justification": "[expr.static.cast]/1: the result is a prvalue because the destination type is not a reference type."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return small",
+     "value": "control leaves the enclosing function with the value of small; the conversion itself introduces no branch, propagation or early exit, because C++ has no conversion form that can",
+     "locally_recoverable": true,
+     "justification": "[stmt.return]/2 with [expr.static.cast] (a static_cast is an expression, not a control-flow construct)."
+    }
+   ],
+   "fact_count": 11,
+   "determinacy_B": 4,
+   "determinacy_enumeration": [
+    "V1 - the source is an integer type at least as wide as int: the conversion is the DEFINED modular narrowing of C++20 [conv.integral]/3 (the unique value congruent modulo 2^N), so A5 = narrowing/lossy, A10 = wraps modulo 2^n, A6 = cannot fail, A9 = falls through. Witness: the frozen program builds under the frozen recipe and prints -2147483648 for the input 2147483648.",
+    "V2 - the source is an integer type narrower than int: the identical fragment is then a LOSSLESS WIDENING that cannot change the value - a materially different interpretation on dimension 4, which lists exactly `whether the conversion can change the value`. `big`'s declaration is outside the fragment (Rule 1.1.2). Witness wit/f10p1_widen.cpp (`short big`): builds under the frozen recipe and prints -300 unchanged.",
+    "V3 - the source is a floating-point type: [conv.fpint]/1 discards the fractional part, truncating toward zero, and makes the result UNDEFINED if the truncated value is not representable in int - a different conversion rule, a different edge behaviour and a different failure class from V1. Witness wit/f10p1_fp.cpp (`double big`): builds under the frozen recipe and prints -3 for -3.9.",
+    "V4 - the source is of class type with a conversion function to int: `static_cast<int>` then invokes user-defined code ([expr.static.cast], [class.conv.fct]) which may allocate, mutate or throw - A6 = may throw an undeclared exception, A5 = user-defined conversion. Witness wit/f10p1_user.cpp: builds and prints `user conversion ran` then `42 calls=1`. NOT counted: preprocessor token substitution, because Rule 1.4.8 places its outcome on axis A1, which is not in scope for this probe's frozen `semantic_facts_expected` (conversion_behavior, type_and_representation, overflow_exceptional_numeric, possible_failure, control_flow_effect map to A5, A4, A10, A6, A9); macro substitution realizes no class here that V1-V4 do not already contain."
+   ],
+   "locality_lookups": 2,
+   "locality_detail": [
+    {
+     "hop": "variable decl - `big` (the enclosing function's parameter, outside the measured fragment)",
+     "required_for_fact": "conversion_behavior (which of [conv.integral]/3, [conv.fpint]/1 or a user-defined conversion function applies), overflow_exceptional_numeric (defined modular versus undefined) and possible_failure (cannot fail versus may throw) - all three are resolved by this single declaration, which is why the greedy rule takes it first"
+    },
+    {
+     "hop": "compiler mode - the frozen build invocation and host (`clang++ -std=c++20 -O2`, arm64)",
+     "required_for_fact": "type_and_representation: the widths of `int` and of the source type are implementation-defined ([basic.fundamental]/2), and the modulus 2^N of [conv.integral]/3 is therefore not stated by the source. One G hop per Rule 2.6.1."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H8 - Context-dependent overflow / numeric behavior",
+     "why": "Local site 1, `int small = static_cast<int>(big);` (H8b, with H8a also firing - the item counts once). Across the source types this form admits, the reference gives NO single documented outcome at the edge: an integral source narrows modulo 2^N and is total ([conv.integral]/3), a floating source truncates toward zero and is UNDEFINED when the truncated value is not representable ([conv.fpint]/1), and the modulus itself depends on the target's integer width. H8's exclusion requires exactly one documented outcome across every type the form admits in this probe, independent of mode and target; it is universal in scope, section 1.4.0 governs discharging it, and it is contradicted by the two clauses above. H1 is NOT counted, and this is C++ earning the zero: the conversion is WRITTEN at the site as `static_cast<int>`, which is H1's first exclusion. H7 is likewise NOT counted: the representation change is written at the site. H5 is NOT counted: within the probe's declared input domain (a signed 64-bit source) the conversion is total under [conv.integral]/3."
+    }
+   ],
+   "hidden_count": 1,
+   "complexity_units": 8,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "`static_cast<T>(v)` named-cast expression.",
+     "citation": "ISO C++20 [expr.static.cast]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Simple declaration with an initializer.",
+     "citation": "ISO C++20 [dcl.init]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Return statement.",
+     "citation": "ISO C++20 [stmt.return]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "`static_cast` selects, from a documented ordered list of cases, which conversion it performs for the given source and destination types - the same three tokens mean different conversions for different sources.",
+     "citation": "ISO C++20 [expr.static.cast]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "`int` and the standard signed integer types have implementation-defined widths, so the modulus of the narrowing rule is not fixed by the source.",
+     "citation": "ISO C++20 [basic.fundamental]/2"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Integral conversion to a signed type: the value is unchanged if representable, and otherwise is the unique value congruent to the source modulo 2^N - a rule C++20 changed from implementation-defined to fully defined.",
+     "citation": "ISO C++20 [conv.integral]/3"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Floating-to-integral conversion discards the fractional part and is undefined behaviour if the truncated value is not representable in the destination type.",
+     "citation": "ISO C++20 [conv.fpint]/1"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Lvalue-to-rvalue conversion applied to `big` before the cast's own conversion.",
+     "citation": "ISO C++20 [conv.lval]"
+    }
+   ]
+  },
+  {
+   "probe_id": "F10.P2",
+   "language": "C++",
+   "language_key": "cpp",
+   "support": "FULL",
+   "support_reason": "F-1: (1) `i + d` computes the sum of the signed 32-bit integer and the 64-bit floating-point local, including every conversion C++ requires to be WRITTEN - which is none, because [expr.arith.conv] inserts the int-to-double conversion implicitly - and omitting it accordingly, exactly as the sub-requirement directs. (2) the result is bound to the new local `sum`. F-2/F-4: core language only. F-3: builds and prints 3.500000 for i = 3, d = 0.5. F-6: no prohibition. R10: `double sum = i + d;` and `auto sum = i + d;` both tokenize to 7; the tie is broken by documentation order in favour of the fundamental-type simple-type-specifier over the placeholder specifier. Writing `static_cast<double>(i) + d` would violate the sub-requirement's `omitting any the language performs implicitly` and is rejected on that ground, not on token count. The observation target - whether a reader can determine `sum`'s static type and which operand changed representation - is not a support requirement.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/cpp/F10.P2.cpp",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "3.500000",
+    "diagnostics": "clang++ -std=c++20 -O2 FILE.cpp -o BIN  (environment.json -> semantic_compression_recipes.cpp.build); exit 0, no diagnostics; run exit 0. Apple clang 17.0.0 (clang-1700.6.3.2), target arm64-apple-darwin25.4.0."
+   },
+   "token_count": 7,
+   "facts": [
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "sum",
+     "value": "(i) an object with automatic storage duration whose address is observable",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: a block-scope variable with no storage-class specifier has automatic storage duration and is an object; `&sum` is well-formed. The declarator contains no `&`, so it is not a reference ([dcl.ref])."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "sum",
+     "value": "modifiable through this name for the rest of the block",
+     "locally_recoverable": true,
+     "justification": "[dcl.type.cv]/1: an object is modifiable unless its type is const-qualified. No cv-qualifier appears in `double sum = i + d`, and C++ has no default immutability, so the universal rule fixes the value."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "sum",
+     "value": "this declaration creates no alias; any second name reaching this storage would require an explicitly written `&` or `*` elsewhere",
+     "locally_recoverable": true,
+     "justification": "[dcl.ref]/1 and [expr.unary.op]/3: a reference must be declared with `&` and a pointer obtained with `&`; neither appears at this site, so no alias is introduced here."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "double sum = i + d",
+     "value": "initialized with the value of the expression",
+     "locally_recoverable": true,
+     "justification": "[dcl.init]/16: copy-initialization from the initializer expression."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "sum",
+     "value": "double: a binary floating-point type; the C++ standard does not mandate IEEE-754, so the value representation is implementation-defined (binary64 under the frozen recipe on this host)",
+     "locally_recoverable": true,
+     "justification": "[basic.fundamental]/12-13: the value representation of the floating-point types is implementation-defined. Methodology 02 K05 representation sub-rule: the type identity is pinned by the declaration written at the site, so the row counts with `representation: implementation-defined`."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "double sum = i + d",
+     "value": "no dynamic allocation: the object occupies automatic storage and the initialization copies a scalar value",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]: automatic storage is provided by the implementation for the block, not by an allocation expression; no `new`, no allocator and no container appears at the site."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "sum",
+     "value": "automatic storage duration: the lifetime ends when the enclosing block exits, and because the type is scalar no destructor code runs",
+     "locally_recoverable": true,
+     "justification": "[basic.stc.auto]/1 (lifetime bounded by the block) together with [class.dtor]: only class types have destructors, so a scalar release point is the block exit and runs no user code."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "double sum = i + d",
+     "value": "whatever the operands are, the value that reaches `sum` is of type double: the initializer undergoes an implicit conversion sequence to the declared type, and NOTHING is written at the site for it",
+     "locally_recoverable": true,
+     "justification": "[dcl.init]/16 with [conv]: copy-initialization applies an implicit conversion sequence from the initializer to the declared type. The declared type is written at the site, so the destination of that sequence is local; which conversion the sequence contains depends on the operand declarations and is the LOOKUP part."
+    }
+   ],
+   "fact_count": 8,
+   "determinacy_B": 5,
+   "determinacy_enumeration": [
+    "V1 - one operand integral, one floating (the frozen program): [expr.arith.conv]/1.3 converts the integral operand to the floating type BEFORE the addition, with nothing written for it; the addition is then floating-point with rounding, and the binding needs no further conversion. A5 = lossless widening for a 32-bit source, A10 = rounding/NaN/Inf applies, A4 = binary floating point. Witness: the frozen program builds under the frozen recipe and prints 3.500000. The conversion is NOT always lossless, which is part of the same class: witness wit/f06p1_wide.cpp (`long long i = 9007199254740993LL`) builds and prints 9007199254740992 against the exact source value - [conv.fpint]/2's implementation-defined choice of an adjacent representable value.",
+    "V2 - both operands integral: the SAME fragment is then integer addition, whose overflow is undefined behaviour ([expr.pre]/4), and the conversion to double happens at the BINDING rather than at the operator - materially different on dimensions 3, 4 and 8. Witness wit/f10p2_bothint.cpp (`int i = 3, d = 2`): builds under the frozen recipe and prints 5.000000.",
+    "V3 - both operands floating: NO conversion is applied at the operator at all (A5 = none), which dimension 4 lists as material - `whether a value is converted`. Witness wit/f10p2_bothfp.cpp (`double i = 3.25, d = 0.5`): builds and prints 3.750000.",
+    "V4 - a class-typed operand: `operator+` and the conversion to double are user-supplied ([over.oper], [class.conv.fct]), so the site may allocate, mutate or throw, and the arithmetic need not be arithmetic. Witness wit/f10p2_user.cpp (a struct whose `operator+` multiplies and prints): builds and prints `user op+ ran` then `12.000000 calls=1`.",
+    "V5 - preprocessor token substitution (Rule 1.4.8, exactly one additional outcome; [cpp.replace]). A1 is in scope for this probe because its frozen fact set contains `value_vs_storage`. Witness wit/f10p2_macro.cpp: `#define d 2` outside the byte-identical fragment turns the floating addition into an integer one and the program prints 5.000000 instead of 3.500000."
+   ],
+   "locality_lookups": 3,
+   "locality_detail": [
+    {
+     "hop": "variable decl - `i` (given context, outside the measured fragment)",
+     "required_for_fact": "conversion_behavior - which operand [expr.arith.conv] converts, and whether the conversion is lossless - and overflow_exceptional_numeric, since integral operands give [expr.pre]/4's undefined overflow while floating ones give rounding"
+    },
+    {
+     "hop": "variable decl - `d`",
+     "required_for_fact": "type_and_representation of the addition's result and hence whether any conversion remains at the binding; [expr.arith.conv] is a function of BOTH operand types"
+    },
+    {
+     "hop": "compiler mode - the frozen build invocation and host (`clang++ -std=c++20 -O2`, arm64)",
+     "required_for_fact": "type_and_representation: the width of `int` and the value representation of `double` are both implementation-defined ([basic.fundamental]/2, /12) and the source states neither. One G hop per Rule 2.6.1."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H1 - Implicit conversions",
+     "why": "Local site 1, `double sum = i + d;`. [expr.arith.conv]/1.3 converts `i` from the integral type to double before the addition, with no cast, constructor or conversion annotation written anywhere at the site - this is the probe's declared target. The conversion changes representation observably (the operation becomes floating-point rather than integer) and, for integral sources wider than 24 bits of precision, can change the value: [conv.fpint]/2 permits an implementation-defined choice of an adjacent representable value, demonstrated by wit/f06p1_wide.cpp printing 9007199254740992 for the source 9007199254740993. H1's fourth exclusion (value-preserving and unable to affect overflow, equality or representation) therefore does not apply. Counted once; under the single-assignment rule (section 1.3.1) the same event is NOT additionally charged to H7."
+    },
+    {
+     "checklist_item": "H8 - Context-dependent overflow / numeric behavior",
+     "why": "Local site 1 (H8a). Even holding the operand types at the probe's declared ones, the reference labels the relevant outcomes IMPLEMENTATION-DEFINED rather than fixing one: [basic.fundamental]/12 leaves the floating value representation - and hence rounding, overflow to infinity and NaN behaviour - implementation-defined, and [conv.fpint]/2 leaves the integer-to-floating conversion's inexact case to an implementation-defined choice between the two adjacent representable values. No token at the site selects any of this. The exclusion requiring one documented outcome across every type the form admits is universal in scope (section 1.4.0) and is contradicted by those two clauses; observing one rounding under the single frozen mode does not discharge it. This is a distinct behavior from the H1 event - one is a conversion that is inserted, the other is the edge rule that is not pinned - and section 1.3.2 counts two rules at one site as two events."
+    }
+   ],
+   "hidden_count": 2,
+   "complexity_units": 9,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Simple declaration with an initializer, `double`.",
+     "citation": "ISO C++20 [dcl.init], [basic.fundamental]/12"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Binary `+`.",
+     "citation": "ISO C++20 [expr.add]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "The usual arithmetic conversions: if either operand has floating-point type, the other is converted to the common floating type before the operator is applied.",
+     "citation": "ISO C++20 [expr.arith.conv]/1.3"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Integral promotion of operands of rank lower than int, applied before the usual arithmetic conversions.",
+     "citation": "ISO C++20 [conv.prom]"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "The value representation of the floating-point types, and hence rounding, infinity and NaN behaviour, is implementation-defined; IEEE-754 is not mandated.",
+     "citation": "ISO C++20 [basic.fundamental]/12-13"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "`int` has an implementation-defined width.",
+     "citation": "ISO C++20 [basic.fundamental]/2"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Operator overloading: `+` is a call to user code when an operand is of class or enumeration type.",
+     "citation": "ISO C++20 [over.oper]/7, [over.match.oper]"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Integer-to-floating conversion is exact when the value is representable and otherwise an implementation-defined choice between the next lower and the next higher representable value.",
+     "citation": "ISO C++20 [conv.fpint]/2"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Copy-initialization applies an implicit conversion sequence from the initializer to the declared type, with nothing written for it.",
+     "citation": "ISO C++20 [dcl.init], [conv]"
+    }
+   ]
+  }
+ ]
+}

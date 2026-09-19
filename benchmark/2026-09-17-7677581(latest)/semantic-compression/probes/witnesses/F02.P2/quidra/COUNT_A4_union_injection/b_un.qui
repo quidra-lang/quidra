@@ -1,0 +1,10 @@
+uint8 | error probe()
+    uint8[16] buffer
+    buffer[0] = 1
+    return buffer[0]
+
+match probe()
+    uint8 v
+        print(v)
+    error e
+        print(e)

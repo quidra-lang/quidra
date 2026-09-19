@@ -1,0 +1,5 @@
+gen_00.txt
+build: zig build-exe solution.zig -O ReleaseSafe -femit-bin=solution -> rc=0, no diagnostics
+run: ./solution -> rc=0
+diff vs expected_output.txt: identical
+VERDICT: PASS (correct@1, 0 repairs)

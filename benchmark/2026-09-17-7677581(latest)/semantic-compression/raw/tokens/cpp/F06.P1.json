@@ -1,0 +1,313 @@
+{
+ "probe_id": "F06.P1",
+ "language": "cpp",
+ "count": 49,
+ "tokens": [
+  {
+   "tag": "IDENT",
+   "text": "std",
+   "line": 1,
+   "col": 5
+  },
+  {
+   "tag": "OP",
+   "text": "::",
+   "line": 1,
+   "col": 8
+  },
+  {
+   "tag": "IDENT",
+   "text": "vector",
+   "line": 1,
+   "col": 10
+  },
+  {
+   "tag": "OP",
+   "text": "<",
+   "line": 1,
+   "col": 16
+  },
+  {
+   "tag": "KW",
+   "text": "int",
+   "line": 1,
+   "col": 17
+  },
+  {
+   "tag": "OP",
+   "text": ">",
+   "line": 1,
+   "col": 20
+  },
+  {
+   "tag": "IDENT",
+   "text": "xs",
+   "line": 1,
+   "col": 22
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 1,
+   "col": 25
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 1,
+   "col": 27
+  },
+  {
+   "tag": "NUM",
+   "text": "1",
+   "line": 1,
+   "col": 28
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 1,
+   "col": 29
+  },
+  {
+   "tag": "NUM",
+   "text": "2",
+   "line": 1,
+   "col": 31
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 1,
+   "col": 32
+  },
+  {
+   "tag": "NUM",
+   "text": "3",
+   "line": 1,
+   "col": 34
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 1,
+   "col": 35
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 1,
+   "col": 36
+  },
+  {
+   "tag": "KW",
+   "text": "int",
+   "line": 2,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "y",
+   "line": 2,
+   "col": 9
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 2,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "mid",
+   "line": 2,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 2,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "xs",
+   "line": 2,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 2,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 2,
+   "col": 20
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 3,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "y",
+   "line": 3,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 3,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 4,
+   "col": 1
+  },
+  {
+   "tag": "KW",
+   "text": "int",
+   "line": 6,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "mid",
+   "line": 6,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 6,
+   "col": 8
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 6,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "std",
+   "line": 6,
+   "col": 15
+  },
+  {
+   "tag": "OP",
+   "text": "::",
+   "line": 6,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "vector",
+   "line": 6,
+   "col": 20
+  },
+  {
+   "tag": "OP",
+   "text": "<",
+   "line": 6,
+   "col": 26
+  },
+  {
+   "tag": "KW",
+   "text": "int",
+   "line": 6,
+   "col": 27
+  },
+  {
+   "tag": "OP",
+   "text": ">",
+   "line": 6,
+   "col": 30
+  },
+  {
+   "tag": "OP",
+   "text": "&",
+   "line": 6,
+   "col": 31
+  },
+  {
+   "tag": "IDENT",
+   "text": "v",
+   "line": 6,
+   "col": 33
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 6,
+   "col": 34
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 6,
+   "col": 36
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 6,
+   "col": 38
+  },
+  {
+   "tag": "IDENT",
+   "text": "v",
+   "line": 6,
+   "col": 45
+  },
+  {
+   "tag": "DELIM",
+   "text": "[",
+   "line": 6,
+   "col": 46
+  },
+  {
+   "tag": "NUM",
+   "text": "1",
+   "line": 6,
+   "col": 47
+  },
+  {
+   "tag": "DELIM",
+   "text": "]",
+   "line": 6,
+   "col": 48
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 6,
+   "col": 49
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 6,
+   "col": 51
+  }
+ ],
+ "class_histogram": {
+  "IDENT": 12,
+  "OP": 9,
+  "KW": 7,
+  "DELIM": 17,
+  "NUM": 4
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/cpp/F06.P1.cpp",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

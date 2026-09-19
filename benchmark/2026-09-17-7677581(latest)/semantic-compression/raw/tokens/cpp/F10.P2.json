@@ -1,0 +1,60 @@
+{
+ "probe_id": "F10.P2",
+ "language": "cpp",
+ "count": 7,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "double",
+   "line": 1,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "sum",
+   "line": 1,
+   "col": 12
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 1,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "i",
+   "line": 1,
+   "col": 18
+  },
+  {
+   "tag": "OP",
+   "text": "+",
+   "line": 1,
+   "col": 20
+  },
+  {
+   "tag": "IDENT",
+   "text": "d",
+   "line": 1,
+   "col": 22
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 1,
+   "col": 23
+  }
+ ],
+ "class_histogram": {
+  "KW": 1,
+  "IDENT": 3,
+  "OP": 2,
+  "DELIM": 1
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/cpp/F10.P2.cpp",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

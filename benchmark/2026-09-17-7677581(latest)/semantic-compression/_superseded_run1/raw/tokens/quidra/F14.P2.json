@@ -1,0 +1,209 @@
+{
+ "probe_id": "F14.P2",
+ "language": "quidra",
+ "count": 32,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "float",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "area",
+   "line": 1,
+   "col": 7
+  },
+  {
+   "tag": "KW",
+   "text": "match",
+   "line": 2,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "s",
+   "line": 2,
+   "col": 7
+  },
+  {
+   "tag": "IDENT",
+   "text": "Circle",
+   "line": 3,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "c",
+   "line": 3,
+   "col": 12
+  },
+  {
+   "tag": "IDENT",
+   "text": "area",
+   "line": 4,
+   "col": 9
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 4,
+   "col": 14
+  },
+  {
+   "tag": "NUM",
+   "text": "3.141592653589793",
+   "line": 4,
+   "col": 16
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 4,
+   "col": 34
+  },
+  {
+   "tag": "IDENT",
+   "text": "c",
+   "line": 4,
+   "col": 36
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 4,
+   "col": 37
+  },
+  {
+   "tag": "IDENT",
+   "text": "r",
+   "line": 4,
+   "col": 38
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 4,
+   "col": 40
+  },
+  {
+   "tag": "IDENT",
+   "text": "c",
+   "line": 4,
+   "col": 42
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 4,
+   "col": 43
+  },
+  {
+   "tag": "IDENT",
+   "text": "r",
+   "line": 4,
+   "col": 44
+  },
+  {
+   "tag": "IDENT",
+   "text": "Rect",
+   "line": 5,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "r",
+   "line": 5,
+   "col": 10
+  },
+  {
+   "tag": "IDENT",
+   "text": "area",
+   "line": 6,
+   "col": 9
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 6,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "r",
+   "line": 6,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 6,
+   "col": 17
+  },
+  {
+   "tag": "IDENT",
+   "text": "w",
+   "line": 6,
+   "col": 18
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 6,
+   "col": 20
+  },
+  {
+   "tag": "IDENT",
+   "text": "r",
+   "line": 6,
+   "col": 22
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 6,
+   "col": 23
+  },
+  {
+   "tag": "IDENT",
+   "text": "h",
+   "line": 6,
+   "col": 24
+  },
+  {
+   "tag": "IDENT",
+   "text": "print",
+   "line": 7,
+   "col": 1
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 7,
+   "col": 6
+  },
+  {
+   "tag": "IDENT",
+   "text": "area",
+   "line": 7,
+   "col": 7
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 7,
+   "col": 11
+  }
+ ],
+ "class_histogram": {
+  "KW": 2,
+  "IDENT": 18,
+  "OP": 5,
+  "NUM": 1,
+  "DELIM": 6
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938"
+}

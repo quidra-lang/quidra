@@ -1,0 +1,9 @@
+int32 through_alias()
+    // BEGIN PROBE F04.P1
+    int32 x = 1
+    int32 &r = &x
+    r = 9
+    return x
+    // END PROBE F04.P1
+
+print(through_alias())

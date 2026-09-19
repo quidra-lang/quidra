@@ -1,0 +1,80 @@
+// MB-05 - Vector inner product: streaming multiply-accumulate over memory.
+#include <chrono>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <vector>
+
+// Lehmer / MINSTD generator, frozen for every language in the suite.
+class Lcg {
+public:
+    explicit Lcg(std::int64_t seed) : state_(seed) {}
+
+    std::int64_t next_int() {
+        state_ = (48271 * state_) % 2147483647;
+        return state_;
+    }
+
+    double next_unit() { return static_cast<double>(next_int()) / 2147483647.0; }
+
+private:
+    std::int64_t state_;
+};
+
+static double workload() {
+    constexpr int N = 2000000;
+    constexpr int R = 400;
+
+    Lcg gen(20265917);
+    std::vector<double> x(N);
+    std::vector<double> y(N);
+    for (int i = 0; i < N; ++i) x[i] = 0.5 + gen.next_unit();
+    for (int i = 0; i < N; ++i) y[i] = 0.5 + gen.next_unit();
+
+    double total = 0.0;
+    for (int r = 0; r < R; ++r) {
+        x[r] = x[r] + 1.0e-9;  // anti-elimination, part of the algorithm
+        double d = 0.0;
+        for (int i = 0; i < N; ++i) {
+            d = d + x[i] * y[i];
+        }
+        total = total + d;
+    }
+
+    return total;
+}
+
+// Steady-mode anti-elimination sink. The workload body is a pure function of no
+// arguments, so without an observable use of its result on every iteration clang
+// treats the call as loop-invariant and sinks it out of the steady loop: verified
+// on the frozen recipe, mb01 then reported 42 ns for six of seven iterations while
+// the work ran once after the loop. One volatile store per iteration, outside
+// every pinned computation, keeps each iteration doing the whole workload.
+static volatile double g_steady_sink;
+
+int main(int argc, char** argv) {
+    // Section 5.2 program modes: argv[1] in {once, steady}, argv[2] = K (default 7).
+    // Each steady iteration re-seeds the generator to 20265917 and regenerates x and y.
+    const char* mode = argc > 1 ? argv[1] : "once";
+    double total = 0.0;
+    if (std::strcmp(mode, "steady") == 0) {
+        int K = argc > 2 ? std::atoi(argv[2]) : 7;
+        if (K < 1) K = 7;
+        for (int k = 0; k < K; ++k) {
+            const auto t0 = std::chrono::steady_clock::now();
+            total = workload();
+            g_steady_sink = total;
+            const auto t1 = std::chrono::steady_clock::now();
+            std::printf("ITER %d %lld\n", k,
+                        static_cast<long long>(
+                            std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count()));
+            std::fflush(stdout);
+        }
+    } else {
+        total = workload();
+    }
+
+    std::printf("MB05 total=%.16e\n", total);
+    return 0;
+}

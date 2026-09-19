@@ -1,0 +1,231 @@
+=== toolchain ===
+
+$ /Users/koba/Desktop/Quidra/quidra/build/quidra --version
+quidra 0.2.0
+
+=== determinism of the mapping (two separate processes) ===
+
+$ python3 genmap.py
+wrote /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/quidra/mapping.json with 25 mappings
+  K02          const      -> gudevi
+  K04          if         -> kimeke
+  K05          else       -> togapi
+  K06          elif       -> vubote
+  K07          for        -> betede
+  K08          while      -> zitoge
+  K09          break      -> bupena
+  K10          continue   -> gisade
+  K11          return     -> riripo
+  K12          class      -> pevoku
+  K14          import     -> mutitu
+  K16          true       -> tegago
+  K17          false      -> samibu
+  K18          and        -> rususo
+  K19          or         -> pozamo
+  K20          not        -> doluko
+  K21a         int        -> lisutu
+  K21b         bool       -> kitipe
+  K21c         string     -> febole
+  K21e         void       -> vipike
+  K27          try        -> kesudu
+  U:in         in         -> kurodi
+  U:match      match      -> silute
+  U:override   override   -> muzomu
+  U:super      super      -> dibego
+
+$ cmp build/map_a.json build/map_b.json
+
+$ shasum -a 256 mapping.json wordlists/en_common.txt wordlists/prog_terms.txt wordlists/reserved_union.txt
+e1e014cadb0a351f355a56d30b770e4216be21c9fdb948bb4848fa288997fde1  mapping.json
+eb250861147e34481e341f95a1cd009c7ae182b29ed7c9ec1ce19ab1ad95e4a1  wordlists/en_common.txt
+6d09ed3d4966c9f888e969ce444eb68e496c2dfaa07ae206225f5434bb68e89f  wordlists/prog_terms.txt
+38c38d22a6b8a71b611c1a3f78555b98e4da6212c4bacbc998ee1cb8903be3d3  wordlists/reserved_union.txt
+
+=== filter self-test (every acceptance filter can reject) ===
+
+$ python3 filtertest.py
+1 shape (too short)                  abc      REJECTED
+1 shape (uppercase)                  Bakodi   REJECTED
+2 already used                       kimeke   REJECTED
+3 natural-language word              banana   REJECTED
+4 programming term                   lambda   REJECTED
+5 reserved word of some language     sizeof   REJECTED
+6 contains a listed word             zonevu   REJECTED
+7 occurs in task material            vodumi   REJECTED
+clean candidate                      vodumi   ACCEPTED
+FILTER SELF-TEST: PASS
+
+=== PF-a1: oracle produced by execution ===
+
+$ /Users/koba/Desktop/Quidra/quidra/build/quidra build oracle_real.qui -o build/oracle_real
+exit=0
+
+$ cmp build/oracle_stdout.txt expected_output.txt
+
+=== PF-a2: the pack's worked fixture builds, runs, output matches the pack ===
+
+$ python3 packcheck.py
+PACK_BLOCKS            PASS  found 6 fenced blocks
+PACK_PROGRAM_EQ_ANON   PASS
+ANON_INVERSE_EQ_REAL   PASS
+FIXTURE_BUILD          PASS  exit 0
+FIXTURE_EXIT_ZERO      PASS  exit 0
+FIXTURE_STDERR_EMPTY   PASS  ''
+OUTPUT_EQ_PACK_CLAIM   PASS
+--- actual stdout ---
+TOTAL 29
+LARGEST 12
+EVENS 2
+CHAIN 5:3:7:12:2
+--- claimed by pack ---
+TOTAL 29
+LARGEST 12
+EVENS 2
+CHAIN 5:3:7:12:2
+PACK CHECK: PASS
+
+=== PF-b: harness conventions (positive: pack-only submission) ===
+
+$ python3 harness_sim.py sim/raw_submission.md expected_output.txt
+EXTRACTION               PASS  611 bytes from the last fenced block
+CONFORMANCE_GATE         PASS
+FIXUPS_DOCUMENTED        PASS  must be zero; applied []
+FIXUPS_UNSTATED          ['H1 entry file name']
+BUILD                    PASS  recipe: quidra build solution.qui -o solution -> exit 0
+RUN_EXIT_ZERO            PASS  exit 0
+STDERR_EMPTY             PASS  ''
+STDOUT_EXACT             PASS
+--- produced ---
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+HARNESS SIM: PASS
+
+=== PF-b negative: submission that ignores the transformation must be rejected ===
+$ python3 harness_sim.py sim/raw_submission_ignores_rules.md expected_output.txt
+EXTRACTION               PASS  494 bytes from the last fenced block
+CONFORMANCE_GATE         FAIL  real reserved words: ['else', 'for', 'if', 'in', 'int', 'string']
+FIXUPS_DOCUMENTED        PASS  must be zero; applied []
+FIXUPS_UNSTATED          ['H1 entry file name']
+BUILD                    PASS  recipe: quidra build solution.qui -o solution -> exit 0
+RUN_EXIT_ZERO            PASS  exit 0
+STDERR_EMPTY             PASS  ''
+STDOUT_EXACT             PASS
+--- produced ---
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+HARNESS SIM: FAIL
+rejected as required
+
+=== PF-c positive 1: fixture round trip ===
+
+$ python3 forward.py fixture_real.qui build/fixture_anon_check.qui
+
+$ cmp build/fixture_anon_check.qui fixture_anon.qui
+
+$ python3 validate.py fixture_real.qui fixture_anon.qui fixture_expected.txt
+R0_FORWARD       PASS
+R1_ROUNDTRIP     PASS
+R4_NONTRIVIAL    PASS
+R5_DOMAIN        PASS
+GATE             PASS
+BUILD            PASS
+RUN_EXIT         PASS
+RUN_STDOUT       PASS
+VERDICT: ACCEPT
+
+=== PF-c positive 2: task solution round trip ===
+
+$ python3 forward.py oracle_real.qui build/oracle_anon.qui
+
+$ python3 validate.py oracle_real.qui build/oracle_anon.qui expected_output.txt
+R0_FORWARD       PASS
+R1_ROUNDTRIP     PASS
+R4_NONTRIVIAL    PASS
+R5_DOMAIN        PASS
+GATE             PASS
+BUILD            PASS
+RUN_EXIT         PASS
+RUN_STDOUT       PASS
+VERDICT: ACCEPT
+
+=== PF-c positive 3: stress round trip (literals, comments, member names) ===
+
+$ python3 forward.py build/stress_real.qui build/stress_anon.qui
+
+$ python3 inverse.py build/stress_anon.qui build/stress_rt.qui
+
+$ cmp build/stress_real.qui build/stress_rt.qui
+
+=== PF-c negatives: every corrupted input must be REJECTED ===
+
+$ python3 validate.py fixture_real.qui negatives/N1_real_keyword.qui fixture_expected.txt
+R0_FORWARD       FAIL  forward(REAL) != ANON
+R1_ROUNDTRIP     PASS
+R4_NONTRIVIAL    PASS
+R5_DOMAIN        PASS
+GATE             FAIL  real reserved words present: ['if']
+BUILD            PASS
+RUN_EXIT         PASS
+RUN_STDOUT       PASS
+VERDICT: REJECT  (failed: R0_FORWARD, GATE)
+rejected as required
+
+$ python3 validate.py fixture_real.qui negatives/N2_swapped_map.qui fixture_expected.txt
+R0_FORWARD       FAIL  forward(REAL) != ANON
+R1_ROUNDTRIP     FAIL  inverse(ANON) != REAL (first diff at byte 0)
+R4_NONTRIVIAL    PASS
+R5_DOMAIN        FAIL  off-domain changes: [('int', 'febole'), ('int', 'febole'), ('int', 'febole'), ('int', 'febole'), ('int', 'febole')]
+GATE             PASS
+BUILD            FAIL  exit 1: ['/var/folders/71/zhtl3cb131g9fdd6z18yh_cm0000gn/T/i1val_tu1ah0ww/solution.qui:2:12: error[TYPE_MISMATCH] Operands must have identical types.']
+RUN_EXIT         FAIL  not run: build failed
+RUN_STDOUT       FAIL  not run: build failed
+VERDICT: REJECT  (failed: R0_FORWARD, R1_ROUNDTRIP, R5_DOMAIN, BUILD, RUN_EXIT, RUN_STDOUT)
+rejected as required
+
+$ python3 validate.py fixture_real.qui negatives/N3_typo.qui fixture_expected.txt
+R0_FORWARD       FAIL  forward(REAL) != ANON
+R1_ROUNDTRIP     FAIL  inverse(ANON) != REAL (first diff at byte 27)
+R4_NONTRIVIAL    PASS
+R5_DOMAIN        FAIL  off-domain changes: [('return', 'riripa')]
+GATE             PASS
+BUILD            FAIL  exit 1: ['/var/folders/71/zhtl3cb131g9fdd6z18yh_cm0000gn/T/i1val_stwpwpah/solution.qui:2:17: error[PARSE_ERROR] Expected newline after binding.']
+RUN_EXIT         FAIL  not run: build failed
+RUN_STDOUT       FAIL  not run: build failed
+VERDICT: REJECT  (failed: R0_FORWARD, R1_ROUNDTRIP, R5_DOMAIN, BUILD, RUN_EXIT, RUN_STDOUT)
+rejected as required
+
+$ python3 validate.py fixture_real.qui negatives/N4_ignores_transformation.qui fixture_expected.txt
+R0_FORWARD       FAIL  forward(REAL) != ANON
+R1_ROUNDTRIP     PASS
+R4_NONTRIVIAL    FAIL  forward was a no-op
+R5_DOMAIN        PASS
+GATE             FAIL  real reserved words present: ['else', 'for', 'if', 'in', 'int', 'return', 'string']
+BUILD            PASS
+RUN_EXIT         PASS
+RUN_STDOUT       PASS
+VERDICT: REJECT  (failed: R0_FORWARD, R4_NONTRIVIAL, GATE)
+rejected as required
+
+$ python3 validate.py fixture_real.qui negatives/N5_literal.qui fixture_expected.txt
+R0_FORWARD       FAIL  forward(REAL) != ANON
+R1_ROUNDTRIP     FAIL  inverse(ANON) != REAL (first diff at byte 395)
+R4_NONTRIVIAL    PASS
+R5_DOMAIN        FAIL  off-domain changes: [('"TOTAL {total}"', '"TOTALS {total}"')]
+GATE             PASS
+BUILD            PASS
+RUN_EXIT         PASS
+RUN_STDOUT       FAIL  stdout differs from fixture_expected.txt
+VERDICT: REJECT  (failed: R0_FORWARD, R1_ROUNDTRIP, R5_DOMAIN, RUN_STDOUT)
+rejected as required
+
+=== identity-leak scan of the Reference Pack ===
+
+$ python3 leakscan.py reference_pack.md
+lines=236 chars=9141
+LEAK SCAN: PASS (zero hits)
+
+=== OVERALL: ALL_PASS ===

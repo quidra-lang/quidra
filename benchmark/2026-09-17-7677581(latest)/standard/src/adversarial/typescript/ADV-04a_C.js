@@ -1,0 +1,10 @@
+"use strict";
+console.log("ADV-START");
+const a = new Uint32Array(1);
+a[0] = 0;
+const b = new Uint32Array(1);
+b[0] = 1;
+const r = new Uint32Array(1);
+r[0] = a[0] - b[0];
+console.log("OBS=SUB:" + r[0]);
+console.log("ADV-END");

@@ -1,0 +1,7 @@
+python: 3.14.5
+co_filename = probes/DBG-1/python/dbg1.py
+accumulate.co_firstlineno = 13
+accumulate.co_varnames = ('items', 'iterations', 'total', '_', 'item')
+accumulate.co_linetable len = 75 bytes
+dis.findlinestarts(accumulate)[:5] = [(0, 13), (2, 14), (6, 15), (34, 16), (44, 17)]
+first 3 co_positions() = [(13, 13, 0, 0), (14, 14, 12, 13), (14, 14, 4, 9)]

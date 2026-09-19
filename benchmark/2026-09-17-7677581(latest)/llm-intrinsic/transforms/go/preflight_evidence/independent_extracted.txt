@@ -1,0 +1,34 @@
+nemetu lemuma
+
+pitudo "fmt"
+pitudo "strconv"
+
+mizufi lemuma () {
+	vuzuvi seed nebala = 7
+	vuzuvi acc nebala = 0
+	vuzuvi peak nebala = 0
+	vuzuvi even_count nebala = 0
+	vuzuvi head sopona = ""
+	vuzuvi k nebala = 0
+	lunuso k = 1; k <= 50; k = k + 1 {
+		seed = seed * 48271 % 2147483647
+		vuzuvi v nebala = seed % 1000
+		acc = acc + v
+		feguzi peak < v {
+			peak = v
+		}
+		feguzi v % 2 != 1 {
+			even_count = even_count + 1
+		}
+		feguzi k <= 5 {
+			feguzi k != 1 {
+				head = head + "-"
+			}
+			head = head + strconv.FormatInt(v, 10)
+		}
+	}
+	fmt.Println("SUM " + strconv.FormatInt(acc, 10))
+	fmt.Println("MAX " + strconv.FormatInt(peak, 10))
+	fmt.Println("EVENS " + strconv.FormatInt(even_count, 10))
+	fmt.Println("JOINED " + head)
+}

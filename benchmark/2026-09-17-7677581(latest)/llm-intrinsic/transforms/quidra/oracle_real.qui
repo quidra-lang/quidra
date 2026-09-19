@@ -1,0 +1,22 @@
+int state = 7
+int total = 0
+int largest = 0
+int evens = 0
+string joined = ""
+for i in range(0, 50)
+    state = state * 48271 % 2147483647
+    int term = state % 1000
+    total = total + term
+    if term > largest
+        largest = term
+    if term % 2 == 0
+        evens = evens + 1
+    if i < 5
+        if i == 0
+            joined = "{term}"
+        else
+            joined = joined + "-" + "{term}"
+print("SUM {total}")
+print("MAX {largest}")
+print("EVENS {evens}")
+print("JOINED {joined}")

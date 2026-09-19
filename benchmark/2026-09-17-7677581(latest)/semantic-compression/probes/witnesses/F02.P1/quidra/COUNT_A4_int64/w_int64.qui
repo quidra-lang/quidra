@@ -1,0 +1,9 @@
+int64 probe(bool cond)
+    int32 v
+    if cond
+        v = 5
+    else
+        v = 9
+    return v
+
+print(probe(true))

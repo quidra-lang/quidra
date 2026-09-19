@@ -1,0 +1,412 @@
+{
+  "metric": "Library Availability",
+  "standard_category": "Ecosystem / Production Maturity",
+  "normalization_family": "G",
+  "rubric_document": "05_standard_rubrics.json",
+  "applied_rule_restatement": {
+    "scoring_procedure": "C = the published total package count of the single qualifying index selected by index_selection_rule (largest self-published total among qualifying indexes). Bands: C>=100000 -> 100 'Very large library population'; 10000<=C<100000 -> 80 'Large'; 1000<=C<10000 -> 60 'Moderate'; 100<=C<1000 -> 40 'Small'; 1<=C<100 -> 20 'Nascent'; C=0 -> 0 'No qualifying index'.",
+    "qualification_clauses": "(i) referenced by a member of the language's official_project_set in official documentation; (ii) default remote of a package manager that the language's official documentation names; (iii) published or maintained by a maintainer of an implementation listed in that language's frozen major_implementations.",
+    "precondition_test_applied_identically_to_all_ten": "The rubric's qualification precondition is 'distributes libraries for that language'. Applied uniformly as: the index's published population must be obtainable as libraries by that language's normal build toolchain, evidenced either by (a) the index's own self-description naming the language, or (b) the language's official documentation directing users of that language to obtain dependencies from that index. This test excluded general-purpose OS/software package archives (Homebrew, Debian/apt) for C++ and excluded NuGet for C++ (self-describes as the package manager for .NET; no official C++ documentation root in official_project_table directs C++ users to it). It admitted CocoaPods for Swift (self-describes as 'a dependency manager for Swift and Objective-C Cocoa projects'), Maven Central for Kotlin and npm for TypeScript (official documentation of each directs users there). The same test was written down before the ten selections were fixed and applied to every language.",
+    "index_totals_not_language_filtered": "The rubric measures 'the total published package count' of the selected index, not a language-filtered subset. This is why Java and Kotlin both take Maven Central's total, TypeScript takes npm's total, C++ takes vcpkg's total and Swift takes CocoaPods' total."
+  },
+  "scores": {
+    "Quidra": {
+      "level": "No qualifying index",
+      "score": 0,
+      "measured_C": 0,
+      "selected_index": "none",
+      "criteria_satisfied": [
+        "Level 0 criterion met exactly: C = 0 - no index satisfying any qualification clause exists for Quidra at the evidence cutoff. Quidra's first-party documentation states that the package facility is local-only and deliberately never contacts a registry, and no index (first-party or third-party) that distributes Quidra libraries was found."
+      ],
+      "criteria_failed": [
+        "Level 20 (1 <= C < 100) fails: there is no index publishing any Quidra package count at all, so C is not >= 1.",
+        "All higher levels fail a fortiori."
+      ],
+      "evidence": [
+        {
+          "source": "E2",
+          "detail": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/README.md line 787 (repository documentation published from the official_implementation_repository https://github.com/quidra-lang/quidra, Quidra's frozen official_docs_root)",
+          "accessed": "2026-09-18T20:37:10Z",
+          "excerpt": "Network fetching is intentionally outside this core command, so installing a package never executes a package script or silently contacts a registry."
+        },
+        {
+          "source": "E2",
+          "detail": "built-in help text shipped by the toolchain under test: /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/build/quidra --help (quidra 0.2.0)",
+          "accessed": "2026-09-18T20:37:05Z",
+          "excerpt": "quidra package ...                manage local installed packages"
+        },
+        {
+          "source": "E2",
+          "detail": "shipped toolchain behaviour: build/quidra package install (no argument) and build/quidra package list",
+          "accessed": "2026-09-18T20:40:55Z",
+          "excerpt": "quidra package: package install requires a source directory"
+        },
+        {
+          "source": "E2",
+          "detail": "build/quidra describe -> package_management_model field (machine-readable first-party language summary)",
+          "accessed": "2026-09-18T20:40:55Z",
+          "excerpt": "local deterministic package store management: validate then atomic install, explicit force replacement, symlink rejection, no install scripts or implicit network access"
+        },
+        {
+          "source": "E4",
+          "detail": "No qualifying index at the evidence cutoff. Candidate search: https://api.github.com/orgs/quidra-lang/repos?per_page=100 (the whole official project org) returns exactly three repositories - quidra-lang/quidra, quidra-lang/vision, quidra-lang/dnn - none of which is a package index publishing a package count.",
+          "accessed": "2026-09-18T20:39:40Z",
+          "excerpt": "[\"quidra-lang/quidra\", \"quidra-lang/vision\", \"quidra-lang/dnn\"]"
+        }
+      ],
+      "other_qualifying_indexes_considered": [],
+      "reasoning": "Not level 20 and not N/A: the rubric's level 0 criterion is exactly 'no index satisfying the qualification clauses exists for the language at the evidence cutoff', and that is the observed state. Quidra 0.2.0 ships a package subcommand, but it installs from a local source directory into ~/.quidra/packages and the first-party documentation states explicitly that it never contacts a registry, so there is no index, no self-published package count, and therefore C = 0. Per na_policy this is scored 0, never N/A, and per fairness_declaration.no_young_language_allowance the version-0.2.0 age of the project supplies no offsetting credit."
+    },
+    "Python": {
+      "level": "Very large library population",
+      "score": 100,
+      "measured_C": 895965,
+      "selected_index": "PyPI (the Python Package Index), https://pypi.org/",
+      "criteria_satisfied": [
+        "Qualification clause (i): PyPI is referenced by the Python Software Foundation / CPython project in official documentation at docs.python.org, a frozen official_docs_root for Python.",
+        "Qualification clause (ii) also holds: PyPI is the default index of pip, the installer that the same official page documents.",
+        "Level 100 band: C = 895,965 >= 100,000, taken verbatim from the index's own front page."
+      ],
+      "criteria_failed": [
+        "Level 80 (10000 <= C < 100000) and every lower band fail because C is an order of magnitude above 100,000."
+      ],
+      "evidence": [
+        {
+          "source": "E2",
+          "detail": "https://docs.python.org/3/installing/index.html",
+          "accessed": "2026-09-18T20:38:49Z",
+          "excerpt": "The Python Package Index (PyPI) is a public repository of open source licensed packages made available for use by other Python users."
+        },
+        {
+          "source": "E4",
+          "detail": "https://pypi.org/ (index front page, self-published totals block)",
+          "accessed": "2026-09-18T20:38:17Z",
+          "excerpt": "895,965 projects 9,644,167 releases 21,400,071 files 1,115,106 users"
+        }
+      ],
+      "other_qualifying_indexes_considered": [
+        "No other index distributing Python libraries with a larger self-published total was found; PyPI is the largest."
+      ],
+      "reasoning": "Level 100 and not 80 because the index's own front-page figure, 895,965 projects, is nearly nine times the 100,000 threshold; no smaller band can contain it."
+    },
+    "C++": {
+      "level": "Moderate",
+      "score": 60,
+      "measured_C": 2862,
+      "selected_index": "vcpkg, https://vcpkg.io/",
+      "criteria_satisfied": [
+        "Qualification clause (iii): vcpkg is maintained by the Microsoft C++ team, and MSVC (Microsoft Visual C++) is one of C++'s frozen major_implementations, so the index is maintained by a maintainer of a listed implementation.",
+        "Precondition: vcpkg self-describes as a C/C++ package manager for acquiring and managing libraries, so its population is obtainable as C++ libraries.",
+        "Level 60 band: 1000 <= C = 2862 < 10000, taken verbatim from the index's own front page."
+      ],
+      "criteria_failed": [
+        "Level 80 (10000 <= C < 100000) fails: the largest qualifying C++ library index self-publishes 2,862 libraries, and the next qualifying candidate considered (ConanCenter) publishes fewer.",
+        "Level 100 fails a fortiori."
+      ],
+      "evidence": [
+        {
+          "source": "E4",
+          "detail": "https://vcpkg.io/en/ (index front page; count and maintainer statement in the same paragraph)",
+          "accessed": "2026-09-18T20:38:48Z",
+          "excerpt": "vcpkg is a free C/C++ package manager for acquiring and managing libraries. Choose from 2862 open source libraries to download and build in a single step or add your own private libraries to simplify your build process. Maintained by the Microsoft C++ team and open source contributors."
+        },
+        {
+          "source": "E4",
+          "detail": "https://conan.io/center (ConanCenter front page, considered but smaller)",
+          "accessed": "2026-09-18T20:34:02Z",
+          "excerpt": "The Conan libraries and tools central repository. 1,948 recipes / 10,287 references"
+        },
+        {
+          "source": "E2",
+          "detail": "https://isocpp.org/get-started (frozen C++ official_docs_root, checked for index references)",
+          "accessed": "2026-09-18T20:38:55Z",
+          "excerpt": "builds for other platforms are likely available via your platform's package manager, or you can build it yourself using instructions here"
+        }
+      ],
+      "other_qualifying_indexes_considered": [
+        "ConanCenter - 1,948 recipes / 10,287 references (front page, accessed 2026-09-18T20:34:02Z). Its 'recipes' figure, the count of distinct published libraries, is smaller than vcpkg's 2,862, so vcpkg is selected on the largest-count rule. (The 10,287 'references' figure counts recipe-revision/configuration references, not distinct published packages.) Qualification for ConanCenter was not established under any of the three clauses: JFrog is not a maintainer of LLVM/Clang, GCC or MSVC, and no reference to Conan was found at the frozen C++ documentation roots checked.",
+        "Homebrew and Debian/apt were considered and excluded by the precondition test: they are general OS software archives, not indexes of C++ libraries, and neither self-describes as distributing libraries for C++.",
+        "NuGet was considered and excluded by the precondition test: it self-describes as the package manager for .NET; its published population is .NET assemblies, not obtainable C++ libraries, and no frozen C++ official documentation root directs C++ users to it. Microsoft's status as an MSVC maintainer (clause iii) is therefore not reached, because the 'distributes libraries for that language' precondition fails first."
+      ],
+      "reasoning": "Level 60 and not 80 because the largest index that both qualifies and actually distributes C++ libraries self-publishes 2,862 libraries, well inside the 1,000-9,999 band; and not 40 because 2,862 is far above 1,000. C++'s real advantage over a language with no index at all is scored normally here - it is three bands above 0 - but the C++ ecosystem is distributed largely through system packaging and source builds rather than one central language index, and the rubric measures the single largest qualifying index."
+    },
+    "Rust": {
+      "level": "Very large library population",
+      "score": 100,
+      "measured_C": 335914,
+      "selected_index": "crates.io, https://crates.io/",
+      "criteria_satisfied": [
+        "Qualification clause (ii): crates.io is the default registry of Cargo, the package manager documented in Rust's official documentation at doc.rust-lang.org, a frozen official_docs_root.",
+        "Level 100 band: C = 335,914 >= 100,000, taken from the index's own documented public API."
+      ],
+      "criteria_failed": [
+        "Level 80 and lower bands fail: C exceeds 100,000 by more than threefold."
+      ],
+      "evidence": [
+        {
+          "source": "E2",
+          "detail": "https://doc.rust-lang.org/cargo/reference/registries.html",
+          "accessed": "2026-09-18T20:38:49Z",
+          "excerpt": "Cargo installs crates and fetches dependencies from a “registry”. The default registry is crates.io."
+        },
+        {
+          "source": "E4",
+          "detail": "https://crates.io/api/v1/summary (crates.io's own public API; field num_crates)",
+          "accessed": "2026-09-18T20:38:18Z",
+          "excerpt": "{\"num_downloads\": 447055634672, \"num_crates\": 335914}"
+        }
+      ],
+      "other_qualifying_indexes_considered": [
+        "No other index distributing Rust libraries with a larger self-published total was found; crates.io is the largest."
+      ],
+      "reasoning": "Level 100 and not 80 because crates.io's own API reports 335,914 published crates, more than triple the 100,000 threshold."
+    },
+    "Go": {
+      "level": "Very large library population",
+      "score": 100,
+      "measured_C": 139128,
+      "selected_index": "The Go module index / mirror, index.golang.org + proxy.golang.org, surfaced for browsing at https://pkg.go.dev/",
+      "criteria_satisfied": [
+        "Qualification clause (ii): index.golang.org/proxy.golang.org is the default remote of the go command's module fetching, documented by the Go project itself.",
+        "Qualification clauses (i) and (iii) also hold: the index is run by Google/the Go team, the frozen official_project_set for Go, and is referenced throughout go.dev and pkg.go.dev.",
+        "Level 100 band: C >= 139,128 >= 100,000, enumerated exactly from the index's own documented public API."
+      ],
+      "criteria_failed": [
+        "Level 80 (10000 <= C < 100000) fails: the verified count already exceeds 100,000 by 39%."
+      ],
+      "evidence": [
+        {
+          "source": "E2",
+          "detail": "https://index.golang.org/ (Go Module Mirror, Index, and Checksum Database, published by the Go team)",
+          "accessed": "2026-09-18T20:35:20Z",
+          "excerpt": "Since Go 1.13, the go command by default downloads and authenticates modules using the Go module mirror and Go checksum database."
+        },
+        {
+          "source": "E2",
+          "detail": "https://pkg.go.dev/about",
+          "accessed": "2026-09-18T20:33:05Z",
+          "excerpt": "Data for the site is downloaded from proxy.golang.org. We monitor the Go Module Index regularly for new packages to add to pkg.go.dev."
+        },
+        {
+          "source": "E4",
+          "detail": "Enumeration of the index's own documented public API, documented at https://index.golang.org/ : 272 successive calls to https://index.golang.org/index?since=<t>&limit=2000&include=all with <t> stepped every 10 days from 2019-04-11 to 2026-09-17; union of the exact module paths returned. Script: /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/libavail/go_index_spread.py; log: go_index_spread.log. No estimation or extrapolation: every counted path was returned verbatim by the index, so the figure is an exact count of observed distinct modules and a strict lower bound on the index total.",
+          "accessed": "2026-09-18T20:36:40Z",
+          "excerpt": "SAMPLE_POINTS_REQUESTED 272 / REQUESTS_OK 272 / DISTINCT_MODULE_PATHS_LOWER_BOUND 139128"
+        },
+        {
+          "source": "E4",
+          "detail": "Negative check for a self-published headline total: https://pkg.go.dev/ front page, https://pkg.go.dev/about, https://go.dev/ and https://pkg.go.dev/search?q=json were each retrieved and contain no total package or module count; the search page reports only 'Showing 25 modules with matching packages'.",
+          "accessed": "2026-09-18T20:33:05Z",
+          "excerpt": "Showing 25 modules with matching packages."
+        }
+      ],
+      "other_qualifying_indexes_considered": [
+        "pkg.go.dev is the browsing surface of the same qualifying index (proxy.golang.org/index.golang.org) rather than a separate index; no other index distributing Go libraries was found."
+      ],
+      "reasoning": "Level 100 and not 80 because the qualifying index's own documented public API returns at least 139,128 distinct published module paths, above the 100,000 threshold. Go is the one language of the ten whose qualifying index publishes no headline total on a front or statistics page, so the count was taken from the other count_source the rule permits, the index's documented public API; because that route yields an exact observed count and not an estimate, it establishes the band without extrapolation. The true total is higher than the recorded figure (the sampling windows do not cover every feed entry, and a module contains one or more packages), which can only move the score further into the same top band."
+    },
+    "Java": {
+      "level": "Very large library population",
+      "score": 100,
+      "measured_C": 661801,
+      "selected_index": "Maven Central, https://central.sonatype.com/ (search API at https://search.maven.org/)",
+      "criteria_satisfied": [
+        "Qualification clause (ii): Maven Central is the default remote repository of Apache Maven, and Maven is named in Java's official documentation at docs.oracle.com/en/java/javase/, a frozen official_docs_root, with Oracle a member of Java's frozen official_project_set.",
+        "Level 100 band: C = 661,801 >= 100,000, taken from the index's own documented public REST API."
+      ],
+      "criteria_failed": [
+        "Level 80 and lower bands fail: C is more than six times the 100,000 threshold."
+      ],
+      "evidence": [
+        {
+          "source": "E2",
+          "detail": "https://docs.oracle.com/en/java/javase/26/migrate/preparing-migration.html (Oracle, JDK 26 documentation)",
+          "accessed": "2026-09-18T20:38:12Z",
+          "excerpt": "If you use Maven or Gradle to build your application, then make sure to upgrade to a recent version that supports the latest JDK version."
+        },
+        {
+          "source": "E2",
+          "detail": "https://maven.apache.org/guides/introduction/introduction-to-repositories.html (establishing that Maven Central is Maven's default remote, as clause (ii) requires)",
+          "accessed": "2026-09-18T20:38:13Z",
+          "excerpt": "By default, Maven will download from the central repository."
+        },
+        {
+          "source": "E4",
+          "detail": "https://search.maven.org/solrsearch/select?q=*:*&rows=0&wt=json (Maven Central's documented public search REST API, documented at https://central.sonatype.org/search/rest-api-guide/); numFound is the count of distinct published groupId:artifactId packages",
+          "accessed": "2026-09-18T20:38:48Z",
+          "excerpt": "\"response\":{\"numFound\":661801,\"start\":0,\"docs\":[]}"
+        }
+      ],
+      "other_qualifying_indexes_considered": [
+        "No index distributing Java libraries with a larger self-published total was found; Maven Central is the largest. A direct crawl of 90 openjdk.org pages found no reference to Maven Central on openjdk.org itself, which is why qualification is recorded under clause (ii) via Oracle's JDK documentation rather than clause (i)."
+      ],
+      "reasoning": "Level 100 and not 80 because Maven Central's own search API reports 661,801 distinct published packages. The band is measured on the index total, as the rubric's definition requires, not on a Java-only subset."
+    },
+    "TypeScript": {
+      "level": "Very large library population",
+      "score": 100,
+      "measured_C": 2000000,
+      "selected_index": "the npm registry, https://www.npmjs.com/ (registry at https://registry.npmjs.org/)",
+      "criteria_satisfied": [
+        "Qualification clause (i): npm, Inc. as operator of the npm registry is itself a member of TypeScript's frozen official_project_set, and docs.npmjs.com is a frozen official_docs_root; clause (ii) also holds, since the registry is the default remote of the npm CLI, which TypeScript's own official documentation names as the installation route.",
+        "Precondition: the registry's population is JavaScript/TypeScript packages consumable directly from TypeScript.",
+        "Level 100 band: C > 2,000,000 >= 100,000, taken verbatim from the index's own front page."
+      ],
+      "criteria_failed": [
+        "Level 80 and lower bands fail: C exceeds 100,000 by more than an order of magnitude."
+      ],
+      "evidence": [
+        {
+          "source": "E2",
+          "detail": "https://www.typescriptlang.org/download/",
+          "accessed": "2026-09-18T20:38:49Z",
+          "excerpt": "TypeScript can be installed through three installation routes depending on how you intend to use it: an npm module, a NuGet package or a Visual Studio Extension."
+        },
+        {
+          "source": "E4",
+          "detail": "https://www.npmjs.com/ (index front page; retrieved with the built-in browser because the front page is behind a JavaScript/Cloudflare check for plain curl)",
+          "accessed": "2026-09-18T20:36:05Z",
+          "excerpt": "The free npm Registry has become the center of JavaScript code sharing, and with more than two million packages, the largest software registry in the world."
+        }
+      ],
+      "other_qualifying_indexes_considered": [
+        "No index distributing TypeScript-consumable libraries with a larger self-published total was found; npm is the largest, and is itself stated to be the largest software registry in the world."
+      ],
+      "reasoning": "Level 100 and not 80 because the registry's own front page states a total of more than two million packages, twenty times the 100,000 threshold. The figure is a published floor ('more than two million'), which is sufficient to fix the top band without estimation."
+    },
+    "Kotlin": {
+      "level": "Very large library population",
+      "score": 100,
+      "measured_C": 661801,
+      "selected_index": "Maven Central, https://central.sonatype.com/ (search API at https://search.maven.org/)",
+      "criteria_satisfied": [
+        "Qualification clause (i): Maven Central is referenced by JetBrains, a member of Kotlin's frozen official_project_set, in official documentation at kotlinlang.org/docs, Kotlin's frozen official_docs_root.",
+        "Precondition: Maven Central's JVM artifacts, including the kotlinx libraries, are obtainable as libraries by Kotlin/JVM, the target of the frozen toolchain under test.",
+        "Level 100 band: C = 661,801 >= 100,000, from the index's own documented public REST API."
+      ],
+      "criteria_failed": [
+        "Level 80 and lower bands fail: C is more than six times the 100,000 threshold."
+      ],
+      "evidence": [
+        {
+          "source": "E2",
+          "detail": "https://kotlinlang.org/docs/gradle-configure-project.html",
+          "accessed": "2026-09-18T20:36:40Z",
+          "excerpt": "In the repositories{} block, set the name of the repository: repositories { mavenCentral() } ... Popular repositories are Maven Central and Google's Maven repository."
+        },
+        {
+          "source": "E4",
+          "detail": "https://search.maven.org/solrsearch/select?q=*:*&rows=0&wt=json (Maven Central's documented public search REST API)",
+          "accessed": "2026-09-18T20:38:48Z",
+          "excerpt": "\"response\":{\"numFound\":661801,\"start\":0,\"docs\":[]}"
+        }
+      ],
+      "other_qualifying_indexes_considered": [
+        "The npm registry (more than two million packages) would also qualify for Kotlin under clause (i)/(ii) via Kotlin/JS, whose dependency documentation on kotlinlang.org directs users to npm. It was not selected as the recorded index because the Kotlin toolchain under test is kotlinc-jvm 2.3.21; selecting it would raise the count but not the band, which is 100 either way. This is recorded so the selection is auditable.",
+        "Google's Maven repository (maven.google.com) is referenced in the same kotlinlang.org sentence but publishes no total package count and is smaller."
+      ],
+      "reasoning": "Level 100 and not 80 because the selected qualifying index reports 661,801 distinct published packages. Kotlin and Java receive the same level because they select the same index under the same rule and the rubric scores index totals, not language-filtered subsets."
+    },
+    "Swift": {
+      "level": "Very large library population",
+      "score": 100,
+      "measured_C": 108000,
+      "selected_index": "CocoaPods, https://cocoapods.org/",
+      "criteria_satisfied": [
+        "Qualification clause (i): CocoaPods is referenced by the Swift project in official documentation at swift.org, a frozen official_docs_root - in the Swift 3, 4, 4.2 and 5 migration guides and in the April 2024 package showcase.",
+        "Precondition: CocoaPods self-describes as a dependency manager for Swift and Objective-C Cocoa projects, so its published population is obtainable as libraries from Swift.",
+        "Level 100 band: C = 'over 108 thousand libraries' >= 100,000, taken verbatim from the index's own front page."
+      ],
+      "criteria_failed": [
+        "Level 80 (10000 <= C < 100000) fails for the selected index: 108,000 is above the 100,000 boundary. It is the band the second-largest qualifying index, the Swift Package Index at 11,842 packages, would have produced; the rule requires selecting the largest qualifying index, not the first-party one."
+      ],
+      "evidence": [
+        {
+          "source": "E2",
+          "detail": "https://www.swift.org/migration-guide-swift5/ (also present verbatim at /migration-guide-swift4/, /migration-guide-swift4.2/, /migration-guide-swift3/)",
+          "accessed": "2026-09-18T20:36:02Z",
+          "excerpt": "Here are some important points to consider when migrating a project with external dependencies using package managers like the Swift Package Manager, Carthage or CocoaPods."
+        },
+        {
+          "source": "E2",
+          "detail": "https://www.swift.org/packages/ (qualification evidence for the second qualifying index, the Swift Package Index)",
+          "accessed": "2026-09-18T20:35:41Z",
+          "excerpt": "There are thousands more packages to browse at the Swift Package Index, along with all the metadata you need to make better decisions about your dependencies."
+        },
+        {
+          "source": "E4",
+          "detail": "https://cocoapods.org/ (index front page, 'What is CocoaPods' block)",
+          "accessed": "2026-09-18T20:39:11Z",
+          "excerpt": "CocoaPods is a dependency manager for Swift and Objective-C Cocoa projects. It has over 108 thousand libraries and is used in over 3 million apps."
+        },
+        {
+          "source": "E4",
+          "detail": "https://swiftpackageindex.com/ (front page counter, retrieved with the built-in browser because the site is behind a JavaScript check for plain curl)",
+          "accessed": "2026-09-18T20:35:35Z",
+          "excerpt": "Indexing 11,842 packages"
+        }
+      ],
+      "other_qualifying_indexes_considered": [
+        "Swift Package Index - 'Indexing 11,842 packages' (front page, accessed 2026-09-18T20:35:35Z). Qualifies under clause (i) via https://www.swift.org/packages/. Not selected: 11,842 < 108,000, and the rule selects the largest.",
+        "Carthage was considered and excluded because it operates no central index: it resolves dependencies from git URLs and publishes no package count."
+      ],
+      "reasoning": "Level 100 and not 80 because the selection rule takes the largest qualifying index, and CocoaPods - referenced in Swift's own official documentation and self-described as a Swift dependency manager - publishes over 108 thousand libraries, above the 100,000 boundary. A note for the auditor: this is the one language of the ten whose level turns on which of two qualifying indexes is selected. Selecting the first-party-endorsed Swift-only index instead (Swift Package Index, 11,842) would give level 80. The frozen rule does not permit that choice - it says select the largest - and CocoaPods' deprecation banner ('CocoaPods trunk is moving to be read-only ... there are 3 months to go') does not remove its published population at the evidence cutoff."
+    },
+    "Zig": {
+      "level": "No qualifying index",
+      "score": 0,
+      "measured_C": 0,
+      "selected_index": "none",
+      "criteria_satisfied": [
+        "Level 0 criterion met exactly: C = 0 - no index satisfying any of the three qualification clauses exists for Zig at the evidence cutoff. Zig's package manager fetches dependencies from URLs recorded in build.zig.zon rather than from an index, and the official documentation names no index."
+      ],
+      "criteria_failed": [
+        "Level 20 (1 <= C < 100) fails: the count is not of packages that exist in the world but of packages in a QUALIFYING index, and no candidate index satisfies clause (i), (ii) or (iii).",
+        "All higher levels fail a fortiori."
+      ],
+      "evidence": [
+        {
+          "source": "E2",
+          "detail": "Full-text search for 'package index', 'package registry', 'registry', 'zigistry' and 'astrolabe' across every page linked from https://ziglang.org/ (19 pages, including the complete 0.16.0 language reference at https://ziglang.org/documentation/0.16.0/, 411,765 characters of extracted text, the 0.16.0 release notes, https://ziglang.org/learn/, https://ziglang.org/learn/getting-started/ and https://ziglang.org/learn/build-system/). Script: /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/libavail/zigcrawl.py",
+          "accessed": "2026-09-18T20:38:00Z",
+          "excerpt": "zero occurrences of 'registry', 'package index', 'package registry', 'zigistry' or 'astrolabe' in any ziglang.org page retrieved"
+        },
+        {
+          "source": "E2",
+          "detail": "https://ziglang.org/learn/build-system/ - the only package-related facility the official build documentation exposes is URL/hash-based fetching",
+          "accessed": "2026-09-18T20:36:30Z",
+          "excerpt": "Package Management Options: --fetch[=mode] Fetch dependency tree (optionally choose laziness) and exit"
+        },
+        {
+          "source": "E4",
+          "detail": "https://zigistry.dev/ and https://zigistry.dev/about - candidate third-party index examined and found not to qualify",
+          "accessed": "2026-09-18T20:39:45Z",
+          "excerpt": "Zigistry: A Packages and Programs registry for Zig programming language ... - Rohan Vashisht © 2024 Rohan Vashisht"
+        },
+        {
+          "source": "E4",
+          "detail": "https://astrolabe.pm/ - second candidate third-party index; connection failed (curl exit, HTTP 000, 0 bytes), so it is not retrievable at the evidence cutoff",
+          "accessed": "2026-09-18T20:39:44Z",
+          "excerpt": "[000 0]"
+        }
+      ],
+      "other_qualifying_indexes_considered": [
+        "Zigistry (zigistry.dev): a real registry of Zig packages, but it satisfies none of the three clauses - it is not referenced anywhere on ziglang.org (verified by full-text search over every page linked from the Zig homepage, including the complete language reference), it is not the default remote of a package manager Zig's official documentation names (Zig's own package manager has no default remote; it fetches per-dependency URLs), and it is published by Rohan Vashisht, with no evidence found that he is a maintainer of ziglang/zig, Zig's only frozen major implementation.",
+        "astrolabe.pm: not retrievable at the evidence cutoff."
+      ],
+      "reasoning": "Level 0 and not 20 because the band is measured on the published count of a QUALIFYING index, and no index qualifies: Zig deliberately has no central registry at 0.16.0. This is a real property of Zig's present ecosystem, not an N/A, exactly as the rubric's no_qualifying_index clause states. Zig and Quidra land on the same level from different causes - Zig has third-party indexes that fail the qualification clauses, Quidra has no index of any kind - but the rubric's observable criterion for level 0 ('no index satisfying the qualification clauses exists') is satisfied identically by both, and no level below 0 exists to separate them."
+    }
+  },
+  "cross_language_consistency_note": "The metric is a single measured quantity with frozen bands, so consistency was enforced on the three steps that produce that quantity rather than on prose. (1) Qualification: every index was tested against the same three clauses, and the satisfied clause is recorded per language - (i) for Python, Kotlin, Swift and TypeScript, (ii) for Rust, Java and Go, (iii) for C++. Quidra and Zig were tested against the identical clauses and failed all three, which is why they take the level-0 band rather than an N/A. (2) The 'distributes libraries for that language' precondition was written down as one test and applied to all ten before the selections were fixed; it is what excludes NuGet, Homebrew and Debian for C++ while admitting CocoaPods for Swift, Maven Central for Kotlin and npm for TypeScript, and it is stated in applied_rule_restatement so an auditor can re-run it. (3) Counts are the index's own published totals in nine of ten cases (front page: PyPI, vcpkg, npm, CocoaPods, Swift Package Index; documented public API: crates.io, Maven Central for both Java and Kotlin). Go is the single exception: its qualifying index publishes no headline total anywhere, verified by retrieving pkg.go.dev, pkg.go.dev/about, go.dev and a pkg.go.dev search page, so the count came from the other count_source the rule permits - the index's documented public API - as an exact enumeration of 139,128 distinct module paths, with no estimation or extrapolation. No language was scored from reputation. Checking the ten assignments together: the five languages at 100 all have a selected index above 100,000 by a factor of at least 1.39 (Go 139k, Swift 108k, Rust 336k, Maven Central 662k for Java and Kotlin, PyPI 896k, npm 2M+); the one language at 60 (C++, 2,862) is separated from them by more than an order of magnitude and from the 0s by three bands; the two languages at 0 both have zero qualifying indexes. No two languages with the same observable evidence received different levels: Java and Kotlin select the same index and receive the same level, and Zig and Quidra both have no qualifying index and receive the same level. No language received a level its band does not contain.",
+  "limitations": [
+    "Evidence was accessed on 2026-09-18, one day after the frozen evidence cutoff of 2026-09-17. Package indexes grow monotonically, so every recorded count is at or slightly above its cutoff value. No language sits within 1% of a band boundary except Swift (CocoaPods at 'over 108 thousand' against a 100,000 boundary, an 8% margin, and a figure the index states as a floor), so no band assignment is sensitive to the one-day offset.",
+    "Swift is the one language whose level depends on which qualifying index is selected. CocoaPods (108k+) and the Swift Package Index (11,842) both qualify; the frozen rule selects the largest, giving 100. Under a narrower reading that counted only a Swift-exclusive index, Swift would be 80. The frozen document does not authorise that narrower reading and prohibits reinterpretation at scoring time, so 100 is recorded, with this sensitivity disclosed.",
+    "Go's count is a verified lower bound (139,128 distinct module paths from 272 windows of the index's documented public API), not the index's exact total, because no first-party total is published. The true total is higher; both figures fall in the same top band, so the level is unaffected. If a future run finds a published Go total, it should replace this figure.",
+    "ConanCenter's qualification for C++ could not be established or refuted exhaustively: the frozen C++ documentation roots were spot-checked at isocpp.org (home and get-started) rather than crawled in full, and clang.llvm.org, llvm.org/docs and developer.apple.com/documentation/xcode were not crawled for index references. This does not affect the level: ConanCenter's 1,948 recipes fall in the same 1,000-9,999 band as the selected index, vcpkg's 2,862.",
+    "Java's qualification rests on clause (ii) rather than clause (i): a crawl of 90 openjdk.org pages found no reference to Maven Central on openjdk.org itself, and the Oracle JDK documentation names Maven and Gradle rather than Maven Central by name. The chain Oracle-documentation-names-Maven plus Maven's-default-remote-is-Central is recorded with both excerpts.",
+    "Maven Central's numFound (661,801) counts distinct groupId:artifactId packages via the search.maven.org REST API; central.sonatype.com publishes no headline total on its front page. The API figure is the index operator's own published count.",
+    "npm's and CocoaPods' totals are published as floors ('more than two million packages', 'over 108 thousand libraries') rather than exact integers. Both floors determine the band unambiguously.",
+    "npmjs.com and swiftpackageindex.com are behind JavaScript/Cloudflare checks that block plain curl; their front-page figures were read with the built-in browser instead. The figures are the sites' own published counts either way.",
+    "No language was scored from a source type another language was not examined under: all ten were tested for a qualifying index under the same three clauses (E2) and for a self-published count (E4), including Quidra and Zig, for which the E4 record is the rubric-defined 'no qualifying index at the evidence cutoff'."
+  ]
+}

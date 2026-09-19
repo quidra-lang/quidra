@@ -1,0 +1,350 @@
+{
+ "probe_id": "F19.P2",
+ "language": "go",
+ "count": 55,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "import",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 1,
+   "col": 8
+  },
+  {
+   "tag": "STR",
+   "text": "\"sync\"",
+   "line": 2,
+   "col": 2
+  },
+  {
+   "tag": "STR",
+   "text": "\"sync/atomic\"",
+   "line": 3,
+   "col": 2
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 4,
+   "col": 1
+  },
+  {
+   "tag": "KW",
+   "text": "func",
+   "line": 6,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "raceFree",
+   "line": 6,
+   "col": 6
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 6,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 6,
+   "col": 15
+  },
+  {
+   "tag": "IDENT",
+   "text": "int64",
+   "line": 6,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 6,
+   "col": 23
+  },
+  {
+   "tag": "KW",
+   "text": "var",
+   "line": 7,
+   "col": 2
+  },
+  {
+   "tag": "IDENT",
+   "text": "counter",
+   "line": 7,
+   "col": 6
+  },
+  {
+   "tag": "IDENT",
+   "text": "int64",
+   "line": 7,
+   "col": 14
+  },
+  {
+   "tag": "KW",
+   "text": "var",
+   "line": 8,
+   "col": 2
+  },
+  {
+   "tag": "IDENT",
+   "text": "wg",
+   "line": 8,
+   "col": 6
+  },
+  {
+   "tag": "IDENT",
+   "text": "sync",
+   "line": 8,
+   "col": 9
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 8,
+   "col": 13
+  },
+  {
+   "tag": "IDENT",
+   "text": "WaitGroup",
+   "line": 8,
+   "col": 14
+  },
+  {
+   "tag": "KW",
+   "text": "for",
+   "line": 9,
+   "col": 2
+  },
+  {
+   "tag": "KW",
+   "text": "range",
+   "line": 9,
+   "col": 6
+  },
+  {
+   "tag": "NUM",
+   "text": "2",
+   "line": 9,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 9,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "wg",
+   "line": 10,
+   "col": 3
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 10,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "Go",
+   "line": 10,
+   "col": 6
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 10,
+   "col": 8
+  },
+  {
+   "tag": "KW",
+   "text": "func",
+   "line": 10,
+   "col": 9
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 10,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 10,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 10,
+   "col": 16
+  },
+  {
+   "tag": "KW",
+   "text": "for",
+   "line": 11,
+   "col": 4
+  },
+  {
+   "tag": "KW",
+   "text": "range",
+   "line": 11,
+   "col": 8
+  },
+  {
+   "tag": "NUM",
+   "text": "1000",
+   "line": 11,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 11,
+   "col": 19
+  },
+  {
+   "tag": "IDENT",
+   "text": "atomic",
+   "line": 12,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 12,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "AddInt64",
+   "line": 12,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 12,
+   "col": 20
+  },
+  {
+   "tag": "OP",
+   "text": "&",
+   "line": 12,
+   "col": 21
+  },
+  {
+   "tag": "IDENT",
+   "text": "counter",
+   "line": 12,
+   "col": 22
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 12,
+   "col": 29
+  },
+  {
+   "tag": "NUM",
+   "text": "1",
+   "line": 12,
+   "col": 31
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 12,
+   "col": 32
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 13,
+   "col": 4
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 14,
+   "col": 3
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 14,
+   "col": 4
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 15,
+   "col": 2
+  },
+  {
+   "tag": "IDENT",
+   "text": "wg",
+   "line": 16,
+   "col": 2
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 16,
+   "col": 4
+  },
+  {
+   "tag": "IDENT",
+   "text": "Wait",
+   "line": 16,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 16,
+   "col": 9
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 16,
+   "col": 10
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 17,
+   "col": 2
+  },
+  {
+   "tag": "IDENT",
+   "text": "counter",
+   "line": 17,
+   "col": 9
+  }
+ ],
+ "class_histogram": {
+  "KW": 10,
+  "DELIM": 24,
+  "STR": 2,
+  "IDENT": 15,
+  "NUM": 3,
+  "OP": 1
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/go/F19.P2.go",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

@@ -1,0 +1,902 @@
+{
+ "language": "Go",
+ "language_key": "go",
+ "chunk": "2",
+ "toolchain": "go version go1.26.3 darwin/arm64",
+ "frozen_recipe": {
+  "build": "go build -o BIN FILE.go",
+  "run": "./BIN"
+ },
+ "secondary_non_scoring_recipe": {
+  "build": "go build -race -o BIN FILE.go",
+  "run": "./BIN"
+ },
+ "case_variants_covered": [
+  "ADV-14/R",
+  "ADV-15",
+  "ADV-16",
+  "ADV-17",
+  "ADV-18",
+  "ADV-19",
+  "ADV-20",
+  "ADV-21",
+  "ADV-22 (a+b)",
+  "ADV-23",
+  "ADV-24",
+  "ADV-25/R",
+  "ADV-26/R"
+ ],
+ "observations": [
+  {
+   "case_variant_id": "ADV-14/R",
+   "case_id": "ADV-14",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-14_R.go",
+   "build": {
+    "cmd": [
+     "go",
+     "build",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-14_R",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-14_R.go"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "# command-line-arguments\n./ADV-14_R.go:20:13: cannot use s (variable of type string) as int64 value in argument to scale\n",
+    "timed_out": false,
+    "wall_seconds": 0.11,
+    "artifact_produced": false
+   },
+   "run": {
+    "cmd": null,
+    "stdin_tokens": [
+     "7"
+    ],
+    "exit": null,
+    "signal": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": null,
+    "adv_start_present": false,
+    "obs_present": false,
+    "adv_end_present": false,
+    "repetitions": 0,
+    "obs_identical_across_5_runs": null,
+    "note": "not run: the build rejected the program"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none. The program contains no handler of any kind; Go refused to compile it.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 n/a: Go has int64 and string, no TM3 determination. D1: `go build` exited 1. D1a n/a: no toolchain_failure_marker in the build output and the compiler did not die by signal. D1b-i: the build output `./ADV-14_R.go:20:13: cannot use s (variable of type string) as int64 value in argument to scale` matches NO pattern of the case lexicon L_TYPE (TypeError|type mismatch|mismatched types|incompatible type|cannot apply|unsupported operand|expected .* but (got|found)|expected .*, found|ClassCastException) and no fragment of the global lexicon; Go words its assignability rejection as `cannot use X as T value`, which the frozen lexicon does not contain. D1b-ii: A6 re-verification confirms the program IS the construction (scale declared int64->int64 returning n*3; one line read as string through the opacity barrier; the string passed to scale unconverted, uncast, unannotated, with no suppression). D1b-ii-2: the first diagnostic carries line 20, which is the call `r := scale(s)` - construction step 3 - inside construction_line_range 9-22. Compile-time Detection, 100, flagged compile_rejection_unmatched_lexicon. The silent transformation the case watches for (text multiplied by 3 yielding R:777) cannot occur in Go: the program never runs.",
+   "first_diagnostic_verbatim": "./ADV-14_R.go:20:13: cannot use s (variable of type string) as int64 value in argument to scale",
+   "lexicon_match": null,
+   "flag": "compile_rejection_unmatched_lexicon",
+   "construction_line_range": [
+    9,
+    22
+   ],
+   "diagnostic_line": 20,
+   "diagnostic_has_file_line_column": true,
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-15",
+   "case_id": "ADV-15",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-15.go",
+   "build": {
+    "cmd": [
+     "go",
+     "build",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-15",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-15.go"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.2,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-15"
+    ],
+    "stdin_tokens": [],
+    "exit": 0,
+    "signal": null,
+    "stdout": "ADV-START\nOBS=ITERS:5|LEN:6\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.17,
+    "adv_start_present": true,
+    "obs_present": true,
+    "adv_end_present": true,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true,
+    "all_run_exit_statuses": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "observed_payload": "ITERS:5|LEN:6",
+   "reached_observation_point": true,
+   "forced_error_handling": "none.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 n/a. D1 n/a: build exit 0, no diagnostic. D2 n/a: artifact produced. D3 n/a: ADV-START present. D4 n/a: 0.33 s, far under the 60 s timeout. D5 n/a: exit 0, no signal. D6a n/a: OBS= and ADV-END both present. D6b n/a: reference_observation is the sentinel DIAGNOSED_FAILURE, not a concrete value. D6c: the plausible_domain_predicate ^ITERS:(0|[1-9][0-9]*)\\|LEN:(0|[1-9][0-9]*)$ matches `ITERS:5|LEN:6` and ITERS=5 lies inside [0,1000], so the predicate is TRUE -> D6c-ii -> D7. D7a: all 5 runs byte-identical (`ITERS:5|LEN:6`). D7b: the frozen Go secondary configuration `go build -race` produced the IDENTICAL payload `OBS=ITERS:5|LEN:6` and emitted no report; -race instruments only cross-goroutine data races and this program has one goroutine. D7b does not fire. D7c: no clause declares this undefined - the Go specification defines it. D7d -> Silent Bug (0). This is verbatim the first of the two outcomes the case's silent_transformation_watch names: ITERS:5|LEN:6, produced because Go evaluates the range expression once and fixes the iteration length before the loop, so the appended element is never visited. The sequence was mutated during its own iteration and nothing anywhere in build or run said so.",
+   "silent_transformation": true,
+   "normative_status": {
+    "status": "defined",
+    "document": "The Go Programming Language Specification",
+    "version": "go1.26.3",
+    "clause": "For statements, For statements with range clause: 'The range expression x is evaluated once before beginning the loop' - for a slice the length is evaluated once, so appending during the loop does not extend the iteration."
+   },
+   "secondary_configuration": {
+    "cmd": [
+     "go",
+     "build",
+     "-race",
+     "-o",
+     "BIN",
+     "ADV-15.go"
+    ],
+    "exit": 0,
+    "obs": "OBS=ITERS:5|LEN:6",
+    "report": "none",
+    "d7b_fires": false
+   }
+  },
+  {
+   "case_variant_id": "ADV-16",
+   "case_id": "ADV-16",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-16.go",
+   "build": {
+    "cmd": [
+     "go",
+     "build",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-16",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-16.go"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "# command-line-arguments\n./ADV-16.go:9:2: cannot assign to v (neither addressable nor a map index expression)\n",
+    "timed_out": false,
+    "wall_seconds": 0.1,
+    "artifact_produced": false
+   },
+   "run": {
+    "cmd": null,
+    "stdin_tokens": [],
+    "exit": null,
+    "signal": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": null,
+    "adv_start_present": false,
+    "obs_present": false,
+    "adv_end_present": false,
+    "repetitions": 0,
+    "obs_identical_across_5_runs": null,
+    "note": "not run: the build rejected the program"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 n/a: Go has an immutable binding form, the frozen authoring_choice_table entry `const x int64 = 10`, so construct_absent is false. D1: build exited 1. D1a n/a: no toolchain_failure_marker. D1b-i: the build output `./ADV-16.go:9:2: cannot assign to v (neither addressable nor a map index expression)` matches the case lexicon L_IMMUTABLE on the alternative `cannot assign`. Compile-time Detection, 100. The silent outcome the case watches for (V:20 printed by a language where immutability is only a convention) cannot occur in Go.",
+   "first_diagnostic_verbatim": "./ADV-16.go:9:2: cannot assign to v (neither addressable nor a map index expression)",
+   "lexicon_match": "L_IMMUTABLE -> `cannot assign`",
+   "construction_line_range": [
+    8,
+    11
+   ],
+   "diagnostic_line": 9,
+   "diagnostic_has_file_line_column": true,
+   "immutable_form_used": "const v int64 = 10 (frozen authoring_choice_table.strongest_immutable_binding_form, Go row)",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-17",
+   "case_id": "ADV-17",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-17.go",
+   "build": {
+    "cmd": [
+     "go",
+     "build",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-17",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-17.go"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.23,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-17"
+    ],
+    "stdin_tokens": [],
+    "exit": 2,
+    "signal": null,
+    "stdout": "ADV-START\n",
+    "stderr": "panic: runtime error: invalid memory address or nil pointer dereference\n[signal SIGSEGV: segmentation violation code=0x2 addr=0x8 pc=0x1009a0d40]\n\ngoroutine 1 [running]:\nmain.main()\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-17.go:9 +0x50\n",
+    "timed_out": false,
+    "wall_seconds": 0.17,
+    "adv_start_present": true,
+    "obs_present": false,
+    "adv_end_present": false,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true,
+    "all_run_exit_statuses": [
+     2,
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none. Go's type system does not separate a nil *string from a non-nil one, so nothing was forced; the program compiles and the fault appears only at run time.",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "classification_reasoning": "D0 n/a: Go has the null_or_absent_value binding (`a nil *string`) and the length member (`len(*p)`), both frozen. D1 n/a: build exit 0 with no diagnostic - Go's compiler does NOT reject the dereference. D2 n/a: artifact produced. D3 n/a: ADV-START is present on stdout, so execution began. D4 n/a: 0.43 s. D5: ADV-START present AND the process terminated abnormally (exit status 2). D5a: stderr matches the case lexicon L_NULL on the alternative `nil pointer dereference` - verbatim `panic: runtime error: invalid memory address or nil pointer dereference`. Runtime Safe Detection, 75. Note on D5b/crash: the accompanying line `[signal SIGSEGV: segmentation violation ...]` is the Go runtime's own report of the trap it converted into a named panic, not a bare fault; it also does not match toolchain_failure_markers, whose pattern is `Segmentation fault` (the shell's wording), not `segmentation violation`. Per D5a's own note, a fatal signal does not by itself force Crash when the runtime emitted a diagnostic naming the hazard. The runtime named the hazard, gave file and line (ADV-17.go:9) and stopped before any value was produced; the silent outcome the case watches for (LEN:0) did not occur.",
+   "run_diagnostic_verbatim": "panic: runtime error: invalid memory address or nil pointer dereference\n[signal SIGSEGV: segmentation violation code=0x2 addr=0x8 pc=0x102f40d40]",
+   "lexicon_match": "L_NULL -> `nil pointer dereference`",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-18",
+   "case_id": "ADV-18",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-18.go",
+   "build": {
+    "cmd": [
+     "go",
+     "build",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-18",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-18.go"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "# command-line-arguments\n./ADV-18.go:13:1: missing return\n",
+    "timed_out": false,
+    "wall_seconds": 0.08,
+    "artifact_produced": false
+   },
+   "run": {
+    "cmd": null,
+    "stdin_tokens": [
+     "0"
+    ],
+    "exit": null,
+    "signal": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": null,
+    "adv_start_present": false,
+    "obs_present": false,
+    "adv_end_present": false,
+    "repetitions": 0,
+    "obs_identical_across_5_runs": null,
+    "note": "not run: the build rejected the program"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 n/a. D1: build exited 1. D1a n/a: no toolchain_failure_marker. D1b-i: the build output `./ADV-18.go:13:1: missing return` matches the case lexicon L_RETURN on the alternative `missing return`. Compile-time Detection, 100. Go requires that the statement list of a function with results end in a terminating statement, and the opacity barrier (the condition read from stdin) did not weaken the check because the check is syntactic, not value-dependent. The silent outcome the case watches for (R:0 from a function that returned nothing) cannot occur in Go.",
+   "first_diagnostic_verbatim": "./ADV-18.go:13:1: missing return",
+   "lexicon_match": "L_RETURN -> `missing return`",
+   "construction_line_range": [
+    9,
+    24
+   ],
+   "diagnostic_line": 13,
+   "diagnostic_has_file_line_column": true,
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-19",
+   "case_id": "ADV-19",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go",
+   "build": {
+    "cmd": [
+     "go",
+     "build",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-19",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.17,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-19"
+    ],
+    "stdin_tokens": [
+     "0"
+    ],
+    "exit": 2,
+    "signal": null,
+    "stdout": "ADV-START\n",
+    "stderr": "runtime: goroutine stack exceeds 1000000000-byte limit\nruntime: sp=0x1902996e0390 stack=[0x1902996e0000, 0x1902b96e0000]\nfatal error: stack overflow\n\nruntime stack:\nruntime.throw({0x100cbc1cc?, 0x100c5e82c?})\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/panic.go:1229 +0x38 fp=0x16f1e6690 sp=0x16f1e6660 pc=0x100c88d98\nruntime.newstack()\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/stack.go:1178 +0x498 fp=0x16f1e67c0 sp=0x16f1e6690 pc=0x100c71ea8\nruntime.morestack()\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/asm_arm64.s:507 +0x70 fp=0x16f1e67c0 sp=0x16f1e67c0 pc=0x100c8ce10\n\ngoroutine 1 gp=0x1902795ec1e0 m=0 mp=0x100da36e0 [running]:\nmain.f(0x1ffffa9?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:10 +0x3c fp=0x1902996e0390 sp=0x1902996e0390 pc=0x100cba43c\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e03b0 sp=0x1902996e0390 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e03d0 sp=0x1902996e03b0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e03f0 sp=0x1902996e03d0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e0410 sp=0x1902996e03f0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e0430 sp=0x1902996e0410 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e0450 sp=0x1902996e0430 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e0470 sp=0x1902996e0450 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e0490 sp=0x1902996e0470 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e04b0 sp=0x1902996e0490 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e04d0 sp=0x1902996e04b0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e04f0 sp=0x1902996e04d0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e0510 sp=0x1902996e04f0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e0530 sp=0x1902996e0510 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e0550 sp=0x1902996e0530 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e0570 sp=0x1902996e0550 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e0590 sp=0x1902996e0570 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e05b0 sp=0x1902996e0590 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e05d0 sp=0x1902996e05b0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e05f0 sp=0x1902996e05d0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e0610 sp=0x1902996e05f0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e0630 sp=0x1902996e0610 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e0650 sp=0x1902996e0630 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e0670 sp=0x1902996e0650 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902996e0690 sp=0x1902996e0670 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\n...33554249 frames elided...\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfb50 sp=0x1902b96dfb30 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfb70 sp=0x1902b96dfb50 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x19027969abc8?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfb90 sp=0x1902b96dfb70 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x19027969ac08?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfbb0 sp=0x1902b96dfb90 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x19027969ac08?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfbd0 sp=0x1902b96dfbb0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x1902796c2000?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfbf0 sp=0x1902b96dfbd0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x19027969ac48?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfc10 sp=0x1902b96dfbf0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x1902796aa000?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfc30 sp=0x1902b96dfc10 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x1902796aa000?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfc50 sp=0x1902b96dfc30 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x100e5e600?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfc70 sp=0x1902b96dfc50 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x19027969ace8?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfc90 sp=0x1902b96dfc70 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfcb0 sp=0x1902b96dfc90 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x1902796aa000?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfcd0 sp=0x1902b96dfcb0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x19027969ad28?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfcf0 sp=0x1902b96dfcd0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfd10 sp=0x1902b96dfcf0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x1902796c2000?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfd30 sp=0x1902b96dfd10 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x19027969ada8?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfd50 sp=0x1902b96dfd30 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x0?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfd70 sp=0x1902b96dfd50 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0xa?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfd90 sp=0x1902b96dfd70 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x100cc5040?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfdb0 sp=0x1902b96dfd90 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x19027969ae08?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfdd0 sp=0x1902b96dfdb0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x1902796ac410?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfdf0 sp=0x1902b96dfdd0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.f(0x100cc5040?)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11 +0x20 fp=0x1902b96dfe10 sp=0x1902b96dfdf0 pc=0x100cba420\nmain.f(...)\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:11\nmain.main()\n\t/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-19.go:21 +0xc4 fp=0x1902b96dff30 sp=0x1902b96dfe10 pc=0x100cba514\nruntime.main()\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/proc.go:290 +0x2b4 fp=0x1902b96dffd0 sp=0x1902b96dff30 pc=0x100c59834\nruntime.goexit({})\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/asm_arm64.s:1447 +0x4 fp=0x1902b96dffd0 sp=0x1902b96dffd0 pc=0x100c8ed24\n\ngoroutine 2 gp=0x1902795ec780 m=nil [force gc (idle)]:\nruntime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/proc.go:462 +0xbc fp=0x190279640f90 sp=0x190279640f70 pc=0x100c88e6c\nruntime.goparkunlock(...)\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/proc.go:468\nruntime.forcegchelper()\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/proc.go:375 +0xb4 fp=0x190279640fd0 sp=0x190279640f90 pc=0x100c59b54\nruntime.goexit({})\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/asm_arm64.s:1447 +0x4 fp=0x190279640fd0 sp=0x190279640fd0 pc=0x100c8ed24\ncreated by runtime.init.7 in goroutine 1\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/proc.go:363 +0x24\n\ngoroutine 3 gp=0x1902795ecd20 m=nil [GC sweep wait]:\nruntime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/proc.go:462 +0xbc fp=0x190279641770 sp=0x190279641750 pc=0x100c88e6c\nruntime.goparkunlock(...)\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/proc.go:468\nruntime.bgsweep(0x190279610080)\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/mgcsweep.go:279 +0x9c fp=0x1902796417b0 sp=0x190279641770 pc=0x100c45dcc\nruntime.gcenable.gowrap1()\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/mgc.go:214 +0x20 fp=0x1902796417d0 sp=0x1902796417b0 pc=0x100c37560\nruntime.goexit({})\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/asm_arm64.s:1447 +0x4 fp=0x1902796417d0 sp=0x1902796417d0 pc=0x100c8ed24\ncreated by runtime.gcenable in goroutine 1\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/mgc.go:214 +0x6c\n\ngoroutine 4 gp=0x1902795ecf00 m=nil [GC scavenge wait]:\nruntime.gopark(0x190279610080?, 0x100cc45c0?, 0x1?, 0x0?, 0x1902795ecf00?)\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/proc.go:462 +0xbc fp=0x190279641f60 sp=0x190279641f40 pc=0x100c88e6c\nruntime.goparkunlock(...)\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/proc.go:468\nruntime.(*scavengerState).park(0x100da2be0)\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/mgcscavenge.go:425 +0x5c fp=0x190279641f90 sp=0x190279641f60 pc=0x100c439bc\nruntime.bgscavenge(0x190279610080)\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/mgcscavenge.go:653 +0x44 fp=0x190279641fb0 sp=0x190279641f90 pc=0x100c43ef4\nruntime.gcenable.gowrap2()\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/mgc.go:215 +0x20 fp=0x190279641fd0 sp=0x190279641fb0 pc=0x100c37520\nruntime.goexit({})\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/asm_arm64.s:1447 +0x4 fp=0x190279641fd0 sp=0x190279641fd0 pc=0x100c8ed24\ncreated by runtime.gcenable in goroutine 1\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/mgc.go:215 +0xac\n\ngoroutine 17 gp=0x1902796843c0 m=nil [GOMAXPROCS updater (idle)]:\nruntime.gopark(0x0?, 0x0?, 0x0?, 0x0?, 0x0?)\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/proc.go:462 +0xbc fp=0x19027963c770 sp=0x19027963c750 pc=0x100c88e6c\nruntime.goparkunlock(...)\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/proc.go:468\nruntime.updateMaxProcsGoroutine()\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/proc.go:7095 +0xf4 fp=0x19027963c7d0 sp=0x19027963c770 pc=0x100c681a4\nruntime.goexit({})\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/asm_arm64.s:1447 +0x4 fp=0x19027963c7d0 sp=0x19027963c7d0 pc=0x100c8ed24\ncreated by runtime.defaultGOMAXPROCSUpdateEnable in goroutine 1\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/proc.go:7083 +0x48\n\ngoroutine 18 gp=0x1902796845a0 m=nil [finalizer wait]:\nruntime.gopark(0x0?, 0x0?, 0xb8?, 0x5?, 0x100c89974?)\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/proc.go:462 +0xbc fp=0x190279640580 sp=0x190279640560 pc=0x100c88e6c\nruntime.runFinalizers()\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/mfinal.go:210 +0x100 fp=0x1902796407d0 sp=0x190279640580 pc=0x100c36630\nruntime.goexit({})\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/asm_arm64.s:1447 +0x4 fp=0x1902796407d0 sp=0x1902796407d0 pc=0x100c8ed24\ncreated by runtime.createfing in goroutine 1\n\t/opt/homebrew/Cellar/go/1.26.3/libexec/src/runtime/mfinal.go:172 +0x78\n",
+    "timed_out": false,
+    "wall_seconds": 2.66,
+    "adv_start_present": true,
+    "obs_present": false,
+    "adv_end_present": false,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true,
+    "all_run_exit_statuses": [
+     2,
+     2,
+     2,
+     2,
+     2
+    ]
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none. Go forced nothing on the hazard. The two-result form `v, _ := strconv.ParseInt(...)` used at the opacity barrier is rule A3's frozen canonical Go form (`v, _ := f()`), not an error handler, and the discarded second result is never inspected.",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "classification_reasoning": "D0 n/a. D1 n/a: build exit 0, no diagnostic; Go does not reject unbounded recursion statically. D2 n/a. D3 n/a: ADV-START present. D4 n/a: the run terminated in 2.66 s, well inside the 60 s timeout - Go did NOT hang. D5: ADV-START present AND abnormal termination (exit status 2). D5a: stderr matches the case lexicon L_STACK on both `goroutine stack exceeds` and `stack overflow` - verbatim `runtime: goroutine stack exceeds 1000000000-byte limit` followed by `fatal error: stack overflow`. Runtime Safe Detection, 75. The optimizer did NOT remove the non-tail recursion, so neither D6a nor D7 was reached; the diagnostic names the hazard, the goroutine stack limit, and a full annotated stack trace with source file and line. All 5 runs terminated identically at exit 2 with the same diagnostic.",
+   "run_diagnostic_verbatim": "runtime: goroutine stack exceeds 1000000000-byte limit\nruntime: sp=0x1902996e0390 stack=[0x1902996e0000, 0x1902b96e0000]\nfatal error: stack overflow",
+   "lexicon_match": "L_STACK -> `goroutine stack exceeds` and `stack overflow`",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-20",
+   "case_id": "ADV-20",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-20.go",
+   "build": {
+    "cmd": [
+     "go",
+     "build",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-20",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-20.go"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.41,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-20"
+    ],
+    "stdin_tokens": [
+     "0"
+    ],
+    "exit": 0,
+    "signal": null,
+    "stdout": "ADV-START\nOBS=R:1000000\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.19,
+    "adv_start_present": true,
+    "obs_present": true,
+    "adv_end_present": true,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true,
+    "all_run_exit_statuses": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "observed_payload": "R:1000000",
+   "reached_observation_point": true,
+   "forced_error_handling": "none. Go forced nothing on the hazard. The two-result form `v, _ := strconv.ParseInt(...)` used at the opacity barrier is rule A3's frozen canonical Go form (`v, _ := f()`), not an error handler, and the discarded second result is never inspected.",
+   "class": "Prevented By Construction",
+   "earliest_observable_stage": "Prevented By Construction",
+   "classification_reasoning": "D0 n/a: no TM3 determination; Go expresses the recursion directly. D1 n/a: build exit 0. D2 n/a. D3 n/a: ADV-START present. D4 n/a: 0.19 s. D5 n/a: exit 0. D6a n/a: OBS= and ADV-END both present. D6b: obs_payload `R:1000000` equals the case's reference_observation `R:1000000` byte for byte, and that reference is a concrete value, not the sentinel DIAGNOSED_FAILURE. Prevented By Construction, 100. Evidence per outcome_classes.prevented_by_construction: the source performs the specified non-tail recursion to depth 1000000 (the call is `1 + f(n+1)`, not a tail call) and the payload matches the reference exactly. Go's segmented, growable goroutine stacks let the recursion complete; the mathematically correct answer was produced. All 5 runs byte-identical.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-21",
+   "case_id": "ADV-21",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-21.go",
+   "build": {
+    "cmd": [
+     "go",
+     "build",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-21",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-21.go"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.35,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-21"
+    ],
+    "stdin_tokens": [],
+    "exit": 0,
+    "signal": null,
+    "stdout": "ADV-START\nOBS=V:1\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.33,
+    "adv_start_present": true,
+    "obs_present": true,
+    "adv_end_present": true,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true,
+    "all_run_exit_statuses": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "observed_payload": "V:1",
+   "reached_observation_point": true,
+   "forced_error_handling": "none.",
+   "class": "Prevented By Construction",
+   "earliest_observable_stage": "Prevented By Construction",
+   "classification_reasoning": "D0 n/a. D1 n/a: `go build` exited 0 in 2.82 s on a cold cache (well inside the 300 s build timeout) on the 200142-byte generated source. D2 n/a: artifact produced (2509234 bytes). D3 n/a: ADV-START present. D4 n/a: 0.33 s. D5 n/a: exit 0. D6a n/a: OBS= and ADV-END present. D6b: obs_payload `V:1` equals the case's concrete reference_observation `V:1` byte for byte. Prevented By Construction, 100 - which is what the case's notes prescribe: 'A toolchain that compiles the file and prints V:1 is recorded Prevented By Construction (100)'. No toolchain_failure_marker appeared anywhere; the parser neither crashed nor misparsed, and the value is exactly 1, so the Silent Bug the case watches for (a dropped or misparsed nesting producing a wrong value) did not occur. All 5 runs byte-identical.",
+   "generated_by": "scripts/gen_adv21_go.py (frozen_generators.parser_nesting, DEPTH=100000, no newline inside the parenthesis runs)",
+   "source_bytes": 200142,
+   "secondary_non_scoring_depths": {
+    "1000": {
+     "build_exit": 0,
+     "obs": "V:1",
+     "build_wall_seconds": 0.17
+    },
+    "10000": {
+     "build_exit": 0,
+     "obs": "V:1",
+     "build_wall_seconds": 0.18
+    }
+   },
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-22/a",
+   "case_id": "ADV-22",
+   "variant": "single (sub-program ADV-22a)",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-22a.go",
+   "build": {
+    "cmd": [
+     "go",
+     "build",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-22a",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-22a.go"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "# command-line-arguments\n./ADV-22a.go:8:17: syntax error: unexpected EOF, expected }\n",
+    "timed_out": false,
+    "wall_seconds": 0.07,
+    "artifact_produced": false
+   },
+   "run": {
+    "cmd": null,
+    "stdin_tokens": [],
+    "exit": null,
+    "signal": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": null,
+    "adv_start_present": false,
+    "obs_present": false,
+    "adv_end_present": false,
+    "repetitions": 0,
+    "obs_identical_across_5_runs": null,
+    "note": "not run: the build rejected the program"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 n/a. D1: `go build` exited 1. D1a n/a: no toolchain_failure_marker matched - the compiler did not die by signal, printed no internal error, no stack dump, no 'PLEASE submit a bug report'. D1b-i: the build output matches the case's lexicon (`syntax error|parse error|unexpected|expected|unterminated|SyntaxError|error:` -> `syntax error`, `unexpected`, `expected`, `error:`). Compile-time Detection, 100. The mutated file did not build and no artifact was produced, so the toolchain-level Silent Bug the case watches for (a truncated program accepted and run) did not occur. Mutation: first floor(0.60 * L) = 85 bytes of the 142-byte valid file. The valid file ADV-22-valid.go builds and runs correctly (exit 0, OBS=V:1), and its midpoint byte 71 falls inside the identifier `var` - no string literal and no comment spans it - so the authoring precondition holds.",
+   "mutation": "first floor(0.60 * L) = 85 bytes of the 142-byte valid file",
+   "first_diagnostic_verbatim": "./ADV-22a.go:8:17: syntax error: unexpected EOF, expected }",
+   "lexicon_match": "`syntax error|parse error|unexpected|expected|unterminated|SyntaxError|error:` -> `syntax error`, `unexpected`, `expected`, `error:`",
+   "construction_line_range": [
+    1,
+    8
+   ],
+   "diagnostic_line": 8,
+   "diagnostic_has_file_line_column": true,
+   "valid_file_control": {
+    "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-22-valid.go",
+    "build_exit": 0,
+    "run_exit": 0,
+    "obs": "V:1",
+    "L_bytes": 142,
+    "cut_bytes": 85,
+    "mid_byte": 71
+   },
+   "sub_program_aggregation_note": "ADV-22's case stage score is the unweighted mean of the ADV-22a and ADV-22b stage scores (spec 25.2): (100 + 100) / 2 = 100.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-22/b",
+   "case_id": "ADV-22",
+   "variant": "single (sub-program ADV-22b)",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-22b.go",
+   "build": {
+    "cmd": [
+     "go",
+     "build",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-22b",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-22b.go"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "# command-line-arguments\n./ADV-22b.go:8:3: invalid character U+0040 '@'\n./ADV-22b.go:8:4: invalid character U+0023 '#'\n./ADV-22b.go:8:5: invalid character U+0024 '$'\n./ADV-22b.go:8:6: syntax error: unexpected name ar at end of statement\n",
+    "timed_out": false,
+    "wall_seconds": 0.07,
+    "artifact_produced": false
+   },
+   "run": {
+    "cmd": null,
+    "stdin_tokens": [],
+    "exit": null,
+    "signal": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": null,
+    "adv_start_present": false,
+    "obs_present": false,
+    "adv_end_present": false,
+    "repetitions": 0,
+    "obs_identical_across_5_runs": null,
+    "note": "not run: the build rejected the program"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 n/a. D1: `go build` exited 1. D1a n/a: no toolchain_failure_marker matched - the compiler did not die by signal, printed no internal error, no stack dump, no 'PLEASE submit a bug report'. D1b-i: the build output matches the case's lexicon (`syntax error|parse error|unexpected|expected|unterminated|SyntaxError|error:` -> `error:` on the first line, and `syntax error`/`unexpected`/`expected` on the fourth diagnostic line). Compile-time Detection, 100. The mutated file did not build and no artifact was produced, so the toolchain-level Silent Bug the case watches for (a truncated program accepted and run) did not occur. Mutation: the three ASCII bytes 0x40 0x23 0x24 ('@#$') inserted at byte offset floor(L/2) = 71. The valid file ADV-22-valid.go builds and runs correctly (exit 0, OBS=V:1), and its midpoint byte 71 falls inside the identifier `var` - no string literal and no comment spans it - so the authoring precondition holds.",
+   "mutation": "the three ASCII bytes 0x40 0x23 0x24 ('@#$') inserted at byte offset floor(L/2) = 71",
+   "first_diagnostic_verbatim": "./ADV-22b.go:8:3: invalid character U+0040 '@'",
+   "lexicon_match": "`syntax error|parse error|unexpected|expected|unterminated|SyntaxError|error:` -> `error:` on the first line, and `syntax error`/`unexpected`/`expected` on the fourth diagnostic line",
+   "construction_line_range": [
+    1,
+    12
+   ],
+   "diagnostic_line": 8,
+   "diagnostic_has_file_line_column": true,
+   "valid_file_control": {
+    "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-22-valid.go",
+    "build_exit": 0,
+    "run_exit": 0,
+    "obs": "V:1",
+    "L_bytes": 142,
+    "cut_bytes": 85,
+    "mid_byte": 71
+   },
+   "sub_program_aggregation_note": "ADV-22's case stage score is the unweighted mean of the ADV-22a and ADV-22b stage scores (spec 25.2): (100 + 100) / 2 = 100.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-23",
+   "case_id": "ADV-23",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-23.go",
+   "build": {
+    "cmd": [
+     "go",
+     "build",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-23",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-23.go"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.17,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-23"
+    ],
+    "stdin_tokens": [],
+    "exit": 0,
+    "signal": null,
+    "stdout": "ADV-START\nOBS=CP:13\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.33,
+    "adv_start_present": true,
+    "obs_present": true,
+    "adv_end_present": true,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true,
+    "all_run_exit_statuses": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "observed_payload": "CP:13",
+   "reached_observation_point": true,
+   "forced_error_handling": "none for the hazard. `b, _ := os.ReadFile(path)` is rule A3's frozen canonical Go direct-use form (`v, _ := f()`); the discarded error concerns file I/O, never the UTF-8 validity of the bytes, and Go's []byte -> string conversion has no failure channel at all.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 n/a. D1 n/a: build exit 0. D2 n/a. D3 n/a: ADV-START present. D4 n/a: 0.33 s. D5 n/a: exit 0. D6a n/a: OBS= and ADV-END present. D6b n/a: reference_observation is the sentinel DIAGNOSED_FAILURE. D6c: the predicate ^CP:(0|[1-9][0-9]*)$ matches `CP:13` and 13 lies inside [0,10000], so the predicate is TRUE -> D6c-ii -> D7. D7a: all 5 runs byte-identical. D7b: the frozen Go secondary configuration `go build -race` produced the IDENTICAL payload `OBS=CP:13` and emitted no report. D7b does not fire. D7c: no clause declares this undefined; the Go specification defines the conversion. D7d -> Silent Bug (0). This is exactly the emblematic silent transformation the case names: the 13 invalid bytes (C3 28, the surrogate ED A0 80, the above-U+10FFFF F4 90 80 80, the lone continuation 80) were stored verbatim in a Go string with no validation whatsoever, and the program reported the ordinary small integer 13. Nothing in build or run output mentions UTF-8. Go's string is a byte sequence with no encoding invariant, so the invalid input became an apparently valid string and execution continued.",
+   "length_member_used": "len(s) - Go's string length, in bytes (The Go Programming Language Specification, 'Length and capacity': for a string, len(s) is the number of bytes). Recorded per the case's requirement to cite the length notion used.",
+   "silent_transformation": true,
+   "normative_status": {
+    "status": "defined",
+    "document": "The Go Programming Language Specification",
+    "version": "go1.26.3",
+    "clause": "Conversions to and from a string type: 'Converting a slice of bytes to a string type yields a string whose successive bytes are the elements of the slice.' No UTF-8 validation is performed; String types: 'Strings behave like slices of bytes'."
+   },
+   "secondary_configuration": {
+    "cmd": [
+     "go",
+     "build",
+     "-race",
+     "-o",
+     "BIN",
+     "ADV-23.go"
+    ],
+    "exit": 0,
+    "obs": "OBS=CP:13",
+    "report": "none",
+    "d7b_fires": false
+   }
+  },
+  {
+   "case_variant_id": "ADV-24",
+   "case_id": "ADV-24",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-24.go",
+   "build": {
+    "cmd": [
+     "go",
+     "build",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-24",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-24.go"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "# command-line-arguments\n./ADV-24.go:8:14: cannot use 9223372036854775809 (untyped int constant) as int value in variable declaration (overflows)\n",
+    "timed_out": false,
+    "wall_seconds": 0.07,
+    "artifact_produced": false
+   },
+   "run": {
+    "cmd": null,
+    "stdin_tokens": [],
+    "exit": null,
+    "signal": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": null,
+    "adv_start_present": false,
+    "obs_present": false,
+    "adv_end_present": false,
+    "repetitions": 0,
+    "obs_identical_across_5_runs": null,
+    "note": "not run: the build rejected the program"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 n/a: Go's default_arithmetic_type is `int` (64-bit on this host), frozen in type_binding_table. D1: build exited 1. D1a n/a: no toolchain_failure_marker matched. D1b-i: the build output `./ADV-24.go:8:14: cannot use 9223372036854775809 (untyped int constant) as int value in variable declaration (overflows)` matches the case lexicon L_OVERFLOW on the alternative `overflow`, which occurs inside the word `overflows`. Compile-time Detection, 100. Go evaluates untyped constants at arbitrary precision and rejects the implicit conversion to `int` at compile time, so the silent outcome the case watches for - V:9223372036854775808, the literal rounded to the nearest binary64 value - cannot occur.",
+   "first_diagnostic_verbatim": "./ADV-24.go:8:14: cannot use 9223372036854775809 (untyped int constant) as int value in variable declaration (overflows)",
+   "lexicon_match": "L_OVERFLOW -> `overflow` (matched inside `overflows`)",
+   "construction_line_range": [
+    8,
+    10
+   ],
+   "diagnostic_line": 8,
+   "diagnostic_has_file_line_column": true,
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-25/R",
+   "case_id": "ADV-25",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-25_R.go",
+   "build": {
+    "cmd": [
+     "go",
+     "build",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-25_R",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-25_R.go"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.17,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-25_R"
+    ],
+    "stdin_tokens": [
+     "12x34"
+    ],
+    "exit": 0,
+    "signal": null,
+    "stdout": "ADV-START\nOBS=R:0\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.35,
+    "adv_start_present": true,
+    "obs_present": true,
+    "adv_end_present": true,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true,
+    "all_run_exit_statuses": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "observed_payload": "R:0",
+   "reached_observation_point": true,
+   "forced_error_handling": "none. `n, _ := strconv.ParseInt(sc.Text(), 10, 64)` is precisely the frozen Go row of authoring_choice_table.primary_string_to_integer_facility and of rule A3 (`v, _ := f()`). The returned error is discarded, not inspected - which is the point of the measurement.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 n/a. D1 n/a: build exit 0, no diagnostic - Go's compiler does not object to a discarded error. D2 n/a. D3 n/a: ADV-START present. D4 n/a: 0.35 s. D5 n/a: exit 0, no signal. D6a n/a: OBS= and ADV-END present. D6b n/a: reference_observation is the sentinel DIAGNOSED_FAILURE. D6c: the predicate ^R:-?(0|[1-9][0-9]*)$ matches `R:0`, so the predicate is TRUE -> D6c-ii -> D7. D7a: all 5 runs byte-identical. D7b: the frozen Go secondary configuration `go build -race` produced the IDENTICAL payload `OBS=R:0` and emitted no report. D7b does not fire. D7c: no clause declares this undefined; strconv documents the zero return. D7d -> Silent Bug (0). This is verbatim the second of the two outcomes the case's silent_transformation_watch names: R:0, from a facility that returns a zero result alongside an error value the program did not inspect. The non-numeric input `12x34` became the integer 0, was multiplied by 2, and flowed out as an entirely ordinary `R:0` with nothing on stderr and exit status 0.",
+   "silent_transformation": true,
+   "normative_status": {
+    "status": "defined",
+    "document": "Go standard library documentation, package strconv",
+    "version": "go1.26.3",
+    "clause": "func ParseInt: 'ParseInt interprets a string s in the given base ... The errors that ParseInt returns have concrete type *NumError ... If s is not syntactically well-formed, err.Err = ErrSyntax and the returned value is 0.'"
+   },
+   "secondary_configuration": {
+    "cmd": [
+     "go",
+     "build",
+     "-race",
+     "-o",
+     "BIN",
+     "ADV-25_R.go"
+    ],
+    "exit": 0,
+    "obs": "OBS=R:0",
+    "report": "none",
+    "d7b_fires": false
+   }
+  },
+  {
+   "case_variant_id": "ADV-26/R",
+   "case_id": "ADV-26",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-26_R.go",
+   "build": {
+    "cmd": [
+     "go",
+     "build",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-26_R",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/go/ADV-26_R.go"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.18,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advgo/out/ADV-26_R"
+    ],
+    "stdin_tokens": [
+     "5",
+     "9",
+     "2",
+     "14",
+     "3",
+     "20",
+     "8",
+     "3"
+    ],
+    "exit": 0,
+    "signal": null,
+    "stdout": "ADV-START\nOBS=IDX:-1\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.33,
+    "adv_start_present": true,
+    "obs_present": true,
+    "adv_end_present": true,
+    "repetitions": 5,
+    "obs_identical_across_5_runs": true,
+    "all_run_exit_statuses": [
+     0,
+     0,
+     0,
+     0,
+     0
+    ]
+   },
+   "observed_payload": "IDX:-1",
+   "reached_observation_point": true,
+   "forced_error_handling": "none. Go forced nothing on the hazard. The two-result form `v, _ := strconv.ParseInt(...)` used at the opacity barrier is rule A3's frozen canonical Go form (`v, _ := f()`), not an error handler, and the discarded second result is never inspected.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 n/a. D1 n/a: build exit 0 - Go cannot express or check the sortedness precondition, so nothing was rejected. D2 n/a. D3 n/a: ADV-START present. D4 n/a: 0.33 s. D5 n/a: exit 0; no bounds fault occurred (every index the search computed was in 0..6). D6a n/a: OBS= and ADV-END present. D6b n/a: obs_payload `IDX:-1` does NOT equal the reference_observation `IDX:4`. D6c: the predicate ^IDX:(-1|[0-6])$ matches `IDX:-1`, an entirely ordinary `not found` answer, so the predicate is TRUE -> D6c-ii -> D7. D7a: all 5 runs byte-identical. D7b: the frozen Go secondary configuration `go build -race` produced the IDENTICAL payload `OBS=IDX:-1` and emitted no report. D7b does not fire. D7c: no clause declares this undefined - every individual operation (integer division, comparison, in-range indexing) is fully defined by the Go specification; it is the program state, not any operation, that is invalid. D7d -> Silent Bug (0). The search visited mid=3 (14>3, hi=2), mid=1 (9>3, hi=0), mid=0 (5>3, hi=-1) and terminated, exactly as the case's verification predicts, reporting `not found` for a target that is present at index 4.",
+   "silent_transformation": true,
+   "normative_status": {
+    "status": "defined",
+    "document": "The Go Programming Language Specification",
+    "version": "go1.26.3",
+    "clause": "Arithmetic operators / Index expressions - every operation performed is defined; the language has no facility for declaring or enforcing the sortedness invariant the algorithm requires."
+   },
+   "secondary_configuration": {
+    "cmd": [
+     "go",
+     "build",
+     "-race",
+     "-o",
+     "BIN",
+     "ADV-26_R.go"
+    ],
+    "exit": 0,
+    "obs": "OBS=IDX:-1",
+    "report": "none",
+    "d7b_fires": false
+   }
+  }
+ ],
+ "lexicon_verification": "Every lexicon claim in this file was re-checked mechanically by matching the frozen case and global regexes (case-insensitive) against the concatenation of the captured build output (for build-rejected rows) or run output (for executed rows). Result: ADV-16 L_IMMUTABLE, ADV-17 L_NULL, ADV-18 L_RETURN, ADV-19 L_STACK, ADV-22a/b the case pattern, ADV-24 L_OVERFLOW all matched; ADV-14/R matched NEITHER its case lexicon L_TYPE NOR any global fragment, which is why it is classified under D1b-ii-2 with flag compile_rejection_unmatched_lexicon; no row matched any toolchain_failure_markers pattern."
+}

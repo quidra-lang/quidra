@@ -1,0 +1,15 @@
+probe: F08.P2
+language: quidra
+class_id: REFUT_operand_type_pin
+purpose: Refutation of the audit's locality=0 suggestion: `int16 a, int16 b` accepts the byte-identical fragment, so assignability does NOT pin the operand type and the hop to `a`'s declaration is required.
+
+recipe entry: semantic_compression_recipes.quidra.interpreter_run
+command: quidra run p82a.qui
+exit status: 0
+stdout:
+3
+
+stderr:
+
+
+Cross-mode note (Rule 1.3.3): the frozen recipe lists two execution modes for Quidra ('run' = `quidra build FILE.qui -o BIN` then `./BIN`, and 'interpreter_run' = `quidra run FILE.qui`). Both were exercised for the arithmetic-abort witnesses and produced identical output and exit status; the identity is recorded rather than assumed.

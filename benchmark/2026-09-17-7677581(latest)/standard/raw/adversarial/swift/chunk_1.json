@@ -1,0 +1,884 @@
+{
+ "language": "Swift",
+ "language_key": "swift",
+ "chunk": "1",
+ "toolchain": "swift-driver version 1.127.14.1, Apple Swift version 6.2.3 (swiftlang-6.2.3.3.21 clang-1700.6.3.2), Target arm64-apple-macosx26.0; frozen recipe: build `swiftc -O FILE.swift -o BIN`, run `./BIN`",
+ "authoring_note": "Every program places the case's construction inside an ordinary `func main() { ... }` called at the end of the file, rather than in Swift top-level code, and does so UNIFORMLY for C and R variants. Reason, recorded before any result was kept: a Swift top-level `let` is a lazily-initialized GLOBAL variable, and the mandatory SIL diagnostic constant-propagation pass cannot see through it. An earlier top-level authoring therefore built cleanly for ADV-02/C, ADV-03/C, ADV-04a/C, ADV-05/C and ADV-08/C and trapped at run time, i.e. it HID the manifest constant from the compiler - which opacity_barrier.variants.C forbids ('no attempt to hide it from the compiler') and which also broke A1 equivalence with the other nine languages, whose constructions necessarily sit in a function body (main). The five affected C rows move from Crash to Compile-time Detection under the corrected authoring. The R rows are unaffected in every case, since their values come from stdin and no constant folding is possible - which is exactly the separation the C/R pair exists to provide. Both observations are disclosed here rather than only the favourable one.",
+ "recipe_finding": "THE SINGLE MOST IMPORTANT TOOLCHAIN FACT FOR SWIFT IN THIS CHUNK: under the frozen `-O`, Swift's standard-library trapping preconditions (integer overflow, narrowing conversion, division by zero, array bounds) STILL FIRE - `-O` does not remove them, only `-Ounchecked` does - but their diagnostic TEXT is stripped. The process dies on SIGTRAP with wait status 133 and writes ZERO bytes to stderr. Under `-Onone` the same programs print `Fatal error: ...` naming the hazard. Because the frozen decision procedure D5a/D5a_prime/D5b tests captured BYTES and not signals, all eight such rows classify as Crash (20) rather than Runtime Safe Detection (75). D5a's own note assumed Swift would emit `Fatal error: ... overflow`; that assumption holds at -Onone and not at the frozen -O. No build mode was changed to alter this; the -Onone result is recorded only as the non-scoring secondary configuration.",
+ "observations": [
+  {
+   "case_variant_id": "ADV-01/C",
+   "case_id": "ADV-01",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-01_C.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-01_C.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-01_C"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-01_C"
+    ],
+    "exit": -5,
+    "stdout": "ADV-START\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    -5,
+    -5,
+    -5,
+    -5,
+    -5
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "classification_reasoning": "The frozen recipe is `swiftc -O`. Under -O the Swift standard library's trapping preconditions compile to a bare `brk`/trap instruction with NO runtime message: the process dies on SIGTRAP (wait status 133 = 128+5) and writes ZERO bytes to stderr. The check itself is still present and still fires before the invalid value is used - it is `-Ounchecked`, not `-O`, that removes the check - but the diagnostic text is stripped. D0 no (no TM3a determination). D1 no (build exit 0). D2 no (artifact produced). D3 no (`ADV-START` IS present on stdout). D4 no (terminated in well under 60s). D5 fires: `ADV-START` present and the process died by signal 5 (SIGTRAP). D5a: the concatenation of stdout+stderr is exactly `ADV-START\\n` and matches NO pattern of this case's hazard_diagnostic_lexicon (L_NARROW, L_OVERFLOW). D5a_prime: it matches NO fragment of global_hazard_diagnostic_lexicon.fragments either - verified mechanically by regex over the captured bytes. Therefore D5b fires: Crash (20). Per crash_vs_runtime_safe_detection_summary, Runtime Safe Detection requires that the runtime SAY what the hazard was; here it said nothing at all. This is the honest reading of the frozen recipe and is exactly the fork D5a's own note anticipated when it wrote that \"Swift's `Fatal error: ... overflow` are Runtime Safe Detection\" - that message exists only under `-Onone`, not under the frozen `-O`. No build-mode change was made to obtain a different outcome. NOTE ON THE C VARIANT: swiftc -O does NOT statically diagnose Int64->Int32 narrowing even with a fully manifest constant. This was probed separately with `let v = Int32(9223372036854775807 as Int64)` written directly in a function body, which also compiles cleanly - so the absence of a compile-time diagnostic is a genuine property of the language, not an artefact of how the constant was placed. Contrast ADV-05/C, where the identical shape of conversion from Double IS statically rejected.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-01/R",
+   "case_id": "ADV-01",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-01_R.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-01_R.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-01_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-01_R"
+    ],
+    "exit": -5,
+    "stdout": "ADV-START\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    -5,
+    -5,
+    -5,
+    -5,
+    -5
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none. Swift's `String -> Int64/Int/UInt32/Int32/Double` conversion returns an Optional, and the type system FORCES the author to write something to get the value out; the program uses `readLine()!` and `T(text)!`, which is rule A3's enumerated shortest direct-use form for Swift. No failure channel is inspected. Recorded because the forced `!` is itself a language property: Swift will not let an un-unwrapped Optional be used as a number.",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "classification_reasoning": "The frozen recipe is `swiftc -O`. Under -O the Swift standard library's trapping preconditions compile to a bare `brk`/trap instruction with NO runtime message: the process dies on SIGTRAP (wait status 133 = 128+5) and writes ZERO bytes to stderr. The check itself is still present and still fires before the invalid value is used - it is `-Ounchecked`, not `-O`, that removes the check - but the diagnostic text is stripped. D0 no (no TM3a determination). D1 no (build exit 0). D2 no (artifact produced). D3 no (`ADV-START` IS present on stdout). D4 no (terminated in well under 60s). D5 fires: `ADV-START` present and the process died by signal 5 (SIGTRAP). D5a: the concatenation of stdout+stderr is exactly `ADV-START\\n` and matches NO pattern of this case's hazard_diagnostic_lexicon (L_NARROW, L_OVERFLOW). D5a_prime: it matches NO fragment of global_hazard_diagnostic_lexicon.fragments either - verified mechanically by regex over the captured bytes. Therefore D5b fires: Crash (20). Per crash_vs_runtime_safe_detection_summary, Runtime Safe Detection requires that the runtime SAY what the hazard was; here it said nothing at all. This is the honest reading of the frozen recipe and is exactly the fork D5a's own note anticipated when it wrote that \"Swift's `Fatal error: ... overflow` are Runtime Safe Detection\" - that message exists only under `-Onone`, not under the frozen `-O`. No build-mode change was made to obtain a different outcome.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-02/C",
+   "case_id": "ADV-02",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-02_C.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-02_C.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-02_C"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-02_C.swift:5:15: error: arithmetic operation '9223372036854775807 + 3' (on type 'Int') results in an overflow\n 3 |     print(\"ADV-START\"); fflush(stdout)\n 4 |     let a: Int = 9223372036854775807\n 5 |     let v = a + 3\n   |               `- error: arithmetic operation '9223372036854775807 + 3' (on type 'Int') results in an overflow\n 6 |     print(\"OBS=V:\\(v)\"); fflush(stdout)\n 7 |     print(\"ADV-END\"); fflush(stdout)\n"
+   },
+   "run": null,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 no. D1 fires: the frozen build recipe exited non-zero. D1a no: build output matches no toolchain_failure_markers regex. D1b-i fires: the concatenation of build stdout+stderr matches this case's lexicon L_OVERFLOW (the token `overflow`). Class Compile-time Detection, stage Compile-time Detection (100). First diagnostic verbatim: \"ADV-02_C.swift:5:15: error: arithmetic operation '9223372036854775807 + 3' (on type 'Int') results in an overflow\". The hazardous value is a plain manifest constant, so the compiler could and did see it; the matching R variant, where the value arrives from stdin, is not caught at build time - which is precisely what the C/R pair exists to separate.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-02/R",
+   "case_id": "ADV-02",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-02_R.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-02_R.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-02_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-02_R"
+    ],
+    "exit": -5,
+    "stdout": "ADV-START\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    -5,
+    -5,
+    -5,
+    -5,
+    -5
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none. Swift's `String -> Int64/Int/UInt32/Int32/Double` conversion returns an Optional, and the type system FORCES the author to write something to get the value out; the program uses `readLine()!` and `T(text)!`, which is rule A3's enumerated shortest direct-use form for Swift. No failure channel is inspected. Recorded because the forced `!` is itself a language property: Swift will not let an un-unwrapped Optional be used as a number.",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "classification_reasoning": "The frozen recipe is `swiftc -O`. Under -O the Swift standard library's trapping preconditions compile to a bare `brk`/trap instruction with NO runtime message: the process dies on SIGTRAP (wait status 133 = 128+5) and writes ZERO bytes to stderr. The check itself is still present and still fires before the invalid value is used - it is `-Ounchecked`, not `-O`, that removes the check - but the diagnostic text is stripped. D0 no (no TM3a determination). D1 no (build exit 0). D2 no (artifact produced). D3 no (`ADV-START` IS present on stdout). D4 no (terminated in well under 60s). D5 fires: `ADV-START` present and the process died by signal 5 (SIGTRAP). D5a: the concatenation of stdout+stderr is exactly `ADV-START\\n` and matches NO pattern of this case's hazard_diagnostic_lexicon (L_OVERFLOW). D5a_prime: it matches NO fragment of global_hazard_diagnostic_lexicon.fragments either - verified mechanically by regex over the captured bytes. Therefore D5b fires: Crash (20). Per crash_vs_runtime_safe_detection_summary, Runtime Safe Detection requires that the runtime SAY what the hazard was; here it said nothing at all. This is the honest reading of the frozen recipe and is exactly the fork D5a's own note anticipated when it wrote that \"Swift's `Fatal error: ... overflow` are Runtime Safe Detection\" - that message exists only under `-Onone`, not under the frozen `-O`. No build-mode change was made to obtain a different outcome.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-03/C",
+   "case_id": "ADV-03",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-03_C.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-03_C.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-03_C"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-03_C.swift:5:15: error: arithmetic operation '-9223372036854775808 - 3' (on type 'Int') results in an overflow\n 3 |     print(\"ADV-START\"); fflush(stdout)\n 4 |     let a: Int = -9223372036854775808\n 5 |     let v = a - 3\n   |               `- error: arithmetic operation '-9223372036854775808 - 3' (on type 'Int') results in an overflow\n 6 |     print(\"OBS=V:\\(v)\"); fflush(stdout)\n 7 |     print(\"ADV-END\"); fflush(stdout)\n"
+   },
+   "run": null,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 no. D1 fires: the frozen build recipe exited non-zero. D1a no: build output matches no toolchain_failure_markers regex. D1b-i fires: the concatenation of build stdout+stderr matches this case's lexicon L_OVERFLOW. Class Compile-time Detection, stage Compile-time Detection (100). First diagnostic verbatim: \"ADV-03_C.swift:5:15: error: arithmetic operation '-9223372036854775808 - 3' (on type 'Int') results in an overflow\". The hazardous value is a plain manifest constant, so the compiler could and did see it; the matching R variant, where the value arrives from stdin, is not caught at build time - which is precisely what the C/R pair exists to separate.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-03/R",
+   "case_id": "ADV-03",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-03_R.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-03_R.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-03_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-03_R"
+    ],
+    "exit": -5,
+    "stdout": "ADV-START\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    -5,
+    -5,
+    -5,
+    -5,
+    -5
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none. Swift's `String -> Int64/Int/UInt32/Int32/Double` conversion returns an Optional, and the type system FORCES the author to write something to get the value out; the program uses `readLine()!` and `T(text)!`, which is rule A3's enumerated shortest direct-use form for Swift. No failure channel is inspected. Recorded because the forced `!` is itself a language property: Swift will not let an un-unwrapped Optional be used as a number.",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "classification_reasoning": "The frozen recipe is `swiftc -O`. Under -O the Swift standard library's trapping preconditions compile to a bare `brk`/trap instruction with NO runtime message: the process dies on SIGTRAP (wait status 133 = 128+5) and writes ZERO bytes to stderr. The check itself is still present and still fires before the invalid value is used - it is `-Ounchecked`, not `-O`, that removes the check - but the diagnostic text is stripped. D0 no (no TM3a determination). D1 no (build exit 0). D2 no (artifact produced). D3 no (`ADV-START` IS present on stdout). D4 no (terminated in well under 60s). D5 fires: `ADV-START` present and the process died by signal 5 (SIGTRAP). D5a: the concatenation of stdout+stderr is exactly `ADV-START\\n` and matches NO pattern of this case's hazard_diagnostic_lexicon (L_OVERFLOW). D5a_prime: it matches NO fragment of global_hazard_diagnostic_lexicon.fragments either - verified mechanically by regex over the captured bytes. Therefore D5b fires: Crash (20). Per crash_vs_runtime_safe_detection_summary, Runtime Safe Detection requires that the runtime SAY what the hazard was; here it said nothing at all. This is the honest reading of the frozen recipe and is exactly the fork D5a's own note anticipated when it wrote that \"Swift's `Fatal error: ... overflow` are Runtime Safe Detection\" - that message exists only under `-Onone`, not under the frozen `-O`. No build-mode change was made to obtain a different outcome.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-04a/C",
+   "case_id": "ADV-04",
+   "variant": "C",
+   "sub_program": "ADV-04a",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-04a_C.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-04a_C.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-04a_C"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-04a_C.swift:6:15: error: arithmetic operation '0 - 1' (on type 'UInt32') results in an overflow\n 4 |     let a: UInt32 = 0\n 5 |     let b: UInt32 = 1\n 6 |     let v = a - b\n   |               `- error: arithmetic operation '0 - 1' (on type 'UInt32') results in an overflow\n 7 |     print(\"OBS=SUB:\\(v)\"); fflush(stdout)\n 8 |     print(\"ADV-END\"); fflush(stdout)\n"
+   },
+   "run": null,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 no. D1 fires: the frozen build recipe exited non-zero. D1a no: build output matches no toolchain_failure_markers regex. D1b-i fires: the concatenation of build stdout+stderr matches this case's lexicon L_OVERFLOW. Class Compile-time Detection, stage Compile-time Detection (100). First diagnostic verbatim: \"ADV-04a_C.swift:6:15: error: arithmetic operation '0 - 1' (on type 'UInt32') results in an overflow\". The hazardous value is a plain manifest constant, so the compiler could and did see it; the matching R variant, where the value arrives from stdin, is not caught at build time - which is precisely what the C/R pair exists to separate.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-04a/R",
+   "case_id": "ADV-04",
+   "variant": "R",
+   "sub_program": "ADV-04a",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-04a_R.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-04a_R.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-04a_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-04a_R"
+    ],
+    "exit": -5,
+    "stdout": "ADV-START\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    -5,
+    -5,
+    -5,
+    -5,
+    -5
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none. Swift's `String -> Int64/Int/UInt32/Int32/Double` conversion returns an Optional, and the type system FORCES the author to write something to get the value out; the program uses `readLine()!` and `T(text)!`, which is rule A3's enumerated shortest direct-use form for Swift. No failure channel is inspected. Recorded because the forced `!` is itself a language property: Swift will not let an un-unwrapped Optional be used as a number.",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "classification_reasoning": "The frozen recipe is `swiftc -O`. Under -O the Swift standard library's trapping preconditions compile to a bare `brk`/trap instruction with NO runtime message: the process dies on SIGTRAP (wait status 133 = 128+5) and writes ZERO bytes to stderr. The check itself is still present and still fires before the invalid value is used - it is `-Ounchecked`, not `-O`, that removes the check - but the diagnostic text is stripped. D0 no (no TM3a determination). D1 no (build exit 0). D2 no (artifact produced). D3 no (`ADV-START` IS present on stdout). D4 no (terminated in well under 60s). D5 fires: `ADV-START` present and the process died by signal 5 (SIGTRAP). D5a: the concatenation of stdout+stderr is exactly `ADV-START\\n` and matches NO pattern of this case's hazard_diagnostic_lexicon (L_OVERFLOW). D5a_prime: it matches NO fragment of global_hazard_diagnostic_lexicon.fragments either - verified mechanically by regex over the captured bytes. Therefore D5b fires: Crash (20). Per crash_vs_runtime_safe_detection_summary, Runtime Safe Detection requires that the runtime SAY what the hazard was; here it said nothing at all. This is the honest reading of the frozen recipe and is exactly the fork D5a's own note anticipated when it wrote that \"Swift's `Fatal error: ... overflow` are Runtime Safe Detection\" - that message exists only under `-Onone`, not under the frozen `-O`. No build-mode change was made to obtain a different outcome. The silent outcome this sub-program watches for, SUB:4294967295, did NOT occur: Swift's UInt32 subtraction traps rather than wrapping. The trap is simply mute under -O.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-04b/C",
+   "case_id": "ADV-04",
+   "variant": "C",
+   "sub_program": "ADV-04b",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-04b_C.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-04b_C.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-04b_C"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-04b_C"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=CMP:true\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": "CMP:true",
+   "reached_observation_point": true,
+   "forced_error_handling": "none",
+   "class": "Prevented By Construction",
+   "earliest_observable_stage": "Prevented By Construction",
+   "classification_reasoning": "D0 no. D1 no (build exit 0). D2 no. D3 no (`ADV-START` present). D4 no. D5 no (process exited 0). D6 fires. D6a no (`OBS=` and `ADV-END` both present). D6b FIRES: obs_payload `CMP:true` equals this sub-program's reference_observation `CMP:true` byte for byte, and that reference is a concrete value, not the DIAGNOSED_FAILURE sentinel. Class and stage: Prevented By Construction (100). EVIDENCE per outcome_classes.prevented_by_construction.evidence_requirement: the source shows the hazardous operation was genuinely attempted - `let s: Int32 = -1`, `let u: UInt32 = 1`, `let v = s < u` with no cast, widening or helper on either operand, exactly as construction step 2 requires - and the payload matches the reference exactly. MECHANISM: Swift does not apply C-style usual arithmetic conversions. It provides heterogeneous comparison operators over `BinaryInteger` (`static func < <Other: BinaryInteger>(lhs: Self, rhs: Other) -> Bool`), which compare the two operands by their MATHEMATICAL values rather than by a common representation. -1 < 1 is therefore answered `true`, the mathematically correct answer. This is a real safety property of the language, not a detection, which is why the registered `Prevented By Construction` label rather than `Compile-time Detection` is recorded.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-04b/R",
+   "case_id": "ADV-04",
+   "variant": "R",
+   "sub_program": "ADV-04b",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-04b_R.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-04b_R.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-04b_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-04b_R"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=CMP:true\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": "CMP:true",
+   "reached_observation_point": true,
+   "forced_error_handling": "none. Swift's `String -> Int64/Int/UInt32/Int32/Double` conversion returns an Optional, and the type system FORCES the author to write something to get the value out; the program uses `readLine()!` and `T(text)!`, which is rule A3's enumerated shortest direct-use form for Swift. No failure channel is inspected. Recorded because the forced `!` is itself a language property: Swift will not let an un-unwrapped Optional be used as a number.",
+   "class": "Prevented By Construction",
+   "earliest_observable_stage": "Prevented By Construction",
+   "classification_reasoning": "D0 no. D1 no (build exit 0). D2 no. D3 no (`ADV-START` present). D4 no. D5 no (process exited 0). D6 fires. D6a no (`OBS=` and `ADV-END` both present). D6b FIRES: obs_payload `CMP:true` equals this sub-program's reference_observation `CMP:true` byte for byte, and that reference is a concrete value, not the DIAGNOSED_FAILURE sentinel. Class and stage: Prevented By Construction (100). EVIDENCE per outcome_classes.prevented_by_construction.evidence_requirement: the source shows the hazardous operation was genuinely attempted - `let s: Int32 = -1`, `let u: UInt32 = 1`, `let v = s < u` with no cast, widening or helper on either operand, exactly as construction step 2 requires - and the payload matches the reference exactly. MECHANISM: Swift does not apply C-style usual arithmetic conversions. It provides heterogeneous comparison operators over `BinaryInteger` (`static func < <Other: BinaryInteger>(lhs: Self, rhs: Other) -> Bool`), which compare the two operands by their MATHEMATICAL values rather than by a common representation. -1 < 1 is therefore answered `true`, the mathematically correct answer. This is a real safety property of the language, not a detection, which is why the registered `Prevented By Construction` label rather than `Compile-time Detection` is recorded. The R variant confirms this is not constant folding: both operands arrive from stdin and the answer is still `true`.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-05/C",
+   "case_id": "ADV-05",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-05_C.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-05_C.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-05_C"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-05_C.swift:5:13: error: invalid conversion: '1e30' overflows 'Int32'\n 3 |     print(\"ADV-START\"); fflush(stdout)\n 4 |     let d: Double = 1e30\n 5 |     let v = Int32(d)\n   |             `- error: invalid conversion: '1e30' overflows 'Int32'\n 6 |     print(\"OBS=V:\\(v)\"); fflush(stdout)\n 7 |     print(\"ADV-END\"); fflush(stdout)\n"
+   },
+   "run": null,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 no. D1 fires: the frozen build recipe exited non-zero. D1a no: build output matches no toolchain_failure_markers regex. D1b-i fires: the concatenation of build stdout+stderr matches this case's lexicon L_NARROW and L_OVERFLOW (the token `overflows`). Class Compile-time Detection, stage Compile-time Detection (100). First diagnostic verbatim: \"ADV-05_C.swift:5:13: error: invalid conversion: '1e30' overflows 'Int32'\". The hazardous value is a plain manifest constant, so the compiler could and did see it; the matching R variant, where the value arrives from stdin, is not caught at build time - which is precisely what the C/R pair exists to separate.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-05/R",
+   "case_id": "ADV-05",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-05_R.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-05_R.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-05_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-05_R"
+    ],
+    "exit": -5,
+    "stdout": "ADV-START\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    -5,
+    -5,
+    -5,
+    -5,
+    -5
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none. Swift's `String -> Int64/Int/UInt32/Int32/Double` conversion returns an Optional, and the type system FORCES the author to write something to get the value out; the program uses `readLine()!` and `T(text)!`, which is rule A3's enumerated shortest direct-use form for Swift. No failure channel is inspected. Recorded because the forced `!` is itself a language property: Swift will not let an un-unwrapped Optional be used as a number.",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "classification_reasoning": "The frozen recipe is `swiftc -O`. Under -O the Swift standard library's trapping preconditions compile to a bare `brk`/trap instruction with NO runtime message: the process dies on SIGTRAP (wait status 133 = 128+5) and writes ZERO bytes to stderr. The check itself is still present and still fires before the invalid value is used - it is `-Ounchecked`, not `-O`, that removes the check - but the diagnostic text is stripped. D0 no (no TM3a determination). D1 no (build exit 0). D2 no (artifact produced). D3 no (`ADV-START` IS present on stdout). D4 no (terminated in well under 60s). D5 fires: `ADV-START` present and the process died by signal 5 (SIGTRAP). D5a: the concatenation of stdout+stderr is exactly `ADV-START\\n` and matches NO pattern of this case's hazard_diagnostic_lexicon (L_NARROW, L_OVERFLOW, float-cast-overflow). D5a_prime: it matches NO fragment of global_hazard_diagnostic_lexicon.fragments either - verified mechanically by regex over the captured bytes. Therefore D5b fires: Crash (20). Per crash_vs_runtime_safe_detection_summary, Runtime Safe Detection requires that the runtime SAY what the hazard was; here it said nothing at all. This is the honest reading of the frozen recipe and is exactly the fork D5a's own note anticipated when it wrote that \"Swift's `Fatal error: ... overflow` are Runtime Safe Detection\" - that message exists only under `-Onone`, not under the frozen `-O`. No build-mode change was made to obtain a different outcome. None of the silent outcomes this case watches for (saturation to 2147483647 or -2147483648, modular reduction to 0) occurred: Swift's `Int32(Double)` initializer has a live precondition under -O and refuses. The refusal is mute.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-06/R",
+   "case_id": "ADV-06",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-06_R.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-06_R.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-06_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-06_R"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=MAX:3.000000|SELFEQ:false\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": "MAX:3.000000|SELFEQ:false",
+   "reached_observation_point": true,
+   "forced_error_handling": "none. Swift's `String -> Int64/Int/UInt32/Int32/Double` conversion returns an Optional, and the type system FORCES the author to write something to get the value out; the program uses `readLine()!` and `T(text)!`, which is rule A3's enumerated shortest direct-use form for Swift. No failure channel is inspected. Recorded because the forced `!` is itself a language property: Swift will not let an un-unwrapped Optional be used as a number.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 no. D1 no (build exit 0). D2 no. D3 no. D4 no. D5 no (exited 0). D6a no (OBS= and ADV-END present). D6b no: the reference_observation for this case is the sentinel DIAGNOSED_FAILURE, so D6b cannot fire by its own second condition. D6c: the plausible_domain_predicate regex ^MAX:-?(0|[1-9][0-9]*)\\.[0-9]{6}\\|SELFEQ:(true|false)$ MATCHES the payload `MAX:3.000000|SELFEQ:false`, so D6c-i does not fire and D6c-ii sends us to D7. D7a no: all 5 primary runs produced a byte-identical OBS line. D7b no: the frozen Swift secondary configuration `swiftc -Onone -g` was built and run and produced the IDENTICAL payload `MAX:3.000000|SELFEQ:false` with exit 0 and empty stderr - neither a divergent payload nor any report naming undefined/illegal/erroneous behaviour. D7c no: Swift's `Double` is IEEE 754 binary64 and the behaviour here is fully DEFINED - every ordered comparison with NaN is false - so no clause declares it undefined, unspecified or illegal. D7d therefore fires: Silent Bug (0). normative_status: `defined` (IEEE 754-2008 / Swift `FloatingPoint`, ordered comparisons involving NaN return false; `==` on NaN returns false). This is exactly the outcome the case's silent_transformation_watch names: a NaN entered the data set, every comparison against it was false so the reduction skipped it, and the program reported MAX:3.000000 - a maximum of 3 over a data set containing an invalid element - with nothing in the output indicating that an element was silently ignored. SELFEQ:false is recorded as evidence that the NaN was really there, but it does not affect plausibility and a real consumer of `MAX` would never see it.",
+   "silent_transformation": true
+  },
+  {
+   "case_variant_id": "ADV-07/R",
+   "case_id": "ADV-07",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-07_R.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-07_R.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-07_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-07_R"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=MEAN:inf|DIFF:nan\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": "MEAN:inf|DIFF:nan",
+   "reached_observation_point": true,
+   "forced_error_handling": "none. Swift's `String -> Int64/Int/UInt32/Int32/Double` conversion returns an Optional, and the type system FORCES the author to write something to get the value out; the program uses `readLine()!` and `T(text)!`, which is rule A3's enumerated shortest direct-use form for Swift. No failure channel is inspected. Recorded because the forced `!` is itself a language property: Swift will not let an un-unwrapped Optional be used as a number.",
+   "class": "Output Verification",
+   "earliest_observable_stage": "Output Verification",
+   "classification_reasoning": "D0 no. D1 no. D2 no. D3 no. D4 no. D5 no (exited 0). D6a no. D6b no (reference is the DIAGNOSED_FAILURE sentinel). D6c fires. The plausible_domain_predicate requires BOTH fields to render as ordinary finite decimals: ^MEAN:-?(0|[1-9][0-9]*)\\.[0-9]{6}\\|DIFF:-?(0|[1-9][0-9]*)\\.[0-9]{6}$. The payload is `MEAN:inf|DIFF:nan`, which fails the regex on both fields. D6c-i fires: Output Verification (40). D7 is never reached, so no silent-bug question arises. Swift did NOT trap on float division by zero (h = 1.0/0.0 produced +infinity, per IEEE 754) and it did NOT saturate to a large finite value - saturation is the dangerous outcome this case exists to catch and it did not occur. The infinity propagated through the mean and the self-subtraction produced NaN, and Swift's `String(format:\"%.6f\")` rendered them as the non-numeric texts `inf` and `nan`. The answer is wrong but it announces itself, which is the honest middle outcome the case describes.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-08/C",
+   "case_id": "ADV-08",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-08_C.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-08_C.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-08_C"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-08_C.swift:6:15: error: division by zero\n 4 |     let a: Int64 = 7\n 5 |     let b: Int64 = 0\n 6 |     let q = a / b\n   |               `- error: division by zero\n 7 |     print(\"OBS=QUOT:\\(q)\"); fflush(stdout)\n 8 |     print(\"ADV-END\"); fflush(stdout)\n"
+   },
+   "run": null,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 no. D1 fires: the frozen build recipe exited non-zero. D1a no: build output matches no toolchain_failure_markers regex. D1b-i fires: the concatenation of build stdout+stderr matches this case's lexicon L_DIVZERO (the phrase `division by zero`). Class Compile-time Detection, stage Compile-time Detection (100). First diagnostic verbatim: \"ADV-08_C.swift:6:15: error: division by zero\". The hazardous value is a plain manifest constant, so the compiler could and did see it; the matching R variant, where the value arrives from stdin, is not caught at build time - which is precisely what the C/R pair exists to separate.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-08/R",
+   "case_id": "ADV-08",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-08_R.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-08_R.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-08_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-08_R"
+    ],
+    "exit": -5,
+    "stdout": "ADV-START\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    -5,
+    -5,
+    -5,
+    -5,
+    -5
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none. Swift's `String -> Int64/Int/UInt32/Int32/Double` conversion returns an Optional, and the type system FORCES the author to write something to get the value out; the program uses `readLine()!` and `T(text)!`, which is rule A3's enumerated shortest direct-use form for Swift. No failure channel is inspected. Recorded because the forced `!` is itself a language property: Swift will not let an un-unwrapped Optional be used as a number.",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "classification_reasoning": "The frozen recipe is `swiftc -O`. Under -O the Swift standard library's trapping preconditions compile to a bare `brk`/trap instruction with NO runtime message: the process dies on SIGTRAP (wait status 133 = 128+5) and writes ZERO bytes to stderr. The check itself is still present and still fires before the invalid value is used - it is `-Ounchecked`, not `-O`, that removes the check - but the diagnostic text is stripped. D0 no (no TM3a determination). D1 no (build exit 0). D2 no (artifact produced). D3 no (`ADV-START` IS present on stdout). D4 no (terminated in well under 60s). D5 fires: `ADV-START` present and the process died by signal 5 (SIGTRAP). D5a: the concatenation of stdout+stderr is exactly `ADV-START\\n` and matches NO pattern of this case's hazard_diagnostic_lexicon (L_DIVZERO). D5a_prime: it matches NO fragment of global_hazard_diagnostic_lexicon.fragments either - verified mechanically by regex over the captured bytes. Therefore D5b fires: Crash (20). Per crash_vs_runtime_safe_detection_summary, Runtime Safe Detection requires that the runtime SAY what the hazard was; here it said nothing at all. This is the honest reading of the frozen recipe and is exactly the fork D5a's own note anticipated when it wrote that \"Swift's `Fatal error: ... overflow` are Runtime Safe Detection\" - that message exists only under `-Onone`, not under the frozen `-O`. No build-mode change was made to obtain a different outcome. The worst outcome the case names - producing QUOT:0 and continuing - did not occur; Swift refused the division. But because -O strips the message, the operator is told nothing about what happened, which is the distinction D5b draws.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-09/C",
+   "case_id": "ADV-09",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-09_C.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-09_C.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-09_C"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-09_C"
+    ],
+    "exit": -5,
+    "stdout": "ADV-START\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    -5,
+    -5,
+    -5,
+    -5,
+    -5
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "classification_reasoning": "The frozen recipe is `swiftc -O`. Under -O the Swift standard library's trapping preconditions compile to a bare `brk`/trap instruction with NO runtime message: the process dies on SIGTRAP (wait status 133 = 128+5) and writes ZERO bytes to stderr. The check itself is still present and still fires before the invalid value is used - it is `-Ounchecked`, not `-O`, that removes the check - but the diagnostic text is stripped. D0 no (no TM3a determination). D1 no (build exit 0). D2 no (artifact produced). D3 no (`ADV-START` IS present on stdout). D4 no (terminated in well under 60s). D5 fires: `ADV-START` present and the process died by signal 5 (SIGTRAP). D5a: the concatenation of stdout+stderr is exactly `ADV-START\\n` and matches NO pattern of this case's hazard_diagnostic_lexicon (L_BOUNDS). D5a_prime: it matches NO fragment of global_hazard_diagnostic_lexicon.fragments either - verified mechanically by regex over the captured bytes. Therefore D5b fires: Crash (20). Per crash_vs_runtime_safe_detection_summary, Runtime Safe Detection requires that the runtime SAY what the hazard was; here it said nothing at all. This is the honest reading of the frozen recipe and is exactly the fork D5a's own note anticipated when it wrote that \"Swift's `Fatal error: ... overflow` are Runtime Safe Detection\" - that message exists only under `-Onone`, not under the frozen `-O`. No build-mode change was made to obtain a different outcome. The silent outcome ADV-09 is designed to catch - a language that REDEFINES index -1 as 'the last element' and returns ELEM:50 - did NOT occur: Swift's `Array` subscript does not accept negative indices as from-the-end indices. C-variant note: swiftc -O did NOT statically reject the constant out-of-range subscript; Swift performs no compile-time array-bounds analysis, so the C and R variants behave identically here.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-09/R",
+   "case_id": "ADV-09",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-09_R.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-09_R.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-09_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-09_R"
+    ],
+    "exit": -5,
+    "stdout": "ADV-START\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    -5,
+    -5,
+    -5,
+    -5,
+    -5
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none. Swift's `String -> Int64/Int/UInt32/Int32/Double` conversion returns an Optional, and the type system FORCES the author to write something to get the value out; the program uses `readLine()!` and `T(text)!`, which is rule A3's enumerated shortest direct-use form for Swift. No failure channel is inspected. Recorded because the forced `!` is itself a language property: Swift will not let an un-unwrapped Optional be used as a number.",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "classification_reasoning": "The frozen recipe is `swiftc -O`. Under -O the Swift standard library's trapping preconditions compile to a bare `brk`/trap instruction with NO runtime message: the process dies on SIGTRAP (wait status 133 = 128+5) and writes ZERO bytes to stderr. The check itself is still present and still fires before the invalid value is used - it is `-Ounchecked`, not `-O`, that removes the check - but the diagnostic text is stripped. D0 no (no TM3a determination). D1 no (build exit 0). D2 no (artifact produced). D3 no (`ADV-START` IS present on stdout). D4 no (terminated in well under 60s). D5 fires: `ADV-START` present and the process died by signal 5 (SIGTRAP). D5a: the concatenation of stdout+stderr is exactly `ADV-START\\n` and matches NO pattern of this case's hazard_diagnostic_lexicon (L_BOUNDS). D5a_prime: it matches NO fragment of global_hazard_diagnostic_lexicon.fragments either - verified mechanically by regex over the captured bytes. Therefore D5b fires: Crash (20). Per crash_vs_runtime_safe_detection_summary, Runtime Safe Detection requires that the runtime SAY what the hazard was; here it said nothing at all. This is the honest reading of the frozen recipe and is exactly the fork D5a's own note anticipated when it wrote that \"Swift's `Fatal error: ... overflow` are Runtime Safe Detection\" - that message exists only under `-Onone`, not under the frozen `-O`. No build-mode change was made to obtain a different outcome. The silent outcome ADV-09 is designed to catch - a language that REDEFINES index -1 as 'the last element' and returns ELEM:50 - did NOT occur: Swift's `Array` subscript does not accept negative indices as from-the-end indices.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-10/C",
+   "case_id": "ADV-10",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-10_C.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-10_C.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-10_C"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-10_C"
+    ],
+    "exit": -5,
+    "stdout": "ADV-START\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    -5,
+    -5,
+    -5,
+    -5,
+    -5
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "classification_reasoning": "The frozen recipe is `swiftc -O`. Under -O the Swift standard library's trapping preconditions compile to a bare `brk`/trap instruction with NO runtime message: the process dies on SIGTRAP (wait status 133 = 128+5) and writes ZERO bytes to stderr. The check itself is still present and still fires before the invalid value is used - it is `-Ounchecked`, not `-O`, that removes the check - but the diagnostic text is stripped. D0 no (no TM3a determination). D1 no (build exit 0). D2 no (artifact produced). D3 no (`ADV-START` IS present on stdout). D4 no (terminated in well under 60s). D5 fires: `ADV-START` present and the process died by signal 5 (SIGTRAP). D5a: the concatenation of stdout+stderr is exactly `ADV-START\\n` and matches NO pattern of this case's hazard_diagnostic_lexicon (L_BOUNDS). D5a_prime: it matches NO fragment of global_hazard_diagnostic_lexicon.fragments either - verified mechanically by regex over the captured bytes. Therefore D5b fires: Crash (20). Per crash_vs_runtime_safe_detection_summary, Runtime Safe Detection requires that the runtime SAY what the hazard was; here it said nothing at all. This is the honest reading of the frozen recipe and is exactly the fork D5a's own note anticipated when it wrote that \"Swift's `Fatal error: ... overflow` are Runtime Safe Detection\" - that message exists only under `-Onone`, not under the frozen `-O`. No build-mode change was made to obtain a different outcome. Neither of the silent outcomes the case names occurred: Swift returned no absent-value marker and no zero-filled element; the bounds check fired. C-variant note: swiftc -O did NOT statically reject the constant out-of-range subscript; Swift performs no compile-time array-bounds analysis, so the C and R variants behave identically here.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-10/R",
+   "case_id": "ADV-10",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-10_R.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-10_R.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-10_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-10_R"
+    ],
+    "exit": -5,
+    "stdout": "ADV-START\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    -5,
+    -5,
+    -5,
+    -5,
+    -5
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none. Swift's `String -> Int64/Int/UInt32/Int32/Double` conversion returns an Optional, and the type system FORCES the author to write something to get the value out; the program uses `readLine()!` and `T(text)!`, which is rule A3's enumerated shortest direct-use form for Swift. No failure channel is inspected. Recorded because the forced `!` is itself a language property: Swift will not let an un-unwrapped Optional be used as a number.",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "classification_reasoning": "The frozen recipe is `swiftc -O`. Under -O the Swift standard library's trapping preconditions compile to a bare `brk`/trap instruction with NO runtime message: the process dies on SIGTRAP (wait status 133 = 128+5) and writes ZERO bytes to stderr. The check itself is still present and still fires before the invalid value is used - it is `-Ounchecked`, not `-O`, that removes the check - but the diagnostic text is stripped. D0 no (no TM3a determination). D1 no (build exit 0). D2 no (artifact produced). D3 no (`ADV-START` IS present on stdout). D4 no (terminated in well under 60s). D5 fires: `ADV-START` present and the process died by signal 5 (SIGTRAP). D5a: the concatenation of stdout+stderr is exactly `ADV-START\\n` and matches NO pattern of this case's hazard_diagnostic_lexicon (L_BOUNDS). D5a_prime: it matches NO fragment of global_hazard_diagnostic_lexicon.fragments either - verified mechanically by regex over the captured bytes. Therefore D5b fires: Crash (20). Per crash_vs_runtime_safe_detection_summary, Runtime Safe Detection requires that the runtime SAY what the hazard was; here it said nothing at all. This is the honest reading of the frozen recipe and is exactly the fork D5a's own note anticipated when it wrote that \"Swift's `Fatal error: ... overflow` are Runtime Safe Detection\" - that message exists only under `-Onone`, not under the frozen `-O`. No build-mode change was made to obtain a different outcome. Neither of the silent outcomes the case names occurred: Swift returned no absent-value marker and no zero-filled element; the bounds check fired.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-11/R",
+   "case_id": "ADV-11",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-11_R.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-11_R.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-11_R"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-11_R"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=ALLOC:4611686018427387904|FIRST:1\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": "ALLOC:4611686018427387904|FIRST:1",
+   "reached_observation_point": true,
+   "forced_error_handling": "none. Swift's `String -> Int64/Int/UInt32/Int32/Double` conversion returns an Optional, and the type system FORCES the author to write something to get the value out; the program uses `readLine()!` and `T(text)!`, which is rule A3's enumerated shortest direct-use form for Swift. No failure channel is inspected. Recorded because the forced `!` is itself a language property: Swift will not let an un-unwrapped Optional be used as a number. Additionally, `Array(repeating:count:)` takes an `Int` count while the case's parse_as is fixed_width_i64, so one `Int(n)` conversion is present as type plumbing; on this 64-bit host it is exact and non-trapping for 2^62 and is not a guard or check.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 no. D1 no (build exit 0). D2 no. D3 no. D4 no - the program did NOT time out; it completed in milliseconds and never approached the host's memory. D5 no (exited 0). D6a no (OBS= and ADV-END both present). D6b no (reference is the DIAGNOSED_FAILURE sentinel). D6c: the predicate ^ALLOC:(0|[1-9][0-9]*)\\|FIRST:-?(0|[1-9][0-9]*)$ MATCHES `ALLOC:4611686018427387904|FIRST:1`, so D6c-ii sends us to D7. D7a no: all 5 primary runs produced a byte-identical OBS line. D7b NO, and this needs stating carefully. The frozen Swift secondary configuration `swiftc -Onone -g` builds fine but its run DIES ON SIGBUS (signal 10) after printing only `ADV-START`, with EMPTY stderr. Under D7b.no_observation_clause a secondary configuration that terminates before writing its OBS line does not satisfy the different-payload condition ('no payload' is not a different payload), and it can satisfy the first condition only by naming undefined/illegal/erroneous behaviour - it named nothing at all. D7b therefore does not fire. The divergence is recorded here and belongs in the published secondary-configuration table. D7c no: no clause of Swift's specification or standard-library documentation declares `Array(repeating:count:)` with this count to be undefined behaviour; `Array(repeating:count:)` is a safe API with a documented precondition, and the -O build simply fails to enforce it. normative_status: no_citation_found. D7d therefore fires: Silent Bug (0). WHAT ACTUALLY HAPPENED, and why this is the most serious finding in this chunk: the program asked for 4611686018427387904 (2^62) elements of 8 bytes each. That is 2^65 bytes, which does not fit in a 64-bit size_t; the byte-count computation wraps to 0, Swift allocates an essentially empty buffer, and then REPORTS `count` as 4611686018427387904. The write to index 0 and the read back both 'succeed' (out-of-bounds into heap slack) and the program prints ALLOC:4611686018427387904|FIRST:1 and exits 0, claiming to hold a four-exabyte array. An impossible allocation was silently transformed into an apparently valid result and execution continued - the exact pattern spec 17 singles out - and it is worse than the clamping the case's silent_transformation_watch predicted, because the reported length is not even a small number a caller might notice.",
+   "silent_transformation": true
+  },
+  {
+   "case_variant_id": "ADV-12",
+   "case_id": "ADV-12",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-12.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-12.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-12"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-12.swift:4:9: warning: variable 'x' was never mutated; consider changing to 'let' constant\n2 | func main() {\n3 |     print(\"ADV-START\"); fflush(stdout)\n4 |     var x: Int64\n  |         `- warning: variable 'x' was never mutated; consider changing to 'let' constant\n5 |     print(\"OBS=VAL:\\(x)\"); fflush(stdout)\n6 |     print(\"ADV-END\"); fflush(stdout)\n\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-12.swift:5:22: error: variable 'x' used before being initialized\n2 | func main() {\n3 |     print(\"ADV-START\"); fflush(stdout)\n4 |     var x: Int64\n  |         `- note: variable defined here\n5 |     print(\"OBS=VAL:\\(x)\"); fflush(stdout)\n  |                      `- error: variable 'x' used before being initialized\n6 |     print(\"ADV-END\"); fflush(stdout)\n7 | }\n"
+   },
+   "run": null,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 no: the TM3 determination for Swift is NOT TM3a. Swift does provide a declaration form that omits the initial value (`var x: Int64`), so the hazard is expressible; the language then enforces definite assignment. The case's own notes fix this route: 'If the language enforces definite assignment by rejecting the program, that is Compile-time Detection at D1b.' D1 fires: build exit 1. D1a no: no toolchain_failure_markers match. D1b-i does NOT fire: the build output matches no pattern of this case's lexicon L_UNINIT and no fragment of the global lexicon - verified mechanically. Swift words it 'used before being initialized', which the frozen L_UNINIT alternatives ('uninitialized', 'not initialized', 'may not have been initialized', 'use of possibly-uninitialized', 'definite assignment') do not match. D1b-ii therefore applies. D1b-ii-1 no: the A6 precondition was re-verified against the construction - a local of the fixed_width_i64 type is declared with the plainest form that omits the initial value, it is read and rendered, and the program contains NO assignment to it anywhere. D1b-ii-2 FIRES: construction_line_range is lines 4-5 of ADV-12.swift (line 4 `var x: Int64` = construction step 1; line 5 the read and render = steps 2-3). The first diagnostic is at line 4 (warning) and the first ERROR is at line 5 - both inside the range. Class Compile-time Detection, stage Compile-time Detection (100), flag `compile_rejection_unmatched_lexicon`; this row must appear in the published 'unmatched compile rejections' table. First error verbatim: \"ADV-12.swift:5:22: error: variable 'x' used before being initialized\". A prior warning is also emitted verbatim: \"ADV-12.swift:4:9: warning: variable 'x' was never mutated; consider changing to 'let' constant\". Both carry file, line and column.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-13",
+   "case_id": "ADV-13",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-13.swift",
+   "build": {
+    "cmd": [
+     "swiftc",
+     "-O",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/swift/ADV-13.swift",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-13"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/advswift/bin/ADV-13"
+    ],
+    "exit": -6,
+    "stdout": "ADV-START\n",
+    "stderr": "Could not cast value of type 'main.A' (0x10032c090) to 'main.B' (0x10032c0b8).\n",
+    "timed_out": false
+   },
+   "run_exits_all_5": [
+    -6,
+    -6,
+    -6,
+    -6,
+    -6
+   ],
+   "obs_identical_across_runs": true,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "classification_reasoning": "D0 no. D1 no: the build EXITED 0. Swift's type system does not reject `bridge as! B` where `bridge` is of the `Any` (most_general_reference) binding, so there is no compile-time detection here. D2 no. D3 no (`ADV-START` present on stdout). D4 no. D5 fires: `ADV-START` present and the process died by signal 6 (SIGABRT, wait status 134). D5a FIRES: stderr contains \"Could not cast value of type 'main.A' (0x10032c090) to 'main.B' (0x10032c0b8).\" which matches this case's lexicon L_CAST (the word-anchored `\\bcast`). Class Runtime Safe Detection, stage Runtime Safe Detection (75). Per D5a's own note a fatal signal does not by itself force Crash: the runtime noticed this specific hazard, named both the actual and the requested type, and stopped before the field was read through the wrong type. The strongest silent outcome in the whole set - V:42 produced by a compile-time-only cast assertion - did NOT occur in Swift: `as!` is a dynamically checked forced cast. Note the contrast with every trapping case in this chunk: here the message survives -O because it is produced by the dynamic-cast runtime entry point, not by a stripped stdlib precondition.",
+   "silent_transformation": false
+  }
+ ]
+}

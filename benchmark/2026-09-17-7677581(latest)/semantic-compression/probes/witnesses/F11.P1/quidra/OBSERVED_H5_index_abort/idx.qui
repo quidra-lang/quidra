@@ -1,0 +1,6 @@
+int element(int i)
+    int[] xs = [1, 2, 3]
+    int e = xs[i]
+    return e
+
+print(element(7))

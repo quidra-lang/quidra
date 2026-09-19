@@ -1,0 +1,1 @@
+rustc: error[E0597]: x does not live long enough; argument requires that x is borrowed for 'static

@@ -1,0 +1,24 @@
+string | error next_line()
+    auto received = try input()
+    match received
+        string text
+            return text
+        none
+            return error("no line")
+
+void | error run()
+    float a = try float.parse(try next_line())
+    float b = try float.parse(try next_line())
+    float m = a / b
+    float[] values = [3.0, m, 1.0]
+    float best = values[0]
+    for i in range(1, 3)
+        if values[i] > best
+            best = values[i]
+    bool selfeq = m == m
+    print("OBS=MAX:{best:frac=6}|SELFEQ:{selfeq}")
+    return void
+
+print("ADV-START")
+run()
+print("ADV-END")

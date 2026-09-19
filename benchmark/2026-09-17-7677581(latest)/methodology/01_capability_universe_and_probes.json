@@ -1,0 +1,1187 @@
+{
+  "document_id": "01_capability_universe_and_probes",
+  "title": "FROZEN Capability Universe and Fixed Probe Set — Primary Evaluation 1 (Semantic Compression)",
+  "spec_authority": "benchmark/2026-09-17-7677581/prompt.md sections 6.1.1-6.1.7, 26, 32",
+  "benchmark_run_id": "2026-09-17-7677581",
+  "frozen": true,
+  "frozen_date": "2026-09-17",
+  "status": "FROZEN (pre-measurement). No probe may be added, removed, reworded, or re-pointed after any measurement is taken, and no capability may ever be deleted because a language (including Quidra) lacks it. Before measurement, a defect found by pre_measurement_validation or by adversarial audit IS corrected under amendment_procedure: the correction is numbered and dated in methodology/CORRECTIONS.md with the superseded text preserved verbatim, and any affected measurement is re-taken. Only changes made after results are observed, or made to improve any language's position, are prohibited (spec 10.4, 32).",
+  "provenance_and_fairness_statement": {
+    "derivation": "Corrected 2026-09-17 (remediation R-4); the superseded claim is preserved in remediation_changelog. The 20 capability families are taken verbatim from spec section 6.1.2 and the semantic-fact inventory verbatim from spec section 6.1.3; neither was chosen here. The SUBDIVISION of each family into probes was, however, authored with knowledge of the subject language, and the earlier claim that no Quidra documentation or example was consulted is withdrawn as untrue: probes F04.P1, F04.P2, F05.P2 and F15.P1 as originally written reproduced the shapes, identifiers and constants of Quidra's own README examples for its design laws 1, 2 and 3. Those four probes have had their identifiers and constants rewritten away from the README's, and each affected family has been paired with a counterpart probe chosen to exercise the capability the subject language's design excludes, so the family is scored in both directions. The pairings are: family 4 — F04.P1/F04.P2 (writable alias, non-copying view) paired with F04.P3 (heap object identity); family 5 — F05.P2 (explicit writable-alias passing) paired with F05.P3 (function/closure value passed as an argument); family 14 — F14.P1/F14.P2 (closed alternative set, exhaustive dispatch) paired with F14.P3 (new alternative introduced from a separate unit); family 15 — F15.P1/F15.P2 (compile-time parametric polymorphism) paired with F15.P3 (runtime dispatch through an abstract element type). Each counterpart is a capability that six or more of the ten comparison languages provide as a first-class standard feature, and each is scored by the same rubric text and tie-break question as every other probe.",
+    "quidra_is_the_subject_not_the_designer": "Quidra is the language under evaluation, not the source of the measuring instrument. The benchmark's purpose is NOT to make Quidra score well.",
+    "capabilities_quidra_may_lack_are_retained": "Families 2 (uninitialized state), 4 (writable aliasing AND heap object identity), 5 (explicit writable-alias passing AND function/closure values), 8 (explicit overflow/div-zero behavior), 14 (closed sum types AND open extension from a separate unit), 15 (declaration-site-constrained generics AND runtime dispatch through an abstract element type), 17 (deterministic destruction), 19 (concurrency), and 20 (FFI, both directions) are retained in full regardless of whether any particular language supports them. A language that supports them scores higher on Capability Coverage; a language that does not is lowered, per spec 26. This applies to Quidra exactly as to the other nine.",
+    "languages_may_beat_quidra": "Nothing in this probe set is constructed so that any one language must win. Probes reward explicit, locally determinate expression of the named semantics whichever language provides it, and penalize hidden behavior whichever language has it.",
+    "no_post_hoc_redesign": "Per spec 6.1.7 and 32, this probe set must not be redesigned in response to observed rankings. No ranking has been observed (see no_results_observed_at_remediation). Corrections made before any measurement follow amendment_procedure and are logged in CORRECTIONS.md; corrections proposed after a score exists are recorded as errata in the results and never applied here."
+  },
+  "fixed_comparison_languages": [
+    "Quidra",
+    "Python",
+    "C++",
+    "Rust",
+    "Go",
+    "Java",
+    "TypeScript",
+    "Kotlin",
+    "Swift",
+    "Zig"
+  ],
+  "fixed_column_order_note": "All downstream tables must use exactly the order above.",
+  "toolchain_binding": {
+    "source": "benchmark/2026-09-17-7677581/environment/environment.json -> frozen_toolchain_recipes",
+    "rule": "A probe fragment counts as expressible ONLY if it builds and/or runs under the frozen recipe for that language, with no added third-party dependency and no benchmark-specific code generation step.",
+    "recipes": {
+      "Quidra": {
+        "build": "quidra build FILE.qui -o BIN",
+        "run": "./BIN",
+        "interpreter_run": "quidra run FILE.qui"
+      },
+      "Python": {
+        "run": "python3 FILE.py"
+      },
+      "C++": {
+        "build": "clang++ -std=c++20 -O2 FILE.cpp -o BIN",
+        "run": "./BIN"
+      },
+      "Rust": {
+        "build": "rustc -O -C debug-assertions=on FILE.rs -o BIN",
+        "run": "./BIN"
+      },
+      "Go": {
+        "build": "go build -o BIN FILE.go",
+        "run": "./BIN"
+      },
+      "Java": {
+        "build": "javac -d OUT FILE.java",
+        "run": "java -cp OUT Main"
+      },
+      "TypeScript": {
+        "build": "tsc --strict --target es2022 --module nodenext FILE.ts",
+        "run": "node FILE.js"
+      },
+      "Kotlin": {
+        "build": "kotlinc FILE.kt -include-runtime -d FILE.jar",
+        "run": "java -jar FILE.jar"
+      },
+      "Swift": {
+        "build": "swiftc -O FILE.swift -o BIN",
+        "run": "./BIN"
+      },
+      "Zig": {
+        "build": "zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN",
+        "run": "./BIN"
+      }
+    },
+    "host": "Apple M2, 8 logical CPUs, 8 GiB RAM, macOS 26.4.1 arm64",
+    "toolchain_versions": "Quidra 0.2.0 | Python 3.14.5 | Apple clang 17 (C++20) | rustc 1.95.0 | go 1.26.3 | OpenJDK 26.0.1 (arm64) | tsc 7.0.2 + node 24.2.0 | kotlinc 2.3.21 | swiftc 6.2.3 | zig 0.16.0",
+    "safety_mode_clause": "Where a language exposes more than one arithmetic/bounds safety mode, the frozen Semantic Compression recipe selects the optimized CHECKED mode, because that is the only mode the evaluated Quidra build provides; the selection is a controlled variable and is recorded per language. Applied: Rust `-O -C debug-assertions=on` (optimized, overflow checks on) rather than `-O` alone, which silently turns debug assertions off; Zig `-OReleaseSafe` (optimized, signed-overflow and bounds checks on) rather than `-OReleaseFast`, which makes both undefined behavior; Swift `-O` (optimized, traps retained) and Quidra's single optimized-and-checked mode are already in this posture. C++ has no checked mode and is recorded as such — that is a language fact and is scored by metrics B and D, not by the recipe. Selecting the checked mode is NOT a P-b deviation for any language; it IS the frozen recipe. Rationale: probes F08.P1, F08.P2 and F11.P1 ask what happens at an overflow or an out-of-range index, and a recipe that answers that question differently for different languages would measure the recipe rather than the language. The same clause would be written if the subject language were Zig, Rust or Python.",
+    "typescript_strict_clause": "`--strict` (with `--target es2022 --module nodenext`) is part of the frozen TypeScript recipe, not a P-b deviation, because non-strict mode is not a production-reasonable configuration under authoring rule R2 or spec 7, and because non-strict mode erases the type-level distinction that probes F12.P1 and F12.P2 exist to measure (`let o: number | undefined = undefined; let n: number = o;` compiles clean without it). Under the previous recipe TypeScript was penalised either way: measured non-strict it lost the optionality it has, and measured strict it was forced to PARTIAL under P-b. Neither is a language fact.",
+    "multi_unit_recipes": {
+      "_purpose": "Probes F18.P2 and F14.P3 require a visibility boundary or an extension boundary between two code units. Several frozen single-file recipes cannot build two units, which is a harness limitation, not a language limitation. Spec 10.4 forbids scoring an infrastructure defect as a language failure. The augmented commands below ARE the frozen recipe for those two probes and are NOT a P-b deviation; P-e likewise does not apply to them.",
+      "C++": "clang++ -std=c++20 -O2 util.cpp FILE.cpp -o BIN",
+      "Go": "go build -o BIN ./...  (run inside a directory containing go.mod and a util/ package)",
+      "Swift": "swiftc -O util.swift FILE.swift -o BIN",
+      "Java": "javac -d OUT util/Util.java FILE.java  (run: java -cp OUT Main)",
+      "Rust": "unchanged — the frozen recipe already follows `mod`/path module references",
+      "TypeScript": "unchanged — the frozen recipe already follows module imports",
+      "Zig": "unchanged — the frozen recipe already follows @import references",
+      "Kotlin": "kotlinc util.kt FILE.kt -include-runtime -d FILE.jar",
+      "Python": "unchanged — the frozen recipe already follows module imports",
+      "Quidra": "unchanged — the frozen recipe already follows module references",
+      "infrastructure_defect_rule": "Any language forced to PARTIAL or NONE on F18.P2 or F14.P3 SOLELY by the single-file form of its recipe is an infrastructure defect under spec 10.4 and must be re-run under the multi-unit recipe before the result is reported. A language that fails these probes for a rule of the language itself (for example, a rule that forbids extending an operation set from outside its declaring unit) records NONE or PARTIAL normally, with the citation."
+    },
+    "recipes_authority": "benchmark/2026-09-17-7677581/environment/environment.json -> frozen_toolchain_recipes is the single authority. The copy inlined above is a convenience duplicate and must agree with it exactly, under the name mapping Quidra<->{quidra_native (build/run), quidra_interpreter (interpreter_run)} and lowercase<->display-cased language keys. Validation step V5 of pre_measurement_validation requires the two to be checked for agreement, and any disagreement is an instrument defect that blocks measurement. The remediated Rust, Zig and TypeScript recipes above are a COUNTERPART OBLIGATION on environment.json, which must be changed to match before any fragment is built; see counterpart_obligations."
+  },
+  "semantic_fact_kinds": {
+    "_note": "Verbatim taxonomy from spec 6.1.3. These 13 ids are the ONLY fact kinds usable anywhere in Primary Evaluation 1, for every language, in every probe.",
+    "value_vs_storage": "Whether the construct denotes a value or a named/addressable storage location.",
+    "mutability": "Whether the denoted entity (and, separately, what it refers to) can be changed after the construct.",
+    "aliasing_writable_aliasing": "Whether two names/expressions can denote the same storage, and whether writes are possible through more than one of them.",
+    "initialization_state": "Whether storage holds a defined value at this point, and if so which.",
+    "type_and_representation": "The static/dynamic type and the concrete machine or runtime representation (width, signedness, boxing, layout, reference-vs-inline).",
+    "conversion_behavior": "Whether a representation/type change occurs here and exactly what it does at the boundaries (truncate, widen, round, trap, saturate, error, reject).",
+    "possible_failure": "Whether this construct can fail, and how the failure is surfaced.",
+    "alternative_value_cases": "Which distinct alternative shapes a value may take here, and whether the set is closed and exhaustively handled.",
+    "overflow_exceptional_numeric": "Behavior at numeric limits and on exceptional numeric operands (overflow, division by zero, NaN, negative modulo, shift overflow).",
+    "allocation_copy_move_borrow_destroy": "Whether memory is allocated, whether data is copied, moved, borrowed, or destroyed at this construct.",
+    "externally_visible_side_effects": "Effects observable outside the fragment (I/O, global/shared state change, OS interaction).",
+    "control_flow_effect": "Whether control may leave, branch, suspend, resume, or not return at this construct.",
+    "lifetime_resource_effect": "When the denoted resource's lifetime ends and when its cleanup runs."
+  },
+  "authoring_rules_for_probe_fragments": {
+    "_purpose": "These rules make 10 implementers produce genuinely equivalent fragments. They are frozen and identical for all 10 languages.",
+    "R1_equivalence": "Each fragment must implement the canonical_task's OBSERVABLE behavior exactly. Two fragments in two languages are equivalent iff, given the same stated inputs, they produce the same stated outputs/effects and expose the same stated semantic commitments. A fragment that silently drops a stated sub-requirement is not equivalent and is scored PARTIAL or NONE, not FULL.",
+    "R2_idiomatic": "Write the fragment the way a competent, current, professional user of that language would write it for production code, using that language's normal conventions. Do not hand-obfuscate, do not golf, do not pad, do not add decorative annotations that a normal author would omit, and do not omit annotations a normal author would include. Where R2 leaves more than one form acceptable, R10 — not the author's judgement of idiom — selects which one is measured.",
+    "R3_minimality": "The fragment contains exactly what the canonical_task requires and nothing else: no logging, no comments, no assertions, no defensive checks, no unused declarations, no main/entry wrapper unless the canonical_task names one.",
+    "R4_fixed_identifiers": "Use exactly the identifier names given in the canonical_task. Where a language's conventions require a different case style (e.g. snake_case vs camelCase), apply that language's normal convention to the same word; do not rename the concept.",
+    "R5_measured_fragment_boundary": "Each probe declares measured_fragment. Only the text inside that boundary is counted for Semantic Density (tokens and facts), Determinacy, Locality, and Hidden Cost. Supporting context that the probe declares as 'given' or 'declared elsewhere' is NOT counted as tokens but IS counted as a non-local lookup for metric C when a fact requires consulting it.",
+    "R6_compilability": "Every fragment scored FULL or PARTIAL must be embedded in the minimal compilable/runnable program for its language and must actually build and run under the frozen recipe. The wrapper is excluded from the measured_fragment. A fragment that does not build is NONE unless the probe explicitly asks for a statically-rejected case.",
+    "R7_no_external_packages": "Standard library and language-bundled runtime only. No third-party packages, no package manager fetch, no code generation, no separate toolchain, no hand-written assembly. Compiler/runtime flags beyond the frozen recipe are permitted only under support rubric criterion P-b and force PARTIAL.",
+    "R8_one_fragment_per_probe_per_language": "Exactly 440 fragments exist in principle (44 probes x 10 languages). Probes scored NONE for a language have no fragment; that language's record for that probe carries the NONE justification instead. Each language's fragment count n_L must be published alongside its all-fragments metric figures (see support_rubric.interaction_with_quality_metrics).",
+    "R9_no_probe_substitution": "If a language cannot express a probe, record NONE with a documented reason. Do not substitute an easier task, and do not mark it N/A (see na_policy) — EXCEPT where a probe's own canonical_task explicitly names a substitution (F02.P2, F12.P1, F12.P2, F14.P1, F15.P1, F15.P2, F17.P2). In those cases write the named substitute and score PARTIAL under P-a; the substitute is never FULL. This exception exists so the fragment can still be measured by metrics A-D, not so a language can avoid the coverage cost of the missing mechanism.",
+    "R10_deterministic_form_selection": "Where more than one form satisfies R1-R3, the fragment is the form with the FEWEST TOKENS under the frozen tokenizer of methodology 02. Ties are broken by the form that appears first in the language's official reference or standard-library documentation for that operation. Every alternative form considered must be recorded in the probe's evidence record together with its token count and the documentation citation, so a reviewer can verify the selection mechanically. A canonical_task's OWN explicit preference order (F08.P1, F08.P2, F10.P1) overrides R10; R10 then selects only among the forms that preference order leaves equally acceptable. R10 exists because phrases such as 'the normal choice' and 'the way a normal author would write it' were the dominant undefined judgement in this document and every one of metrics A, B, C and D is computed from the text they select."
+  },
+  "probes": [
+    {
+      "probe_id": "F01.P1",
+      "family": "1. value and storage declaration",
+      "title": "Immutable local binding of an integer",
+      "intent": "Measure how the language introduces a named, non-reassignable local binding and how much of its value/storage, mutability, type and representation is recoverable from the declaration alone.",
+      "canonical_task": "Inside a function body, (1) introduce a local name `n` bound to the integer value 7, using the form the language provides for a binding that will never be reassigned; (2) as the last statement of the fragment, produce `n` as the fragment's result (return it from the enclosing function, whose declared result is the same integer type). Do not annotate the type unless the language requires it or a normal author would write it. The measured fragment is statements (1) and (2).",
+      "measured_fragment": "The declaration of `n` and the statement producing `n`. The enclosing function header and closing brace are excluded.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "value_vs_storage",
+        "mutability",
+        "initialization_state",
+        "type_and_representation"
+      ]
+    },
+    {
+      "probe_id": "F01.P2",
+      "family": "1. value and storage declaration",
+      "title": "Module-level mutable storage plus an immutable named constant",
+      "intent": "Measure how the language distinguishes a long-lived mutable storage location from a fixed named constant, and how much of lifetime, mutability, visibility and representation a reader recovers from the two declarations alone.",
+      "canonical_task": "At the outermost declaration scope of a single compilation unit (module / file / namespace / class-static, whichever is that language's normal home for such declarations), declare exactly two things: (1) a named storage location `counter`, of a signed integer type capable of representing at least the full 64-bit signed range, initialized to 0, and intended to be reassigned later by ordinary code in the same unit; (2) a named constant `LIMIT` whose value is 100, of the same integer type, which can never be reassigned and which the language treats as a constant rather than as a mutable variable holding a constant value (use a compile-time/immutable constant form if the language has one). The measured fragment is exactly these two declarations. OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can tell which one is mutable.",
+      "measured_fragment": "The two declarations only.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "value_vs_storage",
+        "mutability",
+        "initialization_state",
+        "type_and_representation",
+        "lifetime_resource_effect"
+      ]
+    },
+    {
+      "probe_id": "F02.P1",
+      "family": "2. initialization and potentially uninitialized state",
+      "title": "Declaration without initializer, definitely assigned on all paths",
+      "intent": "Measure whether the language can express 'declared but not yet initialized' at all, and how determinately a reader can tell, at the declaration and at the later read, whether the storage holds a defined value.",
+      "canonical_task": "Inside a function body: (1) declare a local `v` of a signed 32-bit integer type WITHOUT giving it an initial value at the point of declaration (if the language forbids this, that is the finding — see rubric); (2) write a two-way branch on an already-declared boolean `cond` that assigns `v = 5` in the true arm and `v = 9` in the false arm; (3) read `v` after the branch and return it. The measured fragment is (1)+(2)+(3). Do not pre-initialize `v` to a placeholder value; if the language requires a placeholder, that requirement is itself the observation.",
+      "measured_fragment": "The declaration, the two-way branch with both assignments, and the final read/return.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "initialization_state",
+        "value_vs_storage",
+        "mutability",
+        "type_and_representation",
+        "control_flow_effect"
+      ]
+    },
+    {
+      "probe_id": "F02.P2",
+      "family": "2. initialization and potentially uninitialized state",
+      "title": "Explicitly uninitialized fixed-size buffer",
+      "intent": "Measure whether the language can express genuinely uninitialized bulk storage (as opposed to zero/default-filled storage), and whether the fragment tells the reader which of the two it got.",
+      "canonical_task": "Inside a function body: (1) obtain storage for exactly 16 elements of an unsigned 8-bit integer element type whose contents are NOT specified to be zero or any other value — i.e. request uninitialized storage using the language's documented mechanism for doing so; (2) write the value 1 into element 0; (3) read element 0 and return it. The measured fragment is (1)+(2)+(3). If the language has no documented way to obtain uninitialized storage and always zero-or-default-initializes, the fragment must instead obtain the default-initialized 16-element buffer and is scored PARTIAL under P-a (R9 substitution exception) — the substituted fragment is still written and measured.",
+      "measured_fragment": "The buffer acquisition, the single write, and the single read/return.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "initialization_state",
+        "type_and_representation",
+        "allocation_copy_move_borrow_destroy",
+        "value_vs_storage",
+        "possible_failure"
+      ]
+    },
+    {
+      "probe_id": "F03.P1",
+      "family": "3. mutation",
+      "title": "In-place increment of a scalar variable",
+      "intent": "Measure the minimal surface form of scalar mutation and how much of mutability, target identity, overflow behavior and side-effect scope is recoverable from that single form.",
+      "canonical_task": "Given an already-declared, already-initialized mutable local `x` of a signed 32-bit integer type, write exactly one statement or expression that: (1) increases the value held by `x` by 1; (2) does so IN PLACE, so that a subsequent read of the name `x` observes the increased value and `x` is not rebound to different storage; (3) is written in the form R10 selects from the in-place update forms the language provides (compound assignment, increment operator, or plain assignment). The measured fragment is that single statement/expression. The declaration of `x` is given context, not part of the fragment.",
+      "measured_fragment": "The single update statement/expression.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "mutability",
+        "value_vs_storage",
+        "overflow_exceptional_numeric",
+        "externally_visible_side_effects"
+      ]
+    },
+    {
+      "probe_id": "F03.P2",
+      "family": "3. mutation",
+      "title": "In-place element mutation of a growable sequence through a name",
+      "intent": "Measure whether mutation through an aggregate binding is locally evident, and whether the reader can tell that the change is observable through the original name rather than through a copy.",
+      "canonical_task": "Given an already-declared local `xs` bound to a growable, ordered, integer-element sequence (the language's normal dynamic list/vector/array-list type) already holding at least 3 elements, write exactly one statement that: (1) sets the element at index 1 of `xs` to the value 42; (2) does so in place, so that a subsequent read of `xs` element 1 through the name `xs` observes 42; (3) does not rebuild, reassign, or replace `xs`. The measured fragment is that single statement.",
+      "measured_fragment": "The single element-assignment statement.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "mutability",
+        "aliasing_writable_aliasing",
+        "value_vs_storage",
+        "possible_failure",
+        "externally_visible_side_effects"
+      ]
+    },
+    {
+      "probe_id": "F04.P1",
+      "family": "4. aliasing, references, borrowing, addressing, and dereferencing where applicable",
+      "title": "Writable alias to an existing scalar local",
+      "intent": "Measure whether the language can create a second name that writes the SAME scalar storage as an existing local, and how explicitly the surface form announces the writable alias and its dereference.",
+      "canonical_task": "Inside a function body: (1) declare a mutable local `slot` of a signed 32-bit integer type initialized to 4; (2) introduce a second name `port` that denotes the SAME storage as `slot` and through which `slot` can be written (a writable alias / mutable reference / pointer / inout binding — whatever the language provides); (3) write the value 9 through `port`; (4) read `slot` (not `port`) and return it, so the observable result is 9. The measured fragment is (1)+(2)+(3)+(4). If the language has no documented way for two names in the same scope to denote the same scalar storage with write access, no fragment is written; record NONE with the reason.",
+      "measured_fragment": "All four statements.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "aliasing_writable_aliasing",
+        "mutability",
+        "value_vs_storage",
+        "lifetime_resource_effect",
+        "type_and_representation"
+      ]
+    },
+    {
+      "probe_id": "F04.P2",
+      "family": "4. aliasing, references, borrowing, addressing, and dereferencing where applicable",
+      "title": "Non-copying read-only view onto an existing sequence",
+      "intent": "Measure whether the language can express a borrow/view that does not copy the elements, and whether the surface form tells the reader that (a) no copy occurred and (b) writes through the view are or are not possible.",
+      "canonical_task": "Inside a function body, given an already-declared local `xs` holding a growable integer sequence with at least 3 elements: (1) introduce a name `window` that denotes a read-only view/reference over `xs`'s existing elements WITHOUT copying those elements; (2) read element 0 through `window` and return it. The measured fragment is (1)+(2). OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can determine, without running the program, both whether the elements were copied and whether a write through `window` would be accepted. If the language offers no non-copying read-only view, no fragment is written; record NONE with the reason.",
+      "measured_fragment": "The view introduction and the read/return.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "aliasing_writable_aliasing",
+        "mutability",
+        "allocation_copy_move_borrow_destroy",
+        "lifetime_resource_effect",
+        "value_vs_storage"
+      ]
+    },
+    {
+      "probe_id": "F04.P3",
+      "family": "4. aliasing, references, borrowing, addressing, and dereferencing where applicable",
+      "title": "Two independently obtained handles observed to denote the same heap object",
+      "intent": "Counterpart to F04.P1 and F04.P2. Those two reward a language that gives explicit storage aliases their own surface syntax. This one measures the opposite capability in the same family: whether the language can produce two separately obtained names for ONE heap-allocated object and observe, with a standard operation, that they denote the same object rather than two equal values. Reference identity is the aliasing form used by the majority of the ten languages and is not scored anywhere else in the universe.",
+      "canonical_task": "Inside a function body: (1) allocate ONE object of a user-defined or standard mutable reference type holding a single signed 32-bit integer field `id` set to 5, bound to a local `first`; (2) obtain a second name `second` for that same object by routing `first` through an identity-preserving standard operation — for example storing it in a one-element container and reading it back out — so that `second` is not written as a direct rebinding of `first`; (3) bind a local `same` to the boolean result of testing whether `first` and `second` denote the SAME object, using the language's standard object-identity / reference-equality operation and NOT a field-by-field or value equality; the value must be true; (4) produce `same` as the fragment's result. The measured fragment is (1)+(2)+(3)+(4). If the language has no standard operation that distinguishes 'the same object' from 'an equal value' for heap-allocated objects, no fragment is written; record NONE with the citation of the rule or documentation that makes it unavailable.",
+      "measured_fragment": "The allocation and binding of `first`, the derivation of `second`, the identity test, and the production of `same`.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "aliasing_writable_aliasing",
+        "value_vs_storage",
+        "allocation_copy_move_borrow_destroy",
+        "type_and_representation",
+        "lifetime_resource_effect"
+      ]
+    },
+    {
+      "probe_id": "F05.P1",
+      "family": "5. function calls and argument-passing semantics",
+      "title": "REQUIRED spec-6.1.4.B probe — ordinary bare call site f(x)",
+      "intent": "Spec 6.1.4.B mandates this probe. Measure how many materially distinct aliasing/mutation outcomes for the caller's argument remain possible from the ORDINARY call-site expression alone, before consulting the callee's signature or body.",
+      "canonical_task": "Given, as context declared ELSEWHERE in the same compilation unit and NOT part of the measured fragment, an ordinary one-parameter function `f` whose single parameter has the language's normal growable-integer-sequence type and whose declaration uses the plainest parameter form a normal author would write. Inside a function body write exactly: (1) a local `x` bound to a growable integer sequence containing the elements 1, 2, 3; (2) a call of `f` on `x` written with the language's plainest ordinary call-site syntax — literally the form an author writes when they merely want to pass `x` to `f`, with NO extra sigil, address-of, borrow marker, copy, clone, wrapper, annotation, or modifier at the argument position; (3) a read of element 0 of `x` after the call, returned as the fragment's result. The measured fragment is (1)+(2)+(3). SCORING NOTE, binding for metric B: the determinacy count for this probe is the number of materially distinct outcomes for `x` and for the elements `x` denotes — including at minimum {callee cannot observe caller's object at all; callee may read but not write it; callee may write elements observable through `x`; callee may replace/resize the sequence observable through `x`; callee may retain the alias beyond the call; a copy was made so no caller-visible change is possible} — that remain compatible with the call-site expression in (2) ALONE, without consulting `f`'s declaration, signature, documentation, or body.",
+      "measured_fragment": "The local binding of `x`, the bare call expression, and the post-call read/return. `f`'s own declaration is explicitly excluded from the token count and is counted as a non-local lookup for metric C.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "aliasing_writable_aliasing",
+        "mutability",
+        "allocation_copy_move_borrow_destroy",
+        "value_vs_storage",
+        "control_flow_effect",
+        "externally_visible_side_effects"
+      ]
+    },
+    {
+      "probe_id": "F05.P2",
+      "family": "5. function calls and argument-passing semantics",
+      "title": "REQUIRED spec-6.1.4.B counterpart — explicit reference / borrow / address / inout / dereference form",
+      "intent": "Spec 6.1.4.B mandates that the explicit writable-alias passing forms be tested SEPARATELY from the bare call site. Measure how determinately the language's dedicated forms announce, at the call site and/or the parameter, that the callee receives writable access to the caller's storage.",
+      "canonical_task": "Express all of: (1) a one-parameter function `put` that takes writable access to a caller-owned signed 32-bit integer variable and, in its body, sets that variable to 12 (the body is exactly that one assignment); (2) inside a caller function, a mutable local `cell` of the same integer type initialized to 3; (3) a call of `put` on `cell` using whatever explicit reference / borrow / address-of / inout / pointer / dereference form the language REQUIRES or CONVENTIONALLY USES for this purpose, at the call site and/or in `put`'s parameter declaration; (4) a read of `cell` after the call, returned as the fragment's result, whose value must be 12. The measured fragment is (1)+(2)+(3)+(4), i.e. for this probe `put`'s declaration and body ARE inside the boundary, because the explicit form may live there. If the language provides no documented way for a callee to write a caller's scalar local variable, no fragment is written; record NONE with the reason (wrapping the integer in a mutable container/object is NOT an acceptable substitute for FULL — see rubric criterion P-a).",
+      "measured_fragment": "`put`'s full declaration and body, the caller's local, the call, and the post-call read/return.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "aliasing_writable_aliasing",
+        "mutability",
+        "value_vs_storage",
+        "lifetime_resource_effect",
+        "externally_visible_side_effects",
+        "control_flow_effect"
+      ]
+    },
+    {
+      "probe_id": "F05.P3",
+      "family": "5. function calls and argument-passing semantics",
+      "title": "Constructing a function value that captures an enclosing local, and passing it as an argument",
+      "intent": "Family 5 is 'function calls and argument-passing semantics'. F05.P1 and F05.P2 both spend their points on how the ARGUMENT's storage is passed. This probe measures the case where the argument IS a function: whether the language can build a function/closure value inside the measured fragment, capture an enclosing local in it, bind it to a name, and pass that name at an argument position. It is scored nowhere else in the universe, and every probe that previously touched the construct routed around it.",
+      "canonical_task": "Inside a function body, given an already-declared local `xs` bound to a growable sequence of signed 32-bit integers holding 1, 2, 3, and an already-declared local `k` of the same integer type holding 0: (1) declare, INSIDE the measured fragment, a unary function value `neg` taking one signed 32-bit integer parameter `a` and returning `k - a` (the negation of `a` displaced by `k`), where `k` is CAPTURED from the enclosing scope rather than received as a parameter; (2) bind a local `ys` to the result of applying `neg` to every element of `xs`, passing `neg` BY NAME at the argument position of the language's standard higher-order sequence-transformation operation (map / select / transform / the standard operation that applies a supplied function to each element); where the standard library provides no such operation, apply `neg` to each element with the language's ordinary iteration construct, still referring to `neg` by name at the application site and never inlining its body there; (3) produce element 0 of `ys` as the fragment's result, whose value must be -1. The measured fragment is (1)+(2)+(3). If the language cannot construct a function or closure value at all, or cannot refer to one in value position, no fragment is written; record NONE with the citation of the rule that rejects it.",
+      "measured_fragment": "The declaration of `neg`, the application binding `ys`, and the production of element 0.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "value_vs_storage",
+        "type_and_representation",
+        "control_flow_effect",
+        "allocation_copy_move_borrow_destroy",
+        "lifetime_resource_effect",
+        "aliasing_writable_aliasing"
+      ]
+    },
+    {
+      "probe_id": "F06.P1",
+      "family": "6. return-value semantics",
+      "title": "Returning an element out of an aggregate — value or shared storage?",
+      "intent": "Measure whether the reader can tell from the fragment whether a returned result is an independent value or continues to share storage with the aggregate it came from, and whether a copy/move/allocation occurs at the return.",
+      "canonical_task": "Express all of: (1) a function `mid` with one parameter of the language's normal growable-integer-sequence type, whose body returns the element at index 1 of that parameter; (2) at a call site, a local `xs` bound to such a sequence containing 1, 2, 3; (3) a binding of the call's result to a local `y`, written in that language's normal binding form; (4) return `y`. The measured fragment is (1)+(2)+(3)+(4). OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can determine, from the fragment, whether `y` is independent of `xs` and whether the return performed a copy, a move, or shared a reference.",
+      "measured_fragment": "The full function declaration and body, the call site binding, and the final return.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "value_vs_storage",
+        "allocation_copy_move_borrow_destroy",
+        "aliasing_writable_aliasing",
+        "type_and_representation",
+        "control_flow_effect"
+      ]
+    },
+    {
+      "probe_id": "F06.P2",
+      "family": "6. return-value semantics",
+      "title": "Two results from one call",
+      "intent": "Measure how the language returns more than one result at once and how much of the result types, independence and destructuring is recoverable at the call site.",
+      "canonical_task": "Express all of: (1) a function `divmod2` taking two signed 32-bit integer parameters `a` and `b` and producing BOTH the integer quotient a/b and the integer remainder a%b from a single call, using the language's normal multiple-result mechanism (tuple, multiple return values, a small record/struct/data class, or out-parameters — whichever is that language's normal choice; no third-party package); (2) a call site that binds the two results to two separate local names `q` and `r` in one binding construct if the language has one; (3) return q + r. The measured fragment is (1)+(2)+(3).",
+      "measured_fragment": "The full function declaration and body, the binding call site, and the final return.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "type_and_representation",
+        "value_vs_storage",
+        "allocation_copy_move_borrow_destroy",
+        "control_flow_effect",
+        "possible_failure"
+      ]
+    },
+    {
+      "probe_id": "F07.P1",
+      "family": "7. arithmetic operators",
+      "title": "Fused multiply-add expression on fixed-width signed integers",
+      "intent": "Measure how much of operand type, result type, precedence, evaluation and numeric behavior a reader recovers from a plain arithmetic expression.",
+      "canonical_task": "Given three already-declared, already-initialized locals `a`, `b`, `c`, all of the same signed 32-bit integer type, write exactly one statement that: (1) evaluates the expression a * b + c using the language's ordinary multiplication and addition operators and the language's ordinary precedence, with no redundant parentheses; (2) binds the resulting value to a new local `r`. The measured fragment is that single binding statement. The three operand declarations are given context, not part of the fragment.",
+      "measured_fragment": "The single binding statement.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "type_and_representation",
+        "overflow_exceptional_numeric",
+        "value_vs_storage",
+        "conversion_behavior"
+      ]
+    },
+    {
+      "probe_id": "F07.P2",
+      "family": "7. arithmetic operators",
+      "title": "Integer division, remainder, and real division of the same operands",
+      "intent": "Measure how the language distinguishes truncating/flooring integer division from real division, what the remainder operator does with negative operands, and how much of that is visible at the operator.",
+      "canonical_task": "Given two already-declared, already-initialized locals `a` and `b` of the same signed 32-bit integer type, where `a` may be negative: write exactly three binding statements, in this order: (1) bind `q` to the integer quotient of `a` and `b` using the language's ordinary integer division operator, or the standard integer-division form R10 selects if the ordinary operator is not integer division; (2) bind `m` to the remainder of `a` and `b` using the language's ordinary remainder/modulo operator; (3) bind `d` to the 64-bit floating-point division of `a` by `b`, performing whatever conversion the language requires to obtain a floating-point result, in the form R10 selects. The measured fragment is those three statements. OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can determine the rounding direction of (1) and the sign of (2) when `a` is negative.",
+      "measured_fragment": "The three binding statements.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "type_and_representation",
+        "conversion_behavior",
+        "overflow_exceptional_numeric",
+        "possible_failure",
+        "value_vs_storage"
+      ]
+    },
+    {
+      "probe_id": "F08.P1",
+      "family": "8. integer overflow, division-by-zero, and other numeric edge behavior",
+      "title": "Adding one at the signed 32-bit maximum, with the overflow outcome determinable at the site",
+      "intent": "Measure whether the language lets the author SELECT and LOCALLY SIGNAL the overflow discipline (wrap, trap, saturate, error value, promote), and whether the outcome is recoverable from the fragment without knowing compiler flags or build mode.",
+      "canonical_task": "Inside a function body: (1) declare a local `m` of a signed 32-bit integer type initialized to the maximum representable value of that type, written using the language's standard named maximum if one exists; (2) compute `m + 1` and bind the outcome to a local `o`, using the language's operation whose overflow behavior is determined BY THE OPERATION ITSELF, preferring, in this fixed order, (i) a standard checked operation yielding an optional/error value, with 0 substituted for the exceptional case; (ii) a standard wrapping operation; (iii) a standard saturating operation; (iv) the plain operator — and recording which rung was used and why each higher rung was unavailable; (3) produce `o` (or the substituted fallback integer 0 when rung (i) yields the exceptional case) as the fragment's result. The measured fragment is (1)+(2)+(3). OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can state, from the fragment alone, exactly what happens at the overflow, without consulting the build recipe. Note that toolchain_binding.safety_mode_clause pins every language that has a choice to its optimized CHECKED mode, so the plain operator's behavior under rung (iv) is the checked-mode behavior for every such language.",
+      "measured_fragment": "The three statements.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "overflow_exceptional_numeric",
+        "type_and_representation",
+        "possible_failure",
+        "control_flow_effect",
+        "conversion_behavior"
+      ]
+    },
+    {
+      "probe_id": "F08.P2",
+      "family": "8. integer overflow, division-by-zero, and other numeric edge behavior",
+      "title": "Integer division where the divisor may be zero",
+      "intent": "Measure how determinately the zero-divisor outcome is expressed at the division site and whether the language offers a form that turns it into a value rather than an unsignalled trap.",
+      "canonical_task": "Inside a function body, given already-declared locals `a` and `b` of the same signed 32-bit integer type where `b` may be 0 at runtime: (1) divide `a` by `b` in a form that makes the zero-divisor outcome determinable at the site, choosing in this fixed order of preference (i) a standard checked-division operation that yields an optional/error value, (ii) an explicit local guard on `b == 0` that selects a fallback integer 0, (iii) the plain division operator if neither (i) nor (ii) is available in that language's standard library — and recording which rung was used and why each higher rung was unavailable; (2) bind the outcome to a local `q`, substituting the fallback integer 0 for the exceptional case; (3) produce `q` as the fragment's result. The measured fragment is the whole binding construct plus the final production of `q`. `a` and `b`'s declarations are given context.",
+      "measured_fragment": "The division/guard construct and the production of `q`.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "overflow_exceptional_numeric",
+        "possible_failure",
+        "control_flow_effect",
+        "type_and_representation",
+        "alternative_value_cases"
+      ]
+    },
+    {
+      "probe_id": "F09.P1",
+      "family": "9. equality, ordering, and comparison",
+      "title": "String equality — identity or contents?",
+      "intent": "Measure whether the fragment tells the reader whether the language's ordinary equality operator on the normal text-string type compares object identity or character contents, and whether user-defined or dynamic equality could be dispatched here.",
+      "canonical_task": "Given two already-declared locals `s1` and `s2` of the language's ordinary text-string type, both holding runtime-produced strings that may be distinct objects with identical contents, write exactly one statement that: (1) compares `s1` and `s2` for sameness of CONTENTS (not object identity), in the form R10 selects from the forms the language and its standard library provide for that comparison; (2) binds the boolean result to a new local `eq`. The measured fragment is that single statement. OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can determine, from the statement alone, whether contents or identity are compared, and whether user-defined or dynamically dispatched equality could run here.",
+      "measured_fragment": "The single binding statement.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "type_and_representation",
+        "value_vs_storage",
+        "conversion_behavior",
+        "possible_failure",
+        "alternative_value_cases"
+      ]
+    },
+    {
+      "probe_id": "F09.P2",
+      "family": "9. equality, ordering, and comparison",
+      "title": "Descending sort of a sequence, plus a scalar ordering comparison",
+      "intent": "Measure how the language expresses a NON-DEFAULT total order at the sort site — which in most languages requires supplying an ordering as a value — whether the ordering actually used is locally evident, and whether the sort mutates in place or produces a new sequence.",
+      "canonical_task": "Write exactly two statements: (1) order an already-declared local `xs` (growable integer sequence, at least 3 elements) into DESCENDING order using the language's standard ordering facility, supplying the descending order EXPLICITLY in whatever form that facility takes (comparator function value, key/selector function, ordering or reverse descriptor, or a named reverse-ordering operation); the fragment may not rely on the facility's default order, and R10 selects among the explicit forms the standard library provides; (2) bind a new local `lt` to the boolean value of whether already-declared integer `a` is strictly less than already-declared integer `b`, using the ordinary comparison operator. The measured fragment is those two statements. OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can determine from (1) whether `xs` itself was reordered in place or a new sequence was produced, and whether any allocation occurred.",
+      "measured_fragment": "The two statements.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "mutability",
+        "allocation_copy_move_borrow_destroy",
+        "type_and_representation",
+        "aliasing_writable_aliasing",
+        "possible_failure"
+      ]
+    },
+    {
+      "probe_id": "F10.P1",
+      "family": "10. explicit and implicit type conversion",
+      "title": "Narrowing a 64-bit signed integer to 32 bits",
+      "intent": "Measure how explicitly the language marks a lossy narrowing conversion and how determinately the out-of-range outcome is expressed at the conversion site.",
+      "canonical_task": "Given an already-declared local `big` of a signed 64-bit integer type whose runtime value may exceed the 32-bit signed range: (1) produce a value of a signed 32-bit integer type from `big`, preferring, in this fixed order, (i) a standard conversion that reports out-of-range as an optional/error value, with the fallback integer 0 substituted for the out-of-range case; (ii) the language's ordinary explicit narrowing conversion; (iii) an implicit narrowing if the language performs one without written syntax — and recording which rung was used and why each higher rung was unavailable; (2) bind that value to a local `small`; (3) produce `small` as the fragment's result. The measured fragment is the conversion binding plus the production of `small`. OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can state from the fragment what happens when the value does not fit: truncate, wrap, trap, saturate, yield an error value, or be statically rejected.",
+      "measured_fragment": "The conversion binding and the production of `small`.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "conversion_behavior",
+        "type_and_representation",
+        "overflow_exceptional_numeric",
+        "possible_failure",
+        "control_flow_effect"
+      ]
+    },
+    {
+      "probe_id": "F10.P2",
+      "family": "10. explicit and implicit type conversion",
+      "title": "Mixed integer and floating-point arithmetic",
+      "intent": "Measure whether a mixed-type arithmetic expression reveals, at the operator, which operand changed representation and what the result type is — the classic site of implicit conversion.",
+      "canonical_task": "Given an already-declared local `i` of a signed 32-bit integer type and an already-declared local `d` of a 64-bit floating-point type, write exactly one statement that: (1) computes the sum of `i` and `d`, including any conversion the language requires to be written explicitly and omitting any the language performs implicitly, in the form R10 selects; (2) binds the result to a new local `sum`. The measured fragment is that single statement. OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can determine the static type of `sum` and which operand's representation changed.",
+      "measured_fragment": "The single binding statement.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "conversion_behavior",
+        "type_and_representation",
+        "overflow_exceptional_numeric",
+        "value_vs_storage"
+      ]
+    },
+    {
+      "probe_id": "F11.P1",
+      "family": "11. indexing and slicing",
+      "title": "Indexed read with a possibly-out-of-range runtime index",
+      "intent": "Measure how determinately the out-of-range outcome of an ordinary indexing expression is expressed at the index site.",
+      "canonical_task": "Given an already-declared local `xs` (growable integer sequence, 3 elements) and an already-declared local `i` of a signed integer type whose runtime value may be outside 0..2: (1) read the element of `xs` at index `i`, using the ordinary indexed-read form R10 selects; (2) bind it to a local `e`; (3) produce `e` as the fragment's result. The measured fragment is (1)+(2)+(3). If the language's standard library ALSO offers a non-trapping indexed read yielding an optional/error value, write that form as a second, separately measured variant labelled `F11.P1.checked`, using the fallback integer 0 for the absent case; the primary measured fragment remains the ordinary form. The `.checked` variant ENTERS NO METRIC and is published as evidence only: it may not be substituted for the primary fragment in any calculation of A, B, C, D or E, it does not change this probe's capability points, and its presence or absence does not change this probe's support level. OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can state, from the PRIMARY fragment, the out-of-range behavior: trap/panic, thrown exception, optional/error value, undefined behavior, silent clamp, or silent default value.",
+      "measured_fragment": "The indexed read binding and the production of `e`. The optional `.checked` variant is measured and reported separately as evidence and enters no metric.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "possible_failure",
+        "control_flow_effect",
+        "type_and_representation",
+        "overflow_exceptional_numeric",
+        "alternative_value_cases"
+      ]
+    },
+    {
+      "probe_id": "F11.P2",
+      "family": "11. indexing and slicing",
+      "title": "Sub-range of a sequence — copy or shared storage?",
+      "intent": "Measure whether the language can express a sub-range at all, and whether the surface form reveals whether the sub-range copies elements or aliases the original's storage.",
+      "canonical_task": "Given an already-declared local `xs` (growable integer sequence holding 10, 20, 30, 40, 50): (1) produce a local `part` denoting exactly the elements at positions 1, 2 and 3 of `xs` (half-open range start=1, end=4), using the sub-range/slice/sub-list form R10 selects from those the language provides; (2) produce the element at position 0 of `part` (value 20) as the fragment's result. The measured fragment is the sub-range binding plus the production of the element. OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can determine from the fragment whether `part` copies the three elements or shares storage with `xs`, and whether a later write through `xs` would be observable through `part`.",
+      "measured_fragment": "The sub-range binding and the element production.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "aliasing_writable_aliasing",
+        "allocation_copy_move_borrow_destroy",
+        "mutability",
+        "lifetime_resource_effect",
+        "possible_failure"
+      ]
+    },
+    {
+      "probe_id": "F12.P1",
+      "family": "12. nullable / optional values",
+      "title": "Declared-absent optional integer with a default fallback",
+      "intent": "Measure whether optionality is expressed in the type, whether the absent case is constructible explicitly, and how the fallback is written.",
+      "canonical_task": "Inside a function body: (1) declare a local `o` whose type explicitly admits either a signed 32-bit integer or the absence of a value, and initialize it to the ABSENT case using the language's explicit absent-value form; (2) bind a local `n` of the plain signed 32-bit integer type to the contained value of `o` if present and to 0 if absent, using the language's standard default/fallback/coalescing form for optionals (not a hand-written if-statement, if the language provides such a form); (3) produce `n` as the fragment's result. The measured fragment is (1)+(2)+(3). If the language has no type-level distinction between 'an integer' and 'possibly no integer', the fragment must still be written using whatever absent sentinel the language normally uses, and is scored PARTIAL under P-a (R9 substitution exception).",
+      "measured_fragment": "The three statements.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "alternative_value_cases",
+        "type_and_representation",
+        "possible_failure",
+        "control_flow_effect",
+        "value_vs_storage"
+      ]
+    },
+    {
+      "probe_id": "F12.P2",
+      "family": "12. nullable / optional values",
+      "title": "Optional-preserving transformation by a locally declared function, without an explicit conditional",
+      "intent": "Measure whether the language provides a standard optional-aware chaining/mapping operation and how locally evident the short-circuit on absence is.",
+      "canonical_task": "Given an already-declared local `o` of the possibly-absent-32-bit-integer type from F12.P1: (1) declare, INSIDE the measured fragment, a unary function or function value `h` that takes a signed 32-bit integer and returns that integer plus 1; (2) bind a local `p`, of the same possibly-absent-integer type, to `h` applied to `o`'s contained value when present and to the absent case when `o` is absent — WITHOUT writing an explicit `if`/`switch`/`match` statement, using instead the language's standard optional-aware chaining, mapping, or safe-call operation if it has one, and referring to `h` by name at the application site rather than inlining its body; (3) produce a plain integer result: `p`'s contained value if present, else 0. The measured fragment is (1)+(2)+(3). If the language has no standard optional-aware chaining/mapping/safe-call operation, write the explicit conditional for (2) and score PARTIAL under P-a (R9 substitution exception).",
+      "measured_fragment": "The declaration of `h`, the binding of `p`, and the final production.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "alternative_value_cases",
+        "control_flow_effect",
+        "type_and_representation",
+        "possible_failure"
+      ]
+    },
+    {
+      "probe_id": "F13.P1",
+      "family": "13. errors, failure values, exceptions, and propagation",
+      "title": "Propagating a standard-library parse failure to the caller",
+      "intent": "Measure whether a function's declared interface reveals that it can fail, and how visible the propagation point is in the body.",
+      "canonical_task": "Express a complete function `parse_twice` taking one parameter `s` of the language's ordinary text-string type, which: (1) converts `s` to a signed 32-bit integer using the language's STANDARD library string-to-integer conversion, an operation that can fail on malformed input; (2) on failure, propagates that failure to its own caller WITHOUT handling it, using the language's normal propagation mechanism (thrown exception, error-returning propagation operator, explicit early return of the error value, etc.); (3) on success, returns twice the parsed value. The function's declared result type and declared failure behavior must be whatever the language requires or conventionally writes. The measured fragment is the function's complete declaration and body. OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can determine from the declaration alone that calling this function can fail, and from the body where the failure can leave.",
+      "measured_fragment": "The complete function declaration and body.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "possible_failure",
+        "control_flow_effect",
+        "alternative_value_cases",
+        "type_and_representation",
+        "conversion_behavior"
+      ]
+    },
+    {
+      "probe_id": "F13.P2",
+      "family": "13. errors, failure values, exceptions, and propagation",
+      "title": "Locally handling a failure and recovering with a fallback",
+      "intent": "Measure how the language expresses local recovery, and whether the fragment reveals the control-flow and cleanup consequences of taking the failure path.",
+      "canonical_task": "Inside a function body: (1) call the fallible standard-library string-to-integer conversion on an already-declared text-string local `s`; (2) handle failure LOCALLY, binding a local `n` of the plain signed 32-bit integer type to the parsed value on success and to the fallback value 0 on failure, using the language's normal local-handling construct (catch block, match/switch on the result value, if-error form, try-with-default, recover, etc.); (3) produce `n` as the fragment's result. The measured fragment is (1)+(2)+(3). OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can determine which operations inside the construct are protected, and whether any cleanup or unwinding occurs on the failure path.",
+      "measured_fragment": "The whole handling construct and the production of `n`.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "possible_failure",
+        "control_flow_effect",
+        "alternative_value_cases",
+        "lifetime_resource_effect",
+        "allocation_copy_move_borrow_destroy"
+      ]
+    },
+    {
+      "probe_id": "F14.P1",
+      "family": "14. alternatives / sum / variant types and dispatch over alternatives",
+      "title": "Declaring a closed two-alternative type with per-alternative payloads",
+      "intent": "Measure whether the language can declare a CLOSED set of alternatives each carrying its own differently-shaped payload, and whether the closedness and the payloads are evident in the declaration.",
+      "canonical_task": "Express: (1) a declaration of a type named `Shape` with EXACTLY two alternatives and no others — `Circle`, carrying a single 64-bit floating-point field `r`, and `Rect`, carrying two 64-bit floating-point fields `w` and `h` — where the set of alternatives is closed, i.e. the language's own rules prevent code elsewhere from adding a third alternative; (2) a statement constructing a `Circle` with r = 2.0 and binding it to a local `s` whose static type is `Shape` (not `Circle`). The measured fragment is (1)+(2). If the language cannot express a closed alternative set, express the nearest standard construct (e.g. an open class hierarchy, or a tagged record with a discriminant field) and score PARTIAL under P-a (R9 substitution exception). Closedness is scored here; the DUAL capability, extending the alternative set from a separate unit, is scored by F14.P3, and neither result implies the other.",
+      "measured_fragment": "The type declaration and the construction/binding statement.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "alternative_value_cases",
+        "type_and_representation",
+        "value_vs_storage",
+        "allocation_copy_move_borrow_destroy",
+        "possible_failure"
+      ]
+    },
+    {
+      "probe_id": "F14.P2",
+      "family": "14. alternatives / sum / variant types and dispatch over alternatives",
+      "title": "Exhaustive dispatch over the alternatives",
+      "intent": "Measure whether the language checks exhaustiveness of alternative handling and whether the dispatch construct reveals the payload binding and the fate of an unhandled alternative.",
+      "canonical_task": "Given the `Shape` type and the local `s` from F14.P1: (1) dispatch over `s`'s alternatives using the dispatch-over-alternatives construct R10 selects from those the language provides for a closed alternative set (pattern match, switch over cases, sealed-when, virtual method, visitor), writing NO default/else/catch-all arm; (2) compute the area — for `Circle`, 3.141592653589793 * r * r; for `Rect`, w * h — and bind it to a 64-bit floating-point local `area`; (3) produce `area` as the fragment's result. The measured fragment is the dispatch construct and the production of `area`. OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can determine that the language guarantees all alternatives are covered and what happens at runtime if one is not.",
+      "measured_fragment": "The dispatch construct and the production of `area`.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "alternative_value_cases",
+        "control_flow_effect",
+        "possible_failure",
+        "type_and_representation",
+        "value_vs_storage"
+      ]
+    },
+    {
+      "probe_id": "F14.P3",
+      "family": "14. alternatives / sum / variant types and dispatch over alternatives",
+      "title": "Adding a third alternative from a separate unit without editing the original",
+      "intent": "Exact mirror of F14.P1. F14.P1 and F14.P2 score CLOSEDNESS — that the language's rules prevent code elsewhere from adding an alternative, and that dispatch over the closed set is checked. This probe scores the dual capability, EXTENSIBILITY: whether a new case of an existing abstraction can be introduced from a separate unit and reached through the abstract type, which is the point of open polymorphism in six of the ten languages. Without it, family 14 is scored in one direction only.",
+      "canonical_task": "Express: (1) in a unit `shapes`, an abstract operation `area` over shapes returning a 64-bit floating-point value, together with two shapes `Circle` and `Rect` implementing it; (2) from a SEPARATE unit that does not modify `shapes` in any way, a third shape `Tri` implementing `area`; (3) in that separate unit, a call of `area` through a value of the abstract type that holds a `Tri`, with the result produced as the fragment's result. The measured fragment is (1)+(2)+(3). The second unit is expected here: its augmented build command is frozen in toolchain_binding.multi_unit_recipes, so it is neither a P-b deviation nor a P-e scaffold, and a language forced to PARTIAL or NONE solely by the single-file form of its recipe is an infrastructure defect under spec 10.4 and must be re-run. A language whose own rules prevent an operation set from being extended from outside its declaring unit records NONE with the citation of that rule. Closedness is scored by F14.P1/F14.P2 and extensibility by this probe; a language may score differently on the two and neither result implies the other.",
+      "measured_fragment": "The `shapes` unit's abstract operation and its two implementations, the separate unit's `Tri` and its implementation, and the dispatching call with its production.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "alternative_value_cases",
+        "type_and_representation",
+        "control_flow_effect",
+        "value_vs_storage",
+        "allocation_copy_move_borrow_destroy"
+      ]
+    },
+    {
+      "probe_id": "F15.P1",
+      "family": "15. generics / parametric polymorphism",
+      "title": "One unconstrained generic function used at two element types",
+      "intent": "Measure whether the language can abstract over an element type once and reuse it at two types, and whether the type relationship between argument and result is recoverable statically from the declaration.",
+      "canonical_task": "Express: (1) a single function `head` that, for an ARBITRARY element type T, takes a sequence whose elements are of type T and returns the element at index 0, with a declared result type that is T (not a universal/dynamic/erased-to-Object type, if the language can express that relationship); (2) a call of `head` on a sequence of signed 32-bit integers containing 4, 5, 6, bound to a local `a`; (3) a call of `head` on a sequence of text strings containing \"p\", \"q\", bound to a local `b`; (4) production of a result combining both, namely the text-string concatenation of the textual rendering of `a` and the value of `b`. The measured fragment is (1)+(2)+(3)+(4). If the language has no parametric mechanism and only a universal dynamic type, write the nearest standard form and score PARTIAL under P-a (R9 substitution exception).",
+      "measured_fragment": "The generic function declaration and body, both call sites, and the combining production.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "type_and_representation",
+        "alternative_value_cases",
+        "value_vs_storage",
+        "allocation_copy_move_borrow_destroy",
+        "possible_failure"
+      ]
+    },
+    {
+      "probe_id": "F15.P2",
+      "family": "15. generics / parametric polymorphism",
+      "title": "Constrained generic function over an orderable element type",
+      "intent": "Measure whether the language can state, at the generic declaration, the requirement its body relies on, and whether the constraint is checked at the declaration or only at instantiation.",
+      "canonical_task": "Express: (1) a single function `max_of` that, for an arbitrary element type T CONSTRAINED to be ordered/comparable by the language's own standard ordering abstraction (trait, interface, protocol, type class, concept, bound, or equivalent), takes two arguments of type T and returns the greater of them, using the ordinary comparison form in its body; (2) one call of `max_of` on the signed 32-bit integers 3 and 5, bound to a local `m`, and production of `m` as the fragment's result. The constraint must be written at the declaration if the language supports declaration-site constraints. The measured fragment is (1)+(2). If the language has no way to express the constraint, write the nearest standard form and score PARTIAL under P-a (R9 substitution exception); record explicitly whether misuse is diagnosed at the generic's declaration or only at the call site.",
+      "measured_fragment": "The constrained generic declaration and body, plus the single call and production.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "type_and_representation",
+        "possible_failure",
+        "control_flow_effect",
+        "alternative_value_cases",
+        "allocation_copy_move_borrow_destroy"
+      ]
+    },
+    {
+      "probe_id": "F15.P3",
+      "family": "15. generics / parametric polymorphism",
+      "title": "Heterogeneous sequence behind one abstract element type, dispatched at runtime",
+      "intent": "Counterpart to F15.P1 and F15.P2, which score compile-time parametric polymorphism with a statically recoverable type relationship. This probe scores the runtime form of the same family's capability: whether values of two different concrete types can be held in one sequence through a single abstract element type and a common operation dispatched to the concrete implementation without the concrete type being known statically. It is distinct from F14.P3, which measures introducing a new case from a separate unit; this one measures dispatch through an abstract element type within one unit, and a language may score differently on the two.",
+      "canonical_task": "Express: (1) an abstract type or interface `Named` declaring one operation `tag` returning a text string; (2) two distinct concrete types `A` and `B` implementing `Named`, whose `tag` returns \"a\" and \"b\" respectively; (3) a single sequence `items` whose DECLARED element type is `Named`, holding one `A` value and one `B` value, such that the concrete type of an element is not recoverable from the sequence's declared element type; (4) a call of `tag` on element 0 of `items`, dispatched at runtime to `A`'s implementation, producing \"a\" as the fragment's result. The measured fragment is (1)+(2)+(3)+(4). If the language has no type through which values of two different concrete types can be held in one sequence and a common operation dispatched to the concrete implementation at runtime, no fragment is written; record NONE with the citation of the rule that makes it unavailable.",
+      "measured_fragment": "The abstract type declaration, both concrete implementations, the heterogeneous sequence construction, and the dispatching call with its production.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "type_and_representation",
+        "alternative_value_cases",
+        "allocation_copy_move_borrow_destroy",
+        "control_flow_effect",
+        "value_vs_storage"
+      ]
+    },
+    {
+      "probe_id": "F16.P1",
+      "family": "16. collections and iteration",
+      "title": "Build a growable integer sequence and sum it by iteration",
+      "intent": "Measure the cost and clarity of constructing a sequence and traversing it, and whether allocation, element mutability and iteration-time modification rules are evident.",
+      "canonical_task": "Inside a function body: (1) construct a growable, ordered sequence of signed 32-bit integers containing exactly the elements 1, 2, 3, bound to a local `xs`, using the language's normal literal or builder form for that type; (2) bind a local `total` of the same integer type to the sum of all of `xs`'s elements, computed with the form R10 selects from the forms the language provides for summing a sequence — a standard sum/fold/reduce operation from the standard library where one exists, or an explicit iteration construct where the standard library provides none; every alternative considered, its token count and its documentation citation must be recorded in the probe's evidence record; (3) produce `total` as the fragment's result. The measured fragment is (1)+(2)+(3).",
+      "measured_fragment": "The three statements.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "allocation_copy_move_borrow_destroy",
+        "type_and_representation",
+        "mutability",
+        "control_flow_effect",
+        "overflow_exceptional_numeric"
+      ]
+    },
+    {
+      "probe_id": "F16.P2",
+      "family": "16. collections and iteration",
+      "title": "String-keyed map: iterate entries, and look up a missing key",
+      "intent": "Measure whether iteration-order guarantees and lookup-miss behavior are evident from the fragment, both classic sources of hidden semantics.",
+      "canonical_task": "Inside a function body: (1) construct a mapping from text-string keys to signed 32-bit integer values containing exactly one entry, key \"a\" mapped to 1, bound to a local `mp`, using the language's normal map/dictionary type and normal construction form; (2) bind a local `total` to the sum of all VALUES in `mp`, computed by iterating over its entries with the entry-iteration construct R10 selects; (3) bind a local `miss` of the plain signed 32-bit integer type to the result of looking up the key \"b\" (which is absent) in `mp`, substituting 0 for the absent case, using the lookup-with-default form R10 selects; (4) produce total + miss as the fragment's result. The measured fragment is (1)+(2)+(3)+(4). OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can determine whether iteration order is specified, and what an unguarded lookup of an absent key would do.",
+      "measured_fragment": "The four statements.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "allocation_copy_move_borrow_destroy",
+        "possible_failure",
+        "alternative_value_cases",
+        "control_flow_effect",
+        "type_and_representation"
+      ]
+    },
+    {
+      "probe_id": "F17.P1",
+      "family": "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics",
+      "title": "Scoped file handle released on every exit path",
+      "intent": "Measure how the language guarantees release of an OS resource at scope exit including on the failure path, and whether the release point is evident at the acquisition site.",
+      "canonical_task": "Express a complete function `read_all` with no parameters that: (1) opens the file named \"data.txt\" for reading using only the standard library (this can fail); (2) reads its entire contents into a text-string local `text`; (3) guarantees that the file handle is released when the enclosing scope ends, INCLUDING when step (2) fails, using the language's normal scoped-cleanup mechanism (destructor/RAII, defer, with-statement, using/try-with-resources, drop at end of scope, finally — whichever is normal in that language); (4) returns the length in bytes of `text`, and propagates or handles the open/read failure in whatever way that language's mechanism requires. The measured fragment is the complete function declaration and body. OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can determine WHERE the release happens and that it happens exactly once on every exit path.",
+      "measured_fragment": "The complete function declaration and body.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "lifetime_resource_effect",
+        "allocation_copy_move_borrow_destroy",
+        "possible_failure",
+        "control_flow_effect",
+        "externally_visible_side_effects"
+      ]
+    },
+    {
+      "probe_id": "F17.P2",
+      "family": "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics",
+      "title": "User-defined type with a deterministic end-of-lifetime cleanup hook",
+      "intent": "Measure whether a user-defined type can attach a cleanup action that runs deterministically and exactly once at the end of a value's lifetime, and whether the fragment reveals where that point is.",
+      "canonical_task": "Express: (1) a declaration of a user-defined type `Handle` holding a single signed 32-bit integer field `id`, which performs a cleanup action — incrementing an already-declared module-level counter `released` by 1 — EXACTLY ONCE and DETERMINISTICALLY when a value of the type reaches the end of its lifetime, using the language's own end-of-lifetime hook (destructor, drop, deinit, close-on-scope-exit, dispose pattern, etc.); (2) a block that creates a `Handle` with id = 1 bound to a local, and then ends; (3) after that block, a read of `released` produced as the fragment's result, whose value must be 1. The measured fragment is (1)+(2)+(3). If the language has no deterministic end-of-lifetime hook and only nondeterministic reclamation, express the nearest standard construct (e.g. an explicit close/dispose invoked by a scoped construct) and score PARTIAL under P-a (R9 substitution exception); if the language has no standard scoped construct either, record NONE.",
+      "measured_fragment": "The type declaration including the cleanup hook, the block, and the final read/production.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "lifetime_resource_effect",
+        "allocation_copy_move_borrow_destroy",
+        "externally_visible_side_effects",
+        "control_flow_effect",
+        "value_vs_storage"
+      ]
+    },
+    {
+      "probe_id": "F18.P1",
+      "family": "18. modules, imports, and dependency boundaries",
+      "title": "Importing and using one standard-library console-output facility",
+      "intent": "Measure whether the fragment reveals which external names enter scope and from where — the dependency-boundary transparency of a single import.",
+      "canonical_task": "Express: (1) whatever declaration is required in that language to make the standard console/text-output facility available in this compilation unit (an import, include, use, module reference, or nothing if the facility is available without one); (2) exactly one statement that writes the text \"x\" followed by a newline to standard output using that facility. The measured fragment is (1)+(2). OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can determine which names the declaration introduces into scope and which unit provides them.",
+      "measured_fragment": "The import/include declaration (if any) and the single output statement.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "externally_visible_side_effects",
+        "type_and_representation",
+        "possible_failure",
+        "control_flow_effect"
+      ]
+    },
+    {
+      "probe_id": "F18.P2",
+      "family": "18. modules, imports, and dependency boundaries",
+      "title": "A code unit with one exported and one private item, used from outside",
+      "intent": "Measure whether the language can draw an enforced visibility boundary around a unit and whether that boundary is evident at both the declaration and the external use site.",
+      "canonical_task": "Express: (1) a single unit of code (module, namespace, package, or file-level unit — the language's normal grouping construct) named `util`, containing exactly two items: an EXPORTED/PUBLIC function `pub_add` taking two signed 32-bit integers and returning their sum plus the result of `secret()`, and a NON-EXPORTED/PRIVATE function `secret` taking no parameters and returning 1, where the language's own rules prevent `secret` from being referenced from outside `util`; (2) from OUTSIDE `util`, a call `util.pub_add(2, 3)` written with whatever qualification that language requires, bound to a local and produced as the fragment's result (value 6). The measured fragment is (1)+(2). A second compilation unit is permitted and expected here where that is the language's normal unit granularity: it is NOT a third-party dependency, and the augmented build command for it is frozen in toolchain_binding.multi_unit_recipes, so it is neither a P-b deviation nor a P-e scaffold. Any language forced to PARTIAL or NONE on this probe solely by the single-file form of its recipe is an infrastructure defect under spec 10.4 and must be re-run under the multi-unit recipe before the result is reported. If the language cannot enforce the private boundary at all, express the nearest standard form and score PARTIAL under P-a.",
+      "measured_fragment": "The unit declaration with both items, and the external qualified call with its binding and production.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "externally_visible_side_effects",
+        "type_and_representation",
+        "value_vs_storage",
+        "control_flow_effect",
+        "lifetime_resource_effect"
+      ]
+    },
+    {
+      "probe_id": "F19.P1",
+      "family": "19. concurrency / asynchronous execution where the language supports it",
+      "title": "Two concurrent computations joined into one result",
+      "intent": "Measure whether the language has a standard way to run two computations concurrently and deterministically combine their results, and whether the concurrency, the join point and the failure modes are evident.",
+      "canonical_task": "Express a complete fragment that: (1) starts TWO independent units of concurrent or asynchronous execution, the first computing the integer 20 and the second computing the integer 22, using ONLY the language's standard concurrency/async facility as shipped with the frozen toolchain (thread, task, goroutine, coroutine, async function plus its standard runtime, actor, future/promise, structured-concurrency group); (2) waits for BOTH to finish; (3) binds a local `sum` to the sum of their two results (42) and produces it. The measured fragment is (1)+(2)+(3), including whatever launcher/runtime/entry wrapper the language requires to run async code, but excluding a plain non-async `main` wrapper. If the language has NO standard concurrency or asynchronous execution facility at all, no fragment is written; record NONE with the reason. A single-threaded cooperative async facility DOES count and must be recorded as such.",
+      "measured_fragment": "The launch of both units, the join, and the combining production, plus any required async runtime entry construct.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "control_flow_effect",
+        "externally_visible_side_effects",
+        "possible_failure",
+        "lifetime_resource_effect",
+        "allocation_copy_move_borrow_destroy"
+      ]
+    },
+    {
+      "probe_id": "F19.P2",
+      "family": "19. concurrency / asynchronous execution where the language supports it",
+      "title": "Race-free increment of shared state from two concurrent units",
+      "intent": "Measure whether the language and its standard library let the author express a documented race-free discipline over shared mutable state, and whether that discipline is evident at the mutation site.",
+      "canonical_task": "Express a complete fragment that: (1) establishes a single shared signed 64-bit integer counter initialized to 0; (2) from TWO concurrent or asynchronous units of execution, increments that counter 1000 times each, using ONLY standard-library or language-level synchronization (mutex/lock, atomic operation, channel serialization, actor isolation, or a language-enforced exclusion rule) such that the program is DOCUMENTED BY THE LANGUAGE to be free of data races; (3) waits for both, then produces the counter's final value, which must be exactly 2000. The measured fragment is (1)+(2)+(3) including the synchronization construct and any required async runtime entry construct. If the language has no standard concurrency facility, no fragment is written; record NONE. If the language has concurrency but its semantics make this program race-free WITHOUT any explicit synchronization construct, write the fragment that way ONLY if the language's own documentation states a NORMATIVE GUARANTEE that the specific read-modify-write in (2) is atomic; quote the sentence and cite it in the evidence record. An interpreter-wide lock that serializes bytecodes or instructions WITHOUT making a read-modify-write atomic does NOT satisfy this, and such a language must use an explicit synchronization construct. Verification is objective and MANDATORY: the value 2000 must be observed on 20 consecutive runs, and all 20 outcomes recorded. A run that observes any other value is a failed verification and the fragment is not FULL.",
+      "measured_fragment": "The shared-state establishment, both concurrent increment loops with their synchronization, the join, and the final production.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "aliasing_writable_aliasing",
+        "mutability",
+        "control_flow_effect",
+        "externally_visible_side_effects",
+        "lifetime_resource_effect"
+      ]
+    },
+    {
+      "probe_id": "F20.P1",
+      "family": "20. FFI / interoperability boundaries",
+      "title": "Calling a C library function across the FFI boundary",
+      "intent": "Measure whether the language can reach a platform C function using only its own standard mechanism, and whether the fragment reveals the foreignness, the ABI, the argument representation and the safety status of the call.",
+      "canonical_task": "Express a complete fragment that: (1) declares the C standard-library function with the C signature `int abs(int)` as an external/foreign function, using ONLY the language's built-in FFI/interoperability mechanism as shipped with the frozen toolchain — no third-party package, no separate binding generator, no separate build system step beyond the frozen recipe (linking against the platform C library that the frozen recipe already links by default is permitted); (2) calls it once with the argument -3; (3) binds the returned C `int` to a local of the language's corresponding signed 32-bit integer type and produces it as the fragment's result, whose value must be 3. The measured fragment is (1)+(2)+(3). If the language has no built-in FFI mechanism meeting these conditions, no fragment is written; record NONE with the reason. OBSERVATION TARGET (not a support requirement; scored by metrics B/D only): whether a reader can determine from the fragment that the call crosses a foreign boundary, what calling convention/ABI is assumed, and whether the call is marked unsafe or unchecked.",
+      "measured_fragment": "The foreign declaration, the call, and the binding/production.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "type_and_representation",
+        "conversion_behavior",
+        "possible_failure",
+        "externally_visible_side_effects",
+        "lifetime_resource_effect"
+      ]
+    },
+    {
+      "probe_id": "F20.P2",
+      "family": "20. FFI / interoperability boundaries",
+      "title": "Exporting a function with C ABI and a stable unmangled symbol",
+      "intent": "Measure the OUTBOUND interoperability direction: whether the language can publish a function callable from C with a stable, unmangled symbol name and the C calling convention, using only its own standard mechanism.",
+      "canonical_task": "Express a complete fragment that declares a function taking two C-`int`-compatible signed 32-bit integers `a` and `b` and returning their sum, which is (1) compiled with the C calling convention / C ABI, and (2) exported under the exact, unmangled external symbol name `add2`, using ONLY the language's built-in mechanism for C-compatible export (extern \"C\", no_mangle plus extern, export, cdecl attribute, JNI-style external linkage, or equivalent) with no third-party package and no separate code-generation step. The measured fragment is that declaration, its annotations/attributes, and its body. Verification is objective and MANDATORY: build the enclosing unit with the frozen recipe for that language and confirm with the platform symbol lister (`nm`) that a symbol whose name is exactly `add2` (allowing only the platform's uniform leading-underscore convention) is present and defined. The validator itself must first be exercised under pre_measurement_validation V2. For a language that produces NO compiled artifact under its frozen recipe, the N-reason is N-1 and the `nm` field of the evidence record reads 'no compiled artifact under the frozen recipe'; that is a NONE with a justification, NOT an N/A under NA-5. If the language cannot produce such a symbol with only its standard mechanism, no fragment is written; record NONE with the reason and with the `nm` evidence or the no-artifact note.",
+      "measured_fragment": "The exported function's annotations, declaration and body.",
+      "capability_points": 2,
+      "semantic_facts_expected": [
+        "type_and_representation",
+        "conversion_behavior",
+        "externally_visible_side_effects",
+        "lifetime_resource_effect",
+        "control_flow_effect"
+      ]
+    }
+  ],
+  "probe_count": 44,
+  "family_count": 20,
+  "probes_per_family": 2,
+  "total_fixed_capability_points": 88,
+  "capability_points_by_family": {
+    "1. value and storage declaration": 4,
+    "2. initialization and potentially uninitialized state": 4,
+    "3. mutation": 4,
+    "4. aliasing, references, borrowing, addressing, and dereferencing where applicable": 6,
+    "5. function calls and argument-passing semantics": 6,
+    "6. return-value semantics": 4,
+    "7. arithmetic operators": 4,
+    "8. integer overflow, division-by-zero, and other numeric edge behavior": 4,
+    "9. equality, ordering, and comparison": 4,
+    "10. explicit and implicit type conversion": 4,
+    "11. indexing and slicing": 4,
+    "12. nullable / optional values": 4,
+    "13. errors, failure values, exceptions, and propagation": 4,
+    "14. alternatives / sum / variant types and dispatch over alternatives": 6,
+    "15. generics / parametric polymorphism": 6,
+    "16. collections and iteration": 4,
+    "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics": 4,
+    "18. modules, imports, and dependency boundaries": 4,
+    "19. concurrency / asynchronous execution where the language supports it": 4,
+    "20. FFI / interoperability boundaries": 4
+  },
+  "spec_6_1_4_B_required_probe_mapping": {
+    "ordinary_call_site_probe": "F05.P1",
+    "explicit_reference_borrow_address_deref_writable_alias_probe": "F05.P2",
+    "note": "Spec 6.1.4.B requires BOTH: an ordinary call-site expression equivalent to f(x) measured for how many materially distinct aliasing/mutation outcomes remain possible from the call-site syntax ALONE (F05.P1), and a SEPARATE probe of the explicit reference/borrow/address/dereference/writable-alias forms the language provides (F05.P2). Both exist and are scored independently. Remediation R-1 added F05.P3 to the same family: the case in which the ARGUMENT IS A FUNCTION. Family 5 previously spent both its probes on how the argument's storage is passed, so the one argument-passing capability that constructs a callable value was worth 0 points in the whole universe. F05.P3 is scored by the same rubric and the same tie-break question as F05.P1 and F05.P2.",
+    "glyph_neutrality_rule": "Per spec 6.1.4.B, no probe awards or removes points merely because a language spells something with the glyph `&` (or `*`, `ref`, `inout`, `var`, `borrow`, or any other token). Score only the semantic determinacy conveyed by the complete surface form, evaluated identically for all 10 languages.",
+    "function_value_argument_probe": "F05.P3"
+  },
+  "support_rubric": {
+    "_purpose": "Frozen before any measurement (spec 6.1.7 item 4). Applied identically to all 10 languages, probe by probe.",
+    "_award_formula": "awarded_points(probe, language) = capability_points(probe) * support_factor(level)",
+    "_baseline_condition": "Support is credited ONLY when the probe can be expressed using documented language features or the language's normal standard runtime/library as shipped with the frozen toolchain, WITHOUT benchmark-specific external packages and WITHOUT code generation. Third-party packages, package-manager fetches, binding generators, separate build systems, hand-written assembly, and toolchains outside the frozen environment all disqualify.",
+    "levels": {
+      "FULL": {
+        "support_factor": 1.0,
+        "observable_criteria": [
+          "F-1. Every explicitly numbered sub-requirement in the probe's canonical_task is delivered by the fragment, with none dropped, weakened, or substituted.",
+          "F-2. The fragment uses only documented language features and the standard runtime/library bundled with the frozen toolchain version for that language.",
+          "F-3. The fragment builds (where the language has a build step) and runs to completion under the frozen recipe for that language, unmodified, producing the stated observable result.",
+          "F-4. No third-party package, no package-manager dependency, no code-generation step, and no compiler/runtime flag beyond the frozen recipe is required.",
+          "F-5. [DELETED — remediation R-3, 2026-09-17, pre-measurement. The slot is retained so that cross-references to F-6 elsewhere still resolve; no criterion occupies it, and FULL requires F-1 through F-4 and F-6 only. SUPERSEDED TEXT: 'F-5. Every fact kind listed in semantic_facts_expected is DETERMINABLE for that language at the probe (possibly requiring non-local lookup — locality cost is metric C's business, not coverage's).' It was deleted because it counted determinacy inside Capability Coverage as well as inside metrics B and D: it placed no bound on the permitted analysis, so a dynamically typed language could be pushed to PARTIAL on many probes purely for being dynamic, paying once in B/D and again in C, which then enters the harmonic mean. Spec 8 forbids exactly that double counting.]",
+          "F-6. The mechanism the fragment uses is not one the language's own OFFICIAL reference or standard-library documentation places under an explicit NORMATIVE prohibition or deprecation for ordinary use. The observable test is a sentence in that documentation containing 'deprecated', 'should not be used', 'do not use', 'must not be used', 'unstable', 'internal', 'no compatibility guarantee', or an equivalent normative form, applying to the mechanism as used here. The exact sentence and its URL MUST be quoted in the evidence record; without the quotation the criterion is satisfied. Documented warnings about the CONSEQUENCES of misuse ('can crash the interpreter', 'no type safety is provided', 'undefined behavior if the pointer is invalid') are not prohibitions and do NOT disqualify. A facility the language documents as first-class but gates behind an `unsafe`/`unchecked`/`@available` keyword — e.g. FFI — is likewise not disqualified, because the keyword is the documented normal way to use it. This replaces the earlier wording 'unsafe, deprecated, discouraged, or reflective', in which 'discouraged' and 'reflective' had no observable test and left Python's `ctypes`, Go's `unsafe`, Java's reflective access paths and C++'s raw-`new` guidance to be argued about on the basis of tone in a manual."
+        ]
+      },
+      "PARTIAL": {
+        "support_factor": 0.5,
+        "observable_criteria": [
+          "At least one numbered sub-requirement of canonical_task IS delivered, AND at least one of the following observable conditions holds. The condition(s) that applied MUST be recorded by letter in the results record for that (probe, language) pair:",
+          "P-a. SUBSTITUTED WEAKER MECHANISM. The observable behavior is achieved only by substituting a weaker but standard mechanism that drops a named sub-requirement — e.g. an open class hierarchy where the task demands a closed alternative set; a mutable container/object wrapper where the task demands writable access to a caller's scalar local; a runtime-checked cast where the task demands a statically expressed type relationship; an unconstrained generic where the task demands a declaration-site constraint; a copying slice where the task demands the reader be able to tell copy from share and the language offers only one.",
+          "P-b. FLAG OR MODE OUTSIDE THE FROZEN RECIPE. The behavior requires a compiler/runtime flag, mode, pragma, or preview/experimental switch beyond the frozen recipe, but that switch ships with the frozen toolchain and needs no additional download. NOTE: the frozen recipes pin Rust, Zig, Swift and Quidra to their optimized CHECKED arithmetic/bounds mode and TypeScript to `--strict` (toolchain_binding.safety_mode_clause and typescript_strict_clause). Those settings ARE the frozen recipe, so using them is not a P-b deviation for any language.",
+          "P-c. GUARANTEE NOT DOCUMENTED. The standard library provides the shape of the behavior, but the specific GUARANTEE the canonical_task names (deterministic cleanup point, specified iteration order, documented race-freedom, exactly-once execution, non-copying view, closed alternative set) is documented as unspecified, implementation-defined, or best-effort, so the fragment can only approximate it.",
+          "P-d. DOCUMENTED ESCAPE HATCH. The only expression available is via a mechanism the language's own documentation marks as unsafe-and-discouraged, deprecated, internal, or reflective (e.g. reflection to reach a private member, a finalizer the language documents as not to be relied upon, an internal/unstable API), while still shipping in the standard distribution.",
+          "P-e. EXTRA COMPILATION UNIT OR ENTRY SCAFFOLD. The probe is expressible only by adding a structural scaffold the canonical_task did not ask for and that is required purely by the language's unit granularity (e.g. a second file, a wrapper class, an explicit async runtime block where the task asked for none). NOTE: F18.P2, F14.P3 and F19.P1 explicitly permit their respective scaffolds, and toolchain_binding.multi_unit_recipes freezes the build command for the first two, so P-e does NOT apply to those three probes. A scaffold required purely by the harness rather than by the language is an infrastructure defect under spec 10.4, not a P-e PARTIAL."
+        ],
+        "no_double_penalty_rule": "Multiple applicable PARTIAL conditions do not stack. PARTIAL is a single 0.5 factor however many letters apply. Record all applicable letters for audit."
+      },
+      "NONE": {
+        "support_factor": 0.0,
+        "observable_criteria": [
+          "N-1. The language provides NO documented standard way to deliver ANY numbered sub-requirement of the canonical_task; or",
+          "N-2. The only available expression requires a third-party package, an external code generator, a separate build system or toolchain outside the frozen environment, or hand-written assembly; or",
+          "N-3. The fragment cannot be made to build or run under the frozen recipe (and the probe did not ask for a statically-rejected case); or",
+          "N-4. The probe's own canonical_task explicitly directs that no fragment be written for a language lacking the mechanism (F04.P1, F04.P2, F04.P3, F05.P2, F05.P3, F14.P3, F15.P3, F17.P2-final-clause, F19.P1, F19.P2, F20.P1, F20.P2).",
+          "Every NONE MUST carry a written justification citing the specific language rule or documentation that makes the capability unavailable, plus, where applicable, the exact build/run error or `nm` output observed. Where the language produces no compiled artifact under its frozen recipe and the probe requires symbol evidence (F20.P2), the N-reason is N-1 and the `nm` field records 'no compiled artifact under the frozen recipe'; that is a NONE with a justification, not an N/A under NA-5."
+        ]
+      }
+    },
+    "deterministic_tie_break": {
+      "question": "Does the fragment observably deliver EVERY explicitly numbered sub-requirement in the probe's canonical_task, under the frozen recipe, with only documented standard features?",
+      "all_yes": "FULL",
+      "some_but_not_all": "PARTIAL (record the applicable P-letter(s))",
+      "none": "NONE (record the N-reason)",
+      "binding": "This question is the sole arbiter. If two reviewers disagree, they must disagree about an observable fact (does it build? does the documentation say X?), not about a judgement of quality, elegance, or idiom. The question arbitrates the support LEVEL. The fragment TEXT is selected by authoring rule R10, which is equally mechanical: fewest tokens under the frozen tokenizer of methodology 02, ties broken by documentation order, with every alternative considered recorded in the evidence record.",
+      "numbering_guarantee": "Every one of the 44 canonical_tasks now carries explicitly numbered sub-requirements (1)/(2)/(3)/... covering every behavioral demand the probe makes. Eleven probes — F03.P1, F03.P2, F07.P1, F08.P2, F09.P1, F10.P1, F10.P2, F11.P1, F11.P2, F12.P2 and F14.P2 — previously had none, so the 'sole arbiter' question below was vacuously satisfied by anything that built and the probes' real demands lived in unnumbered prose. Remediation R-9 renumbered them; no probe's intent changed. OBSERVATION TARGET clauses are deliberately outside the numbering and are not read by this question.",
+      "named_substitution": "Where a canonical_task explicitly names a substitution (F02.P2, F12.P1, F12.P2, F14.P1, F15.P1, F15.P2, F17.P2), writing the named substitute delivers some but not all numbered sub-requirements and is PARTIAL under P-a. It is never FULL and never NONE. See authoring rule R9."
+    },
+    "adjudication_and_audit": {
+      "evidence_required_per_pair": [
+        "the fragment source text (or the NONE justification)",
+        "the exact build command and its exit status",
+        "the exact run command and the observed stdout/exit status against the canonical_task's stated result",
+        "the support level, the applicable P-letter(s) or N-reason, and a citation to the language documentation relied on"
+      ],
+      "no_post_hoc_adjustment": "Support levels are assigned from this rubric before any Q-metric aggregation and are not revised after coverage totals or rankings are seen (spec 6.1.7, 32)."
+    },
+    "interaction_with_quality_metrics": {
+      "common_basis_rule": "PREDECLARED before any language beyond the Quidra and Python pilot fragments is measured, and before any metric has been computed on any language. Metrics A (Semantic Density), B (Semantic Determinacy), C (Semantic Locality) and D (Hidden Semantic Cost) are computed PRIMARILY on the COMMON BASIS — the set of probes for which ALL TEN languages have a fragment — so every language's Q is measured on identical material. The all-fragments basis is computed and published as a SECONDARY figure, together with each language's fragment count n_L and the delta between the two bases for every metric. Where the two bases disagree about a ranking, both rankings are published and the common basis is the one that is reported as the result.",
+      "partial_fragments_enter_the_common_basis": "YES. A probe is in the common basis if all ten languages have a fragment for it, whether that fragment is FULL or PARTIAL. Applied identically to all ten languages, with no exemption. Rationale: a PARTIAL fragment is a real fragment with real tokens, branches, lookups and hidden costs. Excluding PARTIALs from A-D while excluding NONEs as well would mean a language that can only approximate a probe pays for the clumsy approximation in A-D while a language that cannot do it at all pays nothing there — making PARTIAL sometimes worse for Q than NONE.",
+      "why_this_replaced_the_variable_basis": "The superseded rule computed A-D 'over the probes for which a fragment exists, i.e. probes scored FULL or PARTIAL for that language', so every language's Q was measured on a different probe basis, with no requirement to publish the basis size. The excluded NONE probes are exactly the token-heavy, lookup-heavy, hidden-cost-heavy ones (concurrency, FFI, deterministic destruction, closures, heap identity), so dropping them RAISES Q, and it raises it most for whichever language has the most NONEs. Spec 6.1.4 nowhere authorises a variable basis. This is an aggregation shape that changes a score through averaging rather than through measurement, and it is removed.",
+      "capability_channel": "Capability Coverage C, computed on the full fixed 88-point denominator, remains the SOLE channel through which unsupported capabilities affect the score. A probe scored NONE contributes 0 to the numerator and its full capability points to the denominator (NA-2).",
+      "basis_reporting_requirement": "Every published table of A, B, C or D must state, in the table, the basis used ('common' or 'all-fragments'), the size of that basis, and for the all-fragments basis each language's n_L. A figure published without its basis size is not a result.",
+      "metric_E_denominator": "Per spec 6.1.4.E, Capability Efficiency divides counted semantic-complexity units by the number of SUPPORTED capability points, i.e. sum over probes of capability_points * support_factor. This is the same numerator quantity used for Capability Coverage. Metric E's numerator is counted on the same basis as A-D and the basis is stated with the figure.",
+      "anti_gaming_note": "No claim is made here that any particular aggregation makes a trade 'unprofitable'. The superseded note asserted that the harmonic mean made it unprofitable for a language to raise Q by failing hard probes, but showed no derivation, and the assertion was false under a variable basis. The common basis removes the trade mechanically instead of arguing about it: a language cannot change the material its A-D are measured on, because that material is the same 44-probe intersection for everyone. Any residual sensitivity of the aggregate to basis choice is published as the common/all-fragments delta rather than asserted away."
+    },
+    "determinacy_is_not_a_support_criterion": "BINDING. Support level records ONLY whether the canonical_task's stated behavior is delivered. Whether a fact is recoverable from the local surface form is measured exclusively by metrics B (Semantic Determinacy) and D (Hidden Semantic Cost) and NEVER affects FULL/PARTIAL/NONE. A fragment that delivers the behavior while leaving facts locally indeterminate is FULL and pays for the indeterminacy in B and D. This applies identically to all ten languages: it is the rule that keeps a dynamically typed language from being charged twice for dynamic typing, and equally the rule that keeps a statically typed language from being credited twice for static typing.",
+    "observation_target_clauses": "Clauses in a canonical_task prefixed 'OBSERVATION TARGET (not a support requirement; scored by metrics B/D only)' are NON-NORMATIVE for support scoring. They name what metrics B and D will look for in the fragment. They carry no number, they are not read by deterministic_tie_break, and a fragment that delivers every numbered sub-requirement is FULL whether or not a reader can recover the observation target from it. Eighteen probes carried such a clause unmarked before remediation R-3, with nothing stating whether it was a support requirement."
+  },
+  "capability_coverage": {
+    "formula": "C = 100 * (sum over the 44 probes of capability_points * support_factor) / total_fixed_capability_points",
+    "denominator": 88,
+    "denominator_frozen": true,
+    "reporting_requirement": "Report C in aggregate AND broken down by each of the 20 capability families, using capability_points_by_family as each family's denominator (spec 6.1.5). Report the per-family breakdown for all ten languages in the fixed column order, so that a family in which one language scores zero is visible rather than averaged away.",
+    "denominator_derivation": "2 points per probe x 44 probes = 88. See capability_point_assignment_rule. The superseded denominator was 103 under an irreproducible per-probe vector of 1-3 points."
+  },
+  "na_policy": {
+    "note": "Per spec section 26 and 6.1.1: for Semantic Compression Capability Coverage, an unsupported capability in this fixed universe REMAINS IN THE DENOMINATOR and therefore LOWERS coverage rather than becoming N/A. A missing capability must not escape scoring by being labeled N/A.",
+    "rules": [
+      "NA-1. The denominator is fixed at 88 capability points for every one of the 10 languages, and is changed only by adding a probe under amendment_procedure before any measurement — never by any language's results, and never because a language lacks a capability.",
+      "NA-2. A probe scored NONE for a language contributes 0 to that language's numerator and its full capability_points to the denominator. It is NOT marked N/A and it is NOT excluded.",
+      "NA-3. No probe may be deleted, reworded, or re-weighted because a language (including Quidra) lacks the capability (spec 32).",
+      "NA-4. The only legitimate N/A in Primary Evaluation 1 would be a measurement that cannot be taken for a reason unrelated to the language's capability — e.g. a metric-A token count for a probe where no fragment exists. That is handled by the interaction_with_quality_metrics rule above (exclusion from A-D), NOT by removing the probe from coverage.",
+      "NA-5. Every N/A actually recorded anywhere in Primary Evaluation 1 must carry a written reason naming which of these rules permits it (spec 26 final line).",
+      "NA-6. 'The language has no concept of X' is a NONE with a written justification, never an N/A. This applies symmetrically to all ten languages, and the benchmark records it without commentary about which language is affected. No list of probes on which NONE is 'expected' is stated here: the superseded NA-6 named ten probes and predicted their outcome, which is a result embedded in a frozen instrument. Which probes yield NONE for which language is an output of the measurement, not an input to it."
+    ]
+  },
+  "hard_family_honesty_declaration": {
+    "statement": "The five families where the 10 languages differ most (concurrency, FFI, ownership/lifetime/destruction, alternatives/sum types, generics/polymorphism) are included at full weight and are NOT softened. They carry 24 of the 88 capability points (27.3%). Two of them, 14 and 15, were additionally widened by remediation so they are scored in BOTH directions rather than only in the direction a closed, statically resolved design wins: F14.P3 scores extension of an alternative set from a separate unit, and F15.P3 scores runtime dispatch through an abstract element type.",
+    "expected_asymmetry_is_not_a_defect": "It is expected and correct that some languages score NONE on several of these probes while others score FULL. That spread is the measurement, not a flaw in it. No probe in these families was weakened to reduce the spread, and none may be weakened afterwards.",
+    "symmetry_check": "Each of these families is scored by exactly the same rubric text and the same tie-break question as every other family. No family has a language-specific exemption, carve-out, or bonus. The symmetry test applied to every remediation in remediation_changelog was: would this rule look equally reasonable if Quidra were replaced by Zig, or by Python? Any rule that made sense only because of something the subject language specifically does or lacks was rewritten so that any of the ten languages could satisfy or fail it."
+  },
+  "downstream_obligations": {
+    "freeze_order": "Per spec 6.1.7 the remaining items must be frozen before measurement and are the subject of sibling methodology documents: (3) the hidden-behavior checklist and metrics D/E (methodology/04_hidden_cost_and_capability_efficiency.md); (5) token-counting and normalization rules (methodology/02_fact_taxonomy_and_density.md), which authoring rule R10 now also relies on for fragment selection; metrics B and C (methodology/03_determinacy_and_locality.md); and (6) per-probe validation against each real implementation or authoritative specification, which is now gated by pre_measurement_validation V1-V5 in this file rather than deferred. Documents 02, 03 and 04 are all load-bearing for the Semantic Compression score and are named here because the superseded freeze_order listed only 02.",
+    "publication": "Per spec 6.1.7, the probe definitions (this file), raw counts, scoring scripts, capability matrix, and normalization calculations must all be published in benchmark/. In addition, the pre_measurement_validation V1-V5 evidence, the R10 alternative-form records with their token counts and documentation citations, the common-basis and all-fragments figures with their basis sizes and per-language fragment counts, and the F11.P1.checked evidence-only variants must be published."
+  },
+  "amendment_procedure": {
+    "rule": "Defects found by pre_measurement_validation, by adversarial audit, or by any reviewer BEFORE a score has been computed are corrected in place. Each correction receives a number and a date in methodology/CORRECTIONS.md, the superseded text is preserved verbatim there and in this file's remediation_changelog, and every measurement taken under the superseded text is re-taken.",
+    "prohibited": "Any change made after a score has been observed; any change whose justification is that it improves (or worsens) a named language's position; any deletion or re-weighting of a capability because a language lacks it (spec 32, NA-3).",
+    "supersedes": "This procedure supersedes the previous absolute freeze wording, which made it impossible to repair a defect that pre-measurement validation finds and contradicted spec 10.4's fix-and-record rule and this run's own CORRECTIONS.md practice."
+  },
+  "no_results_observed_at_remediation": "As of 2026-09-17, at the time the remediation recorded in remediation_changelog was applied, NO Semantic Compression score, sub-score, rank, or aggregate had been computed from this document or from any sibling methodology document for any of the ten languages. Only Quidra and Python probe fragments existed, and no metric had been run over them. Every change below is therefore pre-registration, not post-result formula selection (spec 32).",
+  "probes_per_family_note": "Value 2 is the guaranteed MINIMUM per family (spec 6.1.2 floor), not a uniform count. Families 4, 5, 14 and 15 carry 3 probes after remediation R-1, R-4 and R-12, which added the counterpart probes those families were missing. See probes_per_family_by_family.",
+  "probes_per_family_by_family": {
+    "1. value and storage declaration": 2,
+    "2. initialization and potentially uninitialized state": 2,
+    "3. mutation": 2,
+    "4. aliasing, references, borrowing, addressing, and dereferencing where applicable": 3,
+    "5. function calls and argument-passing semantics": 3,
+    "6. return-value semantics": 2,
+    "7. arithmetic operators": 2,
+    "8. integer overflow, division-by-zero, and other numeric edge behavior": 2,
+    "9. equality, ordering, and comparison": 2,
+    "10. explicit and implicit type conversion": 2,
+    "11. indexing and slicing": 2,
+    "12. nullable / optional values": 2,
+    "13. errors, failure values, exceptions, and propagation": 2,
+    "14. alternatives / sum / variant types and dispatch over alternatives": 3,
+    "15. generics / parametric polymorphism": 3,
+    "16. collections and iteration": 2,
+    "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics": 2,
+    "18. modules, imports, and dependency boundaries": 2,
+    "19. concurrency / asynchronous execution where the language supports it": 2,
+    "20. FFI / interoperability boundaries": 2
+  },
+  "capability_point_assignment_rule": {
+    "rule": "Every probe is worth exactly 2 capability points. Each family's weight is therefore 2 x (number of probes in that family), and the denominator is 2 x probe_count = 88.",
+    "why_uniform": "The previous vector assigned 1, 2 or 3 points per probe and 3 to 6 per family with no stated derivation, and no mechanical rule reproduces it: it is not the count of numbered sub-requirements (F01.P1 had 2 sub-requirements and 2 points; F01.P2 had 2 and 3 points) and it is not the count of semantic_facts_expected (F02.P1 had 5 facts and 3 points; F02.P2 had 5 facts and 2 points). An irreproducible weight vector is the single most load-bearing unaudited number in the document, because it is both the Capability Coverage denominator and metric E's denominator. A uniform vector is reproducible by inspection and is defensible without a derivation.",
+    "neutrality": "Uniform weighting is decided by counting probes, not by looking at any language. Under the previous vector the two families in which all ten languages are equally capable (3 mutation and 7 arithmetic) carried the lowest weight, 3 points each; uniform weighting raises them to 4 and lowers nothing by name.",
+    "effect_on_the_hard_family_share": "Recomputed and published rather than targeted: families 14, 15, 17, 19 and 20 now carry 24 of 88 points (27.3%) against 30 of 103 (29.1%) before. The change follows mechanically from removing an underivable vector and from adding counterpart probes to families 4, 5, 14 and 15; it was not chosen for its effect, and it is recorded here so a reader can see it.",
+    "frozen": "This rule, not the numbers it produces, is what is frozen. Any future probe added under amendment_procedure is worth 2 points and raises the denominator by 2."
+  },
+  "pre_measurement_validation": {
+    "_purpose": "Spec 6.1.7 item 6 and spec 10.4 require each probe to be validated against the real implementation or authoritative specification, and require a mandatory pre-flight. The superseded document deferred all of this to downstream_obligations and carried no validation triad, so every NONE this instrument produced was indistinguishable from a probe that is simply unwritable as specified. These gates must be satisfied, and their evidence preserved, BEFORE any language beyond the pilot is scored.",
+    "V1_fragments_build_and_match": "Every fragment scored FULL or PARTIAL builds and runs under its frozen recipe, unmodified, and its observed output matches the canonical_task's stated result. This was already implied by authoring rule R6; it is now an explicit gate, and the build command, exit status and observed stdout are preserved as evidence for every (probe, language) pair.",
+    "V2_validators_and_harness_conventions": "Every mechanical validator the probe set defines is exercised on a known-positive AND a known-negative case before it is trusted, and both outcomes are recorded. Specifically, F20.P2's `nm` check is run once on a binary known to export `add2` and once on a binary known not to, and both outcomes are recorded; a validator that can never fail, or never pass, would otherwise produce NONE rows silently. Separately, every harness convention a canonical_task withholds — Java's `Main` class name, file naming, package directories, entry wrappers, the async runtime block F19.P1 permits — is satisfied by the harness and is NEVER charged to the fragment as tokens, as a P-e PARTIAL, or as a NONE.",
+    "V3_every_probe_expressible_somewhere": "Every probe is demonstrated expressible at FULL in at least one of the ten languages, with the working fragment recorded, BEFORE any language is scored NONE against that probe. A probe no language can satisfy is an instrument defect, not a finding about the languages.",
+    "V4_suspicious_rows_and_columns": "Any probe with ten NONEs, and any language with NONE on more than a third of the probes, is investigated as a SUSPECTED INSTRUMENT DEFECT before the row or column is reported as a result. The investigation, its conclusion and the evidence are recorded in CORRECTIONS.md whether or not a defect is found. This gate applies identically to all ten languages, including the subject language: a surprisingly LOW column and a surprisingly HIGH column are both investigated.",
+    "V5_recipe_agreement": "toolchain_binding.recipes is checked for exact agreement with environment/environment.json -> frozen_toolchain_recipes under the name mapping in toolchain_binding.recipes_authority, and the check is recorded. A disagreement between the two frozen copies is an instrument defect that blocks measurement. Until the counterpart change listed in counterpart_obligations is applied to environment.json, this gate FAILS by construction and no fragment may be built.",
+    "evidence_is_preserved": "The outputs of V1-V5 are published in benchmark/ alongside the probe definitions and raw counts, per spec 6.1.7."
+  },
+  "counterpart_obligations": {
+    "_purpose": "Cross-document contradictions named by the audit are fixed on THIS side as the finding specified. The matching change each sibling document's owner must make is recorded here so it is not lost. Until every obligation below is discharged, pre_measurement_validation V5 fails and no measurement may be taken.",
+    "obligations": [
+      {
+        "document": "environment/environment.json -> frozen_toolchain_recipes",
+        "change_required": "Set rust.build to `rustc -O -C debug-assertions=on FILE.rs -o BIN`, zig.build to `zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN`, and typescript.build to `tsc --strict --target es2022 --module nodenext FILE.ts`, matching this file byte for byte. Add the safety_mode_clause rationale, or reference it here, so the `_policy` line 'every language uses its normal optimized/release build' is not read as authorising an unchecked mode for some languages and a checked mode for others.",
+        "why": "Findings 2 and 10. `rustc -O` alone turns debug assertions off, so `+` wraps rather than panicking, and `-OReleaseFast` makes Zig's signed overflow and out-of-bounds indexing undefined behavior, while the evaluated Quidra build has only an optimized-and-checked mode. Probes F08.P1, F08.P2 and F11.P1 score exactly that difference. Non-strict `tsc` erases the optionality F12.P1 and F12.P2 measure."
+      },
+      {
+        "document": "environment/environment.json -> frozen_toolchain_recipes",
+        "change_required": "Add the multi-unit build commands for F18.P2 and F14.P3 exactly as frozen in toolchain_binding.multi_unit_recipes, and record that they are not a P-b deviation.",
+        "why": "Finding 8. `clang++ ... FILE.cpp` and `go build -o BIN FILE.go` compile one unit, so C++ and Go would be scored down on a visibility-boundary probe for a harness limitation, which spec 10.4 forbids."
+      },
+      {
+        "document": "methodology/03_determinacy_and_locality.md (metrics B and C)",
+        "change_required": "Confirm that B and C are computed on the COMMON BASIS as primary with the all-fragments basis as a published secondary, that PARTIAL fragments are included, and that every published figure states its basis and basis size. Confirm that B is the sole home of local determinacy, since rubric criterion F-5 has been deleted here.",
+        "why": "Findings 3 and 6. Determinacy must be counted once, in B/D, and A-D must be measured on identical material for all ten languages."
+      },
+      {
+        "document": "methodology/04_hidden_cost_and_capability_efficiency.md (metrics D and E)",
+        "change_required": "Confirm the same common-basis rule for D, and update metric E's denominator reference from 103 to 88 supported-capability points with the 2-points-per-probe rule.",
+        "why": "Findings 5 and 6. The capability-point vector changed, and E divides by supported capability points."
+      },
+      {
+        "document": "methodology/02_fact_taxonomy_and_density.md (frozen tokenizer)",
+        "change_required": "No change to the tokenizer is required, but authoring rule R10 now makes the tokenizer load-bearing for FRAGMENT SELECTION as well as for metric A. Confirm the tokenizer is available and frozen before any fragment is authored.",
+        "why": "Finding 7. R10 selects the fragment text by token count, which is what actually moves metrics A-D."
+      },
+      {
+        "document": "methodology/CORRECTIONS.md",
+        "change_required": "Record the remediation entries in remediation_changelog below as numbered, dated defect entries with the superseded text preserved verbatim, in the same form as D-1 through D-4.",
+        "why": "Finding 15b and spec 10.4: defects found during a run are fixed and recorded, not silently corrected."
+      },
+      {
+        "document": "semantic-compression/probes/* (existing pilot fragments)",
+        "change_required": "The Quidra and Python fragments for F04.P1, F04.P2, F05.P2, F09.P2, F12.P2 and F15.P1 must be re-authored against the remediated canonical_tasks (renamed identifiers, changed constants, descending sort, locally declared `h`), and fragments must be authored for the four new probes F04.P3, F05.P3, F14.P3 and F15.P3. No measurement has been taken from the old fragments.",
+        "why": "Findings 1, 4 and 9."
+      }
+    ]
+  },
+  "remediation_changelog": {
+    "_purpose": "Record of the adversarial-audit remediation applied to this document on 2026-09-17. Each entry states the finding's severity, the defect in one line, what changed, and — for every Quidra-bias finding — which direction the correction is expected to move Quidra's score.",
+    "no_results_observed": "NO score, sub-score, rank or aggregate had been computed from this document or any sibling methodology document for any of the ten languages when these changes were made. Only Quidra and Python probe fragments existed and no metric had been run over them. This remediation is therefore legitimate pre-registration, not post-result formula selection (spec 32).",
+    "symmetry_test_applied": "Every change was checked against: would this rule look equally reasonable if Quidra were replaced by Zig, or by Python? Rules that made sense only because of something the subject language specifically does or lacks were rewritten so that any of the ten languages could satisfy or fail them. No compensating bias in the opposite direction was introduced: each added probe scores a capability that at least six of the ten comparison languages provide as a first-class standard feature, under the same rubric text and the same tie-break question as every existing probe.",
+    "net_expected_direction": "LOWER for Quidra. The dominant effects are R-1 and R-4, which add four counterpart probes (8 of 88 points) covering function/closure values, heap object identity, extension of an alternative set from a separate unit, and runtime dispatch through an abstract element type — capabilities the subject language's own documentation says it does not provide, and which were previously worth 0 of 103 points. R-2 removes an unchecked-mode advantage the frozen recipes gave Rust and Zig on the three probes that score overflow and bounds behavior, R-3 stops charging dynamically typed languages twice for dynamic typing, R-6 stops NONE-heavy languages from raising Q by having fewer fragments, and R-10 gives TypeScript the optionality it actually has. Each of these raises a comparison language relative to Quidra. One change, R-5's uniform weight vector, incidentally lowers the combined share of the five hardest families from 29.1%% to 27.3%%; that share is published rather than targeted, it follows mechanically from removing an underivable vector, and it is small against the 8 points added by R-1 and R-4.",
+    "entries": [
+      {
+        "id": "R-1",
+        "severity": "BLOCKER",
+        "finding": "Finding 1 — no probe requires constructing or passing a function value",
+        "defect": "The one construct the subject language cannot express and the other nine can — a first-class function or closure value — was worth 0 of 103 points, and three probes routed around it: F12.P2 supplied `h` as given context, F09.P2 excused a comparator 'if the language supplies a default order', and F16.P1 permitted a plain loop instead of a fold.",
+        "change": "Added F05.P3 (2 points): declare a unary function value `neg` inside the measured fragment that captures an enclosing local `k`, pass it BY NAME at the argument position of the standard higher-order sequence operation (or of ordinary iteration where the standard library has none, so that a language without a stdlib `map` is not penalised for the wrong thing), and produce element 0. Deleted F09.P2's escape clause and made it require an EXPLICITLY supplied descending ordering, never the facility's default. Changed F12.P2 so `h` is declared inside the measured fragment. F16.P1's either/or is resolved by R10 (see R-7).",
+        "quidra_score_direction": "LOWER — expected NONE for Quidra on F05.P3 and a harder F09.P2/F12.P2; this is the measurement, not a defect, exactly as hard_family_honesty_declaration already accepts for concurrency and FFI."
+      },
+      {
+        "id": "R-2",
+        "severity": "BLOCKER",
+        "finding": "Finding 2 — checked-vs-unchecked toolchain asymmetry",
+        "defect": "The frozen recipes put Rust (`rustc -O`, debug assertions off) and Zig (`-OReleaseFast`, signed overflow and out-of-bounds indexing undefined) in their UNCHECKED configuration while Quidra and Swift were checked, and F08.P1, F08.P2 and F11.P1 score precisely that difference. F08.P1's demand that the overflow outcome be statable 'without consulting the build recipe' was unanswerable for Rust and Zig only because of the recipe this document froze.",
+        "change": "Rust recipe changed to `rustc -O -C debug-assertions=on FILE.rs -o BIN`, Zig to `zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN`. Added toolchain_binding.safety_mode_clause pinning the SAFETY POSTURE rather than the optimization level, recorded per language as a controlled variable, with C++ recorded as having no checked mode — a language fact scored by metrics B and D, not by the recipe. Added to P-b that the checked mode IS the frozen recipe and is not a deviation.",
+        "quidra_score_direction": "LOWER — Rust and Zig can now express locally determinate checked arithmetic and bounds behavior on F08.P1, F08.P2 and F11.P1, closing an advantage the recipe had handed the subject language."
+      },
+      {
+        "id": "R-3",
+        "severity": "BLOCKER",
+        "finding": "Finding 3 — determinacy double-counted in coverage and in metrics B/D",
+        "defect": "Support rubric criterion F-5 required every expected fact kind to be DETERMINABLE, with no bound on the permitted analysis, so a dynamically typed language could be pushed to PARTIAL on many probes purely for being dynamic — paying once in B/D and again in C, which enters the harmonic mean. Separately, 18 canonical_tasks ended with an unnumbered 'A reader must be able to determine X' clause and nothing said whether those clauses were support requirements.",
+        "change": "Deleted criterion F-5 (slot retained so cross-references to F-6 still resolve). Added the binding rule support_rubric.determinacy_is_not_a_support_criterion: support records only whether the stated behavior is delivered, and local recoverability is measured exclusively by B and D. Prefixed every affected clause in F01.P2, F04.P2, F06.P1, F07.P2, F08.P1, F09.P1, F09.P2, F10.P1, F10.P2, F11.P1, F11.P2, F13.P1, F13.P2, F14.P2, F16.P2, F17.P1, F18.P1 and F20.P1 with 'OBSERVATION TARGET (not a support requirement; scored by metrics B/D only):', and added support_rubric.observation_target_clauses making them non-normative.",
+        "superseded_text": "F-5. Every fact kind listed in semantic_facts_expected is DETERMINABLE for that language at the probe (possibly requiring non-local lookup — locality cost is metric C's business, not coverage's).",
+        "quidra_score_direction": "LOWER — Python and TypeScript stop paying a coverage penalty on top of the determinacy penalty they already pay in B and D, which raises them relative to Quidra."
+      },
+      {
+        "id": "R-4",
+        "severity": "BLOCKER",
+        "finding": "Finding 4 — false Quidra-independence claim, and four probes shaped by Quidra's README",
+        "defect": "provenance_and_fairness_statement.derivation asserted that no Quidra documentation or example was consulted and no probe was shaped by its feature set. F15.P1 (`first`, generic T, `values[0]`), F05.P2 (`g(int &value)`, value 7, caller local initialized to 1), F04.P1 (`x` = 1 plus a second name for the same storage) and F04.P2 (non-copying read-only view) reproduce Quidra's own README examples for its design laws 1, 2 and 3, carrying 12 of 103 points.",
+        "change": "Replaced the derivation paragraph with a truthful one that withdraws the claim and lists the pairings. Rewrote identifiers and constants off the README's: F04.P1 `x`/1/`r`/9 -> `slot`/4/`port`/9; F04.P2 `v` -> `window`; F05.P2 `g`/`x`/1/7 -> `put`/`cell`/3/12; F15.P1 `first`/1,2,3/\"x\",\"y\" -> `head`/4,5,6/\"p\",\"q\". Added a counterpart probe to each affected family, chosen to exercise the capability a value-semantics-with-explicit-storage design excludes: F04.P3 (two independently obtained handles observed to denote the same heap object, using a standard reference-identity operation), F05.P3 (see R-1), F14.P3 (see R-12) and F15.P3 (heterogeneous sequence behind one abstract element type, dispatched at runtime). Each is scored by the same rubric and tie-break question as every other probe.",
+        "superseded_text": "Every probe in this file was derived exclusively from (a) the 20 capability families enumerated verbatim in spec section 6.1.2, (b) the semantic-fact inventory in spec section 6.1.3, and (c) general programming-language theory. No Quidra documentation, source, examples, README, or grammar was consulted. No probe was shaped by Quidra's operators, types, syntax, keywords, or feature set.",
+        "quidra_score_direction": "LOWER — the four families that previously asked only the sub-question Quidra's design laws exist to answer now ask the dual question too, and Quidra is expected to score NONE on the counterparts."
+      },
+      {
+        "id": "R-5",
+        "severity": "MAJOR",
+        "finding": "Finding 5 — the 103-point weight vector has no derivation rule",
+        "defect": "Per-probe values ranged 1 to 3 and per-family totals 3 to 6 with no stated basis, and no mechanical rule reproduces them: not the count of numbered sub-requirements (F01.P1 had 2 and 2 points; F01.P2 had 2 and 3), not the count of semantic_facts_expected (F02.P1 had 5 facts and 3 points; F02.P2 had 5 and 2). The vector is both the Capability Coverage denominator and metric E's denominator.",
+        "change": "Replaced with a uniform vector: every probe is worth 2 points, each family weighs 2 x (its probe count), and the denominator is 2 x 44 = 88. Added capability_point_assignment_rule stating the rule, why uniform was chosen over a reconstructed derivation, and the recomputed hard-family share. Updated capability_coverage, capability_points_by_family, NA-1 and metric E's denominator reference.",
+        "quidra_score_direction": "MIXED, small. Uniform weighting raises the two families in which all ten languages are equally capable (3 mutation, 7 arithmetic) from 3 points to 4, and lowers the combined share of the five hardest families from 29.1% to 27.3% — which, taken alone, would slightly HELP a language that fails hard probes. That effect is published rather than hidden, follows mechanically from removing an underivable vector, and is small against the 8 points R-1 and R-4 added in exactly those families' direction."
+      },
+      {
+        "id": "R-6",
+        "severity": "MAJOR",
+        "finding": "Finding 6 — metrics A-D computed on a per-language variable basis",
+        "defect": "A-D were computed only over each language's FULL-or-PARTIAL probes, so every language's Q was measured on different material with no requirement to publish the basis size. The excluded NONE probes are the token-heavy, lookup-heavy, hidden-cost-heavy ones, so dropping them raises Q most for whichever language has the most NONEs. PARTIAL fragments were kept in A-D, so approximating a probe could cost more in Q than not doing it at all. The anti_gaming_note asserted the harmonic mean made this unprofitable but showed no derivation.",
+        "change": "Replaced interaction_with_quality_metrics with a predeclared COMMON BASIS rule: A-D are computed primarily on the set of probes for which all ten languages have a fragment, so every language's Q is measured on identical material; the all-fragments basis is published as a secondary figure with each language's n_L and the delta; PARTIAL fragments DO enter the common basis, applied identically to all ten languages; every published figure must state its basis and basis size; Capability Coverage on the fixed 88-point denominator remains the sole channel through which unsupported capabilities affect the score. Replaced the unproved anti-gaming assertion with the mechanical statement.",
+        "quidra_score_direction": "LOWER — a language with more NONEs no longer gains a higher Q from a smaller, easier basis, and this is expected to affect the youngest language most."
+      },
+      {
+        "id": "R-7",
+        "severity": "MAJOR",
+        "finding": "Finding 7 — 'the way a normal author would write it' is an undefined judgement that moves every metric",
+        "defect": "R2 and its restatements inside canonical_tasks selected the fragment text from which A, B, C and D are all computed, with no tie-break. F16.P1 openly permitted either an explicit loop or a standard sum, a ~5x token difference in Python on a probe that feeds Semantic Density directly. deterministic_tie_break arbitrated only the support LEVEL, never the TEXT.",
+        "change": "Added authoring rule R10_deterministic_form_selection: fewest tokens under methodology 02's frozen tokenizer, ties broken by first appearance in the language's official documentation, every alternative considered recorded with its token count and citation. A canonical_task's own explicit preference order overrides R10. Removed the either/or from F16.P1 and F16.P2 and routed F03.P1, F07.P2, F09.P1, F09.P2, F10.P2, F11.P1, F11.P2 and F14.P2 through R10. Updated R2 to defer to R10 and noted the tie-break's new scope.",
+        "quidra_score_direction": "UNCHANGED in direction — R10 is a mechanical rule applied identically to all ten languages; it removes an author's degree of freedom rather than moving any language."
+      },
+      {
+        "id": "R-8",
+        "severity": "MAJOR",
+        "finding": "Finding 8 — F18.P2 requires a second unit that two frozen recipes cannot build",
+        "defect": "F18.P2 declared a second file permitted, but `clang++ ... FILE.cpp -o BIN` compiles one translation unit and `go build -o BIN FILE.go` compiles one named file while Go's lowercase-is-package-scoped rule needs a separate package. C++ and Go would have been scored down for a harness limitation — the failure mode spec 10.4 forbids — while the subject language's single-command module reference took FULL.",
+        "change": "Added toolchain_binding.multi_unit_recipes naming the exact augmented command per language for F18.P2 and the new F14.P3 (C++ `clang++ -std=c++20 -O2 util.cpp FILE.cpp -o BIN`; Go `go build -o BIN ./...` with go.mod and a util/ package; Swift, Java and Kotlin likewise; Rust, TypeScript, Zig, Python and Quidra unchanged), declared it not a P-b deviation, and added the spec-10.4 rule that any language forced to PARTIAL or NONE solely by the single-file recipe must be re-run before the result is reported. Updated P-e's exemption list and F18.P2's own text.",
+        "quidra_score_direction": "LOWER — C++ and Go recover a 2-point probe they would have lost to the harness rather than to their languages."
+      },
+      {
+        "id": "R-9",
+        "severity": "MAJOR",
+        "finding": "Finding 9 — eleven probes had no numbered sub-requirements, so the 'sole arbiter' arbitrated nothing",
+        "defect": "deterministic_tie_break asks whether the fragment delivers every explicitly numbered sub-requirement. F03.P1, F03.P2, F07.P1, F08.P2, F09.P1, F10.P1, F10.P2, F11.P1, F11.P2, F12.P2 and F14.P2 had none, so the question was vacuously satisfied by anything that built while the real demands lived in unnumbered prose — a Python `e = xs[i]` that raises IndexError delivered all zero of F11.P1's numbered sub-requirements.",
+        "change": "Renumbered all eleven canonical_tasks so every behavioral demand carries its own (1)/(2)/(3), with OBSERVATION TARGET clauses deliberately left outside the numbering. Added deterministic_tie_break.numbering_guarantee recording that all 44 tasks are now numbered and that no probe's intent changed, and deterministic_tie_break.named_substitution fixing the level for the seven probes that name a substitution.",
+        "quidra_score_direction": "UNCHANGED in direction — the arbiter now arbitrates for every language equally; it removes reviewer disagreement rather than moving a score."
+      },
+      {
+        "id": "R-10",
+        "severity": "MAJOR",
+        "finding": "Finding 10 — the frozen TypeScript recipe runs non-strict",
+        "defect": "`tsc FILE.ts` with no tsconfig and no flags leaves `strict` and `strictNullChecks` off, so `let o: number | undefined = undefined; let n: number = o;` compiles clean, erasing the point of F12.P1 and F12.P2 for TypeScript. The rubric then trapped the language: enabling `--strict` was a flag beyond the frozen recipe under P-b and forced PARTIAL.",
+        "change": "Changed the frozen TypeScript recipe to `tsc --strict --target es2022 --module nodenext FILE.ts` and added toolchain_binding.typescript_strict_clause declaring `--strict` part of the recipe, not a P-b deviation, because non-strict is not production-reasonable under R2 or spec 7. Recorded the matching environment.json change as a counterpart obligation.",
+        "quidra_score_direction": "LOWER — TypeScript is credited with the type-level optionality it actually has, on two probes where it was previously credited with none."
+      },
+      {
+        "id": "R-11",
+        "severity": "MAJOR",
+        "finding": "Finding 11 — F08.P1 named no preference order among explicit overflow operations",
+        "defect": "F08.P1 said to use 'the one that makes the behavior explicit at the site' where several exist. Rust offers checked_add, wrapping_add, saturating_add and overflowing_add; Zig offers +%, +| and @addWithOverflow; Swift offers &+ and addingReportingOverflow. The four differ in token count (A), surviving interpretations (B) and whether a failure path appears (D), so an unstated choice moved three metrics. F08.P2 in the same family already supplied an explicit (i)/(ii)/(iii) order.",
+        "change": "Gave F08.P1 the same shape: (i) standard checked operation yielding an optional/error value with 0 substituted for the exceptional case; (ii) standard wrapping; (iii) standard saturating; (iv) the plain operator — recording which rung was used and why each higher rung was unavailable. Applied the same rung-and-record form to F10.P1's conversion preference, and replaced F08.P2's 'if neither is idiomatic' with 'if neither is available in that language's standard library'.",
+        "quidra_score_direction": "UNCHANGED in direction — one fixed order applied identically to every language that has the operations."
+      },
+      {
+        "id": "R-12",
+        "severity": "MAJOR",
+        "finding": "Finding 12 — family 14 rewards closedness and nothing rewards extensibility",
+        "defect": "F14.P1 demanded that the language's own rules prevent a third alternative being added and routed open class hierarchies to PARTIAL; F14.P2 forbade a default arm and scored exhaustiveness. The dual capability — adding a new alternative from a separate compilation unit without editing the original, the point of open polymorphism in Java, Kotlin, Swift, C++, Python and TypeScript — was worth zero points anywhere in the universe. The family was scored in one direction only.",
+        "change": "Added F14.P3 (2 points), the exact mirror of F14.P1: declare an abstract `area` over shapes in a unit `shapes`; from a SEPARATE unit that does not modify `shapes`, introduce a third shape `Tri` implementing `area`; call `area` through a value of the abstract type holding a `Tri`. A language whose rules prevent extension from outside the declaring unit records NONE with the citation. Its second unit is covered by multi_unit_recipes and is exempt from P-e. Added notes to F14.P1 and F14.P3 that closedness and extensibility are scored separately and neither result implies the other.",
+        "quidra_score_direction": "LOWER — expected NONE for Quidra, whose documentation states there is no implicit runtime subtype relation, no implicit upcast and no hidden dynamic dispatch, on a probe six comparison languages satisfy as a matter of course."
+      },
+      {
+        "id": "R-13",
+        "severity": "MAJOR",
+        "finding": "Finding 13 — no pre-measurement validation, so every NONE is indistinguishable from an unwritable probe",
+        "defect": "The document declared itself frozen while deferring all probe validation downstream and carried no analogue of spec 10.4's validation triad: the F20.P2 `nm` validator was never required to be exercised on a known-positive and a known-negative case, no rule required an all-NONE row or column to be investigated as an instrument defect, and no rule required a probe to be shown expressible somewhere before any language was scored NONE against it.",
+        "change": "Added pre_measurement_validation with V1 (every FULL/PARTIAL fragment builds, runs and matches the stated result, evidence preserved), V2 (every mechanical validator exercised on a known-positive and a known-negative case with both outcomes recorded; withheld harness conventions — Java's `Main`, file naming, package directories, entry wrappers — satisfied by the harness and never charged to the fragment), V3 (every probe demonstrated expressible at FULL in at least one language before any NONE is recorded), V4 (any probe with ten NONEs, or any language with NONE on more than a third of the probes, investigated as a suspected instrument defect, with surprisingly HIGH columns investigated on the same footing as surprisingly low ones) and V5 (the two frozen recipe copies checked for agreement).",
+        "quidra_score_direction": "UNCHANGED in direction — a gate applied identically in both directions to all ten languages."
+      },
+      {
+        "id": "R-14",
+        "severity": "MAJOR",
+        "finding": "Finding 14 — F19.P2's no-synchronization clause invites a factually wrong FULL",
+        "defect": "The clause let a language whose semantics 'make this program race-free WITHOUT any explicit synchronization construct (e.g. a global interpreter lock...)' write the unsynchronized fragment. A GIL does not make `counter += 1` atomic — it is a read-modify-write across bytecodes — and Python 3.14, the frozen version, ships a free-threaded build. An analyst following it literally would credit capability points to a program with a data race on the strength of one lucky run.",
+        "change": "Tightened the clause: the unsynchronized form is permitted ONLY if the language's own documentation states a NORMATIVE guarantee that the specific read-modify-write in (2) is atomic, with the sentence quoted and cited in the evidence record; an interpreter-wide lock that serializes bytecodes without making a read-modify-write atomic does NOT satisfy this and the fragment must use an explicit synchronization construct. Verification requires the value 2000 on 20 consecutive runs, all 20 outcomes recorded, with any other value a failed verification.",
+        "quidra_score_direction": "HIGHER, marginally, relative to Python — Python must now write the explicit synchronization construct, which costs it tokens in metric A. This correction moves the benchmark toward Quidra on one probe and is applied anyway, because the superseded clause would have recorded a factually false capability (spec 4: if a value cannot be measured honestly, do not fabricate it)."
+      },
+      {
+        "id": "R-15",
+        "severity": "MINOR",
+        "finding": "Finding 15 — R9 contradicted seven probes, the freeze wording forbade repairing a defect, and NA-6 pre-announced results",
+        "defect": "(a) R9 said never substitute an easier task, while F02.P2, F12.P1, F12.P2, F14.P1, F15.P1, F15.P2 and F17.P2 each explicitly instructed substitution. (b) `status` forbade any probe ever being reworded and no_post_hoc_redesign said a discovered defect is recorded as an erratum 'not silently repaired here', making it impossible to repair a defect pre-measurement validation finds — contradicting spec 10.4 and this run's own CORRECTIONS.md, which does exactly that for methodology 02. (c) NA-6 pre-announced NONE as 'the expected outcome for several languages' on ten named probes.",
+        "change": "(a) Amended R9 with the named-substitution exception: write the named substitute and score PARTIAL under P-a, never FULL, and made the seven probes say 'score PARTIAL under P-a' instead of 'score by the rubric'. Added deterministic_tie_break.named_substitution. (b) Replaced the freeze wording with amendment_procedure: pre-measurement defects are corrected, numbered and dated in CORRECTIONS.md with the superseded text preserved verbatim and affected measurements re-taken; only changes made after results are observed, or made to improve a language's position, are prohibited. (c) Deleted the ten-probe expectation list from NA-6, keeping only the rule that 'the language has no concept of X' is a NONE and never an N/A.",
+        "quidra_score_direction": "UNCHANGED in direction — removes contradictions and a predicted result; no language's position changes."
+      },
+      {
+        "id": "R-16",
+        "severity": "MINOR",
+        "finding": "Finding 16 — four loose ends that would be argued about later",
+        "defect": "(a) F11.P1's `.checked` variant was 'measured and reported separately' but no metric consumed it and nothing forbade citing it selectively after results. (b) F20.P2 made `nm` evidence mandatory including for NONE, but Python and TypeScript produce no compiled artifact, so the required evidence could not exist. (c) toolchain_binding.recipes duplicated environment.json verbatim with no checksum and already differed in shape (one Quidra entry here, quidra_native/quidra_interpreter there). (d) freeze_order named only sibling documents 02, omitting 03 (metrics B and C) and 04 (metrics D and E).",
+        "change": "(a) Added to F11.P1 that the `.checked` variant enters no metric, is evidence only, may not be substituted in any calculation of A-E, and changes neither the capability points nor the support level. (b) Added to F20.P2 and to the NONE criteria that a language with no compiled artifact records N-1 with the nm field reading 'no compiled artifact under the frozen recipe' — a NONE, not an N/A under NA-5. (c) Added toolchain_binding.recipes_authority naming environment.json as the single authority with the name mapping, plus validation gate V5 requiring the two copies to be checked for agreement before measurement. (d) Extended freeze_order to name 02, 03 and 04 and to record that validation is now gated in this file rather than deferred.",
+        "quidra_score_direction": "UNCHANGED in direction."
+      },
+      {
+        "id": "R-17",
+        "severity": "MINOR",
+        "finding": "Finding 17 — rubric criterion F-6 disqualified mechanisms on an unobservable test",
+        "defect": "F-6 disqualified a mechanism the documentation marks 'unsafe, deprecated, discouraged, or reflective'. 'Discouraged' and 'reflective' have no observable test, and the carve-out rescued only facilities gated behind an unsafe/unchecked keyword — leaving Python's `ctypes` (needed for F20.P1), Go's `unsafe`, Java's reflective access paths and C++'s raw-`new` guidance in the gap, so two reviewers could disagree about a probe on the basis of tone in a manual.",
+        "change": "Replaced the wording with an observable test: an explicit NORMATIVE prohibition or deprecation for ordinary use in the official reference or standard-library documentation, evidenced by a sentence containing 'deprecated', 'should not be used', 'do not use', 'must not be used', 'unstable', 'internal', 'no compatibility guarantee' or an equivalent normative form, with the exact sentence and URL quoted in the evidence record — absent the quotation the criterion is satisfied. Documented warnings about consequences of misuse ('can crash the interpreter') are explicitly not prohibitions.",
+        "quidra_score_direction": "LOWER — Python's `ctypes` and Go's `unsafe` can no longer be disqualified on tone, so those languages keep FFI points they might have lost."
+      }
+    ],
+    "findings_rejected": []
+  }
+}

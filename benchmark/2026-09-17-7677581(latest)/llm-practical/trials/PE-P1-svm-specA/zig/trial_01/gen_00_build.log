@@ -1,0 +1,12 @@
+solution.zig:364:28: error: root source file struct 'posix' has no member named 'write'
+        const n = std.posix.write(1, outbuf[off..outlen]) catch break;
+                  ~~~~~~~~~^~~~~~
+/opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/posix.zig:1:1: note: struct declared here
+//! POSIX API layer.
+^~~~~~~~~~~~~~~~~~~~
+referenced by:
+    callMain [inlined]: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:698:59
+    callMainWithArgs [inlined]: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:638:20
+    main: /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/start.zig:663:28
+    1 reference(s) hidden; use '-freference-trace=4' to see all references
+BUILD_EXIT=1

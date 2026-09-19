@@ -1,0 +1,6 @@
+int[] xs = [10, 20, 30]
+int i = len(xs) - 2
+// BEGIN PROBE F11.P1
+int e = xs[i]
+print(e)
+// END PROBE F11.P1

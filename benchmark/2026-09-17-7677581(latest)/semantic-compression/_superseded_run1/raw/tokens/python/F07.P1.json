@@ -1,0 +1,58 @@
+{
+ "probe_id": "F07.P1",
+ "language": "python",
+ "count": 7,
+ "tokens": [
+  {
+   "tag": "IDENT",
+   "text": "r",
+   "line": 1,
+   "col": 5
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 1,
+   "col": 7
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 1,
+   "col": 9
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 1,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 1,
+   "col": 13
+  },
+  {
+   "tag": "OP",
+   "text": "+",
+   "line": 1,
+   "col": 15
+  },
+  {
+   "tag": "IDENT",
+   "text": "c",
+   "line": 1,
+   "col": 17
+  }
+ ],
+ "class_histogram": {
+  "IDENT": 4,
+  "OP": 3
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/python/F07.P1.py",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

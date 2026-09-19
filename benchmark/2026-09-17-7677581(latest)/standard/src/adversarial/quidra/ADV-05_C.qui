@@ -1,0 +1,5 @@
+print("ADV-START")
+float source = 1e30
+int32 narrowed = int32(source)
+print("OBS=V:{narrowed}")
+print("ADV-END")

@@ -1,0 +1,193 @@
+{
+ "probe_id": "F16.P1",
+ "language": "go",
+ "count": 29,
+ "tokens": [
+  {
+   "tag": "IDENT",
+   "text": "xs",
+   "line": 1,
+   "col": 2
+  },
+  {
+   "tag": "OP",
+   "text": ":=",
+   "line": 1,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": "[",
+   "line": 1,
+   "col": 8
+  },
+  {
+   "tag": "DELIM",
+   "text": "]",
+   "line": 1,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "int32",
+   "line": 1,
+   "col": 10
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 1,
+   "col": 15
+  },
+  {
+   "tag": "NUM",
+   "text": "1",
+   "line": 1,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 1,
+   "col": 17
+  },
+  {
+   "tag": "NUM",
+   "text": "2",
+   "line": 1,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 1,
+   "col": 20
+  },
+  {
+   "tag": "NUM",
+   "text": "3",
+   "line": 1,
+   "col": 22
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 1,
+   "col": 23
+  },
+  {
+   "tag": "KW",
+   "text": "var",
+   "line": 2,
+   "col": 2
+  },
+  {
+   "tag": "IDENT",
+   "text": "total",
+   "line": 2,
+   "col": 6
+  },
+  {
+   "tag": "IDENT",
+   "text": "int32",
+   "line": 2,
+   "col": 12
+  },
+  {
+   "tag": "KW",
+   "text": "for",
+   "line": 3,
+   "col": 2
+  },
+  {
+   "tag": "IDENT",
+   "text": "_",
+   "line": 3,
+   "col": 6
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 3,
+   "col": 7
+  },
+  {
+   "tag": "IDENT",
+   "text": "x",
+   "line": 3,
+   "col": 9
+  },
+  {
+   "tag": "OP",
+   "text": ":=",
+   "line": 3,
+   "col": 11
+  },
+  {
+   "tag": "KW",
+   "text": "range",
+   "line": 3,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "xs",
+   "line": 3,
+   "col": 20
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 3,
+   "col": 23
+  },
+  {
+   "tag": "IDENT",
+   "text": "total",
+   "line": 4,
+   "col": 3
+  },
+  {
+   "tag": "OP",
+   "text": "+=",
+   "line": 4,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "x",
+   "line": 4,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 5,
+   "col": 2
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 6,
+   "col": 2
+  },
+  {
+   "tag": "IDENT",
+   "text": "total",
+   "line": 6,
+   "col": 9
+  }
+ ],
+ "class_histogram": {
+  "IDENT": 10,
+  "OP": 3,
+  "DELIM": 9,
+  "NUM": 3,
+  "KW": 4
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/go/F16.P1.go",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

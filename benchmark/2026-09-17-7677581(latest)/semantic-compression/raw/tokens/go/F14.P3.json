@@ -1,0 +1,349 @@
+{
+ "probe_id": "F14.P3",
+ "language": "go",
+ "count": 55,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "type",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "Tri",
+   "line": 1,
+   "col": 6
+  },
+  {
+   "tag": "KW",
+   "text": "struct",
+   "line": 1,
+   "col": 10
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 1,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 1,
+   "col": 18
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 1,
+   "col": 19
+  },
+  {
+   "tag": "IDENT",
+   "text": "h",
+   "line": 1,
+   "col": 21
+  },
+  {
+   "tag": "IDENT",
+   "text": "float64",
+   "line": 1,
+   "col": 23
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 1,
+   "col": 31
+  },
+  {
+   "tag": "KW",
+   "text": "func",
+   "line": 3,
+   "col": 1
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 3,
+   "col": 6
+  },
+  {
+   "tag": "IDENT",
+   "text": "t",
+   "line": 3,
+   "col": 7
+  },
+  {
+   "tag": "IDENT",
+   "text": "Tri",
+   "line": 3,
+   "col": 9
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 3,
+   "col": 12
+  },
+  {
+   "tag": "IDENT",
+   "text": "Area",
+   "line": 3,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 3,
+   "col": 18
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 3,
+   "col": 19
+  },
+  {
+   "tag": "IDENT",
+   "text": "float64",
+   "line": 3,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 3,
+   "col": 29
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 3,
+   "col": 31
+  },
+  {
+   "tag": "NUM",
+   "text": "0.5",
+   "line": 3,
+   "col": 38
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 3,
+   "col": 42
+  },
+  {
+   "tag": "IDENT",
+   "text": "t",
+   "line": 3,
+   "col": 44
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 3,
+   "col": 45
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 3,
+   "col": 46
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 3,
+   "col": 48
+  },
+  {
+   "tag": "IDENT",
+   "text": "t",
+   "line": 3,
+   "col": 50
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 3,
+   "col": 51
+  },
+  {
+   "tag": "IDENT",
+   "text": "h",
+   "line": 3,
+   "col": 52
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 3,
+   "col": 54
+  },
+  {
+   "tag": "KW",
+   "text": "func",
+   "line": 5,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "triArea",
+   "line": 5,
+   "col": 6
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 5,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 5,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "float64",
+   "line": 5,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 5,
+   "col": 24
+  },
+  {
+   "tag": "KW",
+   "text": "var",
+   "line": 6,
+   "col": 2
+  },
+  {
+   "tag": "IDENT",
+   "text": "s",
+   "line": 6,
+   "col": 6
+  },
+  {
+   "tag": "IDENT",
+   "text": "shapes",
+   "line": 6,
+   "col": 8
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 6,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "Shape",
+   "line": 6,
+   "col": 15
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 6,
+   "col": 21
+  },
+  {
+   "tag": "IDENT",
+   "text": "Tri",
+   "line": 6,
+   "col": 23
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 6,
+   "col": 26
+  },
+  {
+   "tag": "NUM",
+   "text": "3.0",
+   "line": 6,
+   "col": 27
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 6,
+   "col": 30
+  },
+  {
+   "tag": "NUM",
+   "text": "4.0",
+   "line": 6,
+   "col": 32
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 6,
+   "col": 35
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 7,
+   "col": 2
+  },
+  {
+   "tag": "IDENT",
+   "text": "s",
+   "line": 7,
+   "col": 9
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 7,
+   "col": 10
+  },
+  {
+   "tag": "IDENT",
+   "text": "Area",
+   "line": 7,
+   "col": 11
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 7,
+   "col": 15
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 7,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 8,
+   "col": 1
+  }
+ ],
+ "class_histogram": {
+  "KW": 7,
+  "IDENT": 20,
+  "DELIM": 22,
+  "NUM": 3,
+  "OP": 3
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/go/F14.P3.go",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

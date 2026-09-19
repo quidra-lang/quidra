@@ -1,0 +1,121 @@
+{
+ "probe_id": "F13.P1",
+ "language": "python",
+ "count": 17,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "def",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "parse_twice",
+   "line": 1,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 1,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "s",
+   "line": 1,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 1,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "str",
+   "line": 1,
+   "col": 20
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 1,
+   "col": 23
+  },
+  {
+   "tag": "OP",
+   "text": "->",
+   "line": 1,
+   "col": 25
+  },
+  {
+   "tag": "IDENT",
+   "text": "int",
+   "line": 1,
+   "col": 28
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 1,
+   "col": 31
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 2,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "int",
+   "line": 2,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 2,
+   "col": 15
+  },
+  {
+   "tag": "IDENT",
+   "text": "s",
+   "line": 2,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 2,
+   "col": 17
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 2,
+   "col": 19
+  },
+  {
+   "tag": "NUM",
+   "text": "2",
+   "line": 2,
+   "col": 21
+  }
+ ],
+ "class_histogram": {
+  "KW": 2,
+  "IDENT": 6,
+  "DELIM": 6,
+  "OP": 2,
+  "NUM": 1
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/python/F13.P1.py",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

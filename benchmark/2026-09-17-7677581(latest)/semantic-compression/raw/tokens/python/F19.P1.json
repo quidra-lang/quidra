@@ -1,0 +1,295 @@
+{
+ "probe_id": "F19.P1",
+ "language": "python",
+ "count": 46,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "from",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "concurrent",
+   "line": 1,
+   "col": 6
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 1,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "futures",
+   "line": 1,
+   "col": 17
+  },
+  {
+   "tag": "KW",
+   "text": "import",
+   "line": 1,
+   "col": 25
+  },
+  {
+   "tag": "IDENT",
+   "text": "ThreadPoolExecutor",
+   "line": 1,
+   "col": 32
+  },
+  {
+   "tag": "KW",
+   "text": "with",
+   "line": 3,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "ThreadPoolExecutor",
+   "line": 3,
+   "col": 6
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 3,
+   "col": 24
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 3,
+   "col": 25
+  },
+  {
+   "tag": "KW",
+   "text": "as",
+   "line": 3,
+   "col": 27
+  },
+  {
+   "tag": "IDENT",
+   "text": "pool",
+   "line": 3,
+   "col": 30
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 3,
+   "col": 34
+  },
+  {
+   "tag": "IDENT",
+   "text": "first",
+   "line": 4,
+   "col": 5
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 4,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "pool",
+   "line": 4,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 4,
+   "col": 17
+  },
+  {
+   "tag": "IDENT",
+   "text": "submit",
+   "line": 4,
+   "col": 18
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 4,
+   "col": 24
+  },
+  {
+   "tag": "KW",
+   "text": "lambda",
+   "line": 4,
+   "col": 25
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 4,
+   "col": 31
+  },
+  {
+   "tag": "NUM",
+   "text": "20",
+   "line": 4,
+   "col": 33
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 4,
+   "col": 35
+  },
+  {
+   "tag": "IDENT",
+   "text": "second",
+   "line": 5,
+   "col": 5
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 5,
+   "col": 12
+  },
+  {
+   "tag": "IDENT",
+   "text": "pool",
+   "line": 5,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 5,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "submit",
+   "line": 5,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 5,
+   "col": 25
+  },
+  {
+   "tag": "KW",
+   "text": "lambda",
+   "line": 5,
+   "col": 26
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 5,
+   "col": 32
+  },
+  {
+   "tag": "NUM",
+   "text": "22",
+   "line": 5,
+   "col": 34
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 5,
+   "col": 36
+  },
+  {
+   "tag": "IDENT",
+   "text": "sum",
+   "line": 7,
+   "col": 1
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 7,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "first",
+   "line": 7,
+   "col": 7
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 7,
+   "col": 12
+  },
+  {
+   "tag": "IDENT",
+   "text": "result",
+   "line": 7,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 7,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 7,
+   "col": 20
+  },
+  {
+   "tag": "OP",
+   "text": "+",
+   "line": 7,
+   "col": 22
+  },
+  {
+   "tag": "IDENT",
+   "text": "second",
+   "line": 7,
+   "col": 24
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 7,
+   "col": 30
+  },
+  {
+   "tag": "IDENT",
+   "text": "result",
+   "line": 7,
+   "col": 31
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 7,
+   "col": 37
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 7,
+   "col": 38
+  }
+ ],
+ "class_histogram": {
+  "KW": 6,
+  "IDENT": 16,
+  "DELIM": 18,
+  "OP": 4,
+  "NUM": 2
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/python/F19.P1.py",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

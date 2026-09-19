@@ -1,0 +1,17 @@
+extracted_chars:         651
+gate_conformant:         True
+gate_events:             []
+inverse_substitutions:   14
+build_cmd:               /opt/homebrew/bin/kotlinc /var/folders/71/zhtl3cb131g9fdd6z18yh_cm0000gn/T/i1kt-harness-9qyf1j2j/solution.kt -d /var/folders/71/zhtl3cb131g9fdd6z18yh_cm0000gn/T/i1kt-harness-9qyf1j2j/out
+build_exit:              0
+build_stderr:            
+run_cmd:                 /opt/homebrew/bin/kotlin -cp /var/folders/71/zhtl3cb131g9fdd6z18yh_cm0000gn/T/i1kt-harness-9qyf1j2j/out SolutionKt
+run_exit:                0
+stdout:
+    | SUM 25632
+    | MAX 935
+    | EVENS 24
+    | JOINED 897-558-614-577-405
+stderr:                  
+stdout_byte_identical:   True
+verdict:                 PASS

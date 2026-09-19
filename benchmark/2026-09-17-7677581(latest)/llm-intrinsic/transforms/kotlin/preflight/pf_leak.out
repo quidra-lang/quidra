@@ -1,0 +1,30 @@
+CRITICAL — anonymized real spellings anywhere in the pack
+    else       clean
+    for        clean
+    fun        clean
+    if         clean
+    in         clean
+    val        clean
+    var        clean
+
+IDENTITY — language / toolchain / extension names anywhere in the pack
+    clean (0 hits across 46 terms)
+
+ADVISORY — other reserved words of the real language, in PROSE only
+    is           x47  (ordinary English usage; published residual)
+    by           x14  (ordinary English usage; published residual)
+    this         x13  (ordinary English usage; published residual)
+    it           x12  (ordinary English usage; published residual)
+    value        x12  (ordinary English usage; published residual)
+    as           x5  (ordinary English usage; published residual)
+    when         x5  (ordinary English usage; published residual)
+    do           x2  (ordinary English usage; published residual)
+    operator     x1  (ordinary English usage; published residual)
+    where        x1  (ordinary English usage; published residual)
+
+pack line count      : 249
+pack character count : 9607
+prose characters     : 8533
+code characters      : 1032
+
+LEAK SCAN PASSED (critical and identity scans clean)

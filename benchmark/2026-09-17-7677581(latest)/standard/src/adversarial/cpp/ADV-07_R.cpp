@@ -1,0 +1,18 @@
+#include <cstdio>
+#include <iostream>
+#include <string>
+
+int main() {
+    printf("ADV-START\n"); fflush(stdout);
+    std::string l1, l2;
+    std::getline(std::cin, l1);
+    std::getline(std::cin, l2);
+    double a = std::stod(l1);
+    double b = std::stod(l2);
+    double h = a / b;
+    double mean = (1.0 + h + 3.0) / 3.0;
+    double diff = h - h;
+    printf("OBS=MEAN:%.6f|DIFF:%.6f\n", mean, diff); fflush(stdout);
+    printf("ADV-END\n"); fflush(stdout);
+    return 0;
+}

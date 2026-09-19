@@ -1,0 +1,15 @@
+float map_total()
+    map.Map<string, int32> mp = map.Map<string, int32>()
+    mp.set("a", 1)
+    int32 total = 0
+    for value in mp.values()
+        total += value
+    int32 miss
+    match mp.get("b")
+        int32 found
+            miss = found
+        none
+            miss = 0
+    return total + miss
+
+print(map_total())

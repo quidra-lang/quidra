@@ -1,0 +1,102 @@
+{
+  "condition": "I1",
+  "language_id": "swift",
+  "seed": 20260918,
+  "generated_at": "2026-09-18T19:25:09+00:00",
+  "generator": "PW-1 / methodology 10 sections 5.1-5.3",
+  "primitives": {
+    "rng": "park-miller-48271",
+    "hash": "fnv1a32",
+    "pick_divisor": 128,
+    "pattern": "CVCVCV, exactly 6 lowercase ASCII characters",
+    "key_format": "<condition>|<language_id>|<seed>|<role_token_key>"
+  },
+  "wordlist_sha256": {
+    "en_common": "f870b1911355689c5ff17c10ba245c030f66831ab2efb6c7b230c38dbc97f5d1",
+    "prog_terms": "9dddb6aa458721ba7f670efba2644d9995016906c289bc4aa57e9800f9a161d4",
+    "reserved_union": "009384af99c2d45f849b4f9086f94055e4790a8f3e6c79a9279635ba63ccf165",
+    "reserved_swift": "bdff9ee86711405b9a8f968e99d09175780345d47a4fb2e522dd3ce73c3caa17"
+  },
+  "not_transformed_in_I1": {
+    "note": "methodology 10 section 7.1: V-roles keep their real spelling in I1; ordinary user identifiers are never renamed.",
+    "v_roles": {
+      "V01": "print",
+      "V18": "\\(...) value embedding inside a text literal -- never transformed in ANY condition (section 3.2 V18, section 1 consequence 2)"
+    },
+    "user_identifiers": [
+      "state",
+      "total",
+      "largest",
+      "evens",
+      "joined",
+      "i",
+      "term"
+    ]
+  },
+  "mapping": {
+    "K02": {
+      "real": "let",
+      "pseudo": "tutovo",
+      "role_prose": "introduces a named value binding whose value never changes",
+      "chars": 6
+    },
+    "K03": {
+      "real": "var",
+      "pseudo": "bukuda",
+      "role_prose": "introduces a named value binding that may be reassigned",
+      "chars": 6
+    },
+    "K04": {
+      "real": "if",
+      "pseudo": "bigoze",
+      "role_prose": "introduces a conditional branch",
+      "chars": 6
+    },
+    "K07": {
+      "real": "for",
+      "pseudo": "vumodu",
+      "role_prose": "introduces bounded iteration over a sequence",
+      "chars": 6
+    },
+    "K21a": {
+      "real": "Int",
+      "pseudo": "derozi",
+      "role_prose": "the signed whole-number type name used by the tasks",
+      "chars": 6
+    },
+    "K21c": {
+      "real": "String",
+      "pseudo": "radipi",
+      "role_prose": "the text type name",
+      "chars": 6
+    },
+    "U:in": {
+      "real": "in",
+      "pseudo": "piripo",
+      "role_prose": "separates the bound loop name from the sequence it walks, inside the bounded-iteration header",
+      "chars": 6
+    }
+  },
+  "reverse": {
+    "tutovo": "let",
+    "bukuda": "var",
+    "bigoze": "if",
+    "vumodu": "for",
+    "derozi": "Int",
+    "radipi": "String",
+    "piripo": "in"
+  },
+  "collision_redraws": {
+    "K02": 1,
+    "K03": 0,
+    "K04": 0,
+    "K07": 2,
+    "K21a": 0,
+    "K21c": 1,
+    "U:in": 0
+  },
+  "rejection_filters_fired": {
+    "substring": 4
+  },
+  "anonymized_token_count": 7
+}

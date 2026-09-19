@@ -1,0 +1,28 @@
+Refutation witness for F20.P2 (Quidra 0.2.0): attempt to publish a C-ABI symbol `add2`.
+
+  $ quidra build attempt.qui -o EXP && ./EXP
+  5
+  $ nm EXP | grep -i add2          # no match, exit status 1
+  $ nm -g EXP
+                   U __ZdlPv
+                   U __Znwm
+                   U ___cxa_atexit
+  0000000100000000 T __mh_execute_header
+                   U _bzero
+  0000000100000634 T _quidra_runtime_set_args
+  00000001000005d0 T _main
+                   U _printf
+
+  $ quidra llvm attempt.qui | grep 'define .*add2'
+  define i32 @n_add2(i32 %arg.a, i32 %arg.b) {
+
+User functions are emitted into the compiler-owned `n_*` mangling namespace and are not
+externally visible; no symbol named `add2` (or `_add2`) is present or defined.
+
+No export mechanism exists. `extern` is inbound only (grammar.ebnf line 10:
+extern_decl = "extern", type, identifier, "(", [parameters], ")", "=", string) and
+`export int32 add2(...)` is a parse error. docs/spec/language.md, "C FFI": "The
+declaration is top-level only and binds a Quidra function name to an explicit C symbol";
+"the compiler-owned `n_*` function-mangling namespace ... cannot be rebound through
+`extern`". `quidra build` emits a native executable only; there is no static/shared
+library output.

@@ -1,0 +1,176 @@
+{
+  "unit": "I1/s20260918",
+  "condition": "I1",
+  "language_id": "typescript",
+  "seed": 20260918,
+  "primitives": {
+    "rng": "park-miller-48271",
+    "hash": "fnv1a32",
+    "pick_divisor": 128,
+    "pseudo_word_shape": "CVCVCV, exactly 6 ASCII lowercase characters",
+    "key_format": "<condition_id>|<language_id>|<decimal seed>|<role_token_key>"
+  },
+  "wordlist_sha256": {
+    "en_common": "5459f18ddb15667835340a8235be7ff4356062ca70480f7554d7963e0b1c78d3",
+    "prog_terms": "58466d0a4039904844ebddf106f78ce2f8630ed51d569a8172f9cf2c24be5508",
+    "reserved_union": "2f1b2f658ba901c374f9aece2e2c854b4f21486115fdf4e843482e70d149d398",
+    "reserved_typescript": "f1000b3ece8c77fabad9a75354a6eae60c398251121141d38dde57ebd7573145"
+  },
+  "wordlist_sizes": {
+    "en_common": 32456,
+    "prog_terms": 162,
+    "reserved_union": 224,
+    "reserved_typescript": 67
+  },
+  "anonymized_token_count": 17,
+  "mapping": {
+    "function": {
+      "role_token_key": "K01",
+      "pseudo_word": "vefedi",
+      "role_prose": "introduces a function definition"
+    },
+    "const": {
+      "role_token_key": "K02",
+      "pseudo_word": "vobunu",
+      "role_prose": "introduces a named value binding that may not be re-bound afterwards"
+    },
+    "let": {
+      "role_token_key": "K03",
+      "pseudo_word": "busopo",
+      "role_prose": "introduces a named value binding that may be re-bound afterwards"
+    },
+    "if": {
+      "role_token_key": "K04",
+      "pseudo_word": "memagu",
+      "role_prose": "introduces a conditional branch"
+    },
+    "else": {
+      "role_token_key": "K05",
+      "pseudo_word": "ninobi",
+      "role_prose": "introduces the alternative branch"
+    },
+    "for": {
+      "role_token_key": "K07#1",
+      "pseudo_word": "padiri",
+      "role_prose": "introduces bounded iteration"
+    },
+    "of": {
+      "role_token_key": "K07#2",
+      "pseudo_word": "kubuva",
+      "role_prose": "separates the iteration name from the sequence it walks"
+    },
+    "while": {
+      "role_token_key": "K08",
+      "pseudo_word": "biremo",
+      "role_prose": "introduces conditional iteration"
+    },
+    "break": {
+      "role_token_key": "K09",
+      "pseudo_word": "zeligu",
+      "role_prose": "exits the innermost loop"
+    },
+    "continue": {
+      "role_token_key": "K10",
+      "pseudo_word": "bedara",
+      "role_prose": "proceeds to the next iteration of the innermost loop"
+    },
+    "return": {
+      "role_token_key": "K11",
+      "pseudo_word": "vudoru",
+      "role_prose": "yields a function result"
+    },
+    "true": {
+      "role_token_key": "K16",
+      "pseudo_word": "gerido",
+      "role_prose": "the boolean true literal"
+    },
+    "false": {
+      "role_token_key": "K17",
+      "pseudo_word": "zaluga",
+      "role_prose": "the boolean false literal"
+    },
+    "number": {
+      "role_token_key": "K21a",
+      "pseudo_word": "gebamu",
+      "role_prose": "the numeric type name used by the task; whole-number values are exact"
+    },
+    "boolean": {
+      "role_token_key": "K21b",
+      "pseudo_word": "zisaro",
+      "role_prose": "the boolean type name"
+    },
+    "string": {
+      "role_token_key": "K21c",
+      "pseudo_word": "bunivu",
+      "role_prose": "the text type name"
+    },
+    "void": {
+      "role_token_key": "K21e",
+      "pseudo_word": "zerinu",
+      "role_prose": "the result-less designation: the result type of a function that yields nothing"
+    }
+  },
+  "not_lexicalized": {
+    "K06": "expressed as the K05 token followed by the K04 token; this language has no distinct chained-alternative word",
+    "K12": "no aggregate type is needed by the task set",
+    "K13": "no aggregate type is needed by the task set",
+    "K14": "the task needs no import; every facility it uses is globally available",
+    "K15": "this language needs no compilation-unit declaration for a single-file program",
+    "K18": "logical conjunction is punctuation in this language, not a word token (NOT_WORD_TOKEN)",
+    "K19": "logical disjunction is punctuation in this language, not a word token (NOT_WORD_TOKEN)",
+    "K20": "logical negation is punctuation in this language, not a word token (NOT_WORD_TOKEN)",
+    "K21d": "the dynamic-sequence type is written as a punctuation suffix on the element type, not as a word token (NOT_WORD_TOKEN)",
+    "K22": "this language marks no entry point with a word token; top-level statements run in order",
+    "K23": "this language needs no visibility or linkage marker for a single-file program",
+    "K24": "this language has no mutability qualifier distinct from the K03 binding word",
+    "K25": "the type annotation is introduced by punctuation, not by a word token (NOT_WORD_TOKEN)",
+    "K26": "no conversion word token is needed; conversion is a named facility, which I1 does not transform",
+    "K27": "the output facility of this language declares no error propagation"
+  },
+  "not_transformed_in_I1": {
+    "reason": "V-roles keep their real spellings in I1 (methodology 10, 7.1)",
+    "tokens": [
+      "console.log",
+      "push",
+      "join",
+      "String",
+      "length"
+    ]
+  },
+  "collision_redraws": {
+    "K02": 1,
+    "K04": 2,
+    "K07#1": 1,
+    "K10": 1,
+    "K11": 1,
+    "K16": 1
+  },
+  "rejection_filters_fired": {
+    "1": 0,
+    "2": 0,
+    "3": 0,
+    "4": 0,
+    "5": 0,
+    "6": 7,
+    "7": 0
+  },
+  "pseudo_word_char_counts": {
+    "bedara": 6,
+    "biremo": 6,
+    "bunivu": 6,
+    "busopo": 6,
+    "gebamu": 6,
+    "gerido": 6,
+    "kubuva": 6,
+    "memagu": 6,
+    "ninobi": 6,
+    "padiri": 6,
+    "vefedi": 6,
+    "vobunu": 6,
+    "vudoru": 6,
+    "zaluga": 6,
+    "zeligu": 6,
+    "zerinu": 6,
+    "zisaro": 6
+  }
+}

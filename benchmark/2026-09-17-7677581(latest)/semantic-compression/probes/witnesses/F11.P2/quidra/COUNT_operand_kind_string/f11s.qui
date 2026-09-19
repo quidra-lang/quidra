@@ -1,0 +1,6 @@
+string sub_range()
+    string xs = "abcde"
+    auto part = [xs[1], xs[2], xs[3]]
+    return part[0]
+
+print(sub_range())

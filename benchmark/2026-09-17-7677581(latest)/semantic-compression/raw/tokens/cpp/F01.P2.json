@@ -1,0 +1,97 @@
+{
+ "probe_id": "F01.P2",
+ "language": "cpp",
+ "count": 13,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "long",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "KW",
+   "text": "long",
+   "line": 1,
+   "col": 6
+  },
+  {
+   "tag": "IDENT",
+   "text": "counter",
+   "line": 1,
+   "col": 11
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 1,
+   "col": 19
+  },
+  {
+   "tag": "NUM",
+   "text": "0",
+   "line": 1,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 1,
+   "col": 22
+  },
+  {
+   "tag": "KW",
+   "text": "constexpr",
+   "line": 2,
+   "col": 1
+  },
+  {
+   "tag": "KW",
+   "text": "long",
+   "line": 2,
+   "col": 11
+  },
+  {
+   "tag": "KW",
+   "text": "long",
+   "line": 2,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "LIMIT",
+   "line": 2,
+   "col": 21
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 2,
+   "col": 27
+  },
+  {
+   "tag": "NUM",
+   "text": "100",
+   "line": 2,
+   "col": 29
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 2,
+   "col": 32
+  }
+ ],
+ "class_histogram": {
+  "KW": 5,
+  "IDENT": 2,
+  "OP": 2,
+  "NUM": 2,
+  "DELIM": 2
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/cpp/F01.P2.cpp",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

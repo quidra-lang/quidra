@@ -1,0 +1,10 @@
+{
+ "probe": "F05.P1",
+ "class_id": "X-P3-move-consume-REFUTED",
+ "build_command": "clang++ -std=c++20 -O2 /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/witnesses/F05.P1/cpp/X-P3-move-consume-REFUTED/witness.cpp -o /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/cppwork/w/F05.P1_X-P3-move-consume-REFUTED",
+ "built": false,
+ "build_diagnostics": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/witnesses/F05.P1/cpp/X-P3-move-consume-REFUTED/witness.cpp:9:1: error: no matching function for call to 'f'\n    9 | f(x);\n      | ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/witnesses/F05.P1/cpp/X-P3-move-consume-REFUTED/witness.cpp:5:6: note: candidate function not viable: expects an rvalue for 1st argument\n    5 | void f(std::vector<int>&& v) { (void)v; }\n      |      ^ ~~~~~~~~~~~~~~~~~~~~\n1 error generated.",
+ "observer_output": "",
+ "exit_code": null,
+ "expected_build": false
+}

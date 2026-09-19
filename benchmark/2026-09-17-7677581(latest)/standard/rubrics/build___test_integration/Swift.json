@@ -1,0 +1,49 @@
+{
+ "metric": "Build / Test Integration",
+ "language": "Swift",
+ "criteria_satisfied": [
+  "V1 - `swift build --package-path probes/TEST-2/swift` built the two library targets plus the test target from Package.swift, the declarative manifest; exit 0. SwiftPM ships with the Swift toolchain, clause (a).",
+  "V2 - XCTest (ships with the Swift toolchain, clause (a)) expresses TEST-1's three tests.",
+  "V3 - `swift test` reported 'Executed 3 tests, with 1 failure' with per-test passed/failed lines and exited 1.",
+  "V4 - `swift test --enable-code-coverage` plus xcrun llvm-profdata/llvm-cov produced a coverage report for Sources/Probe/Probe.swift.",
+  "V5 - `swift test --parallel --xunit-output <path>` produced xUnit XML that parsed (testsuite tests='3' failures='1').",
+  "V6 - swift.org (official_docs_root) publishes official Swift container images."
+ ],
+ "criteria_failed": [],
+ "satisfied_count": 6,
+ "awarded_level_score": 100,
+ "level": "Full admissible build, test, coverage and CI integration",
+ "evidence": [
+  {
+   "source": "E1",
+   "detail": "swift build --package-path probes/TEST-2/swift   (logs/testmetric/swift_V1.log)",
+   "accessed": "2026-09-19T00:31:10Z",
+   "excerpt": "[7/7] Compiling ModB ModB.swift\nBuild complete! (0.82s)\nexit=0"
+  },
+  {
+   "source": "E1",
+   "detail": "swift test --package-path probes/TEST-1/swift   (logs/testmetric/swift_V3.log)",
+   "accessed": "2026-09-19T00:31:15Z",
+   "excerpt": "Test Case '-[ProbeTests.ProbeTests testPassOne]' passed (0.000 seconds).\nTest Case '-[ProbeTests.ProbeTests testPassTwo]' passed (0.000 seconds).\nTest Suite 'All tests' failed ...\n\t Executed 3 tests, with 1 failure (0 unexpected) in 0.177 seconds\nexit=1"
+  },
+  {
+   "source": "E1",
+   "detail": "swift test --package-path probes/TEST-1/swift --enable-code-coverage ; xcrun llvm-profdata merge -sparse <bin>/codecov/*.profraw -o <bin>/codecov/default.profdata ; xcrun llvm-cov report <bin>/test1-swiftPackageTests.xctest/Contents/MacOS/test1-swiftPackageTests -instr-profile <bin>/codecov/default.profdata   (logs/testmetric/swift_V4.log)",
+   "accessed": "2026-09-19T00:31:40Z",
+   "excerpt": "Sources/Probe/Probe.swift  1  0  100.00%  1  0  100.00%  1  0  100.00%\nTOTAL  16  1  93.75%  9  0  100.00%  24  3  87.50%\nexit=0"
+  },
+  {
+   "source": "E1",
+   "detail": "swift test --package-path probes/TEST-1/swift --parallel --xunit-output $PWD/build/swift-results.xml ; python3 ElementTree parse   (logs/testmetric/swift_V5.log)",
+   "accessed": "2026-09-19T00:31:55Z",
+   "excerpt": "parsed root: testsuites {}\nchildren: [('testsuite', {'name': 'TestResults', 'errors': '0', 'tests': '3', 'failures': '1', 'time': '0.39140183300000003'})]\nexit=0"
+  },
+  {
+   "source": "E2",
+   "detail": "https://www.swift.org/install/linux/docker/",
+   "accessed": "2026-09-19T00:33:34Z",
+   "excerpt": "Swift official Docker images are hosted on hub.docker.com/_/swift. Nightly builds and previews of Swift using Docker images under the swiftlang namespace are available in the Swift Docker repository on Docker Hub."
+  }
+ ],
+ "scorer_notes": "All 6 satisfied -> 100. Two recorded, tool-preserving adjustments: SwiftPM only merges the coverage profraws into default.profdata after a successful run, so with the deliberately failing TEST-1 the profraws were merged with the same xcrun llvm-profdata command the C++ and Rust recipes use; and `--xunit-output` emits the XCTest report only under `--parallel` (without it only the swift-testing companion file appears), so the documented --parallel flag was added and recorded. Not 80 because every indicator including V4 and V5 produced and parsed its artifact."
+}

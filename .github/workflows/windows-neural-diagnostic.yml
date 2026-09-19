@@ -1,0 +1,79 @@
+name: windows-neural-diagnostic
+
+on:
+  push:
+    paths:
+      - .github/workflows/windows-neural-diagnostic.yml
+
+jobs:
+  neural:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native dependencies
+        shell: pwsh
+        run: vcpkg install curl:x64-windows libpng:x64-windows libjpeg-turbo:x64-windows tiff:x64-windows libwebp:x64-windows ffmpeg:x64-windows
+      - name: Configure
+        shell: pwsh
+        run: >
+          cmake -S . -B build -A x64
+          -DQUIDRA_WARNINGS_AS_ERRORS=ON
+          -DCMAKE_TOOLCHAIN_FILE="$env:VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake"
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Neural compiler phases
+        shell: pwsh
+        run: |
+          Set-Content -Path build/neural-smoke.qui -Value @'
+          class WindowsNeuralModel
+              neural.Parameter<float32> weight
+
+          WindowsNeuralModel model = WindowsNeuralModel(
+              weight = neural.Parameter<float32>(
+                  value = tensor.ones<float32>([1])
+              )
+          )
+
+          neural<float32> first_prediction = model.weight.track()
+          neural<float32> first_loss = neural.mean(
+              first_prediction * first_prediction
+          )
+          neural.Gradients first_gradients = neural.grad(first_loss)
+          neural.update(&model, first_gradients, rate = 0.1)
+          float32 saved = model.weight.raw()[0].item()
+          neural.save(model, path = "build/windows-neural.quistate")
+
+          neural<float32> second_prediction = model.weight.track()
+          neural<float32> second_loss = neural.mean(
+              second_prediction * second_prediction
+          )
+          neural.Gradients second_gradients = neural.grad(second_loss)
+          neural.update(&model, second_gradients, rate = 0.1)
+          print(model.weight.raw()[0].item() != saved)
+
+          neural.load(&model = &model, path = "build/windows-neural.quistate")
+          print(model.weight.raw()[0].item() == saved)
+          neural.save(model, path = "build/windows-neural.quistate")
+          '@
+          & build/Release/quidra.exe check build/neural-smoke.qui
+          $checkExit = $LASTEXITCODE
+          Write-Host "NEURAL_CHECK_EXIT=$checkExit"
+          if ($checkExit -ne 0) { throw "neural check failed with exit code $checkExit" }
+
+          & build/Release/quidra.exe llvm build/neural-smoke.qui | Out-File -Encoding utf8 build/neural-smoke.ll
+          $llvmExit = $LASTEXITCODE
+          Write-Host "NEURAL_FULL_COMPILE_EXIT=$llvmExit"
+          if ($llvmExit -ne 0) { throw "neural full compile failed with exit code $llvmExit" }
+
+          & build/Release/quidra.exe build build/neural-smoke.qui -o build/neural-smoke.exe
+          $buildExit = $LASTEXITCODE
+          Write-Host "NEURAL_NATIVE_BUILD_EXIT=$buildExit"
+          if ($buildExit -ne 0) { throw "neural native build failed with exit code $buildExit" }
+
+          $neural = & build/neural-smoke.exe
+          $runExit = $LASTEXITCODE
+          Write-Host "NEURAL_RUN_EXIT=$runExit"
+          if ($runExit -ne 0) { throw "neural executable failed with exit code $runExit" }
+          $actual = ($neural -join "`n").Trim()
+          Write-Host "NEURAL_OUTPUT=$actual"
+          if ($actual -ne "true`ntrue") { throw "neural output mismatch: $actual" }

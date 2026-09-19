@@ -1,0 +1,19 @@
+string | error next_line()
+    auto received = try input()
+    match received
+        string text
+            return text
+        none
+            return error("no line")
+
+void | error run()
+    int64 n = try int64.parse(try next_line())
+    int64[] values = array(n)
+    values[0] = 1
+    int64 first = values[0]
+    print("OBS=ALLOC:{len(values)}|FIRST:{first}")
+    return void
+
+print("ADV-START")
+run()
+print("ADV-END")

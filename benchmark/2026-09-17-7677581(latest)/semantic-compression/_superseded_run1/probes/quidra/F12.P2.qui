@@ -1,0 +1,17 @@
+int32 h(int32 v)
+    return v + 1
+
+int32 | none o = int32(7)
+// BEGIN PROBE F12.P2
+int32 | none p
+match o
+    int32 value
+        p = h(value)
+    none
+        p = none
+match p
+    int32 value
+        print(value)
+    none
+        print(0)
+// END PROBE F12.P2

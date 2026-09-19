@@ -1,0 +1,18 @@
+string | error next_line()
+    auto received = try input()
+    match received
+        string text
+            return text
+        none
+            return error("no line")
+
+void | error run()
+    uint32 a = try uint32.parse(try next_line())
+    uint32 b = try uint32.parse(try next_line())
+    uint32 result = a - b
+    print("OBS=SUB:{result}")
+    return void
+
+print("ADV-START")
+run()
+print("ADV-END")

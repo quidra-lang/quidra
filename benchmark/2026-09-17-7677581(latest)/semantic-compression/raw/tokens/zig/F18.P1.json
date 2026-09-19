@@ -1,0 +1,277 @@
+{
+ "probe_id": "F18.P1",
+ "language": "zig",
+ "count": 43,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "std",
+   "line": 1,
+   "col": 7
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 1,
+   "col": 11
+  },
+  {
+   "tag": "DELIM",
+   "text": "@",
+   "line": 1,
+   "col": 13
+  },
+  {
+   "tag": "IDENT",
+   "text": "import",
+   "line": 1,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 1,
+   "col": 20
+  },
+  {
+   "tag": "STR",
+   "text": "\"std\"",
+   "line": 1,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 1,
+   "col": 26
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 1,
+   "col": 27
+  },
+  {
+   "tag": "KW",
+   "text": "var",
+   "line": 2,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "threaded",
+   "line": 2,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 2,
+   "col": 13
+  },
+  {
+   "tag": "IDENT",
+   "text": "std",
+   "line": 2,
+   "col": 15
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 2,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "Io",
+   "line": 2,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 2,
+   "col": 21
+  },
+  {
+   "tag": "IDENT",
+   "text": "Threaded",
+   "line": 2,
+   "col": 22
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 2,
+   "col": 31
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 2,
+   "col": 33
+  },
+  {
+   "tag": "IDENT",
+   "text": "init_single_threaded",
+   "line": 2,
+   "col": 34
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 2,
+   "col": 54
+  },
+  {
+   "tag": "KW",
+   "text": "try",
+   "line": 3,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "std",
+   "line": 3,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 3,
+   "col": 8
+  },
+  {
+   "tag": "IDENT",
+   "text": "Io",
+   "line": 3,
+   "col": 9
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 3,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "File",
+   "line": 3,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 3,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "stdout",
+   "line": 3,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 3,
+   "col": 23
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 3,
+   "col": 24
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 3,
+   "col": 25
+  },
+  {
+   "tag": "IDENT",
+   "text": "writeStreamingAll",
+   "line": 3,
+   "col": 26
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 3,
+   "col": 43
+  },
+  {
+   "tag": "IDENT",
+   "text": "threaded",
+   "line": 3,
+   "col": 44
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 3,
+   "col": 52
+  },
+  {
+   "tag": "IDENT",
+   "text": "io",
+   "line": 3,
+   "col": 53
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 3,
+   "col": 55
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 3,
+   "col": 56
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 3,
+   "col": 57
+  },
+  {
+   "tag": "STR",
+   "text": "\"x\\n\"",
+   "line": 3,
+   "col": 59
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 3,
+   "col": 64
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 3,
+   "col": 65
+  }
+ ],
+ "class_histogram": {
+  "KW": 3,
+  "IDENT": 14,
+  "OP": 2,
+  "DELIM": 22,
+  "STR": 2
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/zig/F18.P1.zig",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

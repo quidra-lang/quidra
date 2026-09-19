@@ -1,0 +1,152 @@
+
+===== PF-A0  toolchain identity =====
+go version go1.26.3 darwin/arm64
+Python 3.9.6
+
+===== PF-A1  the real fixture builds with the frozen recipe =====
++ go build -o /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/go/preflight_evidence/fixture_real.bin /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/go/fixture_real.go
++ echo 'build exit=0'
+build exit=0
++ set +x
+
+===== PF-A2  the real fixture runs, exit status and stdout =====
+run exit=0
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+
+===== PF-A3  stdout is byte-identical to expected_output.txt (the oracle) =====
+cmp: IDENTICAL
+
+===== PF-A4  the oracle was produced by execution, and an independent implementation agrees =====
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+cmp: IDENTICAL (second, independent implementation)
+
+===== PF-A5  the pack's worked example is byte-identical to fixture_anon.go =====
+pack example == fixture_anon.go : True
+
+===== PF-A6  the four lines the pack CLAIMS are byte-identical to what the program PRINTS =====
+claimed:
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+actual:
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+
+claimed == actual : True
+
+===== PF-B  harness-convention sufficiency (bare-body submission through the real pipeline) =====
+extracted 755 bytes from the last of 1 fenced block(s)
+--- section 4.2a conformance gate on the raw pre-inverse submission ---
+gate: PASS  (0 H_REAL events)
+--- inverse mapping (no position map: this is model output) ---
+inverse: 25 tokens restored, position map absent (no-map mode)
+--- fixup H1: the HARNESS supplies the entry file name; the trial never states it ---
+harness wrote: /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/go/preflight_evidence/build/solution.go
+--- fixups applied: H1 (file name) and H6 (output path). Pack-documented fixups: 0 ---
+--- frozen build recipe, supplied by the harness, not by the trial ---
++ go build -o /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/go/preflight_evidence/build/BIN /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/go/preflight_evidence/build/solution.go
+build exit=0
+run exit=0
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+ORACLE: PASS (byte-identical, exit 0)
+
+===== PF-B2 an INDEPENDENT solution, written only from the pack, also passes =====
+gate: PASS  (0 H_REAL events)
+inverse: 25 tokens restored, position map absent (no-map mode)
++ go build -o /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/go/preflight_evidence/build2/BIN /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/go/preflight_evidence/build2/solution.go
+build exit=0
+run exit=0
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+ORACLE: PASS (independent solution, byte-identical, exit 0)
+
+===== PF-C  validator: positive AND negative, every check =====
+A. ROUND TRIP -- correct artifact must be ACCEPTED
+  [PASS] R1_byte_identity on the shipped fixture
+  [PASS] R2_build_identity on the shipped fixture
+  [PASS] R3_behavioural_identity on the shipped fixture
+  [PASS] R4_non_triviality on the shipped fixture
+  [PASS] R5_domain_containment on the shipped fixture
+  [PASS] inverse image reproduces expected_output.txt
+
+B. ROUND TRIP -- corrupted artifacts must be REJECTED
+  [PASS] B1 one-character corruption of a pseudo-word rejected (R1)
+  [PASS] B1 one-character corruption of a pseudo-word rejected (R2 build)
+  [PASS] B2 swapped pseudo-words rejected (R1)
+  [PASS] B2 swapped pseudo-words rejected (R2 build)
+  [PASS] B3 substitution inside a text literal rejected (R1)
+  [PASS] B3 substitution inside a text literal rejected (R3 behaviour)
+  [PASS] B3 output actually differs from the oracle
+  [PASS] B4 truncated submission rejected (R2 build)
+
+C. CONFORMANCE GATE (section 4.2a) -- positive and negative
+  [PASS] C1 anonymized fixture passes the gate (0 H_REAL events)
+  [PASS] C2 correct REAL source that ignores the transformation is rejected
+      H_REAL events found in the real source: 25  (first five: package, main, import, import, func)
+  [PASS] C3 anonymized submission leaking ONE real keyword is rejected
+  [PASS] C4 real keywords inside a text literal do not trip the gate
+
+D. LEXICALIZER FILTERS -- census over all 343,000 PW-1 words
+  [PASS] D filter shape           fires       1 times (first witness: ab3)
+  [PASS] D filter used            fires       1 times (first witness: zzzzzz)
+  [PASS] D filter en_common       fires     844 times (first witness: bafaro)
+  [SUBSUMED] D filter prog_terms      cannot fire: every word it would reject is already rejected by an earlier filter
+  [SUBSUMED] D filter reserved_union  cannot fire: every word it would reject is already rejected by an earlier filter
+  [PASS] D filter substring       fires  103206 times (first witness: bababa)
+  [SUBSUMED] D filter task_material   cannot fire: every word it would reject is already rejected by an earlier filter
+  accepted by all filters: 238950 of 343000 (69.7%)
+  [PASS] D the filter chain rejects a non-trivial share of the space
+  -- isolated predicate tests, so that a SUBSUMED filter is still
+     shown to be live code and not a dead branch:
+  [PASS] D predicate prog_terms accepts its member 'module' and rejects 'mizufi'
+  [PASS] D predicate reserved_union accepts its member 'native' and rejects 'mizufi'
+  [PASS] D predicate task_material accepts its member 'strconv' and rejects 'mizufi'
+  [PASS] D predicate en_common accepts its member 'banana' and rejects 'mizufi'
+  [PASS] D substring predicate finds a banned substring in 'bababa' and none in any shipped pseudo-word
+
+E. DETERMINISM -- two fresh processes must agree byte for byte
+  [PASS] E mapping regenerates identically
+
+F. LEXER LOSSLESSNESS
+  [PASS] F lossless round trip of the lexer on fixture_real.go
+  [PASS] F lossless round trip of the lexer on fixture_anon.go
+
+ALL CHECKS REACHED THEIR EXPECTED VERDICT
+selftest exit=0
+
+===== PF-D  identity-leak scan of the Reference Pack =====
+reference_pack.md: 247 lines, 8394 characters
+exempt V-role spellings present by design (section 2.6 I1 exemption): FormatInt, Println, fmt, strconv
+LEAK SCAN: 0 hits
+
+===== PF-E  mapping invariants =====
+seed recorded in mapping.json : 20260918
+tokens mapped                 : 9
+one-to-one                    : True
+all exactly 6 ASCII lowercase : True
+comparable length (min,max)   : (6, 6)
+no pseudo-word is a prefix of another : True
+no pseudo-word collides with any identifier or literal in the fixture : True
+
+===== PF-F  round-trip on the shipped fixture, checks R1-R5 =====
+R1_byte_identity             PASS
+R4_non_triviality            PASS
+R5_domain_containment        PASS
+R2_build_identity            PASS
+R3_behavioural_identity      PASS
+
+===== DONE =====

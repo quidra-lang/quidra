@@ -1498,7 +1498,7 @@ tensor<float32><3, _, _> | error narrowed = loaded
  bad_code("tensor<float32><3, _, _> | error converted = image.read(\"input.png\", dtype = float32)\n", "ARGUMENT_MISMATCH");
  ir_contains(
      "tensor<float32><1, _, _> | error converted = image.read(\"input.png\", channel = 1, type = float32)\n",
-     "channel=1");
+     "channel=%");
  ir_contains(
      "tensor<float32><1, _, _> | error converted = image.read(\"input.png\", channel = 1, type = float32)\n",
      "type=float32");

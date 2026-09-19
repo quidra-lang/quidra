@@ -398,9 +398,9 @@ Only the normalized **0–100 score** must always use:
 
 ---
 
-# 6. Four Independent Primary Evaluations
+# 6. Five Independent Primary Evaluations
 
-The benchmark must report exactly four independent primary evaluations.
+The benchmark must report exactly five independent primary evaluations.
 
 Their numbering reflects **Quidra's design priorities**, not scoring weights and not permission to favor Quidra. The scoring rules inside every evaluation must remain language-neutral, predeclared, reproducible, and equally applicable to all 10 languages.
 
@@ -409,7 +409,8 @@ The priority order is:
 1. **Semantic Compression**
 2. **LLM Intrinsic / Unknown-Language Learnability**
 3. **Standard**
-4. **LLM Standard / Knowledge-Dependent Performance**
+4. **Ecosystem / Adoption**
+5. **LLM Standard / Knowledge-Dependent Performance**
 
 ## Primary Evaluation 1 — Semantic Compression
 
@@ -425,30 +426,37 @@ It measures how effectively the selected LLM can learn, apply, compose, and resi
 
 ## Primary Evaluation 3 — Standard
 
-Measures how strong each language is as a practical general-purpose programming language when used appropriately by a competent developer using normal best practices.
+Measures how strong each language and its first-party / normally expected toolchain are as a practical general-purpose programming platform when used appropriately by a competent developer using normal best practices.
 
-This evaluation intentionally includes ecosystem, tooling, production maturity, interoperability, and other real-world factors even when they disadvantage a young language such as Quidra.
+This evaluation includes performance, resource/distribution characteristics, language/development quality, safety/robustness, interoperability, and present-day toolchain/developer experience. It intentionally excludes external popularity, third-party ecosystem breadth, community scale, and production adoption, which belong to Primary Evaluation 4.
 
-## Primary Evaluation 4 — LLM Standard / Knowledge-Dependent Performance
+## Primary Evaluation 4 — Ecosystem / Adoption
+
+This is implemented by the **Ecosystem / Adoption Evaluation** in Section 8.2.
+
+It measures how much external ecosystem, community knowledge, third-party integration, and real-world adoption exist for the language today. This evaluation intentionally captures accumulated network effects and incumbency advantages rather than attributing them to language design or compiler quality.
+
+## Primary Evaluation 5 — LLM Standard / Knowledge-Dependent Performance
 
 This is implemented by the **LLM Practical Effectiveness Evaluation** in Section 9.
 
 It measures how effectively the selected LLM can use the language as it actually exists today, including any advantage or disadvantage created by pretraining exposure, ecosystem prevalence, familiar syntax, and existing examples.
 
-The benchmark defines exactly four independent primary scores:
+The benchmark defines exactly five independent primary scores:
 
 - **Semantic Compression Overall Score**
 - **LLM Intrinsic Learnability Score**
 - **Standard Overall Score**
+- **Ecosystem / Adoption Score**
 - **LLM Practical Effectiveness Score**
 
-Attempt all four evaluations, but publish a primary score and its separate ranking only when that evaluation is `COMPLETE` under Section 4.1. For any other status, publish the status and valid diagnostic evidence without a primary score or ranking.
+Attempt all five evaluations, but publish a primary score and its separate ranking only when that evaluation is `COMPLETE` under Section 4.1. For any other status, publish the status and valid diagnostic evidence without a primary score or ranking.
 
 **Do not calculate, publish, imply, or use any cross-evaluation weighted overall score or overall ranking.**
 
-The four evaluations answer different questions. Combining them would require subjective cross-evaluation weights and would encode Quidra's priorities into the result.
+The five evaluations answer different questions. Combining them would require subjective cross-evaluation weights and would encode Quidra's priorities into the result.
 
-The ordering of benchmark sections may be organizational, but the four numbered primary evaluations above are the authoritative priority order.
+The ordering of benchmark sections may be organizational, but the five numbered primary evaluations above are the authoritative priority order.
 
 ---
 
@@ -830,7 +838,9 @@ The principle is:
 
 **Standard Score = the practical capability of the language when used properly.**
 
-Standard must not be tuned to Quidra's design philosophy. If an established language objectively has better package availability, IDE support, debugger integration, production deployment evidence, or other Standard capabilities, that advantage must be scored normally rather than discounted as an incumbency effect.
+Standard must not be tuned to Quidra's design philosophy. If an established language objectively has better first-party or normally expected tooling quality, package/dependency workflow, IDE/editor integration, debugger/profiler support, build/test integration, documentation quality, installation/distribution experience, or toolchain stability, that advantage must be scored normally.
+
+External library breadth, third-party integration count, community scale, public knowledge volume, and production adoption are not Standard metrics. They belong exclusively to Primary Evaluation 4 — Ecosystem / Adoption, so incumbency and network effects are visible without being conflated with the language/toolchain itself.
 
 ---
 
@@ -881,22 +891,20 @@ Source size, artifact size, and deployment footprint must remain separate metric
 - Silent Bug Resistance
 - Compiler / Interpreter Robustness
 
-## Ecosystem / Production Maturity
+## Toolchain / Developer Experience
 
-- Ecosystem Breadth
 - Tooling
-- Library Availability
-- Package / Dependency Management
-- IDE / Editor Support
+- Package / Dependency Management Quality
+- IDE / Editor Support Quality
 - Debugger / Profiler Support
 - Build / Test Integration
-- Production Adoption / Deployment Evidence
-- Documentation / Community
+- Documentation Quality
+- Installation / Distribution Experience
 - Toolchain Stability / Release Maturity
 
 Semantic Compression-specific concepts such as Semantic Regularity, Rule Exception Density, context-sensitive semantic branching, and hidden behavior are intentionally excluded from the Standard score to avoid double counting. Their direct evaluation belongs to Primary Evaluation 1.
 
-Do not compensate a young language for lacking ecosystem or production maturity. Standard is intended to measure present-day general-purpose strength, even when mature languages have a legitimate advantage.
+Standard intentionally excludes external adoption and network-effect metrics. Do not raise or lower Standard merely because a language has more users, more third-party packages, more community content, or more production deployments. Do score the present-day quality and availability of the language's own normally expected development toolchain, even when a young language legitimately lacks those capabilities.
 
 Use these metrics to calculate the:
 
@@ -918,13 +926,13 @@ The Standard Overall Score uses fixed category weights. Do not choose or tune th
 | Resource / Distribution | 15% |
 | Language / Development | 20% |
 | Safety / Robustness | 25% |
-| Ecosystem / Production Maturity | 20% |
+| Toolchain / Developer Experience | 20% |
 
 Within each category, every listed normalized metric has equal weight unless this specification explicitly defines a more specific sub-metric aggregation.
 
 Calculate each category score as the arithmetic mean of its applicable normalized metrics, then calculate:
 
-**Standard Overall Score = 0.20*Performance + 0.15*Resource + 0.20*LanguageDevelopment + 0.25*SafetyRobustness + 0.20*EcosystemProductionMaturity**
+**Standard Overall Score = 0.20*Performance + 0.15*Resource + 0.20*LanguageDevelopment + 0.25*SafetyRobustness + 0.20*ToolchainDeveloperExperience**
 
 Apply the N/A policy in Section 26 within the affected category first. If an entire category is genuinely N/A, renormalize the remaining category weights proportionally and document the reason. A missing capability intentionally tested by a category is not N/A.
 
@@ -936,9 +944,41 @@ If any applicable Standard metric required by the fixed score is `Not Executed`,
 
 ---
 
+## 8.2 Ecosystem / Adoption Evaluation
+
+This section implements **Primary Evaluation 4 — Ecosystem / Adoption**.
+
+Ecosystem / Adoption measures external assets and real-world use that accumulate around a language over time. It is deliberately separate from Standard so that language/toolchain quality is not conflated with popularity, age, installed base, or network effects.
+
+Evaluate the following five metrics:
+
+- Third-party Library Availability / Domain Coverage
+- Package Ecosystem Activity / Maintenance
+- Third-party Tool / Integration Availability
+- Production Adoption / Deployment Evidence
+- Community / Public Knowledge Availability
+
+Do **not** score first-party installation convenience, official package/dependency-management quality, official LSP/editor support, debugger/profiler quality, build/test integration, documentation quality, or release/toolchain stability here. Those belong to Standard — Toolchain / Developer Experience.
+
+Conversely, do **not** move third-party package counts, external integrations, community size/activity, public Q&A/tutorial availability, or real production adoption back into Standard.
+
+For each Ecosystem / Adoption metric, define and freeze an objective rubric or proxy before scoring any language. The same evidence sources, snapshot date or observation window, query rules, thresholds, and 0–100 conversion must be applied unchanged to all 10 languages.
+
+Raw popularity indicators such as GitHub stars, search-result counts, download counts, or package counts must not be used as a single standalone proxy for the entire evaluation. They may be used as declared evidence within an individual metric when collected consistently for all languages and accompanied by the limitations of that proxy.
+
+Each of the five metrics has equal weight:
+
+**Ecosystem / Adoption Score = 0.20*ThirdPartyLibraryAvailability + 0.20*PackageEcosystemActivity + 0.20*ThirdPartyToolIntegrationAvailability + 0.20*ProductionAdoptionEvidence + 0.20*CommunityPublicKnowledgeAvailability**
+
+Unsupported or absent ecosystem evidence intentionally covered by a metric receives the rubric-defined low score rather than `N/A`. Apply Section 26 only to genuinely inapplicable cases.
+
+If any applicable Ecosystem / Adoption metric is `Not Executed`, mark Primary Evaluation 4 `PARTIAL` and do **not** calculate or publish Ecosystem / Adoption Score or Ranking.
+
+---
+
 # 9. LLM Practical Effectiveness Evaluation
 
-This section implements **Primary Evaluation 4 — LLM Standard / Knowledge-Dependent Performance**.
+This section implements **Primary Evaluation 5 — LLM Standard / Knowledge-Dependent Performance**.
 
 During LLM evaluation, humans must not manually improve generated code and then count the result as an LLM success.
 
@@ -1995,7 +2035,7 @@ Average over the fixed adversarial case set.
 
 **G. Objective rubric/proxy metrics**
 
-Metrics such as Readability, Diagnostics, Portability, Interoperability, Concurrency, Ecosystem Breadth, Tooling, Library Availability, Package / Dependency Management, IDE / Editor Support, Debugger / Profiler Support, Build / Test Integration, Production Adoption / Deployment Evidence, Documentation / Community, and Toolchain Stability / Release Maturity that cannot be reduced honestly to one direct physical quantity must use a published objective rubric or proxy with explicit observable criteria.
+Metrics such as Readability, Diagnostics, Portability, Interoperability, Concurrency, Tooling, Package / Dependency Management Quality, IDE / Editor Support Quality, Debugger / Profiler Support, Build / Test Integration, Documentation Quality, Installation / Distribution Experience, Toolchain Stability / Release Maturity, Third-party Library Availability / Domain Coverage, Package Ecosystem Activity / Maintenance, Third-party Tool / Integration Availability, Production Adoption / Deployment Evidence, and Community / Public Knowledge Availability that cannot be reduced honestly to one direct physical quantity must use a published objective rubric or proxy with explicit observable criteria.
 
 The rubric, its levels, and its conversion to 0-100 must be stored before any language is scored. The same rubric must be applied unchanged to all languages. Unsupported capabilities intentionally covered by the rubric receive the rubric-defined low score rather than N/A.
 
@@ -2111,7 +2151,7 @@ Create an independent **LLM Intrinsic Learnability Ranking** based on LLM Intrin
 
 ---
 
-# 28. Primary Evaluation Final Comparison Tables — 3–4
+# 28. Primary Evaluation Final Comparison Tables — 3–5
 
 ## 28.1 Primary Evaluation 3 — Standard Final Comparison Table
 
@@ -2146,15 +2186,13 @@ Produce a Standard table with the following fixed columns:
 | Debuggability | | | | | | | | | | |
 | Silent Bug Resistance | | | | | | | | | | |
 | Implementation Robustness | | | | | | | | | | |
-| Ecosystem Breadth | | | | | | | | | | |
 | Tooling | | | | | | | | | | |
-| Library Availability | | | | | | | | | | |
-| Package / Dependency Management | | | | | | | | | | |
-| IDE / Editor Support | | | | | | | | | | |
+| Package / Dependency Management Quality | | | | | | | | | | |
+| IDE / Editor Support Quality | | | | | | | | | | |
 | Debugger / Profiler Support | | | | | | | | | | |
 | Build / Test Integration | | | | | | | | | | |
-| Production Adoption / Deployment Evidence | | | | | | | | | | |
-| Documentation / Community | | | | | | | | | | |
+| Documentation Quality | | | | | | | | | | |
+| Installation / Distribution Experience | | | | | | | | | | |
 | Toolchain Stability / Release Maturity | | | | | | | | | | |
 | **Standard Overall Score** | | | | | | | | | | |
 
@@ -2168,7 +2206,22 @@ Create an independent:
 
 based on Standard Overall Score only when Standard status is `COMPLETE`. `Not Executed` applicable metrics prevent publication of the Standard Overall Score and Ranking.
 
-## 28.2 Primary Evaluation 4 — LLM Standard / Knowledge-Dependent Performance
+## 28.2 Primary Evaluation 4 — Ecosystem / Adoption
+
+Produce an Ecosystem / Adoption table with the following fixed columns:
+
+| Metric | Quidra | Python | C++ | Rust | Go | Java | TypeScript | Kotlin | Swift | Zig |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Third-party Library Availability / Domain Coverage | | | | | | | | | | |
+| Package Ecosystem Activity / Maintenance | | | | | | | | | | |
+| Third-party Tool / Integration Availability | | | | | | | | | | |
+| Production Adoption / Deployment Evidence | | | | | | | | | | |
+| Community / Public Knowledge Availability | | | | | | | | | | |
+| **Ecosystem / Adoption Score** | | | | | | | | | | |
+
+Create an independent **Ecosystem / Adoption Ranking** based on Ecosystem / Adoption Score only when the Ecosystem / Adoption evaluation status is `COMPLETE`.
+
+## 28.3 Primary Evaluation 5 — LLM Standard / Knowledge-Dependent Performance
 
 Produce the **LLM Practical Effectiveness** table using the fixed language columns:
 
@@ -2190,7 +2243,7 @@ Produce the **LLM Practical Effectiveness** table using the fixed language colum
 
 Create an independent **LLM Practical Effectiveness Ranking** based on LLM Practical Effectiveness Score only when the Practical evaluation status is `COMPLETE`, including all required trial replication.
 
-Do not merge Practical Effectiveness and Intrinsic Learnability. Do not merge either LLM result with Semantic Compression or Standard.
+Do not merge Practical Effectiveness and Intrinsic Learnability. Do not merge either LLM result with Semantic Compression, Standard, or Ecosystem / Adoption.
 
 ---
 
@@ -2241,6 +2294,8 @@ At completion, preserve at least the following inside the run directory.
 - LLM Intrinsic Learnability Ranking
 - Standard Score Table
 - Standard Ranking
+- Ecosystem / Adoption Score Table
+- Ecosystem / Adoption Ranking
 - LLM Practical Effectiveness Score Table
 - LLM Practical Effectiveness Ranking
 - Raw Results
@@ -2392,9 +2447,12 @@ The benchmark is complete only when all applicable items below are satisfied:
 23. LLM Intrinsic subtest scores were calculated.
 24. LLM Intrinsic Learnability Score was calculated.
 25. LLM Intrinsic Learnability Ranking was created.
-26. Standard metric scores were calculated without Semantic Compression-specific double counting.
+26. Standard metric scores were calculated without Semantic Compression-specific double counting and without Ecosystem / Adoption leakage.
 27. Standard Overall Score was calculated.
 28. Standard Ranking was created.
+28a. Ecosystem / Adoption metric scores were calculated from frozen, language-neutral rubrics or proxies.
+28b. Ecosystem / Adoption Score was calculated.
+28c. Ecosystem / Adoption Ranking was created.
 29. LLM Practical metric scores were calculated.
 30. LLM Practical Effectiveness Score was calculated.
 31. LLM Practical Effectiveness Ranking was created.
@@ -2413,6 +2471,7 @@ The benchmark is complete only when all applicable items below are satisfied:
 44. The Quidra implementation was not modified during benchmark execution.
 45. No commit or push was performed during benchmark execution.
 46. LLM Practical Effectiveness was measured for all 10 languages.
+46a. Ecosystem / Adoption was measured for all 10 languages using the same frozen evidence rules and observation window.
 47. I1 Keyword Anonymization was measured for all 10 languages with at least 5 seeds.
 48. I2 Vocabulary Anonymization was measured for all 10 languages with at least 5 seeds.
 49. I3 Structural Surface Perturbation was measured for all 10 languages with at least 3 transformation sets.
@@ -2426,7 +2485,7 @@ The benchmark is complete only when all applicable items below are satisfied:
 56. Intrinsic Reference Pack token counts and transformation-budget controls were published.
 57. The immutable LLM run configuration was written before the first scored LLM generation.
 58. The exact LLM model/version, decoding controls, repair budget, trial count, and token limits or provider-controlled status were preserved.
-59. Semantic Compression, Standard, LLM Practical, and Intrinsic formulas and weights matched the fixed rules in this specification.
+59. Semantic Compression, Standard, Ecosystem / Adoption, LLM Practical, and Intrinsic formulas and weights matched the fixed rules in this specification.
 60. Every normalized score used the fixed normalization family or an explicitly pre-existing metric-specific override, with no post-result formula selection, and every family-C metric whose applicable raw values span a factor of 100 or more published its raw values and ratios alongside the compressed score.
 61. Each primary evaluation was assigned exactly one status from `COMPLETE`, `PARTIAL`, `WITHDRAWN`, or `NOT EXECUTED`.
 62. No primary Overall Score or Ranking was published unless that primary evaluation was `COMPLETE`.
@@ -2468,7 +2527,7 @@ After the consistency audit passes, keep the chat response concise.
 Report at least, in this order:
 
 - evaluated Quidra HEAD SHA
-- status of each of the four primary evaluations
+- status of each of the five primary evaluations
 - Semantic Compression Overall Score, or `WITHHELD` if its status is not `COMPLETE`
 - Semantic Compression Ranking, or `WITHHELD` if its status is not `COMPLETE`
 - Raw Semantic Compression Quality `Q` and Capability Coverage `C`
@@ -2476,14 +2535,16 @@ Report at least, in this order:
 - LLM Intrinsic Learnability Ranking, or `WITHHELD` unless `COMPLETE`
 - Standard Overall Score, identified as Primary Evaluation 3, or `WITHHELD` unless `COMPLETE`
 - Standard Ranking, or `WITHHELD` unless `COMPLETE`
-- LLM Practical Effectiveness Score, identified as Primary Evaluation 4 / Knowledge-Dependent Performance, or `WITHHELD` unless `COMPLETE`
+- Ecosystem / Adoption Score, identified as Primary Evaluation 4, or `WITHHELD` unless `COMPLETE`
+- Ecosystem / Adoption Ranking, or `WITHHELD` unless `COMPLETE`
+- LLM Practical Effectiveness Score, identified as Primary Evaluation 5 / Knowledge-Dependent Performance, or `WITHHELD` unless `COMPLETE`
 - LLM Practical Effectiveness Ranking, or `WITHHELD` unless `COMPLETE`
 - major Quidra strengths
 - major Quidra weaknesses
 - any N/A or Not Executed items
 - main files or directories created under benchmark/
 
-Do not report a combined score, combined ranking, weighted cross-evaluation total, or implied overall winner across the four primary evaluations.
+Do not report a combined score, combined ranking, weighted cross-evaluation total, or implied overall winner across the five primary evaluations.
 
 Do not flood the final chat response with raw benchmark evidence.
 
@@ -2497,16 +2558,17 @@ Evaluate the Quidra implementation exactly as it exists in the current benchmark
 
 Compare it against the fixed set of Python, C++, Rust, Go, Java, TypeScript, Kotlin, Swift, and Zig under reproducible and fair conditions.
 
-Measure four independent primary evaluations in this priority order:
+Measure five independent primary evaluations in this priority order:
 
 1. **Semantic Compression** — how much reliable meaning is communicated per unit of syntax, adjusted for capability coverage.
 2. **LLM Intrinsic / Unknown-Language Learnability** — specification-grounded learnability under controlled unfamiliarization.
-3. **Standard** — present-day general-purpose language strength, including real ecosystem, tooling, interoperability, and production-maturity advantages.
-4. **LLM Standard / Knowledge-Dependent Performance** — present-day LLM effectiveness with real pretraining familiarity included.
+3. **Standard** — present-day general-purpose language and first-party / normally expected toolchain strength, excluding external adoption and network effects.
+4. **Ecosystem / Adoption** — present-day third-party ecosystem breadth, community/public knowledge availability, and real-world adoption.
+5. **LLM Standard / Knowledge-Dependent Performance** — present-day LLM effectiveness with real pretraining familiarity included.
 
 The Intrinsic evaluation must include keyword anonymization, vocabulary anonymization, structural surface perturbation, novel-rule generalization, held-out rule composition, and prior-conflict resistance.
 
-Attempt to calculate these four independent primary scores:
+Attempt to calculate these five independent primary scores:
 
 **Semantic Compression Overall Score**
 
@@ -2514,13 +2576,15 @@ Attempt to calculate these four independent primary scores:
 
 **Standard Overall Score**
 
+**Ecosystem / Adoption Score**
+
 **LLM Practical Effectiveness Score**
 
 using reproducible evidence.
 
 Publish a primary score and its separate ranking **only when that evaluation is `COMPLETE` under Section 4.1**. Otherwise preserve partial evidence, publish the evaluation status, and withhold its primary score and ranking.
 
-**Do not average, weight, merge, or otherwise collapse the four primary evaluations into one final score or one overall ranking.** Assigning cross-evaluation weights would encode subjective design priorities and would undermine the benchmark's fairness.
+**Do not average, weight, merge, or otherwise collapse the five primary evaluations into one final score or one overall ranking.** Assigning cross-evaluation weights would encode subjective design priorities and would undermine the benchmark's fairness.
 
 For every normalized score:
 

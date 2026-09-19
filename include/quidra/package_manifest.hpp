@@ -33,6 +33,9 @@ struct PackageManifest {
     std::string name;
     SemanticVersion version;
     std::optional<std::string> repository;
+    std::optional<std::string> description;
+    std::optional<std::string> license;
+    std::optional<std::string> homepage;
     std::map<std::string, VersionRequirement> requirements;
 };
 

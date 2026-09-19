@@ -215,6 +215,7 @@ void usage(std::ostream& out) {
         << "  quidra install PACKAGE[@VERSION] install latest compatible tagged package release\n"
         << "  quidra remove NAME                remove an installed package\n"
         << "  quidra list                       list installed packages and versions\n"
+        << "  quidra package-info NAME [--json] show installed package metadata\n"
         << "  quidra lock FILE.qui [--check]    write or verify quidra.lock\n"
         << "  quidra package-path               print the default package store path\n"
         << "  quidra gpu                        list supported GPU devices and backends\n"
@@ -320,6 +321,7 @@ int main(int argc, char** argv) {
         if (package_command == "install" ||
             package_command == "remove" ||
             package_command == "list" ||
+            package_command == "package-info" ||
             package_command == "lock" ||
             package_command == "package-path") {
             return quidra::cli::run_package_cli(argc - 1, argv + 1);

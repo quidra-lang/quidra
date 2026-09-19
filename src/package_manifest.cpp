@@ -182,9 +182,22 @@ PackageManifest read_package_manifest(const fs::path& package_root) {
         repository != fields.end()) {
         manifest.repository = repository->second;
     }
+    if (const auto description = fields.find("description");
+        description != fields.end()) {
+        manifest.description = description->second;
+    }
+    if (const auto license = fields.find("license");
+        license != fields.end()) {
+        manifest.license = license->second;
+    }
+    if (const auto homepage = fields.find("homepage");
+        homepage != fields.end()) {
+        manifest.homepage = homepage->second;
+    }
 
     for (const auto& [key, value] : fields) {
-        if (key == "name" || key == "version" || key == "repository") continue;
+        if (key == "name" || key == "version" || key == "repository" ||
+            key == "description" || key == "license" || key == "homepage") continue;
         constexpr std::string_view prefix = "requires.";
         if (!std::string_view(key).starts_with(prefix) ||
             key.size() == prefix.size()) {

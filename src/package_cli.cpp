@@ -61,6 +61,35 @@ std::string read_text_file(const fs::path& path) {
     return output.str();
 }
 
+std::string json_escape(std::string_view value) {
+    std::ostringstream output;
+    const char* hex = "0123456789abcdef";
+    for (const unsigned char c : value) {
+        switch (c) {
+            case '"': output << "\\\""; break;
+            case '\\': output << "\\\\"; break;
+            case '\b': output << "\\b"; break;
+            case '\f': output << "\\f"; break;
+            case '\n': output << "\\n"; break;
+            case '\r': output << "\\r"; break;
+            case '\t': output << "\\t"; break;
+            default:
+                if (c < 0x20U) {
+                    output << "\\u00" << hex[(c >> 4U) & 0xfU] << hex[c & 0xfU];
+                } else {
+                    output << static_cast<char>(c);
+                }
+        }
+    }
+    return output.str();
+}
+
+void write_json_optional(
+    std::ostream& output, const std::optional<std::string>& value) {
+    if (value) output << '"' << json_escape(*value) << '"';
+    else output << "null";
+}
+
 void write_lock_file(const fs::path& path, const std::string& text) {
     std::ofstream output(path, std::ios::binary | std::ios::trunc);
     if (!output) throw std::runtime_error("cannot write " + path.string());
@@ -656,6 +685,64 @@ void list_packages() {
     }
 }
 
+void package_info(std::string_view raw_name, bool json) {
+    if (!valid_package_name(raw_name)) {
+        throw std::runtime_error("invalid package name");
+    }
+    const std::string name(raw_name);
+    const auto root = package_root() / name;
+    std::error_code error;
+    if (!fs::is_directory(root, error) || error ||
+        !fs::is_regular_file(root / "main.qui", error) || error) {
+        throw std::runtime_error("package is not installed: " + name);
+    }
+
+    const auto manifest = try_read_package_manifest(root);
+    if (json) {
+        std::cout << "{\"name\":\""
+                  << json_escape(manifest ? manifest->name : name)
+                  << "\",\"version\":";
+        if (manifest) std::cout << "\"" << manifest->version.str() << "\"";
+        else std::cout << "null";
+        std::cout << ",\"repository\":";
+        write_json_optional(std::cout, manifest ? manifest->repository : std::optional<std::string>{});
+        std::cout << ",\"description\":";
+        write_json_optional(std::cout, manifest ? manifest->description : std::optional<std::string>{});
+        std::cout << ",\"license\":";
+        write_json_optional(std::cout, manifest ? manifest->license : std::optional<std::string>{});
+        std::cout << ",\"homepage\":";
+        write_json_optional(std::cout, manifest ? manifest->homepage : std::optional<std::string>{});
+        std::cout << ",\"requirements\":{";
+        if (manifest) {
+            bool first = true;
+            for (const auto& [dependency, requirement] : manifest->requirements) {
+                if (!first) std::cout << ',';
+                first = false;
+                std::cout << "\"" << json_escape(dependency) << "\":\""
+                          << json_escape(requirement.text) << "\"";
+            }
+        }
+        std::cout << "},\"path\":\""
+                  << json_escape(root.string()) << "\"}\n";
+        return;
+    }
+
+    std::cout << "name = " << (manifest ? manifest->name : name) << "\n";
+    if (manifest) {
+        std::cout << "version = " << manifest->version.str() << "\n";
+        if (manifest->description) std::cout << "description = " << *manifest->description << "\n";
+        if (manifest->license) std::cout << "license = " << *manifest->license << "\n";
+        if (manifest->homepage) std::cout << "homepage = " << *manifest->homepage << "\n";
+        if (manifest->repository) std::cout << "repository = " << *manifest->repository << "\n";
+        for (const auto& [dependency, requirement] : manifest->requirements) {
+            std::cout << "requires." << dependency << " = " << requirement.text << "\n";
+        }
+    } else {
+        std::cout << "version = unversioned\n";
+    }
+    std::cout << "path = " << root.string() << "\n";
+}
+
 int lock_packages(
     const fs::path& source, bool check_only) {
     const auto absolute =
@@ -709,6 +796,7 @@ void usage() {
         << "  quidra lock FILE.qui [--check]\n"
         << "  quidra remove NAME\n"
         << "  quidra list\n"
+        << "  quidra package-info NAME [--json]\n"
         << "  quidra package-path\n";
 }
 
@@ -729,6 +817,24 @@ int run_package_cli(int argc, char** argv) {
                     "list takes no arguments");
             }
             list_packages();
+            return 0;
+        }
+
+        if (command == "info" ||
+            command == "package-info") {
+            if (argc != 2 && argc != 3) {
+                throw std::runtime_error(
+                    "package-info expects NAME and optional --json");
+            }
+            bool json = false;
+            if (argc == 3) {
+                if (std::string(argv[2]) != "--json") {
+                    throw std::runtime_error(
+                        "unknown package-info option: " + std::string(argv[2]));
+                }
+                json = true;
+            }
+            package_info(argv[1], json);
             return 0;
         }
 

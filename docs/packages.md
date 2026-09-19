@@ -14,6 +14,8 @@ quidra install https://github.com/owner/package.git@0.2.0
 quidra install ./local-package
 quidra remove dnn
 quidra list
+quidra package-info dnn
+quidra package-info dnn --json
 quidra package-path
 quidra lock program.qui
 quidra lock program.qui --check
@@ -42,6 +44,9 @@ Released packages contain `quidra.package` at the repository root:
 name = dnn
 version = 0.2.0
 repository = https://github.com/quidra-lang/dnn
+description = Neural network layers and optimizers for Quidra
+license = MIT
+homepage = https://github.com/quidra-lang/dnn
 requires.quidra = >=0.2.0 <0.3.0
 ```
 
@@ -55,6 +60,11 @@ Versions use exact `MAJOR.MINOR.PATCH` Semantic Versioning. Requirement terms
 are conjunctive and support `=`, `<`, `<=`, `>`, and `>=`. A released
 package must declare `requires.quidra`. Its manifest version must exactly match
 the release tag.
+
+`description`, `license`, and `homepage` are optional descriptive metadata.
+They do not participate in dependency resolution or execute any behavior.
+`quidra package-info NAME` reads only the already-installed package; `--json`
+provides stable machine-readable metadata without network access.
 
 For a dependency other than Quidra, the current installer requires an already
 installed compatible package and reports the required range when it is missing

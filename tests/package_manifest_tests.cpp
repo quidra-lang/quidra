@@ -48,6 +48,9 @@ int main() {
             << "name = sample\n"
             << "version = 0.4.1\n"
             << "repository = https://github.com/example/sample\n"
+            << "description = Example package metadata\n"
+            << "license = MIT\n"
+            << "homepage = https://example.invalid/sample\n"
             << "requires.quidra = >=0.2.0 <0.3.0\n"
             << "requires.vision = >=0.1.0 <0.2.0\n";
     }
@@ -59,6 +62,9 @@ int main() {
         manifest.repository &&
         *manifest.repository ==
             "https://github.com/example/sample");
+    assert(manifest.description && *manifest.description == "Example package metadata");
+    assert(manifest.license && *manifest.license == "MIT");
+    assert(manifest.homepage && *manifest.homepage == "https://example.invalid/sample");
     assert(
         manifest.requirements.at("quidra")
             .matches(parse_semantic_version("0.2.5")));

@@ -4624,16 +4624,20 @@ extern "C" bool quidra_neural_moment_update_parameter(
             if(gradient_mat) tensor_storage_release(gradient_mat);
             if(!ok) neural_fail(backend_error.c_str(),line,column);
         }else{
-            std::vector<double> delta(logical_count);
+            tensor_detach_for_write(*tensor,line,column);
             for(std::size_t i=0;i<logical_count;++i){
                 const double g=gradient->data.scalar_as_double(i);
                 record.first[i]=beta1*record.first[i]+(1.0-beta1)*g;
                 record.second[i]=beta2*record.second[i]+(1.0-beta2)*g*g;
                 const double mhat=record.first[i]/correction1;
                 const double vhat=record.second[i]/correction2;
-                delta[i]=rate*mhat/(std::sqrt(vhat)+epsilon);
+                const double delta=rate*mhat/(std::sqrt(vhat)+epsilon);
+                const auto storage_index=tensor_storage_index(*tensor,i);
+                const auto current=neural_tensor_value(*tensor,i,line,column);
+                neural_store_float(
+                    *tensor->storage,storage_index,current-delta);
+                tracker_set(tensor->storage->initialization,storage_index);
             }
-            neural_apply_parameter_delta(parameter,delta,line,column);
         }
     }
     return matched;

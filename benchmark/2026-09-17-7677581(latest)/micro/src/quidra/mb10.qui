@@ -6,28 +6,14 @@
 // Quidra's normal file I/O, not a shortcut around a buffered writer it does not
 // have.
 //
-// FORCED SUBSTITUTION for section 4.12(c)'s "content accumulated in a `string`",
-// and for the pseudocode's `line = decimal(i) + " " + decimal(v) + "\n"`.
-// Quidra v0.1's native backend emits the `+` string operator as a stack
-// allocation AT THE INSTRUCTION SITE -- `alloca ptr, i64 N` for the operand
-// vector, quidra/src/llvm_backend.cpp:769-770 (StringConcat) and :784-785
-// (StringAppendMove). Inside a loop that alloca is not in the entry block, so
-// neither mem2reg nor SROA can promote it and the stack grows by ~16 bytes per
-// EXECUTION until the guard page is hit. The failure is driven by iteration
-// count, not by string length. Measured on this host with `quidra build` and a
-// bare `./BIN`:
-//   for i in range(0, 700000): string line = "ab" + "cd"   (result discarded)
-//       -> SIGSEGV 139, crash report "Thread stack size exceeded";
-//   the same loop written with ["ab", "cd"].join("")       -> exit 0;
-//   the same `+` binary under `ulimit -s 65520`            -> exit 0, 3/3.
-// MB-10 formats 1 000 000 lines per round, well past the ~500 000-execution
-// ceiling, so neither the pinned per-line `+` nor the pinned
-// `content = content + line` accumulation can run at this workload's size at
-// all. Raising the stack limit is outside the frozen run recipe (specification
-// section 32). Both therefore use `string[]` + `join`, the language's other
-// ordinary string builder and the one docs/spec/language.md describes as
-// constructing the result in one operation. This is a defective-capability
-// result, not an implementation choice.
+// HISTORICAL SUBSTITUTION NOTE: this workload remains byte-for-byte compatible
+// with the frozen benchmark source. The original v0.1 run used `string[]` +
+// `join` because StringConcat/StringAppendMove scratch arrays were emitted as
+// loop-local LLVM allocas and could exhaust the stack at this iteration count.
+// Current develop plans those instruction-local scratch arrays once in the
+// function entry frame, so that compiler defect is fixed. The substitution is
+// retained only to preserve comparability with the historical workload; it must
+// not be interpreted as a current Quidra capability limitation.
 //
 // Mode selection (methodology 06 section 5.2). Quidra's `cli` module has no
 // OPTIONAL positional argument: `argument()` is positional but mandatory (a bare

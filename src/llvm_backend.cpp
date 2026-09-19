@@ -364,18 +364,20 @@ std::unordered_set<std::string> self_depth_recursive_functions(
 
     const auto reaches=[&](const std::string& start,const std::string& target) {
         std::unordered_set<std::string> visited;
-        std::function<bool(const std::string&)> visit =
-            [&](const std::string& current) {
-                const auto found=graph.find(current);
-                if(found==graph.end()) return false;
-                for(const auto& next:found->second) {
-                    if(next==target) return true;
-                    if(visited.insert(next).second&&visit(next)) return true;
-                }
-                return false;
-            };
+        std::vector<std::string> pending;
         visited.insert(start);
-        return visit(start);
+        pending.push_back(start);
+        while(!pending.empty()) {
+            auto current=std::move(pending.back());
+            pending.pop_back();
+            const auto found=graph.find(current);
+            if(found==graph.end()) continue;
+            for(const auto& next:found->second) {
+                if(next==target) return true;
+                if(visited.insert(next).second) pending.push_back(next);
+            }
+        }
+        return false;
     };
 
     std::unordered_set<std::string> result;

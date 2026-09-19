@@ -7318,6 +7318,147 @@ extern "C" char* quidra_string_append_move_many(
     return result;
 }
 
+extern "C" char* quidra_string_build(
+    const unsigned char* kinds, const unsigned long long* raw_values,
+    unsigned long long raw_count, const char* separator) {
+    if (raw_count >
+        static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()))
+        runtime_allocation_failure();
+    const auto count = static_cast<std::size_t>(raw_count);
+    if (count != 0 && (!kinds || !raw_values))
+        runtime_text_failure("null typed string builder parts");
+    if (!separator) runtime_text_failure("null string builder separator");
+
+    ManagedAllocation* separator_allocation = nullptr;
+    std::size_t separator_codepoints = 0;
+    const auto delimiter = validated_string_view(
+        separator, separator_allocation, &separator_codepoints);
+
+    auto checked_add = [](std::size_t& target, std::size_t value) {
+        if (value > std::numeric_limits<std::size_t>::max() - target)
+            runtime_allocation_failure();
+        target += value;
+    };
+
+    std::size_t total = 0;
+    std::size_t total_codepoints = 0;
+    if (count > 1 && !delimiter.empty()) {
+        if (count - 1 >
+            std::numeric_limits<std::size_t>::max() / delimiter.size())
+            runtime_allocation_failure();
+        total = (count - 1) * delimiter.size();
+        if (separator_codepoints != 0 &&
+            count - 1 >
+                std::numeric_limits<std::size_t>::max() / separator_codepoints)
+            runtime_allocation_failure();
+        total_codepoints = (count - 1) * separator_codepoints;
+    }
+
+    std::array<char, 32> numeric{};
+    for (std::size_t i = 0; i < count; ++i) {
+        switch (kinds[i]) {
+            case 0: {
+                const auto* text = reinterpret_cast<const char*>(
+                    static_cast<std::uintptr_t>(raw_values[i]));
+                if (!text) runtime_text_failure("null string builder value");
+                ManagedAllocation* allocation = nullptr;
+                std::size_t codepoints = 0;
+                const auto piece =
+                    validated_string_view(text, allocation, &codepoints);
+                checked_add(total, piece.size());
+                checked_add(total_codepoints, codepoints);
+                break;
+            }
+            case 1: {
+                const auto value = std::bit_cast<long long>(raw_values[i]);
+                const auto converted = std::to_chars(
+                    numeric.data(), numeric.data() + numeric.size(), value, 10);
+                if (converted.ec != std::errc{})
+                    runtime_text_failure("integer formatting failed");
+                const auto bytes = static_cast<std::size_t>(
+                    converted.ptr - numeric.data());
+                checked_add(total, bytes);
+                checked_add(total_codepoints, bytes);
+                break;
+            }
+            case 2: {
+                const auto converted = std::to_chars(
+                    numeric.data(), numeric.data() + numeric.size(),
+                    raw_values[i], 10);
+                if (converted.ec != std::errc{})
+                    runtime_text_failure("integer formatting failed");
+                const auto bytes = static_cast<std::size_t>(
+                    converted.ptr - numeric.data());
+                checked_add(total, bytes);
+                checked_add(total_codepoints, bytes);
+                break;
+            }
+            case 3: {
+                const auto bytes = raw_values[i] ? 4U : 5U;
+                checked_add(total, bytes);
+                checked_add(total_codepoints, bytes);
+                break;
+            }
+            default:
+                runtime_text_failure("invalid typed string builder part");
+        }
+    }
+
+    if (total == std::numeric_limits<std::size_t>::max())
+        runtime_allocation_failure();
+    auto* result =
+        static_cast<char*>(managed_allocate_string(total + 1));
+    std::size_t offset = 0;
+
+    for (std::size_t i = 0; i < count; ++i) {
+        if (i != 0 && !delimiter.empty()) {
+            std::memcpy(result + offset, delimiter.data(), delimiter.size());
+            offset += delimiter.size();
+        }
+        switch (kinds[i]) {
+            case 0: {
+                const auto* text = reinterpret_cast<const char*>(
+                    static_cast<std::uintptr_t>(raw_values[i]));
+                ManagedAllocation* allocation = nullptr;
+                const auto piece = cached_string_view(text, allocation);
+                if (!piece.empty())
+                    std::memcpy(result + offset, piece.data(), piece.size());
+                offset += piece.size();
+                break;
+            }
+            case 1: {
+                const auto value = std::bit_cast<long long>(raw_values[i]);
+                const auto converted = std::to_chars(
+                    result + offset, result + total, value, 10);
+                if (converted.ec != std::errc{})
+                    runtime_text_failure("integer formatting failed");
+                offset = static_cast<std::size_t>(converted.ptr - result);
+                break;
+            }
+            case 2: {
+                const auto converted = std::to_chars(
+                    result + offset, result + total, raw_values[i], 10);
+                if (converted.ec != std::errc{})
+                    runtime_text_failure("integer formatting failed");
+                offset = static_cast<std::size_t>(converted.ptr - result);
+                break;
+            }
+            case 3: {
+                const char* value = raw_values[i] ? "true" : "false";
+                const auto bytes = raw_values[i] ? 4U : 5U;
+                std::memcpy(result + offset, value, bytes);
+                offset += bytes;
+                break;
+            }
+            default:
+                runtime_text_failure("invalid typed string builder part");
+        }
+    }
+    result[total] = '\0';
+    mark_managed_string(result, total, total_codepoints);
+    return result;
+}
+
 extern "C" char* quidra_string_concat_many(const char* const* values,
                                                  unsigned long long raw_count) {
     if (raw_count > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max())) {

@@ -1139,8 +1139,11 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::StringSplit>){values[n.out]=Type::array(Type::simple(TypeKind::String));out<<"  "<<value(n.out)<<" = call ptr @quidra_string_split(ptr "<<value(n.text)<<", ptr "<<value(n.separator)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringSplitIterBegin>){
             values[n.out]=Type::simple(TypeKind::Bin);
-            out<<"  "<<value(n.out)<<" = call ptr @quidra_string_split_iter_begin(ptr "<<value(n.text)
-               <<", ptr "<<value(n.separator)<<")\n";
+            out<<"  "<<value(n.out)<<" = call ptr @"
+               <<(n.move_source
+                      ?"quidra_string_split_iter_begin_move"
+                      :"quidra_string_split_iter_begin")
+               <<"(ptr "<<value(n.text)<<", ptr "<<value(n.separator)<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::StringSplitIterNext>){
             values[n.text]=Type::simple(TypeKind::String);
@@ -4158,6 +4161,7 @@ declare ptr @quidra_string_slice(ptr, i64, i64)
 declare ptr @quidra_string_trim(ptr)
 declare ptr @quidra_string_split(ptr, ptr)
 declare ptr @quidra_string_split_iter_begin(ptr, ptr)
+declare ptr @quidra_string_split_iter_begin_move(ptr, ptr)
 declare ptr @quidra_string_split_iter_next(ptr)
 declare void @quidra_string_split_iter_end(ptr)
 declare ptr @quidra_string_parse_two_signed(ptr, i8)

@@ -1966,6 +1966,13 @@ class DerivedSecret : BaseSecret
     private void hidden()
         return
 class DerivedSecret : BaseSecret
+    void hidden()
+        return
+)", "SHADOWING");
+ bad_code(R"(class BaseSecret
+    private void hidden()
+        return
+class DerivedSecret : BaseSecret
     void reveal()
         super.hidden()
 )", "PRIVATE_MEMBER");

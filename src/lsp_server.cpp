@@ -1326,18 +1326,8 @@ private:
             else if(const auto* node=std::get_if<MethodCallExpr>(&expression->data)) name=node->method;
             if(name.empty()) { respond(id,"null"); return; }
 
-            auto span=definition_span(program,source,name,offset);
-            if(!span&&std::holds_alternative<MethodCallExpr>(expression->data)) {
-                for(const auto& declaration:program.classes) {
-                    for(const auto& method:declaration.methods) {
-                        if(method.name!=name) continue;
-                        const auto tokens=Lexer(source).scan();
-                        span=identifier_span(tokens,method.span,name,method.return_type.span.end.offset);
-                        if(span) break;
-                    }
-                    if(span) break;
-                }
-            }
+            const auto tokens=Lexer(source).scan();
+            auto span=resolved_definition_span(program,name,offset,tokens);
             if(!span) { respond(id,"null"); return; }
             respond(id,"{\"uri\":\""+escape(uri)+"\",\"range\":"+
                        range_json(source,*span)+"}");

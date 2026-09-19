@@ -308,6 +308,8 @@ The readiness pre-flight must cover **all 10 fixed languages and every shared me
 - required filesystem operations work in the active scratch copy: create, atomic replace/rename, hash, and cleanup;
 - enough writable disk space exists for the planned run plus temporary build products; record free space before scored execution;
 - the selected LLM provider/client is reachable through the exact interface that will be used for scoring, the exact model/version can be selected, and one **unscored** minimal request succeeds;
+- before scored LLM work, derive and preserve `preflight/llm_capacity_estimate.json` from the frozen execution manifest and immutable LLM configuration. Record, per LLM evaluation and in total, the mandatory initial-trial count, the maximum allowed repair-turn count, the resulting minimum and configured-maximum generation-call counts, estimated model-visible input-token demand, configured output-token ceilings, fresh-session/context count, and every assumption used by the estimate;
+- when the provider/client exposes remaining request, token, spend, usage, or other directly comparable hard quotas, record the observed values and timestamp in the capacity estimate and fail readiness if an exposed hard limit proves that the mandatory frozen plan cannot complete. If remaining quota is not exposed, record it explicitly as `UNAVAILABLE`; unavailability alone does not fail readiness and must not be replaced by a guessed quota. Rate limits are recorded separately from total-capacity limits;
 - provider decoding controls, context limits, token accounting, retry behavior, and timeout behavior are recorded before scored LLM work;
 - every required benchmark script imports/parses successfully and its CLI help or dry-run path can execute without starting scored work; and
 - the execution manifest contains no unresolved placeholder paths, missing fixture hashes, unknown toolchain identities, or duplicate work-unit IDs.
@@ -1450,7 +1452,22 @@ For every primary timing or resource-measurement cell, unless a workload section
 5. use the **median** of the 10 scored runs as the representative raw value; and
 6. preserve dispersion at minimum as min, max, median, and MAD or IQR.
 
-For JIT / VM runtimes, the first 3 warm-ups are mandatory but need not be assumed sufficient. If runtime-specific normal practice requires additional warm-up to reach steady state, predeclare one deterministic warm-up rule for that runtime before measuring any workload, cap it at 10 total warm-up runs, preserve the warm-up measurements separately, and apply that rule consistently to all applicable workloads for that runtime. Startup/cold-start measurements remain separate and must not be replaced by steady-state values.
+### Deterministic cross-language measurement interleaving
+
+For every workload where multiple languages or execution modes are compared by primary timing or resource measurements, do not measure all scored repetitions of one language and then move to the next.
+
+Before the first timing/resource sample for that workload:
+
+1. define the complete comparison-cell set for the workload;
+2. derive and record one deterministic `measurement_order_seed` from the immutable run identity and workload ID, or freeze an explicit seed in the manifest before measurement;
+3. materialize and preserve the complete warm-up and scored execution schedule before observing any timing result; and
+4. use that schedule unchanged unless the recovery policy requires a documented restart.
+
+Execute warm-ups in rounds: each round gives at most one warm-up run to every cell that still requires warm-up, with the within-round cell order deterministically shuffled from the frozen seed and round index. Then execute scored measurements in **10 scored rounds**, each containing exactly one scored run from every applicable comparison cell, again using a deterministic per-round shuffle derived from the same frozen seed. Thus each cell still receives exactly the required number of samples, but machine drift, thermal state, scheduler load, and other time-correlated effects are distributed across languages instead of being coupled to presentation order.
+
+The interleaving schedule is part of the raw evidence. Preserve the seed, generated order, actual start order, and any deviation/recovery record. Never choose or modify the order after observing timing results. Do not execute all scored samples for one language consecutively unless the comparison group contains only one applicable cell or a genuine platform constraint makes interleaving impossible; in that case document the constraint before scoring and treat any resulting comparability limitation explicitly.
+
+For JIT / VM runtimes, the first 3 warm-ups are mandatory but need not be assumed sufficient. If runtime-specific normal practice requires additional warm-up to reach steady state, predeclare one deterministic warm-up rule for that runtime before measuring any workload, cap it at 10 total warm-up runs, preserve the warm-up measurements separately, and apply that rule consistently to all applicable workloads for that runtime. Additional runtime-specific warm-ups participate in the interleaved warm-up rounds until that cell's frozen warm-up count is satisfied. Startup/cold-start measurements remain separate and must not be replaced by steady-state values.
 
 A measured run affected by a verified harness/runner/transport failure is **invalid evidence**, not an outlier to silently discard. Preserve the failed attempt, apply the run-wide recovery policy in Section 4.4, and restart the entire affected measurement cell from its warm-ups so the final cell still contains exactly 10 valid scored runs under one uninterrupted frozen configuration.
 

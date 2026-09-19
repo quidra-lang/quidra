@@ -199,6 +199,86 @@ assert diagnostic["range"]["start"]["character"] == 13, diagnostic
 assert next(x for x in responses if x.get("id") == 3)["result"] is None
 PY
 
+python3 - "$QUIDRA" "$TMP" <<'PY'
+import json
+import pathlib
+import subprocess
+import sys
+
+quidra = sys.argv[1]
+tmp = pathlib.Path(sys.argv[2])
+uri = (tmp / "lsp-semantic.qui").as_uri()
+source = (
+    "int twice(int value)\n"
+    "    return value * 2\n"
+    "\n"
+    "int input = 4\n"
+    "int output = twice(input)\n"
+    "print(output)\n"
+)
+messages = [
+    {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"rootUri":tmp.as_uri()}},
+    {"jsonrpc":"2.0","method":"initialized","params":{}},
+    {"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{
+        "uri":uri,"languageId":"quidra","version":1,"text":source
+    }}},
+    {"jsonrpc":"2.0","id":2,"method":"textDocument/hover","params":{
+        "textDocument":{"uri":uri},"position":{"line":5,"character":8}
+    }},
+    {"jsonrpc":"2.0","id":3,"method":"textDocument/definition","params":{
+        "textDocument":{"uri":uri},"position":{"line":5,"character":8}
+    }},
+    {"jsonrpc":"2.0","id":4,"method":"textDocument/completion","params":{
+        "textDocument":{"uri":uri},"position":{"line":5,"character":0}
+    }},
+    {"jsonrpc":"2.0","id":5,"method":"textDocument/signatureHelp","params":{
+        "textDocument":{"uri":uri},"position":{"line":4,"character":20}
+    }},
+    {"jsonrpc":"2.0","id":6,"method":"shutdown","params":None},
+    {"jsonrpc":"2.0","method":"exit","params":None},
+]
+payload = b""
+for message in messages:
+    body = json.dumps(message,separators=(",",":")).encode()
+    payload += f"Content-Length: {len(body)}\r\n\r\n".encode() + body
+
+process = subprocess.run([quidra,"lsp"],input=payload,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+assert process.returncode == 0, process.stderr.decode()
+data = process.stdout
+responses = []
+pos = 0
+while pos < len(data):
+    end = data.find(b"\r\n\r\n",pos)
+    assert end >= 0
+    headers = data[pos:end].decode().split("\r\n")
+    length = int(next(x.split(":",1)[1].strip() for x in headers if x.lower().startswith("content-length:")))
+    start = end + 4
+    responses.append(json.loads(data[start:start+length]))
+    pos = start + length
+
+by_id = {x["id"]:x for x in responses if "id" in x}
+caps = by_id[1]["result"]["capabilities"]
+assert caps["hoverProvider"] is True
+assert caps["definitionProvider"] is True
+assert caps["completionProvider"]["triggerCharacters"] == ["."]
+assert caps["signatureHelpProvider"]["triggerCharacters"] == ["(",","]
+
+hover = by_id[2]["result"]
+assert hover["contents"]["value"] == "int", hover
+definition = by_id[3]["result"]
+assert definition["uri"] == uri
+assert definition["range"]["start"] == {"line":4,"character":4}, definition
+
+labels = {item["label"] for item in by_id[4]["result"]}
+for expected in ("input","output","twice","print"):
+    assert expected in labels, (expected, labels)
+
+signature = by_id[5]["result"]
+assert signature["signatures"][0]["label"] == "int twice(int value)", signature
+assert signature["activeParameter"] == 0
+assert by_id[6]["result"] is None
+PY
+
 mkdir -p "$TMP/package-source" "$TMP/package-home"
 cat > "$TMP/package-source/main.qui" <<'QUI'
 int doubled(int value)

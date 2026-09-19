@@ -611,6 +611,7 @@ int batch = 3
 tensor<float32><batch * 2, 224> contextual = tensor.zeros()
 batch = 8 // contextual keeps the extent captured above
 
+tensor<float32> matrix = tensor.zeros([2, 3])
 tensor<float32><3, _, _> pixels = tensor.zeros<float32>([3, 224, 224])
 tensor<float32><1, _, _> bias = tensor.ones<float32>([1, 224, 224])
 tensor<float32><3, _, _> result = pixels + bias
@@ -625,7 +626,7 @@ auto crop = result[:, 10:20, 30:40]
 float32 value = result[0, 10, 20].item()
 ```
 
-`tensor<T>(shape)` creates storage whose elements are initially uninitialized; individual scalar elements can be initialized with `tensor[i, j, ...] = value`. `tensor.zeros<T>(shape)` and `tensor.ones<T>(shape)` create fully initialized tensors. When every extent is supplied by the expected exact shape, `tensor.zeros()` / `tensor.ones()` may omit both element type and shape arguments; an expected `_` axis or an unconstrained `tensor<T>` is insufficient for allocation, so an explicit shape array is required. Reading an element that is not definitely initialized remains a deterministic safety failure.
+`tensor<T>(shape)` creates storage whose elements are initially uninitialized; individual scalar elements can be initialized with `tensor[i, j, ...] = value`. `tensor.zeros<T>(shape)` and `tensor.ones<T>(shape)` create fully initialized tensors. When an explicit shape is present, the expected tensor type may supply the element type, so `tensor<float32> x = tensor.zeros([2, 3])` is valid while `auto x = tensor.zeros([2, 3])` is not. When every extent is supplied by the expected exact shape, `tensor.zeros()` / `tensor.ones()` may omit both element type and shape arguments; an expected `_` axis or an unconstrained `tensor<T>` is insufficient for allocation, so an explicit shape array is required. Reading an element that is not definitely initialized remains a deterministic safety failure.
 
 CPU is the default tensor device. GPU placement and transfer are explicit and do not change the nominal tensor type:
 

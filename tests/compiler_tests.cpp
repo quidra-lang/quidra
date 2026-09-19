@@ -2100,6 +2100,11 @@ match widened
  bad_code("tensor<float32><2, 4> wrong = tensor.zeros<float32>([2, 3])\n", "TYPE_MISMATCH");
  bad_code("tensor<float32><3, _> wrong_rank = tensor.zeros<float32>([3, 4, 5])\n", "TYPE_MISMATCH");
  good("tensor<float32><3, _, _> exact_rank = tensor.zeros<float32>([3, 4, 5])\n");
+ good(R"(tensor<float32> contextual_dtype = tensor.zeros([2, 3])
+int[2] contextual_shape = contextual_dtype.shape()
+tensor<float32><2, 3> contextual_exact = tensor.ones([2, 3])
+)");
+ bad_code("auto missing_dtype = tensor.zeros([2, 3])\n", "GENERIC_ARITY");
  good(R"(auto generated = tensor.zeros<float32>([2, 3])
 int[2] generated_shape = generated.shape()
 )");

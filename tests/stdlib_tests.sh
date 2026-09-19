@@ -1736,6 +1736,17 @@ QUI
 practical_cast_output="$("$QUIDRA" "$TMP/practical-casts.qui")"
 [[ "$practical_cast_output" == "$(printf '1.6777216e+07\n1.75\n1\n2\n-2\n-1\n1.25')" ]]
 
+cat > "$TMP/contextual-tensor-dtype.qui" <<'QUI'
+tensor<float32> zeros = tensor.zeros([2, 3])
+tensor<float32><2, 3> ones = tensor.ones([2, 3])
+print(zeros.shape()[0])
+print(zeros.shape()[1])
+print(ones.shape()[0])
+print(ones.shape()[1])
+QUI
+contextual_tensor_dtype_output="$("$QUIDRA" "$TMP/contextual-tensor-dtype.qui")"
+[[ "$contextual_tensor_dtype_output" == "$(printf '2\n3\n2\n3')" ]]
+
 cat > "$TMP/captured-shapes.qui" <<'QUI'
 int n = 3
 int m = 2

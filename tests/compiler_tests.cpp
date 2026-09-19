@@ -361,6 +361,23 @@ int[] values = array(8, fill = 1)
 walk_array(&values)
 )", "@n_walk_array(", "@llvm.sadd.with.overflow.i64");
 
+ // Empty-string checks do not need a Unicode code-point count. Quidra text
+ // has a NUL-terminated, no-embedded-NUL representation, so len(text) == 0
+ // lowers to one byte load while all non-empty length queries keep full
+ // code-point semantics.
+ ir_contains(R"(bool is_empty(string text)
+    return len(text) == 0
+)", "string.empty");
+ ir_contains(R"(bool is_nonempty(string text)
+    return 0 != len(text)
+)", "string.nonempty");
+ llvm_function_not_contains(R"(bool is_empty(string text)
+    return len(text) == 0
+)", "@n_is_empty(", "@quidra_string_length");
+ llvm_function_not_contains(R"(bool is_nonempty(string text)
+    return 0 != len(text)
+)", "@n_is_nonempty(", "@quidra_string_length");
+
  // Hot string/parse patterns keep their source semantics while lowering to
  // allocation-light native operations.
  ir_contains(R"(for i in range(0, 2)

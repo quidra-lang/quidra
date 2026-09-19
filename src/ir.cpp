@@ -1981,6 +1981,44 @@ struct Lowerer {
         }
         if (const auto* n=std::get_if<BinaryExpr>(&e.data)) {
             if((n->op=="=="||n->op=="!=") && type_of(e).kind==TypeKind::Bool){
+                const Expr* empty_test_text=nullptr;
+                const auto matches_empty_length =
+                    [&](const Expr& length_expression,
+                        const Expr& zero_expression) {
+                        const auto* zero =
+                            std::get_if<IntegerExpr>(&zero_expression.data);
+                        if (!zero || !zero->fits_u64 || zero->value != 0)
+                            return false;
+                        const auto* length_call =
+                            std::get_if<CallExpr>(&length_expression.data);
+                        if (!length_call || length_call->callee != "len" ||
+                            length_call->args.size() != 1 ||
+                            length_call->args.front().name ||
+                            length_call->args.front().writable ||
+                            !length_call->args.front().value)
+                            return false;
+                        const auto resolution =
+                            checked.call_resolutions.find(&length_expression);
+                        if (resolution == checked.call_resolutions.end() ||
+                            resolution->second.kind != CallKind::Builtin ||
+                            resolution->second.builtin != BuiltinCallable::Len ||
+                            type_of(*length_call->args.front().value).kind !=
+                                TypeKind::String)
+                            return false;
+                        empty_test_text =
+                            length_call->args.front().value.get();
+                        return true;
+                    };
+                if (matches_empty_length(*n->left,*n->right) ||
+                    matches_empty_length(*n->right,*n->left)) {
+                    auto text=expr(*empty_test_text);
+                    auto out=fresh();
+                    block->instructions.push_back(
+                        StringEmpty{out,text,n->op=="!="});
+                    release_temporary(*empty_test_text,text);
+                    return out;
+                }
+
                 const IndexExpr* indexed=nullptr;
                 const StringExpr* literal=nullptr;
                 const Expr* indexed_expression=nullptr;
@@ -5496,6 +5534,7 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,StringIndex>)out<<"%"<<n.out<<" = string.index %"<<n.text<<", %"<<n.index;
     if constexpr(std::is_same_v<T,StringIndexAsciiCompare>)out<<"%"<<n.out<<" = string.index_ascii_compare %"<<n.text<<", %"<<n.index<<", "<<static_cast<unsigned>(n.byte)<<(n.negate?" !=":" ==");
     if constexpr(std::is_same_v<T,StringLength>)out<<"%"<<n.out<<" = string.length %"<<n.text;
+    if constexpr(std::is_same_v<T,StringEmpty>)out<<"%"<<n.out<<" = string."<<(n.negate?"nonempty ":"empty ")<<"%"<<n.text;
     if constexpr(std::is_same_v<T,StringContains>)out<<"%"<<n.out<<" = string.contains %"<<n.text<<", %"<<n.needle;
     if constexpr(std::is_same_v<T,StringStartsWith>)out<<"%"<<n.out<<" = string.starts_with %"<<n.text<<", %"<<n.prefix;
     if constexpr(std::is_same_v<T,StringEndsWith>)out<<"%"<<n.out<<" = string.ends_with %"<<n.text<<", %"<<n.suffix;

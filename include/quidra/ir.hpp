@@ -46,6 +46,7 @@ struct ArraySorted { ValueId out; ValueId array; Type array_type; std::uint32_t 
 struct StringIndex { ValueId out; ValueId text; ValueId index; std::uint32_t line{}; std::uint32_t column{}; };
 struct StringIndexAsciiCompare { ValueId out; ValueId text; ValueId index; unsigned char byte{}; bool negate{}; std::uint32_t line{}; std::uint32_t column{}; };
 struct StringLength { ValueId out; ValueId text; };
+struct StringEmpty { ValueId out; ValueId text; bool negate{}; };
 struct StringContains { ValueId out; ValueId text; ValueId needle; };
 struct StringStartsWith { ValueId out; ValueId text; ValueId prefix; };
 struct StringEndsWith { ValueId out; ValueId text; ValueId suffix; };
@@ -304,7 +305,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  LoadAddress, StoreAddress, BindReference, ReferenceAddress, LoadReference, StoreReference,
                                  ArrayLength, ArrayCanAppendMove, ArrayGrowMove, ArraySorted,
                                  ArrayInitializationComplete,
-                                 StringIndex, StringIndexAsciiCompare, StringLength, StringContains, StringStartsWith,
+                                 StringIndex, StringIndexAsciiCompare, StringLength, StringEmpty, StringContains, StringStartsWith,
                                  StringEndsWith, StringFind, StringSlice, StringTrim, StringSplit,
                                  StringSplitIterBegin, StringSplitIterNext, StringSplitIterEnd,
                                  StringParseTwoSigned, StringUtf8, StringFromUtf8, StringFromUtf8ArrayDirect, StringCodepoints, StringJoin, StringConcat, StringBuild,

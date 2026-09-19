@@ -1124,6 +1124,13 @@ struct FunctionEmitter {
             else out<<"  "<<value(n.out)<<" = xor i1 "<<compared<<", false\n";
         }
         if constexpr(std::is_same_v<T,ir::StringLength>){values[n.out]=Type::simple(TypeKind::Int);out<<"  "<<value(n.out)<<" = call i64 @quidra_string_length(ptr "<<value(n.text)<<")\n";}
+        if constexpr(std::is_same_v<T,ir::StringEmpty>){
+            values[n.out]=Type::simple(TypeKind::Bool);
+            const auto first=temp("string.empty.byte");
+            out<<"  "<<first<<" = load i8, ptr "<<value(n.text)<<", align 1\n";
+            out<<"  "<<value(n.out)<<" = icmp "<<(n.negate?"ne":"eq")
+               <<" i8 "<<first<<", 0\n";
+        }
         if constexpr(std::is_same_v<T,ir::StringContains>){values[n.out]=Type::simple(TypeKind::Bool);out<<"  "<<value(n.out)<<" = call i1 @quidra_string_contains(ptr "<<value(n.text)<<", ptr "<<value(n.needle)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringStartsWith>){values[n.out]=Type::simple(TypeKind::Bool);out<<"  "<<value(n.out)<<" = call i1 @quidra_string_starts_with(ptr "<<value(n.text)<<", ptr "<<value(n.prefix)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringEndsWith>){values[n.out]=Type::simple(TypeKind::Bool);out<<"  "<<value(n.out)<<" = call i1 @quidra_string_ends_with(ptr "<<value(n.text)<<", ptr "<<value(n.suffix)<<")\n";}

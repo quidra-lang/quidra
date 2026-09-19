@@ -6449,9 +6449,6 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                         return false;
                 }
             };
-            const auto ffi_borrowed_buffer=[](const Type& type) {
-                return type.kind==TypeKind::String || type.kind==TypeKind::Bin;
-            };
             if(function.external_symbol) {
                 const auto& symbol=*function.external_symbol;
                 const auto valid_symbol=!symbol.empty() &&

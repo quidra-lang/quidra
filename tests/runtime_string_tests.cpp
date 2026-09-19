@@ -57,6 +57,18 @@ int main() {
     quidra_managed_release(managed_space, nullptr);
     quidra_managed_release(managed_ascii, nullptr);
 
+    const char ascii_blocks[] =
+        "0123456789abcdef0123456789abcdef0123456789abcdef";
+    char* managed_blocks = quidra_runtime_try_copy_text_bytes(
+        ascii_blocks, sizeof(ascii_blocks) - 1);
+    if (!managed_blocks ||
+        quidra_runtime_text_byte_length(managed_blocks) !=
+            sizeof(ascii_blocks) - 1 ||
+        quidra_string_length(managed_blocks) !=
+            static_cast<long long>(sizeof(ascii_blocks) - 1))
+        return 1;
+    quidra_managed_release(managed_blocks, nullptr);
+
     char* managed_unicode = quidra_runtime_try_copy_text_bytes("\xC3\xA9x", 3);
     if (!managed_unicode) return 1;
     if (!quidra_string_index_equal_ascii(managed_unicode, 1, 'x', 1, 1)) return 1;

@@ -411,6 +411,24 @@ bool valid_utf8(std::string_view text, std::size_t* codepoints = nullptr,
     std::size_t count = 0;
     bool nul = false;
     while (index < text.size()) {
+        // ASCII dominates source text, protocol fields, and decoded byte
+        // buffers. Validate eight bytes at once when all are non-NUL ASCII,
+        // then fall back to the exact scalar UTF-8 decoder at the first block
+        // that may contain a control terminator or multibyte code point.
+        while (text.size() - index >= sizeof(std::uint64_t)) {
+            std::uint64_t word = 0;
+            std::memcpy(&word, text.data() + index, sizeof(word));
+            constexpr std::uint64_t high_bits = 0x8080808080808080ULL;
+            constexpr std::uint64_t low_bits = 0x0101010101010101ULL;
+            const bool has_non_ascii = (word & high_bits) != 0;
+            const bool has_nul =
+                ((word - low_bits) & ~word & high_bits) != 0;
+            if (has_non_ascii || has_nul) break;
+            index += sizeof(word);
+            count += sizeof(word);
+        }
+        if (index >= text.size()) break;
+
         const auto first = static_cast<unsigned char>(text[index]);
         if (first <= 0x7fU) {
             nul = nul || first == 0;

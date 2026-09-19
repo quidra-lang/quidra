@@ -2020,14 +2020,12 @@ private:
                 TypeName result;
                 result.name = "tensor";
                 result.arguments.push_back(clone_type(call->type_arguments.front()));
-                if (!std::holds_alternative<ArrayExpr>(call->args[0].value->data)) {
-                    const auto shape =
-                        infer_expression_type(*call->args[0].value, current_class);
-                    if (shape && shape->name == "int" &&
-                        shape->dimensions.size() == 1 &&
-                        shape->dimensions.front() >= 0) {
-                        result.tensor_rank = shape->dimensions.front();
-                    }
+                const auto shape =
+                    infer_expression_type(*call->args[0].value, current_class);
+                if (shape && shape->name == "int" &&
+                    shape->dimensions.size() == 1 &&
+                    shape->dimensions.front() >= 0) {
+                    result.tensor_rank = shape->dimensions.front();
                 }
                 result.span = expression.span;
                 return result;
@@ -2153,14 +2151,12 @@ private:
                     result.tensor_shape_prefix.clear();
                     result.tensor_rank.reset();
                     result.tensor_known_shape_prefix.clear();
-                    if (!std::holds_alternative<ArrayExpr>(call->args[0].value->data)) {
-                        const auto shape =
-                            infer_expression_type(*call->args[0].value, current_class);
-                        if (shape && shape->name == "int" &&
-                            shape->dimensions.size() == 1 &&
-                            shape->dimensions.front() >= 0) {
-                            result.tensor_rank = shape->dimensions.front();
-                        }
+                    const auto shape =
+                        infer_expression_type(*call->args[0].value, current_class);
+                    if (shape && shape->name == "int" &&
+                        shape->dimensions.size() == 1 &&
+                        shape->dimensions.front() >= 0) {
+                        result.tensor_rank = shape->dimensions.front();
                     }
                     result.span = expression.span;
                     return result;

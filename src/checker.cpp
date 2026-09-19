@@ -1889,11 +1889,18 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         auto shape = check_expr(*node->args[0].value, &shape_type);
                         long long rank = -1;
                         if (!poisoned(shape)) {
-                            const auto raw = raw_types_.find(node->args[0].value.get());
-                            if (raw != raw_types_.end() &&
-                                raw->second.kind == TypeKind::Array &&
-                                raw->second.length >= 0) {
-                                rank = raw->second.length;
+                            if (const auto* literal =
+                                    std::get_if<ArrayExpr>(&node->args[0].value->data)) {
+                                // Array literal arity is its static array length, so rank may
+                                // depend on it. Element values still never refine the result.
+                                rank = static_cast<long long>(literal->elements.size());
+                            } else {
+                                const auto raw = raw_types_.find(node->args[0].value.get());
+                                if (raw != raw_types_.end() &&
+                                    raw->second.kind == TypeKind::Array &&
+                                    raw->second.length >= 0) {
+                                    rank = raw->second.length;
+                                }
                             }
                         }
                         type = poisoned(shape)
@@ -4081,12 +4088,19 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     auto shape = check_expr(*node->args[*shape_index].value, &shape_type);
                     long long rank = -1;
                     if (!poisoned(shape)) {
-                        const auto raw =
-                            raw_types_.find(node->args[*shape_index].value.get());
-                        if (raw != raw_types_.end() &&
-                            raw->second.kind == TypeKind::Array &&
-                            raw->second.length >= 0) {
-                            rank = raw->second.length;
+                        if (const auto* literal =
+                                std::get_if<ArrayExpr>(&node->args[*shape_index].value->data)) {
+                            // Array literal arity is static type information; its element
+                            // values are not return-type information.
+                            rank = static_cast<long long>(literal->elements.size());
+                        } else {
+                            const auto raw =
+                                raw_types_.find(node->args[*shape_index].value.get());
+                            if (raw != raw_types_.end() &&
+                                raw->second.kind == TypeKind::Array &&
+                                raw->second.length >= 0) {
+                                rank = raw->second.length;
+                            }
                         }
                     }
                     if (!poisoned(shape) && expected &&

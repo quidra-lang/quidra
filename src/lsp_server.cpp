@@ -840,6 +840,19 @@ std::vector<CompletionSymbol> member_completions_at(
     if(!best) return {};
     const auto receiver_class=completion_receiver_class(checked,*best);
     if(!receiver_class) return {};
+    if(*receiver_class=="$std.video.Reader") {
+        return {
+            {"duration",2,"float | none"},
+            {"fps",2,"float | none"},
+            {"frames",2,"int | none"},
+            {"height",2,"int"},
+            {"position",2,"int"},
+            {"read",2,"tensor<T> | none | error"},
+            {"seek",2,"void | error"},
+            {"width",2,"int"}
+        };
+    }
+
     const auto info=checked.classes.find(*receiver_class);
     if(info==checked.classes.end()) return {};
 

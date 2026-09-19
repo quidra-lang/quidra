@@ -237,7 +237,26 @@ struct Clone { ValueId out; ValueId value; Type type; };
 struct Retain { ValueId out; ValueId value; Type type; };
 struct Release { ValueId value; Type type; };
 struct Unary { ValueId out; std::string op; ValueId operand; Type type; std::uint32_t line{}; std::uint32_t column{}; };
-struct Binary { ValueId out; std::string op; ValueId left; ValueId right; Type operand_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; bool overflow_proven{}; };
+struct Binary {
+    ValueId out;
+    std::string op;
+    ValueId left;
+    ValueId right;
+    Type operand_type;
+    Type result_type;
+    std::uint32_t line{};
+    std::uint32_t column{};
+    bool overflow_proven{};
+
+    Binary(ValueId out_value, std::string operation, ValueId left_value,
+           ValueId right_value, Type operand, Type result,
+           std::uint32_t source_line = 0,
+           std::uint32_t source_column = 0,
+           bool proven_no_overflow = false)
+        : out(out_value), op(operation), left(left_value), right(right_value),
+          operand_type(operand), result_type(result), line(source_line),
+          column(source_column), overflow_proven(proven_no_overflow) {}
+};
 struct ToString { ValueId out; ValueId value; Type source_type; };
 struct FormatNumber {
     ValueId out;

@@ -3752,9 +3752,32 @@ struct Lowerer {
         return true;
     }
 
+    bool split_source_dead_after(
+        const BindingStmt& binding,
+        const std::vector<StmtPtr>& statements,
+        std::size_t first_following) const {
+        if (!binding.value) return false;
+        const auto* split =
+            std::get_if<MethodCallExpr>(&binding.value->data);
+        if (!split || split->method != "split" ||
+            split->args.size() != 1 || !split->args.front().value)
+            return false;
+        const auto* source =
+            std::get_if<NameExpr>(&split->receiver->data);
+        if (!source ||
+            checked.field_accesses.contains(split->receiver.get()) ||
+            is_source_reference(source->name) ||
+            !local_names.contains(source->name))
+            return false;
+        for (std::size_t i = first_following; i < statements.size(); ++i)
+            if (statement_mentions_name(*statements[i], source->name))
+                return false;
+        return true;
+    }
+
     bool lower_bound_string_split_for_pair(
         const Stmt& binding_statement, const Stmt& for_statement,
-        bool used_later,
+        bool used_later, bool move_source,
         const std::vector<const Stmt*>& prelude = {}) {
         if (used_later) return false;
         const auto* binding =
@@ -3796,7 +3819,7 @@ struct Lowerer {
         auto separator = expr(*split->args.front().value);
         auto cursor = fresh();
         block->instructions.push_back(
-            StringSplitIterBegin{cursor, text, separator});
+            StringSplitIterBegin{cursor, text, separator, move_source});
         release_temporary(*split->receiver, text);
         release_temporary(*split->args.front().value, separator);
 
@@ -3855,6 +3878,8 @@ struct Lowerer {
             if (const auto* split_sequence_binding =
                     std::get_if<BindingStmt>(&statements[i]->data);
                 split_sequence_binding && !split_sequence_binding->reference) {
+                const bool move_split_source = split_source_dead_after(
+                    *split_sequence_binding, statements, i + 1);
                 std::vector<const Stmt*> prelude;
                 for (std::size_t k = i + 1; k < statements.size(); ++k) {
                     if (const auto* loop =
@@ -3872,7 +3897,7 @@ struct Lowerer {
                         }
                         if (lower_bound_string_split_for_pair(
                                 *statements[i], *statements[k],
-                                split_used_later, prelude)) {
+                                split_used_later, move_split_source, prelude)) {
                             i = k;
                             split_sequence_lowered = true;
                         }
@@ -3910,7 +3935,9 @@ struct Lowerer {
                 if (split_sequence_binding &&
                     lower_bound_string_split_for_pair(
                         *statements[i], *statements[i + 1],
-                        split_used_later)) {
+                        split_used_later,
+                        split_source_dead_after(
+                            *split_sequence_binding, statements, i + 1))) {
                     ++i;
                     if (terminated()) break;
                     continue;
@@ -5426,7 +5453,7 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,StringSlice>)out<<"%"<<n.out<<" = string.slice %"<<n.text<<", %"<<n.start<<", %"<<n.end;
     if constexpr(std::is_same_v<T,StringTrim>)out<<"%"<<n.out<<" = string.trim %"<<n.text;
     if constexpr(std::is_same_v<T,StringSplit>)out<<"%"<<n.out<<" = string.split %"<<n.text<<", %"<<n.separator;
-    if constexpr(std::is_same_v<T,StringSplitIterBegin>)out<<"%"<<n.out<<" = string.split_iter.begin %"<<n.text<<", %"<<n.separator;
+    if constexpr(std::is_same_v<T,StringSplitIterBegin>)out<<"%"<<n.out<<" = string.split_iter.begin %"<<n.text<<", %"<<n.separator<<(n.move_source?" move":"");
     if constexpr(std::is_same_v<T,StringSplitIterNext>)out<<"%"<<n.text<<", %"<<n.has_value<<" = string.split_iter.next %"<<n.cursor;
     if constexpr(std::is_same_v<T,StringSplitIterEnd>)out<<"string.split_iter.end %"<<n.cursor;
     if constexpr(std::is_same_v<T,StringParseTwoSigned>)out<<"%"<<n.left<<", %"<<n.right<<", %"<<n.ok<<" = string.parse_two_signed %"<<n.text<<", "<<static_cast<unsigned>(n.separator);

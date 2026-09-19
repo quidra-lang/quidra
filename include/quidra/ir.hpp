@@ -53,6 +53,7 @@ struct StringFind { ValueId out; ValueId text; ValueId needle; Type result_type;
 struct StringSlice { ValueId out; ValueId text; ValueId start; ValueId end; };
 struct StringTrim { ValueId out; ValueId text; };
 struct StringSplit { ValueId out; ValueId text; ValueId separator; };
+struct StringParseTwoSigned { ValueId left; ValueId right; ValueId ok; ValueId text; unsigned char separator{}; };
 struct StringUtf8 { ValueId out; ValueId text; };
 struct StringFromUtf8 { ValueId out; ValueId bin; Type result_type; };
 struct StringCodepoints { ValueId out; ValueId text; };
@@ -281,7 +282,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  ArrayInitializationComplete,
                                  StringIndex, StringIndexAsciiCompare, StringLength, StringContains, StringStartsWith,
                                  StringEndsWith, StringFind, StringSlice, StringTrim, StringSplit,
-                                 StringUtf8, StringFromUtf8, StringCodepoints, StringJoin, StringConcat, StringBuild,
+                                 StringParseTwoSigned, StringUtf8, StringFromUtf8, StringCodepoints, StringJoin, StringConcat, StringBuild,
                                  StringCanAppendMove, StringAppendMove, StringRepeat,
                                  BinAlloc, BinLength, BinGet, BinSet, BinSlice,
                                  ParseBin, BinConvert,

@@ -7181,18 +7181,50 @@ struct QuidraStringSplitIterator {
     bool finished{};
 };
 
-extern "C" void* quidra_string_split_iter_begin(
-    const char* text, const char* separator) {
+static void* quidra_string_split_iter_begin_impl(
+    const char* text, const char* separator, bool move_source) {
     if (!text || !separator) runtime_text_failure("null string split input");
     ManagedAllocation* source_allocation = nullptr;
     ManagedAllocation* delimiter_allocation = nullptr;
     const auto source = validated_string_view(text, source_allocation);
-    const auto delimiter = validated_string_view(
-        separator, delimiter_allocation);
+    const auto delimiter = validated_string_view(separator, delimiter_allocation);
     if (delimiter.empty())
         runtime_text_failure("string split separator cannot be empty");
     if (source.size() == std::numeric_limits<std::size_t>::max())
         runtime_allocation_failure();
+
+    auto* iterator = new (std::nothrow) QuidraStringSplitIterator;
+    if (!iterator) runtime_allocation_failure();
+    iterator->size = source.size();
+    iterator->separator.assign(delimiter.data(), delimiter.size());
+
+    const bool can_reuse =
+        move_source && source_allocation &&
+        source_allocation->base == text &&
+        source_allocation->owners == 1 &&
+        source_allocation->pins == 0 &&
+        !source_allocation->shared_string_slab &&
+        !source_allocation->initialization &&
+        source_allocation->drop == nullptr &&
+        source_allocation->size >= source.size() + 1;
+
+    if (can_reuse) {
+        auto& allocation = *source_allocation;
+        const auto key = reinterpret_cast<std::uintptr_t>(allocation.base);
+        if (!allocation.interior_range_tracked) {
+            managed_ranges.emplace(key, allocation.size);
+            allocation.interior_range_tracked = true;
+        }
+        if (allocation.owners == std::numeric_limits<std::size_t>::max()) {
+            delete iterator;
+            runtime_text_failure("managed owner count overflow");
+        }
+        ++allocation.owners;
+        allocation.shared_string_slab = true;
+        iterator->slab = const_cast<char*>(text);
+        iterator->slab[source.size()] = '\0';
+        return iterator;
+    }
 
     auto* slab = static_cast<char*>(
         managed_allocate_impl(source.size() + 1, true));
@@ -7201,20 +7233,24 @@ extern "C" void* quidra_string_split_iter_begin(
 
     const auto slab_key = reinterpret_cast<std::uintptr_t>(slab);
     auto slab_it = managed_allocations.find(slab_key);
-    if (slab_it == managed_allocations.end())
+    if (slab_it == managed_allocations.end()) {
+        delete iterator;
         runtime_text_failure("split iterator backing storage disappeared");
+    }
     slab_it->second.shared_string_slab = true;
     slab_it->second.owners = 1;
-
-    auto* iterator = new (std::nothrow) QuidraStringSplitIterator;
-    if (!iterator) {
-        quidra_managed_release(slab, nullptr);
-        runtime_allocation_failure();
-    }
     iterator->slab = slab;
-    iterator->size = source.size();
-    iterator->separator.assign(delimiter.data(), delimiter.size());
     return iterator;
+}
+
+extern "C" void* quidra_string_split_iter_begin(
+    const char* text, const char* separator) {
+    return quidra_string_split_iter_begin_impl(text, separator, false);
+}
+
+extern "C" void* quidra_string_split_iter_begin_move(
+    const char* text, const char* separator) {
+    return quidra_string_split_iter_begin_impl(text, separator, true);
 }
 
 extern "C" char* quidra_string_split_iter_next(void* raw) {

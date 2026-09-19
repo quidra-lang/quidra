@@ -4390,8 +4390,82 @@ extern "C" void quidra_neural_moment_finish(
     if(current==std::numeric_limits<std::uint64_t>::max()||current+1!=expected)
         neural_fail("moment update step State changed during update",line,column);
 
-    auto* encoded=neural_encode_moments(found->second.records,line,column);
-    neural_replace_moments(optimizer,encoded);
+    auto* moments_state=neural_object_pointer_field(optimizer,40);
+    if(!moments_state) neural_fail("invalid moment update moments State",line,column);
+    auto* moments_raw=found->second.moments_raw;
+    const auto allocation=
+        managed_allocations.find(reinterpret_cast<std::uintptr_t>(moments_raw));
+    const bool has_device_cache=neural_moment_device_caches.contains(
+        reinterpret_cast<std::uintptr_t>(moments_raw));
+    bool updated_in_place=false;
+    if(has_device_cache&&allocation!=managed_allocations.end()&&
+       allocation->second.owners==1){
+        auto* bytes=static_cast<unsigned char*>(moments_raw)+8;
+        std::int64_t signed_bit_length{};
+        std::memcpy(&signed_bit_length,moments_raw,sizeof(signed_bit_length));
+        if(signed_bit_length>=0&&signed_bit_length%8==0){
+            const auto length=static_cast<std::size_t>(
+                static_cast<unsigned long long>(signed_bit_length/8));
+            if(length<=allocation->second.size-8&&length>=16){
+                std::size_t cursor=0;
+                auto need=[&](std::size_t count){
+                    return count<=length-cursor;
+                };
+                std::uint64_t magic{},record_count{};
+                if(need(16)){
+                    std::memcpy(&magic,bytes+cursor,8);cursor+=8;
+                    std::memcpy(&record_count,bytes+cursor,8);cursor+=8;
+                }
+                bool valid=magic==neural_moment_state_magic&&
+                    record_count==found->second.records.size();
+                for(std::size_t index=0;valid&&index<found->second.records.size();++index){
+                    if(!need(28)){valid=false;break;}
+                    std::int32_t dtype{};
+                    std::uint32_t rank{},path_length{};
+                    std::uint64_t count{},stored_step{};
+                    std::memcpy(&dtype,bytes+cursor,4);cursor+=4;
+                    std::memcpy(&rank,bytes+cursor,4);cursor+=4;
+                    std::memcpy(&count,bytes+cursor,8);cursor+=8;
+                    auto* step_slot=bytes+cursor;
+                    std::memcpy(&stored_step,step_slot,8);cursor+=8;
+                    std::memcpy(&path_length,bytes+cursor,4);cursor+=4;
+                    const auto& record=found->second.records[index];
+                    if(dtype!=record.dtype||rank!=record.shape.size()||
+                       count!=record.first.size()||stored_step>record.step||
+                       path_length!=record.path.size()||!need(path_length)){
+                        valid=false;break;
+                    }
+                    if(path_length&&
+                       std::memcmp(bytes+cursor,record.path.data(),path_length)!=0){
+                        valid=false;break;
+                    }
+                    cursor+=path_length;
+                    const auto shape_bytes=neural_checked_mul(
+                        static_cast<std::size_t>(rank),sizeof(std::int64_t),line,column);
+                    if(!need(shape_bytes)){valid=false;break;}
+                    for(std::size_t axis=0;axis<record.shape.size();++axis){
+                        std::int64_t dimension{};
+                        std::memcpy(&dimension,bytes+cursor+axis*8,8);
+                        if(dimension!=record.shape[axis]){valid=false;break;}
+                    }
+                    if(!valid)break;
+                    cursor+=shape_bytes;
+                    const auto vector_bytes=neural_checked_mul(
+                        record.first.size(),sizeof(double),line,column);
+                    const auto moments_bytes=neural_checked_mul(
+                        vector_bytes,2,line,column);
+                    if(!need(moments_bytes)){valid=false;break;}
+                    std::memcpy(step_slot,&record.step,8);
+                    cursor+=moments_bytes;
+                }
+                updated_in_place=valid&&cursor==length;
+            }
+        }
+    }
+    if(!updated_in_place){
+        auto* encoded=neural_encode_moments(found->second.records,line,column);
+        neural_replace_moments(optimizer,encoded);
+    }
     neural_set_state_u64(step_state,expected);
     neural_moment_update_contexts.erase(found);
 }

@@ -217,6 +217,33 @@ print(len(remaining))
 """,
     12000, 24000, lambda n: str(n // 2), allow_too_fast=True)
 
+# Fully initialized array references cache their initialization state once at
+# function entry when the referenced binding cannot be replaced or escaped.
+# The remaining per-element branch should stay a small constant overhead versus
+# the statically proven direct-array path.
+check_ratio(
+    "fully initialized array reference fast path",
+    """int n = 400000
+int[] values = array(n, fill = 1)
+int total = 0
+for pass in range(0, 8)
+    for i in range(0, n)
+        total += values[i]
+print(total)
+""",
+    """int sum_all(const int[] &values, int n)
+    int total = 0
+    for pass in range(0, 8)
+        for i in range(0, n)
+            total += values[i]
+    return total
+
+int n = 400000
+int[] values = array(n, fill = 1)
+print(sum_all(&values, n))
+""",
+    "3200000", "3200000")
+
 # Every checked element access through a writable array reference consults the
 # runtime initialization tracker, which cached exactly one allocation. A loop
 # that reads one array while writing another missed that cache on every access

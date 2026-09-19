@@ -214,8 +214,9 @@ struct JsonEqual { ValueId out; ValueId left; ValueId right; };
 struct HttpGet { ValueId out; ValueId url; Type result_type; };
 struct HttpHeader { ValueId out; ValueId response; ValueId name; Type result_type; };
 struct NumericMinMax { ValueId out; ValueId left; ValueId right; Type type; bool maximum{}; };
-struct ArrayGet { ValueId out; ValueId array; ValueId index; Type element_type; std::uint32_t line{}; std::uint32_t column{}; bool initialization_proven{}; bool bounds_proven{}; };
-struct ArraySet { ValueId array; ValueId index; ValueId value; Type element_type; std::uint32_t line{}; std::uint32_t column{}; bool initialization_proven{}; bool bounds_proven{}; };
+struct ArrayInitializationComplete { ValueId out; ValueId array; };
+struct ArrayGet { ValueId out; ValueId array; ValueId index; Type element_type; std::uint32_t line{}; std::uint32_t column{}; bool initialization_proven{}; bool bounds_proven{}; std::optional<ValueId> initialization_guard; };
+struct ArraySet { ValueId array; ValueId index; ValueId value; Type element_type; std::uint32_t line{}; std::uint32_t column{}; bool initialization_proven{}; bool bounds_proven{}; std::optional<ValueId> initialization_guard; };
 struct Clone { ValueId out; ValueId value; Type type; };
 struct Retain { ValueId out; ValueId value; Type type; };
 struct Release { ValueId value; Type type; };
@@ -267,6 +268,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  DeclareLocal, DeclareReference, AddressLocal, AddressField, AddressElement,
                                  LoadAddress, StoreAddress, BindReference, ReferenceAddress, LoadReference, StoreReference,
                                  ArrayLength, ArrayCanAppendMove, ArrayGrowMove, ArraySorted,
+                                 ArrayInitializationComplete,
                                  StringIndex, StringLength, StringContains, StringStartsWith,
                                  StringEndsWith, StringFind, StringSlice, StringTrim, StringSplit,
                                  StringUtf8, StringFromUtf8, StringCodepoints, StringJoin, StringConcat,

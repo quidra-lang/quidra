@@ -2560,6 +2560,10 @@ struct FunctionEmitter {
             }
             out<<"  "<<value(n.out)<<" = select i1 "<<cmp<<", "<<ty<<" "<<value(n.left)<<", "<<ty<<" "<<value(n.right)<<"\n";
         }
+        if constexpr(std::is_same_v<T,ir::ArrayInitializationComplete>){
+            values[n.out]=Type::simple(TypeKind::Bool);
+            out<<"  "<<value(n.out)<<" = call i1 @quidra_array_initialization_complete(ptr "<<value(n.array)<<")\n";
+        }
         if constexpr(std::is_same_v<T,ir::ArrayGet>){
             values[n.out]=n.element_type;
             const auto& array_type=values.at(n.array);
@@ -2579,8 +2583,19 @@ struct FunctionEmitter {
             if(is_fixed_array(array_type)&&array_layout.inline_fixed_child(array_type)){
                 out<<"  "<<value(n.out)<<" = getelementptr inbounds i8, ptr "<<slot<<", i64 0\n";
             }else{
-                if(!n.initialization_proven)
-                    out<<"  call void @quidra_init_check(ptr "<<slot<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                if(!n.initialization_proven){
+                    if(n.initialization_guard){
+                        const auto check_label=unique_label("array.init.check");
+                        const auto ready_label=unique_label("array.init.ready");
+                        out<<"  br i1 "<<value(*n.initialization_guard)<<", label %"<<ready_label<<", label %"<<check_label<<"\n"
+                           <<check_label<<":\n"
+                           <<"  call void @quidra_init_check(ptr "<<slot<<", i64 "<<n.line<<", i64 "<<n.column<<")\n"
+                           <<"  br label %"<<ready_label<<"\n"
+                           <<ready_label<<":\n";
+                    }else{
+                        out<<"  call void @quidra_init_check(ptr "<<slot<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                    }
+                }
                 out<<"  "<<value(n.out)<<" = load "<<llvm_type(n.element_type)<<", ptr "<<slot<<", align 1\n";
             }
         }
@@ -2611,8 +2626,19 @@ struct FunctionEmitter {
                 }
                 out<<"  store "<<llvm_type(n.element_type)<<" "<<value(n.value)<<", ptr "<<slot<<", align 1\n";
             }
-            if(!n.initialization_proven)
-                out<<"  call void @quidra_init_mark_range(ptr "<<slot<<", i64 "<<stride<<")\n";
+            if(!n.initialization_proven){
+                if(n.initialization_guard){
+                    const auto mark_label=unique_label("array.init.mark");
+                    const auto ready_label=unique_label("array.init.mark.ready");
+                    out<<"  br i1 "<<value(*n.initialization_guard)<<", label %"<<ready_label<<", label %"<<mark_label<<"\n"
+                       <<mark_label<<":\n"
+                       <<"  call void @quidra_init_mark_range(ptr "<<slot<<", i64 "<<stride<<")\n"
+                       <<"  br label %"<<ready_label<<"\n"
+                       <<ready_label<<":\n";
+                }else{
+                    out<<"  call void @quidra_init_mark_range(ptr "<<slot<<", i64 "<<stride<<")\n";
+                }
+            }
         }
         if constexpr(std::is_same_v<T,ir::Clone>){values[n.out]=n.type;out<<"  "<<value(n.out)<<" = call ptr "<<clone_name(n.type)<<"(ptr "<<value(n.value)<<")\n";}
         if constexpr(std::is_same_v<T,ir::Retain>){values[n.out]=n.type;out<<"  call void @quidra_managed_retain(ptr "<<value(n.value)<<")\n  "<<value(n.out)<<" = getelementptr inbounds i8, ptr "<<value(n.value)<<", i64 0\n";}
@@ -3874,6 +3900,7 @@ declare void @quidra_managed_release(ptr, ptr)
 declare void @quidra_managed_pin(ptr)
 declare void @quidra_managed_unpin(ptr)
 declare void @quidra_init_create(ptr, i64, i64, i64, i32)
+declare i1 @quidra_array_initialization_complete(ptr)
 declare void @quidra_init_mark_range(ptr, i64)
 declare void @quidra_init_check(ptr, i64, i64)
 declare void @quidra_init_require_range(ptr, i64, i64, i64)

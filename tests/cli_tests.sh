@@ -1230,9 +1230,28 @@ QUI
 "$QUIDRA" llvm "$TMP/readonly-array-proof.qui" > "$TMP/readonly-array-proof.ll"
 readonly_init_check_count="$(grep -c 'call void @quidra_init_check' "$TMP/readonly-array-proof.ll" || true)"
 [[ "$readonly_init_check_count" -eq 1 ]]
+grep -q '@quidra_array_initialization_complete' "$TMP/readonly-array-proof.ll"
+grep -q 'array.init.check' "$TMP/readonly-array-proof.ll"
 readonly_array_output=$("$QUIDRA" run "$TMP/readonly-array-proof.qui")
 readonly_array_expected=$(printf '1\n1')
 [[ "$readonly_array_output" == "$readonly_array_expected" ]]
+
+cat > "$TMP/readonly-partial-array-proof.qui" <<'QUI'
+void inspect_partial(const int[] &values)
+    print(values[1])
+
+int[] values = array(2)
+values[0] = 1
+inspect_partial(&values)
+QUI
+"$QUIDRA" llvm "$TMP/readonly-partial-array-proof.qui" > "$TMP/readonly-partial-array-proof.ll"
+grep -q '@quidra_array_initialization_complete' "$TMP/readonly-partial-array-proof.ll"
+set +e
+"$QUIDRA" run "$TMP/readonly-partial-array-proof.qui" > "$TMP/readonly-partial-array-proof.out" 2>&1
+readonly_partial_array_rc=$?
+set -e
+[[ "$readonly_partial_array_rc" -eq 101 ]]
+grep -qi 'uninitialized' "$TMP/readonly-partial-array-proof.out"
 
 cat > "$TMP/readonly-local-array-proof.qui" <<'QUI'
 int[] values = array(4, fill = 2)

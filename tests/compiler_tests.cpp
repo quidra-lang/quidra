@@ -1459,6 +1459,15 @@ auto f = square
  llvm_contains(
      "int[2] xs = [1, 2]\nprint(xs[1])\n",
      "call ptr @quidra_fixed_array_slot_proven");
+ llvm_contains(R"(int sum_values(const int[] &values, int n)
+    int total = 0
+    for i in range(0, n)
+        total += values[i]
+    return total
+
+int[] values = array(8, fill = 1)
+print(sum_values(&values, len(values)))
+)", "@quidra_array_initialization_complete");
  bad_code("int | none x = 1\nmatch x\n    int\n        print(x)\n", "MATCH_EXHAUSTIVE");
  bad_code("auto values = []\n", "AMBIGUOUS_TYPE");
  bad_code("int f(int x)\n    return x\nprint(f())\n", "ARGUMENT_MISMATCH");

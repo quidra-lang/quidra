@@ -828,6 +828,13 @@ extern "C" void quidra_init_create(void* base, unsigned long long count,
     it->second.initialization = std::move(tracker);
 }
 
+extern "C" bool quidra_array_initialization_complete(void* array) {
+    if (!array) return false;
+    const auto* allocation = managed_containing(array);
+    return allocation && allocation->initialization &&
+           allocation->initialization->fully_initialized;
+}
+
 extern "C" void quidra_init_mark_range(void* address, unsigned long long bytes) {
     if (!address || bytes == 0) return;
     if (tracker_is_complete(address)) return;

@@ -29,6 +29,7 @@ struct Lowerer {
     std::size_t repl_replay_prefix_offset{};
     std::unordered_map<std::string, std::unordered_set<std::size_t>> borrowed_parameters;
     std::unordered_set<std::string> fully_initialized_array_locals;
+    std::unordered_map<std::string, ValueId> reference_array_initialization;
     std::unordered_map<std::string, std::vector<std::optional<std::string>>> shaped_constraints;
     std::unordered_map<std::string, std::vector<std::optional<std::string>>> array_constraints;
     std::unordered_map<const Expr*, std::vector<std::optional<std::string>>> contextual_tensor_shapes;
@@ -41,6 +42,46 @@ struct Lowerer {
         : checked(c), repl_expression(repl),
           repl_replay_prefix_offset(replay_prefix_offset) {
         classify_borrowed_parameters();
+    }
+
+    void cache_reference_array_initialization(
+        const FunctionType& signature,
+        const std::vector<StmtPtr>& body) {
+        std::unordered_set<std::string> array_references;
+        for (const auto& parameter : signature.parameters) {
+            if (parameter.writable && parameter.type.kind == TypeKind::Array) {
+                array_references.insert(parameter.name);
+            }
+        }
+        if (array_references.empty() ||
+            block_may_replace_array_reference(body, array_references)) {
+            return;
+        }
+        for (const auto& parameter : signature.parameters) {
+            if (!array_references.contains(parameter.name)) continue;
+            const auto effect = signature.reference_effects.find(parameter.name);
+            if (effect == signature.reference_effects.end() ||
+                !effect->second.required.contains("")) {
+                continue;
+            }
+            const auto array = fresh();
+            block->instructions.push_back(LoadLocal{array, parameter.name, parameter.type});
+            const auto complete = fresh();
+            block->instructions.push_back(ArrayInitializationComplete{complete, array});
+            reference_array_initialization[parameter.name] = complete;
+        }
+    }
+
+    std::optional<ValueId> reference_array_initialization_guard(
+        const Expr& expression) const {
+        const auto* name = std::get_if<NameExpr>(&expression.data);
+        if (!name || checked.field_accesses.contains(&expression) ||
+            is_source_reference(name->name)) {
+            return std::nullopt;
+        }
+        const auto cached = reference_array_initialization.find(name->name);
+        if (cached == reference_array_initialization.end()) return std::nullopt;
+        return cached->second;
     }
 
     bool array_expression_fully_initialized(const Expr& expression) const {
@@ -277,6 +318,136 @@ struct Lowerer {
             } else if (const auto* node = std::get_if<MatchStmt>(&data)) {
                 if (expression_mutates_parameter(*node->value, name)) return true;
                 for (const auto& match_case : node->cases) if (block_mutates_parameter(match_case.body, name)) return true;
+            }
+        }
+        return false;
+    }
+
+    bool expression_may_replace_array_reference(
+        const Expr& expression,
+        const std::unordered_set<std::string>& parameters) const {
+        const auto rooted = [&](const Expr& candidate) {
+            return std::any_of(
+                parameters.begin(), parameters.end(),
+                [&](const std::string& name) { return storage_root_is(candidate, name); });
+        };
+        if (const auto* node = std::get_if<StringTemplateExpr>(&expression.data)) {
+            return std::any_of(
+                node->expressions.begin(), node->expressions.end(),
+                [&](const auto& item) {
+                    return expression_may_replace_array_reference(*item, parameters);
+                });
+        }
+        if (const auto* node = std::get_if<ArrayExpr>(&expression.data)) {
+            return std::any_of(
+                node->elements.begin(), node->elements.end(),
+                [&](const auto& item) {
+                    return expression_may_replace_array_reference(*item, parameters);
+                });
+        }
+        if (const auto* node = std::get_if<IndexExpr>(&expression.data)) {
+            if (expression_may_replace_array_reference(*node->base, parameters)) return true;
+            for (const auto& item : node->items) {
+                if ((item.index && expression_may_replace_array_reference(*item.index, parameters)) ||
+                    (item.start && expression_may_replace_array_reference(*item.start, parameters)) ||
+                    (item.stop && expression_may_replace_array_reference(*item.stop, parameters)) ||
+                    (item.step && expression_may_replace_array_reference(*item.step, parameters))) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (const auto* node = std::get_if<MemberExpr>(&expression.data)) {
+            return expression_may_replace_array_reference(*node->base, parameters);
+        }
+        if (const auto* node = std::get_if<UnaryExpr>(&expression.data)) {
+            return expression_may_replace_array_reference(*node->operand, parameters);
+        }
+        if (const auto* node = std::get_if<BinaryExpr>(&expression.data)) {
+            return expression_may_replace_array_reference(*node->left, parameters) ||
+                   expression_may_replace_array_reference(*node->right, parameters);
+        }
+        if (const auto* node = std::get_if<TryExpr>(&expression.data)) {
+            return expression_may_replace_array_reference(*node->value, parameters);
+        }
+        if (const auto* node = std::get_if<CallExpr>(&expression.data)) {
+            for (const auto& argument : node->args) {
+                if (argument.writable && rooted(*argument.value)) return true;
+                if (expression_may_replace_array_reference(*argument.value, parameters)) return true;
+            }
+            return false;
+        }
+        if (const auto* node = std::get_if<MethodCallExpr>(&expression.data)) {
+            if (expression_may_replace_array_reference(*node->receiver, parameters)) return true;
+            for (const auto& argument : node->args) {
+                if (argument.writable && rooted(*argument.value)) return true;
+                if (expression_may_replace_array_reference(*argument.value, parameters)) return true;
+            }
+        }
+        return false;
+    }
+
+    bool block_may_replace_array_reference(
+        const std::vector<StmtPtr>& body,
+        const std::unordered_set<std::string>& parameters) const {
+        const auto rooted = [&](const Expr& candidate) {
+            return std::any_of(
+                parameters.begin(), parameters.end(),
+                [&](const std::string& name) { return storage_root_is(candidate, name); });
+        };
+        for (const auto& statement : body) {
+            const auto& data = statement->data;
+            if (const auto* node = std::get_if<BindingStmt>(&data)) {
+                if (!node->value) continue;
+                if ((node->reference || node->reference_initializer) && rooted(*node->value))
+                    return true;
+                if (expression_may_replace_array_reference(*node->value, parameters))
+                    return true;
+            } else if (const auto* node = std::get_if<AssignStmt>(&data)) {
+                if (const auto* target = std::get_if<NameExpr>(&node->target->data);
+                    target && parameters.contains(target->name)) {
+                    return true;
+                }
+                if (expression_may_replace_array_reference(*node->target, parameters) ||
+                    expression_may_replace_array_reference(*node->value, parameters)) {
+                    return true;
+                }
+            } else if (const auto* node = std::get_if<RebindStmt>(&data)) {
+                if (parameters.contains(node->name) || rooted(*node->target) ||
+                    expression_may_replace_array_reference(*node->target, parameters)) {
+                    return true;
+                }
+            } else if (const auto* node = std::get_if<ReturnStmt>(&data)) {
+                if (node->value &&
+                    expression_may_replace_array_reference(*node->value, parameters)) {
+                    return true;
+                }
+            } else if (const auto* node = std::get_if<ExprStmt>(&data)) {
+                if (expression_may_replace_array_reference(*node->value, parameters))
+                    return true;
+            } else if (const auto* node = std::get_if<IfStmt>(&data)) {
+                if (expression_may_replace_array_reference(*node->condition, parameters) ||
+                    block_may_replace_array_reference(node->then_body, parameters) ||
+                    block_may_replace_array_reference(node->else_body, parameters)) {
+                    return true;
+                }
+            } else if (const auto* node = std::get_if<WhileStmt>(&data)) {
+                if (expression_may_replace_array_reference(*node->condition, parameters) ||
+                    block_may_replace_array_reference(node->body, parameters)) {
+                    return true;
+                }
+            } else if (const auto* node = std::get_if<ForStmt>(&data)) {
+                if (expression_may_replace_array_reference(*node->iterable, parameters) ||
+                    block_may_replace_array_reference(node->body, parameters)) {
+                    return true;
+                }
+            } else if (const auto* node = std::get_if<MatchStmt>(&data)) {
+                if (expression_may_replace_array_reference(*node->value, parameters))
+                    return true;
+                for (const auto& match_case : node->cases) {
+                    if (block_may_replace_array_reference(match_case.body, parameters))
+                        return true;
+                }
             }
         }
         return false;
@@ -1049,12 +1220,16 @@ struct Lowerer {
                         static_cast<std::uint32_t>(e.span.start.column)});
                 } else {
                     auto i=expr(*n->items.front().index);
+                    const auto initialization_guard = initialization_proven
+                        ? std::optional<ValueId>{}
+                        : reference_array_initialization_guard(*n->base);
                     block->instructions.push_back(ArrayGet{
                         out,a,i,checked.raw_types.at(&e),
                         static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column),
                         initialization_proven,
-                        checked.bounds_proven.contains(n->items.front().index.get())});
+                        checked.bounds_proven.contains(n->items.front().index.get()),
+                        initialization_guard});
                     if(base_owned && requires_lifetime_management(checked.raw_types.at(&e)))
                         out=copy_value(out,checked.raw_types.at(&e));
                 }
@@ -2452,6 +2627,10 @@ struct Lowerer {
             array_type.kind == TypeKind::Array &&
             array_expression_fully_initialized(*n.iterable);
         auto array=expr(*n.iterable);
+        const auto iterable_initialization_guard =
+            array_type.kind == TypeKind::Array && !iterable_initialization_proven
+                ? reference_array_initialization_guard(*n.iterable)
+                : std::optional<ValueId>{};
         const auto item=array_type.kind==TypeKind::Bin?Type::simple(TypeKind::Bin):*array_type.first;
         const bool iterable_temporary=expression_owns_result(*n.iterable);
         const auto idx_name=hidden("for.index"), len_name=hidden("for.length"); locals[idx_name]=locals[len_name]=Type::simple(TypeKind::Int); const auto iter_name=bind_source_local(n.name,item);
@@ -2470,7 +2649,7 @@ struct Lowerer {
                 element,array,ix,item,
                 static_cast<std::uint32_t>(n.iterable->span.start.line),
                 static_cast<std::uint32_t>(n.iterable->span.start.column),
-                iterable_initialization_proven,true});
+                iterable_initialization_proven,true,iterable_initialization_guard});
         }
         if(array_type.kind!=TypeKind::Bin) element=copy_value(element,item);
         block->instructions.push_back(StoreLocal{iter_name,element,item});
@@ -2492,7 +2671,7 @@ struct Lowerer {
                 array,ix2,val,item,
                 static_cast<std::uint32_t>(n.iterable->span.start.line),
                 static_cast<std::uint32_t>(n.iterable->span.start.column),
-                iterable_initialization_proven,true});
+                iterable_initialization_proven,true,iterable_initialization_guard});
             }
         };
 
@@ -2881,11 +3060,17 @@ struct Lowerer {
                             static_cast<std::uint32_t>(n->target->span.start.column),
                             checked.bounds_proven.contains(ix.items.front().index.get())});
                         block->instructions.push_back(Release{v,t});
-                    } else block->instructions.push_back(ArraySet{
-                        a,i,v,t,static_cast<std::uint32_t>(n->target->span.start.line),
-                        static_cast<std::uint32_t>(n->target->span.start.column),
-                        initialization_proven,
-                        checked.bounds_proven.contains(ix.items.front().index.get())});
+                    } else {
+                        const auto initialization_guard = initialization_proven
+                            ? std::optional<ValueId>{}
+                            : reference_array_initialization_guard(*ix.base);
+                        block->instructions.push_back(ArraySet{
+                            a,i,v,t,static_cast<std::uint32_t>(n->target->span.start.line),
+                            static_cast<std::uint32_t>(n->target->span.start.column),
+                            initialization_proven,
+                            checked.bounds_proven.contains(ix.items.front().index.get()),
+                            initialization_guard});
+                    }
                 }
             }
             return;
@@ -3109,7 +3294,7 @@ struct Lowerer {
     }
 
     void begin_function(Function out) {
-        module.functions.push_back(std::move(out));fn=&module.functions.back();next_value=1;next_label=0;next_hidden=0;locals.clear();local_names.clear();reference_names.clear();references.clear();fully_initialized_array_locals.clear();shaped_constraints.clear();array_constraints.clear();contextual_tensor_shapes.clear();return_shaped_constraints.clear();return_array_constraints.clear();fn->blocks.push_back(Block{"entry",{}});block=&fn->blocks.back();
+        module.functions.push_back(std::move(out));fn=&module.functions.back();next_value=1;next_label=0;next_hidden=0;locals.clear();local_names.clear();reference_names.clear();references.clear();fully_initialized_array_locals.clear();reference_array_initialization.clear();shaped_constraints.clear();array_constraints.clear();contextual_tensor_shapes.clear();return_shaped_constraints.clear();return_array_constraints.clear();fn->blocks.push_back(Block{"entry",{}});block=&fn->blocks.back();
         for(const auto& p:fn->parameters){locals[p.name]=p.type;local_names[p.name]=p.name;}
         for(const auto& p:fn->parameters){
             if((p.type.kind!=TypeKind::Tensor&&p.type.kind!=TypeKind::Neural)||
@@ -3137,6 +3322,7 @@ struct Lowerer {
             p.name, p.type, p.writable, parameter_is_borrowed(source.name, i), p.is_const});}
         if(out.external_symbol){module.functions.push_back(std::move(out));return;}
         current_class.clear();begin_function(std::move(out));
+        cache_reference_array_initialization(sig, source.body);
         capture_signature_constraints(source,0);
         for(const auto& s:source.body){stmt(*s);if(terminated())break;}
         if(!terminated()&&fn->result.kind==TypeKind::Void)block->instructions.push_back(ReturnVoid{});
@@ -3153,6 +3339,7 @@ struct Lowerer {
             p.name, p.type, p.writable,
             p.name=="$receiver"||parameter_is_borrowed(internal,i), p.is_const});}
         current_class=class_name;begin_function(std::move(out));
+        cache_reference_array_initialization(sig, source.body);
         capture_signature_constraints(source,1);
         for(const auto& s:source.body){stmt(*s);if(terminated())break;}
         if(!terminated()&&fn->result.kind==TypeKind::Void)block->instructions.push_back(ReturnVoid{});
@@ -3346,6 +3533,7 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,HttpGet>)out<<"%"<<n.out<<" = http.get %"<<n.url;
     if constexpr(std::is_same_v<T,HttpHeader>)out<<"%"<<n.out<<" = http.header %"<<n.name;
     if constexpr(std::is_same_v<T,NumericMinMax>)out<<"%"<<n.out<<" = "<<(n.maximum?"max ":"min ")<<"%"<<n.left<<", %"<<n.right;
+    if constexpr(std::is_same_v<T,ArrayInitializationComplete>)out<<"%"<<n.out<<" = array.initialization.complete %"<<n.array;
     if constexpr(std::is_same_v<T,ArrayGet>)out<<"%"<<n.out<<" = array.get %"<<n.array<<", %"<<n.index;
     if constexpr(std::is_same_v<T,ArraySet>)out<<"array.set %"<<n.array<<", %"<<n.index<<", %"<<n.value;
     if constexpr(std::is_same_v<T,Clone>)out<<"%"<<n.out<<" = clone %"<<n.value<<" : "<<type_name(n.type);

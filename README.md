@@ -603,7 +603,7 @@ int[] ordered = values.sorted()
 
 `append`, `concat`, and `sorted` return new array values. `sorted()` is available for numeric, `bool`, and `string` arrays of either fixed or runtime size and returns a runtime-sized sorted copy; it is deterministic and non-mutating. The implementation may use copy-on-write or spare capacity only when that optimization is unobservable, so source-level value semantics remain unchanged. For fully initialized local arrays, typed IR can carry that proof into LLVM and omit redundant per-element initialization checks. Forming a read/write whole-array reference restores the check automatically; forming a `const T &` read-only reference preserves the proof. Control-flow joins that cannot preserve the proof also restore the check, and bounds safety is unaffected.
 
-Dense numeric tensors use the dedicated `tensor<T>` type. The element dtype is always static. An optional second angle group is an exact-rank shape pattern: each entry is either `_`, meaning that axis exists but its extent is unrestricted, or an integer expression. The number of entries is the exact required rank. A non-constant extent expression is evaluated once when the binding is created and its value is captured; later mutations of variables used by that expression do not change the binding's shape contract.
+Dense numeric tensors use the dedicated `tensor<T>` type. The element type is always static. An optional second angle group is an exact-rank shape pattern: each entry is either `_`, meaning that axis exists but its extent is unrestricted, or an integer expression. The number of entries is the exact required rank. A non-constant extent expression is evaluated once when the binding is created and its value is captured; later mutations of variables used by that expression do not change the binding's shape contract.
 
 ```quidra
 int batch = 3
@@ -624,7 +624,7 @@ auto crop = result[:, 10:20, 30:40]
 float32 value = result[0, 10, 20].item()
 ```
 
-`tensor<T>(shape)` creates storage whose elements are initially uninitialized; individual scalar elements can be initialized with `tensor[i, j, ...] = value`. `tensor.zeros<T>(shape)` and `tensor.ones<T>(shape)` create fully initialized tensors. When every extent is supplied by the expected exact shape, `tensor.zeros()` / `tensor.ones()` may omit both dtype and shape arguments; an expected `_` axis or an unconstrained `tensor<T>` is insufficient for allocation, so an explicit shape array is required. Reading an element that is not definitely initialized remains a deterministic safety failure.
+`tensor<T>(shape)` creates storage whose elements are initially uninitialized; individual scalar elements can be initialized with `tensor[i, j, ...] = value`. `tensor.zeros<T>(shape)` and `tensor.ones<T>(shape)` create fully initialized tensors. When every extent is supplied by the expected exact shape, `tensor.zeros()` / `tensor.ones()` may omit both element type and shape arguments; an expected `_` axis or an unconstrained `tensor<T>` is insufficient for allocation, so an explicit shape array is required. Reading an element that is not definitely initialized remains a deterministic safety failure.
 
 CPU is the default tensor device. GPU placement and transfer are explicit and do not change the nominal tensor type:
 
@@ -644,7 +644,7 @@ Array dimensions accept the same integer-expression form. `float[n * m]` capture
 
 Tensor-to-tensor broadcasting is intentionally strict: ranks must match and each axis must match or be singleton on one side. Scalars broadcast to tensors. Slices may use internal views, but mutation preserves value semantics through copy-on-write. `.transpose(axis0, axis1)` swaps two axes as a metadata-only view and preserves the tensor's device placement. `.reshape(shape)` never hides a copy; call `.contiguous()` explicitly first when needed.
 
-Numeric representation changes use the same `T(value)` syntax for scalars, arrays, and tensors. For arrays, every dimension is preserved and numeric leaves are converted recursively; for tensors, rank and shape facts are preserved while only the element dtype changes. For example, `float(values)` maps `int[][]` to `float[][]`, and `float32(pixels)` maps a numeric tensor to the same-shaped `tensor<float32>`. Integer narrowing is range-checked; integer-to-float and float-to-float may deterministically reduce precision; float-to-integer still requires an explicit rounding operation. There is no separate container-specific cast method.
+Numeric representation changes use the same `T(value)` syntax for scalars, arrays, and tensors. For arrays, every dimension is preserved and numeric leaves are converted recursively; for tensors, rank and shape facts are preserved while only the element type changes. For example, `float(values)` maps `int[][]` to `float[][]`, and `float32(pixels)` maps a numeric tensor to the same-shaped `tensor<float32>`. Integer narrowing is range-checked; integer-to-float and float-to-float may deterministically reduce precision; float-to-integer still requires an explicit rounding operation. There is no separate container-specific cast method.
 
 Compound assignment supports `+=`, `-=`, `*=`, `/=`, and `%=`. Its target is evaluated exactly once, avoiding duplicated side effects in indexed or member targets.
 
@@ -702,7 +702,7 @@ dnn.AdamOptimizer | error optimizer = dnn.Adam()
 
 Model and training state use one typed, non-executable `.quistate` format.
 Saving uses atomic replacement. Loading requires exact nominal root types,
-structural schema, tensor dtype/shape, version, and checksum, validates the
+structural schema, tensor element type/shape, version, and checksum, validates the
 complete payload before replaying writes, and rejects mismatches without
 partially restoring earlier fields.
 
@@ -1080,7 +1080,7 @@ match result
 
 ### Tensor numerics and image I/O
 
-`stats.sum(value)`, `stats.min(value)`, and `stats.max(value)` reduce a numeric tensor to a same-dtype scalar; integer `sum` remains overflow-checked. `stats.mean(value)` returns `float`. Empty `min`/`max`/`mean` and partially uninitialized inputs fail deterministically rather than inventing missing values. GPU reductions execute on the selected device and transfer only the explicit scalar result to the host.
+`stats.sum(value)`, `stats.min(value)`, and `stats.max(value)` reduce a numeric tensor to a scalar with the same element type; integer `sum` remains overflow-checked. `stats.mean(value)` returns `float`. Empty `min`/`max`/`mean` and partially uninitialized inputs fail deterministically rather than inventing missing values. GPU reductions execute on the selected device and transfer only the explicit scalar result to the host.
 
 `linear.dot(a, b)` computes a scalar dot product for same-length rank-1 numeric tensors. `linear.matmul(a, b)` supports `[k] × [k,n] -> [n]`, `[m,k] × [k] -> [m]`, and `[m,k] × [k,n] -> [m,n]`. All forms require identical element types, preserve that numeric type and tensor device placement, and keep integer multiplication and accumulation overflow-checked.
 
@@ -1100,14 +1100,14 @@ match loaded
         print(problem)
 ```
 
-Decoded images use CHW layout and have compiler-known rank 3: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample dtype and channel count by default. An expected type such as `tensor<uint8><3, _, _> | error` is an acceptance constraint: it accepts only rank-3 uint8 RGB and does not convert a mismatch. Use `channels = 1|3|4` to request channel conversion and `dtype = float32` (or another numeric built-in type) to request dtype conversion. Dtype conversion never normalizes sample ranges. RGB-to-gray uses the fixed `0.299R + 0.587G + 0.114B` rule. `image.write` writes only when the target codec can represent the tensor dtype exactly; alpha is removed only when an explicit channel conversion requests that result.
+Decoded images use CHW layout and have compiler-known rank 3: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample type and channel count by default. An expected type such as `tensor<uint8><3, _, _> | error` is an acceptance constraint: it accepts only rank-3 uint8 RGB and does not convert a mismatch. Use `channel = 1|3|4` to request channel conversion and `type = float32` (or another numeric built-in type) to request element-type conversion. Type conversion never normalizes sample ranges. RGB-to-gray uses the fixed `0.299R + 0.587G + 0.114B` rule. `image.write` writes only when the target codec can represent the tensor element type exactly; alpha is removed only when an explicit channel conversion requests that result.
 
 The library boundary is intentionally small:
 
 ```text
 standard foundations
 tensor
-├── image       dtype-preserving tensor image I/O
+├── image       type-preserving tensor image I/O
 └── neural      autodiff, gradients, parameters, and training state
 
 official source packages

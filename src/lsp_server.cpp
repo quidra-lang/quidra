@@ -576,6 +576,95 @@ const Expr* expression_at(const Program& program,std::size_t offset) {
     return best;
 }
 
+
+void consider_call(const Expr& expression,std::size_t offset,const Expr*& best) {
+    if(!contains_offset(expression.span,offset)) return;
+    if(std::holds_alternative<CallExpr>(expression.data)||
+       std::holds_alternative<MethodCallExpr>(expression.data)) {
+        if(!best||
+           expression.span.end.offset-expression.span.start.offset<
+           best->span.end.offset-best->span.start.offset) {
+            best=&expression;
+        }
+    }
+    std::visit([&](const auto& node) {
+        using T=std::decay_t<decltype(node)>;
+        if constexpr(std::is_same_v<T,UnaryExpr>) consider_call(*node.operand,offset,best);
+        else if constexpr(std::is_same_v<T,TryExpr>) consider_call(*node.value,offset,best);
+        else if constexpr(std::is_same_v<T,ArrayExpr>) {
+            for(const auto& element:node.elements) consider_call(*element,offset,best);
+        } else if constexpr(std::is_same_v<T,IndexExpr>) {
+            consider_call(*node.base,offset,best);
+            for(const auto& item:node.items) {
+                if(item.index) consider_call(*item.index,offset,best);
+                if(item.start) consider_call(*item.start,offset,best);
+                if(item.stop) consider_call(*item.stop,offset,best);
+                if(item.step) consider_call(*item.step,offset,best);
+            }
+        } else if constexpr(std::is_same_v<T,MemberExpr>) consider_call(*node.base,offset,best);
+        else if constexpr(std::is_same_v<T,MethodCallExpr>) {
+            consider_call(*node.receiver,offset,best);
+            for(const auto& arg:node.args) consider_call(*arg.value,offset,best);
+        } else if constexpr(std::is_same_v<T,StringTemplateExpr>) {
+            for(const auto& part:node.expressions) consider_call(*part,offset,best);
+        } else if constexpr(std::is_same_v<T,BinaryExpr>) {
+            consider_call(*node.left,offset,best);
+            consider_call(*node.right,offset,best);
+        } else if constexpr(std::is_same_v<T,CallExpr>) {
+            for(const auto& arg:node.args) consider_call(*arg.value,offset,best);
+        }
+    },expression.data);
+}
+
+void consider_call_statement(const Stmt& statement,std::size_t offset,const Expr*& best) {
+    if(!contains_offset(statement.span,offset)) return;
+    std::visit([&](const auto& node) {
+        using T=std::decay_t<decltype(node)>;
+        if constexpr(std::is_same_v<T,BindingStmt>) {
+            if(node.value) consider_call(*node.value,offset,best);
+        } else if constexpr(std::is_same_v<T,AssignStmt>) {
+            consider_call(*node.target,offset,best); consider_call(*node.value,offset,best);
+        } else if constexpr(std::is_same_v<T,ReturnStmt>) {
+            if(node.value) consider_call(*node.value,offset,best);
+        } else if constexpr(std::is_same_v<T,ExprStmt>) consider_call(*node.value,offset,best);
+        else if constexpr(std::is_same_v<T,IfStmt>) {
+            consider_call(*node.condition,offset,best);
+            for(const auto& child:node.then_body) consider_call_statement(*child,offset,best);
+            for(const auto& child:node.else_body) consider_call_statement(*child,offset,best);
+        } else if constexpr(std::is_same_v<T,WhileStmt>) {
+            consider_call(*node.condition,offset,best);
+            for(const auto& child:node.body) consider_call_statement(*child,offset,best);
+        } else if constexpr(std::is_same_v<T,ForStmt>) {
+            consider_call(*node.iterable,offset,best);
+            for(const auto& child:node.body) consider_call_statement(*child,offset,best);
+        } else if constexpr(std::is_same_v<T,MatchStmt>) {
+            consider_call(*node.value,offset,best);
+            for(const auto& current:node.cases)
+                for(const auto& child:current.body) consider_call_statement(*child,offset,best);
+        }
+    },statement.data);
+}
+
+const Expr* call_at(const Program& program,std::size_t offset) {
+    const Expr* best=nullptr;
+    for(const auto& declaration:program.classes) {
+        for(const auto& field:declaration.fields)
+            if(field.default_value) consider_call(*field.default_value,offset,best);
+        for(const auto& method:declaration.methods) {
+            for(const auto& parameter:method.parameters)
+                if(parameter.default_value) consider_call(*parameter.default_value,offset,best);
+            for(const auto& statement:method.body) consider_call_statement(*statement,offset,best);
+        }
+    }
+    for(const auto& function:program.functions) {
+        for(const auto& parameter:function.parameters)
+            if(parameter.default_value) consider_call(*parameter.default_value,offset,best);
+        for(const auto& statement:function.body) consider_call_statement(*statement,offset,best);
+    }
+    for(const auto& statement:program.statements) consider_call_statement(*statement,offset,best);
+    return best;
+}
+
 bool body_contains(const std::vector<StmtPtr>& body,std::size_t offset) {
     if(body.empty()) return false;
     return offset>=body.front()->span.start.offset&&offset<body.back()->span.end.offset;
@@ -1052,7 +1141,7 @@ private:
         const auto offset=raw_offset(source,request_position(message));
         try {
             const auto checked=semantic_check(uri,source);
-            const auto* expression=expression_at(checked.program,offset);
+            const auto* expression=call_at(checked.program,offset);
             if(!expression) { respond(id,"null"); return; }
 
             const FunctionType* function=nullptr;

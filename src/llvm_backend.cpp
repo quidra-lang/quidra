@@ -1172,7 +1172,7 @@ struct FunctionEmitter {
             values[n.ok]=Type::simple(TypeKind::Bool);
             const auto& left_slot=scratch(ins,0);
             const auto& right_slot=scratch(ins,1);
-            out<<"  "<<value(n.ok)<<" = call i1 @quidra_string_parse_two_signed(ptr "<<value(n.text)
+            out<<"  "<<value(n.ok)<<" = call i1 @__quidra_string_parse_two_signed_fast(ptr "<<value(n.text)
                <<", i8 "<<static_cast<unsigned>(n.separator)<<", ptr "<<left_slot
                <<", ptr "<<right_slot<<")\n";
             out<<"  "<<value(n.left)<<" = load i64, ptr "<<left_slot<<", align 8\n";
@@ -4221,6 +4221,120 @@ declare ptr @quidra_string_split_iter_begin_move(ptr, ptr)
 declare ptr @quidra_string_split_iter_next(ptr)
 declare void @quidra_string_split_iter_end(ptr)
 declare i1 @quidra_string_parse_two_signed(ptr, i8, ptr, ptr)
+
+; The semantic IR only reaches this helper after proving the ordinary
+; split(single-byte separator) + two signed-int parse pattern.  It recognizes
+; the canonical decimal success path directly in generated LLVM so hot loops do
+; not cross the separately linked C++ runtime once per record.  Any spelling it
+; declines is handled by the existing source-level fallback, preserving parse
+; and error semantics.
+define internal i1 @__quidra_string_parse_two_signed_fast(
+    ptr %text, i8 %separator, ptr %out_left, ptr %out_right) alwaysinline {
+entry:
+  store i64 0, ptr %out_left, align 8
+  store i64 0, ptr %out_right, align 8
+  %text.null = icmp eq ptr %text, null
+  %separator.zero = icmp eq i8 %separator, 0
+  %invalid.input = or i1 %text.null, %separator.zero
+  br i1 %invalid.input, label %fail, label %left.sign
+
+left.sign:
+  %left.first = load i8, ptr %text, align 1
+  %left.negative = icmp eq i8 %left.first, 45
+  %left.after.sign = getelementptr inbounds i8, ptr %text, i64 1
+  %left.cursor.start = select i1 %left.negative, ptr %left.after.sign, ptr %text
+  %left.start.byte = load i8, ptr %left.cursor.start, align 1
+  %left.start.nul = icmp eq i8 %left.start.byte, 0
+  %left.start.sep = icmp eq i8 %left.start.byte, %separator
+  %left.empty = or i1 %left.start.nul, %left.start.sep
+  br i1 %left.empty, label %fail, label %left.loop
+
+left.loop:
+  %left.cursor = phi ptr [ %left.cursor.start, %left.sign ], [ %left.next, %left.step ]
+  %left.magnitude = phi i64 [ 0, %left.sign ], [ %left.magnitude.next, %left.step ]
+  %left.byte = load i8, ptr %left.cursor, align 1
+  %left.at.separator = icmp eq i8 %left.byte, %separator
+  br i1 %left.at.separator, label %left.done, label %left.not_separator
+
+left.not_separator:
+  %left.at.nul = icmp eq i8 %left.byte, 0
+  br i1 %left.at.nul, label %fail, label %left.digit
+
+left.digit:
+  %left.digit.raw = sub i8 %left.byte, 48
+  %left.digit.valid = icmp ult i8 %left.digit.raw, 10
+  br i1 %left.digit.valid, label %left.range, label %fail
+
+left.range:
+  %left.digit64 = zext i8 %left.digit.raw to i64
+  %left.magnitude.too.large = icmp ugt i64 %left.magnitude, 922337203685477580
+  %left.magnitude.at.cutoff = icmp eq i64 %left.magnitude, 922337203685477580
+  %left.last.limit = select i1 %left.negative, i64 8, i64 7
+  %left.digit.too.large = icmp ugt i64 %left.digit64, %left.last.limit
+  %left.cutoff.bad = and i1 %left.magnitude.at.cutoff, %left.digit.too.large
+  %left.range.bad = or i1 %left.magnitude.too.large, %left.cutoff.bad
+  br i1 %left.range.bad, label %fail, label %left.step
+
+left.step:
+  %left.times10 = mul i64 %left.magnitude, 10
+  %left.magnitude.next = add i64 %left.times10, %left.digit64
+  %left.next = getelementptr inbounds i8, ptr %left.cursor, i64 1
+  br label %left.loop
+
+left.done:
+  %left.negated = sub i64 0, %left.magnitude
+  %left.value = select i1 %left.negative, i64 %left.negated, i64 %left.magnitude
+  %right.text = getelementptr inbounds i8, ptr %left.cursor, i64 1
+  %right.first = load i8, ptr %right.text, align 1
+  %right.negative = icmp eq i8 %right.first, 45
+  %right.after.sign = getelementptr inbounds i8, ptr %right.text, i64 1
+  %right.cursor.start = select i1 %right.negative, ptr %right.after.sign, ptr %right.text
+  %right.start.byte = load i8, ptr %right.cursor.start, align 1
+  %right.start.nul = icmp eq i8 %right.start.byte, 0
+  %right.start.sep = icmp eq i8 %right.start.byte, %separator
+  %right.empty = or i1 %right.start.nul, %right.start.sep
+  br i1 %right.empty, label %fail, label %right.loop
+
+right.loop:
+  %right.cursor = phi ptr [ %right.cursor.start, %left.done ], [ %right.next, %right.step ]
+  %right.magnitude = phi i64 [ 0, %left.done ], [ %right.magnitude.next, %right.step ]
+  %right.byte = load i8, ptr %right.cursor, align 1
+  %right.at.nul = icmp eq i8 %right.byte, 0
+  %right.at.separator = icmp eq i8 %right.byte, %separator
+  %right.done = or i1 %right.at.nul, %right.at.separator
+  br i1 %right.done, label %right.finish, label %right.digit
+
+right.digit:
+  %right.digit.raw = sub i8 %right.byte, 48
+  %right.digit.valid = icmp ult i8 %right.digit.raw, 10
+  br i1 %right.digit.valid, label %right.range, label %fail
+
+right.range:
+  %right.digit64 = zext i8 %right.digit.raw to i64
+  %right.magnitude.too.large = icmp ugt i64 %right.magnitude, 922337203685477580
+  %right.magnitude.at.cutoff = icmp eq i64 %right.magnitude, 922337203685477580
+  %right.last.limit = select i1 %right.negative, i64 8, i64 7
+  %right.digit.too.large = icmp ugt i64 %right.digit64, %right.last.limit
+  %right.cutoff.bad = and i1 %right.magnitude.at.cutoff, %right.digit.too.large
+  %right.range.bad = or i1 %right.magnitude.too.large, %right.cutoff.bad
+  br i1 %right.range.bad, label %fail, label %right.step
+
+right.step:
+  %right.times10 = mul i64 %right.magnitude, 10
+  %right.magnitude.next = add i64 %right.times10, %right.digit64
+  %right.next = getelementptr inbounds i8, ptr %right.cursor, i64 1
+  br label %right.loop
+
+right.finish:
+  %right.negated = sub i64 0, %right.magnitude
+  %right.value = select i1 %right.negative, i64 %right.negated, i64 %right.magnitude
+  store i64 %left.value, ptr %out_left, align 8
+  store i64 %right.value, ptr %out_right, align 8
+  ret i1 true
+
+fail:
+  ret i1 false
+}
 declare ptr @quidra_string_utf8(ptr)
 declare ptr @quidra_bin_try_utf8(ptr)
 declare ptr @quidra_u8_array_try_utf8(ptr)

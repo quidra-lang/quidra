@@ -503,11 +503,15 @@ std::string ptx_affine_backward_source(int dtype, int target) {
     const bool f32 = dtype == 10;
     const auto bytes = f32 ? 4U : 8U;
     std::ostringstream out;
-    out << ptx_thread_prologue(
+    std::string parameters =
         "  .param .u64 p_out,\n  .param .u64 p_grad,\n"
         "  .param .u64 p_input,\n  .param .u64 p_weight,\n"
         "  .param .u64 p_count,\n  .param .u64 p_batches,\n"
-        "  .param .u64 p_in,\n  .param .u64 p_out_features\n",
+        "  .param .u64 p_in,\n  .param .u64 p_out_features";
+    if (target == 2) parameters += ",\n  .param .u64 p_bias";
+    parameters += "\n";
+    out << ptx_thread_prologue(
+        parameters,
         f32
           ? "  .reg .pred %p<5>;\n  .reg .b32 %r<12>;\n  .reg .b64 %rd<40>;\n  .reg .f32 %f<10>;\n"
           : "  .reg .pred %p<5>;\n  .reg .b32 %r<12>;\n  .reg .b64 %rd<40>;\n  .reg .f64 %fd<10>;\n");
@@ -518,8 +522,9 @@ std::string ptx_affine_backward_source(int dtype, int target) {
            "  ld.param.u64 %rd5,[p_count];\n"
            "  ld.param.u64 %rd18,[p_batches];\n"
            "  ld.param.u64 %rd19,[p_in];\n"
-           "  ld.param.u64 %rd20,[p_out_features];\n"
-           "  setp.ge.u64 %p1,%rd7,%rd5;\n"
+           "  ld.param.u64 %rd20,[p_out_features];\n";
+    if (target == 2) out << "  ld.param.u64 %rd21,[p_bias];\n";
+    out << "  setp.ge.u64 %p1,%rd7,%rd5;\n"
            "  @%p1 bra DONE;\n";
     if (f32) out << "  mov.f32 %f1,0f00000000;\n";
     else out << "  mov.f64 %fd1,0d0000000000000000;\n";
@@ -541,11 +546,16 @@ std::string ptx_affine_backward_source(int dtype, int target) {
             << "  mul.lo.u64 %rd15,%rd14," << bytes << ";\n"
                "  add.u64 %rd16,%rd4,%rd15;\n";
     } else if (target == 2) {
-        // weight gradient: gid => output_feature,input_feature
+        // weight gradient: gid => output_feature,input_feature.
+        // The unique input_feature==0 thread also reduces the bias gradient
+        // in the same batch order, avoiding a separate reduction launch.
         out << "  div.u64 %rd8,%rd7,%rd19;\n"
                "  rem.u64 %rd9,%rd7,%rd19;\n"
-               "  mov.u64 %rd10,0;\n"
-               "LOOP:\n"
+               "  setp.eq.u64 %p3,%rd9,0;\n"
+               "  mov.u64 %rd10,0;\n";
+        if (f32) out << "  mov.f32 %f5,0f00000000;\n";
+        else out << "  mov.f64 %fd5,0d0000000000000000;\n";
+        out << "LOOP:\n"
                "  setp.ge.u64 %p2,%rd10,%rd18;\n"
                "  @%p2 bra STORE;\n"
                "  mul.lo.u64 %rd11,%rd10,%rd20;\n"
@@ -557,7 +567,7 @@ std::string ptx_affine_backward_source(int dtype, int target) {
             << "  mul.lo.u64 %rd15,%rd14," << bytes << ";\n"
                "  add.u64 %rd16,%rd3,%rd15;\n";
     } else {
-        // bias gradient: gid => output_feature
+        // bias-only reduction used by the cuBLAS path.
         out << "  mov.u64 %rd8,%rd7;\n"
                "  mov.u64 %rd10,0;\n"
                "LOOP:\n"
@@ -574,11 +584,13 @@ std::string ptx_affine_backward_source(int dtype, int target) {
         if (target != 3) out << "  ld.global.f32 %f3,[%rd16];\n  mul.f32 %f4,%f2,%f3;\n";
         else out << "  mov.f32 %f4,%f2;\n";
         out << "  add.f32 %f1,%f1,%f4;\n";
+        if (target == 2) out << "  @%p3 add.f32 %f5,%f5,%f2;\n";
     } else {
         out << "  ld.global.f64 %fd2,[%rd13];\n";
         if (target != 3) out << "  ld.global.f64 %fd3,[%rd16];\n  mul.f64 %fd4,%fd2,%fd3;\n";
         else out << "  mov.f64 %fd4,%fd2;\n";
         out << "  add.f64 %fd1,%fd1,%fd4;\n";
+        if (target == 2) out << "  @%p3 add.f64 %fd5,%fd5,%fd2;\n";
     }
     out << "  add.u64 %rd10,%rd10,1;\n"
            "  bra LOOP;\n"
@@ -587,6 +599,12 @@ std::string ptx_affine_backward_source(int dtype, int target) {
            "  add.u64 %rd31,%rd1,%rd30;\n";
     if (f32) out << "  st.global.f32 [%rd31],%f1;\n";
     else out << "  st.global.f64 [%rd31],%fd1;\n";
+    if (target == 2) {
+        out << "  mul.lo.u64 %rd32,%rd8," << bytes << ";\n"
+               "  add.u64 %rd33,%rd21,%rd32;\n";
+        if (f32) out << "  @%p3 st.global.f32 [%rd33],%f5;\n";
+        else out << "  @%p3 st.global.f64 [%rd33],%fd5;\n";
+    }
     out << "DONE:\n  ret;\n}\n";
     return out.str();
 }
@@ -660,14 +678,27 @@ std::string hip_affine_backward_source(int dtype,int target) {
     out<<"extern \"C\" __global__ void q_kernel("<<type<<"* out,const "<<type
        <<"* grad,const "<<type<<"* input,const "<<type
        <<"* weight,unsigned long long count,unsigned long long batches,"
-         "unsigned long long fin,unsigned long long fout){"
-         "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;if(i>=count)return;";
-    if(target==1) out<<"unsigned long long b=i/fin,f=i%fin;"<<type<<" total=("<<type<<")0;"
-                       "for(unsigned long long o=0;o<fout;++o)total+=grad[b*fout+o]*weight[o*fin+f];out[i]=total;";
-    else if(target==2) out<<"unsigned long long o=i/fin,f=i%fin;"<<type<<" total=("<<type<<")0;"
-                            "for(unsigned long long b=0;b<batches;++b)total+=grad[b*fout+o]*input[b*fin+f];out[i]=total;";
-    else out<<"unsigned long long o=i;"<<type<<" total=("<<type<<")0;"
-              "for(unsigned long long b=0;b<batches;++b)total+=grad[b*fout+o];out[i]=total;";
+         "unsigned long long fin,unsigned long long fout";
+    if(target==2)out<<","<<type<<"* bias_gradient";
+    out<<"){unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+         "if(i>=count)return;";
+    if(target==1){
+        out<<"unsigned long long b=i/fin,f=i%fin;"<<type<<" total=("<<type<<")0;"
+             "for(unsigned long long o=0;o<fout;++o)total+=grad[b*fout+o]*weight[o*fin+f];"
+             "out[i]=total;";
+    }else if(target==2){
+        out<<"unsigned long long o=i/fin,f=i%fin;"<<type<<" total=("<<type<<")0;";
+        out<<"if(f==0){"<<type<<" bias_total=("<<type<<")0;"
+             "for(unsigned long long b=0;b<batches;++b){"<<type<<" g=grad[b*fout+o];"
+             "total+=g*input[b*fin+f];bias_total+=g;}"
+             "out[i]=total;bias_gradient[o]=bias_total;}else{"
+             "for(unsigned long long b=0;b<batches;++b)"
+             "total+=grad[b*fout+o]*input[b*fin+f];out[i]=total;}";
+    }else{
+        out<<"unsigned long long o=i;"<<type<<" total=("<<type<<")0;"
+             "for(unsigned long long b=0;b<batches;++b)total+=grad[b*fout+o];"
+             "out[i]=total;";
+    }
     out<<"}";
     return out.str();
 }
@@ -773,12 +804,17 @@ std::string msl_affine_backward_source(int target) {
                "const device float* grad [[buffer(1)]],"
                "const device float* input [[buffer(2)]],"
                "const device float* weight [[buffer(3)]],"
-               "constant ulong& count [[buffer(4)]],constant ulong& batches [[buffer(5)]],"
-               "constant ulong& fin [[buffer(6)]],constant ulong& fout [[buffer(7)]],"
+               "device float* bias_gradient [[buffer(4)]],"
+               "constant ulong& count [[buffer(5)]],constant ulong& batches [[buffer(6)]],"
+               "constant ulong& fin [[buffer(7)]],constant ulong& fout [[buffer(8)]],"
                "uint gid [[thread_position_in_grid]]) {"
                " ulong i=ulong(gid); if(i>=count)return; ulong o=i/fin, f=i%fin;"
-               " float total=0.0f; for(ulong b=0;b<batches;++b) total+=grad[b*fout+o]*input[b*fin+f];"
-               " out[i]=total; }\n";
+               " float total=0.0f;"
+               " if(f==0){float bias_total=0.0f; for(ulong b=0;b<batches;++b){"
+               " float g=grad[b*fout+o]; total+=g*input[b*fin+f]; bias_total+=g;}"
+               " out[i]=total; bias_gradient[o]=bias_total;}else{"
+               " for(ulong b=0;b<batches;++b) total+=grad[b*fout+o]*input[b*fin+f];"
+               " out[i]=total;} }\n";
     return "#include <metal_stdlib>\nusing namespace metal;\n"
            "kernel void q_kernel(device float* out [[buffer(0)]],"
            "const device float* grad [[buffer(1)]],"
@@ -788,7 +824,7 @@ std::string msl_affine_backward_source(int target) {
            "constant ulong& fin [[buffer(6)]],constant ulong& fout [[buffer(7)]],"
            "uint gid [[thread_position_in_grid]]) {"
            " ulong o=ulong(gid); if(o>=count)return; float total=0.0f;"
-           " for(ulong b=0;b<batches;++b) total+=grad[b*fout+o]; out[o]=total; }\n";
+           " for(ulong b=0;b<batches;++b)total+=grad[b*fout+o]; out[o]=total; }\n";
 }
 #endif
 
@@ -1227,60 +1263,100 @@ bool compute_affine_backward(
         auto launch_target=[&](Buffer* target,int kind,std::size_t count)->bool{
             auto ptx=ptx_affine_backward_source(dtype,kind);
             auto out_ptr=target->cuda_pointer,g_ptr=gradient->cuda_pointer,
-                 in_ptr=input->cuda_pointer,w_ptr=weight->cuda_pointer;
+                 in_ptr=input->cuda_pointer,w_ptr=weight->cuda_pointer,
+                 bias_ptr=bias_gradient->cuda_pointer;
             auto count64=static_cast<std::uint64_t>(count),
                  batches64=static_cast<std::uint64_t>(batches),
                  in64=static_cast<std::uint64_t>(features_in),
                  out64=static_cast<std::uint64_t>(features_out);
-            void* args[]={&out_ptr,&g_ptr,&in_ptr,&w_ptr,&count64,&batches64,&in64,&out64};
-            return launch_ptx_1d(target,
-                "neural-affine-backward-"+std::to_string(dtype)+"-"+std::to_string(kind),
+            if(kind==2){
+                void* args[]={
+                    &out_ptr,&g_ptr,&in_ptr,&w_ptr,&count64,&batches64,
+                    &in64,&out64,&bias_ptr
+                };
+                return launch_ptx_1d(
+                    target,"neural-affine-backward-"+std::to_string(dtype)+"-2",
+                    ptx,count,args,error);
+            }
+            void* args[]={
+                &out_ptr,&g_ptr,&in_ptr,&w_ptr,&count64,&batches64,&in64,&out64
+            };
+            return launch_ptx_1d(
+                target,"neural-affine-backward-"+std::to_string(dtype)+"-1",
                 ptx,count,args,error);
         };
         return launch_target(input_gradient,1,input_count) &&
-               launch_target(weight_gradient,2,weight_count) &&
-               launch_target(bias_gradient,3,features_out);
+               launch_target(weight_gradient,2,weight_count);
     }
     if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Amd){
         auto launch_target=[&](Buffer* target,int kind,std::size_t target_count)->bool{
             auto source=hip_affine_backward_source(dtype,kind);
-            auto out_ptr=target->pointer,g_ptr=gradient->pointer,in_ptr=input->pointer,w_ptr=weight->pointer;
-            auto count64=static_cast<std::uint64_t>(target_count),b64=static_cast<std::uint64_t>(batches),
-                 fin64=static_cast<std::uint64_t>(features_in),fout64=static_cast<std::uint64_t>(features_out);
-            void* args[]={&out_ptr,&g_ptr,&in_ptr,&w_ptr,&count64,&b64,&fin64,&fout64};
-            return launch_hip_1d(target,
-                "neural-affine-backward-"+std::to_string(dtype)+"-"+std::to_string(kind),
+            auto out_ptr=target->pointer,g_ptr=gradient->pointer,
+                 in_ptr=input->pointer,w_ptr=weight->pointer,
+                 bias_ptr=bias_gradient->pointer;
+            auto count64=static_cast<std::uint64_t>(target_count),
+                 b64=static_cast<std::uint64_t>(batches),
+                 fin64=static_cast<std::uint64_t>(features_in),
+                 fout64=static_cast<std::uint64_t>(features_out);
+            if(kind==2){
+                void* args[]={
+                    &out_ptr,&g_ptr,&in_ptr,&w_ptr,&count64,&b64,
+                    &fin64,&fout64,&bias_ptr
+                };
+                return launch_hip_1d(
+                    target,"neural-affine-backward-"+std::to_string(dtype)+"-2",
+                    source,target_count,args,error);
+            }
+            void* args[]={
+                &out_ptr,&g_ptr,&in_ptr,&w_ptr,&count64,&b64,&fin64,&fout64
+            };
+            return launch_hip_1d(
+                target,"neural-affine-backward-"+std::to_string(dtype)+"-1",
                 source,target_count,args,error);
         };
         return launch_target(input_gradient,1,input_count)&&
-               launch_target(weight_gradient,2,weight_count)&&
-               launch_target(bias_gradient,3,features_out);
+               launch_target(weight_gradient,2,weight_count);
     }
 #ifdef __APPLE__
     if(dtype==10&&input_gradient->backend==Backend::Metal){
         auto launch_target=[&](Buffer* target,int kind,std::size_t count)->bool{
             auto source=msl_affine_backward_source(kind);
-            auto pipeline=cached_metal_pipeline([target->metal_buffer device],
+            auto pipeline=cached_metal_pipeline(
+                [target->metal_buffer device],
                 "neural-affine-backward-f32-"+std::to_string(kind),source,error);
             if(!pipeline)return false;
             auto count64=static_cast<std::uint64_t>(count),
                  batches64=static_cast<std::uint64_t>(batches),
                  in64=static_cast<std::uint64_t>(features_in),
                  out64=static_cast<std::uint64_t>(features_out);
-            return dispatch_metal_1d(target,pipeline,count,[&](id<MTLComputeCommandEncoder> e){
-                [e setBuffer:target->metal_buffer offset:0 atIndex:0];
-                [e setBuffer:gradient->metal_buffer offset:0 atIndex:1];
-                [e setBuffer:input->metal_buffer offset:0 atIndex:2];
-                [e setBuffer:weight->metal_buffer offset:0 atIndex:3];
-                [e setBytes:&count64 length:8 atIndex:4];
-                [e setBytes:&batches64 length:8 atIndex:5];
-                [e setBytes:&in64 length:8 atIndex:6];
-                [e setBytes:&out64 length:8 atIndex:7];
-            },error);
+            if(kind==2){
+                return dispatch_metal_1d(
+                    target,pipeline,count,[&](id<MTLComputeCommandEncoder> e){
+                        [e setBuffer:target->metal_buffer offset:0 atIndex:0];
+                        [e setBuffer:gradient->metal_buffer offset:0 atIndex:1];
+                        [e setBuffer:input->metal_buffer offset:0 atIndex:2];
+                        [e setBuffer:weight->metal_buffer offset:0 atIndex:3];
+                        [e setBuffer:bias_gradient->metal_buffer offset:0 atIndex:4];
+                        [e setBytes:&count64 length:8 atIndex:5];
+                        [e setBytes:&batches64 length:8 atIndex:6];
+                        [e setBytes:&in64 length:8 atIndex:7];
+                        [e setBytes:&out64 length:8 atIndex:8];
+                    },error);
+            }
+            return dispatch_metal_1d(
+                target,pipeline,count,[&](id<MTLComputeCommandEncoder> e){
+                    [e setBuffer:target->metal_buffer offset:0 atIndex:0];
+                    [e setBuffer:gradient->metal_buffer offset:0 atIndex:1];
+                    [e setBuffer:input->metal_buffer offset:0 atIndex:2];
+                    [e setBuffer:weight->metal_buffer offset:0 atIndex:3];
+                    [e setBytes:&count64 length:8 atIndex:4];
+                    [e setBytes:&batches64 length:8 atIndex:5];
+                    [e setBytes:&in64 length:8 atIndex:6];
+                    [e setBytes:&out64 length:8 atIndex:7];
+                },error);
         };
         return launch_target(input_gradient,1,input_count) &&
-               launch_target(weight_gradient,2,weight_count) &&
-               launch_target(bias_gradient,3,features_out);
+               launch_target(weight_gradient,2,weight_count);
     }
 #endif
     return real_compute_unavailable(input_gradient,"neural.affine backward",dtype,error);

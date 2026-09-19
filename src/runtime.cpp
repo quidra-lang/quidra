@@ -2998,6 +2998,16 @@ thread_local std::unordered_map<std::uintptr_t,NeuralMomentDeviceCache>
 struct NeuralMomentUpdateContext {
     void* moments_raw{};
     std::size_t parameter_count{};
+    double rate{};
+    double beta1{};
+    double beta2{};
+    double epsilon{};
+    double correction1{};
+    double correction2{};
+    double one_minus_beta1{};
+    double one_minus_beta2{};
+    double inverse_correction1{};
+    double inverse_correction2{};
     std::vector<NeuralMomentRecord> records;
 };
 
@@ -4410,11 +4420,15 @@ extern "C" long long quidra_neural_moment_begin(
     context.moments_raw=moments_raw;
     context.parameter_count=static_cast<std::size_t>(parameter_count);
     context.rate=rate; context.beta1=beta1; context.beta2=beta2; context.epsilon=epsilon;
+    context.one_minus_beta1=1.0-beta1;
+    context.one_minus_beta2=1.0-beta2;
     const double next_step=static_cast<double>(step+1);
     context.correction1=1.0-std::pow(beta1,next_step);
     context.correction2=1.0-std::pow(beta2,next_step);
     if(context.correction1<=0.0||context.correction2<=0.0)
         neural_fail("invalid moment update bias correction",line,column);
+    context.inverse_correction1=1.0/context.correction1;
+    context.inverse_correction2=1.0/context.correction2;
     context.records=std::move(records);
     neural_moment_update_contexts.emplace(key,std::move(context));
     return static_cast<long long>(step+1);
@@ -4604,6 +4618,10 @@ extern "C" bool quidra_neural_moment_update_parameter(
         const double epsilon=context.epsilon;
         const double correction1=context.correction1;
         const double correction2=context.correction2;
+        const double one_minus_beta1=context.one_minus_beta1;
+        const double one_minus_beta2=context.one_minus_beta2;
+        const double inverse_correction1=context.inverse_correction1;
+        const double inverse_correction2=context.inverse_correction2;
 
         if(gradient->device_tensor){
             if(!tensor_is_contiguous_value(*tensor)||tensor->offset!=0){
@@ -4699,19 +4717,43 @@ extern "C" bool quidra_neural_moment_update_parameter(
             if(gradient_mat) tensor_storage_release(gradient_mat);
             if(!ok) neural_fail(backend_error.c_str(),line,column);
         }else{
+            // A successful optimizer step must read every Parameter element, so
+            // validate initialization once and then detach. Detaching preserves
+            // COW and materializes views into full contiguous storage when needed.
+            // The hot loop can therefore scan dense CPU storage directly instead
+            // of repeating storage-index and initialization lookups per element.
+            tensor_require_initialized(*tensor,line,column);
             tensor_detach_for_write(*tensor,line,column);
-            for(std::size_t i=0;i<logical_count;++i){
-                const double g=gradient->data.scalar_as_double(i);
-                record.first[i]=beta1*record.first[i]+(1.0-beta1)*g;
-                record.second[i]=beta2*record.second[i]+(1.0-beta2)*g*g;
-                const double mhat=record.first[i]/correction1;
-                const double vhat=record.second[i]/correction2;
-                const double delta=rate*mhat/(std::sqrt(vhat)+epsilon);
-                const auto storage_index=tensor_storage_index(*tensor,i);
-                const auto current=neural_tensor_value(*tensor,i,line,column);
-                neural_store_float(
-                    *tensor->storage,storage_index,current-delta);
-                tracker_set(tensor->storage->initialization,storage_index);
+            auto update_dense=[&](auto parameter_tag,const auto& gradient_values){
+                using ParameterT=decltype(parameter_tag);
+                const auto width=sizeof(ParameterT);
+                auto* parameter_bytes=tensor->storage->data.data();
+                for(std::size_t i=0;i<logical_count;++i){
+                    const double g=static_cast<double>(gradient_values[i]);
+                    record.first[i]=beta1*record.first[i]+one_minus_beta1*g;
+                    record.second[i]=beta2*record.second[i]+one_minus_beta2*g*g;
+                    const double mhat=record.first[i]*inverse_correction1;
+                    const double vhat=record.second[i]*inverse_correction2;
+                    const double delta=rate*mhat/(std::sqrt(vhat)+epsilon);
+                    ParameterT current{};
+                    std::memcpy(&current,parameter_bytes+i*width,width);
+                    const ParameterT next=static_cast<ParameterT>(
+                        static_cast<double>(current)-delta);
+                    std::memcpy(parameter_bytes+i*width,&next,width);
+                }
+            };
+            if(tensor->storage->dtype==10){
+                if(gradient->dtype==10)
+                    update_dense(float{},gradient->data.typed<float>());
+                else
+                    update_dense(float{},gradient->data.typed<double>());
+            }else if(tensor->storage->dtype==9){
+                if(gradient->dtype==10)
+                    update_dense(double{},gradient->data.typed<float>());
+                else
+                    update_dense(double{},gradient->data.typed<double>());
+            }else{
+                neural_fail("invalid neural Parameter dtype",line,column);
             }
         }
     }

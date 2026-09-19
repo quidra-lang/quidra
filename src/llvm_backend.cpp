@@ -688,6 +688,10 @@ struct FunctionEmitter {
                 }
                 if(const auto* append=std::get_if<ir::StringAppendMove>(&i))
                     plan_scratch(i,"["+std::to_string(append->suffixes.size())+" x ptr]");
+                if(std::holds_alternative<ir::StringParseTwoSigned>(i)){
+                    plan_scratch(i,"i64",8);
+                    plan_scratch(i,"i64",8);
+                }
                 if(std::holds_alternative<ir::NeuralMomentUpdate>(i))
                     plan_scratch(i,"[48 x i8]",8);
                 if(const auto* save=std::get_if<ir::NeuralSave>(&i)){
@@ -1158,18 +1162,13 @@ struct FunctionEmitter {
             values[n.left]=Type::simple(TypeKind::Int);
             values[n.right]=Type::simple(TypeKind::Int);
             values[n.ok]=Type::simple(TypeKind::Bool);
-            const auto parsed=temp("string.parse.two");
-            const auto okraw=temp("string.parse.two.okraw");
-            const auto leftptr=temp("string.parse.two.leftptr");
-            const auto rightptr=temp("string.parse.two.rightptr");
-            out<<"  "<<parsed<<" = call ptr @quidra_string_parse_two_signed(ptr "<<value(n.text)
-               <<", i8 "<<static_cast<unsigned>(n.separator)<<")\n";
-            out<<"  "<<okraw<<" = load i64, ptr "<<parsed<<", align 8\n";
-            out<<"  "<<value(n.ok)<<" = icmp ne i64 "<<okraw<<", 0\n";
-            out<<"  "<<leftptr<<" = getelementptr inbounds i8, ptr "<<parsed<<", i64 8\n";
-            out<<"  "<<value(n.left)<<" = load i64, ptr "<<leftptr<<", align 8\n";
-            out<<"  "<<rightptr<<" = getelementptr inbounds i8, ptr "<<parsed<<", i64 16\n";
-            out<<"  "<<value(n.right)<<" = load i64, ptr "<<rightptr<<", align 8\n";
+            const auto& left_slot=scratch(ins,0);
+            const auto& right_slot=scratch(ins,1);
+            out<<"  "<<value(n.ok)<<" = call i1 @quidra_string_parse_two_signed(ptr "<<value(n.text)
+               <<", i8 "<<static_cast<unsigned>(n.separator)<<", ptr "<<left_slot
+               <<", ptr "<<right_slot<<")\n";
+            out<<"  "<<value(n.left)<<" = load i64, ptr "<<left_slot<<", align 8\n";
+            out<<"  "<<value(n.right)<<" = load i64, ptr "<<right_slot<<", align 8\n";
         }
         if constexpr(std::is_same_v<T,ir::StringUtf8>){values[n.out]=Type::simple(TypeKind::Bin);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_utf8(ptr "<<value(n.text)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringFromUtf8>){
@@ -4164,7 +4163,7 @@ declare ptr @quidra_string_split_iter_begin(ptr, ptr)
 declare ptr @quidra_string_split_iter_begin_move(ptr, ptr)
 declare ptr @quidra_string_split_iter_next(ptr)
 declare void @quidra_string_split_iter_end(ptr)
-declare ptr @quidra_string_parse_two_signed(ptr, i8)
+declare i1 @quidra_string_parse_two_signed(ptr, i8, ptr, ptr)
 declare ptr @quidra_string_utf8(ptr)
 declare ptr @quidra_bin_try_utf8(ptr)
 declare ptr @quidra_u8_array_try_utf8(ptr)

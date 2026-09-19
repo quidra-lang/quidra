@@ -373,6 +373,20 @@ for i in range(0, 1)
     int right = parse_decimal(fields[1])
     print(left + right)
 )", "string.parse_two_signed");
+ llvm_contains(R"(int parse_decimal(string text)
+    match int.parse(text)
+        int value
+            return value
+        error problem
+            process.exit(1)
+
+string line = "12 34"
+for i in range(0, 1)
+    string[] fields = line.split(" ")
+    int left = parse_decimal(fields[0])
+    int right = parse_decimal(fields[1])
+    print(left + right)
+)", "call i1 @quidra_string_parse_two_signed");
  ir_contains(R"(string text = "a b"
 for part in text.split(" ")
     print(part)

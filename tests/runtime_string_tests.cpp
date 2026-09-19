@@ -10,6 +10,8 @@ extern "C" char* quidra_string_split_iter_next(void*);
 extern "C" void quidra_string_split_iter_end(void*);
 extern "C" unsigned long long quidra_runtime_text_byte_length(const char*);
 extern "C" long long quidra_string_length(const char*);
+extern "C" bool quidra_string_parse_two_signed(
+    const char*, unsigned char, long long*, long long*);
 extern "C" void quidra_managed_retain(void*);
 extern "C" void quidra_managed_release(void*, void*);
 
@@ -153,5 +155,16 @@ int main() {
     if (!only_empty || std::strcmp(only_empty, "") != 0 ||
         quidra_string_split_iter_next(empty_iter) != nullptr) return 1;
     quidra_string_split_iter_end(empty_iter);
+
+    long long parsed_left = -1;
+    long long parsed_right = -1;
+    if (!quidra_string_parse_two_signed(
+            "12 -34", ' ', &parsed_left, &parsed_right) ||
+        parsed_left != 12 || parsed_right != -34) return 1;
+    parsed_left = 7;
+    parsed_right = 9;
+    if (quidra_string_parse_two_signed(
+            "12 nope", ' ', &parsed_left, &parsed_right) ||
+        parsed_left != 0 || parsed_right != 0) return 1;
     return 0;
 }

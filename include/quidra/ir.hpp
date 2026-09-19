@@ -53,7 +53,7 @@ struct StringFind { ValueId out; ValueId text; ValueId needle; Type result_type;
 struct StringSlice { ValueId out; ValueId text; ValueId start; ValueId end; };
 struct StringTrim { ValueId out; ValueId text; };
 struct StringSplit { ValueId out; ValueId text; ValueId separator; };
-struct StringSplitIterBegin { ValueId out; ValueId text; ValueId separator; };
+struct StringSplitIterBegin { ValueId out; ValueId text; ValueId separator; bool move_source{}; };
 struct StringSplitIterNext { ValueId text; ValueId has_value; ValueId cursor; };
 struct StringSplitIterEnd { ValueId cursor; };
 struct StringParseTwoSigned { ValueId left; ValueId right; ValueId ok; ValueId text; unsigned char separator{}; };

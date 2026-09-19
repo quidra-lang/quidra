@@ -1663,6 +1663,24 @@ auto f = square
 int[] values = array(8, fill = 1)
 print(sum_values(&values, len(values)))
 )", "call i1 @quidra_array_initialization_complete");
+ llvm_contains(R"(int sum_values(const int[] &values, int n)
+    int total = 0
+    for i in range(0, n)
+        total += values[i]
+    return total
+
+int[] values = array(8, fill = 1)
+print(sum_values(&values, len(values)))
+)", "call ptr @quidra_array_slot_proven");
+ llvm_contains(R"(int sum_values(const int[] &values, int n)
+    int total = 0
+    for i in range(0, n)
+        total += values[i]
+    return total
+
+int[] values = array(8, fill = 1)
+print(sum_values(&values, len(values)))
+)", "phi ptr [ %array.bounds.proven.slot.");
  bad_code("int | none x = 1\nmatch x\n    int\n        print(x)\n", "MATCH_EXHAUSTIVE");
  bad_code("auto values = []\n", "AMBIGUOUS_TYPE");
  bad_code("int f(int x)\n    return x\nprint(f())\n", "ARGUMENT_MISMATCH");

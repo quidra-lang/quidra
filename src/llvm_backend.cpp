@@ -2894,16 +2894,40 @@ struct FunctionEmitter {
             const auto& array_type=values.at(n.array);
             const auto stride=array_element_stride(array_type,array_layout);
             auto slot="%arr.get.slot."+std::to_string(n.out);
-            if(is_fixed_array(array_type)){
-                if(n.bounds_proven)
-                    out<<"  "<<slot<<" = call ptr @quidra_fixed_array_slot_proven(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<stride<<")\n";
-                else
-                    out<<"  "<<slot<<" = call ptr @quidra_fixed_array_slot(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<array_type.length<<", i64 "<<stride<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            auto emit_slot = [&](const std::string& target, bool proven) {
+                if(is_fixed_array(array_type)){
+                    if(proven)
+                        out<<"  "<<target<<" = call ptr @quidra_fixed_array_slot_proven(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<stride<<")\n";
+                    else
+                        out<<"  "<<target<<" = call ptr @quidra_fixed_array_slot(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<array_type.length<<", i64 "<<stride<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                }else{
+                    if(proven)
+                        out<<"  "<<target<<" = call ptr @quidra_array_slot_proven(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<stride<<")\n";
+                    else
+                        out<<"  "<<target<<" = call ptr @quidra_array_slot(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<stride<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                }
+            };
+            if(n.bounds_proven){
+                emit_slot(slot,true);
+            }else if(n.bounds_guard){
+                const auto proven_label=unique_label("array.bounds.proven");
+                const auto checked_label=unique_label("array.bounds.checked");
+                const auto ready_label=unique_label("array.bounds.ready");
+                const auto proven_slot=temp("array.bounds.proven.slot");
+                const auto checked_slot=temp("array.bounds.checked.slot");
+                out<<"  br i1 "<<value(*n.bounds_guard)<<", label %"<<proven_label
+                   <<", label %"<<checked_label<<"\n";
+                out<<proven_label<<":\n";
+                emit_slot(proven_slot,true);
+                out<<"  br label %"<<ready_label<<"\n";
+                out<<checked_label<<":\n";
+                emit_slot(checked_slot,false);
+                out<<"  br label %"<<ready_label<<"\n";
+                out<<ready_label<<":\n";
+                out<<"  "<<slot<<" = phi ptr [ "<<proven_slot<<", %"<<proven_label
+                   <<" ], [ "<<checked_slot<<", %"<<checked_label<<" ]\n";
             }else{
-                if(n.bounds_proven)
-                    out<<"  "<<slot<<" = call ptr @quidra_array_slot_proven(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<stride<<")\n";
-                else
-                    out<<"  "<<slot<<" = call ptr @quidra_array_slot(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<stride<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                emit_slot(slot,false);
             }
             if(is_fixed_array(array_type)&&array_layout.inline_fixed_child(array_type)){
                 out<<"  "<<value(n.out)<<" = getelementptr inbounds i8, ptr "<<slot<<", i64 0\n";
@@ -2928,16 +2952,40 @@ struct FunctionEmitter {
             const auto& array_type=values.at(n.array);
             const auto stride=array_element_stride(array_type,array_layout);
             auto slot="%arr.set.slot."+std::to_string(n.index)+"."+std::to_string(n.value);
-            if(is_fixed_array(array_type)){
-                if(n.bounds_proven)
-                    out<<"  "<<slot<<" = call ptr @quidra_fixed_array_slot_proven(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<stride<<")\n";
-                else
-                    out<<"  "<<slot<<" = call ptr @quidra_fixed_array_slot(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<array_type.length<<", i64 "<<stride<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            auto emit_slot = [&](const std::string& target, bool proven) {
+                if(is_fixed_array(array_type)){
+                    if(proven)
+                        out<<"  "<<target<<" = call ptr @quidra_fixed_array_slot_proven(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<stride<<")\n";
+                    else
+                        out<<"  "<<target<<" = call ptr @quidra_fixed_array_slot(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<array_type.length<<", i64 "<<stride<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                }else{
+                    if(proven)
+                        out<<"  "<<target<<" = call ptr @quidra_array_slot_proven(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<stride<<")\n";
+                    else
+                        out<<"  "<<target<<" = call ptr @quidra_array_slot(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<stride<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                }
+            };
+            if(n.bounds_proven){
+                emit_slot(slot,true);
+            }else if(n.bounds_guard){
+                const auto proven_label=unique_label("array.bounds.proven");
+                const auto checked_label=unique_label("array.bounds.checked");
+                const auto ready_label=unique_label("array.bounds.ready");
+                const auto proven_slot=temp("array.bounds.proven.slot");
+                const auto checked_slot=temp("array.bounds.checked.slot");
+                out<<"  br i1 "<<value(*n.bounds_guard)<<", label %"<<proven_label
+                   <<", label %"<<checked_label<<"\n";
+                out<<proven_label<<":\n";
+                emit_slot(proven_slot,true);
+                out<<"  br label %"<<ready_label<<"\n";
+                out<<checked_label<<":\n";
+                emit_slot(checked_slot,false);
+                out<<"  br label %"<<ready_label<<"\n";
+                out<<ready_label<<":\n";
+                out<<"  "<<slot<<" = phi ptr [ "<<proven_slot<<", %"<<proven_label
+                   <<" ], [ "<<checked_slot<<", %"<<checked_label<<" ]\n";
             }else{
-                if(n.bounds_proven)
-                    out<<"  "<<slot<<" = call ptr @quidra_array_slot_proven(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<stride<<")\n";
-                else
-                    out<<"  "<<slot<<" = call ptr @quidra_array_slot(ptr "<<value(n.array)<<", i64 "<<value(n.index)<<", i64 "<<stride<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+                emit_slot(slot,false);
             }
             if(is_fixed_array(array_type)&&array_layout.inline_fixed_child(array_type)){
                 out<<"  call void "<<drop_name(n.element_type)<<"(ptr "<<slot<<")\n";

@@ -59,8 +59,7 @@ struct Lowerer {
         const std::vector<StmtPtr>& body) {
         std::unordered_set<std::string> array_references;
         for (const auto& parameter : signature.parameters) {
-            if (parameter.writable && !parameter.is_const &&
-                parameter.type.kind == TypeKind::Array) {
+            if (parameter.writable && parameter.type.kind == TypeKind::Array) {
                 array_references.insert(parameter.name);
             }
         }
@@ -4936,16 +4935,6 @@ struct Lowerer {
             p.name, p.type, p.writable, parameter_is_borrowed(source.name, i), p.is_const});}
         if(out.external_symbol){module.functions.push_back(std::move(out));return;}
         current_class.clear();begin_function(std::move(out));
-        for (const auto& parameter : sig.parameters) {
-            if (parameter.writable && parameter.is_const &&
-                parameter.type.kind == TypeKind::Array) {
-                // Read-only reference arguments are required by the checker to
-                // reference fully initialized storage. They cannot invalidate
-                // that fact, so element reads need no runtime initialization
-                // guard inside the callee.
-                fully_initialized_array_locals.insert(parameter.name);
-            }
-        }
         cache_reference_array_initialization(sig, source.body);
         capture_signature_constraints(source,0);
         for(const auto& s:source.body){stmt(*s);if(terminated())break;}
@@ -4963,12 +4952,6 @@ struct Lowerer {
             p.name, p.type, p.writable,
             p.name=="$receiver"||parameter_is_borrowed(internal,i), p.is_const});}
         current_class=class_name;begin_function(std::move(out));
-        for (const auto& parameter : sig.parameters) {
-            if (parameter.writable && parameter.is_const &&
-                parameter.type.kind == TypeKind::Array) {
-                fully_initialized_array_locals.insert(parameter.name);
-            }
-        }
         cache_reference_array_initialization(sig, source.body);
         capture_signature_constraints(source,1);
         for(const auto& s:source.body){stmt(*s);if(terminated())break;}

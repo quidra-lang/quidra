@@ -400,6 +400,17 @@ fn<int>(int) left = twice
 fn<int>(int) right = twice
 bool same = left == right
 )", "TYPE_MISMATCH");
+ bad_code(R"(fn<int>(int) operation
+int result = operation(1)
+)", "UNINITIALIZED");
+ good(R"(int twice(int value)
+    return value * 2
+int apply_ref(const fn<int>(int) &operation, int value)
+    return operation(value)
+fn<int>(int) operation = twice
+int result = apply_ref(&operation, 4)
+print(result)
+)");
 
  root_source_override_with_import();
  string_input_ignores_package_lock();

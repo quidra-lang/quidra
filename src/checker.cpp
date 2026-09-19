@@ -4162,6 +4162,14 @@ Type Checker::check_call_expr(const Expr& expression,
             if (callable.kind != TypeKind::Function || !callable.first) {
                 error("NOT_CALLABLE", "Binding '" + name + "' is not callable.", expression.span);
             }
+            if (current_reference_parameters_.contains(name)) {
+                auto& effect = current_reference_effects_[name];
+                if (!effect.initializes.contains("")) effect.required.insert("");
+            } else if (!initialized_.contains(name)) {
+                error("UNINITIALIZED",
+                      "Function binding '" + name + "' may be uninitialized.",
+                      expression.span);
+            }
             if (node->args.size() != callable.parameters.size()) {
                 error("ARGUMENT_MISMATCH",
                       "Function value requires exactly " +

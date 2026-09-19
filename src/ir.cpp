@@ -1531,10 +1531,19 @@ struct Lowerer {
         const auto& resolution=resolution_it->second;
 
         if(resolution.kind==CallKind::FunctionValue){
-            const auto local_name=source_local(resolution.target);
-            const auto callable_type=locals.at(local_name);
             auto callee=fresh();
-            block->instructions.push_back(LoadLocal{callee,local_name,callable_type});
+            Type callable_type;
+            if(is_source_reference(resolution.target)){
+                const auto& reference_name=source_reference(resolution.target);
+                callable_type=references.at(reference_name);
+                block->instructions.push_back(
+                    LoadReference{callee,reference_name,callable_type});
+            }else{
+                const auto local_name=source_local(resolution.target);
+                callable_type=locals.at(local_name);
+                block->instructions.push_back(
+                    LoadLocal{callee,local_name,callable_type});
+            }
             std::vector<ValueId> args;
             args.reserve(n.args.size());
             for(std::size_t i=0;i<n.args.size();++i)

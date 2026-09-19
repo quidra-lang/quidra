@@ -166,7 +166,7 @@ match string.from_utf8(partial)
     error problem
         print("partial")
 QUI
-[[ "$("$QUIDRA" "$TMP/bin-string.qui")" == 
+[[ "$("$QUIDRA" "$TMP/bin-string.qui")" == $'5\n11111\n0\n1\n11111111\n-1\ntrue\naaa\nhéllo\ninvalid\nnul\npartial' ]]
 
 python3 - "$TMP/source.bin" <<'PY'
 import sys
@@ -1919,7 +1919,6 @@ bin_array_length_rc=$?
 set -e
 [[ "$bin_array_length_rc" -eq 101 ]]
 grep -q 'bin length is not divisible by destination element width' "$TMP/bin-array-length-fail.err"
-5\n11111\n0\n1\n11111111\n-1\ntrue\naaa\nhéllo\ninvalid\nnul\npartial' ]]
 
 python3 - "$TMP/source.bin" <<'PY'
 import sys

@@ -219,6 +219,28 @@ CudaApi& cuda() {
     return api;
 }
 
+template <std::size_t N>
+bool open_dnn_nvidia_library(DynamicLibrary& library,
+                             const std::array<const char*, N>& names) {
+    if (const char* root = std::getenv("QUIDRA_DNN_NVIDIA_LIBRARY_PATH");
+        root && *root) {
+        std::string prefix(root);
+        if (prefix.back() != '/' && prefix.back() != '\\') prefix.push_back('/');
+        for (const char* name : names) {
+            const auto candidate = prefix + name;
+            if (library.open(candidate.c_str())) return true;
+        }
+        return false;
+    }
+
+    const char* allow_system = std::getenv("QUIDRA_DNN_ALLOW_SYSTEM_NVIDIA_LIBS");
+    if (!allow_system || std::string_view(allow_system) != "1") return false;
+    for (const char* name : names) {
+        if (library.open(name)) return true;
+    }
+    return false;
+}
+
 
 struct CublasApi {
     using Handle = void*;
@@ -242,13 +264,14 @@ struct CublasApi {
 
     CublasApi() {
 #ifdef _WIN32
-        if (!library.open("cublas64_12.dll") &&
-            !library.open("cublas64_11.dll")) return;
+        constexpr std::array names{
+            "cublas64_13.dll", "cublas64_12.dll", "cublas64_11.dll"};
 #else
-        if (!library.open("libcublas.so.12") &&
-            !library.open("libcublas.so.11") &&
-            !library.open("libcublas.so")) return;
+        constexpr std::array names{
+            "libcublas.so.13", "libcublas.so.12", "libcublas.so.11",
+            "libcublas.so"};
 #endif
+        if (!open_dnn_nvidia_library(library, names)) return;
         create = load_symbol<decltype(create)>(library, "cublasCreate_v2");
         destroy = load_symbol<decltype(destroy)>(library, "cublasDestroy_v2");
         set_atomics_mode =
@@ -367,13 +390,12 @@ struct CudnnApi {
 
     CudnnApi() {
 #ifdef _WIN32
-        if (!library.open("cudnn64_9.dll") &&
-            !library.open("cudnn64_8.dll")) return;
+        constexpr std::array names{"cudnn64_9.dll", "cudnn64_8.dll"};
 #else
-        if (!library.open("libcudnn.so.9") &&
-            !library.open("libcudnn.so.8") &&
-            !library.open("libcudnn.so")) return;
+        constexpr std::array names{
+            "libcudnn.so.9", "libcudnn.so.8", "libcudnn.so"};
 #endif
+        if (!open_dnn_nvidia_library(library, names)) return;
         create=load_symbol<decltype(create)>(library,"cudnnCreate");
         destroy=load_symbol<decltype(destroy)>(library,"cudnnDestroy");
         create_tensor=load_symbol<decltype(create_tensor)>(library,"cudnnCreateTensorDescriptor");

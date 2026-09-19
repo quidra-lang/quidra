@@ -185,6 +185,7 @@ struct TimeNow { ValueId out; };
 struct TimeSince { ValueId out; ValueId start; };
 struct TimeSeconds { ValueId out; ValueId seconds; };
 struct TimeSleep { ValueId duration; std::uint32_t line{}; std::uint32_t column{}; };
+struct TaskAll { ValueId operations; std::uint32_t line{}; std::uint32_t column{}; };
 struct RandomGenerator { ValueId out; ValueId seed; };
 struct RandomInt { ValueId out; ValueId generator; ValueId start; ValueId end; std::uint32_t line{}; std::uint32_t column{}; };
 struct RandomFloat { ValueId out; ValueId generator; };
@@ -276,7 +277,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  CliArgument, CliOption, CliFlag, CliFinish,
                                  FileRead, FileReadBin, FileWrite, FileWriteBin, FileExists, FileIsDirectory, FileRemove, FileCopy, FileMove, FileMkdir, FileList,
                                  EnvironmentGet, EnvironmentHas, TestAssert,
-                                 TimeNow, TimeSince, TimeSeconds, TimeSleep,
+                                 TimeNow, TimeSince, TimeSeconds, TimeSleep, TaskAll,
                                  RandomGenerator, RandomInt, RandomFloat, RandomBool, ProcessRun,
                                  JsonParse, JsonKind, JsonSize, JsonGet, JsonAt, JsonText,
                                  JsonInteger, JsonNumber, JsonBigInt, JsonBigReal, JsonBoolean, JsonEncode, JsonEqual,

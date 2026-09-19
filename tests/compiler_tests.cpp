@@ -400,6 +400,28 @@ fn<int>(int) left = twice
 fn<int>(int) right = twice
 bool same = left == right
 )", "TYPE_MISMATCH");
+ good(R"(void first()
+    print("first")
+
+void second()
+    print("second")
+
+task.all([first, second])
+task.all([])
+)");
+ llvm_contains(R"(void first()
+    print("first")
+task.all([first])
+)", "call void @quidra_task_all");
+ llvm_contains(R"(void first()
+    print("first")
+task.all([first])
+)", "@.quidra.stack.depth = internal thread_local global i64 0");
+ bad_code(R"(int wrong()
+    return 1
+task.all([wrong])
+)", "FUNCTION_REFERENCE_SIGNATURE");
+
  bad_code(R"(fn<int>(int) operation
 int result = operation(1)
 )", "UNINITIALIZED");

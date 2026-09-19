@@ -2031,6 +2031,10 @@ struct FunctionEmitter {
             out<<"  "<<bad<<" = xor i1 "<<ok<<", true\n";
             fail_if(bad,"@.code.time.sleep","@.msg.time.sleep","time.sleep",n.line,n.column);
         }
+        if constexpr(std::is_same_v<T,ir::TaskAll>){
+            out<<"  call void @quidra_task_all(ptr "<<value(n.operations)
+               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+        }
         if constexpr(std::is_same_v<T,ir::RandomGenerator>){
             values[n.out]=Type::class_type("$std.random.Generator");
             out<<"  "<<value(n.out)<<" = call ptr @quidra_alloc(i64 8)\n";
@@ -3726,6 +3730,7 @@ declare i1 @quidra_environment_has(ptr)
 declare void @quidra_test_assert(i1)
 declare double @quidra_time_now()
 declare i1 @quidra_time_sleep(double)
+declare void @quidra_task_all(ptr, i64, i64)
 declare i64 @quidra_random_int(ptr, i64, i64)
 declare double @quidra_random_float(ptr)
 declare i1 @quidra_random_bool(ptr)
@@ -3921,8 +3926,8 @@ declare i1 @quidra_parse_float32(ptr, ptr)
 declare i1 @quidra_parse_float64(ptr, ptr)
 declare i32 @quidra_input_read(ptr)
 
-@.quidra.source.line = internal global i64 0
-@.quidra.source.column = internal global i64 0
+@.quidra.source.line = internal thread_local global i64 0
+@.quidra.source.column = internal thread_local global i64 0
 
 define void @quidra_fail(ptr %msg) noreturn {
 entry:
@@ -3948,7 +3953,7 @@ entry:
   unreachable
 }
 
-@.quidra.stack.depth = internal global i64 0
+@.quidra.stack.depth = internal thread_local global i64 0
 
 define void @quidra_stack_enter() {
 entry:

@@ -105,6 +105,7 @@ enum class BuiltinCallable {
     TimeSince,
     TimeSeconds,
     TimeSleep,
+    TaskAll,
     RandomGenerator,
     RandomInt,
     RandomFloat,
@@ -191,7 +192,7 @@ inline constexpr std::array<BuiltinCallableInfo, 11> builtin_callables{{
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 94> intrinsic_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 95> intrinsic_callables{{
     {"$std.math.sin", BuiltinCallable::MathSin},
     {"$std.math.cos", BuiltinCallable::MathCos},
     {"$std.math.tan", BuiltinCallable::MathTan},
@@ -225,6 +226,7 @@ inline constexpr std::array<BuiltinCallableInfo, 94> intrinsic_callables{{
     {"$std.time.since", BuiltinCallable::TimeSince},
     {"$std.time.seconds", BuiltinCallable::TimeSeconds},
     {"$std.time.sleep", BuiltinCallable::TimeSleep},
+    {"$std.task.all", BuiltinCallable::TaskAll},
     {"$std.random.generator", BuiltinCallable::RandomGenerator},
     {"$std.random.int", BuiltinCallable::RandomInt},
     {"$std.random.float", BuiltinCallable::RandomFloat},
@@ -298,8 +300,8 @@ inline constexpr std::optional<BuiltinCallable> builtin_callable(std::string_vie
     return std::nullopt;
 }
 
-inline constexpr std::array<std::string_view, 18> standard_modules{{
-    "math", "cli", "file", "environment", "test", "time", "random", "process",
+inline constexpr std::array<std::string_view, 19> standard_modules{{
+    "math", "cli", "file", "environment", "test", "time", "task", "random", "process",
     "map", "set", "json", "http", "stats", "linear", "signal", "image", "tensor",
     "neural"
 }};
@@ -338,6 +340,10 @@ inline constexpr std::optional<std::string_view> standard_function_target(
         if (member == "since") return "$std.time.since";
         if (member == "seconds") return "$std.time.seconds";
         if (member == "sleep") return "$std.time.sleep";
+        return std::nullopt;
+    }
+    if (module == "task") {
+        if (member == "all") return "$std.task.all";
         return std::nullopt;
     }
     if (module == "random") {

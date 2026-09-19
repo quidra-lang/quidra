@@ -241,6 +241,7 @@ bool replay_barrier_instruction(const ir::Instruction& instruction) {
             std::is_same_v<T, ir::TimeNow> ||
             std::is_same_v<T, ir::TimeSince> ||
             std::is_same_v<T, ir::TimeSleep> ||
+            std::is_same_v<T, ir::TaskAll> ||
             std::is_same_v<T, ir::RandomGenerator> ||
             std::is_same_v<T, ir::RandomInt> ||
             std::is_same_v<T, ir::RandomFloat> ||

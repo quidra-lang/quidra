@@ -2713,6 +2713,22 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     type = poisoned(duration) ? simple(TypeKind::Invalid) : simple(TypeKind::Void);
                     break;
                 }
+                case BuiltinCallable::TaskAll: {
+                    if (node->args.size() != 1) {
+                        error("ARGUMENT_MISMATCH",
+                              "task.all requires one array of fn<void>() operations.",
+                              expression.span);
+                    }
+                    const auto operation_type =
+                        Type::function(simple(TypeKind::Void), {});
+                    const auto operations_type = Type::array(operation_type);
+                    const auto operations =
+                        builtin_arg(0, "operations", &operations_type);
+                    type = poisoned(operations)
+                        ? simple(TypeKind::Invalid)
+                        : simple(TypeKind::Void);
+                    break;
+                }
                 case BuiltinCallable::RandomGenerator: {
                     if (node->args.size() != 1) {
                         error("ARGUMENT_MISMATCH", "random.generator requires one int seed.", expression.span);

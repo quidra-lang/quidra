@@ -911,6 +911,65 @@ extern "C" void quidra_init_clone(void* destination, void* source_data,
 }
 
 
+extern "C" void quidra_task_all(
+    void* raw, unsigned long long line, unsigned long long column) {
+    if (!raw) {
+        std::fprintf(
+            stderr,
+            "Quidra runtime error[TASK_ARRAY] at %llu:%llu: task.all received a null operation array\n",
+            line, column);
+        std::exit(101);
+    }
+
+    long long signed_count = 0;
+    std::memcpy(&signed_count, raw, sizeof(signed_count));
+    if (signed_count < 0) {
+        std::fprintf(
+            stderr,
+            "Quidra runtime error[TASK_ARRAY] at %llu:%llu: task.all received an invalid operation array\n",
+            line, column);
+        std::exit(101);
+    }
+
+    using TaskFunction = void (*)();
+    static_assert(sizeof(TaskFunction) == sizeof(void*));
+    const auto count = static_cast<std::size_t>(signed_count);
+    const auto* payload = static_cast<const unsigned char*>(raw) + 8;
+
+    std::vector<TaskFunction> operations;
+    std::vector<std::thread> threads;
+    try {
+        operations.reserve(count);
+        threads.reserve(count);
+        for (std::size_t index = 0; index < count; ++index) {
+            TaskFunction operation = nullptr;
+            std::memcpy(
+                &operation, payload + index * sizeof(TaskFunction),
+                sizeof(TaskFunction));
+            if (!operation) {
+                std::fprintf(
+                    stderr,
+                    "Quidra runtime error[TASK_NULL] at %llu:%llu: task.all received a null operation\n",
+                    line, column);
+                std::exit(101);
+            }
+            operations.push_back(operation);
+        }
+        for (const auto operation : operations) {
+            threads.emplace_back([operation] { operation(); });
+        }
+    } catch (const std::exception& error) {
+        for (auto& thread : threads) if (thread.joinable()) thread.join();
+        std::fprintf(
+            stderr,
+            "Quidra runtime error[TASK_START] at %llu:%llu: cannot start task: %s\n",
+            line, column, error.what());
+        std::exit(101);
+    }
+
+    for (auto& thread : threads) thread.join();
+}
+
 extern "C" bool quidra_array_can_append_move(void* array) {
     if (!array) return false;
     const auto it = managed_allocations.find(reinterpret_cast<std::uintptr_t>(array));

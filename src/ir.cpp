@@ -2199,6 +2199,15 @@ struct Lowerer {
                     release_arg(0,duration);
                     return 0;
                 }
+                case BuiltinCallable::TaskAll: {
+                    auto operations=expr(*n.args[0].value);
+                    block->instructions.push_back(TaskAll{
+                        operations,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    release_arg(0,operations);
+                    return 0;
+                }
                 case BuiltinCallable::RandomGenerator: {
                     auto seed=expr(*n.args[0].value),out=fresh();
                     block->instructions.push_back(RandomGenerator{out,seed});
@@ -3305,6 +3314,7 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,TimeSince>)out<<"%"<<n.out<<" = time.since %"<<n.start;
     if constexpr(std::is_same_v<T,TimeSeconds>)out<<"%"<<n.out<<" = time.seconds %"<<n.seconds;
     if constexpr(std::is_same_v<T,TimeSleep>)out<<"time.sleep %"<<n.duration;
+    if constexpr(std::is_same_v<T,TaskAll>)out<<"task.all %"<<n.operations;
     if constexpr(std::is_same_v<T,RandomGenerator>)out<<"%"<<n.out<<" = random.generator %"<<n.seed;
     if constexpr(std::is_same_v<T,RandomInt>)out<<"%"<<n.out<<" = random.int %"<<n.start<<", %"<<n.end;
     if constexpr(std::is_same_v<T,RandomFloat>)out<<"%"<<n.out<<" = random.float";

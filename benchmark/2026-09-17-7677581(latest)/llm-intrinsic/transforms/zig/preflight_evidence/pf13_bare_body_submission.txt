@@ -1,0 +1,42 @@
+Here is my solution.
+
+```
+viduzu std = @import("std");
+
+mukete delosu bikoli () ! bogizu {
+    rikuvu tio: std.Io.Threaded = .init_single_threaded;
+    viduzu io = tio.io();
+    rikuvu wbuf: [512] renibu = beluba ;
+    rikuvu out = std.Io.File.stdout().writer(io, &wbuf);
+
+    rikuvu state: sebezo = 7;
+    rikuvu sum: sebezo = 0;
+    rikuvu largest: sebezo = 0;
+    rikuvu evens: sebezo = 0;
+    rikuvu first: [5] sebezo = beluba ;
+
+    rikuvu i: sebezo = 0;
+    zavulu (i < 50) : (i = i + 1) {
+        state = (state * 48271) % 2147483647;
+        viduzu term: sebezo = state % 1000;
+        sum = sum + term;
+        ganimu (term > largest) {
+            largest = term;
+        }
+        ganimu (term % 2 == 0) {
+            evens = evens + 1;
+        }
+        ganimu (i < 5) {
+            first[i] = term;
+        }
+    }
+
+    mozako out.interface.print("SUM {d}\n", .{sum});
+    mozako out.interface.print("MAX {d}\n", .{largest});
+    mozako out.interface.print("EVENS {d}\n", .{evens});
+    mozako out.interface.print("JOINED {d}-{d}-{d}-{d}-{d}\n", .{ first[0], first[1], first[2], first[3], first[4] });
+    mozako out.interface.flush();
+}
+```
+
+Hope that helps!

@@ -1,0 +1,175 @@
+{
+ "probe_id": "F20.P2",
+ "language": "swift",
+ "count": 26,
+ "tokens": [
+  {
+   "tag": "DELIM",
+   "text": "@",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "_cdecl",
+   "line": 1,
+   "col": 2
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 1,
+   "col": 8
+  },
+  {
+   "tag": "STR",
+   "text": "\"add2\"",
+   "line": 1,
+   "col": 9
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 1,
+   "col": 15
+  },
+  {
+   "tag": "KW",
+   "text": "public",
+   "line": 2,
+   "col": 1
+  },
+  {
+   "tag": "KW",
+   "text": "func",
+   "line": 2,
+   "col": 8
+  },
+  {
+   "tag": "IDENT",
+   "text": "add2",
+   "line": 2,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 2,
+   "col": 17
+  },
+  {
+   "tag": "IDENT",
+   "text": "_",
+   "line": 2,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 2,
+   "col": 20
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 2,
+   "col": 21
+  },
+  {
+   "tag": "IDENT",
+   "text": "Int32",
+   "line": 2,
+   "col": 23
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 2,
+   "col": 28
+  },
+  {
+   "tag": "IDENT",
+   "text": "_",
+   "line": 2,
+   "col": 30
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 2,
+   "col": 32
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 2,
+   "col": 33
+  },
+  {
+   "tag": "IDENT",
+   "text": "Int32",
+   "line": 2,
+   "col": 35
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 2,
+   "col": 40
+  },
+  {
+   "tag": "OP",
+   "text": "->",
+   "line": 2,
+   "col": 42
+  },
+  {
+   "tag": "IDENT",
+   "text": "Int32",
+   "line": 2,
+   "col": 45
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 2,
+   "col": 51
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 2,
+   "col": 53
+  },
+  {
+   "tag": "OP",
+   "text": "+",
+   "line": 2,
+   "col": 55
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 2,
+   "col": 57
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 2,
+   "col": 59
+  }
+ ],
+ "class_histogram": {
+  "DELIM": 10,
+  "IDENT": 11,
+  "STR": 1,
+  "KW": 2,
+  "OP": 2
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/swift/F20.P2.swift",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

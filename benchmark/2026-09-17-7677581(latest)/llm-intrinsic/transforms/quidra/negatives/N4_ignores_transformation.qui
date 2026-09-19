@@ -1,0 +1,23 @@
+int stepped(int seed)
+    return seed * 11 % 13
+
+int carry = 4
+int total = 0
+int largest = 0
+int evens = 0
+string chain = ""
+for i in range(0, 5)
+    carry = stepped(carry)
+    total = total + carry
+    if carry > largest
+        largest = carry
+    if carry % 2 == 0
+        evens = evens + 1
+    if i == 0
+        chain = "{carry}"
+    else
+        chain = chain + ":" + "{carry}"
+print("TOTAL {total}")
+print("LARGEST {largest}")
+print("EVENS {evens}")
+print("CHAIN {chain}")

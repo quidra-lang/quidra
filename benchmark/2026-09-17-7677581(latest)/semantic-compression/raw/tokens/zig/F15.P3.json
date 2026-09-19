@@ -1,0 +1,1058 @@
+{
+ "probe_id": "F15.P3",
+ "language": "zig",
+ "count": 173,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "Named",
+   "line": 1,
+   "col": 7
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 1,
+   "col": 13
+  },
+  {
+   "tag": "KW",
+   "text": "struct",
+   "line": 1,
+   "col": 15
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 1,
+   "col": 22
+  },
+  {
+   "tag": "IDENT",
+   "text": "ptr",
+   "line": 2,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 2,
+   "col": 8
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 2,
+   "col": 10
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 2,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "anyopaque",
+   "line": 2,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 2,
+   "col": 26
+  },
+  {
+   "tag": "IDENT",
+   "text": "tagFn",
+   "line": 3,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 3,
+   "col": 10
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 3,
+   "col": 12
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 3,
+   "col": 13
+  },
+  {
+   "tag": "KW",
+   "text": "fn",
+   "line": 3,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 3,
+   "col": 22
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 3,
+   "col": 23
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 3,
+   "col": 24
+  },
+  {
+   "tag": "IDENT",
+   "text": "anyopaque",
+   "line": 3,
+   "col": 30
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 3,
+   "col": 39
+  },
+  {
+   "tag": "DELIM",
+   "text": "[",
+   "line": 3,
+   "col": 41
+  },
+  {
+   "tag": "DELIM",
+   "text": "]",
+   "line": 3,
+   "col": 42
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 3,
+   "col": 43
+  },
+  {
+   "tag": "IDENT",
+   "text": "u8",
+   "line": 3,
+   "col": 49
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 3,
+   "col": 51
+  },
+  {
+   "tag": "KW",
+   "text": "fn",
+   "line": 4,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "tag",
+   "line": 4,
+   "col": 8
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 4,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "self",
+   "line": 4,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 4,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": "@",
+   "line": 4,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "This",
+   "line": 4,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 4,
+   "col": 23
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 4,
+   "col": 24
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 4,
+   "col": 25
+  },
+  {
+   "tag": "DELIM",
+   "text": "[",
+   "line": 4,
+   "col": 27
+  },
+  {
+   "tag": "DELIM",
+   "text": "]",
+   "line": 4,
+   "col": 28
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 4,
+   "col": 29
+  },
+  {
+   "tag": "IDENT",
+   "text": "u8",
+   "line": 4,
+   "col": 35
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 4,
+   "col": 38
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 5,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "self",
+   "line": 5,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 5,
+   "col": 20
+  },
+  {
+   "tag": "IDENT",
+   "text": "tagFn",
+   "line": 5,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 5,
+   "col": 26
+  },
+  {
+   "tag": "IDENT",
+   "text": "self",
+   "line": 5,
+   "col": 27
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 5,
+   "col": 31
+  },
+  {
+   "tag": "IDENT",
+   "text": "ptr",
+   "line": 5,
+   "col": 32
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 5,
+   "col": 35
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 5,
+   "col": 36
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 6,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 7,
+   "col": 1
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 7,
+   "col": 2
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 8,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "A",
+   "line": 8,
+   "col": 7
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 8,
+   "col": 9
+  },
+  {
+   "tag": "KW",
+   "text": "struct",
+   "line": 8,
+   "col": 11
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 8,
+   "col": 18
+  },
+  {
+   "tag": "KW",
+   "text": "fn",
+   "line": 9,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "tag",
+   "line": 9,
+   "col": 8
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 9,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "_",
+   "line": 9,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 9,
+   "col": 13
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 9,
+   "col": 15
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 9,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "anyopaque",
+   "line": 9,
+   "col": 22
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 9,
+   "col": 31
+  },
+  {
+   "tag": "DELIM",
+   "text": "[",
+   "line": 9,
+   "col": 33
+  },
+  {
+   "tag": "DELIM",
+   "text": "]",
+   "line": 9,
+   "col": 34
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 9,
+   "col": 35
+  },
+  {
+   "tag": "IDENT",
+   "text": "u8",
+   "line": 9,
+   "col": 41
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 9,
+   "col": 44
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 10,
+   "col": 9
+  },
+  {
+   "tag": "STR",
+   "text": "\"a\"",
+   "line": 10,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 10,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 11,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 12,
+   "col": 1
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 12,
+   "col": 2
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 13,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "B",
+   "line": 13,
+   "col": 7
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 13,
+   "col": 9
+  },
+  {
+   "tag": "KW",
+   "text": "struct",
+   "line": 13,
+   "col": 11
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 13,
+   "col": 18
+  },
+  {
+   "tag": "KW",
+   "text": "fn",
+   "line": 14,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "tag",
+   "line": 14,
+   "col": 8
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 14,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "_",
+   "line": 14,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 14,
+   "col": 13
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 14,
+   "col": 15
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 14,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "anyopaque",
+   "line": 14,
+   "col": 22
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 14,
+   "col": 31
+  },
+  {
+   "tag": "DELIM",
+   "text": "[",
+   "line": 14,
+   "col": 33
+  },
+  {
+   "tag": "DELIM",
+   "text": "]",
+   "line": 14,
+   "col": 34
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 14,
+   "col": 35
+  },
+  {
+   "tag": "IDENT",
+   "text": "u8",
+   "line": 14,
+   "col": 41
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 14,
+   "col": 44
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 15,
+   "col": 9
+  },
+  {
+   "tag": "STR",
+   "text": "\"b\"",
+   "line": 15,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 15,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 16,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 17,
+   "col": 1
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 17,
+   "col": 2
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 18,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 18,
+   "col": 7
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 18,
+   "col": 8
+  },
+  {
+   "tag": "IDENT",
+   "text": "A",
+   "line": 18,
+   "col": 10
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 18,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 18,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 18,
+   "col": 15
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 18,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 18,
+   "col": 17
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 19,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 19,
+   "col": 7
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 19,
+   "col": 8
+  },
+  {
+   "tag": "IDENT",
+   "text": "B",
+   "line": 19,
+   "col": 10
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 19,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 19,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 19,
+   "col": 15
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 19,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 19,
+   "col": 17
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 20,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "items",
+   "line": 20,
+   "col": 7
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 20,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": "[",
+   "line": 20,
+   "col": 15
+  },
+  {
+   "tag": "IDENT",
+   "text": "_",
+   "line": 20,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": "]",
+   "line": 20,
+   "col": 17
+  },
+  {
+   "tag": "IDENT",
+   "text": "Named",
+   "line": 20,
+   "col": 18
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 20,
+   "col": 23
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 20,
+   "col": 25
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 20,
+   "col": 26
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 20,
+   "col": 28
+  },
+  {
+   "tag": "IDENT",
+   "text": "ptr",
+   "line": 20,
+   "col": 29
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 20,
+   "col": 33
+  },
+  {
+   "tag": "OP",
+   "text": "&",
+   "line": 20,
+   "col": 35
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 20,
+   "col": 36
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 20,
+   "col": 37
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 20,
+   "col": 39
+  },
+  {
+   "tag": "IDENT",
+   "text": "tagFn",
+   "line": 20,
+   "col": 40
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 20,
+   "col": 46
+  },
+  {
+   "tag": "IDENT",
+   "text": "A",
+   "line": 20,
+   "col": 48
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 20,
+   "col": 49
+  },
+  {
+   "tag": "IDENT",
+   "text": "tag",
+   "line": 20,
+   "col": 50
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 20,
+   "col": 54
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 20,
+   "col": 55
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 20,
+   "col": 57
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 20,
+   "col": 58
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 20,
+   "col": 60
+  },
+  {
+   "tag": "IDENT",
+   "text": "ptr",
+   "line": 20,
+   "col": 61
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 20,
+   "col": 65
+  },
+  {
+   "tag": "OP",
+   "text": "&",
+   "line": 20,
+   "col": 67
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 20,
+   "col": 68
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 20,
+   "col": 69
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 20,
+   "col": 71
+  },
+  {
+   "tag": "IDENT",
+   "text": "tagFn",
+   "line": 20,
+   "col": 72
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 20,
+   "col": 78
+  },
+  {
+   "tag": "IDENT",
+   "text": "B",
+   "line": 20,
+   "col": 80
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 20,
+   "col": 81
+  },
+  {
+   "tag": "IDENT",
+   "text": "tag",
+   "line": 20,
+   "col": 82
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 20,
+   "col": 86
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 20,
+   "col": 88
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 20,
+   "col": 89
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 21,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "items",
+   "line": 21,
+   "col": 8
+  },
+  {
+   "tag": "DELIM",
+   "text": "[",
+   "line": 21,
+   "col": 13
+  },
+  {
+   "tag": "NUM",
+   "text": "0",
+   "line": 21,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": "]",
+   "line": 21,
+   "col": 15
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 21,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "tag",
+   "line": 21,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 21,
+   "col": 20
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 21,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 21,
+   "col": 22
+  }
+ ],
+ "class_histogram": {
+  "KW": 26,
+  "IDENT": 43,
+  "OP": 17,
+  "DELIM": 84,
+  "STR": 2,
+  "NUM": 1
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/zig/F15.P3.zig",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

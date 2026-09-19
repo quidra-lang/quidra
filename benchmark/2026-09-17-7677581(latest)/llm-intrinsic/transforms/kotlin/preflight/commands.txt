@@ -1,0 +1,20 @@
+$ kotlinc -version
+exit=0
+$ java -version
+exit=0
+$ python3 lextest.py
+exit=0
+$ python3 domaincheck.py
+exit=0
+$ python3 packcheck.py
+exit=0
+$ python3 harness.py pipeline/bare_body_submission.md --expected expected_output.txt
+exit=0
+$ python3 harness.py pipeline/real_source_submission.md --expected expected_output.txt
+exit=1 (nonzero is the REQUIRED outcome here)
+$ python3 validate.py
+exit=0
+$ python3 leakscan.py
+exit=0
+$ python3 lexicalize.py
+exit=0

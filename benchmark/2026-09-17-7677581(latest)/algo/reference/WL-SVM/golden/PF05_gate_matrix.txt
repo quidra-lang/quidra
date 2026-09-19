@@ -1,0 +1,18 @@
+=== PF-05 gate matrix (corrected labels) ===
+FIXTURE                                  EXPECT  ACTUAL  RESULT
+M0_identical.txt                         PASS    PASS    ok
+M10_alpha_y_sum_5e-10_INSIDE.txt         PASS    PASS    ok
+M11_alpha_y_sum_5e-9_INSIDE.txt          PASS    PASS    ok
+M12_alpha0_1e-5_OUTSIDE.txt              FAIL    FAIL    ok
+M13_alpha_y_sum_2e-7_OUTSIDE.txt         FAIL    FAIL    ok
+M1_beta_last_digit_INSIDE.txt            PASS    PASS    ok
+M2_beta_2ulp_OUTSIDE.txt                 FAIL    FAIL    ok
+M3_w0_1e-2_OUTSIDE.txt                   FAIL    FAIL    ok
+M4_pred_flip_DISCRETE.txt                FAIL    FAIL    ok
+M5_ns_margin_DISCRETE.txt                FAIL    FAIL    ok
+M6_alpha_y_sum_INVARIANT.txt             FAIL    FAIL    ok
+M7_alpha_gt_C_INVARIANT.txt              FAIL    FAIL    ok
+M8_missing_line_CONTRACT.txt             FAIL    FAIL    ok
+M9_alpha_199_CONTRACT.txt                FAIL    FAIL    ok
+
+all fixtures behaved as expected: YES

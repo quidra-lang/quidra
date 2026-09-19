@@ -94,6 +94,7 @@ The literal `(latest)` suffix marks the newest completed run. Exactly one comple
 Each completed run directory represents one immutable benchmark run and should preserve, as applicable:
 
 - `prompt.md`, copied from the exact `master_prompt.md` used for the run
+- `version.txt`, recording the evaluated Quidra version (see below)
 - results and score tables
 - raw measurements and logs
 - generated implementations
@@ -103,6 +104,36 @@ Each completed run directory represents one immutable benchmark run and should p
 - evaluated Quidra HEAD SHA
 - reference SHAs
 - any run-specific methodology or configuration required to audit that run
+
+### Required: `version.txt`
+
+Every run directory must contain `version.txt`, written at benchmark start, before any measurement.
+
+It records **what the results describe**, which is not necessarily what the repository contains when the
+run is later read. A completed run may be filed, read, or compared months after it was measured, and by
+then `develop` may be hundreds of commits ahead. A reader must never have to infer the evaluated version
+from a directory name.
+
+`version.txt` must record at minimum:
+
+- the evaluated Quidra version, taken from `compiler_version` in `quidra.manifest.json` **at the
+  evaluated commit** — not from a tag. A tag reachable from a commit is not necessarily the release that
+  commit belongs to, because tags are often created later on the same line of development. Record a tag
+  only as corroboration, and say that the manifest value is authoritative.
+- the evaluated commit SHA (full and short), branch, commit date and subject
+- the working-tree status at benchmark start
+- the build commands used to produce the evaluated binary
+- the version string the built binary itself reports
+- the host and the frozen comparison toolchain versions
+
+When the completed run is filed under `benchmark/`, append a second block recording the repository state
+**at filing time**: the then-current commit, the then-current version, the number of commits since the
+evaluated commit, and the implementation diff between them. If that count is non-zero, `version.txt` and
+the run's final report must both state plainly that the results describe the evaluated version and not
+the current one.
+
+Every claim of the form "Quidra scores X" in a run's report means "Quidra `<evaluated version>` at
+`<evaluated commit>` scores X", and the report must say so where a reader will see it.
 
 A new benchmark must be executed in a disposable scratch copy of the entire repository at the exact local `develop` HEAD recorded at benchmark start. The scratch copy may exclude `.git`, but it must preserve repository-relative paths and benchmark infrastructure.
 
@@ -1910,6 +1941,7 @@ At completion, preserve at least the following inside the run directory.
 ## Specification
 
 - `prompt.md`, copied from the exact `master_prompt.md` used for the run
+- `version.txt`, recording the evaluated Quidra version
 - methodology
 - scoring definitions
 - benchmark conditions

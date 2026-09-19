@@ -1,0 +1,15 @@
+$ kotlinc -cp /opt/homebrew/Cellar/kotlin/2.3.21/libexec/lib/kotlin-test.jar -d build/kotlin-alt.jar -include-runtime probes/TEST-1/kotlin/alt/ProbeAssertTests.kt
+kotlinc_exit=0
+$ java -cp build/kotlin-alt.jar:/opt/homebrew/Cellar/kotlin/2.3.21/libexec/lib/kotlin-test.jar ProbeAssertTestsKt
+Exception in thread "main" java.lang.AssertionError: fail_one
+	at kotlin.test.DefaultAsserter.fail(DefaultAsserter.kt:16)
+	at kotlin.test.Asserter.assertTrue(Assertions.kt:766)
+	at kotlin.test.DefaultAsserter.assertTrue(DefaultAsserter.kt:11)
+	at kotlin.test.Asserter.assertTrue(Assertions.kt:776)
+	at kotlin.test.DefaultAsserter.assertTrue(DefaultAsserter.kt:11)
+	at kotlin.test.AssertionsKt__AssertionsKt.assertTrue(Assertions.kt:44)
+	at kotlin.test.AssertionsKt.assertTrue(Unknown Source)
+	at ProbeAssertTestsKt.failOne(ProbeAssertTests.kt:10)
+	at ProbeAssertTestsKt.main(ProbeAssertTests.kt:15)
+	at ProbeAssertTestsKt.main(ProbeAssertTests.kt)
+run_exit=1

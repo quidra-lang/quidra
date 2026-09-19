@@ -1,0 +1,135 @@
+{
+ "probe_id": "F18.P2",
+ "language": "typescript",
+ "count": 17,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "import",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "OP",
+   "text": "*",
+   "line": 1,
+   "col": 8
+  },
+  {
+   "tag": "KW",
+   "text": "as",
+   "line": 1,
+   "col": 10
+  },
+  {
+   "tag": "IDENT",
+   "text": "util",
+   "line": 1,
+   "col": 13
+  },
+  {
+   "tag": "KW",
+   "text": "from",
+   "line": 1,
+   "col": 18
+  },
+  {
+   "tag": "STR",
+   "text": "\"./util.js\"",
+   "line": 1,
+   "col": 23
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 3,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "result",
+   "line": 3,
+   "col": 7
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 3,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "util",
+   "line": 3,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 3,
+   "col": 20
+  },
+  {
+   "tag": "IDENT",
+   "text": "pubAdd",
+   "line": 3,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 3,
+   "col": 27
+  },
+  {
+   "tag": "NUM",
+   "text": "2",
+   "line": 3,
+   "col": 28
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 3,
+   "col": 29
+  },
+  {
+   "tag": "NUM",
+   "text": "3",
+   "line": 3,
+   "col": 31
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 3,
+   "col": 32
+  }
+ ],
+ "class_histogram": {
+  "KW": 4,
+  "OP": 2,
+  "IDENT": 4,
+  "STR": 1,
+  "DELIM": 4,
+  "NUM": 2
+ },
+ "removed_by_R4": [
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 1,
+   "col": 34
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 3,
+   "col": 33
+  }
+ ],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/typescript/F18.P2.ts",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

@@ -1,0 +1,9 @@
+// Probe: arbitrary-precision integer arithmetic, OR documented fixed-width
+// integer semantics together with a standard-library checked or wrapping
+// arithmetic API.  Quidra 0.2.0 has fixed-width documented semantics, but the
+// overflow response is a deterministic runtime abort (status 101), not a
+// checked/wrapping API that returns a value to the program.
+int m = 9223372036854775807
+auto w = int.wrapping_add(m, 1)
+auto c = int.checked_add(m, 1)
+print("X24 {w} {c}")

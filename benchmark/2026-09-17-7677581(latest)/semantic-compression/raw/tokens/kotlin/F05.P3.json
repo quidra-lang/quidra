@@ -1,0 +1,175 @@
+{
+ "probe_id": "F05.P3",
+ "language": "kotlin",
+ "count": 26,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "val",
+   "line": 1,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "neg",
+   "line": 1,
+   "col": 9
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 1,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 1,
+   "col": 15
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 1,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 1,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "Int",
+   "line": 1,
+   "col": 20
+  },
+  {
+   "tag": "OP",
+   "text": "->",
+   "line": 1,
+   "col": 24
+  },
+  {
+   "tag": "IDENT",
+   "text": "k",
+   "line": 1,
+   "col": 27
+  },
+  {
+   "tag": "OP",
+   "text": "-",
+   "line": 1,
+   "col": 29
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 1,
+   "col": 31
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 1,
+   "col": 33
+  },
+  {
+   "tag": "KW",
+   "text": "val",
+   "line": 2,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "ys",
+   "line": 2,
+   "col": 9
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 2,
+   "col": 12
+  },
+  {
+   "tag": "IDENT",
+   "text": "xs",
+   "line": 2,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 2,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "map",
+   "line": 2,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 2,
+   "col": 20
+  },
+  {
+   "tag": "IDENT",
+   "text": "neg",
+   "line": 2,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 2,
+   "col": 24
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 3,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "ys",
+   "line": 3,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": "[",
+   "line": 3,
+   "col": 14
+  },
+  {
+   "tag": "NUM",
+   "text": "0",
+   "line": 3,
+   "col": 15
+  },
+  {
+   "tag": "DELIM",
+   "text": "]",
+   "line": 3,
+   "col": 16
+  }
+ ],
+ "class_histogram": {
+  "KW": 3,
+  "IDENT": 10,
+  "OP": 4,
+  "DELIM": 8,
+  "NUM": 1
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/kotlin/F05.P3.kt",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

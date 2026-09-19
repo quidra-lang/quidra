@@ -1,0 +1,13 @@
+$ swift test --package-path probes/TEST-1/swift --enable-code-coverage
+◇ Test run started.
+↳ Testing Library Version: 1501
+↳ Target Platform: arm64e-apple-macos14.0
+✔ Test run with 0 tests in 0 suites passed after 0.001 seconds.
+test_exit=1
+$ xcrun llvm-profdata merge -sparse "$BIN"/codecov/*.profraw -o "$BIN"/codecov/default.profdata
+profdata_exit=0
+$ xcrun llvm-cov report "$BIN"/test1-swiftPackageTests.xctest/Contents/MacOS/test1-swiftPackageTests -instr-profile "$BIN"/codecov/default.profdata
+Filename                                                                         Regions    Missed Regions     Cover   Functions  Missed Functions  Executed       Lines      Missed Lines     Cover    Branches   Missed Branches     Cover
+Sources/Probe/Probe.swift                                                              1                 0   100.00%           1                 0   100.00%           1                 0   100.00%           0                 0         -
+TOTAL                                                                                 16                 1    93.75%           9                 0   100.00%          24                 3    87.50%           0                 0         -
+exit=0

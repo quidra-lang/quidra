@@ -1,0 +1,11 @@
+REFUTATION WITNESS for F14.P1 / kotlin exclusion (a): "a third alternative is added elsewhere".
+  kotlinc m1.kt -d m1.jar                       -> clean
+  kotlinc m2.kt -classpath m1.jar -d m2.jar     -> REJECTED:
+      m2.kt:1:43: error: extending sealed classes or interfaces from a different module is prohibited.
+DISCLOSED CAVEAT, recorded rather than hidden: a subtype declared in the SAME module (under the frozen
+recipe, the same .kt file) IS accepted -- verified by concatenating m1.kt and m2.kt into one file, which
+compiles clean. Kotlin's closure is module-scoped, exactly as Java's sealed interface is, and the fact
+row for this probe states the scope ("only classifiers declared in the same package and the same
+compilation module"). B stays 1 because no same-module completion changes any in-scope axis of the
+measured fragment: `val s: Shape = Circle(2.0)` still constructs a Circle, and A4/A6/A8 are unmoved.
+kotlinc-jvm 2.3.21 (JRE 24.0.2).

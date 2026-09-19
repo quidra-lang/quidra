@@ -1,0 +1,3 @@
+### 2026-09-19T00:33:22Z
+### CMD: quidra build probes/CONC-1/quidra/conc1.qui -o build/conc1-quidra
+build exit=0

@@ -1,0 +1,7 @@
+// Probe: a constraint/bound on a type parameter enforced by the toolchain.
+// Quidra 0.2.0: "There is no separate constraints syntax".
+class Holder<T : Number>
+    T value
+
+Holder<int> h = Holder<int>(value = 7)
+print("X16 {h.value}")

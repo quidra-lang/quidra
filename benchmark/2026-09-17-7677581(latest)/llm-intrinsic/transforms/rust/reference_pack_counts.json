@@ -1,0 +1,12 @@
+{
+  "file": "reference_pack.md",
+  "lines": 230,
+  "characters": 8682,
+  "sha256": "4b08995dedd676333aeebda01d35bd4f5cf3425993043ad8f59d93d124d6ccf3",
+  "target_range_lines": [150, 250],
+  "within_target": true,
+  "sections_present": ["P1","P2","P3","P4","P5","P6","P7","P8","P9","P10","P11","P12"],
+  "anonymized_tokens_documented": 9,
+  "worked_examples": 1,
+  "measured_at": "2026-09-18T16:41:17Z"
+}

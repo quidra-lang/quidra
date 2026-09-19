@@ -1,0 +1,11 @@
+// BEGIN PROBE F05.P2
+void g(int32 &value)
+    value = 7
+
+int32 caller()
+    int32 x = 1
+    g(&x)
+    return x
+// END PROBE F05.P2
+
+print(caller())

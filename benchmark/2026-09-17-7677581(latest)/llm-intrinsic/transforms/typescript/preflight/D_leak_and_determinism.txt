@@ -1,0 +1,43 @@
+### D1. determinism: regenerate the mapping in two separate processes
+$ python3 gen_mapping.py >/dev/null ; shasum -a 256 mapping.json
+39a0a8db0e223b514890807d800b8edabbb9ddbeb76d5a7933616d55ce9c574a  mapping.json
+$ python3 gen_mapping.py >/dev/null ; shasum -a 256 mapping.json
+39a0a8db0e223b514890807d800b8edabbb9ddbeb76d5a7933616d55ce9c574a  mapping.json
+
+### D2. word-list SHA-256 (frozen inputs to accept())
+5459f18ddb15667835340a8235be7ff4356062ca70480f7554d7963e0b1c78d3  wordlists/en_common.txt
+58466d0a4039904844ebddf106f78ce2f8630ed51d569a8172f9cf2c24be5508  wordlists/prog_terms.txt
+f1000b3ece8c77fabad9a75354a6eae60c398251121141d38dde57ebd7573145  wordlists/reserved_typescript.txt
+2f1b2f658ba901c374f9aece2e2c854b4f21486115fdf4e843482e70d149d398  wordlists/reserved_union.txt
+
+### D3. one-to-one, equal length 6, no prefix relation, no natural word
+tokens mapped        : 17
+distinct pseudo-words: 17
+all ^[a-z]{6}$       : True
+prefix relations     : []
+char length min/max  : 6 6
+hits in en_common    : []
+hits in prog_terms   : []
+hits in reserved_*   : []
+contains a >=4 entry : []
+
+### D4. binding-table completeness (PF-03 shaped): every reserved word in the
+###     fixtures is mapped, and nothing outside the domain was touched
+reserved words occurring in the fixtures: ['const', 'else', 'for', 'function', 'if', 'let', 'number', 'of', 'return', 'string', 'void']
+mapped tokens                          : ['boolean', 'break', 'const', 'continue', 'else', 'false', 'for', 'function', 'if', 'let', 'number', 'of', 'return', 'string', 'true', 'void', 'while']
+unbound_word_tokens (must be empty)    : []
+mapped but never occurring             : ['boolean', 'break', 'continue', 'false', 'true', 'while'] (documented in the pack's word-token table)
+identifiers that collide with a mapped token: []
+
+### D5. identity-leak scan of the Reference Pack
+$ python3 validate.py leakscan reference_pack.md
+250 lines, 10245 characters, 0 hits
+exit=0
+$ python3 validate.py leakscan task_statement.txt
+20 lines, 692 characters, 2 hits
+  REAL_KEYWORD:for
+  REAL_KEYWORD:of
+exit=1
+
+### D6. pack size
+     250   10263 reference_pack.md

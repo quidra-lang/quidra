@@ -1,0 +1,193 @@
+{
+ "probe_id": "F06.P2",
+ "language": "python",
+ "count": 29,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "def",
+   "line": 1,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "divmod2",
+   "line": 1,
+   "col": 9
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 1,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 1,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 1,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 1,
+   "col": 20
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 1,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 1,
+   "col": 22
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 2,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "divmod",
+   "line": 2,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 2,
+   "col": 22
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 2,
+   "col": 23
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 2,
+   "col": 24
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 2,
+   "col": 26
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 2,
+   "col": 27
+  },
+  {
+   "tag": "IDENT",
+   "text": "q",
+   "line": 4,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 4,
+   "col": 6
+  },
+  {
+   "tag": "IDENT",
+   "text": "r",
+   "line": 4,
+   "col": 8
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 4,
+   "col": 10
+  },
+  {
+   "tag": "IDENT",
+   "text": "divmod2",
+   "line": 4,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 4,
+   "col": 19
+  },
+  {
+   "tag": "NUM",
+   "text": "7",
+   "line": 4,
+   "col": 20
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 4,
+   "col": 21
+  },
+  {
+   "tag": "NUM",
+   "text": "3",
+   "line": 4,
+   "col": 23
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 4,
+   "col": 24
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 5,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "q",
+   "line": 5,
+   "col": 12
+  },
+  {
+   "tag": "OP",
+   "text": "+",
+   "line": 5,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "r",
+   "line": 5,
+   "col": 16
+  }
+ ],
+ "class_histogram": {
+  "KW": 3,
+  "IDENT": 11,
+  "DELIM": 11,
+  "OP": 2,
+  "NUM": 2
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/python/F06.P2.py",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

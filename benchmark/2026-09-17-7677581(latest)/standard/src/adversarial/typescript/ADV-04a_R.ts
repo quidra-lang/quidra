@@ -1,0 +1,11 @@
+declare function require(m: string): any;
+console.log("ADV-START");
+const lines: string[] = require("fs").readFileSync(0, "utf8").split("\n");
+const a = new Uint32Array(1);
+a[0] = Number.parseInt(lines[0], 10);
+const b = new Uint32Array(1);
+b[0] = Number.parseInt(lines[1], 10);
+const r = new Uint32Array(1);
+r[0] = a[0] - b[0];
+console.log("OBS=SUB:" + r[0]);
+console.log("ADV-END");

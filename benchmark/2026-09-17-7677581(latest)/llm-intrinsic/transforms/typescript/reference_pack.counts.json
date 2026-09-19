@@ -1,0 +1,10 @@
+{
+  "file": "reference_pack.md",
+  "lines": 250,
+  "characters": 10245,
+  "bytes": 10263,
+  "target": "150-250 lines",
+  "within_target": true,
+  "word_tokens_documented": 17,
+  "note": "characters < bytes because the pack uses the multi-byte ellipsis glyph"
+}

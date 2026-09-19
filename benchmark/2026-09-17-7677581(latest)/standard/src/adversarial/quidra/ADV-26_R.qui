@@ -1,0 +1,31 @@
+string | error next_line()
+    auto received = try input()
+    match received
+        string text
+            return text
+        none
+            return error("no line")
+
+void | error run()
+    int64[] values = array(7, fill = 0)
+    for i in range(0, 7)
+        values[i] = try int64.parse(try next_line())
+    int64 target = try int64.parse(try next_line())
+    int64 lo = 0
+    int64 hi = 6
+    int64 result = -1
+    while lo <= hi
+        int64 mid = (lo + hi) / 2
+        if values[mid] == target
+            result = mid
+            break
+        elif values[mid] < target
+            lo = mid + 1
+        else
+            hi = mid - 1
+    print("OBS=IDX:{result}")
+    return void
+
+print("ADV-START")
+run()
+print("ADV-END")

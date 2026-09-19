@@ -1,0 +1,5 @@
+extracted_chars:         897
+gate_conformant:         False
+gate_events:             ['class', 'else', 'for', 'if', 'int', 'long', 'public', 'static', 'void']
+verdict:                 FAIL
+reason:                  CONFORMANT check failed (section 4.2a)

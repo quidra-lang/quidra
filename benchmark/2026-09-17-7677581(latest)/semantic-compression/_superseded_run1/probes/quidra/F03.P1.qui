@@ -1,0 +1,8 @@
+int32 bump(int32 start)
+    int32 x = start
+    // BEGIN PROBE F03.P1
+    x += 1
+    // END PROBE F03.P1
+    return x
+
+print(bump(41))

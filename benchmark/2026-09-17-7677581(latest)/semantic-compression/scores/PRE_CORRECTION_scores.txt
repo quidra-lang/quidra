@@ -1,0 +1,29 @@
+COMMON BASIS: 33 of 44 probes (measurable in all 10 languages present)
+
+language     FULL PART NONE    pts   Dens    Det    Loc    Hid  CapEf      Q      C  OVERALL
+--------------------------------------------------------------------------------------------
+Quidra         28    9    7   65.0  78.00  93.74 100.00 100.00  91.70  92.79  73.86    82.25
+Go             39    4    1   82.0  44.90 100.00  62.07  25.81 100.00  66.56  93.18    77.65
+Swift          43    1    0   87.0  53.86  42.89  33.33  13.33  96.77  45.34  98.86    62.17
+Rust           43    1    0   87.0  44.41  56.30  29.51  14.81  88.28  45.06  98.86    61.91
+Zig            40    4    0   84.0  26.73  55.66  37.50  24.24  89.03  44.96  95.45    61.13
+Kotlin         39    2    3   80.0  56.72  48.73  28.12  10.53  93.61  45.30  90.91    60.47
+Python         24   17    3   65.0 100.00  40.18  32.73   6.61  86.57  50.90  73.86    60.27
+C++            43    1    0   87.0  36.38  44.20  31.03  12.12  91.49  40.68  98.86    57.64
+Java           39    2    3   80.0  43.81  51.86  24.00  10.39  76.21  40.04  90.91    55.59
+TypeScript     28   12    4   68.0  49.95  46.12  40.00   9.30  76.27  42.82  77.27    55.10
+
+RAW (common basis, natural units):
+language      facts/token  mean log2(B)  lookups  hidden  SCU/point
+Quidra              1.100         0.649    0.545   0.242      4.415
+Python              1.410         1.514    1.667   3.667      4.677
+C++                 0.513         1.376    1.758   2.000      4.425
+Rust                0.626         1.081    1.848   1.636      4.586
+Go                  0.633         0.608    0.879   0.939      4.049
+Java                0.618         1.173    2.273   2.333      5.312
+TypeScript          0.704         1.319    1.364   2.606      5.309
+Kotlin              0.800         1.249    1.939   2.303      4.325
+Swift               0.759         1.419    1.636   1.818      4.184
+Zig                 0.377         1.093    1.455   1.000      4.548
+
+wrote /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/scores/semantic_compression_scores.json

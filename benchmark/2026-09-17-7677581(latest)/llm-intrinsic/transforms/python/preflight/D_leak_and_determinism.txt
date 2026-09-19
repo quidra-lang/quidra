@@ -1,0 +1,10 @@
+$ python3 preflight/leakscan.py
+scanned reference_pack.md: 9676 chars, 252 lines
+real keywords checked: 20   identity terms checked: 47
+LEAK SCAN PASSED: zero hits.
+exit=0
+
+$ python3 gen_mapping.py (process 1) ; shasum
+9e04cfef7146dfca779ec78eea33df3260ccdb3f4535a0cdf825614660e0076c  mapping.json
+$ python3 gen_mapping.py (process 2) ; shasum
+9e04cfef7146dfca779ec78eea33df3260ccdb3f4535a0cdf825614660e0076c  mapping.json

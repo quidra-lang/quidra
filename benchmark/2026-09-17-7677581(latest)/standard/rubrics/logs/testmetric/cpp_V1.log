@@ -1,0 +1,19 @@
+-- The CXX compiler identification is AppleClang 17.0.0.17000603
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/rubrics/build/cpp-test2
+[ 16%] Building CXX object CMakeFiles/mod_a.dir/mod_a.cpp.o
+[ 33%] Linking CXX static library libmod_a.a
+[ 33%] Built target mod_a
+[ 50%] Building CXX object CMakeFiles/mod_b.dir/mod_b.cpp.o
+[ 66%] Linking CXX static library libmod_b.a
+[ 66%] Built target mod_b
+[ 83%] Building CXX object CMakeFiles/project_tests.dir/project_tests.cpp.o
+[100%] Linking CXX executable project_tests
+[100%] Built target project_tests
+exit=0

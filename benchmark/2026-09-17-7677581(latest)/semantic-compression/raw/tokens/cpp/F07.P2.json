@@ -1,0 +1,180 @@
+{
+ "probe_id": "F07.P2",
+ "language": "cpp",
+ "count": 27,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "int",
+   "line": 1,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "q",
+   "line": 1,
+   "col": 9
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 1,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 1,
+   "col": 13
+  },
+  {
+   "tag": "OP",
+   "text": "/",
+   "line": 1,
+   "col": 15
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 1,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 1,
+   "col": 18
+  },
+  {
+   "tag": "KW",
+   "text": "int",
+   "line": 2,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "m",
+   "line": 2,
+   "col": 9
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 2,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 2,
+   "col": 13
+  },
+  {
+   "tag": "OP",
+   "text": "%",
+   "line": 2,
+   "col": 15
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 2,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 2,
+   "col": 18
+  },
+  {
+   "tag": "KW",
+   "text": "double",
+   "line": 3,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "d",
+   "line": 3,
+   "col": 12
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 3,
+   "col": 14
+  },
+  {
+   "tag": "KW",
+   "text": "static_cast",
+   "line": 3,
+   "col": 16
+  },
+  {
+   "tag": "OP",
+   "text": "<",
+   "line": 3,
+   "col": 27
+  },
+  {
+   "tag": "KW",
+   "text": "double",
+   "line": 3,
+   "col": 28
+  },
+  {
+   "tag": "OP",
+   "text": ">",
+   "line": 3,
+   "col": 34
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 3,
+   "col": 35
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 3,
+   "col": 36
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 3,
+   "col": 37
+  },
+  {
+   "tag": "OP",
+   "text": "/",
+   "line": 3,
+   "col": 39
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 3,
+   "col": 41
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 3,
+   "col": 42
+  }
+ ],
+ "class_histogram": {
+  "KW": 5,
+  "IDENT": 9,
+  "OP": 8,
+  "DELIM": 5
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/cpp/F07.P2.cpp",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

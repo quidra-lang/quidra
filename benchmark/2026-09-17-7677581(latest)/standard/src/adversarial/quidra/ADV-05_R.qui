@@ -1,0 +1,17 @@
+string | error next_line()
+    auto received = try input()
+    match received
+        string text
+            return text
+        none
+            return error("no line")
+
+void | error run()
+    float source = try float.parse(try next_line())
+    int32 narrowed = int32(source)
+    print("OBS=V:{narrowed}")
+    return void
+
+print("ADV-START")
+run()
+print("ADV-END")

@@ -1,0 +1,11 @@
+class V
+    int x
+    int y
+
+    V plus(V o)
+        return V(x = x + o.x, y = y + o.y)
+
+V a = V(x = 1, y = 2)
+V b = V(x = 3, y = 4)
+V c = a + b
+print("X10 {c.x} {c.y}")

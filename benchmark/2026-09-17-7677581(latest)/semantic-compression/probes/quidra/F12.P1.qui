@@ -1,0 +1,13 @@
+int32 fallback()
+    // BEGIN PROBE F12.P1
+    int32 | none o = none
+    int32 n
+    match o
+        int32 v
+            n = v
+        none
+            n = 0
+    return n
+    // END PROBE F12.P1
+
+print(fallback())

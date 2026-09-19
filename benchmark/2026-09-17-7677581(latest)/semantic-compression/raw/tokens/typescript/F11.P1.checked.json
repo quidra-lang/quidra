@@ -1,0 +1,95 @@
+{
+ "probe_id": "F11.P1.checked",
+ "language": "typescript",
+ "count": 13,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "e",
+   "line": 1,
+   "col": 7
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 1,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "xs",
+   "line": 1,
+   "col": 11
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 1,
+   "col": 13
+  },
+  {
+   "tag": "IDENT",
+   "text": "at",
+   "line": 1,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 1,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "i",
+   "line": 1,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 1,
+   "col": 18
+  },
+  {
+   "tag": "OP",
+   "text": "??",
+   "line": 1,
+   "col": 20
+  },
+  {
+   "tag": "NUM",
+   "text": "0",
+   "line": 1,
+   "col": 23
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 2,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "e",
+   "line": 2,
+   "col": 8
+  }
+ ],
+ "class_histogram": {
+  "KW": 2,
+  "IDENT": 5,
+  "OP": 2,
+  "DELIM": 3,
+  "NUM": 1
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938"
+}

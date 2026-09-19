@@ -1,0 +1,1 @@
+./BIN -> f05p3_vec2 result=-1 allocs=0 deallocs=0 (in-place collect reuses the moved source buffer)

@@ -1,0 +1,138 @@
+=== environment ===
+
+$ zig version
+0.16.0
+[exit 0]
+
+$ python3 --version
+Python 3.9.6
+[exit 0]
+
+$ shasum -a 256 /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/wordlists/en_common.txt /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/wordlists/prog_terms.txt /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/wordlists/reserved_union.txt /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/wordlists/reserved_zig.txt /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/mapping.json /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/fixture_real.zig /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/fixture_anon.zig /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/expected_output.txt /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/reference_pack.md
+54056731d43f793f8d0ea08285d4f736b18438694dc7c6813c1e3acbd1f01a00  /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/wordlists/en_common.txt
+dfea414450548daad073a375e585dfcb7d9c2e4eda64254598d6aab4dc3fa92b  /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/wordlists/prog_terms.txt
+d8b112ebaae29508258ad8dd0fe2c6112a827471ec6b5f4cbeeb7fbf22d97f03  /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/wordlists/reserved_union.txt
+f18db1f61db7d680b8847f269283f794e0093a603a676ac2b7c391c6ce916e86  /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/wordlists/reserved_zig.txt
+df4ba177521bcdfc81ea64313136a600e684c94f53191e2d497ea31813597899  /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/mapping.json
+3498c5b2eeb170ba0d0e3b85f017c6662b0f750139cbee32ce95e2169cfe48f8  /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/fixture_real.zig
+05eff0a3f81230a3262eb29c094503add2f79fb51ec21161ba50bf1bc4f9432e  /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/fixture_anon.zig
+ed254b8ea2e6526c9d3f4e2312a91216a177f6fc0c017f53286a7cfe3a9a8609  /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/expected_output.txt
+730e270f01fe2a2017bab796eb5e9ad3f92a6de496b6d280d75f7775f311a979  /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/reference_pack.md
+[exit 0]
+
+=== PF-01 / 10.4(a): the fixture builds, runs, output matches ===
+
+$ sh -c cd '/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/.work/pf01' && zig build-exe solution.zig -O ReleaseSafe -femit-bin=solution
+[exit 0]
+
+$ sh -c cd '/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/.work/pf01' && ./solution > stdout.txt; echo exit=$?; cat stdout.txt
+exit=0
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+[exit 0]
+
+$ sh -c diff -u '/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/expected_output.txt' '/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/.work/pf01/stdout.txt' && echo 'stdout byte-identical to expected_output.txt'
+stdout byte-identical to expected_output.txt
+[exit 0]
+
+$ python3 /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/pack_check.py
+  [PASS] worked example is byte-identical to fixture_anon.zig
+  [PASS] claimed output is byte-identical to expected_output.txt
+  [PASS] twelve sections present, in order
+  [PASS] section 12 self-count matches measurement (245 lines, 10171 characters)
+  [PASS] length within the 150-250 line target
+  [PASS] all 12 pseudo-words documented in the pack (12 found)
+[exit 0]
+
+=== PF-07: identity-leak scan of the Reference Pack ===
+
+$ python3 /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/leakscan.py
+reference_pack.md: 245 lines, 10171 characters
+exempt V-role spellings present by design (section 2.6 I1 exemption): File, Io, Threaded, flush, import, init_single_threaded, interface, io, print, std, stdout, writer
+LEAK SCAN: 0 hits
+LEAK SCAN negative control (pack + one line of real keywords): 3 hit(s) -- scan can fail: OK
+[exit 0]
+
+=== PF-02 / PF-04 / PF-05 / PF-08: transformers, validators, lexicalizer ===
+
+$ python3 /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/lex10.py /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/fixture_real.zig /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/fixture_anon.zig
+/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/fixture_real.zig lossless=True tokens=465 words=104
+/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/fixture_anon.zig lossless=True tokens=471 words=104
+[exit 0]
+
+$ python3 /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/validate.py --evidence preflight_evidence --work /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/.work
+V-LEX  lexer losslessness
+  [PASS] lossless[fixture_real.zig]         expected=True   got=True   
+  [PASS] lossless[fixture_anon.zig]         expected=True   got=True   
+  [PASS] lossless[strings/chars/comments/builtins] expected=True   got=True   
+  [PASS] no_WORD_inside_string_or_comment   expected=True   got=True   
+  [PASS] strings_untouched_by_forward       expected=True   got=True   string literal intact
+  [PASS] builtin_at_name_untouched          expected=True   got=True   @import preserved
+  [PASS] rejects[unterminated_string]       expected=False  got=False  
+V-MAP  lexicalizer self-test
+  [PASS] determinism_two_processes          expected=True   got=True   
+  [PASS] matches_frozen_mapping.json        expected=True   got=True   
+  [PASS] one_to_one                         expected=True   got=True   
+  [PASS] all_match_^[a-z]{6}$               expected=True   got=True   
+  [PASS] all_length_6                       expected=True   got=True   
+  [PASS] no_prefix_relation                 expected=True   got=True   
+  [PASS] no_collision_with_reserved_zig     expected=True   got=True   
+  [PASS] no_collision_with_identifiers      expected=True   got=True   
+  [PASS] absent_from_task_material          expected=True   got=True   
+  [PASS] filter_rejects[not_word6]          expected=True   got=True   probe='abc' reasons=['not_word6']
+  [PASS] filter_rejects[already_used]       expected=True   got=True   probe='beluba' reasons=['already_used']
+  [PASS] filter_rejects[en_common]          expected=True   got=True   probe='banana' reasons=['en_common', 'substring']
+  [PASS] filter_rejects[prog_terms]         expected=True   got=True   probe='buffer' reasons=['en_common', 'prog_terms', 'substring']
+  [PASS] filter_rejects[reserved_union]     expected=True   got=True   probe='return' reasons=['en_common', 'prog_terms', 'reserved_union', 'substring']
+  [PASS] filter_rejects[substring]          expected=True   got=True   probe='xreturn' reasons=['not_word6', 'substring']
+  [PASS] filter_rejects[task_material]      expected=True   got=True   probe='largest' reasons=['not_word6', 'substring', 'task_material']
+  [PASS] filter_accepts[valid_pseudo_word]  expected=True   got=True   probe='zumeku'
+  [PASS] accept_agrees_with_reject_reasons  expected=True   got=True   
+V-RT  round trip, POSITIVE (the correct pair)
+  [PASS] positive.R1                        expected=True   got=True   
+  [PASS] positive.R2                        expected=True   got=True   
+  [PASS] positive.R3                        expected=True   got=True   
+  [PASS] positive.R4                        expected=True   got=True   
+  [PASS] positive.R5                        expected=True   got=True   
+V-RT  round trip, NEGATIVES (each must be REJECTED)
+  [PASS] neg1_transposed_pseudo_words.R1    expected=False  got=False  
+  [PASS] neg1_transposed_pseudo_words.R2_or_R3 expected=False  got=False  
+  [PASS] neg2_deleted_inserted_space        expected=False  got=False  POSMAP_MISMATCH
+  [PASS] neg3_unmapped_word.R1              expected=False  got=False  
+  [PASS] neg3_unmapped_word.R2              expected=False  got=False  
+  [PASS] neg4_string_literal_mutated.R1     expected=False  got=False  
+  [PASS] neg4_string_literal_mutated.R3     expected=False  got=False  
+V-GATE  section 4.2a conformance gate for I1
+  [PASS] positive[transformed_fixture]      expected=True   got=True   ok:12_pseudo_tokens
+  [PASS] negative[correct_real_source]      expected=False  got=False  REAL_TOKENS_PRESENT:const,fn,if,main,pub,try,u64,u8,undefined,var,void,while
+  [PASS] negative[no_bound_token_at_all]    expected=False  got=False  NO_TRANSFORMED_TOKEN_PRESENT
+V-AMBIG  INVERSE_AMBIGUOUS detector
+  [PASS] positive[clean_submission]         expected=False  got=False  clash=[]
+  [PASS] negative[variable_named_with_pseudo_word] expected=True   got=True   clash=['ganimu']
+  [PASS] negative[inverse_image_fails_to_build] expected=False  got=False  solution.zig:9:9: error: expected 'an identifier', found 'if'
+V-ORACLE  stdout byte-identity + exit status
+  [PASS] positive[reference_solution].built expected=True   got=True   
+  [PASS] positive[reference_solution].exit0 expected=True   got=True   
+  [PASS] positive[reference_solution].stdout expected=True   got=True   
+  [PASS] negative[49_terms_instead_of_50]   expected=False  got=False  'SUM 24847'
+
+47 checks, 0 failed, all_pass=True
+[exit 0]
+
+=== 10.4(b) / PF-13: harness conventions, extraction, bare-body submission ===
+
+$ python3 /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/harness.py --extractor --pf13 --evidence preflight_evidence --work /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/zig/.work
+  [PASS] extractor[zero] blocks=0
+  [PASS] extractor[one] blocks=1
+  [PASS] extractor[several] blocks=2
+  [PASS] PF-13 bare-body submission: stage=oracle exit=0 pack_documented_fixups=[] unstated=['H1_entry_filename', 'H6_emitted_binary_name']
+      stdout:
+        SUM 25632
+        MAX 935
+        EVENS 24
+        JOINED 897-558-614-577-405
+[exit 0]
+
+PRE-FLIGHT: all_pass = true

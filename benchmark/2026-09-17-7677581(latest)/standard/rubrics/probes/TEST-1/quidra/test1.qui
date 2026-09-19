@@ -1,0 +1,16 @@
+int add(int a, int b)
+    return a + b
+
+void pass_one()
+    test.check(add(1, 1) == 2)
+
+void pass_two()
+    test.check(add(2, 3) == 5)
+
+void fail_one()
+    test.check(add(1, 1) == 3)
+
+pass_one()
+pass_two()
+fail_one()
+print("all assertions held")

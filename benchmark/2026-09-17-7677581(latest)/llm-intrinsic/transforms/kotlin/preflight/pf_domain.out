@@ -1,0 +1,48 @@
+frozen reserved-word list entries : 77
+distinct WORD tokens in fixture   : 16
+
+RECOMPUTED domain (reserved list INTERSECT fixture word tokens):
+    else
+    for
+    fun
+    if
+    in
+    val
+    var
+  count = 7
+
+AUTHORED binding table (mapping.json keys):
+    else
+    for
+    fun
+    if
+    in
+    val
+    var
+  count = 7
+
+  recomputed domain == authored table          : True
+  anonymized_token_count matches recompute     : True (7)
+
+Classification of every distinct WORD token (zero may be unclassified):
+    else       BOUND K05 -> nifise
+    evens      locally declared identifier (never renamed)
+    for        BOUND K07 -> kepafa
+    fun        BOUND K01 -> dunisi
+    i          locally declared identifier (never renamed)
+    if         BOUND K04 -> pozebe
+    in         BOUND U:in -> pibemo
+    joined     locally declared identifier (never renamed)
+    main       V-role (real spelling kept in I1)
+    max        locally declared identifier (never renamed)
+    println    V-role (real spelling kept in I1)
+    state      locally declared identifier (never renamed)
+    sum        locally declared identifier (never renamed)
+    term       locally declared identifier (never renamed)
+    val        BOUND K02 -> rinuso
+    var        BOUND K03 -> ruroge
+
+  unclassified word tokens                     : 0
+  unbound_word_tokens                          : [] (empty)
+
+DOMAIN CHECK PASSED

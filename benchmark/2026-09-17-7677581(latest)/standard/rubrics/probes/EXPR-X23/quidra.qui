@@ -1,0 +1,7 @@
+// Probe: a non-copying view/slice over a contiguous sequence where mutating
+// through the view is observable in the original storage.
+int[] buf = [0, 0, 0, 0]
+int[] &view = &buf[1:3]
+view[0] = 99
+view[1] = 99
+print("X23 {buf[1]} {buf[2]}")

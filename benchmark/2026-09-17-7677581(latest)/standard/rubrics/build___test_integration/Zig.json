@@ -1,0 +1,50 @@
+{
+ "metric": "Build / Test Integration",
+ "language": "Zig",
+ "criteria_satisfied": [
+  "V1 - `zig build --build-file probes/TEST-2/zig/build.zig` built the two source modules plus the test module from build.zig, the project definition the Zig distribution's own build driver consumes; exit 0. Clause (a).",
+  "V2 - Zig's built-in `test` blocks with std.testing (language + standard library, clause (a)) express TEST-1's three tests.",
+  "V3 - `zig test probes/TEST-1/zig/test1.zig` printed '2 passed; 0 skipped; 1 failed.' and exited 1.",
+  "V6 - the official language reference documents the failing-test exit code and `zig fmt --check` is a documented non-interactive check mode that exits with an error."
+ ],
+ "criteria_failed": [
+  "V4 - NOT SATISFIED, availability_state S1. The Zig distribution ships no code-coverage flag or subcommand: `zig test --help`, `zig build --help` and `zig --help` contain no coverage option (the only near-matches are --time-report and -fstack-report, which are diagnostics), and no coverage tool is admissible for Zig under clauses (a), (b) or (c) at the evidence cutoff.",
+  "V5 - NOT SATISFIED, availability_state S1. `zig test` publishes no machine-readable result-format flag; `--debug-link-snapshot` (linker state in JSON) and `--time-report` are machine-readable DIAGNOSTIC output, which V5 explicitly forbids counting."
+ ],
+ "satisfied_count": 4,
+ "awarded_level_score": 60,
+ "level": "Adequate",
+ "evidence": [
+  {
+   "source": "E1",
+   "detail": "zig build --build-file probes/TEST-2/zig/build.zig   (logs/testmetric/zig_V1.log)",
+   "accessed": "2026-09-19T00:32:00Z",
+   "excerpt": "exit=0"
+  },
+  {
+   "source": "E1",
+   "detail": "zig test probes/TEST-1/zig/test1.zig   (logs/testmetric/zig_V3.log)",
+   "accessed": "2026-09-19T00:32:05Z",
+   "excerpt": "1/3 test1.test.pass_one...OK\n2/3 test1.test.pass_two...OK\n3/3 test1.test.fail_one...FAIL (TestUnexpectedResult)\n2 passed; 0 skipped; 1 failed.\nerror: the following test command failed with exit code 1:\nexit=1"
+  },
+  {
+   "source": "E1",
+   "detail": "zig test --help | grep -iE 'cov|json|xml|junit|report' ; zig build --help | grep -iE 'cov|json|xml|junit' ; zig --help | grep -iE 'cov'   (logs/testmetric/zig_V4V5.log)",
+   "accessed": "2026-09-19T00:32:20Z",
+   "excerpt": "--time-report             Send timing diagnostics to '--listen' clients\n-fstack-report               Print stack size diagnostics\n--debug-link-snapshot        Enable dumping of the linker's state in JSON format\n(zig build --help: no match, grep_exit=1)\n(zig --help: no match, grep_exit=1)"
+  },
+  {
+   "source": "E2",
+   "detail": "https://ziglang.org/documentation/0.16.0/ (language reference, verbatim toolchain transcript)",
+   "accessed": "2026-09-19T00:35:10Z",
+   "excerpt": "error: the following test command failed with exit code 1:"
+  },
+  {
+   "source": "E2",
+   "detail": "`zig fmt --help` (built-in help text shipped by the toolchain under test, zig 0.16.0)",
+   "accessed": "2026-09-19T00:35:20Z",
+   "excerpt": "--check                List non-conforming files and exit with an error\n                         if the list is non-empty"
+  }
+ ],
+ "scorer_notes": "4 of 6 -> 'Adequate' (60). Not 80 because both V4 and V5 fail, and they fail on verified absence in the distribution (availability_state S1), not on a host limitation: the frozen recipe's 'none' cells for Zig coverage and machine-readable results were treated as falsifiable and were re-checked against the shipped --help text of the toolchain under test, and they held. Not 40 because V1, V2, V3 and V6 are each positively evidenced, with build.zig consumed by the distribution's own build driver."
+}

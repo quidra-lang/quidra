@@ -1,0 +1,2 @@
+{"probe":"F17.P2","class_id":"B2-token-substitution","build_command":"clang++ -std=c++20 -O2 witness.cpp -o BIN","built":true,"expected_build":true,"build_diagnostics":"","observer_output":"sub\nsub\n1","exit_code":0,
+ "note":"`released` appears only in use position inside the fragment and is declared outside it, so a macro defined outside replaces its tokens before semantic analysis with nothing inside the fragment marking it (03 Rule 1.4.8)."}

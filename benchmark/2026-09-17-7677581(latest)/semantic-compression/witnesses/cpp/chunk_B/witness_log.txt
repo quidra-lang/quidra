@@ -1,0 +1,43 @@
+C++ chunk B - determinacy witness build/run log
+recipe: clang++ -std=c++20 -O2 FILE.cpp -o BIN ; ./BIN
+compiler: Apple clang 17.0.0 (clang-1700.6.3.2), arm64-apple-darwin25.4.0
+
+f06p1_wide                               BUILD ok  RUN: 9007199254740992  exact=9007199254740993| (exit 0)
+f06p2_macro                              BUILD ok  RUN: my::pair ctor ran|3| (exit 0)
+f07p1_R2                                 BUILD ok  RUN: 410065408| (exit 0)
+f07p1_R6                                 BUILD ok  RUN: 0 0.30000000000000004| (exit 0)
+f07p1_R7                                 BUILD ok  RUN: 90001| (exit 0)
+f07p1_R8                                 BUILD ok  RUN: 20 calls=2| (exit 0)
+f07p1_macro                              BUILD ok  RUN: 1042| (exit 0)
+f07p2_R2                                 BUILD ok  RUN: 0 0 8589934592.000000| (exit 0)
+f07p2_R6                                 BUILD ok  RUN: 0 1 0.33333333333333331| (exit 0)
+f07p2_R6_refutation_fp_operands          BUILD FAIL: /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/witnesses/cpp/chunk_B/f07p2_R6_refutation_fp_operands.cpp:11:15: error: invalid operands to binary expression ('double' and 'double')    11 |     int m = a % b; 
+f07p2_R7                                 BUILD ok  RUN: -3 -1 -3.500000| (exit 0)
+f07p2_R8                                 BUILD ok  RUN: 5 9 3.500000 calls=2| (exit 0)
+f08p2_R2                                 BUILD ok  RUN: 0| (exit 0)
+f08p2_R6                                 BUILD ok  RUN: -3 0| (exit 0)
+f08p2_R7                                 BUILD ok  RUN: -3| (exit 0)
+f08p2_R8                                 BUILD ok  RUN: 9 calls=2| (exit 0)
+f09p1_charptr                            BUILD ok  RUN: 0 (strcmp=0)| (exit 0)
+f09p1_macro                              BUILD ok  RUN: 1| (exit 0)
+f09p1_user                               BUILD ok  RUN: user op== ran|1 calls=1| (exit 0)
+f09p2_elemthrow                          BUILD ok  RUN: libc++abi: terminating due to uncaught exception of type std::runtime_error: boom| (exit 0)
+f09p2_macro                              BUILD ok  RUN: 1 2 3 1| (exit 0)
+f09p2_ptr                                BUILD ok  RUN: 3 2 1 0| (exit 0)
+f09p2_userlt                             BUILD ok  RUN: user op< ran|3 2 1 0 calls=1| (exit 0)
+f10p1_fp                                 BUILD ok  RUN: -3| (exit 0)
+f10p1_user                               BUILD ok  RUN: user conversion ran|42 calls=1| (exit 0)
+f10p1_widen                              BUILD ok  RUN: -300| (exit 0)
+f10p2_bothfp                             BUILD ok  RUN: 3.750000| (exit 0)
+f10p2_bothint                            BUILD ok  RUN: 5.000000| (exit 0)
+f10p2_macro                              BUILD ok  RUN: 5.000000| (exit 0)
+f10p2_user                               BUILD ok  RUN: user op+ ran|12.000000 calls=1| (exit 0)
+obs_macro                                BUILD ok  RUN: result=2 allocs=2| (exit 0)
+obs_plain                                BUILD ok  RUN: result=2 allocs=1| (exit 0)
+w_f06p1_macro                            BUILD ok  RUN: 2| (exit 0)
+w_f06p1_overload                         BUILD ok  RUN: 99| (exit 0)
+
+NOTE: the "(exit N)" column above is the exit status of the log pipeline, not of the witness.
+f09p2_elemthrow terminates via an uncaught exception; run directly it exits 134
+("libc++abi: terminating due to uncaught exception of type std::runtime_error: boom").
+f07p2_R6_refutation_fp_operands is EXPECTED to fail to build; that failure is the evidence.

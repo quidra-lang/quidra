@@ -1,0 +1,16 @@
+int[] values = [1, 2, 3]
+map.Map<string, int> counts = map.Map<string, int>()
+counts.set("a", 1)
+counts.set("b", 2)
+set.Set<int> tags = set.Set<int>()
+tags.add(1)
+tags.add(2)
+tags.add(3)
+tags.add(1)
+
+auto b = counts.get("b")
+match b
+    int v
+        print("X14 {len(values)} {v} {tags.size()}")
+    none
+        print("X14 missing")

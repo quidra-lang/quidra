@@ -1,0 +1,80 @@
+{
+  "language_id": "swift",
+  "condition": "I1",
+  "inserted_offsets": [],
+  "comments_dropped": true,
+  "changed_tokens": [
+    [
+      "var",
+      "bukuda"
+    ],
+    [
+      "Int",
+      "derozi"
+    ],
+    [
+      "var",
+      "bukuda"
+    ],
+    [
+      "Int",
+      "derozi"
+    ],
+    [
+      "var",
+      "bukuda"
+    ],
+    [
+      "Int",
+      "derozi"
+    ],
+    [
+      "var",
+      "bukuda"
+    ],
+    [
+      "Int",
+      "derozi"
+    ],
+    [
+      "var",
+      "bukuda"
+    ],
+    [
+      "String",
+      "radipi"
+    ],
+    [
+      "for",
+      "vumodu"
+    ],
+    [
+      "in",
+      "piripo"
+    ],
+    [
+      "let",
+      "tutovo"
+    ],
+    [
+      "Int",
+      "derozi"
+    ],
+    [
+      "if",
+      "bigoze"
+    ],
+    [
+      "if",
+      "bigoze"
+    ],
+    [
+      "if",
+      "bigoze"
+    ],
+    [
+      "if",
+      "bigoze"
+    ]
+  ]
+}

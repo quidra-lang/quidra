@@ -1,0 +1,7 @@
+// BEGIN PROBE F18.P2
+import util = "./util.qui"
+
+int32 result = util.pub_add(2, 3)
+// END PROBE F18.P2
+
+print(result)

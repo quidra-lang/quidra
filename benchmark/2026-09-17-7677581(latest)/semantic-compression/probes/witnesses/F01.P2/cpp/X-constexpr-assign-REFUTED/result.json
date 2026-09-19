@@ -1,0 +1,9 @@
+{
+ "probe": "F01.P2",
+ "class_id": "X-constexpr-assign-REFUTED",
+ "build_command": "clang++ -std=c++20 -O2 witness.cpp -o BIN",
+ "built": false,
+ "expected_build": false,
+ "build_diagnostics": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/witnesses/F01.P2/cpp/X-constexpr-assign-REFUTED/witness.cpp:4:19: error: cannot assign to variable 'LIMIT' with const-qualified type 'const long long'     4 | int main(){ LIMIT = 1; std::printf(\"%lld\n\", counter); }       |             ~~~~~ ^ ",
+ "observer_output": ""
+}

@@ -1,0 +1,8 @@
+uint8 probe()
+// BEGIN PROBE F02.P2
+    uint8[16] buffer
+    buffer[0] = 1
+    return buffer[0]
+// END PROBE F02.P2
+
+print(probe())

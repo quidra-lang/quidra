@@ -1,0 +1,579 @@
+{
+ "metric": "Toolchain Stability / Release Maturity",
+ "standard_category": "Ecosystem / Production Maturity",
+ "normalization_family": "G",
+ "rubric_document": "05_standard_rubrics.json",
+ "scores": {
+  "Quidra": {
+   "level": "Pre-release",
+   "score": 0,
+   "criteria_satisfied": [],
+   "criteria_failed": [
+    "AGE FLOOR (determinative): first public release v0.1.0 published 2026-09-16T23:28:59Z; 1 day elapsed to the evidence cutoff 2026-09-17, far below the 3-year floor. Per scoring_procedure the score is 0 and no further test is made.",
+    "Y1 (informational, floor already binding): only 2 released versions existed at the cutoff (v0.1.0, v0.2.0); the rubric requires at least 10.",
+    "Y2 (informational): 0.2.0 is below 1.0 under the project's own Semantic Versioning scheme, and the project publishes no statement that the current line is production-stable; it states the opposite.",
+    "Y3 (informational): 1 day of history, not 10 years.",
+    "Y4 (informational): no backward-compatibility guarantee, deprecation policy, or language-version/edition mechanism. quidra.manifest.json sets \"source_version_header\": false, so source carries no language-version pin.",
+    "Y6 (informational): no maintenance policy naming supported versions or a support window was found anywhere in README.md or docs/."
+   ],
+   "evidence": [
+    {
+     "source": "E3",
+     "detail": "https://api.github.com/repos/quidra-lang/quidra/releases (gh api repos/quidra-lang/quidra/releases)",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "tag: v0.1.0 | name: Quidra v0.1.0 | published: 2026-09-16T23:28:59Z | prerelease: False | draft: False"
+    },
+    {
+     "source": "E3",
+     "detail": "https://api.github.com/repos/quidra-lang/quidra/releases - complete release list at accession: v0.3.0, v0.2.0, v0.1.0",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "tag: v0.2.0 | published: 2026-09-17T09:36:30Z ... tag: v0.3.0 | published: 2026-09-18T16:06:38Z"
+    },
+    {
+     "source": "E3",
+     "detail": "https://api.github.com/repos/quidra-lang/quidra (repository creation)",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "created_at: 2026-09-16T22:00:14Z"
+    },
+    {
+     "source": "E3",
+     "detail": "https://api.github.com/repos/quidra-lang/quidra/tags - complete tag list",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "v0.3.0 0874fcd6636f / v0.2.0 9790ca8c04ce / v0.1.0 5f71c655e876"
+    },
+    {
+     "source": "E2",
+     "detail": "quidra.manifest.json (official repository documentation root), key \"status\"",
+     "accessed": "2026-09-19T00:42:04Z",
+     "excerpt": "\"status\": \"experimental native core\""
+    },
+    {
+     "source": "E2",
+     "detail": "docs/development.md, section \"Versioning\"",
+     "accessed": "2026-09-19T00:42:04Z",
+     "excerpt": "Quidra uses Semantic Versioning. While the project is below 1.0: ... `1.0.0` is reserved for the first explicitly stable language contract."
+    },
+    {
+     "source": "E1",
+     "detail": "/private/tmp/.../quidra-scratch/build/quidra --version",
+     "accessed": "2026-09-19T00:42:51Z",
+     "excerpt": "quidra 0.2.0"
+    }
+   ],
+   "reasoning": "The age floor is applied before the indicator count and is decisive. Quidra's first public release, v0.1.0, was published 2026-09-16T23:28:59Z, one day before the 2026-09-17 evidence cutoff; the repository itself was created 2026-09-16T22:00:14Z. That is roughly 1 day against a 3-year floor, so the metric scores 0 and, per the rubric's scoring_procedure, no further test is made. The result is unchanged by the alternative route: only Y5 is satisfied (v0.1.0 and v0.2.0 both fall inside the 12-month window), giving 1 of 6, which the level table also maps to 0 (Pre-release). This is not a level below what the observable criteria say - it is the level the rubric's own Pre-release definition describes verbatim: 'a toolchain below 1.0 with fewer than ten published releases, less than ten years of history, and no published compatibility or maintenance policy.' Quidra matches every clause of that sentence. It is not marked N/A (spec 25.1.G, section 26; na_policy). No age adjustment or young-language allowance is available in the other direction."
+  },
+  "Python": {
+   "level": "Mature, stable, maintained and scheduled",
+   "score": 100,
+   "criteria_satisfied": [
+    "Y1: 239 distinct dated released versions on the official download archive.",
+    "Y2: 3.14.5 is at or above 1.0 under CPython's own versioning scheme.",
+    "Y3: earliest dated release in the official archive is 2.0.1 (2001-06-22), 25.2 years before the cutoff.",
+    "Y4: PEP 387 'Backwards Compatibility Policy' is the official documented policy.",
+    "Y5: 27 dated releases inside 2025-09-17..2026-09-17.",
+    "Y6: the devguide 'Status of Python versions' supported-versions table names each branch's status (feature/bugfix/security/end-of-life) and its end-of-life date."
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E3",
+     "detail": "https://www.python.org/downloads/ (official download archive; parsed version+date rows)",
+     "accessed": "2026-09-19T00:39:22Z",
+     "excerpt": "distinct versions: 239 ; earliest: ('2.0.1', 2001-06-22) ; latest: ('3.10.21', 2026-08-12)"
+    },
+    {
+     "source": "E3",
+     "detail": "https://www.python.org/downloads/ - releases inside the 12-month window",
+     "accessed": "2026-09-19T00:39:22Z",
+     "excerpt": "in 12mo window: 27 ; Python 3.14.0 2025-10-07 ; Python 3.13.8 2025-10-07 ; Python 3.14.1 2025-12-02 ; Python 3.14.2 2025-12-05"
+    },
+    {
+     "source": "E2",
+     "detail": "https://peps.python.org/pep-0387/ (official docs root peps.python.org)",
+     "accessed": "2026-09-19T00:38:09Z",
+     "excerpt": "PEP 387 - Backwards Compatibility Policy ... This PEP outlines Python's backwards compatibility policy."
+    },
+    {
+     "source": "E2",
+     "detail": "https://devguide.python.org/versions/ - 'Status of Python versions' / 'Supported versions' table",
+     "accessed": "2026-09-19T00:38:09Z",
+     "excerpt": "Branch | Schedule | Status | First release | End of life | Release manager ... 3.14 bugfix ; 3.13 bugfix ; 3.12 security ; 3.11 security ; 3.10 security"
+    },
+    {
+     "source": "E1",
+     "detail": "python3 --version on the frozen host (environment.json toolchains.python)",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "Python 3.14.5"
+    }
+   ],
+   "reasoning": "All six indicators are satisfied under E2/E3, so the level is 100 and not 80. Y6 in particular is met in its strongest admissible form, a supported-versions table carrying explicit end-of-life dates, rather than an inferred practice. Nothing is missing that would drop it to Strong."
+  },
+  "C++": {
+   "level": "Strong",
+   "score": 80,
+   "criteria_satisfied": [
+    "Y1: 161 published GitHub releases on llvm/llvm-project, plus release tags reaching back to llvmorg-1.0.0.",
+    "Y2: Apple clang 17.0.0 / upstream LLVM 23.1.1 are at or above 1.0.",
+    "Y3: llvmorg-1.0.0 is dated 2003-10-24, 22.9 years before the cutoff.",
+    "Y4: Clang documents the ISO C++ standard mechanism (-std=c++20 etc.), a published language-version/standard mechanism.",
+    "Y5: 23 releases published inside 2025-09-17..2026-09-17."
+   ],
+   "criteria_failed": [
+    "Y6: no documented maintenance policy names which released versions receive continued bug-fix or security maintenance and for how long. llvm.org/docs/Security.html makes backport scope explicitly discretionary, and llvm.org/docs/SupportPolicy.html ('LLVM Community Support Policy') assigns core/peripheral tiers to components and targets, not to released versions. No LTS designation, security-fix window, or supported-versions table was found."
+   ],
+   "evidence": [
+    {
+     "source": "E3",
+     "detail": "gh api repos/llvm/llvm-project/releases --paginate (161 releases)",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "total GH releases: 161 ; latest <=cutoff: llvmorg-23.1.1 @ 2026-09-08"
+    },
+    {
+     "source": "E3",
+     "detail": "gh api repos/llvm/llvm-project/git/tags/4df9396b4217bb9a0a39ea81f9d977014b64e491 (annotated tag llvmorg-1.0.0)",
+     "accessed": "2026-09-19T00:41:43Z",
+     "excerpt": "{\"tag\":\"llvmorg-1.0.0\",\"tagger\":{\"date\":\"2003-10-24T20:17:46Z\",\"name\":\"CVS to SVN Conversion\"}}"
+    },
+    {
+     "source": "E3",
+     "detail": "gh api repos/llvm/llvm-project/releases - releases inside the 12-month window",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "releases in 12mo window: 23 ; llvmorg-22.1.8 2026-06-16 ; llvmorg-23.1.0 2026-08-25 ; llvmorg-23.1.1 2026-09-08"
+    },
+    {
+     "source": "E2",
+     "detail": "https://clang.llvm.org/cxx_status.html (official docs root clang.llvm.org)",
+     "accessed": "2026-09-19T00:40:26Z",
+     "excerpt": "Clang implements the following published and upcoming ISO C++ standards: ... -std=c++20 ... -std=c++17 ... -std=c++11"
+    },
+    {
+     "source": "E2",
+     "detail": "https://llvm.org/docs/Security.html - scope of backporting (Y6 negative evidence)",
+     "accessed": "2026-09-19T00:38:42Z",
+     "excerpt": "Backporting security patches from recent versions to old versions cannot always work. It is up to the LLVM Security Response Group to decide if such backporting should be done, and how far back."
+    },
+    {
+     "source": "E2",
+     "detail": "https://llvm.org/docs/SupportPolicy.html - 'LLVM Community Support Policy' (Y6 negative evidence: tiers are for components, not released versions)",
+     "accessed": "2026-09-19T00:38:42Z",
+     "excerpt": "the level of support in two tiers: core and peripheral, with two different levels of impact and responsibilities. Those tiers refer only to the"
+    },
+    {
+     "source": "E2",
+     "detail": "https://llvm.org/docs/HowToReleaseLLVM.html - 'Annual Release Schedule' (supports Y5, not Y6)",
+     "accessed": "2026-09-19T00:38:09Z",
+     "excerpt": "Do bug-fix releases every two weeks until X.1.5 or X.1.6 (if necessary)."
+    },
+    {
+     "source": "E1",
+     "detail": "clang version on the frozen host (environment.json toolchains.cpp_clang)",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "Apple clang version 17.0.0 (clang-1700.6.3.2)"
+    }
+   ],
+   "reasoning": "Five of six indicators are satisfied, which is exactly the Strong band. The single failure is Y6: LLVM publishes an annual release and bug-fix schedule, but a schedule is what Y5's alternative clause asks for, not what Y6 asks for. Y6 requires a policy naming which released versions receive continued maintenance and for how long, and LLVM's security document states the opposite - that how far back to backport is decided case by case by the Security Response Group. It is therefore not 100. It is not 60 because Y1-Y5 are each independently evidenced. SCOPE NOTE: the frozen official_implementation_repository for C++ is llvm/llvm-project, and the release history scored here is that repository's, as scope_rule directs. The toolchain actually under test, Apple clang 17.0.0, is a downstream vendor distribution whose release history is published through Xcode rather than through the frozen repository; this is recorded in limitations."
+  },
+  "Rust": {
+   "level": "Mature, stable, maintained and scheduled",
+   "score": 100,
+   "criteria_satisfied": [
+    "Y1: 155 published GitHub releases on rust-lang/rust; 152 dated 'Version X (YYYY-MM-DD)' entries in the official release notes.",
+    "Y2: 1.95.0 is at or above 1.0.",
+    "Y3: Version 1.0.0 is dated 2015-05-15, 11.3 years before the cutoff.",
+    "Y4: the edition mechanism is the published language-version mechanism that keeps existing source compiling.",
+    "Y5: 15 releases published inside 2025-09-17..2026-09-17.",
+    "Y6: the official security policy names which released versions receive support and security updates."
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E3",
+     "detail": "gh api repos/rust-lang/rust/releases --paginate",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "total GH releases: 155 ; latest <=cutoff: 1.98.1 @ 2026-09-03 ; releases in 12mo window: 15"
+    },
+    {
+     "source": "E3",
+     "detail": "https://doc.rust-lang.org/stable/releases.html (official release notes, 152 dated entries)",
+     "accessed": "2026-09-19T00:38:42Z",
+     "excerpt": "Version 1.0.0 (2015-05-15)"
+    },
+    {
+     "source": "E2",
+     "detail": "https://doc.rust-lang.org/edition-guide/editions/index.html",
+     "accessed": "2026-09-19T00:38:09Z",
+     "excerpt": "Rust uses editions to solve this problem. When there are backwards-incompatible changes, they are pushed into the next edition. Since editions are opt-in, existing crates won't use the changes unless they explicitly migrate into the new edition."
+    },
+    {
+     "source": "E2",
+     "detail": "https://www.rust-lang.org/policies/security",
+     "accessed": "2026-09-19T00:38:42Z",
+     "excerpt": "The Rust project only provides support and security updates for the most recent stable release and the latest releases in our beta and nightly channels."
+    },
+    {
+     "source": "E1",
+     "detail": "rustc version on the frozen host (environment.json toolchains.rust)",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "rustc 1.95.0 (59807616e 2026-04-14) (Homebrew)"
+    }
+   ],
+   "reasoning": "All six indicators are satisfied, so 100 rather than 80. The decisive and closest call is Y6: Rust publishes no LTS line and no multi-version supported table, but the indicator's admissible forms include a security-fix window, and the official security policy does state in terms which released versions receive support and security updates - the most recent stable release plus current beta and nightly. That names the maintained versions and, by naming only the most recent stable, determines when maintenance for any given release ends. This is the same kind of determinate rule as Go's 'supported until there are two newer major releases', which is also awarded Y6, so the two are treated alike. It is distinguished from LLVM, Swift and TypeScript, where no official document names maintained released versions at all. This judgement is flagged in limitations because it is what separates Rust (100) from Swift (80)."
+  },
+  "Go": {
+   "level": "Mature, stable, maintained and scheduled",
+   "score": 100,
+   "criteria_satisfied": [
+    "Y1: 288 distinct dated versions in the official release history.",
+    "Y2: go1.26.3 is at or above 1.0.",
+    "Y3: earliest dated release go1.0.1 is 2012-04-25 (go1 itself 2012-03-28), 14.4 years before the cutoff.",
+    "Y4: the Go 1 compatibility promise is the official backward-compatibility guarantee.",
+    "Y5: 30 dated releases inside 2025-09-17..2026-09-17.",
+    "Y6: the Release Policy names which releases are supported and for how long."
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E3",
+     "detail": "https://go.dev/doc/devel/release (official release history; 289 dated 'released YYYY-MM-DD' entries, 288 distinct versions)",
+     "accessed": "2026-09-19T00:38:09Z",
+     "excerpt": "go1.27.0 (released 2026-08-19) ; go1.26.0 (released 2026-02-10) ; go1.25.0 (released 2025-08-12)"
+    },
+    {
+     "source": "E3",
+     "detail": "https://go.dev/doc/devel/release - earliest dated entry",
+     "accessed": "2026-09-19T00:38:09Z",
+     "excerpt": "earliest overall: ('go1.0.1', '2012-04-25')"
+    },
+    {
+     "source": "E3",
+     "detail": "https://go.dev/doc/devel/release - releases inside the 12-month window",
+     "accessed": "2026-09-19T00:38:09Z",
+     "excerpt": "count in window: 30 ; go1.27.0 2026-08-19 ; go1.27.1 2026-09-01 ; go1.26.3 2026-05-07 ; go1.25.2 2025-10-07"
+    },
+    {
+     "source": "E2",
+     "detail": "https://go.dev/doc/go1compat ('Go 1 and the Future of Go Programs')",
+     "accessed": "2026-09-19T00:38:09Z",
+     "excerpt": "Go 1 defines two things: first, the specification of the language; and second, the specification of a set of core APIs, the \"standard packages\" of the Go library."
+    },
+    {
+     "source": "E2",
+     "detail": "https://go.dev/doc/devel/release - 'Release Policy'",
+     "accessed": "2026-09-19T00:38:42Z",
+     "excerpt": "Each major Go release is supported until there are two newer major releases. For example, Go 1.5 was supported until the Go 1.7 release, and Go 1.6 was supported until the Go 1.8 release."
+    },
+    {
+     "source": "E1",
+     "detail": "go version on the frozen host (environment.json toolchains.go)",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "go version go1.26.3 darwin/arm64"
+    }
+   ],
+   "reasoning": "All six indicators are satisfied, so 100 rather than 80. Y4 and Y6 are met by two separate official documents - the Go 1 compatibility promise and the Release Policy - so neither indicator is carried by the other's evidence."
+  },
+  "Java": {
+   "level": "Mature, stable, maintained and scheduled",
+   "score": 100,
+   "criteria_satisfied": [
+    "Y1: 18 dated GA feature releases (JDK 10 through JDK 27) listed by the JDK Project, plus the update-release trains.",
+    "Y2: OpenJDK 26.0.1 is at or above 1.0.",
+    "Y3: JDK 8 reached General Availability on 18 March 2014, 12.5 years before the cutoff.",
+    "Y4: javac ships --release/--source/--target, the published language-version mechanism, and JEP 322 defines the versioning scheme.",
+    "Y5: JDK 27 GA 2026-09-15 and JDK 26 GA 2026-03-17 both fall inside the window, and the project documents a strict six-month schedule it met.",
+    "Y6: the JDK Updates Project publishes Active versus Retired JDK Update Releases, and JEP 322 defines the LTS designation."
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E3",
+     "detail": "https://openjdk.org/projects/jdk/ - Releases list",
+     "accessed": "2026-09-19T00:39:03Z",
+     "excerpt": "27 (GA 2026/09/15) ; 26 (GA 2026/03/17) ; 25 (GA 2025/09/16) ; 24 (GA 2025/03/18) ; ... 10 (GA 2018/03/20)"
+    },
+    {
+     "source": "E2",
+     "detail": "https://openjdk.org/projects/jdk/ - release cadence",
+     "accessed": "2026-09-19T00:39:03Z",
+     "excerpt": "The Project ships a feature release every six months according to a strict, time-based model, as proposed."
+    },
+    {
+     "source": "E3",
+     "detail": "https://openjdk.org/projects/jdk8/ - dated first-release evidence for Y3",
+     "accessed": "2026-09-19T00:42:51Z",
+     "excerpt": "JDK 8 reached General Availability on 18 March 2014."
+    },
+    {
+     "source": "E2",
+     "detail": "https://openjdk.org/projects/jdk-updates/ - 'Active JDK Update Releases' versus 'Retired JDK Update Releases'",
+     "accessed": "2026-09-19T00:39:03Z",
+     "excerpt": "Active JDK Update Releases: JDK 27, JDK 26, JDK 25, JDK 21, JDK 17, JDK 11 ; Retired JDK Update Releases: JDK 24, JDK 23, JDK 22, JDK 20, JDK 19"
+    },
+    {
+     "source": "E2",
+     "detail": "https://openjdk.org/jeps/322 (Time-Based Release Versioning) - LTS designation and cadence",
+     "accessed": "2026-09-19T00:39:03Z",
+     "excerpt": "$FEATURE is incremented every six months: The March 2018 release is JDK 10, the September 2018 release is JDK 11 ... \"LTS\", e.g., 11.0.2+13-LTS."
+    },
+    {
+     "source": "E2",
+     "detail": "javac --help shipped with the toolchain under test (JAVA_HOME=/opt/homebrew/opt/openjdk)",
+     "accessed": "2026-09-19T00:41:43Z",
+     "excerpt": "--release <release> ; --source <release>, -source <release> ; --target <release>, -target <release>"
+    },
+    {
+     "source": "E1",
+     "detail": "javac version on the frozen host (environment.json toolchains.javac)",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "javac 26.0.1"
+    }
+   ],
+   "reasoning": "All six indicators are satisfied, so 100 rather than 80. Y6 is evidenced from openjdk.org, the frozen official docs root, via the JDK Updates Project's Active/Retired lists, so the award does not depend on Oracle's commercial support roadmap at www.oracle.com, which sits outside the frozen docs roots; that roadmap was read and corroborates the LTS designations but is not relied on."
+  },
+  "TypeScript": {
+   "level": "Established",
+   "score": 60,
+   "criteria_satisfied": [
+    "Y1: 218 published GitHub releases on microsoft/TypeScript.",
+    "Y2: tsc 7.0.2 is at or above 1.0.",
+    "Y3: earliest published release v1.1.0.1 is dated 2014-10-07, 11.9 years before the cutoff.",
+    "Y5: v5.9.2 (2025-10-01), v6.0.2 (2026-03-23), v6.0.3 (2026-04-16) and v7.0.2 (2026-08-20) fall inside the window, and the project documents a roughly 3-month schedule."
+   ],
+   "criteria_failed": [
+    "Y4: no official backward-compatibility guarantee, no documented deprecation policy with a defined window, and no TypeScript language-version/edition mechanism. --target and --lib select the ECMAScript output target and library typings, not the TypeScript language version, so they do not define how existing source keeps compiling across tsc releases. The Breaking-Changes and API-Breaking-Changes wiki pages are per-release logs of breaking changes, not a policy. The 5.0-era 'ignoreDeprecations' migration aid is absent from tsc 7.0.2: 0 of its 658 documented options mention deprecation.",
+    "Y6: no maintenance policy names which released versions receive continued bug-fix or security maintenance or for how long. No LTS designation, security-fix window, or supported-versions table exists at typescriptlang.org/docs or among the 60+ pages of the official repository wiki, including tsc-Security-Properties."
+   ],
+   "evidence": [
+    {
+     "source": "E3",
+     "detail": "gh api repos/microsoft/TypeScript/releases --paginate",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "total GH releases: 218 ; earliest release: v1.1.0.1 @ 2014-10-07 ; latest <=cutoff: v7.0.2 @ 2026-08-20"
+    },
+    {
+     "source": "E3",
+     "detail": "gh api repos/microsoft/TypeScript/releases - releases inside the 12-month window",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "v5.9.2 2025-10-01 prerelease=False ; v6.0.2 2026-03-23 ; v6.0.3 2026-04-16 ; v7.0.2 2026-08-20"
+    },
+    {
+     "source": "E3",
+     "detail": "https://github.com/microsoft/TypeScript/wiki/TypeScript's-Release-Process",
+     "accessed": "2026-09-19T00:40:46Z",
+     "excerpt": "In general you can expect a release around every 3 months."
+    },
+    {
+     "source": "E2",
+     "detail": "tsc --all shipped with the toolchain under test (tsc 7.0.2): count of options mentioning deprecation (Y4 negative evidence)",
+     "accessed": "2026-09-19T00:42:04Z",
+     "excerpt": "658 option lines ; grep -icE 'deprecat' => 0 ; --lib ; --libReplacement ; --target, -t"
+    },
+    {
+     "source": "E3",
+     "detail": "https://github.com/microsoft/TypeScript/wiki/API-Breaking-Changes (Y4 negative evidence: a log, not a policy)",
+     "accessed": "2026-09-19T00:42:22Z",
+     "excerpt": "This release removes many long-deprecated parts of our public API, including (but not limited to): The top-level Node factory functions (deprecated since TS 4.0)"
+    },
+    {
+     "source": "E3",
+     "detail": "https://github.com/microsoft/TypeScript/wiki - full page index inspected for a support or deprecation policy page (Y6 negative evidence)",
+     "accessed": "2026-09-19T00:42:22Z",
+     "excerpt": "Breaking-Changes ; API-Breaking-Changes ; TypeScript's-Release-Process ; tsc-Security-Properties ; Compiler-Options - no supported-versions or deprecation-policy page"
+    },
+    {
+     "source": "E1",
+     "detail": "tsc --version on the frozen host (environment.json toolchains.typescript)",
+     "accessed": "2026-09-19T00:42:04Z",
+     "excerpt": "Version 7.0.2"
+    }
+   ],
+   "reasoning": "Exactly four indicators are satisfied, which is the Established band. It is not 80 because both Y4 and Y6 fail, and it is not 40 because Y1, Y2, Y3 and Y5 are each independently evidenced. TypeScript is a long-lived, frequently released, well past-1.0 toolchain, and that is scored normally; what it does not publish is a compatibility guarantee or a supported-versions policy, which is what this rubric's Y4 and Y6 test. The same Y4 test awarded the indicator to Java, Kotlin and Swift on the strength of a shipped language-version flag (--release, -language-version, -swift-version) and to C++ on -std=; tsc 7.0.2 ships no equivalent, which is why TypeScript alone among the mature languages fails it."
+  },
+  "Kotlin": {
+   "level": "Mature, stable, maintained and scheduled",
+   "score": 100,
+   "criteria_satisfied": [
+    "Y1: 303 published GitHub releases on JetBrains/kotlin, plus a dated release table on the official docs site.",
+    "Y2: kotlinc-jvm 2.3.21 is at or above 1.0.",
+    "Y3: earliest published release build-0.6.31 is dated 2013-08-14, 13.1 years before the cutoff.",
+    "Y4: kotlinc ships -language-version, which provides source compatibility with a specified Kotlin version, and the evolution principles document a deprecation cycle and a backward-compatibility guarantee for Stable features.",
+    "Y5: 35 releases published inside 2025-09-17..2026-09-17, against a documented 6-month language / 3-month tooling cadence.",
+    "Y6: an 18-month support window per release line, with a published table of releases and their end of support."
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E3",
+     "detail": "gh api repos/JetBrains/kotlin/releases --paginate",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "total GH releases: 303 ; earliest release: build-0.6.31 @ 2013-08-14 ; latest <=cutoff: v2.4.20 @ 2026-09-07 ; releases in 12mo window: 35"
+    },
+    {
+     "source": "E2",
+     "detail": "https://kotlinlang.org/docs/releases.html - release cycle",
+     "accessed": "2026-09-19T00:38:09Z",
+     "excerpt": "Language releases (2. x. 0) that bring major changes in the language and include tooling updates. Released once in 6 months."
+    },
+    {
+     "source": "E2",
+     "detail": "https://kotlinlang.org/docs/releases.html - 'Standard library security support'",
+     "accessed": "2026-09-19T00:38:09Z",
+     "excerpt": "Starting with Kotlin 2.4.0, the Kotlin standard library for the JVM has an 18-month support window for each release line. ... The following table lists all Kotlin releases and their support windows: | End of support"
+    },
+    {
+     "source": "E2",
+     "detail": "https://kotlinlang.org/docs/kotlin-evolution-principles.html",
+     "accessed": "2026-09-19T00:40:46Z",
+     "excerpt": "Stable. The language feature is now a first-class citizen in the Kotlin language. We guarantee its backward compatibility and that we'll provide tooling support."
+    },
+    {
+     "source": "E2",
+     "detail": "kotlinc -help shipped with the toolchain under test",
+     "accessed": "2026-09-19T00:41:43Z",
+     "excerpt": "-language-version <version> Provide source compatibility with the specified version of Kotlin."
+    },
+    {
+     "source": "E1",
+     "detail": "kotlinc version on the frozen host (environment.json toolchains.kotlin)",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "kotlinc-jvm 2.3.21 (JRE 26.0.1)"
+    }
+   ],
+   "reasoning": "All six indicators are satisfied, so 100 rather than 80. Y6 is met by a supported-versions table with an explicit 18-month window, the same strong form accepted for Python and Java. Recorded for the auditor: that window is stated for the Kotlin/JVM standard library and begins at 2.4.0, while the toolchain under test is 2.3.21; Y6 asks whether a documented maintenance policy naming supported versions and durations exists, and it does, so the indicator is satisfied."
+  },
+  "Swift": {
+   "level": "Strong",
+   "score": 80,
+   "criteria_satisfied": [
+    "Y1: 99 distinct dated releases on the official swift.org install archive, plus 71 published releases on swiftlang/swift.",
+    "Y2: Apple Swift 6.2.3 is at or above 1.0.",
+    "Y3: the oldest dated release in the official archive is 2016-03-21, 10.5 years before the cutoff.",
+    "Y4: swiftc ships -swift-version, which interprets input according to a specific Swift language version number.",
+    "Y5: 29 dated releases inside 2025-09-17..2026-09-17 on the official archive; 10 on the official repository."
+   ],
+   "criteria_failed": [
+    "Y6: no documented maintenance policy names which released versions receive continued bug-fix or security maintenance or for how long. swift.org/security is a list of published advisories, not a supported-versions statement; a scan of the swift.org top-level navigation found no support, releases-policy, or lifecycle page, and no sentence naming a supported release or a security-fix window."
+   ],
+   "evidence": [
+    {
+     "source": "E3",
+     "detail": "https://www.swift.org/install/macos/ (official dated download archive)",
+     "accessed": "2026-09-19T00:42:30Z",
+     "excerpt": "distinct dated entries: 99 ; oldest: 2016-03-21 ; newest: 2026-09-15 ; dates in 12mo window: 29"
+    },
+    {
+     "source": "E3",
+     "detail": "gh api repos/swiftlang/swift/releases --paginate",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "total GH releases: 71 ; latest <=cutoff: swift-6.4.0-RELEASE @ 2026-09-15 ; releases in 12mo window: 10 ; swift-6.2.3-RELEASE 2025-12-12"
+    },
+    {
+     "source": "E2",
+     "detail": "swiftc -help shipped with the toolchain under test",
+     "accessed": "2026-09-19T00:41:43Z",
+     "excerpt": "-swift-version <vers>   Interpret input according to a specific Swift language version number"
+    },
+    {
+     "source": "E2",
+     "detail": "https://www.swift.org/security/ (Y6 negative evidence: advisory list only)",
+     "accessed": "2026-09-19T00:40:46Z",
+     "excerpt": "Reports should include specific software version(s) that you believe are affected; a technical description of the behavior that you observed and the behavior that you expected"
+    },
+    {
+     "source": "E2",
+     "detail": "https://www.swift.org/security/ - regex scan for a supported-release policy sentence (Y6 negative evidence)",
+     "accessed": "2026-09-19T00:42:30Z",
+     "excerpt": "grep -inE 'supported (release|version)|we support|security (updates|fixes) (for|to)|release branch' => 0 matches"
+    },
+    {
+     "source": "E2",
+     "detail": "https://www.swift.org/install/ - swift.org top-level navigation enumerated (Y6 negative evidence)",
+     "accessed": "2026-09-19T00:42:30Z",
+     "excerpt": "/ ; /blog/ ; /code-of-conduct/ ; /community/ ; /contributing/ ; /diversity/ ; /documentation/ ; /install/ ; /mentorship/ ; /openapi ; /packages/ ; /security/ ; /swift-evolution/"
+    },
+    {
+     "source": "E1",
+     "detail": "swift version on the frozen host (environment.json toolchains.swift)",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "Apple Swift version 6.2.3 (swiftlang-6.2.3.3.21 clang-1700.6.3.2)"
+    }
+   ],
+   "reasoning": "Five of six indicators are satisfied, which is exactly the Strong band, and the single failure is Y6, the same indicator that C++ fails - the two are placed at the same level on the same observable ground, as the consistency pass requires. It is not 100 because no official Swift document names which released versions remain maintained or for how long. It is not 60 because Y1-Y5 are each independently evidenced, including Y3: the oldest dated artifact in the official archive, 2016-03-21, clears the 10-year line by about six months, so Y3 is satisfied on dated first-party evidence rather than on the 2014 Swift 1.0 announcement."
+  },
+  "Zig": {
+   "level": "Early",
+   "score": 20,
+   "criteria_satisfied": [
+    "Y1: 24 distinct dated released versions in the official download index.",
+    "Y5: 0.15.2 (2025-10-11) and 0.16.0 (2026-04-13) were both published inside 2025-09-17..2026-09-17."
+   ],
+   "criteria_failed": [
+    "Y2: 0.16.0 is below 1.0 under Zig's own versioning, and no statement that the current release line is stable for production use was found on the official docs root.",
+    "Y3: the first dated public release, 0.1.1 on 2017-10-17, is 8.92 years before the cutoff - short of the 10-year requirement. (The age floor of 3 years is comfortably passed, so the floor does not bind and the indicator count governs.)",
+    "Y4: no backward-compatibility guarantee, deprecation policy, or language-version/edition mechanism. The 0.16.0 language reference contains 0 occurrences of a backward-compatibility or deprecation-policy statement, and zig build-exe exposes no language-version or edition flag (--version sets a dynamic library semver, unrelated to source compatibility).",
+    "Y6: no maintenance policy naming supported versions or a support window was found on the official docs root or download archive."
+   ],
+   "evidence": [
+    {
+     "source": "E3",
+     "detail": "https://ziglang.org/download/index.json (official dated download index)",
+     "accessed": "2026-09-19T00:37:47Z",
+     "excerpt": "0.16.0 | date: 2026-04-13 ; 0.15.2 | date: 2025-10-11 ; 0.15.1 | date: 2025-08-19 ; ... 0.1.1 | date: 2017-10-17"
+    },
+    {
+     "source": "E3",
+     "detail": "https://codeberg.org/api/v1/repos/ziglang/zig/tags (substituted official repository - see note)",
+     "accessed": "2026-09-19T00:37:47Z",
+     "excerpt": "count: 25 ; ['0.16.0','0.15.2','0.15.1','0.15.0','0.14.1','0.14.0','0.12.1','0.13.0', ... '0.2.0','0.1.1','0.1.0']"
+    },
+    {
+     "source": "E3",
+     "detail": "https://api.github.com/repos/ziglang/zig - evidence that the frozen repository is no longer official",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "archived: False | homepage: https://ziglang.org/news/migrating-from-github-to-codeberg/ | desc: Moved to Codeberg"
+    },
+    {
+     "source": "E2",
+     "detail": "https://ziglang.org/ - official homepage source link, used to resolve the substitution",
+     "accessed": "2026-09-19T00:37:39Z",
+     "excerpt": "href=\"https://codeberg.org/ziglang/zig\""
+    },
+    {
+     "source": "E2",
+     "detail": "https://ziglang.org/ - latest release statement (Y2 evidence: still 0.x)",
+     "accessed": "2026-09-19T00:37:39Z",
+     "excerpt": "Zig is a general-purpose programming language and toolchain for maintaining robust , optimal and reusable software. GET STARTED Latest Release: 0.16.0"
+    },
+    {
+     "source": "E2",
+     "detail": "https://ziglang.org/documentation/0.16.0/ - scan for a compatibility or deprecation policy (Y4 negative evidence)",
+     "accessed": "2026-09-19T00:42:22Z",
+     "excerpt": "grep -icE 'backward compat|deprecat' => 0"
+    },
+    {
+     "source": "E2",
+     "detail": "zig build-exe --help shipped with the toolchain under test (Y4 negative evidence)",
+     "accessed": "2026-09-19T00:41:43Z",
+     "excerpt": "--version [ver]                Dynamic library semver"
+    },
+    {
+     "source": "E1",
+     "detail": "zig version on the frozen host (environment.json toolchains.zig)",
+     "accessed": "2026-09-19T00:36:34Z",
+     "excerpt": "zig 0.16.0"
+    }
+   ],
+   "reasoning": "Exactly two indicators are satisfied, which is the Early band. It is not 40 because Y2, Y3, Y4 and Y6 each fail on observable evidence, and it is not 0 because Y1 and Y5 are both clearly met and the 3-year age floor is passed with 8.9 years of history. Y3 is the notable near miss: Zig is 8 years 11 months old against a 10-year line, and the rubric's Y3 is a dated binary test with no partial credit, so it is scored as unsatisfied. REPOSITORY SUBSTITUTION: the frozen official_implementation_repository, github.com/ziglang/zig, now carries the description 'Moved to Codeberg' and its last release (0.15.1, 2025-08-29) predates the 0.16.0 toolchain under test, so it is not the official repository at the evidence cutoff. Per official_project_table._resolution_procedure_if_a_field_is_wrong_or_missing the substitute is the repository the language's own official homepage links to as its source, https://codeberg.org/ziglang/zig, and the official dated download archive at ziglang.org/download/index.json is used for release dates. No other language was found in this situation, so the substitution rule was triggered once and applied once."
+  }
+ },
+ "cross_language_consistency_note": "The rubric is mechanical: apply the 3-year age floor, then count satisfied indicators among Y1-Y6 and read off the level. To keep a level meaning the same thing for all ten, each indicator was reduced to one operational test applied in the same order to every language, and each language was examined under the same two evidence sources the rubric names (E2 official documentation at the frozen docs root, E3 official implementation repository and release history); E1 was used only to confirm the version string of the toolchain under test. Y1: count distinct dated released versions in the official repository's releases/tags or the official download archive; >=10. Y2: compare the version string under test against the project's own versioning scheme; below 1.0 requires an explicit production-stability statement, which was searched for and not found for either sub-1.0 toolchain (Quidra, Zig). Y3: take the earliest dated first-party release artifact and measure to 2026-09-17; >=10 years. Y4: satisfied only by a backward-compatibility guarantee, a documented deprecation policy with a defined window, or a shipped language-version/edition/standard mechanism. Applied uniformly this awarded Y4 to Python (PEP 387), C++ (-std=c++NN), Rust (editions), Go (Go 1 promise), Java (--release/--source), Kotlin (-language-version), Swift (-swift-version), and denied it to TypeScript and Zig, whose toolchains ship no such flag and whose projects publish a breaking-change log rather than a policy. Y5: count releases dated inside 2025-09-17..2026-09-17; >=2. Every language that passed did so on actual dated releases, not only on a schedule document, so the alternative clause never carried an award alone. Y6: satisfied only where an official document names which released versions receive continued maintenance AND the end of that maintenance is determinate (a date, a fixed window, or a rule that fixes it). This awarded Y6 to Python (EOL table), Java (Active/Retired update trains plus LTS), Kotlin (18-month window plus end-of-support table), Go ('until there are two newer major releases') and Rust ('only ... the most recent stable release'), and denied it to C++, Swift and TypeScript, for none of which does any official document name a maintained released version; LLVM's security document makes backport depth explicitly discretionary. Pairwise check of the ten assignments: the five 100s all satisfy the identical six indicators. The two 80s, C++ and Swift, fail the identical single indicator Y6 and are therefore at the same level on the same ground. TypeScript sits one band below them because it fails Y4 in addition to Y6, and Zig two bands below TypeScript because it additionally fails Y2 and Y3. Quidra is the only language where the age floor binds. No two languages with the same satisfied-indicator set received different levels, and no two with different sets received the same level. Quidra was scored under exactly the sources used for the other nine and was not marked down below the criteria: its one satisfied indicator, Y5, is recorded as satisfied even though the floor had already fixed the score at 0. Symmetrically, no mature language's real advantage was discounted as incumbency - age, release count and cadence were scored exactly as the dated first-party evidence shows.",
+ "limitations": [
+  "C++ scope mismatch: the toolchain under test is Apple clang 17.0.0, a downstream Apple distribution, but the frozen official_implementation_repository for C++ is llvm/llvm-project, so Y1/Y3/Y5 were counted against upstream LLVM's release history as scope_rule directs. Apple's own clang release history is published through Xcode release notes, which are not under a frozen docs root; Apple clang's independent release cadence and any Apple-specific support window were therefore not separately verified. No other language has this upstream/vendor split.",
+  "Zig official repository substitution: github.com/ziglang/zig is described 'Moved to Codeberg' and its newest release predates the 0.16.0 toolchain under test, so the frozen official_implementation_repository was not official at the evidence cutoff. It was replaced by https://codeberg.org/ziglang/zig, the source repository ziglang.org itself links to, with release dates taken from ziglang.org/download/index.json. Codeberg's releases API returned HTTP 404, so Zig's per-release counts rest on the official download index and the Codeberg tag list rather than on a releases endpoint. Only Zig required this substitution.",
+  "Rust Y6 is the single judgement that separates a 100 from an 80 in this metric. Rust publishes no LTS line and no multi-version supported table; the award rests on the official security policy naming the maintained versions ('only ... the most recent stable release and the latest releases in our beta and nightly channels'), whose duration is determinate but implicit rather than stated as a period. A stricter reading requiring an explicit duration would move Rust from 100 to 80, alongside C++ and Swift. Go's Y6 was awarded on the same basis and would be unaffected, since its rule states the duration explicitly.",
+  "Kotlin Y6's published 18-month support window is stated for the Kotlin/JVM standard library and applies from 2.4.0, whereas the toolchain under test is 2.3.21; the indicator asks only whether such a documented policy exists, and it does, but the window is not verified as covering the exact version under test.",
+  "Negative findings for Y4 and Y6 (TypeScript, Swift, Zig, C++, Quidra) are established by targeted search of the frozen docs roots, the official repository wikis, the shipped --help/--all option surface, and in Swift's case an enumeration of the swift.org top-level navigation. They are well-evidenced absences from the named sources, but no search proves a statement exists nowhere on a large documentation site.",
+  "Y3 for Python, Rust, Go, Java, TypeScript, Kotlin and Swift was established from the oldest dated first-party artifact that each project still publishes, not from the historical first release of the language (for example Python 0.9.0 in 1991 or Swift 1.0 in 2014). Every one of these clears 10 years on the published evidence alone, so the distinction does not change any level; it is recorded because Swift's margin is the narrowest at about six months.",
+  "Quidra's v0.3.0 was published 2026-09-18, after the 2026-09-17 evidence cutoff, and was excluded from all counts. The toolchain under test is 0.2.0 and the age floor binds regardless.",
+  "GitHub release and tag data were retrieved through an authenticated gh CLI session because the unauthenticated API rate limit was exhausted; this affects retrieval only, not the content of the public release records."
+ ]
+}

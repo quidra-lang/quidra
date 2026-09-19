@@ -1,0 +1,1 @@
+go build -o refutation refutation.go && ./refutation

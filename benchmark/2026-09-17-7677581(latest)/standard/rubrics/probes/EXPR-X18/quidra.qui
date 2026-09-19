@@ -1,0 +1,12 @@
+auto written = file.write("x18.txt", "hello")
+auto text = file.read("x18.txt")
+auto present = file.exists("x18.txt")
+match text
+    string s
+        match present
+            bool p
+                print("X18 {s} {p}")
+            error e2
+                print("X18 stat-error")
+    error e
+        print("X18 read-error")

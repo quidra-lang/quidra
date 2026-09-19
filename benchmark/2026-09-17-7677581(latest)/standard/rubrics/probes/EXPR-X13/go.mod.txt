@@ -1,0 +1,2 @@
+module example.com/x13probe
+go 1.26

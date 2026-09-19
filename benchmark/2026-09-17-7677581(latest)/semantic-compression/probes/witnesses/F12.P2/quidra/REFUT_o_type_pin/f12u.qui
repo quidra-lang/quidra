@@ -1,0 +1,19 @@
+uint8 | none o = none
+
+int32 h(int32 v)
+    return v + 1
+
+int32 | none p
+match o
+    int32 x
+        p = h(x)
+    none
+        p = none
+int32 n
+match p
+    int32 y
+        n = y
+    none
+        n = 0
+
+print(n)

@@ -1,0 +1,5 @@
+$ command -v gradle
+which_exit=1
+$ gradle -p probes/TEST-2/kotlin build
+(eval):69: command not found: gradle
+exit=127

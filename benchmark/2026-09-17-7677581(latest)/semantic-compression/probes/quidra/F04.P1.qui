@@ -1,0 +1,9 @@
+int32 probe()
+// BEGIN PROBE F04.P1
+    int32 slot = 4
+    int32 &port = &slot
+    port = 9
+    return slot
+// END PROBE F04.P1
+
+print(probe())

@@ -1,0 +1,202 @@
+
+===== PF-A0  toolchain identity =====
+swift-driver version: 1.127.14.1 Apple Swift version 6.2.3 (swiftlang-6.2.3.3.21 clang-1700.6.3.2)
+Target: arm64-apple-macosx26.0
+Python 3.9.6
+
+===== PF-A1  the real fixture builds with the frozen intrinsic-track recipe =====
++ swiftc -O /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/swift/fixture_real.swift -o /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/swift/preflight_evidence/fixture_real.bin
++ echo 'build exit=0'
+build exit=0
++ set +x
+
+===== PF-A2  the real fixture runs, exit status and stdout =====
+run exit=0
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+
+===== PF-A3  stdout is byte-identical to expected_output.txt (the oracle) =====
+cmp: IDENTICAL
+
+===== PF-A4  the oracle was produced by execution, and an independent implementation agrees =====
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+cmp: IDENTICAL (second, independent implementation)
+
+===== PF-A5  the pack's worked example is byte-identical to fixture_anon.swift =====
+pack example == fixture_anon.swift : True
+
+===== PF-A6  the four lines the pack CLAIMS are byte-identical to what the program PRINTS =====
+claimed:
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+actual:
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+
+claimed == actual : True
+
+===== PF-B  harness-convention sufficiency (bare-body submission through the real pipeline) =====
+extracted 601 bytes from the last of 1 fenced block(s)
+--- section 4.2a conformance gate on the raw pre-inverse submission ---
+gate: PASS  (0 H_REAL events)
+--- inverse mapping (no position map: this is model output) ---
+inverse: 18 tokens restored, position map absent (no-map mode)
+--- fixup H1: the HARNESS supplies the entry file name; the trial never states it ---
+harness wrote: /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/swift/preflight_evidence/build/solution.swift
+--- fixups applied: H1 (file name) and H6 (output path). Pack-documented fixups: 0 ---
+--- frozen build recipe, supplied by the harness, not by the trial ---
++ swiftc -O /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/swift/preflight_evidence/build/solution.swift -o /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/swift/preflight_evidence/build/BIN
+build exit=0
+run exit=0
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+ORACLE: PASS (byte-identical, exit 0)
+
+===== PF-B2 an INDEPENDENT solution, written only from the pack, also passes =====
+extracted 567 bytes
+gate: PASS  (0 H_REAL events)
+inverse: 18 tokens restored, position map absent (no-map mode)
++ swiftc -O /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/swift/preflight_evidence/build2/solution.swift -o /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/swift/preflight_evidence/build2/BIN
+build exit=0
+run exit=0
+SUM 25632
+MAX 935
+EVENS 24
+JOINED 897-558-614-577-405
+ORACLE: PASS (independent solution, byte-identical, exit 0)
+
+===== PF-B3 code extraction with ZERO, ONE and SEVERAL fenced blocks (section 9.2) =====
+zero blocks    -> the program
+one block      -> the program
+three blocks   -> the program
+
+===== PF-C  validator: positive AND negative, every check =====
+A. ROUND TRIP -- correct artifact must be ACCEPTED
+  [PASS] R1_byte_identity on the shipped fixture
+  [PASS] R2_build_identity on the shipped fixture
+  [PASS] R3_behavioural_identity on the shipped fixture
+  [PASS] R4_non_triviality on the shipped fixture
+  [PASS] R5_domain_containment on the shipped fixture
+  [PASS] inverse image reproduces expected_output.txt
+
+A2. ROUND TRIP with FORCED whitespace insertions (bound tokens written hard against delimiters)
+  [PASS] A2 the emission rule actually inserted whitespace here (3 character(s))
+      transformed: bigoze (n < 1){
+  [PASS] A2 R1 byte identity after deleting exactly the inserted characters
+  [PASS] A2 R2 the inverse image builds
+  [PASS] A2 R3 it prints what the real source prints
+
+B. ROUND TRIP -- corrupted artifacts must be REJECTED
+  [PASS] B1 one-character corruption of a pseudo-word rejected (R1)
+  [PASS] B1 one-character corruption of a pseudo-word rejected (R2 build)
+  [PASS] B2 swapped pseudo-words rejected (R1)
+  [PASS] B2 swapped pseudo-words rejected (R3 behaviour)
+  [PASS] B3 substitution inside a text literal rejected (R1)
+  [PASS] B3 substitution inside a text literal rejected (R3 behaviour)
+  [PASS] B3 output actually differs from the oracle
+  [PASS] B4 truncated submission rejected (R2 build)
+
+C. CONFORMANCE GATE (section 4.2a) -- positive and negative
+  [PASS] C1 anonymized fixture passes the gate (0 H_REAL events)
+  [PASS] C2 correct REAL source that ignores the transformation is rejected
+      H_REAL events found in the real source: 18  (first five: var, Int, var, Int, var)
+  [PASS] C3 anonymized submission leaking ONE real keyword is rejected
+  [PASS] C4 real keywords inside a text literal do not trip the gate
+  [PASS] C5 a legal identifier that happens to be a context-sensitive word does NOT trip the gate
+
+D. LEXICALIZER FILTERS -- census over all 343,000 PW-1 words
+  [PASS] D filter shape           fires       1 times (first witness: ab3)
+  [PASS] D filter used            fires       1 times (first witness: zzzzzz)
+  [PASS] D filter en_common       fires    1090 times (first witness: babine)
+  [SUBSUMED] D filter prog_terms      cannot fire: every word it would reject is already rejected by an earlier filter
+  [SUBSUMED] D filter reserved_union  cannot fire: every word it would reject is already rejected by an earlier filter
+  [PASS] D filter substring       fires  123810 times (first witness: bababa)
+  [SUBSUMED] D filter task_material   cannot fire: every word it would reject is already rejected by an earlier filter
+  accepted by all filters: 218100 of 343000 (63.6%)
+  [PASS] D the filter chain rejects a non-trivial share of the space
+  -- isolated predicate tests, so that a SUBSUMED filter is still
+     shown to be live code and not a dead branch:
+  [PASS] D predicate prog_terms accepts its member 'buffer' and rejects 'bigoze'
+  [PASS] D predicate reserved_union accepts its member 'deinit' and rejects 'bigoze'
+  [PASS] D predicate task_material accepts its member 'joined' and rejects 'bigoze'
+  [PASS] D predicate en_common accepts its member 'banana' and rejects 'bigoze'
+  [PASS] D substring predicate finds a banned substring in 'bababa' and none in any shipped pseudo-word
+
+E. DETERMINISM -- two fresh processes must agree byte for byte
+  [PASS] E mapping regenerates identically
+
+F. LEXER LOSSLESSNESS
+  [PASS] F lossless round trip of the lexer on fixture_real.swift
+  [PASS] F lossless round trip of the lexer on fixture_anon.swift
+  [PASS] F lossless on a source using extended, multi-line and embedded literal forms
+  [PASS] F a bound word written inside a text literal is NOT substituted
+  [PASS] F a bound word written inside an EMBEDDED expression is NOT substituted either (section 3.2 V18)
+  [PASS] F a bound word used as a BACKTICK-ESCAPED name is NOT substituted
+
+G. INVERSE_AMBIGUOUS detector -- positive and negative
+  [PASS] G1 the clean anonymized fixture raises no ambiguity
+  [PASS] G2 a submission that NAMES A VARIABLE with a pseudo-word is flagged
+      flagged: bigoze (declared as a name after 'tutovo')
+  [PASS] G3 ... and its inverse image indeed fails to build
+
+ALL CHECKS REACHED THEIR EXPECTED VERDICT
+selftest exit=0
+
+===== PF-D  identity-leak scan of the Reference Pack =====
+reference_pack.md: 236 lines, 8496 characters
+code blocks scanned: 9
+exempt V-role spellings present by design (section 2.6 I1 exemption): print
+ordinary-English words from the reserved list that occur in PROSE (exempt from domain B, still forbidden in domain C):
+    as           x5
+    available    x1
+    do           x3
+    each         x1
+    file         x3
+    in           x11
+    is           x36
+    line         x14
+    operator     x5
+    optional     x1
+    override     x1
+    where        x1
+LEAK SCAN: 0 hits
+
+===== PF-E  mapping invariants =====
+seed recorded in mapping.json : 20260918
+tokens mapped                 : 7
+one-to-one                    : True
+all exactly 6 ASCII lowercase : True
+comparable length (min,max)   : (6, 6)
+no pseudo-word is a prefix of another : True
+no pseudo-word collides with any identifier or literal in the fixture : True
+
+===== PF-F  round-trip on the shipped fixture, checks R1-R5 =====
+R1_byte_identity             PASS
+R4_non_triviality            PASS
+R5_domain_containment        PASS
+R2_build_identity            PASS
+R3_behavioural_identity      PASS
+
+===== PF-G  the language properties the pack states are the language's REAL behaviour =====
+  symmetric spacing a + b                              build-ok run-exit=0 out=1|   [pack says: builds]
+  asymmetric spacing a +b                              build-FAIL: /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-   [pack says: must NOT build]
+  0..<3 excludes the upper end                         build-ok run-exit=0 out=3|   [pack says: prints 3 (0+1+2)]
+  assigning to a fixed binding                         build-FAIL: /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-   [pack says: must NOT build]
+  an unread binding is only a warning                  build-ok run-exit=0 out=ok|   [pack says: builds]
+./preflight_run.sh: line 198: 96306 Trace/BPT trap: 5       "$EV/probe.bin" > "$EV/probe.out" 2>&1
+  whole-number arithmetic is checked                   build-ok run-exit=133 out=   [pack says: stops the program]
+  brace on the next line                               build-ok run-exit=0 out=2|   [pack says: builds; the pack says either line is fine]
+  loop brace on the next line                          build-ok run-exit=0 out=3|   [pack says: builds; the pack says either line is fine]
+
+===== DONE =====

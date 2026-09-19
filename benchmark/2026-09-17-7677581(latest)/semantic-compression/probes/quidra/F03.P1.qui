@@ -1,0 +1,8 @@
+int32 probe()
+    int32 x = 0
+// BEGIN PROBE F03.P1
+    x += 1
+// END PROBE F03.P1
+    return x
+
+print(probe())

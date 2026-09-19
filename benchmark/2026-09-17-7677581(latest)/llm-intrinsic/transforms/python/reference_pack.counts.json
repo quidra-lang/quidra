@@ -1,0 +1,9 @@
+{
+  "file": "reference_pack.md",
+  "lines": 252,
+  "characters": 9676,
+  "bytes": 9686,
+  "sha256": "e85eae7f74086e60714acb18759f793507ad8c0ccf78a8e58ba2524726b17617",
+  "target_lines": "150-250",
+  "note": "characters differ from bytes because of three-byte ellipsis glyphs"
+}

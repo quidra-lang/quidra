@@ -1,0 +1,1230 @@
+{
+ "language": "C++",
+ "language_key": "cpp",
+ "chunk": "2",
+ "toolchain": "Apple clang version 17.0.0 (clang-1700.6.3.2), arm64-apple-darwin25.4.0",
+ "build_recipe": "clang++ -std=c++20 -O2 FILE.cpp -o BIN",
+ "run_recipe": "./BIN",
+ "run_timeout_seconds": 60,
+ "build_timeout_seconds": 300,
+ "repetitions": 5,
+ "input_files_dir": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/inputs",
+ "observations": [
+  {
+   "case_variant_id": "ADV-14/R",
+   "case_id": "ADV-14",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-14_R.cpp",
+   "build": {
+    "cmd": [
+     "clang++",
+     "-std=c++20",
+     "-O2",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-14_R.cpp",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-14_R/prog"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-14_R.cpp:11:22: error: no matching function for call to 'scale'\n   11 |     std::int64_t r = scale(t);\n      |                      ^~~~~\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-14_R.cpp:5:14: note: candidate function not viable: no known conversion from 'std::string' (aka 'basic_string<char>') to 'std::int64_t' (aka 'long long') for 1st argument\n    5 | std::int64_t scale(std::int64_t v) { return v * 3; }\n      |              ^     ~~~~~~~~~~~~~~\n1 error generated.\n",
+    "wall_seconds": 0.97,
+    "timed_out": false,
+    "artifact_produced": false
+   },
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "signal": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "not run: build rejected the program"
+   },
+   "runs_all_5": [],
+   "adv_start_present": false,
+   "adv_end_present": false,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "obs_identical_across_runs": null,
+   "forced_error_handling": "none",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "stage_score": 100,
+   "classification_reasoning": "D0 n/a (no TM3a determination: C++ has both a 64-bit integer type and a string type, so the hazard arises). D1 fires: build exit 1. D1a no: no toolchain_failure_marker matched the build output. D1b-i no: neither the case lexicon (L_TYPE) nor any global fragment matched - clang words the rejection as \"no matching function for call to 'scale'\" with the note \"no known conversion from 'std::string' ... to 'std::int64_t'\", and the frozen L_TYPE alternatives (TypeError|type mismatch|mismatched types|incompatible type|cannot apply|unsupported operand|expected .* but (got|found)|expected .*, found|ClassCastException) do not cover that wording. D1b-ii: A6 re-verification confirms the program is exactly the construction (line 5 declares scale(int64)->int64 returning v*3; lines 9-10 read one line as std::string through the opacity barrier without converting it; line 11 calls scale with that std::string directly with no cast, coercion, annotation or suppression; line 12 renders the result). The first diagnostic is at line 11, which is inside construction_line_range [5,12]. D1b-ii-2 therefore fires: Compile-time Detection, 100, flagged compile_rejection_unmatched_lexicon for the published 'unmatched compile rejections' table.",
+   "stage_evidence": [
+    "D0: not applicable - no TM3a capability absence",
+    "D1: fired (build exit 1)",
+    "D1a: no toolchain failure marker in build output",
+    "D1b-i: no case-lexicon or global-fragment match",
+    "D1b-ii-1: A6 re-verification confirms program matches construction - not an authoring defect",
+    "D1b-ii-2: FIRED - first diagnostic at line 11, inside construction_line_range [5,12]"
+   ],
+   "silent_transformation": false,
+   "flag": "compile_rejection_unmatched_lexicon",
+   "construction_line_range": [
+    5,
+    12
+   ],
+   "first_diagnostic_line": "ADV-14_R.cpp:11:22: error: no matching function for call to 'scale'",
+   "matched_pattern": null,
+   "notes": "The rejection is the measurement: C++'s static type system refuses to pass std::string to an std::int64_t parameter, and there is no implicit conversion that would let it through. Diagnostic carries file, line and column."
+  },
+  {
+   "case_variant_id": "ADV-15",
+   "case_id": "ADV-15",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-15_single.cpp",
+   "build": {
+    "cmd": [
+     "clang++",
+     "-std=c++20",
+     "-O2",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-15_single.cpp",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-15_single/prog"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_seconds": 0.71,
+    "timed_out": false,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-15_single/prog"
+    ],
+    "exit": 0,
+    "signal": null,
+    "stdout": "ADV-START\nOBS=ITERS:5|LEN:6\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.43
+   },
+   "runs_all_5": [
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=ITERS:5|LEN:6\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=ITERS:5|LEN:6\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=ITERS:5|LEN:6\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=ITERS:5|LEN:6\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=ITERS:5|LEN:6\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    }
+   ],
+   "adv_start_present": true,
+   "adv_end_present": true,
+   "observed_payload": "ITERS:5|LEN:6",
+   "reached_observation_point": true,
+   "obs_identical_across_runs": true,
+   "forced_error_handling": "none",
+   "class": "Undefined Behavior",
+   "earliest_observable_stage": "Undefined Behavior",
+   "stage_score": 5,
+   "classification_reasoning": "D0-D2 n/a (build exit 0, artifact produced). D3 n/a (ADV-START present). D4 n/a (0.0s, no timeout). D5 n/a (exit status 0, no signal). D6 fires. D6a no: ADV-START, OBS= and ADV-END are all present. D6b no: reference_observation is the sentinel DIAGNOSED_FAILURE, not a concrete value. D6c: plausible_domain_predicate ^ITERS:(0|[1-9][0-9]*)\\|LEN:(0|[1-9][0-9]*)$ with ITERS in [0,1000] is TRUE for ITERS:5|LEN:6, so D6c-ii -> D7. D7a no: all 5 runs byte-identical. D7b: NOT satisfied by a different payload - the secondary ASan+UBSan binary hung and wrote nothing at all (see secondary_configuration), and D7b.no_observation_clause says 'no payload' is not a different payload. D7c FIRES on the normative citation: std::vector::push_back reallocated (the 5-element vector built from an initializer_list has capacity exactly 5), which invalidated the range-for loop's cached __begin/__end iterators, and the loop then dereferenced and compared invalidated iterators - undefined behaviour. Stage: Undefined Behavior (5). This is exactly the silent outcome the case predicted (ITERS:5|LEN:6, 'languages that fix the iteration length before the loop and therefore never visit the appended element'), so silent_transformation is TRUE; the rung is 5 rather than 0 only because the C++ standard positively declares the operation undefined, per D7c and the case's own note that 'a language that invalidates the iterator without checking has Undefined Behavior under D7c'.",
+   "stage_evidence": [
+    "D0/D1/D2: build exit 0, artifact produced",
+    "D3: ADV-START present, exit 0",
+    "D4: no timeout (0.0s)",
+    "D5: exit 0, not abnormal",
+    "D6a: OBS= and ADV-END both present",
+    "D6b: reference is the DIAGNOSED_FAILURE sentinel",
+    "D6c-ii: predicate TRUE on ITERS:5|LEN:6, payload != reference",
+    "D7a: 5/5 runs byte-identical",
+    "D7b: not satisfied by a different payload (secondary binary produced no output); see secondary_configuration",
+    "D7c: FIRED - normative citation for iterator invalidation"
+   ],
+   "silent_transformation": true,
+   "normative_citation": {
+    "document": "ISO/IEC 14882 (C++)",
+    "version": "C++20 (ISO/IEC 14882:2020)",
+    "clause": "[vector.modifiers] (22.3.11.5) p1 - push_back causes reallocation if the new size exceeds capacity, and reallocation invalidates all references, pointers and iterators referring to the elements and the past-the-end iterator; [iterator.requirements.general] (24.3.1) - an invalidated iterator may not be used, and doing so has undefined behaviour."
+   },
+   "ub_underlying": true,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build": "clang++ -std=c++20 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined FILE.cpp -o BIN",
+    "run": "./BIN",
+    "env": "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=0, ASAN_OPTIONS=detect_leaks=0",
+    "build_exit": 0,
+    "build_stderr": "",
+    "run_result": "TIMED OUT at 60s with no output at all (stdout empty, stderr empty)",
+    "d7b_satisfied_by_different_payload": false,
+    "d7b_satisfied_by_report": false,
+    "note": "NON-SCORING. On this host every one of the four ASan+UBSan binaries hung and produced no output whatsoever - including ADV-24, whose -O2 build runs in 0.01s - so the address/undefined sanitizer runtime is not functional for these programs here (host: Apple M2, 8 GiB, macOS 26.4.1, with other benchmark languages building concurrently). Per D7b.no_observation_clause, 'no payload' is not a different payload, so the different-payload condition of D7b is NOT satisfied for any of these rows. The first D7b condition can only be satisfied by the secondary BUILD output, which is recorded here verbatim. No stage in this chunk depends on it: ADV-15, ADV-18 and ADV-24 are already at Undefined Behavior via D7c, and for ADV-23 the operation is defined so no sanitizer report was possible. The secondary build was run against the pre-rename filenames; the file bytes are unchanged."
+   },
+   "notes": "No diagnostic of any kind: build was silent, run was silent, exit 0. The iteration reported 5 iterations over a sequence whose final length is 6, and the appended element was never visited because the range-for's end iterator was captured before the append and then invalidated.",
+   "reference_observation": "DIAGNOSED_FAILURE",
+   "plausible_predicate_result": true
+  },
+  {
+   "case_variant_id": "ADV-16",
+   "case_id": "ADV-16",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-16_single.cpp",
+   "build": {
+    "cmd": [
+     "clang++",
+     "-std=c++20",
+     "-O2",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-16_single.cpp",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-16_single/prog"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-16_single.cpp:7:7: error: cannot assign to variable 'x' with const-qualified type 'const std::int64_t' (aka 'const long long')\n    7 |     x = 20;\n      |     ~ ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-16_single.cpp:6:28: note: variable 'x' declared const here\n    6 |     constexpr std::int64_t x = 10;\n      |     ~~~~~~~~~~~~~~~~~~~~~~~^~~~~~\n1 error generated.\n",
+    "wall_seconds": 0.44,
+    "timed_out": false,
+    "artifact_produced": false
+   },
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "signal": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "not run: build rejected the program"
+   },
+   "runs_all_5": [],
+   "adv_start_present": false,
+   "adv_end_present": false,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "obs_identical_across_runs": null,
+   "forced_error_handling": "none",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "stage_score": 100,
+   "classification_reasoning": "Step 1 used the frozen authoring_choice_table binding for C++'s strongest immutable binding form inside a function body: `constexpr std::int64_t x = 10;` (constexpr implies const; ISO/IEC 14882:2020 [dcl.constexpr]). D0 n/a (the construct exists; construct_absent is false). D1 fires: build exit 1. D1a no: no toolchain failure marker. D1b-i FIRES: the build stderr matches the case lexicon L_IMMUTABLE via the alternative \"cannot assign\". Stage: Compile-time Detection, 100.",
+   "stage_evidence": [
+    "D0: construct exists, not TM3a",
+    "D1: fired (build exit 1)",
+    "D1a: no toolchain failure marker",
+    "D1b-i: FIRED - L_IMMUTABLE matched \"cannot assign\""
+   ],
+   "silent_transformation": false,
+   "first_diagnostic_line": "ADV-16_single.cpp:7:7: error: cannot assign to variable 'x' with const-qualified type 'const std::int64_t' (aka 'const long long')",
+   "matched_pattern": "L_IMMUTABLE (\"cannot assign\")",
+   "notes": "Diagnostic carries file, line and column plus a note pointing at the declaration. Immutability is enforced by the compiler, not by convention."
+  },
+  {
+   "case_variant_id": "ADV-17",
+   "case_id": "ADV-17",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-17_single.cpp",
+   "build": {
+    "cmd": [
+     "clang++",
+     "-std=c++20",
+     "-O2",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-17_single.cpp",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-17_single/prog"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_seconds": 0.47,
+    "timed_out": false,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-17_single/prog"
+    ],
+    "exit": -11,
+    "signal": 11,
+    "stdout": "ADV-START\n",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.31
+   },
+   "runs_all_5": [
+    {
+     "exit": -11,
+     "signal": 11,
+     "stdout": "ADV-START\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": -11,
+     "signal": 11,
+     "stdout": "ADV-START\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": -11,
+     "signal": 11,
+     "stdout": "ADV-START\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": -11,
+     "signal": 11,
+     "stdout": "ADV-START\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": -11,
+     "signal": 11,
+     "stdout": "ADV-START\n",
+     "stderr": "",
+     "timed_out": false
+    }
+   ],
+   "adv_start_present": true,
+   "adv_end_present": false,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "obs_identical_across_runs": true,
+   "forced_error_handling": "none",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "stage_score": 20,
+   "classification_reasoning": "Type binding: C++'s null_or_absent_value is a null pointer (nullptr) to std::string; the frozen string_length_member for C++ is p->size(). The build ACCEPTED the program with no diagnostic at all - C++ cannot distinguish an absent reference from a present one in its type system for this binding. D0-D2 n/a (build exit 0). D3 n/a (ADV-START is present on stdout, so the first statement did execute). D4 n/a. D5 fires: ADV-START present AND the process died by signal 11 (SIGSEGV). D5a no: the case lexicon L_NULL does not match the concatenation of stdout+stderr, which is exactly \"ADV-START\\n\" - the runtime emitted NOTHING. D5a' no: no global fragment matches \"ADV-START\\n\" either. D5b FIRES: uncontrolled fault - the process ended abnormally without the runtime saying what the hazard was. Stage: Crash (20). Per classification_procedure.ub_that_crashes_is_recorded_as_crash, the record carries ub_underlying: true plus the citation rather than being recorded at Undefined Behavior.",
+   "stage_evidence": [
+    "D0/D1/D2: build exit 0, no diagnostic, artifact produced",
+    "D3: ADV-START present on stdout",
+    "D4: no timeout",
+    "D5: FIRED - ADV-START present and death by SIGSEGV (signal 11)",
+    "D5a: L_NULL does not match stdout+stderr (= \"ADV-START\\n\")",
+    "D5a_prime: no global fragment matches",
+    "D5b: FIRED - uncontrolled fault, no runtime diagnostic"
+   ],
+   "silent_transformation": false,
+   "normative_citation": {
+    "document": "ISO/IEC 14882 (C++)",
+    "version": "C++20 (ISO/IEC 14882:2020)",
+    "clause": "[expr.unary.op] (7.6.2.2) p1 and [expr.ref] (7.6.1.5) - indirection through / member access on a null pointer value has undefined behaviour; the value of p->size() is not defined for a null p."
+   },
+   "ub_underlying": true,
+   "notes": "stderr was completely empty across all 5 runs. There is no message naming null, nil, none or a pointer - only a bare SIGSEGV. That is the difference between Crash (20) and Runtime Safe Detection (75) in the frozen procedure."
+  },
+  {
+   "case_variant_id": "ADV-18",
+   "case_id": "ADV-18",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-18_single.cpp",
+   "build": {
+    "cmd": [
+     "clang++",
+     "-std=c++20",
+     "-O2",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-18_single.cpp",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-18_single/prog"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-18_single.cpp:7:1: warning: non-void function does not return a value in all control paths [-Wreturn-type]\n    7 | }\n      | ^\n1 warning generated.\n",
+    "wall_seconds": 0.52,
+    "timed_out": false,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-18_single/prog"
+    ],
+    "exit": 0,
+    "signal": null,
+    "stdout": "ADV-START\nOBS=R:2\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.31
+   },
+   "runs_all_5": [
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=R:2\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=R:2\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=R:2\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=R:2\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=R:2\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    }
+   ],
+   "adv_start_present": true,
+   "adv_end_present": true,
+   "observed_payload": "R:2",
+   "reached_observation_point": true,
+   "obs_identical_across_runs": true,
+   "forced_error_handling": "none",
+   "class": "Undefined Behavior",
+   "earliest_observable_stage": "Undefined Behavior",
+   "stage_score": 5,
+   "classification_reasoning": "D1 does NOT fire: the frozen recipe accepted the program, build exit 0. It emitted a WARNING - \"warning: non-void function does not return a value in all control paths [-Wreturn-type]\" - but D1's condition is a non-zero build exit, and the exit was 0, so no compile-time rung is available under the frozen procedure. D3 n/a (ADV-START present). D4 n/a. D5 n/a (exit 0). D6a no (all three marker lines present). D6b no (reference is the DIAGNOSED_FAILURE sentinel). D6c: predicate ^R:-?(0|[1-9][0-9]*)$ is TRUE for R:2 -> D6c-ii -> D7. D7a no (5/5 identical). D7b: NOT satisfied by a different payload - the secondary ASan+UBSan binary hung and wrote nothing at all (see secondary_configuration), and D7b.no_observation_clause says 'no payload' is not a different payload. D7c FIRES on [stmt.return] p2. Stage: Undefined Behavior (5). NOTE ON THE OBSERVED VALUE: the input was 0, so the boolean was false and pick() fell off the end without returning. At -O2 clang treats the fall-through path as unreachable and the call returns 1 anyway, so the product printed is R:2 rather than the R:0 the case predicted. R:2 is an entirely ordinary integer; nothing in the output shows that a function returned nothing. silent_transformation TRUE.",
+   "stage_evidence": [
+    "D1: NOT fired - build exit 0 (a -Wreturn-type warning was emitted but the build succeeded)",
+    "D2: artifact produced",
+    "D3: ADV-START present",
+    "D4: no timeout",
+    "D5: exit 0, normal termination",
+    "D6a: OBS= and ADV-END present",
+    "D6b: reference is the DIAGNOSED_FAILURE sentinel",
+    "D6c-ii: predicate TRUE on R:2",
+    "D7a: 5/5 identical",
+    "D7b: not satisfied by a different payload (secondary binary produced no output); see secondary_configuration",
+    "D7c: FIRED - [stmt.return] p2 declares flowing off the end undefined"
+   ],
+   "silent_transformation": true,
+   "normative_citation": {
+    "document": "ISO/IEC 14882 (C++)",
+    "version": "C++20 (ISO/IEC 14882:2020)",
+    "clause": "[stmt.return] (8.7.4) p2 - \"Flowing off the end of a constructor, destructor, or non-coroutine function body that is not a function returning cv void results in undefined behavior.\""
+   },
+   "ub_underlying": true,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build": "clang++ -std=c++20 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined FILE.cpp -o BIN",
+    "run": "./BIN",
+    "env": "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=0, ASAN_OPTIONS=detect_leaks=0",
+    "build_exit": 0,
+    "build_stderr": "ADV-18.cpp:7:1: warning: non-void function does not return a value in all control paths [-Wreturn-type]",
+    "run_result": "TIMED OUT at 60s with no output at all",
+    "d7b_satisfied_by_different_payload": false,
+    "d7b_satisfied_by_report": true,
+    "note": "NON-SCORING. On this host every one of the four ASan+UBSan binaries hung and produced no output whatsoever - including ADV-24, whose -O2 build runs in 0.01s - so the address/undefined sanitizer runtime is not functional for these programs here (host: Apple M2, 8 GiB, macOS 26.4.1, with other benchmark languages building concurrently). Per D7b.no_observation_clause, 'no payload' is not a different payload, so the different-payload condition of D7b is NOT satisfied for any of these rows. The first D7b condition can only be satisfied by the secondary BUILD output, which is recorded here verbatim. No stage in this chunk depends on it: ADV-15, ADV-18 and ADV-24 are already at Undefined Behavior via D7c, and for ADV-23 the operation is defined so no sanitizer report was possible. The secondary build was run against the pre-rename filenames; the file bytes are unchanged."
+   },
+   "notes": "The compile-time warning text does not match L_RETURN? It does: \"non-void function does not return a value in all control paths\" is not one of the L_RETURN alternatives verbatim, but this is moot - D1b is only reachable on a non-zero build exit, and the frozen recipe exits 0 on a warning. Recorded exactly as the frozen recipe produced it (no_retroactive_promotion).",
+   "reference_observation": "DIAGNOSED_FAILURE",
+   "plausible_predicate_result": true
+  },
+  {
+   "case_variant_id": "ADV-19",
+   "case_id": "ADV-19",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-19_single.cpp",
+   "build": {
+    "cmd": [
+     "clang++",
+     "-std=c++20",
+     "-O2",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-19_single.cpp",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-19_single/prog"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_seconds": 0.51,
+    "timed_out": false,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-19_single/prog"
+    ],
+    "exit": -5,
+    "signal": 5,
+    "stdout": "ADV-START\n",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.3
+   },
+   "runs_all_5": [
+    {
+     "exit": -5,
+     "signal": 5,
+     "stdout": "ADV-START\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": -5,
+     "signal": 5,
+     "stdout": "ADV-START\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": -5,
+     "signal": 5,
+     "stdout": "ADV-START\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": -5,
+     "signal": 5,
+     "stdout": "ADV-START\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": -5,
+     "signal": 5,
+     "stdout": "ADV-START\n",
+     "stderr": "",
+     "timed_out": false
+    }
+   ],
+   "adv_start_present": true,
+   "adv_end_present": false,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "obs_identical_across_runs": true,
+   "forced_error_handling": "none",
+   "class": "Crash",
+   "earliest_observable_stage": "Crash",
+   "stage_score": 20,
+   "classification_reasoning": "Build exit 0, no diagnostic. D3 n/a (ADV-START present). D4 n/a - the run did NOT reach the 60s timeout; it died in 0.0s. D5 fires: ADV-START present and death by signal 5 (SIGTRAP). D5a no: the case lexicon L_STACK does not match stdout+stderr (= \"ADV-START\\n\"); stderr is empty. D5a' no: no global fragment matches. D5b FIRES: uncontrolled fault with no runtime diagnostic. Stage: Crash (20). WHAT ACTUALLY HAPPENED: at -O2 clang did not run out of stack. Because f() has no side effects and cannot terminate, the optimizer replaced the body with an `unreachable`, which lowered to a trap instruction; the process died by SIGTRAP within a millisecond, with no message. This is NOT the stack-overflow outcome the case anticipated, and it produced no diagnostic of any kind, so it lands at Crash rather than Runtime Safe Detection. ub_underlying is recorded true per ub_that_crashes_is_recorded_as_crash.",
+   "stage_evidence": [
+    "D1/D2: build exit 0, no diagnostic, artifact produced",
+    "D3: ADV-START present",
+    "D4: not fired - died in 0.0s, far inside the 60s timeout",
+    "D5: FIRED - ADV-START present, death by SIGTRAP (signal 5)",
+    "D5a: L_STACK does not match",
+    "D5a_prime: no global fragment matches",
+    "D5b: FIRED - uncontrolled fault, no runtime diagnostic"
+   ],
+   "silent_transformation": false,
+   "normative_citation": {
+    "document": "ISO/IEC 14882 (C++)",
+    "version": "C++20 (ISO/IEC 14882:2020)",
+    "clause": "[intro.progress] (6.9.2.3) p1 - an implementation may assume that any thread will eventually perform a library I/O function, access or modify a volatile object, or perform a synchronization or atomic operation; a loop or recursion that does none of these and does not terminate is undefined behaviour."
+   },
+   "ub_underlying": true,
+   "notes": "All 5 runs: exit -5 (SIGTRAP), stdout exactly \"ADV-START\\n\", stderr empty. The OBS= line was never reached."
+  },
+  {
+   "case_variant_id": "ADV-20",
+   "case_id": "ADV-20",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-20_single.cpp",
+   "build": {
+    "cmd": [
+     "clang++",
+     "-std=c++20",
+     "-O2",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-20_single.cpp",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-20_single/prog"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_seconds": 0.5,
+    "timed_out": false,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-20_single/prog"
+    ],
+    "exit": 0,
+    "signal": null,
+    "stdout": "ADV-START\nOBS=R:1000000\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.32
+   },
+   "runs_all_5": [
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=R:1000000\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=R:1000000\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=R:1000000\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=R:1000000\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=R:1000000\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    }
+   ],
+   "adv_start_present": true,
+   "adv_end_present": true,
+   "observed_payload": "R:1000000",
+   "reached_observation_point": true,
+   "obs_identical_across_runs": true,
+   "forced_error_handling": "none",
+   "class": "Prevented By Construction",
+   "earliest_observable_stage": "Prevented By Construction",
+   "stage_score": 100,
+   "classification_reasoning": "Build exit 0, no diagnostic. D3 n/a. D4 n/a (0.0s). D5 n/a (exit 0). D6a no (all markers present). D6b FIRES: obs_payload is R:1000000, which equals the case's reference_observation R:1000000 byte for byte, and that reference is a concrete value, not the DIAGNOSED_FAILURE sentinel. Stage: Prevented By Construction (100). EVIDENCE REQUIREMENT (a): the program source shows the hazardous operation genuinely attempted - f is declared int64->int64 with body `if (n == 1000000) return 0; return 1 + f(n + 1);`, the mandatory +1 after the call is present so the call is not in tail position, and the starting value 0 is read through the opacity barrier. EVIDENCE REQUIREMENT (b): exact match against reference_observation. HONEST DISCLOSURE: C++ did not survive a million stack frames. At -O2 LLVM's accumulator tail-recursion elimination rewrote `1 + f(n+1)` into a loop, so no deep stack was ever built. The case's construction tried to prevent this by mandating the +1, and that did not stop LLVM. This is a real capability of the frozen toolchain and D6b is mechanical, so the rung stands - but an auditor should read this row as 'the optimizer removed the recursion', not as 'C++ has a million-frame stack'.",
+   "stage_evidence": [
+    "D1/D2: build exit 0, artifact produced",
+    "D3: ADV-START present",
+    "D4: no timeout (0.0s)",
+    "D5: exit 0",
+    "D6a: OBS= and ADV-END present",
+    "D6b: FIRED - payload R:1000000 == reference_observation R:1000000"
+   ],
+   "silent_transformation": false,
+   "notes": "5/5 runs byte-identical. Runtime 0.0s, confirming the recursion was transformed into a loop rather than executed as 1e6 nested calls.",
+   "reference_observation": "R:1000000"
+  },
+  {
+   "case_variant_id": "ADV-21",
+   "case_id": "ADV-21",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-21_single.cpp",
+   "build": {
+    "cmd": [
+     "clang++",
+     "-std=c++20",
+     "-O2",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-21_single.cpp",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-21_single/prog"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-21_single.cpp:6:278: fatal error: bracket nesting level exceeded maximum of 256\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-21_single.cpp:6:278: note: use -fbracket-depth=N to increase maximum nesting level\n1 error generated.\n",
+    "wall_seconds": 0.43,
+    "timed_out": false,
+    "artifact_produced": false
+   },
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "signal": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "not run: build rejected the program"
+   },
+   "runs_all_5": [],
+   "adv_start_present": false,
+   "adv_end_present": false,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "obs_identical_across_runs": null,
+   "forced_error_handling": "none",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "stage_score": 100,
+   "classification_reasoning": "Source produced by the frozen generator scripts/gen_adv21_cpp.py at DEPTH=100000 with no newline inside the parenthesis runs (file is 200222 bytes). D1 fires: build exit 1 after 0.44s, far inside the 300s build timeout. D1a no: no toolchain_failure_marker matched - there is no internal compiler error, no LLVM ERROR, no 'PLEASE submit a bug report', no Stack dump, and the compiler did not die by a signal. D1b-i FIRES: the build stderr matches both patterns of the case lexicon. Stage: Compile-time Detection (100). This is the best available outcome for this case: a graceful, bounded rejection naming the limit, with file, line and column, plus a note naming the flag that would raise the limit.",
+   "stage_evidence": [
+    "D1: fired (build exit 1, 0.44s)",
+    "D1a: no toolchain failure marker; compiler exited normally with a diagnostic",
+    "D1b-i: FIRED - case lexicon matched (\"nesting\", \"maximum.*(depth|nesting)\")"
+   ],
+   "silent_transformation": false,
+   "first_diagnostic_line": "ADV-21_single.cpp:6:278: fatal error: bracket nesting level exceeded maximum of 256",
+   "matched_pattern": "case lexicon \"nesting\" and \"too deep|depth|recursion limit|too complex|expression too|parser stack|maximum.*(depth|nesting)\"",
+   "notes": "Non-scoring secondary depths: depth 1000 and depth 10000 produce the identical 'bracket nesting level exceeded maximum of 256' fatal error, so clang's actual limit is 256 and it is a hard, diagnosed limit rather than a crash point."
+  },
+  {
+   "case_variant_id": "ADV-22",
+   "case_id": "ADV-22",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-22a_single.cpp",
+   "build": {
+    "cmd": [
+     "clang++",
+     "-std=c++20",
+     "-O2",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-22a_single.cpp",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-22a_single/prog"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-22a_single.cpp:7:14: error: expected ';' after expression\n    7 |     std::cout\n      |              ^\n      |              ;\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-22a_single.cpp:7:14: error: expected '}'\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-22a_single.cpp:4:12: note: to match this '{'\n    4 | int main() {\n      |            ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-22a_single.cpp:7:5: warning: expression result unused [-Wunused-value]\n    7 |     std::cout\n      |     ^~~~~~~~~\n1 warning and 2 errors generated.\n",
+    "wall_seconds": 0.48,
+    "timed_out": false,
+    "artifact_produced": false
+   },
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "signal": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "not run: build rejected the program"
+   },
+   "runs_all_5": [],
+   "adv_start_present": false,
+   "adv_end_present": false,
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "obs_identical_across_runs": null,
+   "forced_error_handling": "none",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "stage_score": 100,
+   "classification_reasoning": "Authoring precondition verified first: ADV-22_single-valid.cpp is 222 bytes, builds with the frozen recipe and prints ADV-START / OBS=V:1 / ADV-END, exit 0; its midpoint byte (offset 111) is the 't' of `std::int64_t`, which is neither inside a string literal nor inside a comment. Both frozen mutations were generated and run unconditionally, with no selection. ADV-22a: build exit 1. D1a no (no toolchain failure marker - no ICE, no crash). D1b-i FIRES (case lexicon matched). Compile-time Detection, 100. The compiler also emitted the matching-brace note pointing back at `int main() {`. ADV-22b: build exit 1. D1a no. D1b-i FIRES (case lexicon matched). Compile-time Detection, 100. Case stage score = unweighted mean of 100 and 100 = 100. Neither mutation produced a running binary, so the toolchain-level Silent Bug this case watches for did not occur.",
+   "stage_evidence": [
+    "ADV-22a: D1 fired (exit 1); D1a no marker; D1b-i FIRED - lexicon matched",
+    "ADV-22b: D1 fired (exit 1); D1a no marker; D1b-i FIRED - lexicon matched",
+    "case score = mean(100, 100) = 100"
+   ],
+   "silent_transformation": false,
+   "notes": "Both rejections carry file, line and column. ADV-22b additionally produced three further diagnostics (no member named 'int64_' in namespace 'std'; expected expression; use of undeclared identifier 'v') and did not cascade or crash.",
+   "sub_programs": [
+    {
+     "id": "ADV-22a",
+     "mutation": "first floor(0.60*222)=133 bytes of ADV-22-valid.cpp",
+     "build_exit": 1,
+     "first_diagnostic_line": "ADV-22a_single.cpp:7:14: error: expected ';' after expression",
+     "class": "Compile-time Detection",
+     "stage": "Compile-time Detection",
+     "score": 100,
+     "matched_pattern": "case lexicon \"syntax error|parse error|unexpected|expected|unterminated|SyntaxError|error:\" (matched via \"expected\" and \"error:\")"
+    },
+    {
+     "id": "ADV-22b",
+     "mutation": "three bytes 0x40 0x23 0x24 ('@#$') inserted at byte offset floor(222/2)=111",
+     "build_exit": 1,
+     "first_diagnostic_line": "ADV-22b_single.cpp:6:16: error: expected ';' after expression",
+     "class": "Compile-time Detection",
+     "stage": "Compile-time Detection",
+     "score": 100,
+     "matched_pattern": "case lexicon \"syntax error|parse error|unexpected|expected|unterminated|SyntaxError|error:\""
+    }
+   ],
+   "build_b": {
+    "cmd": [
+     "clang++",
+     "-std=c++20",
+     "-O2",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-22b_single.cpp",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-22b_single/prog"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-22b_single.cpp:6:16: error: expected ';' after expression\n    6 |     std::int64_@#$t v = 1;\n      |                ^\n      |                ;\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-22b_single.cpp:6:10: error: no member named 'int64_' in namespace 'std'\n    6 |     std::int64_@#$t v = 1;\n      |     ~~~~~^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-22b_single.cpp:6:16: error: expected expression\n    6 |     std::int64_@#$t v = 1;\n      |                ^\n/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-22b_single.cpp:7:30: error: use of undeclared identifier 'v'\n    7 |     std::cout << \"OBS=V:\" << v << std::endl;\n      |                              ^\n4 errors generated.\n",
+    "wall_seconds": 0.47,
+    "artifact_produced": false
+   },
+   "program_b": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-22b_single.cpp",
+   "run_b": {
+    "cmd": null,
+    "exit": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "not run: build rejected the program"
+   },
+   "valid_reference_program": {
+    "path": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-22_single-valid.cpp",
+    "bytes": 222,
+    "builds": true,
+    "runs": true,
+    "stdout": "ADV-START\nOBS=V:1\nADV-END\n",
+    "exit": 0,
+    "midpoint_byte_offset": 111,
+    "midpoint_byte": "'t' of std::int64_t",
+    "precondition": "no string literal and no comment spans the midpoint byte - verified"
+   }
+  },
+  {
+   "case_variant_id": "ADV-23",
+   "case_id": "ADV-23",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-23_single.cpp",
+   "build": {
+    "cmd": [
+     "clang++",
+     "-std=c++20",
+     "-O2",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-23_single.cpp",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-23_single/prog"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_seconds": 0.68,
+    "timed_out": false,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-23_single/prog"
+    ],
+    "exit": 0,
+    "signal": null,
+    "stdout": "ADV-START\nOBS=CP:13\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.32
+   },
+   "runs_all_5": [
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=CP:13\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=CP:13\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=CP:13\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=CP:13\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=CP:13\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    }
+   ],
+   "adv_start_present": true,
+   "adv_end_present": true,
+   "observed_payload": "CP:13",
+   "reached_observation_point": true,
+   "obs_identical_across_runs": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "stage_score": 0,
+   "classification_reasoning": "Length facility recorded: std::string::size() (ISO/IEC 14882:2020 [string.capacity]), which returns the number of char objects - C++'s default_string_type is a sequence of bytes and has no notion of a code point or of an encoding, so size() is the only direct length it offers. File read with the ordinary facility (std::ifstream plus std::istreambuf_iterator), no encoding argument, no error policy, no validation. Build exit 0, no diagnostic. D3 n/a. D4 n/a. D5 n/a (exit 0). D6a no. D6b no (reference is the sentinel). D6c: predicate ^CP:(0|[1-9][0-9]*)$ with CP in [0,10000] is TRUE for CP:13 -> D6c-ii -> D7. D7a no (5/5 identical). D7b: NOT satisfied by a different payload - the secondary ASan+UBSan binary hung and wrote nothing at all (see secondary_configuration), and D7b.no_observation_clause says 'no payload' is not a different payload. D7c no: nothing here is undefined or ill-formed - reading arbitrary bytes into std::string and reporting size() is fully defined C++ behaviour. D7d FIRES: Silent Bug (0). normative_status: DEFINED. This is the emblematic silent transformation: 13 bytes of deliberately invalid UTF-8 (an invalid 2-byte sequence, a UTF-16 surrogate, a value above U+10FFFF, a lone continuation byte) were accepted without validation, stored, and reported as an ordinary length of 13. Nothing in the program's output, exit status, stderr or build log carries any trace that the input was not valid text.",
+   "stage_evidence": [
+    "D1/D2: build exit 0, artifact produced",
+    "D3: ADV-START present",
+    "D4: no timeout",
+    "D5: exit 0",
+    "D6a: OBS= and ADV-END present",
+    "D6b: reference is the DIAGNOSED_FAILURE sentinel",
+    "D6c-ii: predicate TRUE on CP:13",
+    "D7a: 5/5 identical",
+    "D7b: not satisfied by a different payload (secondary binary produced no output); see secondary_configuration",
+    "D7c: no undefined/ill-formed construct - behaviour is defined",
+    "D7d: FIRED - Silent Bug (0)"
+   ],
+   "silent_transformation": true,
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build": "clang++ -std=c++20 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined FILE.cpp -o BIN",
+    "run": "./BIN",
+    "env": "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=0, ASAN_OPTIONS=detect_leaks=0",
+    "build_exit": 0,
+    "build_stderr": "",
+    "run_result": "TIMED OUT at 60s with no output at all",
+    "d7b_satisfied_by_different_payload": false,
+    "d7b_satisfied_by_report": false,
+    "note": "NON-SCORING. On this host every one of the four ASan+UBSan binaries hung and produced no output whatsoever - including ADV-24, whose -O2 build runs in 0.01s - so the address/undefined sanitizer runtime is not functional for these programs here (host: Apple M2, 8 GiB, macOS 26.4.1, with other benchmark languages building concurrently). Per D7b.no_observation_clause, 'no payload' is not a different payload, so the different-payload condition of D7b is NOT satisfied for any of these rows. The first D7b condition can only be satisfied by the secondary BUILD output, which is recorded here verbatim. No stage in this chunk depends on it: ADV-15, ADV-18 and ADV-24 are already at Undefined Behavior via D7c, and for ADV-23 the operation is defined so no sanitizer report was possible. The secondary build was run against the pre-rename filenames; the file bytes are unchanged."
+   },
+   "notes": "Input file SHA-256 92b7a095ac51179a8133bc46f32aa6d922f8930d173a5036466457f6576dde84, 13 bytes, hex 41 C3 28 ED A0 80 F4 90 80 80 80 42 0A.",
+   "reference_observation": "DIAGNOSED_FAILURE",
+   "plausible_predicate_result": true
+  },
+  {
+   "case_variant_id": "ADV-24",
+   "case_id": "ADV-24",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-24_single.cpp",
+   "build": {
+    "cmd": [
+     "clang++",
+     "-std=c++20",
+     "-O2",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-24_single.cpp",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-24_single/prog"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-24_single.cpp:5:19: warning: integer literal is too large to be represented in a signed integer type, interpreting as unsigned [-Wimplicitly-unsigned-literal]\n    5 |     long long v = 9223372036854775809;\n      |                   ^\n1 warning generated.\n",
+    "wall_seconds": 0.71,
+    "timed_out": false,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-24_single/prog"
+    ],
+    "exit": 0,
+    "signal": null,
+    "stdout": "ADV-START\nOBS=V:-9223372036854775807\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.32
+   },
+   "runs_all_5": [
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=V:-9223372036854775807\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=V:-9223372036854775807\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=V:-9223372036854775807\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=V:-9223372036854775807\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=V:-9223372036854775807\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    }
+   ],
+   "adv_start_present": true,
+   "adv_end_present": true,
+   "observed_payload": "V:-9223372036854775807",
+   "reached_observation_point": true,
+   "obs_identical_across_runs": true,
+   "forced_error_handling": "none",
+   "class": "Undefined Behavior",
+   "earliest_observable_stage": "Undefined Behavior",
+   "stage_score": 5,
+   "classification_reasoning": "CRITICAL - READ THE BUILD OUTPUT. clang DID diagnose the hazard, and the diagnostic MATCHES the case lexicon (L_OVERFLOW and 'integer literal is too large'): \"warning: integer literal is too large to be represented in a signed integer type, interpreting as unsigned [-Wimplicitly-unsigned-literal]\". But it is a WARNING: the frozen recipe `clang++ -std=c++20 -O2` exited 0 and produced a runnable binary. D1's condition is a NON-ZERO build exit, so D1 does not fire and no compile-time rung is available; no_retroactive_promotion forbids promoting the row because a stricter flag (-Werror) would have caught it. D3 n/a. D4 n/a. D5 n/a (exit 0). D6a no. D6b no: payload V:-9223372036854775807 != reference V:9223372036854775809. D6c: predicate ^V:-?(0|[1-9][0-9]*)$ is TRUE -> D6c-ii -> D7. D7a no (5/5 identical). D7b: NOT satisfied by a different payload - the secondary ASan+UBSan binary hung and wrote nothing at all (see secondary_configuration), and D7b.no_observation_clause says 'no payload' is not a different payload. D7c FIRES: [lex.icon] p3 declares this program ILL-FORMED - the literal is representable by none of the allowed types. D7c's condition covers a specification declaring the constructed operation 'undefined, ILLEGAL, or unspecified-and-unbounded', and an ill-formed program is illegal. Stage: Undefined Behavior (5). AUDITOR NOTE - THE ONE JUDGEMENT CALL IN THIS CHUNK: if 'illegal' in D7c is read narrowly as meaning only [defns.undefined] undefined behaviour, then D7c does not fire and this row is D7d Silent Bug (0). The difference is 5 points. Everything else about the row is unambiguous: the literal written in the source was silently turned into -9223372036854775807, a perfectly ordinary nineteen-digit integer that differs from the source text in sign and magnitude, and the program reported success. silent_transformation is TRUE either way.",
+   "stage_evidence": [
+    "D1: NOT fired - build exit 0 (a -Wimplicitly-unsigned-literal WARNING was emitted that does match the case lexicon, but the build succeeded)",
+    "D2: artifact produced",
+    "D3: ADV-START present",
+    "D4: no timeout",
+    "D5: exit 0",
+    "D6a: OBS= and ADV-END present",
+    "D6b: payload != reference",
+    "D6c-ii: predicate TRUE on V:-9223372036854775807",
+    "D7a: 5/5 identical",
+    "D7b: not satisfied by a different payload (secondary binary produced no output); see secondary_configuration",
+    "D7c: FIRED (contested) - [lex.icon] p3 makes the program ill-formed",
+    "D7d: would fire instead under a narrow reading of D7c's word 'illegal'"
+   ],
+   "silent_transformation": true,
+   "normative_citation": {
+    "document": "ISO/IEC 14882 (C++)",
+    "version": "C++20 (ISO/IEC 14882:2020)",
+    "clause": "[lex.icon] (5.13.2) p3 and Table 8 - the candidate types of a decimal integer-literal with no suffix are int, long int and long long int (all signed); \"If the integer-literal cannot be represented by any of the allowed types, the program is ill-formed.\" 9223372036854775809 > 2^63-1 is representable by none of them. Conversion of the value clang substitutes is itself DEFINED by [conv.integral] (7.3.9) p3 (modulo 2^N)."
+   },
+   "ub_underlying": true,
+   "flag": "compile_time_warning_matched_lexicon_but_build_exited_zero",
+   "secondary_configuration": {
+    "status": "NON-SCORING",
+    "build": "clang++ -std=c++20 -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined FILE.cpp -o BIN",
+    "run": "./BIN",
+    "env": "UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=0, ASAN_OPTIONS=detect_leaks=0",
+    "build_exit": 0,
+    "build_stderr": "ADV-24.cpp:5:19: warning: integer literal is too large to be represented in a signed integer type, interpreting as unsigned [-Wimplicitly-unsigned-literal]",
+    "run_result": "TIMED OUT at 60s, and again at 90s on a repeat attempt, with no output at all",
+    "d7b_satisfied_by_different_payload": false,
+    "d7b_satisfied_by_report": true,
+    "note": "NON-SCORING. On this host every one of the four ASan+UBSan binaries hung and produced no output whatsoever - including ADV-24, whose -O2 build runs in 0.01s - so the address/undefined sanitizer runtime is not functional for these programs here (host: Apple M2, 8 GiB, macOS 26.4.1, with other benchmark languages building concurrently). Per D7b.no_observation_clause, 'no payload' is not a different payload, so the different-payload condition of D7b is NOT satisfied for any of these rows. The first D7b condition can only be satisfied by the secondary BUILD output, which is recorded here verbatim. No stage in this chunk depends on it: ADV-15, ADV-18 and ADV-24 are already at Undefined Behavior via D7c, and for ADV-23 the operation is defined so no sanitizer report was possible. The secondary build was run against the pre-rename filenames; the file bytes are unchanged."
+   },
+   "notes": "Verbatim first build diagnostic: \"ADV-24_single.cpp:5:19: warning: integer literal is too large to be represented in a signed integer type, interpreting as unsigned [-Wimplicitly-unsigned-literal]\". This is important evidence for the Diagnostics metric even though it cannot set the stage here.",
+   "reference_observation": "V:9223372036854775809",
+   "plausible_predicate_result": true
+  },
+  {
+   "case_variant_id": "ADV-25/R",
+   "case_id": "ADV-25",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-25_R.cpp",
+   "build": {
+    "cmd": [
+     "clang++",
+     "-std=c++20",
+     "-O2",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-25_R.cpp",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-25_R/prog"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_seconds": 0.65,
+    "timed_out": false,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-25_R/prog"
+    ],
+    "exit": 0,
+    "signal": null,
+    "stdout": "ADV-START\nOBS=R:24\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.32
+   },
+   "runs_all_5": [
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=R:24\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=R:24\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=R:24\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=R:24\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=R:24\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    }
+   ],
+   "adv_start_present": true,
+   "adv_end_present": true,
+   "observed_payload": "R:24",
+   "reached_observation_point": true,
+   "obs_identical_across_runs": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "stage_score": 0,
+   "classification_reasoning": "Facility recorded: std::stoll(text), the frozen primary_string_to_integer_facility for C++ (ISO/IEC 14882:2020 [string.conversions]). Used through rule A3 in its shortest direct form, with no failure channel inspected - std::stoll signals failure by THROWING (std::invalid_argument / std::out_of_range), and the program contains no try, no catch and no handler of any kind. Build exit 0, no diagnostic. D3 n/a. D4 n/a. D5 n/a (exit 0, no signal - nothing was thrown). D6a no. D6b no (reference is the sentinel). D6c: predicate ^R:-?(0|[1-9][0-9]*)$ is TRUE for R:24 -> D6c-ii -> D7. D7a no (5/5 identical). D7b n/a (nothing undefined for a sanitizer to report; the operation is defined). D7c no: std::stoll on \"12x34\" is fully DEFINED - it discards leading whitespace, converts as many characters as possible, and throws only if NO conversion could be performed. A conversion could be performed (\"12\"), so it returned 12 and threw nothing. D7d FIRES: Silent Bug (0), normative_status DEFINED. This is precisely the R:24 outcome the case names: \"a facility that parses the leading digits and discards the rest, turning 12x34 into 12\". The trailing \"x34\" vanished without a trace.",
+   "stage_evidence": [
+    "D1/D2: build exit 0, artifact produced",
+    "D3: ADV-START present",
+    "D4: no timeout",
+    "D5: exit 0, no exception escaped, no signal",
+    "D6a: OBS= and ADV-END present",
+    "D6b: reference is the DIAGNOSED_FAILURE sentinel",
+    "D6c-ii: predicate TRUE on R:24",
+    "D7a: 5/5 identical",
+    "D7b: not satisfied",
+    "D7c: behaviour is defined",
+    "D7d: FIRED - Silent Bug (0)"
+   ],
+   "silent_transformation": true,
+   "notes": "std::stoll also offers an out-parameter (pos) that would have revealed the unconsumed suffix; rule A4 forbids reaching for it, and an ordinary author does not.",
+   "reference_observation": "DIAGNOSED_FAILURE",
+   "plausible_predicate_result": true
+  },
+  {
+   "case_variant_id": "ADV-26/R",
+   "case_id": "ADV-26",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-26_R.cpp",
+   "build": {
+    "cmd": [
+     "clang++",
+     "-std=c++20",
+     "-O2",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/cpp/ADV-26_R.cpp",
+     "-o",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-26_R/prog"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": "",
+    "wall_seconds": 0.56,
+    "timed_out": false,
+    "artifact_produced": true
+   },
+   "run": {
+    "cmd": [
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/work/adv_cpp_chunk2/ADV-26_R/prog"
+    ],
+    "exit": 0,
+    "signal": null,
+    "stdout": "ADV-START\nOBS=IDX:-1\nADV-END\n",
+    "stderr": "",
+    "timed_out": false,
+    "wall_seconds": 0.31
+   },
+   "runs_all_5": [
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=IDX:-1\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=IDX:-1\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=IDX:-1\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=IDX:-1\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    },
+    {
+     "exit": 0,
+     "signal": null,
+     "stdout": "ADV-START\nOBS=IDX:-1\nADV-END\n",
+     "stderr": "",
+     "timed_out": false
+    }
+   ],
+   "adv_start_present": true,
+   "adv_end_present": true,
+   "observed_payload": "IDX:-1",
+   "reached_observation_point": true,
+   "obs_identical_across_runs": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "stage_score": 0,
+   "classification_reasoning": "Build exit 0, no diagnostic. The seven values 5, 9, 2, 14, 3, 20, 8 and the target 3 were read through the opacity barrier; the binary search is the case's algorithm verbatim with no added check. D3 n/a. D4 n/a. D5 n/a (exit 0; every index visited was in 0..6 so no bounds fault occurred). D6a no. D6b no: payload IDX:-1 != reference IDX:4. D6c: predicate ^IDX:(-1|[0-6])$ is TRUE for IDX:-1 - 'not found' is an ordinary, expected answer from a search -> D6c-ii -> D7. D7a no (5/5 identical). D7b n/a (nothing undefined; ASan/UBSan have nothing to report about a well-formed loop over in-range indices). D7c no: every operation is defined C++. D7d FIRES: Silent Bug (0), normative_status DEFINED. The search visited mid=3 (14>3, hi=2), mid=1 (9>3, hi=0), mid=0 (5>3, hi=-1) and terminated with -1, exactly as the case's verification predicts. The target IS present at index 4. C++ has no way to express or enforce the sortedness precondition on a std::vector, so nothing anywhere in the pipeline objected.",
+   "stage_evidence": [
+    "D1/D2: build exit 0, artifact produced",
+    "D3: ADV-START present",
+    "D4: no timeout",
+    "D5: exit 0, no fault",
+    "D6a: OBS= and ADV-END present",
+    "D6b: IDX:-1 != IDX:4",
+    "D6c-ii: predicate TRUE on IDX:-1 (a plausible 'not found')",
+    "D7a: 5/5 identical",
+    "D7b: not satisfied",
+    "D7c: behaviour is defined",
+    "D7d: FIRED - Silent Bug (0)"
+   ],
+   "silent_transformation": true,
+   "notes": "The purest silent bug in the set: an ordinary 'not found' that a consumer would act on without question.",
+   "reference_observation": "IDX:4",
+   "plausible_predicate_result": true
+  }
+ ],
+ "input_file_checksums": {
+  "ADV-14.in": "10159baf262b43a92d95db59dae1f72c645127301661e0a3ce4e38b295a97c58",
+  "ADV-18.in": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+  "ADV-19.in": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+  "ADV-20.in": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+  "ADV-23.bin": "92b7a095ac51179a8133bc46f32aa6d922f8930d173a5036466457f6576dde84",
+  "ADV-25.in": "ae4aabb9fef430474df4364b73f213195e50775f9d84617cc885533c0d5747a5",
+  "ADV-26.in": "56d6187d903b86d2b6bb289e3b81837f11805cf98ffda391941b7d9dd69429ab"
+ },
+ "adv21_generator": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/scripts/gen_adv21_cpp.py",
+ "adv21_secondary_depths": {
+  "1000": "fatal error: bracket nesting level exceeded maximum of 256 (build exit 1)",
+  "10000": "fatal error: bracket nesting level exceeded maximum of 256 (build exit 1)"
+ }
+}

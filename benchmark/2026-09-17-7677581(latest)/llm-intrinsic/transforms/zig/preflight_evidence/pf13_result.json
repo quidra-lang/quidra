@@ -1,0 +1,17 @@
+{
+  "stage": "oracle",
+  "ok": true,
+  "exit_status": 0,
+  "stdout": "SUM 25632\nMAX 935\nEVENS 24\nJOINED 897-558-614-577-405\n",
+  "fixups": {
+    "pack_documented": [],
+    "unstated_convention": [
+      "H1_entry_filename",
+      "H6_emitted_binary_name"
+    ]
+  },
+  "fenced_blocks": 1,
+  "reason": "",
+  "pack_documented_fixups": [],
+  "pass": true
+}

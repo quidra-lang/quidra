@@ -1,0 +1,4 @@
+map.Map<string, int32> mp = map.Map<string, int32>()
+mp.set("a", 1)
+for e in mp
+    print(e)

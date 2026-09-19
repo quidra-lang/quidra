@@ -1,0 +1,1616 @@
+{
+  "document_id": "09_llm_run_config",
+  "title": "Immutable LLM Run Configuration (spec 6.2)",
+  "benchmark_run_id": "2026-09-17-7677581",
+  "benchmark_date": "2026-09-17",
+  "spec_authority": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/prompt.md",
+  "spec_sections_implemented": [
+    "6.2",
+    "9",
+    "9.1",
+    "16",
+    "21",
+    "22",
+    "23",
+    "24",
+    "25.1",
+    "25.2",
+    "25.3",
+    "26",
+    "28.2",
+    "32"
+  ],
+  "frozen": true,
+  "frozen_before_first_scored_generation": true,
+  "status": "FROZEN. No field in this document may be altered after the first scored LLM generation of run 2026-09-17-7677581. A change requires a new benchmark run id.",
+  "fixed_comparison_languages": [
+    "Quidra",
+    "Python",
+    "C++",
+    "Rust",
+    "Go",
+    "Java",
+    "TypeScript",
+    "Kotlin",
+    "Swift",
+    "Zig"
+  ],
+  "fixed_column_order_note": "This order is the fixed column order of every LLM Practical Effectiveness table. It is presentation order only and carries no weight.",
+  "fairness_declaration": {
+    "purpose_statement": "The benchmark's purpose is not to make Quidra score well. Quidra is the language under evaluation; the other nine are the fixed comparison set. Every language may score well on something Quidra does badly and badly on something Quidra does well.",
+    "nothing_derived_from_quidra": "No task, oracle, prompt, metric definition, tolerance, tool permission, or weight in this document was derived from Quidra's syntax, operators, types, standard library, or feature set. Every task is specified by required observable behaviour only.",
+    "no_capability_removed": "No capability, boundary case, or error case was removed from the task set because Quidra lacks it or handles it awkwardly. Cases that Quidra's overflow-checked integers, its error model, or its interpreter path make harder for Quidra remain in the set.",
+    "identical_application": "The system prompt, repair prompt, tool permissions, timeouts, retry policy, pack budget, examples budget, trial counts, oracles, and normalisation are byte-identical across all ten languages except for the enumerated placeholder substitutions in 'per_language_placeholder_substitutions', which carry only benchmark-controlled language-specific material (display name, toolchain version string, file extension, entry-point filename, and the frozen build/run recipe already recorded in environment.json).",
+    "no_fabrication": "Where a quantity cannot be measured honestly with this client and toolchain, it is recorded as N/A with an explicit machine-readable reason in 'na_policy_for_llm_practical'. No value is estimated, inferred, or filled in from expectation."
+  },
+  "model_and_client_identity": {
+    "provider": "Anthropic",
+    "public_model_name": "Claude Opus 5",
+    "exact_model_identifier": "claude-opus-5",
+    "client": "Claude Code agent harness (Claude Agent SDK)",
+    "execution_mechanism": "Each trial is executed by a freshly spawned subagent of the Claude Code agent harness, launched through the harness's Workflow tool by the benchmark orchestrator.",
+    "api_version_string": null,
+    "api_version_reason": "This client does not expose a provider API version string to the caller. Recorded as null rather than guessed.",
+    "benchmark_date": "2026-09-17",
+    "single_model_identity_for_all_languages": true,
+    "model_change_policy": "A model or version change requires a new benchmark run id and must not be mixed into run 2026-09-17-7677581. If the harness reports a different model identifier for any trial, that trial is invalidated, recorded in the deviation register, and re-run; if the identifier cannot be restored, the run is abandoned rather than mixed.",
+    "model_identifier_recorded_per_trial": "manifest.json of every trial records the model identifier the harness reported for that trial. Trials whose recorded identifier is not exactly 'claude-opus-5' are excluded from scoring and listed in _deviations.json."
+  },
+  "context_isolation": {
+    "fresh_isolated_context_per_initial_trial": true,
+    "mechanism": "Every initial trial is a newly spawned subagent with an empty context window. It receives only the system prompt, the task prompt, and the on-disk reference pack in its own trial working directory. It has no transcript, memory, summary, or artefact from any other trial, any other language, or the orchestrator's own conversation.",
+    "cross_trial_memory": "PROHIBITED",
+    "cross_trial_memory_enforcement": [
+      "The subagent is spawned with no conversation history.",
+      "Each trial receives a private working directory; it cannot read another trial's directory because every path it is given is inside its own directory and the pack directory.",
+      "The trial working directory is created empty immediately before the trial and contains no output of any previous trial.",
+      "No orchestrator text summarising a previous trial appears in any trial prompt. The prompt templates in this document are the complete set of orchestrator-authored text a trial ever sees.",
+      "Repair turns continue inside the SAME subagent context as their initial generation (this is required: the model must see the program it wrote). Repair turns never cross trial boundaries."
+    ],
+    "satisfies_spec_6_2": "This satisfies spec 6.2's requirements 'context: a fresh isolated conversation/session for every initial trial' and 'cross-trial memory: prohibited'."
+  },
+  "decoding_controls": {
+    "_policy": "Spec 6.2: if a provider or client does not expose one of temperature, top-p, seed, or token-limit controls, do not emulate it with a language-specific workaround; record the field as provider-controlled / unavailable, preserve provider defaults if known, and use the same interface and configuration for every language.",
+    "temperature": {
+      "spec_default": 0,
+      "status": "provider-controlled / unavailable",
+      "reason": "The Claude Code agent harness does not expose a temperature parameter to a spawned subagent. No workaround is used.",
+      "value_used": null
+    },
+    "top_p": {
+      "spec_default": 1.0,
+      "status": "provider-controlled / unavailable",
+      "reason": "The Claude Code agent harness does not expose a top-p parameter to a spawned subagent. No workaround is used.",
+      "value_used": null
+    },
+    "seed": {
+      "spec_default": 0,
+      "status": "provider-controlled / unavailable",
+      "reason": "The Claude Code agent harness does not expose a decoding seed to a spawned subagent. No workaround is used, and no prompt noise is added to force or suppress diversity.",
+      "value_used": null
+    },
+    "max_output_tokens_per_generation": {
+      "spec_default": 16384,
+      "status": "provider-controlled / unavailable",
+      "enforceable": false,
+      "reason": "The harness does not expose a per-generation output-token limit to the caller. It is not emulated by instructing the model to be brief, because that would change generation behaviour and would not be a decoding control.",
+      "value_used": null
+    },
+    "max_cumulative_output_tokens_per_trial": {
+      "spec_default": 65536,
+      "status": "not enforceable as a hard limit",
+      "enforceable": false,
+      "reason": "The harness provides no cumulative output-token cap for a subagent. The budget is therefore not enforced.",
+      "accounting_actually_used": "Cumulative token usage per trial is ACCOUNTED rather than capped. For each trial the orchestrator records, in tokens/usage.json, the harness-reported input tokens, output tokens, cache-read tokens and cache-creation tokens for the initial generation and for each repair turn separately, plus their per-trial sums. The trial is bounded instead by the wall-clock timeout and the fixed 3-repair budget, both of which are identical for all ten languages. If a trial's cumulative reported output tokens exceed 65,536 the trial is NOT truncated or discarded; the excess is recorded in manifest.json as budget_advisory_exceeded=true and published, so that the deviation from the spec default is visible rather than absorbed."
+    },
+    "duplication_reporting": "If repeated trials in a cell produce byte-identical source, all trials are preserved and the duplication rate (identical-source trials / trials in cell) is published per language in raw/duplication_rate.json. No ad-hoc prompt noise is added to force diversity.",
+    "identical_interface_across_languages": "The same client, the same spawn mechanism, the same prompt templates, and the same (unavailable) decoding controls are used for every one of the ten languages. No language is generated through a different interface or configuration."
+  },
+  "context_window_limit": {
+    "status": "provider-controlled / unavailable",
+    "reason": "The per-subagent context window of the Claude Code agent harness is not configurable by the benchmark and is not reported to the caller as a number. It is identical for all ten languages because the same client and spawn mechanism is used for all of them.",
+    "observable_handling": "If a trial terminates because it exhausted its context, the harness surfaces this as a subagent termination. The orchestrator classifies that outcome as an INFRASTRUCTURE event of class 'context_exhausted', records it in _infrastructure_events.jsonl, and applies the retry policy. It is never recorded as a generation failure, a compile failure, or an incorrect generation.",
+    "mitigation": "Diagnostic feedback in repair prompts is truncated to the frozen byte budget in 'repair_feedback_truncation' so that repair turns cannot grow without bound, identically for all languages."
+  },
+  "repair_policy": {
+    "max_repair_turns_after_initial_generation": 3,
+    "repair_turn_ids": [
+      "repair_01",
+      "repair_02",
+      "repair_03"
+    ],
+    "who_performs_the_repair": "The model, inside the same subagent context as its initial generation. The orchestrator supplies only real diagnostics and never proposes a fix, names a cause, points at a line, or hints at the language feature to use.",
+    "repair_trigger": "A repair turn is issued if and only if the current version's classification is not PASS, and fewer than 3 repair turns have been used.",
+    "repair_stops_early": "If a version classifies as PASS, no further repair turn is issued and the remaining repair budget is unused (recorded as repair_turns_used).",
+    "repair_feedback_truncation": {
+      "per_stream_byte_budget": 8000,
+      "rule": "Each of BUILD_STDOUT, BUILD_STDERR, RUN_STDOUT, RUN_STDERR is included verbatim from its first byte up to 8000 bytes. If the stream is longer, the included text is followed by the literal line '[...truncated, N more bytes...]' with N the exact number of omitted bytes.",
+      "oracle_diff_budget": "At most the first 20 failing checks, each rendered as three lines: 'check <id>', 'expected: <expected>', 'actual: <actual>'. If more than 20 checks failed, followed by the literal line '[...N more failing checks...]'.",
+      "identical_for_all_languages": true,
+      "rationale": "Head truncation at a fixed byte budget is applied identically to every language. It is not tuned to any language's diagnostic verbosity, and the untruncated streams are preserved on disk for audit."
+    }
+  },
+  "human_edit_prohibition": {
+    "rule": "PROHIBITED. Human edits to generated source counted as LLM success are prohibited (spec 9, spec 32).",
+    "enforcement_mechanism": [
+      "M1. Write isolation. Only the trial subagent writes to <trial>/generated/. The orchestrator and every scoring script open that directory read-only. The scoring pipeline has no code path that writes a source file under trials/.",
+      "M2. Content hashing at the moment of capture. Immediately after the subagent returns, before any build or oracle step, the orchestrator computes SHA-256 of every file under <trial>/generated/ and writes it to <trial>/versions/<version>/sha256sums.txt, together with the file size and the filesystem mtime in nanoseconds.",
+      "M3. Re-verification at scoring. The scoring pass recomputes SHA-256 of every preserved source file and compares it to the recorded value. Any mismatch invalidates the trial, which is then recorded in _deviations.json with class 'source_mutated_after_capture' and excluded from all metrics. It is never silently repaired or re-run in place.",
+      "M4. Immutable copy. The captured source is additionally copied to <trial>/versions/<version>/source/ and to <trial>/final/source/ and those copies are chmod 0444 after writing.",
+      "M5. Tool-call audit. <trial>/logs/agent_tool_calls.jsonl records every tool call the subagent made, with timestamps. A third party can confirm that every mutation of generated/ was made by the subagent and by nothing else.",
+      "M6. Declaration. results/llm_practical_summary.md must carry the statement that no generated source was edited by a human, together with the count of trials whose hashes verified (which must equal the count of scored trials)."
+    ],
+    "what_is_not_a_human_edit": "The orchestrator creates the empty trial directory, writes the pack, writes prompts, and runs the frozen build/run commands. None of these touch or produce generated source. The orchestrator never fixes a filename, a file extension, an entry-point name, or a stray character in generated source; if the model wrote the file to the wrong path or with the wrong name, that is a generation failure and is scored as one."
+  },
+  "external_retrieval_prohibition": {
+    "rule": "PROHIBITED during primary generation and during every repair turn, except for benchmark-supplied specifications, references, source code, tests, and compiler/runtime diagnostics (spec 6.2).",
+    "what_is_permitted": [
+      "The task specification text in the trial prompt.",
+      "Every file under <trial>/pack/ (language reference pack, worked examples, build/run recipe, and for Scenario B the benchmark-supplied reference source).",
+      "Any file the subagent itself wrote under <trial>/generated/ or <trial>/scratch/.",
+      "Real stdout/stderr and exit codes from building, running, or testing the subagent's own program with the frozen toolchain.",
+      "Locally installed compiler/runtime help output invoked by the subagent (for example a --help or --version flag on the frozen toolchain), because that is part of the toolchain and is available identically to all ten languages."
+    ],
+    "enforcement_in_the_trial_prompt": "Rule 3 of the system prompt states the prohibition explicitly, names the only permitted reference locations, and states that attempting network retrieval invalidates the trial. The same sentence is given to all ten languages.",
+    "enforcement_in_tool_permissions": "Enforced mechanically, not only by instruction: the subagent is spawned with WebSearch and WebFetch absent from its tool set, with all MCP tools absent, and with a Bash deny-list that blocks network and dependency-acquisition commands. See 'tool_permissions'.",
+    "enforcement_by_audit": "After each trial, the orchestrator scans <trial>/logs/agent_tool_calls.jsonl for any denied tool name and for any Bash invocation matching the deny-list patterns. A hit invalidates the trial; it is recorded in _deviations.json with class 'retrieval_violation' and re-run in a fresh context. Violations are published with their counts per language.",
+    "documentation_the_model_already_knows": "Nothing prevents the model from using knowledge it already has about a language. That is the explicit intent of spec 9: pretraining exposure is deliberately included and Python, C++, Rust and the rest are allowed to benefit from it, while Quidra is evaluated with whatever prior knowledge the model actually has. Only live retrieval is prohibited."
+  },
+  "tool_permissions": {
+    "identical_across_all_ten_languages": true,
+    "statement": "Every trial subagent, for every one of the ten languages, is spawned with exactly this tool set and exactly these restrictions. Nothing in the tool set names a language, and nothing is added or removed for any language.",
+    "allowed_tools": [
+      {
+        "tool": "Read",
+        "scope": "Paths under <trial>/ only."
+      },
+      {
+        "tool": "Write",
+        "scope": "Paths under <trial>/generated/ and <trial>/scratch/ only."
+      },
+      {
+        "tool": "Edit",
+        "scope": "Paths under <trial>/generated/ and <trial>/scratch/ only."
+      },
+      {
+        "tool": "Glob",
+        "scope": "Paths under <trial>/ only."
+      },
+      {
+        "tool": "Grep",
+        "scope": "Paths under <trial>/ only."
+      },
+      {
+        "tool": "Bash",
+        "scope": "Working directory <trial>/. Subject to the deny-list below. This is what gives the trial compiler, interpreter, and test-runner access."
+      }
+    ],
+    "denied_tools": [
+      "WebSearch",
+      "WebFetch",
+      "Task",
+      "Workflow",
+      "Agent",
+      "NotebookEdit",
+      "every MCP tool",
+      "every artifact, messaging, scheduling, browser, and remote-control tool exposed by the host"
+    ],
+    "denied_tools_reason": "WebSearch/WebFetch/MCP/browser tools would be external retrieval. Task/Workflow/Agent would let a trial spawn further agents and break the single-context, single-trial accounting.",
+    "bash_deny_list_patterns": [
+      "curl",
+      "wget",
+      "nc",
+      "ssh",
+      "scp",
+      "rsync",
+      "ftp",
+      "telnet",
+      "git clone",
+      "git fetch",
+      "git pull",
+      "git remote",
+      "pip install",
+      "pip3 install",
+      "python -m pip",
+      "python3 -m pip",
+      "npm install",
+      "npm i ",
+      "npx ",
+      "yarn ",
+      "pnpm ",
+      "cargo add",
+      "cargo install",
+      "cargo fetch",
+      "go get",
+      "go mod download",
+      "go install",
+      "brew install",
+      "apt-get",
+      "apt ",
+      "port install",
+      "gradle",
+      "maven",
+      "mvn ",
+      "zig fetch",
+      "swift package"
+    ],
+    "bash_deny_list_semantics": "A Bash command whose text contains any deny-list pattern is refused by the harness before execution and is recorded as a denied call in agent_tool_calls.jsonl. A refusal is not a trial failure by itself; the trial continues. Repeated attempts are counted and published per language as 'retrieval_attempts', because differing attempt rates across languages are themselves a finding, but they do not change any score.",
+    "path_containment": "The trial subagent is given absolute paths only inside <trial>/. Reads outside <trial>/ are refused and logged. The frozen toolchain binaries themselves live outside <trial>/ and are of course executable; this is identical for all ten languages.",
+    "compiler_interpreter_test_runner_access": {
+      "allowed": true,
+      "identical_in_purpose_across_languages": true,
+      "what_the_trial_agent_gets": "Bash, with the frozen build and run commands for its target language printed in its system prompt, and the toolchain installed on PATH (with JAVA_HOME pinned to the native arm64 OpenJDK 26 for Java and Kotlin exactly as every other measurement in this run does). The agent may compile, run, re-compile, and re-run its own program as often as it wishes within the trial timeout, and may read the resulting diagnostics in full.",
+      "no_language_gets_more": "No language receives a linter, formatter, language server, type checker, test framework, or build system that the frozen recipe in environment.json does not already include, and none is withheld from any language. The recipes are exactly those recorded in environment.json under frozen_toolchain_recipes and used by every other measurement in this run.",
+      "quidra_modes": "For Quidra, the trial agent is given the native build/run recipe (quidra build / ./BIN), the same class of recipe every other compiled language receives. The generated Quidra program is additionally executed through the interpreter path (quidra run) by the scoring harness for the raw-results tables required by spec 11 and 29, but the Quidra column of the LLM Practical Effectiveness table uses native mode, matching the release-build treatment given to C++, Rust, Go, Java, Kotlin, Swift and Zig.",
+      "benchmark_harness_access": "The trial agent does NOT get the oracle, the golden output file, or the scoring scripts. It gets the behaviour specification and its own program's real output. This is identical for all ten languages. Giving the oracle to the agent would make the task an exercise in reading the answer key."
+    }
+  },
+  "exact_system_prompt": {
+    "text": "You are generating a program for a frozen, adversarial, cross-language benchmark.\nYou are one trial. Your output is scored mechanically. No human will edit what you write.\n\nTARGET LANGUAGE: {{LANGUAGE_DISPLAY_NAME}}\nTOOLCHAIN (frozen, do not change): {{TOOLCHAIN_VERSION}}\nSOURCE FILE YOU MUST WRITE: {{WORKDIR}}/generated/{{ENTRY_FILENAME}}\nBUILD COMMAND THAT WILL BE USED: {{BUILD_COMMAND}}\nRUN COMMAND THAT WILL BE USED: {{RUN_COMMAND}}\nREFERENCE MATERIAL SUPPLIED TO YOU: {{WORKDIR}}/pack/\n\nRULES\n\n1. Write exactly one source file, at the path above. Do not create additional source files unless\n   the task specification explicitly requires them. Do not modify, move, or delete any file\n   outside {{WORKDIR}}/generated/.\n\n2. Use only the target language's standard library and the toolchain as it is installed on this\n   machine. Do not add, download, install, vendor, fetch, or generate a third-party dependency,\n   and do not modify any build configuration outside the build command shown above.\n\n3. You have no network access and no web, search, or external document retrieval. The only\n   reference material you may use is: this prompt, the files under {{WORKDIR}}/pack/, and the\n   real diagnostics that the compiler, interpreter, or test runner produces when you build or run\n   your own program. Do not attempt to retrieve anything else. Attempting network retrieval\n   invalidates this trial.\n\n4. You may build and run your own program as many times as you wish inside {{WORKDIR}}, using the\n   build and run commands above. Reading real compiler, interpreter, and runtime output is\n   expected, and is the same privilege that every language in this benchmark receives.\n\n5. The program must be deterministic. Given the same input it must produce the same bytes on every\n   run, on every execution of the same binary.\n\n6. Print exactly what the task specification asks for and nothing else. Extra output, banners,\n   progress messages, or debug lines fail the mechanical oracle.\n\n7. Do not hard-code an answer that the specification asks you to compute. Embedding a precomputed\n   result, a lookup table of the expected output, or a branch that detects the benchmark input and\n   returns a stored answer is a benchmark violation. It is scored as a failure even when the\n   printed bytes match.\n\n8. Write the program the way a competent working developer in this language would write it:\n   idiomatic, straightforward, using the language's normal facilities and its normal error\n   handling. Do not write deliberately clever, deliberately compressed, deliberately verbose, or\n   deliberately minimal code. Do not optimise for source length or for token count.\n\n9. When you are finished, your final message must contain nothing but the single line\n\n   DONE: {{ENTRY_FILENAME}}\n\n   The file on disk is what is scored. Your prose is not scored and is not read by the oracle.\n\nTHE TASK FOLLOWS IN THE NEXT MESSAGE.\n",
+    "identical_across_languages_except": "the placeholders enumerated in 'per_language_placeholder_substitutions'",
+    "delivery": "Supplied as the spawned subagent's system/instruction message. The task prompt is supplied as the first user message immediately afterwards.",
+    "preserved_at": "<trial>/prompts/system_prompt.txt, fully substituted, byte-exact, for every trial."
+  },
+  "exact_repair_prompt_template": {
+    "text": "Your program did not pass. This is repair turn {{REPAIR_INDEX}} of 3.\n\nThe file you wrote is still at {{WORKDIR}}/generated/{{ENTRY_FILENAME}} and has not been modified by\nanyone but you.\n\nSTAGE REACHED: {{STAGE}}\n\n--- BUILD COMMAND ---\n{{BUILD_COMMAND}}\n--- BUILD EXIT CODE ---\n{{BUILD_EXIT_CODE}}\n--- BUILD STDOUT (verbatim) ---\n{{BUILD_STDOUT}}\n--- BUILD STDERR (verbatim) ---\n{{BUILD_STDERR}}\n\n--- RUN COMMAND ---\n{{RUN_COMMAND}}\n--- RUN EXIT CODE ---\n{{RUN_EXIT_CODE}}\n--- RUN STDOUT (verbatim) ---\n{{RUN_STDOUT}}\n--- RUN STDERR (verbatim) ---\n{{RUN_STDERR}}\n\n--- ORACLE RESULT ---\n{{TEST_RESULT_SUMMARY}}\n--- FAILING CHECKS (expected vs actual, verbatim, first 20) ---\n{{ORACLE_DIFF}}\n\nDiagnose the cause and repair the program. Rewrite the file at\n{{WORKDIR}}/generated/{{ENTRY_FILENAME}}.\n\nEvery rule from your original instructions still applies: one source file, standard library only,\nno network or external retrieval, deterministic output, exactly the requested output and nothing\nelse, and no hard-coded answers. You may build and run your program yourself as often as you wish.\n\nYour final message must contain nothing but the single line\n\nDONE: {{ENTRY_FILENAME}}\n",
+    "identical_across_languages_except": "the same placeholder set, plus the real diagnostics which are by definition language-specific because they are that language's real toolchain output",
+    "placeholder_fill_rules": {
+      "{{REPAIR_INDEX}}": "1, 2, or 3.",
+      "{{STAGE}}": "Exactly one of: PARSE_OR_COMPILE_FAILED, RUNTIME_FAILED, TIMED_OUT, OUTPUT_MISMATCH. Derived mechanically from the classification of the previous version. No further wording is added.",
+      "{{BUILD_COMMAND}} / {{BUILD_EXIT_CODE}} / {{BUILD_STDOUT}} / {{BUILD_STDERR}}": "For languages whose frozen recipe has no separate build step (Python), each of these four fields is filled with the literal string 'N/A (this language has no separate build step in its frozen recipe)'. This is a property of the recipe, not a penalty or an advantage, and the same literal is used for every such language.",
+      "{{RUN_STDOUT}} / {{RUN_STDERR}} / {{RUN_EXIT_CODE}}": "Verbatim from the frozen run command, truncated per repair_feedback_truncation. If the program was never run because the build failed, each is filled with the literal string 'N/A (the program was not run because the build failed)'.",
+      "{{TEST_RESULT_SUMMARY}}": "The mechanical line 'checks passed: P of T' plus, when applicable, 'exit code: E'. No interpretation, no cause, no hint.",
+      "{{ORACLE_DIFF}}": "The frozen expected-vs-actual rendering described in repair_feedback_truncation. If the stage is not OUTPUT_MISMATCH, the literal string 'N/A (the program did not produce output to compare)'."
+    },
+    "prohibition": "The orchestrator must not add any sentence to a repair prompt beyond this template. It must not name a suspected cause, quote a language rule, suggest an API, indicate which line is wrong beyond what the toolchain itself printed, or state how many repair turns have succeeded elsewhere.",
+    "preserved_at": "<trial>/prompts/repair_prompt_01.txt, repair_prompt_02.txt, repair_prompt_03.txt, fully substituted, byte-exact."
+  },
+  "per_language_placeholder_substitutions": {
+    "_note": "This is the complete and exclusive list of per-language variation permitted in any prompt. Every value is benchmark-controlled and comes from environment.json's frozen_toolchain_recipes or from the fixed table below. BIN, OUT, and FILE are resolved to concrete paths inside the trial directory by the orchestrator.",
+    "Quidra": {
+      "LANGUAGE_DISPLAY_NAME": "Quidra",
+      "TOOLCHAIN_VERSION": "Quidra 0.2.0",
+      "ENTRY_FILENAME": "main.qui",
+      "BUILD_COMMAND": "quidra build generated/main.qui -o build/main",
+      "RUN_COMMAND": "./build/main"
+    },
+    "Python": {
+      "LANGUAGE_DISPLAY_NAME": "Python",
+      "TOOLCHAIN_VERSION": "Python 3.14.5",
+      "ENTRY_FILENAME": "main.py",
+      "BUILD_COMMAND": "(no separate build step)",
+      "RUN_COMMAND": "python3 generated/main.py"
+    },
+    "C++": {
+      "LANGUAGE_DISPLAY_NAME": "C++ (C++20)",
+      "TOOLCHAIN_VERSION": "Apple clang 17, -std=c++20",
+      "ENTRY_FILENAME": "main.cpp",
+      "BUILD_COMMAND": "clang++ -std=c++20 -O2 generated/main.cpp -o build/main",
+      "RUN_COMMAND": "./build/main"
+    },
+    "Rust": {
+      "LANGUAGE_DISPLAY_NAME": "Rust",
+      "TOOLCHAIN_VERSION": "rustc 1.95.0",
+      "ENTRY_FILENAME": "main.rs",
+      "BUILD_COMMAND": "rustc -O generated/main.rs -o build/main",
+      "RUN_COMMAND": "./build/main"
+    },
+    "Go": {
+      "LANGUAGE_DISPLAY_NAME": "Go",
+      "TOOLCHAIN_VERSION": "go 1.26.3",
+      "ENTRY_FILENAME": "main.go",
+      "BUILD_COMMAND": "go build -o build/main generated/main.go",
+      "RUN_COMMAND": "./build/main"
+    },
+    "Java": {
+      "LANGUAGE_DISPLAY_NAME": "Java",
+      "TOOLCHAIN_VERSION": "OpenJDK 26.0.1 (arm64)",
+      "ENTRY_FILENAME": "Main.java",
+      "BUILD_COMMAND": "javac -d build generated/Main.java",
+      "RUN_COMMAND": "java -cp build Main"
+    },
+    "TypeScript": {
+      "LANGUAGE_DISPLAY_NAME": "TypeScript",
+      "TOOLCHAIN_VERSION": "tsc 7.0.2, node 24.2.0",
+      "ENTRY_FILENAME": "main.ts",
+      "BUILD_COMMAND": "tsc --outDir build generated/main.ts",
+      "RUN_COMMAND": "node build/main.js"
+    },
+    "Kotlin": {
+      "LANGUAGE_DISPLAY_NAME": "Kotlin",
+      "TOOLCHAIN_VERSION": "kotlinc 2.3.21 on OpenJDK 26.0.1 (arm64)",
+      "ENTRY_FILENAME": "main.kt",
+      "BUILD_COMMAND": "kotlinc generated/main.kt -include-runtime -d build/main.jar",
+      "RUN_COMMAND": "java -jar build/main.jar"
+    },
+    "Swift": {
+      "LANGUAGE_DISPLAY_NAME": "Swift",
+      "TOOLCHAIN_VERSION": "swiftc 6.2.3",
+      "ENTRY_FILENAME": "main.swift",
+      "BUILD_COMMAND": "swiftc -O generated/main.swift -o build/main",
+      "RUN_COMMAND": "./build/main"
+    },
+    "Zig": {
+      "LANGUAGE_DISPLAY_NAME": "Zig",
+      "TOOLCHAIN_VERSION": "zig 0.16.0",
+      "ENTRY_FILENAME": "main.zig",
+      "BUILD_COMMAND": "zig build-exe -OReleaseFast generated/main.zig -femit-bin=build/main",
+      "RUN_COMMAND": "./build/main"
+    },
+    "toolchain_api_drift_note": "Where methodology/00_cross_language_constraints.md item C-4 records that a frozen toolchain's current API differs from a widely reproduced older idiom (TypeScript 7's removal of --outFile; Zig 0.16's Io-instance stdout), the corrective note is supplied to that language's pack in the same slot in which every other language receives its own recipe notes, and the slot exists for all ten languages. It states only the current spelling of the console-output call; it does not supply task logic.",
+    "language_slugs_for_paths": {
+      "Quidra": "quidra",
+      "Python": "python",
+      "C++": "cpp",
+      "Rust": "rust",
+      "Go": "go",
+      "Java": "java",
+      "TypeScript": "typescript",
+      "Kotlin": "kotlin",
+      "Swift": "swift",
+      "Zig": "zig"
+    }
+  },
+  "trial_allocation": {
+    "_authority": "spec 6.2, 'Allocating the five trials'.",
+    "cell_definition": "A cell is one (task_id, language) pair. task_id already fixes the scenario and, for Prompt Robustness, the prompt variation.",
+    "allocation_table": [
+      {
+        "task_id": "PE-P1-svm-specA",
+        "role": "PRIMARY implementation task; source of Correct@1",
+        "trials_per_language": 5,
+        "total_trials": 50,
+        "spec_basis": "spec 6.2 requires five independent trials for each cell of Practical Effectiveness Correct@1 on the primary implementation task."
+      },
+      {
+        "task_id": "PR-R1-v1",
+        "role": "Prompt Robustness variation 1",
+        "trials_per_language": 5,
+        "total_trials": 50,
+        "spec_basis": "spec 6.2 requires five independent trials for any cell used to compute Prompt Robustness."
+      },
+      {
+        "task_id": "PR-R1-v2",
+        "role": "Prompt Robustness variation 2",
+        "trials_per_language": 5,
+        "total_trials": 50,
+        "spec_basis": "same"
+      },
+      {
+        "task_id": "PR-R1-v3",
+        "role": "Prompt Robustness variation 3",
+        "trials_per_language": 5,
+        "total_trials": 50,
+        "spec_basis": "same"
+      },
+      {
+        "task_id": "UG-G1-unseen",
+        "role": "Unseen-case Generalization (spec 21)",
+        "trials_per_language": 3,
+        "total_trials": 30,
+        "spec_basis": "Not one of the two cells for which spec 6.2 mandates five. Fixed at three here, declared before any scored output, because the task carries twelve independently scored cases so three trials give 36 scored case-observations per language. This is a deliberate, published choice and is not five; UG is therefore reported with its own precision statement."
+      },
+      {
+        "task_id": "PE-P2-svm-portB",
+        "role": "SVM Scenario B, Reference to Porting (spec 16 B)",
+        "trials_per_language": 1,
+        "total_trials": 10,
+        "spec_basis": "spec 6.2: one trial per cell outside the two mandated cells. Reported with the single-sample precision statement."
+      },
+      {
+        "task_id": "PE-P3-gmm-specA",
+        "role": "GMM Scenario A (spec 14, 16 A)",
+        "trials_per_language": 1,
+        "total_trials": 10,
+        "spec_basis": "same"
+      },
+      {
+        "task_id": "PE-P4-gmm-portB",
+        "role": "GMM Scenario B (spec 14, 16 B)",
+        "trials_per_language": 1,
+        "total_trials": 10,
+        "spec_basis": "same"
+      },
+      {
+        "task_id": "PE-P5-lightgrad-specA",
+        "role": "LightGrad common subset, Scenario A (spec 15, 16 A)",
+        "trials_per_language": 1,
+        "total_trials": 10,
+        "spec_basis": "same"
+      },
+      {
+        "task_id": "PE-P6-lightgrad-portB",
+        "role": "LightGrad common subset, Scenario B (spec 15, 16 B)",
+        "trials_per_language": 1,
+        "total_trials": 10,
+        "spec_basis": "same"
+      },
+      {
+        "task_id": "DIAG-NOPACK-svm-specA",
+        "role": "DIAGNOSTIC ONLY. No-specification condition on the primary task (spec 9).",
+        "trials_per_language": 1,
+        "total_trials": 10,
+        "spec_basis": "spec 9: 'If a no-specification condition is also run, report it as a practical diagnostic of prior knowledge; do not transform it into a familiarity-corrected primary score.' These trials contribute to NO metric and to NO score. They are reported in a separate diagnostic table only."
+      }
+    ],
+    "total_scored_trials": 280,
+    "total_diagnostic_trials": 10,
+    "total_trials_planned": 290,
+    "intrinsic_track_note": "The LLM Intrinsic Learnability track (spec 10, conditions I1-I6) runs ONE trial per cell, because replication there is supplied by the seed and transformation-set counts that spec 10.3 and 10.5 fix (at least 5 seeds for I1, I2; at least 3 and preferably 5 transformation sets for I3; multiple rule sets and seeds for I4; multiple deterministic mappings for I6), and the subtest score is the seed mean. Five trials per seed would replicate replication. The Intrinsic track's own configuration document governs its condition set; this document governs the shared engine, prompts, tool permissions, retry, timeout, ordering, and preservation rules, which apply unchanged to it.",
+    "reporting_obligation": {
+      "must_state_executed_counts": "results/llm_practical_summary.md and raw/llm_practical_raw.json MUST publish, per (task_id, language) cell, the number of trials ACTUALLY EXECUTED and the number ACTUALLY SCORED, not the number planned. Trials lost to infrastructure exhaustion reduce the executed count and are listed with their reason.",
+      "precision_statement_required": "Every table row whose underlying cells carry fewer than five trials MUST be accompanied by the frozen sentence: 'This row is measured with N trial(s) per language. Differences of a few points between languages are not resolved by this measurement and must not be read as a ranking.' N is the actual count.",
+      "single_sample_prohibition": "A single sample must never be presented as though it carried the precision of five. No confidence interval, significance claim, or ranking claim may be attached to a one-trial cell. Where one trial was run, the run must not describe a few-point difference between languages as a real difference.",
+      "five_trial_cells_reporting": "For the five-trial cells (PE-P1 and the three PR variations) the run publishes, per language, the per-trial outcomes, the resulting rate, and the exact binomial spread (min and max over trials), so readers can see that a five-trial rate has a resolution of 20 percentage points and nothing finer.",
+      "resolution_floor": {
+        "PE-P1_Correct@1": "20 percentage points (5 trials)",
+        "PR_per_variation_rate": "20 percentage points (5 trials)",
+        "UG_case_rate": "2.78 percentage points (36 case-observations)",
+        "one_trial_cells": "100 percentage points; the measurement distinguishes only pass from fail"
+      }
+    }
+  },
+  "task_ordering_policy": {
+    "rule": "The full execution schedule is a single fixed permutation of every (task_id, language, trial_index) triple, generated before the first trial and published at llm-practical/trials/_execution_order.json.",
+    "generation": "Enumerate the triples in ascending lexicographic order of (task_id, language_slug, trial_index). Assign each triple a sort key from the Park-Miller minimal-standard LCG defined in methodology/00_cross_language_constraints.md item C-1 (state_{n+1} = state_n * 48271 mod 2147483647), seeded with 20260917, drawing one value per triple in enumeration order. Sort ascending by (sort_key, task_id, language_slug, trial_index). The result is the execution order.",
+    "constraint_applied_after_shuffle": "The schedule is then checked to satisfy a language-spread constraint: in any window of ten consecutive scheduled trials, no language may appear more than three times. If the constraint is violated, the smallest-index offending trial is swapped with the next later trial that repairs the violation, repeating until the constraint holds. This repair is deterministic and is recorded step by step in _execution_order.json so a third party reproduces the identical schedule.",
+    "why": "Each trial runs in a fresh isolated context, so ordering cannot affect a trial's own content. The order is fixed anyway for exact reproducibility, and the spread constraint keeps host thermal state, background load, and any provider-side drift from correlating with a single language, which would otherwise be indistinguishable from a language effect in the timing metrics measured on the generated programs.",
+    "resumption": "If the run is interrupted, execution resumes at the first schedule index with no completed trial directory. The schedule is never regenerated.",
+    "no_reordering_after_results": "The schedule must not be regenerated, reshuffled, or extended after any scored output has been observed."
+  },
+  "timeout_policy": {
+    "per_initial_generation_wall_clock_seconds": 1800,
+    "per_repair_turn_wall_clock_seconds": 900,
+    "per_trial_total_wall_clock_seconds": 5400,
+    "build_timeout_seconds": 300,
+    "run_timeout_seconds": {
+      "PE-P1-svm-specA": 120,
+      "PE-P2-svm-portB": 120,
+      "PE-P3-gmm-specA": 120,
+      "PE-P4-gmm-portB": 120,
+      "PE-P5-lightgrad-specA": 180,
+      "PE-P6-lightgrad-portB": 180,
+      "PR-R1-v1": 60,
+      "PR-R1-v2": 60,
+      "PR-R1-v3": 60,
+      "UG-G1-unseen": 60,
+      "DIAG-NOPACK-svm-specA": 120
+    },
+    "run_timeout_rationale": "Each limit is at least 30x the reference implementation's measured wall-clock on this host for that workload, so it is a hang detector and not a performance threshold. The same absolute limit applies to all ten languages, including the interpreted ones; if a correct program in some language legitimately needs longer than the limit, that is recorded as a TIMEOUT with the measured duration and published, and the limit is not adjusted after the fact.",
+    "timeout_classification": {
+      "build_timeout": "Classified as COMPILE_FAIL with subclass BUILD_TIMEOUT. It is a real property of the generated program plus toolchain, not an infrastructure failure.",
+      "run_timeout": "Classified as RUNTIME_FAIL with subclass RUN_TIMEOUT. It is NOT a silent bug (the program did not complete), and NOT an infrastructure failure.",
+      "agent_wall_clock_timeout": "Classified as an INFRASTRUCTURE event of class 'agent_timeout'. The retry policy applies. It is never converted into a generation failure or an incorrect generation."
+    },
+    "process_supervision": "Build and run are executed with a hard kill at the limit (SIGTERM then SIGKILL after 5 s). The measured duration, the signal used, and any partial output are preserved."
+  },
+  "retry_policy_infrastructure": {
+    "_authority": "spec 6.2: 'Provider failures, rate limits, transport failures, and infrastructure failures must be recorded separately from language/model failures and must not be silently converted into incorrect generations.'",
+    "classified_as_infrastructure": [
+      "provider_error",
+      "rate_limit",
+      "overloaded",
+      "transport_error",
+      "timeout_from_provider",
+      "agent_timeout",
+      "context_exhausted",
+      "harness_crash",
+      "host_resource_exhaustion",
+      "model_identifier_mismatch"
+    ],
+    "classified_as_language_or_model_failure_NOT_infrastructure": [
+      "the model produced no file at the required path",
+      "the model produced a file that does not parse or compile",
+      "the model produced a program that crashes",
+      "the model produced a program whose output fails the oracle",
+      "the model refused or declined the task",
+      "the model produced output the extractor could not resolve to a single source file"
+    ],
+    "retry_rule": "On an infrastructure event the trial is discarded in full (its partial directory is moved to <trial>/../_aborted/<trial_id>.<attempt>/ and preserved) and retried from a fresh isolated context with the byte-identical prompt. Up to 3 retries per trial.",
+    "backoff_seconds": [
+      30,
+      120,
+      300
+    ],
+    "exhaustion": "If all attempts fail, the cell records one fewer executed trial. If a cell ends with zero executed trials, every metric that depends on that cell is marked N/A for that language with reason 'infrastructure_exhausted' and renormalised per spec 26, and the shortfall is published in _deviations.json and repeated in the results summary. It is never scored as a failure of the language or of the model.",
+    "recording": "Every infrastructure event, including every retried attempt, is appended to llm-practical/trials/_infrastructure_events.jsonl with fields: timestamp_utc, task_id, language, trial_index, attempt, event_class, provider_message_verbatim, action_taken, aborted_dir. The per-language counts are published in results/llm_infrastructure_events.md so a reader can see that no language absorbed more infrastructure noise than another.",
+    "prohibition": "An infrastructure event must never be written into a versions/ directory as a failed generation, must never fill an oracle result, and must never be counted in Generation Success Rate, Compile Success Rate, Correct@1, or any other metric denominator."
+  },
+  "reference_and_specification_pack_policy": {
+    "principle": "Spec 9 permits a specification-assisted condition as the normal practical prompt. Every language therefore receives a reference pack of a matched budget, built by one mechanical rule. Quidra receives no more and no less than the others. The packs are built and their token counts published before the first scored trial.",
+    "pack_contents_identical_slots": [
+      {
+        "slot": "task_spec.md",
+        "content": "The language-neutral task specification. BYTE-IDENTICAL across all ten languages: it states required behaviour, inputs, outputs, formats, tolerances, and the compliance checklist, and names no language, no type, no API, and no syntax.",
+        "budget": "fixed by the task; identical bytes for all languages"
+      },
+      {
+        "slot": "language_reference.md",
+        "content": "The target language's own official language reference or language tour, mechanically excerpted (see selection_rule).",
+        "budget": "20,000 tokens by the frozen counter, for every language"
+      },
+      {
+        "slot": "examples/",
+        "content": "The worked examples in the target language (see examples_budget).",
+        "budget": "3 examples for every task except UG-G1-unseen, which gets 6, for every language"
+      },
+      {
+        "slot": "build_run_recipe.txt",
+        "content": "The frozen build and run commands for the target language, copied verbatim from environment.json, plus the C-4 toolchain-API-drift note where one exists for that language. The slot exists for all ten languages; for languages with no drift note the file carries the literal line 'no toolchain API drift notes for this language'.",
+        "budget": "unbounded but in practice under 300 tokens for every language; published"
+      },
+      {
+        "slot": "reference_source/",
+        "content": "Scenario B ONLY (PE-P2, PE-P4, PE-P6). The benchmark-supplied reference implementation to be ported. BYTE-IDENTICAL across all ten languages: it is the pinned C++ reference, given in C++ to every language including C++ itself.",
+        "budget": "fixed by the reference; identical bytes for all languages"
+      }
+    ],
+    "selection_rule_for_language_reference": "Take the language's single official reference document as pinned in packs/pack_sources.json (URL or local path, plus SHA-256 of the exact bytes used, fetched once before the run and never during a trial). Split it into sections at its top-level headings, in document order. Emit sections in document order until adding the next section would exceed 20,000 tokens by the frozen counter; stop there. Truncation is never mid-section. The identical procedure, budget, and stopping rule is applied to all ten languages. No section is chosen because it helps or hurts a language, and no section is reordered.",
+    "quidra_pack": "Quidra's language_reference.md is produced by exactly this rule from Quidra 0.2.0's own official reference documentation, pinned by SHA-256 like every other. If Quidra's reference is shorter than 20,000 tokens, the whole document is used and the shortfall is published as a raw number; the budget is not topped up with additional Quidra material, and no other language's budget is cut to match.",
+    "no_specification_diagnostic": "DIAG-NOPACK-svm-specA supplies task_spec.md and build_run_recipe.txt but NO language_reference.md and NO examples/, for all ten languages identically. Its results are a diagnostic of prior knowledge only and are never folded into any score (spec 9).",
+    "token_count_publication": {
+      "path": "llm-practical/packs/pack_token_counts.json",
+      "fields_per_pack": [
+        "task_id",
+        "language",
+        "task_spec_tokens",
+        "language_reference_tokens",
+        "language_reference_source_sha256",
+        "language_reference_sections_included",
+        "language_reference_sections_available",
+        "examples_tokens_total",
+        "examples_tokens_each",
+        "build_run_recipe_tokens",
+        "reference_source_tokens",
+        "pack_total_tokens",
+        "counter"
+      ],
+      "counters_published": [
+        "frozen_lexical_counter (defined in source_token_counting; the scoring counter)",
+        "harness_reported_prompt_tokens (recorded when the harness reports input-token usage for the trial; this is the model's own tokenizer and is published beside the lexical count, never substituted for it)"
+      ],
+      "obligation": "If any language's pack total deviates from the ten-language median by more than 15 percent, the deviation and its cause are published in the results summary. The packs are NOT rebalanced after the fact; the budget rule is fixed and its residual differences are reported rather than hidden."
+    },
+    "pack_immutability": "Packs are built once, hashed, and made read-only before the first scored trial. <trial>/pack/ is a copy; its SHA-256 manifest is written to <trial>/prompts/pack_manifest.json and re-verified at scoring."
+  },
+  "examples_budget": {
+    "count_per_task": 3,
+    "count_for_UG_task": 6,
+    "identical_across_languages": true,
+    "rule": "Every language receives the same NUMBER of worked examples and the same example ROLES. The bytes differ because the languages differ; nothing else differs.",
+    "fixed_example_roles_for_the_3_example_budget": [
+      "E1. A complete, buildable, runnable program that prints one fixed line of text and exits successfully. Demonstrates the entry point, the console-output call, and program termination.",
+      "E2. A complete program that iterates a fixed array or list of 5 integers, sums them, and prints the sum. Demonstrates a sequence type, iteration, and integer output.",
+      "E3. A complete program that prints one fixed floating-point value formatted to exactly 6 decimal places. Demonstrates fixed-precision numeric formatting, which every task's oracle depends on."
+    ],
+    "fixed_example_roles_for_the_6_example_budget": [
+      "E1, E2, E3 as above, plus:",
+      "E4. A complete program that defines a function taking two integers and returning one, and prints its result for one fixed argument pair. Demonstrates function definition and call.",
+      "E5. A complete program that builds a key-to-integer mapping with 3 fixed entries and prints one looked-up value. Demonstrates an associative collection.",
+      "E6. A complete program that attempts one operation that fails at runtime (a fixed, specified failing operation), handles the failure using the language's normal error-handling facility, prints the literal text 'handled', and exits successfully. Demonstrates the error-handling facility."
+    ],
+    "authoring_rules": [
+      "Each example is written by the benchmark authors, not by the model, and is verified to build and run with the frozen recipe before the run starts.",
+      "No example demonstrates anything a task asks the model to compute. Examples show language mechanics only.",
+      "Examples for different languages must express the same role and nothing more. An example may not incidentally demonstrate a second mechanic in one language that another language's example does not demonstrate.",
+      "Size matching: each example's lexical token count must lie within a factor of 2 of the ten-language median for that example role. Where a language cannot meet that because its minimal expression of the role is genuinely longer or shorter, the residual is published per language in packs/example_token_counts.json and is NOT corrected by padding or trimming.",
+      "The complete set of examples for all ten languages is preserved at llm-practical/packs/<language>/examples/ and hashed."
+    ],
+    "for_quidra": "Quidra's six example roles are authored by the same rule and reviewed against the same size-matching constraint. Quidra receives no additional tutorial material, no extra commentary in its examples, and no annotation that another language's examples do not carry."
+  },
+  "practical_effectiveness_task_set": {
+    "_principle": "Every task is specified by required observable behaviour only. No task statement names a language, a type, an operator, a standard-library symbol, or a syntax. Every oracle is a mechanical program comparison with no human judgement. The same task_spec.md bytes go to all ten languages.",
+    "common_task_contract": {
+      "program_shape": "One source file at generated/<ENTRY_FILENAME>. The program reads nothing from stdin unless the task says otherwise, takes no command-line arguments, prints its result lines to stdout in the specified order, and exits with status 0 on success.",
+      "determinism": "All pseudo-random data is produced by the Park-Miller minimal-standard LCG frozen in methodology/00_cross_language_constraints.md item C-1: state_{n+1} = (state_n * 48271) mod 2147483647, seed stated per task, unit float = state_{n+1} / 2147483647.0. The task specification states this generator in words and formulas, identically for all ten languages. It is exactly representable in every one of the ten languages; no language needs a workaround and none gets a shortcut.",
+      "float_formatting": "Every floating-point value printed by a task is printed with exactly the number of decimal places the task states, using round-half-away-from-zero at that decimal place, with a leading '-' for negative values and no thousands separators, no exponent form, and no locale formatting. Negative zero is printed as if it were positive zero. This rule is stated in every task_spec.md verbatim and is the same for all ten languages (methodology/00 item C-2).",
+      "no_extra_output": "Any stdout line beyond those specified fails the oracle. Anything the language runtime writes to stderr does not fail the oracle by itself, but is recorded and is used by the silent-bug and hallucination classifiers.",
+      "line_endings": "Lines are separated by LF. A single trailing LF at end of output is accepted; CRLF is not. The oracle strips exactly one trailing LF from both expected and actual before comparison and compares the remainder byte for byte.",
+      "compliance_checklist": "Each task ships a fixed list of K binary, mechanically checkable requirements in task_spec.md, checked by scripts/check_compliance.py. The checker's logic is identical for all languages; its only per-language input is the entry filename and the frozen build/run recipe."
+    },
+    "golden_outputs": {
+      "rule": "Every task's expected output is produced by the benchmark's own frozen reference implementation, executed on this host with the frozen recipe, and written to llm-practical/tasks/<task_id>/golden/expected_stdout.txt together with its SHA-256, BEFORE the first trial of that task. The golden file is never regenerated after any trial has run.",
+      "reference_for_svm": "The pinned C++ reference at https://github.com/koba-jon/svm_cpp SHA 5fa1b0951740b249a7b7bb170031b75470dbf090, reduced to the common workload defined in tasks/PE-P1-svm-specA/workload.json.",
+      "reference_for_gmm": "The pinned C++ reference at https://github.com/koba-jon/gmm_cpp SHA f405f0a4d04ad93f04c2969bbd232c956e6b0e2d, reduced to the common workload defined in tasks/PE-P3-gmm-specA/workload.json.",
+      "reference_for_lightgrad": "The pinned C++ reference at https://github.com/koba-jon/lightgrad SHA 8656ef7a9d00ea84ab5ed2f368e94aa12ba8a8b8, reduced to the common subset defined in tasks/PE-P5-lightgrad-specA/subset.json. The subset is frozen before implementation begins and is identical for all ten languages (spec 15).",
+      "reference_for_PR_and_UG": "The benchmark's own reference implementation in the task directory, written by the benchmark authors in a language of the fixed set and verified against an independent second implementation in a different language of the fixed set; both must agree byte for byte before the golden file is frozen. The two reference languages used are recorded in golden/provenance.json. Neither reference language receives any advantage: the model is never shown either reference for PR or UG.",
+      "no_golden_from_a_generated_program": "A golden file is never derived from any LLM-generated program, in any language."
+    },
+    "tasks": [
+      {
+        "task_id": "PE-P1-svm-specA",
+        "name": "SVM, Specification to Implementation",
+        "role": "PRIMARY implementation task. Correct@1 is measured here.",
+        "scenario": "A (spec 16 A). The reference source code is NOT shown.",
+        "trials_per_language": 5,
+        "supplied": [
+          "algorithm specification in words and formulas",
+          "API/CLI specification",
+          "input generation rule",
+          "output format",
+          "numerical tolerance",
+          "compliance checklist",
+          "the three worked examples",
+          "the language reference pack"
+        ],
+        "workload_summary": "Train a soft-margin linear support vector machine by sequential minimal optimisation on a deterministic two-class dataset generated by the frozen LCG (seed 1), with the dimensionality, sample count, class separation, penalty parameter C, tolerance and maximum passes fixed in tasks/PE-P1-svm-specA/workload.json. Then classify a deterministic held-out set generated by the same LCG continuing from the training stream. Print, in this fixed order: the number of support vectors; the bias term to 6 decimals; each weight component to 6 decimals, one per line; the number of correctly classified held-out samples; and the held-out accuracy to 6 decimals.",
+        "oracle": {
+          "type": "mechanical, no human judgement",
+          "steps": [
+            "1. Build with the frozen build command. Non-zero exit or absent binary => COMPILE_FAIL.",
+            "2. Run with the frozen run command, run_timeout 120 s. Non-zero exit, killing signal, or timeout => RUNTIME_FAIL.",
+            "3. Parse stdout into the fixed field schema in tasks/PE-P1-svm-specA/oracle_schema.json. A line count or field shape that does not match the schema => OUTPUT_MISMATCH.",
+            "4. Compare integer fields (support-vector count, correct-classification count) for EXACT equality with the golden file.",
+            "5. Compare floating-point fields (bias, each weight component, accuracy) against the golden file with the frozen tolerance.",
+            "6. PASS if and only if every field matches. Otherwise OUTPUT_MISMATCH."
+          ],
+          "float_tolerance": {
+            "absolute": 1e-06,
+            "relative": 1e-09,
+            "rule": "A field matches if |actual - expected| <= 1e-06 OR |actual - expected| <= 1e-09 * |expected|. The tolerance is frozen in tasks/PE-P1-svm-specA/tolerance.json before any trial and is the same for all ten languages.",
+            "rationale": "The workload is specified so that the reference computation's condition number keeps every printed field stable well inside 1e-06 across IEEE-754 double implementations; the tolerance therefore accommodates legitimate double-rounding differences without accepting an algorithmically different answer."
+          },
+          "pass_fail": "Binary. There is no partial credit for Correct@1. Partial credit exists only in Test Pass Rate, which is checks_passed / checks_total over the schema fields."
+        },
+        "spec_compliance_checklist": [
+          "exactly the specified number of output lines",
+          "each float printed to exactly 6 decimals",
+          "exit status 0",
+          "no stdin read",
+          "no command-line arguments consulted",
+          "the specified LCG seed used (verified by the first printed field of a specified debug-free derived quantity included in the schema)",
+          "no file written outside build/",
+          "the specified C, tolerance, and max-passes values used (verified through their effect on the frozen golden output)",
+          "no hard-coded golden values (verified by the frozen anti-hardcoding check)"
+        ],
+        "anti_hardcoding_check": "scripts/check_compliance.py searches the generated source for any literal that equals, to 6 decimals, a golden floating-point field not derivable as a task-specified constant, and for any literal string equal to a golden output line. A hit sets compliance item 'no hard-coded golden values' to fail AND sets the version's classification to FAIL regardless of output match. The check is byte-identical in logic for all ten languages, applied to the tokenised source, and its hit list is preserved for human audit so a false positive can be seen and is reported rather than silently applied."
+      },
+      {
+        "task_id": "PE-P2-svm-portB",
+        "name": "SVM, Reference to Porting",
+        "scenario": "B (spec 16 B). The pinned C++ reference source IS shown, identically to all ten languages including C++.",
+        "trials_per_language": 1,
+        "oracle": "Identical to PE-P1-svm-specA in every respect, including golden file, schema, tolerance, and compliance checklist.",
+        "separation_requirement": "Scenario A and Scenario B results are kept in separate raw datasets and are never merged (spec 16). They enter the metric aggregates as separate workloads under the unweighted cross-workload mean of spec 25.2.",
+        "fairness_note": "Giving the C++ reference to C++ itself makes Scenario B easier for C++ than for the other nine. That is a real and acknowledged asymmetry of the porting scenario as the specification defines it. It is published in the results, Scenario B is never merged with Scenario A, and no correction factor is applied, because inventing one would be a post-hoc transformation."
+      },
+      {
+        "task_id": "PE-P3-gmm-specA",
+        "name": "Gaussian mixture model, Specification to Implementation",
+        "scenario": "A",
+        "trials_per_language": 1,
+        "workload_summary": "Fit a K-component Gaussian mixture by expectation maximisation to a deterministic dataset generated by the frozen LCG (seed 1), with K, dimensionality, sample count, initialisation rule, convergence tolerance and maximum iterations fixed in tasks/PE-P3-gmm-specA/workload.json. The initialisation is fully specified and deterministic so that the fitted solution is unique. Print: the iteration count at convergence; the final log-likelihood to 6 decimals; each component weight to 6 decimals; each component mean component to 6 decimals; each component variance entry to 6 decimals; and the hard assignment counts per component as integers.",
+        "oracle": "Same mechanical procedure as PE-P1. Integer fields exact; float fields within the frozen tolerance in tasks/PE-P3-gmm-specA/tolerance.json (absolute 1e-05, relative 1e-08; looser than SVM because EM accumulates over the specified iteration count, frozen before any trial, and identical for all ten languages). Component ordering is made unambiguous by the task: components are printed sorted ascending by their first mean coordinate, ties broken by the second, so a correct implementation cannot fail on ordering alone."
+      },
+      {
+        "task_id": "PE-P4-gmm-portB",
+        "name": "Gaussian mixture model, Reference to Porting",
+        "scenario": "B",
+        "trials_per_language": 1,
+        "oracle": "Identical to PE-P3-gmm-specA.",
+        "separation_requirement": "Kept separate from PE-P3."
+      },
+      {
+        "task_id": "PE-P5-lightgrad-specA",
+        "name": "LightGrad common subset, Specification to Implementation",
+        "scenario": "A",
+        "trials_per_language": 1,
+        "common_subset_freeze": "The common subset is defined in tasks/PE-P5-lightgrad-specA/subset.json, frozen before implementation begins, and is exactly the same for all ten languages (spec 15). It requires, at minimum: multiple functions; more than one logical module or namespace; dense tensor storage with shape; elementwise add, multiply, and a matrix product; a reduction to a scalar; reverse-mode automatic differentiation over that graph; a forward pass and a backward pass on a fixed small network; an associative and a sequential data structure; one abstraction boundary (an operation dispatched over more than one concrete kind); explicit deallocation or the language's own memory discipline; and one specified error case that must be detected and reported rather than producing a wrong number.",
+        "workload_summary": "Build the specified tensor/autodiff subset, then run the fixed forward and backward computation on the fixed inputs. Print: each forward output value to 6 decimals; each gradient value to 6 decimals; and for the specified shape-mismatch error case, the literal line 'ERROR:SHAPE'.",
+        "oracle": "Same mechanical procedure. Float fields within absolute 1e-06 / relative 1e-09. The 'ERROR:SHAPE' line must match exactly; a program that instead produces a number for that case is a Silent Bug candidate and is classified by the silent-bug rule."
+      },
+      {
+        "task_id": "PE-P6-lightgrad-portB",
+        "name": "LightGrad common subset, Reference to Porting",
+        "scenario": "B",
+        "trials_per_language": 1,
+        "oracle": "Identical to PE-P5-lightgrad-specA.",
+        "separation_requirement": "Kept separate from PE-P5."
+      },
+      {
+        "task_id": "UG-G1-unseen",
+        "name": "Unseen-case Generalization",
+        "_authority": "spec 21",
+        "trials_per_language": 3,
+        "design": "The pack supplies PART of the language reference (the frozen 20,000-token excerpt) and a LIMITED number of examples (exactly 6, the fixed roles E1-E6). The task then requires twelve cases that the six examples do not demonstrate. Two cases sit in each of the six categories spec 21 names.",
+        "output_contract": "The program prints exactly twelve lines, in order, each of the form 'UG-NN: <value>' with NN from 01 to 12 and a single space after the colon.",
+        "cases": [
+          {
+            "id": "UG-01",
+            "category": "new rule combinations",
+            "requirement": "Draw the 10th value of the frozen LCG (seed 1), reduce it modulo 97, then clamp the signed result into the inclusive range [-50, 50]. Print the clamped integer.",
+            "unseen_because": "the examples show iteration and arithmetic separately but never a modulus combined with a signed clamp"
+          },
+          {
+            "id": "UG-02",
+            "category": "new rule combinations",
+            "requirement": "Fold the first 16 unit floats of the frozen LCG (seed 1) with an alternating rule: add the value at even positions (0-based), subtract it at odd positions. Print the result to 6 decimals.",
+            "unseen_because": "the examples show summation but never a position-dependent alternating fold"
+          },
+          {
+            "id": "UG-03",
+            "category": "boundary cases",
+            "requirement": "Print the exact decimal representations of 2^53 and 2^53+1, separated by a single space.",
+            "expected_value": "9007199254740992 9007199254740993",
+            "unseen_because": "the examples never touch the exactness boundary of binary floating point"
+          },
+          {
+            "id": "UG-04",
+            "category": "boundary cases",
+            "requirement": "Print the exact decimal representation of the minimum signed 64-bit integer, then a single space, then the exact decimal representation of its absolute value.",
+            "expected_value": "-9223372036854775808 9223372036854775808",
+            "unseen_because": "the examples never touch the asymmetry of two's-complement range"
+          },
+          {
+            "id": "UG-05",
+            "category": "nested expressions",
+            "requirement": "Evaluate the fully parenthesised six-level nested arithmetic-and-conditional expression written out in task_spec.md over the fixed integer inputs given there, and print the integer result.",
+            "unseen_because": "the examples contain no expression deeper than two levels"
+          },
+          {
+            "id": "UG-06",
+            "category": "nested expressions",
+            "requirement": "Build the nested structure described in task_spec.md (an ordered mapping from three fixed keys to sequences of key-value pairs), then print its specified deterministic serialisation.",
+            "unseen_because": "example E5 shows a flat mapping only"
+          },
+          {
+            "id": "UG-07",
+            "category": "type combinations",
+            "requirement": "For the three fixed integer pairs in task_spec.md, print the quotient of the pair computed in floating point to 6 decimals, then a single space, then the first element rendered as a decimal string zero-padded to width 12; the three results separated by ' | '.",
+            "unseen_because": "the examples show integer output and float formatting but never a mixed-type combination or width padding"
+          },
+          {
+            "id": "UG-08",
+            "category": "type combinations",
+            "requirement": "For the eight fixed float values in task_spec.md, print on one line their conversions to integer by truncation toward zero, then ' | ', then their conversions by round-half-away-from-zero; values within each group separated by single spaces.",
+            "unseen_because": "the examples never convert float to integer and never contrast two rounding rules"
+          },
+          {
+            "id": "UG-09",
+            "category": "error cases",
+            "requirement": "Attempt the integer division 1 divided by 0 with the two fixed operands given in task_spec.md. The failure must be detected and reported; print exactly 'ERROR:DIVZERO'. The program must continue and print the remaining cases and exit with status 0.",
+            "expected_value": "ERROR:DIVZERO",
+            "unseen_because": "example E6 shows error handling for a different, specified failing operation"
+          },
+          {
+            "id": "UG-10",
+            "category": "error cases",
+            "requirement": "Attempt to interpret the fixed text '12x' as a base-10 integer. The failure must be detected and reported; print exactly 'ERROR:PARSE'. The program must continue and exit with status 0.",
+            "expected_value": "ERROR:PARSE",
+            "unseen_because": "the examples never parse text into a number"
+          },
+          {
+            "id": "UG-11",
+            "category": "API combinations",
+            "requirement": "Sort the fixed twelve text-and-integer pairs in task_spec.md by integer descending, ties broken by text ascending in codepoint order, and print them as 'text=integer' joined by ','.",
+            "unseen_because": "the examples show no sorting and no multi-key comparison"
+          },
+          {
+            "id": "UG-12",
+            "category": "API combinations",
+            "requirement": "Count the occurrences of each Unicode codepoint in the fixed text given in task_spec.md, which contains non-ASCII codepoints, and print 'U+XXXX=count' entries in ascending codepoint order, joined by ','. XXXX is at least four uppercase hexadecimal digits with no prefix zeros beyond four.",
+            "unseen_because": "the examples show no text processing and no codepoint handling"
+          }
+        ],
+        "fairness_statement": "None of the twelve cases was chosen because Quidra handles it well. UG-03, UG-04, UG-08 and UG-09 in particular sit exactly where Quidra's overflow-checked integer arithmetic and its error model make the case harder rather than easier, and they stay in the set. Every case is expressible in all ten languages using each language's normal facilities.",
+        "oracle": "Mechanical, per case: the actual line 'UG-NN: <value>' must equal the golden line byte for byte after the common trailing-LF rule. UG-03, UG-04, UG-09 and UG-10 have the expected values written into this document; the remaining eight come from the frozen golden file. A missing, extra, or out-of-order line scores that case FAIL and does not shift the others: comparison is by case id, not by position, and an out-of-order or duplicated id fails the affected ids.",
+        "scoring": "UG_raw for a language = (cases passed) / (cases attempted-and-scored), pooled over the 3 trials, i.e. passed_cases / (12 * scored_trials). A trial whose program fails to build or fails to run scores 0 of 12 for that trial; it is not excluded, because failing to produce a runnable program is a failure to generalise. Normalisation family A.",
+        "reporting": "Per-case pass rates per language are published, so a reader can see which category each language lost, rather than only the aggregate."
+      },
+      {
+        "task_id": "PR-R1-v1 / PR-R1-v2 / PR-R1-v3",
+        "name": "Prompt Robustness",
+        "_authority": "spec 22",
+        "trials_per_language_per_variation": 5,
+        "underlying_task": "One fixed semantic task, identical in required behaviour across all three variations and all ten languages: generate 200,000 unit floats from the frozen LCG (seed 1); compute and print, one per line and in this order, the count as an integer, the arithmetic mean to 6 decimals, the population variance to 6 decimals, the minimum to 6 decimals, the maximum to 6 decimals, then the five largest values in descending order to 6 decimals on one line separated by single spaces, then the number of values strictly greater than 0.5 as an integer.",
+        "normative_contract_block": "All three variations embed a BYTE-IDENTICAL normative block that states the LCG formula, the seed, the sample count, the exact output lines, their order, and the 6-decimal formatting rule. Only the material surrounding that block differs. This guarantees that the requested behaviour is unchanged across variations, which is the requirement of spec 22, and that a variation cannot accidentally change the task.",
+        "variations": [
+          {
+            "id": "PR-R1-v1",
+            "style": "terse",
+            "description": "Minimal imperative wording. The normative block is preceded by a single sentence naming the deliverable and followed by nothing. Bulleted, no prose rationale. Shortest of the three.",
+            "ordering": "deliverable sentence, normative block."
+          },
+          {
+            "id": "PR-R1-v2",
+            "style": "verbose prose, reordered",
+            "description": "The same task described in full paragraphs with context and restatement, roughly 3x the length of v1. Output requirements are discussed in prose BEFORE the data-generation requirement is discussed, reversing v1's order, and the normative block appears at the END.",
+            "ordering": "prose context, prose statement of outputs, prose statement of data generation, normative block."
+          },
+          {
+            "id": "PR-R1-v3",
+            "style": "structured/tabular formatting",
+            "description": "The same task presented as a requirements table with numbered rows and a short field-schema table, with the normative block placed in the MIDDLE, between the requirements table and a closing acceptance-criteria table. Length between v1 and v2.",
+            "ordering": "requirements table, normative block, acceptance-criteria table."
+          }
+        ],
+        "variation_construction_rules": [
+          "The same three variations are used for every one of the ten languages. Not one word of a variation differs by language except through the standard placeholder substitutions.",
+          "No variation adds, removes, weakens, or strengthens any behavioural requirement. This is verified mechanically before the run by diffing each variation against the normative block and confirming the block is present byte-identically and that no sentence outside it contains a numeral, a format specifier, or an output-line description that contradicts it. The verification output is preserved at tasks/PR-R1/variation_equivalence_check.txt.",
+          "No variation mentions any language, any API, or any syntax.",
+          "The variations were written before any trial and are frozen."
+        ],
+        "oracle": "Mechanical field comparison exactly as in PE-P1: integer fields exact, float fields within absolute 1e-06 / relative 1e-09 against the frozen golden file. Identical oracle for all three variations.",
+        "metric_definition": {
+          "per_variation_rate": "p_v(L) = (trials of variation v in language L whose INITIAL generation passed the oracle) / (scored trials of variation v in language L). Initial generation only, no repairs, because robustness is about the prompt's effect on the first response.",
+          "score_raw": "PromptRobustness_raw(L) = min over v in {v1, v2, v3} of p_v(L).",
+          "normalisation": "family A: Score = 100 * clamp(raw, 0, 1).",
+          "why_min_and_not_spread": "A spread-based measure (max - min) would award 100 to a language that fails under every phrasing, which is the opposite of what spec 22 asks. The worst-case correctness across equivalent phrasings answers 'does correctness remain stable' without rewarding uniform failure: a language correct under all three phrasings scores high, a language correct only under one scores low, a language correct under none scores 0. This choice was made and written down before any trial and must not be changed afterwards.",
+          "mandatory_published_raw": [
+            "p_v1, p_v2, p_v3 per language",
+            "mean over v",
+            "max minus min over v (the stability spread)",
+            "the 15 per-trial outcomes per language"
+          ],
+          "precision": "Each p_v comes from 5 trials and therefore has a resolution of 20 percentage points. The published table must carry that statement."
+        }
+      }
+    ],
+    "silent_bug_definition_and_measurement": {
+      "_authority": "spec 13, 17, 18, 32",
+      "definition": "A generated program version is a SILENT BUG if and only if all of the following hold: (a) the build/parse step succeeded, or the language's frozen recipe has no separate build step; (b) the program ran to normal completion within the run timeout; (c) the process exit status is 0; (d) no line of its stderr matches that language's frozen runtime-error signature list; and (e) the oracle comparison FAILED. In words: it compiled, it ran, it said nothing was wrong, and the answer was wrong.",
+      "explicitly_not_a_silent_bug": [
+        "a build or parse failure",
+        "a non-zero exit status",
+        "a killing signal or crash",
+        "a run timeout",
+        "a program that printed a specified error line the task asked for and was correct to print",
+        "a program that reported its own failure on stderr and exited non-zero"
+      ],
+      "classification_is_mechanical": "No human judges whether a wrong answer was 'obviously wrong'. Conditions (a) to (e) are evaluated by scripts/classify_version.py from recorded exit codes, recorded stderr, and the oracle result.",
+      "runtime_error_signature_lists": {
+        "_purpose": "Condition (d). A language must not be credited with a 'silent' failure when its runtime did in fact report a fault on stderr while still exiting 0 (possible in some runtimes).",
+        "Quidra": [
+          "^runtime error\\[",
+          "^error\\[",
+          "^panic:"
+        ],
+        "Python": [
+          "^Traceback \\(most recent call last\\):",
+          "^[A-Za-z_]*Error:",
+          "^[A-Za-z_]*Warning:.*RuntimeWarning"
+        ],
+        "C++": [
+          "^libc\\+\\+abi:",
+          "^terminate called",
+          "runtime error:",
+          "^Assertion failed:"
+        ],
+        "Rust": [
+          "^thread '.*' panicked at"
+        ],
+        "Go": [
+          "^panic:",
+          "^fatal error:",
+          "^runtime error:"
+        ],
+        "Java": [
+          "^Exception in thread",
+          "^java\\.lang\\.[A-Za-z]*(Error|Exception)"
+        ],
+        "TypeScript": [
+          "^[A-Za-z]*Error:",
+          "^Uncaught",
+          "^node:internal"
+        ],
+        "Kotlin": [
+          "^Exception in thread",
+          "^kotlin\\.[A-Za-z]*Exception",
+          "^java\\.lang\\.[A-Za-z]*(Error|Exception)"
+        ],
+        "Swift": [
+          "^Fatal error:",
+          "^Swift runtime failure",
+          "^Illegal instruction"
+        ],
+        "Zig": [
+          "^thread .* panic:",
+          "^error: ",
+          "^Segmentation fault"
+        ],
+        "matching_rule": "Case-sensitive regular-expression search, anchored as written, applied line by line to the captured stderr. The lists were written from each toolchain's documented fault output before any trial and are published; a fault text observed during the run that is not on a list is added ONLY by amending this document before any score is computed, and any such amendment is recorded in _deviations.json with its date and reason. After the first score is computed the lists are closed."
+      },
+      "primary_metric": {
+        "name": "Silent Bug Resistance",
+        "raw": "SilentBugRate(L) = silent_bug_versions(L) / incorrect_versions(L), where incorrect_versions is every generated version in every scored trial of language L (initial plus each repair turn) whose classification is not PASS, and silent_bug_versions is the subset of those meeting conditions (a)-(e).",
+        "normalisation": "family B: Score = 100 * (1 - clamp(rate, 0, 1)).",
+        "why_this_denominator": "The denominator is 'versions that were wrong', not 'versions that ran' and not 'all versions'. Dividing by all versions would reward a language for failing to compile, because a program that never builds can never be a silent bug. Dividing by versions that ran would shrink the denominator of exactly those languages whose compiler catches errors early, which penalises early detection. Asking instead 'when this language's generated code was wrong, how often was it wrong silently' is what spec 17 and 18 are about: whether an invalid value is silently transformed into an apparently valid one and execution continues. Compile failures and crashes are loud failures and correctly sit in the denominator.",
+        "zero_denominator": "If a language produced no incorrect version at all, SilentBugRate is 0 and the score is 100, recorded with n_incorrect = 0 and the note that no incorrect version existed to fail silently.",
+        "low_precision_flag": "Any language whose incorrect_versions count is below 10 is flagged 'low precision (n=<count>)' in the published table, and its Silent Bug Resistance value must not be used to claim a ranking difference of a few points.",
+        "mandatory_published_raw": [
+          "silent_bug_versions per language",
+          "incorrect_versions per language",
+          "total_versions per language",
+          "the secondary figure silent_bug_versions / total_versions, published beside the primary rate so both framings are visible",
+          "the per-task breakdown",
+          "the list of every silent-bug version's trial path"
+        ]
+      },
+      "preservation": "Every silent-bug version is preserved in full in its versions/<version>/ directory with classification.json carrying \"classification\": \"SILENT_BUG\" and the five condition flags, and is listed in llm-practical/raw/silent_bugs.json with its trial path, task, language, version id, and the failing oracle fields. Spec 23 requires this and spec 32 forbids classifying a Silent Bug as a success.",
+      "relationship_to_the_adversarial_suite": "This metric measures silent bugs in LLM-GENERATED programs. The separate adversarial/safety suite of spec 17 and 18 measures each language's behaviour on the fixed defect set with benchmark-authored programs and produces the Early Error Detection stage scores of normalisation family F. The two are different evidence and are not merged; neither is used to adjust the other."
+    },
+    "syntax_hallucination_resistance_definition": {
+      "_authority": "spec 9 (metric list), spec 9.1 (7 percent weight)",
+      "definition": "A hallucination event is a generated version that refers to language surface that does not exist: either a named construct the language does not have (class H1) or a grammatical form the language does not accept (class H2).",
+      "classes": {
+        "H1_nonexistent_named_construct": "The version references an identifier, member, method, field, type, module, package, attribute, or macro that does not exist in the language or its standard library, detected by a toolchain diagnostic matching that language's H1 signature list, or by a runtime fault matching that language's H1 runtime signature list.",
+        "H2_nonexistent_grammar": "The version is rejected by the language's parser, detected by a toolchain diagnostic matching that language's H2 signature list. A parse rejection is treated as invented syntax."
+      },
+      "measurement_population": "All INITIAL generations of every scored trial, pooled across every task, for that language. This is a large, identically constructed sample per language (28 initial generations per language under the frozen allocation: 5 + 5 + 5 + 5 + 3 + 1 + 1 + 1 + 1 + 1) and costs no extra trials. Repair versions are excluded from the primary figure because a repair turn has already been shown the diagnostic; their hallucination counts are published separately as a secondary figure.",
+      "raw": "HallucinationRate(L) = versions_with_at_least_one_H1_or_H2_event(L) / scored_initial_generations(L). Counted per version, not per diagnostic, so a language whose compiler emits many diagnostics for one mistake is not penalised for its diagnostic verbosity.",
+      "normalisation": "family B: Score = 100 * (1 - clamp(rate, 0, 1)).",
+      "H1_signature_lists": {
+        "Quidra": [
+          "unknown identifier",
+          "undefined name",
+          "no such member",
+          "unknown module",
+          "unresolved"
+        ],
+        "Python": [
+          "^NameError:",
+          "^AttributeError:",
+          "^ModuleNotFoundError:",
+          "^ImportError:"
+        ],
+        "C++": [
+          "use of undeclared identifier",
+          "no member named",
+          "unknown type name",
+          "no template named",
+          "file not found",
+          "no matching function for call to"
+        ],
+        "Rust": [
+          "error\\[E0425\\]",
+          "error\\[E0433\\]",
+          "error\\[E0412\\]",
+          "error\\[E0599\\]",
+          "error\\[E0432\\]",
+          "error\\[E0405\\]",
+          "error\\[E0422\\]",
+          "error\\[E0658\\]"
+        ],
+        "Go": [
+          "undefined: ",
+          "undeclared name",
+          "no required module provides package",
+          "has no field or method",
+          "is not a type"
+        ],
+        "Java": [
+          "cannot find symbol",
+          "package .* does not exist"
+        ],
+        "TypeScript": [
+          "error TS2304",
+          "error TS2339",
+          "error TS2551",
+          "error TS2307",
+          "error TS2552"
+        ],
+        "Kotlin": [
+          "unresolved reference",
+          "cannot access class",
+          "unresolved import"
+        ],
+        "Swift": [
+          "cannot find '.*' in scope",
+          "has no member",
+          "no such module",
+          "cannot find type '.*' in scope"
+        ],
+        "Zig": [
+          "no member named",
+          "use of undeclared identifier",
+          "unable to find module",
+          "root source file struct .* has no member",
+          "no field or member function named"
+        ]
+      },
+      "H2_signature_lists": {
+        "Quidra": [
+          "parse error",
+          "syntax error",
+          "unexpected token"
+        ],
+        "Python": [
+          "^SyntaxError:",
+          "^IndentationError:",
+          "^TabError:"
+        ],
+        "C++": [
+          "expected .* before",
+          "expected ';'",
+          "expected expression",
+          "expected unqualified-id",
+          "extraneous closing brace"
+        ],
+        "Rust": [
+          "expected one of",
+          "unexpected token",
+          "expected .*, found",
+          "error: expected"
+        ],
+        "Go": [
+          "syntax error:"
+        ],
+        "Java": [
+          "';' expected",
+          "illegal start of expression",
+          "class, interface, enum, or record expected",
+          "reached end of file while parsing"
+        ],
+        "TypeScript": [
+          "error TS1005",
+          "error TS1109",
+          "error TS1128",
+          "error TS1434"
+        ],
+        "Kotlin": [
+          "expecting ",
+          "unexpected tokens"
+        ],
+        "Swift": [
+          "expected ",
+          "consecutive statements",
+          "unexpected ",
+          "extraneous "
+        ],
+        "Zig": [
+          "expected ",
+          "invalid token",
+          "unexpected token"
+        ]
+      },
+      "detection_coverage_asymmetry_disclosure": {
+        "statement": "Detection channels are the union of (a) build/parse diagnostics from the frozen recipe and (b) runtime fault output over the frozen inputs. The same two channels are applied to all ten languages. Their COVERAGE nevertheless differs: a statically checked language surfaces an H1 event in unreached code at build time, while Python surfaces it only if the code runs.",
+        "mitigation_applied": "Every task's output contract requires that every computation the task specifies actually be executed and printed, so the frozen inputs drive the whole required program. This is why the contract mandates printing every field rather than a single summary value: it gives the dynamically checked languages execution coverage of the required code paths.",
+        "residual_limitation_recorded": "Coverage of code paths the model wrote but that the task does not require to execute (a defensive branch, an unused helper) remains lower for Python and, where a type is erased at runtime, for TypeScript executed through node. The residual is stated in the published results next to this metric. It is NOT corrected by a per-language adjustment factor, because inventing one would be a post-hoc transformation, and it is not hidden.",
+        "why_not_a_third_channel": "A static symbol-existence auditor would have to be written per language, would have different fidelity in each, and would itself become an uncontrolled source of cross-language difference. Two channels applied identically, with the residual disclosed, is the honest option."
+      },
+      "mandatory_published_raw": [
+        "per language: scored_initial_generations, versions_with_H1, versions_with_H2, versions_with_either, the rate",
+        "the verbatim first matching diagnostic line for every counted version, with its trial path",
+        "the same figures for repair versions, published separately"
+      ]
+    }
+  },
+  "version_classification_ladder": {
+    "_purpose": "One mechanical classifier turns a generated version into exactly one class. Every metric is computed from these classes plus recorded counts. scripts/classify_version.py implements it and is identical for all ten languages.",
+    "classes_in_ladder_order_worst_to_best": [
+      {
+        "class": "NO_ARTIFACT",
+        "rank": 0,
+        "condition": "The subagent returned without a file at generated/<ENTRY_FILENAME>, or the file is empty, or more than one source file was created when the task required one."
+      },
+      {
+        "class": "COMPILE_FAIL",
+        "rank": 1,
+        "condition": "The build command exited non-zero, timed out, or produced no runnable artefact. For a language with no separate build step, a parse failure detected by running the program with no work performed."
+      },
+      {
+        "class": "RUNTIME_FAIL",
+        "rank": 2,
+        "condition": "The build succeeded but the run exited non-zero, was killed by a signal, or hit the run timeout."
+      },
+      {
+        "class": "SILENT_BUG",
+        "rank": 3,
+        "condition": "Conditions (a)-(e) of the silent-bug definition all hold. A wrong answer delivered with no signal of any kind."
+      },
+      {
+        "class": "OUTPUT_MISMATCH",
+        "rank": 4,
+        "condition": "The run completed with exit 0 and the oracle failed, but stderr carried a matching runtime-error signature, so the program did signal that something was wrong. Ranked above SILENT_BUG because the failure was at least observable."
+      },
+      {
+        "class": "COMPLIANCE_FAIL",
+        "rank": 5,
+        "condition": "The oracle output matched but a mechanical compliance item failed, including the anti-hard-coding check. Not a PASS."
+      },
+      {
+        "class": "PASS",
+        "rank": 6,
+        "condition": "The build succeeded (or is not applicable), the run exited 0 within the timeout, every oracle field matched, and every compliance item passed."
+      }
+    ],
+    "exactly_one_class": "Evaluated in the order NO_ARTIFACT, COMPILE_FAIL, RUNTIME_FAIL, then (oracle pass and compliance pass) PASS, then COMPLIANCE_FAIL, then SILENT_BUG vs OUTPUT_MISMATCH by the stderr signature test. The first condition that holds is the class.",
+    "improvement_ladder_for_diagnosis": "A repair turn IMPROVED if rank(new) > rank(old), or rank(new) == rank(old) and checks_passed(new) > checks_passed(old). Otherwise it did not improve and is counted as a misdiagnosis. This is mechanical and uses no human judgement about whether the model's stated reasoning was right."
+  },
+  "metric_definitions_and_weights": {
+    "_authority": "spec 9.1. The weights below are the complete spec 9.1 table, copied without alteration.",
+    "weights_frozen_statement": "These eighteen weights are FROZEN. They must not be altered after any scored LLM output has been observed (spec 9.1, spec 32). They sum to 100 percent. No weight may be added, removed, reallocated, or renormalised except by the N/A policy of spec 26 applied to a genuinely inapplicable metric, and every such renormalisation must be published with its reason.",
+    "weights_sum": 100,
+    "metrics": [
+      {
+        "metric": "Generation Success Rate",
+        "weight_percent": 4,
+        "presentation_row": "LLM Generation Success",
+        "normalisation_family": "A",
+        "definition": "scored trials whose INITIAL generation produced a usable artefact (class is not NO_ARTIFACT) / scored trials. Provider and infrastructure failures are excluded from both numerator and denominator and recorded separately.",
+        "aggregation": "unweighted mean over the applicable task set (spec 25.2)"
+      },
+      {
+        "metric": "Compile / Parse Success Rate",
+        "weight_percent": 4,
+        "presentation_row": "LLM Compile Success",
+        "normalisation_family": "A",
+        "definition": "initial generations whose class rank is >= 2 (i.e. not NO_ARTIFACT and not COMPILE_FAIL) / initial generations with an artefact. For a language whose frozen recipe has no separate build step, the parse check is the only build-stage check and is applied in the same slot; this difference is a property of the language's toolchain and is recorded, not adjusted.",
+        "aggregation": "unweighted mean over tasks"
+      },
+      {
+        "metric": "Correct@1",
+        "weight_percent": 12,
+        "presentation_row": "LLM Correct@1",
+        "normalisation_family": "A",
+        "definition": "initial generations classified PASS / scored initial generations. Computed per task, then averaged over tasks. The five-trial cell PE-P1-svm-specA is the primary source and is published separately as well as inside the mean.",
+        "aggregation": "unweighted mean over tasks"
+      },
+      {
+        "metric": "Correct@N",
+        "weight_percent": 5,
+        "presentation_row": null,
+        "normalisation_family": "A",
+        "definition": "FROZEN INTERPRETATION: pass@N over N independent INITIAL generations, no repairs. For a cell with N trials, the cell contributes 1 if at least one of its N initial generations classified PASS, else 0. Computed ONLY over cells with N >= 5, which are PE-P1-svm-specA and the three PR variations. Cells with N = 1 are excluded because there Correct@N is identical to Correct@1 and would double-count it; the exclusion is published.",
+        "aggregation": "unweighted mean over the four eligible tasks"
+      },
+      {
+        "metric": "Test Pass Rate",
+        "weight_percent": 10,
+        "presentation_row": null,
+        "normalisation_family": "A",
+        "definition": "For each scored trial's FINAL version: oracle checks passed / oracle checks total, where the check set is the task's fixed oracle_schema field list. Averaged over trials, then over tasks. A version with no artefact or a failed build scores 0 of its task's checks.",
+        "aggregation": "unweighted mean over tasks"
+      },
+      {
+        "metric": "Repair Success Rate",
+        "weight_percent": 7,
+        "presentation_row": "LLM Repair Success",
+        "normalisation_family": "A",
+        "definition": "trials whose initial generation was not PASS and whose final version (within the 3-repair budget) is PASS / trials whose initial generation was not PASS.",
+        "zero_denominator": "If a language had no failing initial generation on any scored task, this metric is N/A for that language with reason 'no_failing_initial_generation', excluded from the applicable-weight denominator, and the remaining weights renormalised per spec 26. This is a genuine inapplicability, not a missing capability, and it is published.",
+        "aggregation": "pooled over all scored trials of all tasks, because the denominator is small; the per-task breakdown is published"
+      },
+      {
+        "metric": "Repair Efficiency",
+        "weight_percent": 5,
+        "presentation_row": "LLM Repair Efficiency",
+        "normalisation_family": "E",
+        "definition": "Per spec 25.1 family E: per trial, 100 * (1 - repair_turns_used / 3), clipped to [0, 100]. A Correct@1 trial used 0 repair turns and scores 100. A trial still not PASS after repair_03 used 3 turns and scores 0 and is also a repair failure. Trial-level scores are averaged.",
+        "aggregation": "mean over all scored trials, then unweighted mean over tasks"
+      },
+      {
+        "metric": "Diagnosis Efficiency",
+        "weight_percent": 5,
+        "presentation_row": "LLM Diagnosis Efficiency",
+        "normalisation_family": "A (already a fraction, scaled to 0-100)",
+        "definition": "Per trial that used at least one repair turn: improving_repair_turns / repair_turns_used, using the mechanical improvement ladder. A trial that used no repair turn scores 1.0 (nothing was misdiagnosed). Averaged over trials. Also recorded per spec 19: diagnosis turns, repair turns, tokens to first improving repair, and misdiagnosis count, all preserved per trial.",
+        "no_invented_human_times": "Spec 19 forbids inventing human debugging times. No human participant study was performed, so no human minutes are claimed anywhere. Agent wall-clock per turn IS measured and recorded, alongside turns and tokens.",
+        "aggregation": "mean over trials, then unweighted mean over tasks"
+      },
+      {
+        "metric": "Silent Bug Resistance",
+        "weight_percent": 12,
+        "presentation_row": "LLM Silent Bug Resistance",
+        "normalisation_family": "B",
+        "definition": "See silent_bug_definition_and_measurement. Raw = silent_bug_versions / incorrect_versions, pooled over all generated versions of all scored trials.",
+        "aggregation": "pooled; per-task breakdown published"
+      },
+      {
+        "metric": "Syntax Hallucination Resistance",
+        "weight_percent": 7,
+        "presentation_row": "LLM Hallucination Resistance",
+        "normalisation_family": "B",
+        "definition": "See syntax_hallucination_resistance_definition. Raw = versions_with_H1_or_H2 / scored_initial_generations, pooled over all tasks.",
+        "aggregation": "pooled; per-task breakdown published"
+      },
+      {
+        "metric": "Specification Compliance",
+        "weight_percent": 7,
+        "presentation_row": null,
+        "normalisation_family": "A",
+        "definition": "For each scored trial's FINAL version: compliance checklist items satisfied / checklist items, from scripts/check_compliance.py. Averaged over trials, then over tasks. The checklist is fixed per task before any trial and is identical in content for all ten languages.",
+        "aggregation": "unweighted mean over tasks"
+      },
+      {
+        "metric": "Prompt Robustness",
+        "weight_percent": 5,
+        "presentation_row": "LLM Prompt Robustness",
+        "normalisation_family": "A",
+        "definition": "min over the three variations of the per-variation initial-generation pass rate. See the PR task entry.",
+        "aggregation": "single task set; no cross-task mean"
+      },
+      {
+        "metric": "Unseen-case Generalization",
+        "weight_percent": 6,
+        "presentation_row": "LLM Unseen-case Generalization",
+        "normalisation_family": "A",
+        "definition": "passed cases / (12 * scored trials) on UG-G1-unseen. See the UG task entry.",
+        "aggregation": "single task; per-case and per-category breakdown published"
+      },
+      {
+        "metric": "Source Token Efficiency",
+        "weight_percent": 3,
+        "presentation_row": "LLM Token Efficiency",
+        "normalisation_family": "C",
+        "definition": "Raw value per language per task = the lexical source-token count of the FINAL PASSING version, by the frozen counter in source_token_counting. Lower is better. Score_i = 100 * best_positive_raw / raw_i over the applicable languages of that task, then unweighted mean over tasks.",
+        "no_passing_version": "If a language has no passing version for a task, that task contributes no raw value for that language; the language's Source Token Efficiency is the mean over the tasks where it does have one. If a language has no passing version on ANY task, the metric is scored 0, not N/A, with reason 'no_passing_generated_program'. This rule is predeclared and applies identically to all ten languages.",
+        "family_C_disclosure": "Where the applicable raw values on a task span a factor of 100 or more, spec 25.1 requires publishing the raw value in its natural unit for every language, the ratio raw_i / best_positive_raw, and the note that the ratios rather than the compressed scores carry the comparison between non-leading languages. That publication is mandatory here."
+      },
+      {
+        "metric": "Total Token Efficiency",
+        "weight_percent": 3,
+        "presentation_row": null,
+        "normalisation_family": "C",
+        "definition": "Raw value per language per task = the mean over scored trials of that trial's cumulative harness-reported OUTPUT tokens (initial generation plus every repair turn). Lower is better. Score_i = 100 * best_positive_raw / raw_i.",
+        "availability_condition": "This metric depends on the harness reporting per-subagent token usage. If usage is reported for a trial, it is recorded in tokens/usage.json and used. If usage is NOT reported for ANY trial of ANY language, the metric is marked N/A for ALL ten languages with reason 'harness_does_not_expose_token_usage', its 3 percent is removed from the applicable-weight denominator, the remaining seventeen weights are renormalised per spec 26, and the removal is published prominently. If usage is reported for some languages and not others, the metric is marked N/A for all ten anyway, because a partial measurement would not be comparable; the partial data is still published as a non-scoring diagnostic.",
+        "no_proxy_in_scoring": "No character-count or word-count proxy is ever substituted for reported token usage in the score. A proxy figure (output bytes of the model's messages) may be published clearly labelled as a non-scoring diagnostic, and must never appear in a scored column."
+      },
+      {
+        "metric": "Generated Code Performance",
+        "weight_percent": 3,
+        "presentation_row": "LLM Generated Code Performance",
+        "normalisation_family": "C",
+        "definition": "Wall-clock execution time of the FINAL PASSING version, measured with the frozen measurement harness under the same conditions as every other timing measurement in this run: 3 discarded warm-up runs then 7 measured runs, median as the representative raw value, all runs and the dispersion preserved (spec 12, spec 25.2). Measured on PE-P1-svm-specA; where a language has more than one passing task, the unweighted mean of the per-task family-C scores is used.",
+        "managed_runtime_handling": "Managed runtimes (Python, TypeScript/node, Java, Kotlin) are measured the same way as the rest and their cold-start and steady-state numbers are reported separately, never mixed, per spec 12.",
+        "quidra_mode": "The Quidra column uses NATIVE mode, matching the release-build treatment of every other compiled language. The interpreter-mode number for the same generated program is measured and published as a separate raw row (spec 11, spec 29) but does not enter the Quidra column.",
+        "no_passing_version": "Score 0, not N/A, with reason 'no_passing_generated_program'. Predeclared, identical for all ten languages. This is a real outcome of the thing being measured: the metric asks how fast the code the model produced runs, and producing no correct runnable code is the worst possible answer to that question, not an inapplicable one."
+      },
+      {
+        "metric": "Generated Code Memory Efficiency",
+        "weight_percent": 1,
+        "presentation_row": null,
+        "normalisation_family": "C",
+        "definition": "Peak resident set size of the FINAL PASSING version over the measured runs, median, by the same frozen measurement harness. Same warm-up, same run count, same dispersion preservation, same managed-runtime separation, same Quidra native-mode rule, same no-passing-version rule (score 0 with reason)."
+      },
+      {
+        "metric": "Generated Code Compile Performance",
+        "weight_percent": 1,
+        "presentation_row": null,
+        "normalisation_family": "C",
+        "definition": "Wall-clock time of the frozen build command on the FINAL PASSING version, median of 7 measured builds from a clean build directory. For a language whose frozen recipe has no separate build step, this metric is N/A for that language with reason 'language_has_no_separate_build_step_in_its_frozen_recipe', excluded from the applicable-weight denominator for that language only, and the remaining weights renormalised per spec 26. That is a genuine inapplicability of the quantity, not a missing capability being hidden: the language's startup and parse cost is still fully visible in Generated Code Performance, which measures the whole run. Same no-passing-version rule (score 0 with reason) for languages that do have a build step."
+      }
+    ],
+    "presentation_row_mapping": {
+      "_authority": "spec 9.1, fixed so that two runs do not invent different correspondences.",
+      "LLM Generation Success": "Generation Success Rate",
+      "LLM Compile Success": "Compile / Parse Success Rate",
+      "LLM Correct@1": "Correct@1",
+      "LLM Repair Success": "Repair Success Rate",
+      "LLM Repair Efficiency": "Repair Efficiency",
+      "LLM Diagnosis Efficiency": "Diagnosis Efficiency",
+      "LLM Token Efficiency": "Source Token Efficiency",
+      "LLM Prompt Robustness": "Prompt Robustness",
+      "LLM Unseen-case Generalization": "Unseen-case Generalization",
+      "LLM Hallucination Resistance": "Syntax Hallucination Resistance",
+      "LLM Silent Bug Resistance": "Silent Bug Resistance",
+      "LLM Generated Code Performance": "Generated Code Performance"
+    },
+    "weighted_metrics_with_no_presentation_row": [
+      "Correct@N",
+      "Test Pass Rate",
+      "Specification Compliance",
+      "Total Token Efficiency",
+      "Generated Code Memory Efficiency",
+      "Generated Code Compile Performance"
+    ],
+    "presentation_is_presentation_only": "The twelve-row table of spec 28.2 is presentation only. It displays twelve of the eighteen weighted metrics. The six listed above still carry their weights and still enter the LLM Practical Effectiveness Score. The full eighteen-metric breakdown is preserved in results/llm_practical_full_breakdown.{json,md} and the score is computed from the eighteen, never from the twelve.",
+    "score_formula": "LLM Practical Effectiveness Score(L) = sum over applicable metrics m of ( weight_m * Score_m(L) ) / sum over applicable metrics m of weight_m. Scores clipped to [0, 100], reported to two decimal places, ranked on unrounded values (spec 25.3).",
+    "ranking": "An independent LLM Practical Effectiveness Ranking is produced from this score alone. It is never merged with Intrinsic Learnability, Semantic Compression, or Standard, and no cross-evaluation overall score or overall ranking is created (spec 28.2, spec 32)."
+  },
+  "na_policy_for_llm_practical": {
+    "_authority": "spec 26",
+    "rule": "N/A is never silently converted to zero and never used to let a missing capability escape scoring. A genuinely inapplicable metric is excluded from that language's applicable-weight denominator and the remaining weights are renormalised.",
+    "the_only_permitted_na_reasons": [
+      {
+        "reason_code": "harness_does_not_expose_token_usage",
+        "metric": "Total Token Efficiency",
+        "scope": "all ten languages simultaneously or none",
+        "justification": "The quantity is not observable through this client. It is not a property of any language."
+      },
+      {
+        "reason_code": "language_has_no_separate_build_step_in_its_frozen_recipe",
+        "metric": "Generated Code Compile Performance",
+        "scope": "per language",
+        "justification": "There is no build command to time. The cost is not hidden: it is inside Generated Code Performance, which times the whole run."
+      },
+      {
+        "reason_code": "no_failing_initial_generation",
+        "metric": "Repair Success Rate",
+        "scope": "per language",
+        "justification": "There was nothing to repair. Repair Efficiency still scores 100 for such a language by family E, so the language is not credited twice."
+      },
+      {
+        "reason_code": "infrastructure_exhausted",
+        "metric": "any metric whose cells all failed after 3 retries",
+        "scope": "per language per metric",
+        "justification": "Spec 6.2 forbids converting provider/infrastructure failure into a language or model failure. The shortfall is published in _deviations.json and in the results summary."
+      }
+    ],
+    "explicitly_not_na": [
+      "A language that produced no passing program scores 0 on Generated Code Performance, Generated Code Memory Efficiency, Generated Code Compile Performance (if it has a build step) and Source Token Efficiency, with the reason recorded. It is not N/A.",
+      "A language the model handles badly is scored badly, not marked N/A.",
+      "A capability a language lacks that a task requires produces a failing class for that task, not N/A."
+    ],
+    "every_na_documented": "Every N/A written anywhere in the LLM Practical results carries its reason_code, the affected language, the affected metric, the renormalised applicable-weight denominator, and the resulting score both with and without the exclusion, so the effect of the exclusion is visible."
+  },
+  "source_token_counting": {
+    "_purpose": "Source Token Efficiency needs one counter applied identically to ten languages.",
+    "governing_implementation": "scripts/tokenize_source.py. If a benchmark-wide source tokenizer already exists for the Semantic Compression track, that implementation governs both tracks and this section states the behaviour it must have. Either way exactly one implementation is used for all ten languages and its SHA-256 is recorded in the results.",
+    "rule": "Read the source file as UTF-8. Remove comments using the language's comment syntax as listed in tokenize_source.py's fixed per-language comment table (line-comment prefix and block-comment delimiters only; no other language knowledge is used). Then emit tokens by scanning left to right and matching, in this order: (1) a string or character literal including its delimiters, counted as ONE token regardless of length; (2) a numeric literal; (3) an identifier or keyword, matching [A-Za-z_][A-Za-z0-9_]* plus any non-ASCII letter; (4) a maximal run of operator or punctuation characters that the language's fixed operator table lists as a single operator, otherwise a single character. Whitespace and newlines are not tokens.",
+    "conformance_vectors": [
+      {
+        "input": "x = a + b*2;  // note",
+        "tokens": [
+          "x",
+          "=",
+          "a",
+          "+",
+          "b",
+          "*",
+          "2",
+          ";"
+        ],
+        "count": 8
+      },
+      {
+        "input": "print(\"a, b + c\")",
+        "tokens": [
+          "print",
+          "(",
+          "\"a, b + c\"",
+          ")"
+        ],
+        "count": 4
+      },
+      {
+        "input": "if (n >= 10) { n -= 1 }",
+        "tokens": [
+          "if",
+          "(",
+          "n",
+          ">=",
+          "10",
+          ")",
+          "{",
+          "n",
+          "-=",
+          "1",
+          "}"
+        ],
+        "count": 11
+      }
+    ],
+    "why_a_lexical_counter_and_not_the_model_tokenizer": "The model's own tokenizer is not exposed by this client for arbitrary strings, and a BPE count would make Source Token Efficiency partly a measure of how the tokenizer happens to segment each language's identifiers. The lexical counter measures source structure, is reproducible by a third party with no provider access, and is applied identically to all ten. Where the harness does report input-token counts for packs, those are published beside the lexical counts and never substituted for them.",
+    "comment_handling_disclosure": "Comments are removed before counting, for all ten languages identically. This means a language whose generated code carries more explanatory comments is not penalised, and one that carries fewer is not rewarded. The comment-inclusive count is also published as a raw figure."
+  },
+  "trial_preservation_layout": {
+    "_authority": "spec 23 (complete preservation of LLM trials) and spec 24 (prompt preservation).",
+    "root": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-practical/trials/",
+    "reconstruction_guarantee": "From this layout alone, with no access to this conversation and no access to the model, a third party can reconstruct prompt -> generated program -> failure -> diagnosis -> repair -> final result for every trial, including every version that contained a Silent Bug.",
+    "path_grammar": "<root>/<task_id>/<language_slug>/trial_<NN>/ where NN is the trial index zero-padded to two digits, 01-based. task_id is one of the frozen ids in trial_allocation. language_slug is one of quidra, python, cpp, rust, go, java, typescript, kotlin, swift, zig. Nothing else appears at those levels.",
+    "version_ids": [
+      "initial",
+      "repair_01",
+      "repair_02",
+      "repair_03"
+    ],
+    "directory_tree": [
+      "<root>/_index.json",
+      "<root>/_execution_order.json",
+      "<root>/_infrastructure_events.jsonl",
+      "<root>/_deviations.json",
+      "<root>/_aborted/<task_id>__<language_slug>__trial_<NN>__attempt_<A>/   (preserved partial directory of any attempt discarded for an infrastructure event)",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/manifest.json",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/prompts/system_prompt.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/prompts/user_prompt_initial.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/prompts/pack_manifest.json",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/prompts/pack/task_spec.md",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/prompts/pack/language_reference.md",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/prompts/pack/build_run_recipe.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/prompts/pack/examples/example_01.<ext> ... example_06.<ext>",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/prompts/pack/reference_source/<files>   (Scenario B only)",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/prompts/repair_prompt_01.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/prompts/repair_prompt_02.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/prompts/repair_prompt_03.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/prompts/final_input_reconstruction.json",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/model_output.md",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/source/<ENTRY_FILENAME>",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/build_command.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/build_stdout.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/build_stderr.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/build_exit_code.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/build_duration_ns.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/run_command.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/run_stdout.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/run_stderr.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/run_exit_code.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/run_duration_ns.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/test_result.json",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/oracle_diff.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/compliance_result.json",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/classification.json",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/versions/<version_id>/sha256sums.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/diagnosis/diagnosis_01.json",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/diagnosis/diagnosis_02.json",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/diagnosis/diagnosis_03.json",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/tokens/usage.json",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/logs/agent_tool_calls.jsonl",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/logs/timeline.jsonl",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/logs/errors.txt",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/final/result.json",
+      "<root>/<task_id>/<language_slug>/trial_<NN>/final/source/<ENTRY_FILENAME>"
+    ],
+    "version_directories_are_created_only_when_the_version_exists": "repair_02/ exists only if repair turn 2 was issued. Its absence means the trial ended earlier and is not a gap in the record; manifest.json states repair_turns_used explicitly.",
+    "file_semantics": {
+      "manifest.json": {
+        "fields": [
+          "task_id",
+          "language",
+          "language_slug",
+          "trial_index",
+          "schedule_index",
+          "model_identifier_reported",
+          "client",
+          "benchmark_run_id",
+          "started_utc",
+          "ended_utc",
+          "attempts",
+          "repair_turns_used",
+          "final_classification",
+          "entry_filename",
+          "build_command",
+          "run_command",
+          "pack_sha256",
+          "system_prompt_sha256",
+          "budget_advisory_exceeded",
+          "scored",
+          "excluded_reason"
+        ],
+        "note": "'scored' is false for the DIAG-NOPACK trials and for any invalidated trial; 'excluded_reason' says why."
+      },
+      "prompts/system_prompt.txt": "The fully substituted system prompt, byte-exact as delivered.",
+      "prompts/user_prompt_initial.txt": "The fully substituted task prompt, byte-exact as delivered, including the task specification text and the on-disk pointers to the pack.",
+      "prompts/pack_manifest.json": "Relative path, byte size, and SHA-256 of every file under prompts/pack/, plus the pack token counts by the frozen counter.",
+      "prompts/pack/": "A verbatim copy of every file the trial could read as reference material. Spec 24 requires supplied language specifications and examples to be preserved; keeping them inside the trial, rather than only by reference, means a third party needs nothing else.",
+      "prompts/repair_prompt_NN.txt": "The fully substituted repair prompt, byte-exact as delivered, including the real truncated diagnostics.",
+      "prompts/final_input_reconstruction.json": "An ordered list of every message delivered to the model in this trial, each as {role, source_file, sha256}, so the exact final input presented to the model can be reconstructed byte for byte (spec 24).",
+      "versions/<id>/model_output.md": "The subagent's raw returned text for that turn, verbatim, before any extraction.",
+      "versions/<id>/source/<ENTRY_FILENAME>": "The source file exactly as it stood on disk when the turn ended. Read-only (0444). This is the artefact that is built and scored.",
+      "versions/<id>/test_result.json": {
+        "fields": [
+          "checks_total",
+          "checks_passed",
+          "failing_check_ids",
+          "per_check",
+          "tolerance_used",
+          "golden_sha256"
+        ]
+      },
+      "versions/<id>/oracle_diff.txt": "Expected vs actual for every failing check, verbatim and untruncated. The truncated form is what went into the repair prompt; this is the full record.",
+      "versions/<id>/classification.json": {
+        "fields": [
+          "classification",
+          "rank",
+          "silent_bug_conditions",
+          "hallucination_H1_matches",
+          "hallucination_H2_matches",
+          "runtime_error_signature_matches",
+          "classifier_version_sha256"
+        ],
+        "note": "silent_bug_conditions records the five boolean conditions (a)-(e) individually, so the classification can be re-derived by hand."
+      },
+      "versions/<id>/sha256sums.txt": "SHA-256, byte size, and mtime in nanoseconds of every file under source/, captured before any build step. Re-verified at scoring; a mismatch invalidates the trial.",
+      "diagnosis/diagnosis_NN.json": {
+        "fields": [
+          "repair_index",
+          "previous_classification",
+          "previous_rank",
+          "previous_checks_passed",
+          "new_classification",
+          "new_rank",
+          "new_checks_passed",
+          "improved",
+          "misdiagnosis",
+          "source_diff_unified",
+          "turn_wall_clock_ns",
+          "output_tokens_this_turn"
+        ],
+        "note": "'improved' and 'misdiagnosis' are computed by the mechanical improvement ladder. source_diff_unified is a unified diff from the previous version's source to this one, so the repair itself is visible."
+      },
+      "tokens/usage.json": {
+        "fields": [
+          "per_turn",
+          "totals",
+          "source_of_numbers"
+        ],
+        "note": "per_turn carries {version_id, input_tokens, output_tokens, cache_read_tokens, cache_creation_tokens, wall_clock_ns}. Any field the harness does not report is null, never estimated. 'source_of_numbers' records exactly which harness field each number came from, or 'unavailable'."
+      },
+      "logs/agent_tool_calls.jsonl": "One JSON object per tool call the subagent made: timestamp_utc, tool, arguments_summary, allowed_or_denied, duration_ns. This is the audit trail for the no-retrieval and no-human-edit enforcement.",
+      "logs/timeline.jsonl": "Ordered events: trial_start, prompt_delivered, turn_end, build_start/end, run_start/end, oracle_start/end, repair_issued, trial_end, each with timestamp_utc.",
+      "logs/errors.txt": "Any orchestrator-side error text for this trial, verbatim. Infrastructure events also appear in the run-level _infrastructure_events.jsonl.",
+      "final/result.json": {
+        "fields": [
+          "final_version_id",
+          "final_classification",
+          "correct_at_1",
+          "repair_success",
+          "repair_turns_used",
+          "diagnosis_efficiency",
+          "checks_passed",
+          "checks_total",
+          "compliance_passed",
+          "compliance_total",
+          "silent_bug_versions_in_trial",
+          "hallucination_in_initial",
+          "source_tokens_final",
+          "cumulative_output_tokens",
+          "measured_run_ns_median",
+          "measured_peak_rss_bytes",
+          "measured_build_ns_median"
+        ],
+        "note": "measured_* are present only when the final version is PASS, because performance is measured on passing programs only; otherwise null with the reason 'no_passing_generated_program'."
+      },
+      "final/source/<ENTRY_FILENAME>": "A read-only copy of the final version's source, so the end state is reachable without walking the version chain."
+    },
+    "index_files": {
+      "_index.json": "One row per trial with: task_id, language, trial_index, schedule_index, scored, final_classification, repair_turns_used, correct_at_1, path. Plus a header block with per-cell trials_planned, trials_executed, trials_scored. This is the file the reporting obligation on executed counts is computed from.",
+      "_execution_order.json": "The frozen schedule: the enumerated triples, their LCG sort keys, the deterministic spread-constraint repair steps, and the final ordered list. Written before the first trial.",
+      "_infrastructure_events.jsonl": "Every provider, rate-limit, transport, timeout, context-exhaustion, harness, host, and model-identity event, with the action taken. Separate from all language and model failures, per spec 6.2.",
+      "_deviations.json": "Every departure from this frozen configuration, with class, affected cells, reason, date, and effect on the metrics. Classes: source_mutated_after_capture, retrieval_violation, infrastructure_exhausted, trial_count_shortfall, signature_list_amendment, other. An empty list is written if there are none, so the absence of deviations is itself recorded rather than inferred."
+    },
+    "immutability": "Trial directories are written once and then made read-only. Re-running a cell writes a new attempt directory; it never overwrites a preserved one. Nothing under trials/ is deleted, including aborted attempts, failed generations, and silent-bug versions (spec 32 forbids hiding failed trials and inconvenient raw data).",
+    "prompt_preservation_cross_reference": "Spec 24 additionally requires preservation of adversarial-test prompts, unseen-case prompts, and prompt-robustness variations. The unseen-case and robustness prompts live in these trial directories by construction (UG-G1-unseen and PR-R1-v1..v3 are task_ids). The authored source of every task specification and every prompt variation, before substitution, is preserved at llm-practical/tasks/<task_id>/ with SHA-256, and the adversarial-test prompts belong to the adversarial suite's own directory."
+  },
+  "reporting_obligations": {
+    "_authority": "spec 6.2 allocation paragraph, spec 25.1 family-C disclosure, spec 26, spec 32.",
+    "obligations": [
+      "O1. Publish trials_planned, trials_executed, and trials_scored for every (task_id, language) cell. Never publish a planned count as though it were executed.",
+      "O2. Attach the frozen precision sentence to every table row backed by fewer than five trials per language, stating the actual N.",
+      "O3. Never describe a few-point difference between languages in a one-trial row as a resolved difference, and never attach a ranking, interval, or significance claim to it.",
+      "O4. Publish, for the five-trial cells, the per-trial outcomes and the statement that a five-trial rate resolves to 20 percentage points.",
+      "O5. Publish the duplication rate per cell where deterministic decoding produced byte-identical trials.",
+      "O6. Publish infrastructure events per language and state that none of them entered any metric.",
+      "O7. For every family-C metric whose applicable raw values span a factor of 100 or more, publish the raw value in its natural unit for every language, the ratio to the best value, and the compression note required by spec 25.1.",
+      "O8. Publish every N/A with its reason_code, its effect on the applicable-weight denominator, and the score with and without the exclusion.",
+      "O9. Publish the full eighteen-metric weighted breakdown alongside the twelve-row presentation table, and state that the score comes from the eighteen.",
+      "O10. Publish the silent-bug list, the hallucination-match list, and the detection-coverage asymmetry disclosure.",
+      "O11. Publish the statement that no generated source was edited by a human, with the count of trials whose source hashes verified.",
+      "O12. Publish the DIAG-NOPACK results in their own table, labelled a diagnostic of prior knowledge, with an explicit statement that they contribute to no score (spec 9).",
+      "O13. Publish _deviations.json contents in the results summary, including the case where it is empty."
+    ],
+    "frozen_precision_sentence": "This row is measured with N trial(s) per language. Differences of a few points between languages are not resolved by this measurement and must not be read as a ranking."
+  },
+  "amendment_and_freeze_rules": {
+    "frozen_at": "2026-09-17, before the first scored LLM generation of run 2026-09-17-7677581.",
+    "immutable_fields": "Every field of this document.",
+    "what_may_still_change_and_how": "Only the runtime-error and hallucination signature lists may be amended, only before the first score is computed, only by adding a fault text actually observed from a frozen toolchain, and only with an entry in _deviations.json recording the date, the added pattern, and the reason. After the first score is computed the lists are closed.",
+    "prohibited_after_observing_results": [
+      "altering any of the eighteen weights",
+      "altering the presentation-row mapping",
+      "altering a tolerance",
+      "altering a normalisation family",
+      "altering a task, an oracle, or a compliance checklist",
+      "altering the trial allocation",
+      "regenerating the execution schedule",
+      "regenerating a golden file",
+      "adding or removing a prompt variation",
+      "adding or removing a language",
+      "re-running a cell to obtain a better result (a re-run is permitted only for an infrastructure event or an invalidated trial, and every attempt is preserved)"
+    ],
+    "spec_32_acknowledgement": "This configuration was written without reference to Quidra's syntax, operators, types, or feature set; no capability was removed because Quidra lacks it; no task was chosen because it favours or disfavours any language; no weight or formula was selected to improve any language's position; and no measurement in it is fabricated."
+  },
+  "readiness_checklist_before_first_scored_trial": [
+    "C1. This document is written and frozen.",
+    "C2. llm-practical/tasks/<task_id>/task_spec.md exists for every task_id, byte-identical across languages, with its SHA-256 recorded.",
+    "C3. Golden outputs generated from the pinned references and frozen, with SHA-256 and provenance recorded.",
+    "C4. Tolerances, oracle schemas, and compliance checklists frozen per task.",
+    "C5. Packs built for all ten languages, hashed, read-only, with pack_token_counts.json published.",
+    "C6. The 3 (and for UG, 6) worked examples authored for all ten languages, verified to build and run with the frozen recipes, size-matching residuals published.",
+    "C7. The three prompt variations authored and the variation-equivalence check run and preserved.",
+    "C8. _execution_order.json generated and written.",
+    "C9. scripts/classify_version.py, scripts/check_compliance.py, and the source tokenizer present, with SHA-256 recorded.",
+    "C10. A dry run of one non-scored trial per language completed end to end to confirm the harness, the recipes, the oracle, and the preservation layout work; the dry-run directories are kept outside trials/ and are clearly labelled non-scoring."
+  ]
+}

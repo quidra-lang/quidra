@@ -1,0 +1,15 @@
+probe: F02.P1
+language: quidra
+class_id: COUNT_A4_int64
+purpose: Counted class 1 (second witness): `int64 probe(bool)` prints 5.
+
+recipe entry: semantic_compression_recipes.quidra.interpreter_run
+command: quidra run w_int64.qui
+exit status: 0
+stdout:
+5
+
+stderr:
+
+
+Cross-mode note (Rule 1.3.3): the frozen recipe lists two execution modes for Quidra ('run' = `quidra build FILE.qui -o BIN` then `./BIN`, and 'interpreter_run' = `quidra run FILE.qui`). Both were exercised for the arithmetic-abort witnesses and produced identical output and exit status; the identity is recorded rather than assumed.

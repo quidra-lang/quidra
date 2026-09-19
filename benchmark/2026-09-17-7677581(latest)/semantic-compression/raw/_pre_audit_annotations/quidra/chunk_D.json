@@ -1,0 +1,1156 @@
+{
+ "language": "Quidra",
+ "language_key": "quidra",
+ "chunk": "D",
+ "probes": [
+  {
+   "probe_id": "F16.P1",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "FULL",
+   "support_reason": "F-1: all three numbered sub-requirements are delivered - (1) int32[] xs = [1, 2, 3] is the language's normal literal form for a growable ordered sequence of signed 32-bit integers ('T[] has runtime length'; append/concat return new T[] values), (2) total is bound to the sum with the form R10 selects, and (3) return total produces it. F-2/F-4: only core language constructs, no standard-namespace call, no package, no flag beyond the frozen recipe. F-3: builds with `quidra build` and prints 6. F-6: no normative prohibition or deprecation applies to any construct used. R10 evidence: Quidra's standard library provides no sum/fold/reduce (verified: `xs.sum()` -> error[UNKNOWN_MEMBER] Type 'int32[]' has no method 'sum'), so an explicit iteration construct is required; of the three iteration forms the language provides, `for x in xs` = 25 tokens, `for i in range(len(xs))` = 34, index `while` = 38, so R10 selects the for-in form.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F16.P1.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "6",
+    "diagnostics": "none; `quidra build F16.P1.qui -o F16P1` exit 0, `./F16P1` exit 0 Both shipped execution modes were run per cross-language constraint C-10: the interpreter (`quidra run FILE.qui`, the recipe's interpreter_run entry) produced the identical output '6' with exit 0, so native and interpreter do not diverge on this probe. Arithmetic-check uniformity across the two modes was verified separately (int32 2147483647 + 1): both modes print 'Quidra runtime error[INTEGER_OVERFLOW] at 2:11: integer overflow' and exit 101."
+   },
+   "token_count": 25,
+   "facts": [
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int32[] xs",
+     "value": "growable runtime-length array of 32-bit two's-complement signed integers",
+     "locally_recoverable": true,
+     "justification": "language.md 'Types' fixes int32 as a fixed-width signed integer; 'Arrays and shapes': 'T[] has runtime length' and the array type precedes the binding name. Both are written at the site."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "int32[] xs",
+     "value": "named addressable storage (a binding), not a temporary",
+     "locally_recoverable": true,
+     "justification": "language.md 'Addresses, references, and const authority': 'For addressable storage x, x denotes its value and &x denotes its storage address'; 'Addresses are rooted in existing storage: a binding, a receiver field, or substorage beneath one.'"
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "int32[] xs",
+     "value": "writable through this binding (no const)",
+     "locally_recoverable": true,
+     "justification": "grammar.ebnf binding = [ 'const' ] type ... ; language.md const_model: 'const removes write authority through that binding/reference path'. The absence of the only write-removing modifier is entailed by that rule, not merely unmentioned."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int32[] xs = [1, 2, 3]",
+     "value": "definitely initialized at the declaration with exactly three elements 1, 2, 3",
+     "locally_recoverable": true,
+     "justification": "language.md 'Bindings and definite initialization': 'A declaration without an initializer leaves a scalar or ordinary aggregate binding uninitialized'; an initializer establishes the value."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "int32[] xs = [1, 2, 3]",
+     "value": "no alias to xs's storage exists or can be created without an explicit & form",
+     "locally_recoverable": true,
+     "justification": "language.md 'Bytes'/'Arrays': 'An explicit & reference is the mechanism that intentionally exposes shared writable storage'; ordinary assignment has independent value semantics. Universal rule entails the absence."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "int32[] xs",
+     "value": "managed value: released when the last strong reference is released; the release point is fixed by the program's reference graph, not by this local form; no user cleanup code can run (the language defines no destructor hook)",
+     "locally_recoverable": true,
+     "justification": "methodology 02 K13 frozen reclamation rule, reference-counted/managed row (binding for Quidra); language.md 'Native execution cost model': 'Managed ownership bookkeeping ... retain/release'."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "[1, 2, 3]",
+     "value": "allocates new runtime-length array storage holding three independent int32 elements; no sharing with any other value",
+     "locally_recoverable": true,
+     "justification": "language.md 'Arrays and shapes': \"An array's storage and nested elements obey value semantics. Copying a nested array cannot make a later write to one copy modify another.\" The literal is the creation construct."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int32 total",
+     "value": "32-bit two's-complement signed integer",
+     "locally_recoverable": true,
+     "justification": "language.md 'Types': int32 is a fixed-width signed built-in. Different entity from xs (methodology 02 A3.4)."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int32 total = 0",
+     "value": "definitely initialized to 0",
+     "locally_recoverable": true,
+     "justification": "language.md 'Bindings and definite initialization'."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "int32 total = 0",
+     "value": "writable through this binding (no const)",
+     "locally_recoverable": true,
+     "justification": "language.md const_model as above; the fragment writes it at total += x."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "for x in xs -> x",
+     "value": "int32, the element type of xs, which is declared inside the fragment",
+     "locally_recoverable": true,
+     "justification": "language.md 'Conditions and iteration': 'for value in values iterates an array or bytes by value'; the element type comes from int32[] written two lines above, inside the probe region."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "for x in xs",
+     "value": "by-value iteration: x is an independent copy of each element; no borrow of the element storage is created",
+     "locally_recoverable": true,
+     "justification": "language.md 'Conditions and iteration': 'for value in values iterates an array or bytes by value. for &value in values writes through to the original element.' The absent & pins the by-value form."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "for x in xs",
+     "value": "loops once per element in index order, zero or more iterations, then falls through; break/continue are available inside",
+     "locally_recoverable": true,
+     "justification": "language.md 'Conditions and iteration' and loop_control_model."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "total += x",
+     "value": "overflow-checked addition: integer overflow at every integer width is a deterministic runtime error with exit status 101; never wraps, never saturates, never undefined, and not selectable by a build mode",
+     "locally_recoverable": true,
+     "justification": "language.md 'Strings and arithmetic': 'integer overflow at every integer width ... are deterministic runtime errors with exit status 101'; 'Native execution cost model': 'checked arithmetic, bounds checks, ownership, and recursion protection are not disabled for speed.'"
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "total += x",
+     "value": "can fail only by deterministic runtime-safety termination (status 101); it cannot raise a catchable error value, because the expression type is int32 and carries no error alternative",
+     "locally_recoverable": true,
+     "justification": "language.md error_model ('union containing error; try propagates error') plus the enumerated status-101 runtime failures in 'Strings and arithmetic'."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return total",
+     "value": "returns from the enclosing function, producing total to the caller",
+     "locally_recoverable": true,
+     "justification": "language.md 'Functions, calls, and defaults': 'return itself carries control-flow information'; 'A non-void result must be produced on every normally continuing path.'"
+    }
+   ],
+   "fact_count": 16,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "A4 fixed-width signed integer (int32, written) x A2 no caller-observable mutation (every entity is declared inside the fragment and no & appears, and Quidra requires an explicit & at both declaration and use for any writable alias) x A8 allocation of independent array storage at the literal, per-iteration scalar copy, no borrow x A9 loop then normal return x A10 traps on overflow (deterministic status-101 runtime error, the language's only arithmetic mode). No second interpretation is realizable: a witness would have to change a fact fixed inside the fragment or by the language reference."
+   ],
+   "locality_lookups": 0,
+   "locality_detail": [],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 11,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Typed binding `T name = expr` with definite-initialization tracking",
+     "citation": "docs/spec/language.md section 'Bindings and definite initialization'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Array type `T[]` written before the binding name; runtime length",
+     "citation": "docs/spec/language.md section 'Arrays and shapes'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Array literal `[a, b, c]` taking its element type from context",
+     "citation": "docs/spec/language.md section 'Arrays and shapes'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`for name in seq` value iteration, distinct from `for &name in seq` write-through iteration",
+     "citation": "docs/spec/language.md section 'Conditions and iteration'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Compound assignment `+=`, with the target evaluated exactly once",
+     "citation": "docs/spec/language.md section 'Bindings and definite initialization'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`return expression`; a non-void result must be produced on every normally continuing path",
+     "citation": "docs/spec/language.md section 'Functions, calls, and defaults'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Every integer operation is overflow-checked; overflow is a deterministic runtime error with status 101, with no construct written for the check",
+     "citation": "docs/spec/language.md section 'Strings and arithmetic'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Four-space indentation defines block membership; a dedent closes a block; tabs are invalid",
+     "citation": "docs/spec/language.md section 'Source structure'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Numeric arithmetic requires matching operand types; implicit numeric conversion only where every source value is exactly representable",
+     "citation": "docs/spec/language.md section 'Strings and arithmetic'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Arrays have deep value semantics; unobservable sharing, copy-on-write and copy elision are permitted but cannot be observed",
+     "citation": "docs/spec/language.md section 'Arrays and shapes'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Managed ownership: retain/release reclaims managed values with no written construct and no user-visible hook",
+     "citation": "docs/spec/language.md section 'Native execution cost model'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F16.P2",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "FULL",
+   "support_reason": "F-1: all four numbered sub-requirements are delivered - (1) map.Map<string, int32> constructed with one entry \"a\"->1 using the language's normal map type and construction form, (2) total is the sum of all VALUES computed by iterating the map's contents, (3) miss is bound to the lookup of the absent key \"b\" with 0 substituted for the absent case, and (4) total + miss (= 1) is produced. F-2/F-3/F-4: standard namespace `map` only, builds and prints 1 under the frozen recipe. F-6: no normative prohibition applies. DISCLOSURE, so a reviewer can re-adjudicate: Quidra provides no pair-wise entry-iteration construct (verified: `for e in mp` -> error[TYPE_MISMATCH] 'for requires an array, bytes, or range'; `mp.entries()` -> error[UNKNOWN_MEMBER]) and no lookup-with-default form (verified: `mp.get(\"b\", 0)` -> error[ARGUMENT_MISMATCH]). The forms the language does provide are `for value in mp.values()` and an exhaustive `match` on the `int32 | none` result; both deliver each numbered sub-requirement's observable demand with nothing dropped, and the cost of not having a dedicated construct is paid in the token denominator (65 tokens) rather than in the support level. R10 evidence: the values()-iteration form is 65 tokens; the alternative that walks keys() and re-looks-up each value is 78, so R10 selects the measured form.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F16.P2.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "1",
+    "diagnostics": "none; `quidra build F16.P2.qui -o F16P2` exit 0, `./F16P2` exit 0 Both shipped execution modes were run per cross-language constraint C-10: the interpreter (`quidra run FILE.qui`, the recipe's interpreter_run entry) produced the identical output '1' with exit 0, so native and interpreter do not diverge on this probe. Arithmetic-check uniformity across the two modes was verified separately (int32 2147483647 + 1): both modes print 'Quidra runtime error[INTEGER_OVERFLOW] at 2:11: integer overflow' and exit 101."
+   },
+   "token_count": 65,
+   "facts": [
+    {
+     "fact_kind": "type_and_representation",
+     "site": "map.Map<string, int32> mp",
+     "value": "insertion-ordered map from immutable UTF-8 text keys to 32-bit signed integer values; both type arguments are written explicitly",
+     "locally_recoverable": true,
+     "justification": "language.md 'Generics': 'Generic class instantiation remains explicit'; 'map': 'map.Map<K, V> is an explicit generic value container.'"
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "map.Map<string, int32> mp",
+     "value": "named addressable storage holding an independent container value (not a handle to a shared container)",
+     "locally_recoverable": true,
+     "justification": "language.md 'set'/'map': 'Assignment follows ordinary independent value semantics rather than sharing mutable container identity.'"
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "map.Map<string, int32> mp",
+     "value": "writable through this binding (no const)",
+     "locally_recoverable": true,
+     "justification": "grammar.ebnf binding = [ 'const' ] ... ; language.md const_model."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "mp = map.Map<string, int32>()",
+     "value": "definitely initialized to an empty map by the constructor call",
+     "locally_recoverable": true,
+     "justification": "language.md 'Classes': construction uses the class name with named field initializers; 'Bindings and definite initialization'."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "map.Map<string, int32>()",
+     "value": "allocates a new, independent container value; no sharing with any other value",
+     "locally_recoverable": true,
+     "justification": "language.md 'set': 'Assignment follows ordinary independent value semantics rather than sharing mutable container identity.'"
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "map.Map<string, int32> mp",
+     "value": "managed value: released when the last strong reference is released; the point is fixed by the program's reference graph, not by this local form; no user cleanup code runs",
+     "locally_recoverable": true,
+     "justification": "methodology 02 K13 frozen reclamation rule (managed retain/release row); language.md 'Native execution cost model'."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "mp.set(\"a\", 1)",
+     "value": "modifies the already-initialized local container in place: inserts or replaces without changing an existing key's position",
+     "locally_recoverable": true,
+     "justification": "language.md 'map': 'set(key, value) inserts or replaces without changing an existing key's position.'"
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "mp.values()",
+     "value": "returns int32[] - a value array of the map's values",
+     "locally_recoverable": true,
+     "justification": "language.md 'map': 'keys() and values() return value arrays in stable insertion order.'"
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "mp.values()",
+     "value": "materialises a new independent value array on each call; it is not a view over the map's storage",
+     "locally_recoverable": true,
+     "justification": "language.md 'map': 'keys() and values() return value arrays'; arrays have independent value semantics ('Arrays and shapes')."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "for value in mp.values()",
+     "value": "iterates every value exactly once in stable insertion order - a specified deterministic order, not an implementation-defined one - then falls through",
+     "locally_recoverable": true,
+     "justification": "language.md 'map': 'keys() and values() return value arrays in stable insertion order'; 'Conditions and iteration'."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "for value in mp.values()",
+     "value": "by-value iteration: value is an independent copy of each element; no borrow is created",
+     "locally_recoverable": true,
+     "justification": "language.md 'Conditions and iteration': the & form is required for write-through iteration."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "for value in ... -> value",
+     "value": "int32, the element type of the values array",
+     "locally_recoverable": true,
+     "justification": "language.md 'map' (values() of a Map<string,int32> is int32[]) plus 'Conditions and iteration'."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "total += value",
+     "value": "overflow-checked addition: deterministic runtime error with exit status 101 at every integer width; no wraparound, no undefined behaviour, no build-mode dependence",
+     "locally_recoverable": true,
+     "justification": "language.md 'Strings and arithmetic' and 'Native execution cost model'."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "total += value",
+     "value": "can fail only by deterministic runtime-safety termination (status 101); it cannot yield a catchable error value",
+     "locally_recoverable": true,
+     "justification": "language.md error_model plus the enumerated status-101 failures."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int32 miss",
+     "value": "declared uninitialized; the language requires every continuing branch of the following match to establish it before the later read",
+     "locally_recoverable": true,
+     "justification": "language.md 'Bindings and definite initialization': 'A declaration without an initializer leaves a scalar or ordinary aggregate binding uninitialized ... All continuing branches must establish ordinary binding initialization before a subsequent read.'"
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int32 miss",
+     "value": "32-bit two's-complement signed integer",
+     "locally_recoverable": true,
+     "justification": "language.md 'Types'."
+    },
+    {
+     "fact_kind": "alternative_value_cases",
+     "site": "mp.get(\"b\")",
+     "value": "closed two-alternative set {int32, none}; the match handles both exactly once and the compiler rejects a missing, duplicate or impossible case",
+     "locally_recoverable": true,
+     "justification": "language.md 'map': 'get(key) returns V | none'; 'Error propagation and match': 'Cases must cover every alternative exactly once; missing, duplicate, and impossible cases are compile-time errors.'"
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "mp.get(\"b\")",
+     "value": "cannot fail: a missing key is normal absence returned as the none alternative, not an error value, not an exception and not a trap",
+     "locally_recoverable": true,
+     "justification": "language.md 'map': 'get(key) returns V | none' - the result type has no error alternative; 'none is the absence alternative of a union.'"
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "match mp.get(\"b\")",
+     "value": "evaluates the subject exactly once and transfers to exactly one case; both cases continue, so control falls through to the next statement",
+     "locally_recoverable": true,
+     "justification": "language.md 'Error propagation and match': 'A match evaluates its subject once. Each case selects one actual alternative.'"
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "int32 found / miss = found",
+     "value": "the case binding `found` is local to its case and the write initialises the outer `miss` binding on that branch",
+     "locally_recoverable": true,
+     "justification": "language.md 'Error propagation and match': 'A binding is local to its case.'"
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return total + miss",
+     "value": "returns from the enclosing function with the sum, after both branches have established miss",
+     "locally_recoverable": true,
+     "justification": "language.md 'Functions, calls, and defaults'; 'Bindings and definite initialization' (branch merge)."
+    }
+   ],
+   "fact_count": 21,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "A4 types pinned by the written generic arguments and the int32 declarations x A6 the span can fail only by deterministic runtime-safety termination (the lookup returns none rather than failing, and no construct in the span can yield an unhandled error value) x A7 dispatch fixed at compile time (Quidra has no overloading, no dynamic dispatch, and generics are monomorphized before checking) x A8 allocation at the Map construction and at values(), independent value semantics elsewhere x A9 loop, single-case match transfer, then return. No second interpretation is realizable from a completion outside the fragment."
+   ],
+   "locality_lookups": 1,
+   "locality_detail": [
+    {
+     "hop": "import (standard-namespace library contract): map.Map's documented contract for set/get/values",
+     "required_for_fact": "alternative_value_cases (that get yields V | none), possible_failure (that a miss is not an error), allocation_copy_move_borrow_destroy (that values() returns an independent array) and the iteration order"
+    }
+   ],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 14,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Typed binding with definite initialization",
+     "citation": "docs/spec/language.md section 'Bindings and definite initialization'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Explicit generic class instantiation `C<T, U>()`, monomorphized before checking",
+     "citation": "docs/spec/language.md section 'Generics'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Standard-namespace qualified access (`map.Map`); standard namespaces are always visible and may not be imported or aliased",
+     "citation": "docs/spec/language.md section 'Standard namespaces and imports'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "map.Map contract: set/get/has/keys/values, stable insertion order, restricted key domain",
+     "citation": "docs/spec/language.md section 'map'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Union type `V | none` with `none` as the absence alternative",
+     "citation": "docs/spec/language.md section 'Types'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`match` with typed cases, single subject evaluation and compile-time exhaustiveness",
+     "citation": "docs/spec/language.md section 'Error propagation and match'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`for name in seq` value iteration",
+     "citation": "docs/spec/language.md section 'Conditions and iteration'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Compound assignment `+=`",
+     "citation": "docs/spec/language.md section 'Bindings and definite initialization'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`return expression`",
+     "citation": "docs/spec/language.md section 'Functions, calls, and defaults'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Four-space indentation defines block membership, including match-case suites",
+     "citation": "docs/spec/language.md section 'Source structure'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Numeric operand types must match; implicit conversion only when lossless",
+     "citation": "docs/spec/language.md section 'Strings and arithmetic'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Definite-initialization merge: every continuing branch must establish a binding before a later read; returning branches do not contribute",
+     "citation": "docs/spec/language.md section 'Bindings and definite initialization'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Checked integer arithmetic (status 101 on overflow) with no written construct",
+     "citation": "docs/spec/language.md section 'Strings and arithmetic'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Managed ownership reclaims the container with no written construct and no user-visible hook",
+     "citation": "docs/spec/language.md section 'Native execution cost model'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F17.P1",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "PARTIAL",
+   "support_reason": "PARTIAL under P-a (substituted weaker mechanism). Delivered: (1) the file \"data.txt\" is opened for reading using only the standard library and the operation can fail, (2) its entire contents are read into the text-string local `text`, (4) the byte length of `text` is returned and the failure is propagated the way the language's mechanism requires (`try` re-returns the same error into the declared `int | error` result). Not delivered as named: (3) 'guarantees that the file handle is released when the enclosing scope ends, INCLUDING when step (2) fails, using the language's normal scoped-cleanup mechanism'. Quidra 0.2.0 exposes no file-handle value (verified: `file.open` -> error[UNKNOWN_MODULE_MEMBER]; `file.Handle` -> error[UNKNOWN_TYPE]) and has no scoped-cleanup construct of any kind - no destructor/drop/deinit hook, no `defer` (parse error), no `with`/`using`/`try`-with-resources (parse error), no `finally`. Steps (1) and (2) are one whole-file library call, so the OS handle is acquired and released inside that call and cannot leak on any path, but the guarantee comes from the library operation's shape, not from a cleanup mechanism the author writes, and the probe's OBSERVATION TARGET (where the release happens, and that it happens exactly once on every exit path) is not answerable from an acquisition site because the fragment has none. Scoring this FULL would credit Quidra with the capability family 17 exists to measure; the capability gap is charged where the frozen rubric puts it, in Capability Coverage.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 1,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F17.P1.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "6",
+    "diagnostics": "none. `quidra build F17.P1.qui -o F17P1` exit 0. With data.txt present ('hello\\n', 6 bytes) `./F17P1` prints 6, exit 0. With data.txt removed the same binary prints 'file operation failed' (the error alternative), exit 0 - the failure path was exercised, not assumed. Both shipped execution modes were run per cross-language constraint C-10: the interpreter (`quidra run FILE.qui`, the recipe's interpreter_run entry) produced the identical output '6' with exit 0, so native and interpreter do not diverge on this probe. Arithmetic-check uniformity across the two modes was verified separately (int32 2147483647 + 1): both modes print 'Quidra runtime error[INTEGER_OVERFLOW] at 2:11: integer overflow' and exit 101."
+   },
+   "token_count": 25,
+   "facts": [
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int | error read_all()",
+     "value": "result is a two-alternative tagged union: a 64-bit signed integer or an error value",
+     "locally_recoverable": true,
+     "justification": "language.md 'Types': 'int and int64 are the same signed 64-bit type'; 'T | U is an untagged surface description of a runtime tagged union: exactly one alternative is active.'"
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "int | error read_all()",
+     "value": "the function can fail, and failure is surfaced as the error alternative of the returned union - never as an exception and never as a silent sentinel",
+     "locally_recoverable": true,
+     "justification": "language.md error_model: 'union containing error; try propagates error; exhaustive typed match'."
+    },
+    {
+     "fact_kind": "alternative_value_cases",
+     "site": "try file.read(\"data.txt\")",
+     "value": "the operand's alternative set is the closed set {string, error}; try removes error, so the expression's type collapses to string",
+     "locally_recoverable": true,
+     "justification": "language.md 'Error propagation and match': 'Otherwise its type is the input union with error removed, collapsing a one-member residual type.'"
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "try",
+     "value": "may return early from read_all with the same error value; on the normal path control continues with the error alternative removed",
+     "locally_recoverable": true,
+     "justification": "language.md 'Error propagation and match': 'try requires an expression whose union includes error, inside a function that can return that error. On error it returns the same error from the current function.'"
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "file.read(\"data.txt\")",
+     "value": "can fail; the failure is returned as data in the string | error union (I/O failure, or text that is not valid UTF-8), never as a trap or an exception",
+     "locally_recoverable": true,
+     "justification": "language.md 'file': 'auto text = file.read(\"input.txt\")  // string | error ... I/O failure is typed data rather than an implicit process abort.'"
+    },
+    {
+     "fact_kind": "externally_visible_side_effects",
+     "site": "file.read(\"data.txt\")",
+     "value": "reads the named file from the host filesystem - an effect outside the fragment",
+     "locally_recoverable": true,
+     "justification": "language.md 'file': 'file provides simple whole-file and filesystem operations'; 'read and write are text-oriented whole-file operations.'"
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "file.read(\"data.txt\")",
+     "value": "no OS resource handle is created in, or escapes from, the fragment: the operation is whole-file and its result type is string | error, and the language exposes no file-handle type at all",
+     "locally_recoverable": true,
+     "justification": "language.md 'file' (whole-file read/write only; the module's exported callables are read/read_bytes/write/write_bytes/exists/remove/copy/move/mkdir/list). Verified: `file.open(...)` -> error[UNKNOWN_MODULE_MEMBER] Module 'file' has no exported callable 'open'; `file.Handle` -> error[UNKNOWN_TYPE]."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "string text",
+     "value": "immutable UTF-8 text with no embedded NUL",
+     "locally_recoverable": true,
+     "justification": "language.md 'Types' and string_storage_model: 'string is immutable valid UTF-8 text with no embedded NUL'."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "string text = try ...",
+     "value": "definitely initialized on the only path that reaches the next statement (the error path has already returned)",
+     "locally_recoverable": true,
+     "justification": "language.md 'Bindings and definite initialization': 'branches that return do not contribute to the merge.'"
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "string text",
+     "value": "the binding is writable (no const), but the string value itself is immutable",
+     "locally_recoverable": true,
+     "justification": "language.md 'Types' ('string ... holds ... immutable text') and const_model."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "text.utf8()",
+     "value": "returns bytes - the UTF-8 encoding as compact contiguous uint8 elements",
+     "locally_recoverable": true,
+     "justification": "language.md 'Text and dynamic array operations': 'text.utf8() explicitly returns the UTF-8 encoding as bytes'."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "text.utf8()",
+     "value": "explicit, lossless text-to-bytes conversion; no implicit encoding conversion exists anywhere in the language",
+     "locally_recoverable": true,
+     "justification": "language.md 'Text and dynamic array operations': 'These conversions keep byte-oriented and text-oriented operations distinct rather than introducing a char type'; 'file': 'Text and binary I/O are separate so arbitrary bytes never enter string storage implicitly.'"
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "len(text.utf8())",
+     "value": "returns the byte count as int (64-bit signed) - not a code-point count, because the operand is bytes",
+     "locally_recoverable": true,
+     "justification": "language.md 'Bytes': 'len(data) returns the byte count'; contrast 'Text and dynamic array operations': 'len(text) counts Unicode code points rather than UTF-8 bytes.'"
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return len(text.utf8())",
+     "value": "returns the byte length to the caller as the int alternative of the union",
+     "locally_recoverable": true,
+     "justification": "language.md 'Functions, calls, and defaults'; 'Types' (values flow to compatible larger unions without wrapper calls)."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "end of read_all's body",
+     "value": "no cleanup construct exists at this scope exit and none can be written: the managed string is released by retain/release at a point fixed by the program's reference graph, and no user code runs at that point",
+     "locally_recoverable": true,
+     "justification": "methodology 02 K13 frozen reclamation rule (managed row); language.md 'Native execution cost model'. Verified: `defer` and `with` are parse errors."
+    }
+   ],
+   "fact_count": 15,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "A6 may propagate an error value early, and the caller is forced to handle it (the declared result is int | error and Quidra has no way to consume a union without an exhaustive match or another try) x A8 a managed string is allocated by the call and reclaimed by retain/release, with no observable destruction event and no user-visible hook x A9 early return on the error path (spelled by `try`), normal return otherwise x A2 no caller-observable mutation (no reference parameter, no &) x A7 dispatch fixed at compile time. No second interpretation is realizable: `try` is mandatory at this site, so the error edge cannot be hidden, and no completion outside the fragment can change the union's alternatives."
+   ],
+   "locality_lookups": 1,
+   "locality_detail": [
+    {
+     "hop": "import (standard-namespace library contract): file.read's documented contract",
+     "required_for_fact": "possible_failure, externally_visible_side_effects and lifetime_resource_effect - the shape string | error, the filesystem read, and the fact that no handle is exposed all come from that one contract"
+    }
+   ],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 10,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Function declaration with explicit result and parameter types; result must be produced on every continuing path",
+     "citation": "docs/spec/language.md section 'Functions, calls, and defaults'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Union type `T | error` as the failure-carrying result type",
+     "citation": "docs/spec/language.md section 'Types'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`try` propagation operator: requires a union containing error inside a function that can return it, and removes error from the residual type",
+     "citation": "docs/spec/language.md section 'Error propagation and match'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Standard-namespace qualified call (`file.read`), always visible and not importable",
+     "citation": "docs/spec/language.md section 'Standard namespaces and imports'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "file module contract: whole-file text I/O returning `string | error`, with text and binary I/O separated",
+     "citation": "docs/spec/language.md section 'file'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Typed binding with definite initialization",
+     "citation": "docs/spec/language.md section 'Bindings and definite initialization'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "`len` means code points on a string and bytes on a bytes value; `.utf8()` is the explicit bridge",
+     "citation": "docs/spec/language.md sections 'Text and dynamic array operations' and 'Bytes'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Four-space indentation defines the function body",
+     "citation": "docs/spec/language.md section 'Source structure'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Definite-initialization merge ignores branches that return",
+     "citation": "docs/spec/language.md section 'Bindings and definite initialization'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Managed ownership releases the string with no written construct and no user-visible hook; no scoped-cleanup construct exists to write",
+     "citation": "docs/spec/language.md section 'Native execution cost model'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F17.P2",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "NONE",
+   "support_reason": "NONE under N-4: the canonical_task's own final clause directs that no fragment be written for a language with neither a deterministic end-of-lifetime hook nor a standard scoped construct that invokes an explicit close/dispose, and the frozen rubric lists 'F17.P2-final-clause' among the N-4 probes. Quidra 0.2.0 has neither. (a) No end-of-lifetime hook: a class may declare fields and methods only (grammar.ebnf class_member = field | [ 'override' ] function), and no method name is invoked at the end of a value's lifetime. Refutation witness: a Handle class with a `deinit(int &counter)` method, a value created inside an `if true` block that then ends, prints `released` = 0 - the hook never ran. (b) No scoped-cleanup construct: `defer print(x)` -> error[PARSE_ERROR] Expected parameter name; `with open(\"x\")` -> error[PARSE_ERROR] Expected an explicit type; there is no `using`, `try`-with-resources or `finally` in the grammar. (c) The cleanup action the task names is additionally inexpressible from inside the type, because function bodies cannot reach module-level bindings at all: incrementing the already-declared module-level `released` from a method gives error[UNKNOWN_NAME] Unknown name 'released'. Sub-requirements (2) and (3) alone are expressible, but the mechanism sub-requirement (1) - the cleanup running exactly once and deterministically at end of lifetime - is not, and the final clause governs. Reclamation does occur (managed retain/release), but it runs no user code and is not observable by any conforming program: the language exposes no identity operator, no reference-count query and no finalizer.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 0,
+   "probe_file": null,
+   "toolchain_verification": {
+    "built": null,
+    "ran": null,
+    "observed_output": "",
+    "diagnostics": "refutation witness at semantic-compression/probes/witnesses/F17.P2/quidra/no_lifetime_hook/ - `quidra run refutation.qui` exit 0, stdout '1\\n0': the deinit-named method was never invoked at end of lifetime. `quidra check` on defer/with forms: error[PARSE_ERROR]. Method reading a module-level counter: error[UNKNOWN_NAME] Unknown name 'released'."
+   },
+   "token_count": null,
+   "facts": [],
+   "fact_count": 0,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "No fragment exists (support NONE), so no interpretation of a measured fragment is enumerated. Per methodology 03 section 1.9 this probe is EXCLUDED from the determinacy mean and must not be read as B = 1 earned by determinacy; the absence is charged in Capability Coverage, where both capability points score 0 against the fixed 88-point denominator."
+   ],
+   "locality_lookups": 0,
+   "locality_detail": [],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 0,
+   "complexity_detail": []
+  },
+  {
+   "probe_id": "F18.P1",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "FULL",
+   "support_reason": "F-1: both numbered sub-requirements are delivered - (1) the declaration required to make the standard console-output facility available in this compilation unit is *nothing*, which the canonical_task explicitly admits ('or nothing if the facility is available without one'): `print` is a reserved language builtin in the builtin registry, always visible, and standard namespaces 'are always visible and cannot be imported or aliased' (importing one is an error), and (2) exactly one statement writes \"x\" followed by a newline. F-2/F-3/F-4: builds and runs under the frozen recipe; stdout is exactly the two bytes 'x\\n' (verified with od -c). F-6: no normative prohibition or deprecation applies. Note for the OBSERVATION TARGET (scored by B/D only): because there is no import, the fragment carries no information about which unit provides `print`; that is answered by the language rule that reserved builtins are language-owned and unshadowable, not by a declaration a reader can follow.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F18.P1.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "x",
+    "diagnostics": "none; `quidra build F18.P1.qui -o F18P1` exit 0; `./F18P1 | od -c` -> '   x  \\n' (2 bytes) Both shipped execution modes were run per cross-language constraint C-10: the interpreter (`quidra run FILE.qui`, the recipe's interpreter_run entry) produced the identical output 'x' with exit 0, so native and interpreter do not diverge on this probe. Arithmetic-check uniformity across the two modes was verified separately (int32 2147483647 + 1): both modes print 'Quidra runtime error[INTEGER_OVERFLOW] at 2:11: integer overflow' and exit 101."
+   },
+   "token_count": 4,
+   "facts": [
+    {
+     "fact_kind": "externally_visible_side_effects",
+     "site": "print(\"x\")",
+     "value": "writes the value to standard output followed by a newline",
+     "locally_recoverable": true,
+     "justification": "language.md 'Strings and arithmetic': 'print(value) writes a scalar followed by a newline; write(value) writes without adding a newline.' `print` is a reserved language builtin named literally at the site."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "\"x\" (argument sub-site)",
+     "value": "string: immutable UTF-8 text; backslash has no escape semantics, so the literal's bytes are exactly as written",
+     "locally_recoverable": true,
+     "justification": "language.md 'Types' and 'Strings and arithmetic': 'Backslash has no escape semantics ... A backslash is written as itself.'"
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "\"x\" (argument sub-site)",
+     "value": "an immutable text value is passed by value; because string is immutable its storage may be shared without any observable copy",
+     "locally_recoverable": true,
+     "justification": "language.md string_storage_model: 'string is immutable valid UTF-8 text ... storage may be shared when unobservable'; 'Bytes': 'string is immutable, so its backing text may be shared without detachment.'"
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "print(\"x\")",
+     "value": "cannot fail in a program-visible way: the call's type is void with no error alternative, and console output is not among the enumerated deterministic runtime-safety failures",
+     "locally_recoverable": true,
+     "justification": "language.md error_model (failures are either an error alternative of a union or one of the enumerated status-101 runtime errors) and the enumerated list in 'Strings and arithmetic', which does not include console output."
+    }
+   ],
+   "fact_count": 4,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "A4 the argument is a string literal, so the value's type and representation are fixed at the site x A2 no caller-observable mutation x A7 dispatch fixed at compile time and not redefinable: `print` is an absolutely reserved identifier that user code may never introduce in any naming position, so no completion outside the fragment can make a different body run x A6 cannot fail x A9 falls through. No witness exists for a second interpretation."
+   ],
+   "locality_lookups": 0,
+   "locality_detail": [],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 2,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "`print(value)` builtin: writes a scalar followed by a newline, available with no import; standard namespaces and builtins are absolutely reserved and always visible",
+     "citation": "docs/spec/language.md sections 'Strings and arithmetic' and 'Standard namespaces and imports'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "String literal syntax: backslash is literal, `{expr}` is interpolation, `\"` is written through the `quote` builtin value",
+     "citation": "docs/spec/language.md section 'Strings and arithmetic'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F18.P2",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "PARTIAL",
+   "support_reason": "PARTIAL under P-a (the canonical_task's own clause: 'If the language cannot enforce the private boundary at all, express the nearest standard form and score PARTIAL under P-a'). Delivered: a single unit of code named `util` - a file, which is Quidra's normal grouping construct - containing exactly the two items, an accessible `pub_add(int32, int32)` returning their sum plus secret(), and `secret()` returning 1; and, from outside, the qualified call `util.pub_add(2, 3)` bound to a local and produced, value 6 (verified). Not delivered: 'where the language's own rules prevent secret from being referenced from outside util'. Quidra 0.2.0 has no visibility modifier of any kind - `private int32 secret()` is a parse error, and every top-level declaration of an imported unit is reachable through the alias. Verified by construction: adding `print(util.secret())` to the importing file compiles and prints 1. The boundary Quidra does enforce is a different one: standard namespaces cannot be imported, aliases cannot collide, cycles are rejected, and 'A module's own imports are private implementation namespaces rather than automatic re-exports' - so transitive names do not leak, but the unit's own declarations are all public. This is a language rule, not an infrastructure defect: the multi-unit recipe was used (`quidra build F18.P2.qui` follows the module reference; toolchain_binding.multi_unit_recipes records Quidra as 'unchanged'), so P-e does not apply and the infrastructure-defect rule does not apply.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 1,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F18.P2.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "6",
+    "diagnostics": "none. `quidra build F18.P2.qui -o F18P2` exit 0 (the second unit is pulled in by the module reference, per the frozen multi-unit recipe entry 'unchanged'); `./F18P2` prints 6, exit 0. Privacy counter-test: the same program plus `print(util.secret())` compiles and prints 1, so the private boundary is not enforced. `private int32 secret()` -> error[PARSE_ERROR]. Both shipped execution modes were run per cross-language constraint C-10: the interpreter (`quidra run FILE.qui`, the recipe's interpreter_run entry) produced the identical output '6' with exit 0, so native and interpreter do not diverge on this probe. Arithmetic-check uniformity across the two modes was verified separately (int32 2147483647 + 1): both modes print 'Quidra runtime error[INTEGER_OVERFLOW] at 2:11: integer overflow' and exit 101."
+   },
+   "token_count": 38,
+   "facts": [
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "import util = \"./util.qui\"",
+     "value": "no code executes as a result of the import: an imported unit contributes declarations only and cannot contain executable top-level statements",
+     "locally_recoverable": true,
+     "justification": "language.md 'Modules': 'Imported files contribute class and function declarations to the compilation but cannot contain executable top-level statements.'"
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "import util = \"./util.qui\"",
+     "value": "the alias is a compile-time namespace binding, not a runtime value; resolution is importer-relative, cycles and alias collisions are compile-time errors, and the unit's own imports are not re-exported",
+     "locally_recoverable": true,
+     "justification": "language.md 'Modules': 'A quoted local path that does not begin with @/ resolves from the importing file's directory ... Import aliases cannot collide ... Import cycles are compile-time errors ... A module's own imports are private implementation namespaces rather than automatic re-exports.'"
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int32 secret()",
+     "value": "no parameters; returns a 32-bit two's-complement signed integer",
+     "locally_recoverable": true,
+     "justification": "language.md 'Functions, calls, and defaults': 'Function boundaries use explicit types.' The declaration is inside the measured fragment."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int32 pub_add(int32 a, int32 b)",
+     "value": "two 32-bit signed integer parameters, 32-bit signed result",
+     "locally_recoverable": true,
+     "justification": "language.md 'Functions, calls, and defaults'."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "int32 a, int32 b (parameter declarations)",
+     "value": "by-value parameters: no writable alias to any caller storage is created, because a reference parameter would have to be spelled `int32 &a` and the caller would have to write `&arg`",
+     "locally_recoverable": true,
+     "justification": "language.md 'Addresses, references, and const authority': 'Reference parameters use the same model and remain explicit at both declaration and call sites ... Reference markers cannot be omitted or supplied to ordinary parameters.'"
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "int32 a, int32 b",
+     "value": "callee-local writable bindings (no const); writing them cannot affect the caller",
+     "locally_recoverable": true,
+     "justification": "language.md 'Classes': 'For by-value parameters, const is a callee-local binding restriction and does not change the public method signature'; grammar.ebnf parameter = [ 'const' ] type, [ '&' ], identifier."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "a + b + secret()",
+     "value": "overflow-checked addition at int32 width; overflow is a deterministic runtime error with exit status 101, not wraparound and not undefined behaviour",
+     "locally_recoverable": true,
+     "justification": "language.md 'Strings and arithmetic'; 'Native execution cost model'."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "secret() (call inside pub_add)",
+     "value": "statically resolved direct call to the declaration written in the same unit; there is no dynamic dispatch and no overload set to resolve",
+     "locally_recoverable": true,
+     "justification": "language.md 'Classes': 'Method selection is static; there is no dynamic dispatch'; describe call_resolution_model: 'the checker resolves each direct call as function, builtin, exact numeric cast, or constructor before IR lowering.'"
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return a + b + secret()",
+     "value": "returns the sum to the caller; a non-void result must be produced on every normally continuing path",
+     "locally_recoverable": true,
+     "justification": "language.md 'Functions, calls, and defaults'."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int32 result",
+     "value": "32-bit two's-complement signed integer",
+     "locally_recoverable": true,
+     "justification": "language.md 'Types'."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "int32 result",
+     "value": "named addressable storage holding an independent scalar value",
+     "locally_recoverable": true,
+     "justification": "language.md 'Addresses, references, and const authority'."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int32 result = util.pub_add(2, 3)",
+     "value": "definitely initialized by the call's result",
+     "locally_recoverable": true,
+     "justification": "language.md 'Bindings and definite initialization'."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "int32 result",
+     "value": "writable through this binding (no const)",
+     "locally_recoverable": true,
+     "justification": "grammar.ebnf binding = [ 'const' ] ...; language.md const_model."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "util.pub_add(2, 3) argument sub-sites",
+     "value": "both arguments are passed by value; no allocation, no borrow and no ownership transfer, because an argument that borrowed storage would have to be written `&x`",
+     "locally_recoverable": true,
+     "justification": "language.md 'Addresses, references, and const authority': 'Both calls use &data: the parameter declaration determines whether the callee receives read-only or read/write authority. Reference markers cannot be omitted or supplied to ordinary parameters.'"
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "util.pub_add(2, 3)",
+     "value": "cannot return an error: the declared result type int32 has no error alternative, so the only failure mode is a deterministic runtime-safety termination inside the callee",
+     "locally_recoverable": true,
+     "justification": "language.md error_model; the callee's declaration and body are inside the measured fragment."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "util.pub_add(2, 3)",
+     "value": "transfers control to the statically resolved pub_add in the aliased unit and returns; Quidra has no dynamic dispatch, no overloading and no function values",
+     "locally_recoverable": true,
+     "justification": "language.md 'Classes' (static method selection) and function_value_model: 'Function and method declarations are callable names, not first-class values.'"
+    }
+   ],
+   "fact_count": 16,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "A1 the result is bound by value into independent scalar storage x A2 no caller-observable mutation (both arguments are by value; a writable alias would require `&` at both the parameter declaration and the call site) x A4 int32 throughout x A7 dispatch fixed at compile time (no overloading, no dynamic dispatch, no function values) x A8 no allocation, no borrow x A9 the callee returns normally. The unit declaration is inside the measured fragment, so the callee's signature and body are local and close every branch; no completion outside the fragment can change them."
+   ],
+   "locality_lookups": 0,
+   "locality_detail": [],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 8,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "`import alias = \"./path.qui\"`: importer-relative quoted local path, top-level only, declaration-only unit, no re-export, cycles and alias collisions rejected",
+     "citation": "docs/spec/language.md section 'Modules'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Access to an imported unit's declarations is through the alias (`util.pub_add`); every top-level declaration of the unit is reachable that way, because no visibility modifier exists",
+     "citation": "docs/spec/language.md sections 'Modules' and 'Standard namespaces and imports'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Function declaration with explicit result and parameter types",
+     "citation": "docs/spec/language.md section 'Functions, calls, and defaults'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "By-value parameter versus `T &` / `const T &` reference parameter, explicit at both declaration and call site",
+     "citation": "docs/spec/language.md section 'Addresses, references, and const authority'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Typed binding with definite initialization",
+     "citation": "docs/spec/language.md section 'Bindings and definite initialization'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`return expression`",
+     "citation": "docs/spec/language.md section 'Functions, calls, and defaults'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Four-space indentation defines the function bodies",
+     "citation": "docs/spec/language.md section 'Source structure'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Checked integer arithmetic (status 101 on overflow) with no written construct",
+     "citation": "docs/spec/language.md section 'Strings and arithmetic'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F19.P1",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "NONE",
+   "support_reason": "NONE under N-4: the canonical_task directs that no fragment be written for a language with no standard concurrency or asynchronous execution facility, and the frozen rubric lists F19.P1 and F19.P2 among the N-4 probes. Quidra 0.2.0 has none - not threads, not tasks, not futures, not channels, not actors, and not a single-threaded cooperative async facility (which the task says would count). docs/spec/language.md, 'Implementation scope': 'Concurrency, WASM, self-hosting, broader signal-processing APIs, and broader package distribution remain development areas.' None of the 18 standard namespaces (math, cli, file, environment, test, time, random, process, map, set, json, http, stats, linear, signal, image, tensor, neural) exposes a concurrency primitive, and the grammar has no async, await, spawn or go form. Verified by construction: `thread.spawn(f)` -> error[UNKNOWN_NAME] Unknown name 'thread'; `task.run(f)` -> error[UNKNOWN_NAME]; `concurrent.run(f)` -> error[UNKNOWN_NAME]; `process.thread(f)` -> error[UNKNOWN_MODULE_MEMBER]; `async int f()` and `await f()` -> error[PARSE_ERROR]. `process.run(program, args)` is not a substitute: it launches an external executable and blocks until it completes, returning process.Result, so two units cannot be started and joined. The language reference confirms the design position rather than an omission: 'Managed ownership bookkeeping is local to the executing thread in the current runtime. The language does not currently expose cross-thread sharing of managed values.' No numbered sub-requirement - starting two concurrent units, joining them, or combining their results - is expressible.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 0,
+   "probe_file": null,
+   "toolchain_verification": {
+    "built": null,
+    "ran": null,
+    "observed_output": "",
+    "diagnostics": "refutation witness at semantic-compression/probes/witnesses/F19.P1/quidra/no_concurrency/RESULT.txt - every attempted spelling is rejected by `quidra check` with the diagnostic recorded there."
+   },
+   "token_count": null,
+   "facts": [],
+   "fact_count": 0,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "No fragment exists (support NONE), so no interpretation of a measured fragment is enumerated. Per methodology 03 section 1.9 this probe is EXCLUDED from the determinacy mean and must not be read as B = 1 earned by determinacy; the absence is charged in Capability Coverage, where both capability points score 0 against the fixed 88-point denominator."
+   ],
+   "locality_lookups": 0,
+   "locality_detail": [],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 0,
+   "complexity_detail": []
+  },
+  {
+   "probe_id": "F19.P2",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "NONE",
+   "support_reason": "NONE under N-4: the canonical_task directs that no fragment be written for a language with no standard concurrency or asynchronous execution facility, and the frozen rubric lists F19.P1 and F19.P2 among the N-4 probes. Quidra 0.2.0 has none - not threads, not tasks, not futures, not channels, not actors, and not a single-threaded cooperative async facility (which the task says would count). docs/spec/language.md, 'Implementation scope': 'Concurrency, WASM, self-hosting, broader signal-processing APIs, and broader package distribution remain development areas.' None of the 18 standard namespaces (math, cli, file, environment, test, time, random, process, map, set, json, http, stats, linear, signal, image, tensor, neural) exposes a concurrency primitive, and the grammar has no async, await, spawn or go form. Verified by construction: `thread.spawn(f)` -> error[UNKNOWN_NAME] Unknown name 'thread'; `task.run(f)` -> error[UNKNOWN_NAME]; `concurrent.run(f)` -> error[UNKNOWN_NAME]; `process.thread(f)` -> error[UNKNOWN_MODULE_MEMBER]; `async int f()` and `await f()` -> error[PARSE_ERROR]. `process.run(program, args)` is not a substitute: it launches an external executable and blocks until it completes, returning process.Result, so two units cannot be started and joined. The language reference confirms the design position rather than an omission: 'Managed ownership bookkeeping is local to the executing thread in the current runtime. The language does not currently expose cross-thread sharing of managed values.' No numbered sub-requirement is expressible, and the mandatory 20-run verification cannot be performed because no fragment exists. There is also no synchronization facility: no mutex, lock, atomic operation or channel exists in any standard namespace.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 0,
+   "probe_file": null,
+   "toolchain_verification": {
+    "built": null,
+    "ran": null,
+    "observed_output": "",
+    "diagnostics": "refutation witness at semantic-compression/probes/witnesses/F19.P2/quidra/no_concurrency/RESULT.txt - every attempted spelling is rejected by `quidra check` with the diagnostic recorded there."
+   },
+   "token_count": null,
+   "facts": [],
+   "fact_count": 0,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "No fragment exists (support NONE), so no interpretation of a measured fragment is enumerated. Per methodology 03 section 1.9 this probe is EXCLUDED from the determinacy mean and must not be read as B = 1 earned by determinacy; the absence is charged in Capability Coverage, where both capability points score 0 against the fixed 88-point denominator."
+   ],
+   "locality_lookups": 0,
+   "locality_detail": [],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 0,
+   "complexity_detail": []
+  },
+  {
+   "probe_id": "F20.P1",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "FULL",
+   "support_reason": "F-1: all three numbered sub-requirements are delivered - (1) the C standard-library function `int abs(int)` is declared as a foreign function with Quidra's own built-in FFI form `extern int32 c_abs(int32 value) = \"abs\"` (int32 is the fixed-width type that matches C `int` on this target; the Quidra-side name must differ from `abs` only because `abs` is an absolutely reserved builtin identifier, and `c_abs` is the spelling the language reference's own FFI example uses), (2) it is called once with -3, and (3) the returned C int is bound to an int32 local and produced, value 3. F-2/F-4: no third-party package, no binding generator, no separate build step - `quidra build` alone, linking against the platform C library the frozen recipe already links. F-3: builds and prints 3. F-6: the FFI is documented as a first-class, deliberately narrow facility; no normative prohibition or deprecation sentence applies to it. Evidence that the declaration really binds the C symbol rather than being folded away in source: `quidra llvm` emits `declare i32 @abs(i32)` and `call i32 @abs(i32 %v2)` (the final -O3 binary constant-folds the call to the literal 3, which is an optimization of the linked call, not a substitution of it). Note for the OBSERVATION TARGET (scored by B/D only): the extern declaration states the foreignness, the C symbol and the by-value scalar ABI, but the CALL SITE `c_abs(-3)` is spelled exactly like an ordinary Quidra call - there is no `unsafe`, no `@` sigil and no other marker at the use site, so a reader looking only at the call statement cannot tell the boundary is crossed.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F20.P1.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "3",
+    "diagnostics": "none; `quidra build F20.P1.qui -o F20P1` exit 0, `./F20P1` prints 3, exit 0. `quidra llvm F20.P1.qui` contains 'declare i32 @abs(i32)' and 'call i32 @abs(i32 %v2)'. `nm -u F20P1` does not list abs because clang -O3 constant-folded the call to the known-pure libc function. Both shipped execution modes were run per cross-language constraint C-10: the interpreter (`quidra run FILE.qui`, the recipe's interpreter_run entry) produced the identical output '3' with exit 0, so native and interpreter do not diverge on this probe. Arithmetic-check uniformity across the two modes was verified separately (int32 2147483647 + 1): both modes print 'Quidra runtime error[INTEGER_OVERFLOW] at 2:11: integer overflow' and exit 101."
+   },
+   "token_count": 17,
+   "facts": [
+    {
+     "fact_kind": "type_and_representation",
+     "site": "extern int32 c_abs(int32 value) = \"abs\"",
+     "value": "the foreign function takes and returns int32 - a 32-bit two's-complement signed integer passed by value, which is the C `int` of this target's ABI",
+     "locally_recoverable": true,
+     "justification": "language.md 'C FFI': 'Results are restricted to void or ABI-stable by-value scalars: all fixed-width signed/unsigned integer types, int/int64, float32, float/float64, and bool. Scalar and bool parameters are also by value.'"
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "extern int32 c_abs(int32 value) = \"abs\"",
+     "value": "no conversion occurs at the boundary for a 32-bit scalar: the ABI extension contracts are explicit and apply only to 8/16-bit integers (signext/zeroext) and bool (zeroext)",
+     "locally_recoverable": true,
+     "justification": "language.md 'C FFI': 'Integer ABI extension contracts are explicit: signed 8/16-bit values use signext, unsigned 8/16-bit values use zeroext, and bool uses zeroext, on both declarations and call sites.'"
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "extern ... = \"abs\"",
+     "value": "the boundary surfaces no failure of its own: foreign failure is never inferred from errno, a null pointer or an ownership convention, so any status must be an explicit scalar result",
+     "locally_recoverable": true,
+     "justification": "language.md 'C FFI': 'Foreign failure is never inferred from errno, a null pointer, or ownership convention: expose an explicit scalar status/result and handle it in Quidra.'"
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "extern ... = \"abs\"",
+     "value": "the declaration loads no library and runs no foreign initialization code; the symbol must be resolvable by the native link environment, and one C symbol may be bound by only one extern per compilation",
+     "locally_recoverable": true,
+     "justification": "language.md 'C FFI': 'The core declaration does not load libraries or run foreign initialization code; the symbol must be available to the native link environment'; 'A C symbol may be bound by only one source extern declaration per compilation.'"
+    },
+    {
+     "fact_kind": "externally_visible_side_effects",
+     "site": "extern ... = \"abs\" / c_abs(-3)",
+     "value": "the call leaves Quidra's checked semantics and enters foreign C code, whose effects the language does not describe; external calls are classified as potentially effectful (they arm the REPL replay barrier)",
+     "locally_recoverable": true,
+     "justification": "language.md 'C FFI': 'External calls are treated as potentially effectful by the REPL, so accumulated-source replay never silently re-executes them.'"
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "c_abs(-3) argument sub-site",
+     "value": "a by-value scalar is passed: no managed value crosses the boundary, no allocation and no borrow - a borrowed string/bytes would have to be declared `const T &` and passed as `&storage`",
+     "locally_recoverable": true,
+     "justification": "language.md 'C FFI': 'Managed string and bytes inputs are admitted only as explicit call-scoped read-only storage borrows: declare them as const string &name or const bytes &name and pass &storage at the call.'"
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "c_abs(-3)",
+     "value": "control transfers to the C symbol named literally in the declaration and returns; the binding is one-to-one and cannot be rebound to a compiler-owned or runtime-owned symbol",
+     "locally_recoverable": true,
+     "justification": "language.md 'C FFI': the extern declaration 'binds a Quidra function name to an explicit C symbol'; the generated `main`, the `n_*` mangling namespace and the `quidra_*`/`__quidra_*` namespaces 'cannot be rebound through extern'."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int32 magnitude",
+     "value": "32-bit two's-complement signed integer",
+     "locally_recoverable": true,
+     "justification": "language.md 'Types'."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "int32 magnitude",
+     "value": "named addressable storage holding an independent scalar value returned by value across the boundary",
+     "locally_recoverable": true,
+     "justification": "language.md 'Addresses, references, and const authority'; 'C FFI' (by-value scalar result)."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int32 magnitude = c_abs(-3)",
+     "value": "definitely initialized by the foreign call's result",
+     "locally_recoverable": true,
+     "justification": "language.md 'Bindings and definite initialization'."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "int32 magnitude",
+     "value": "writable through this binding (no const)",
+     "locally_recoverable": true,
+     "justification": "grammar.ebnf binding = [ 'const' ] ...; language.md const_model."
+    }
+   ],
+   "fact_count": 11,
+   "determinacy_B": 2,
+   "determinacy_enumeration": [
+    "(1) The foreign body behaves as the C standard library's abs: it returns the absolute value by value, performs no observable effect and returns normally. A9 falls through, A6 cannot fail, A2 no caller-observable mutation, A5 no conversion, A4 int32, A8 no resource event.",
+    "(2) The foreign body is some other definition of the symbol `abs` supplied by the link environment, which may perform externally visible effects or not return at all (A2 state outside the fragment mutated, A9 may not return). The symbol's definition is outside the measured fragment and is chosen by the link environment, so a witness is a completion of the probe program that links a different object defining `abs`; the fragment's own tokens cannot distinguish the two. This class is realizable in every language's FFI probe on the same terms and is not specific to Quidra. Note that the classes are NOT multiplied by the call-site's lack of a foreignness marker: per methodology 03 Rule 1.4.7 the identity of a callee is external in every language and does not itself branch."
+   ],
+   "locality_lookups": 1,
+   "locality_detail": [
+    {
+     "hop": "callee signature/definition: the C library's definition of the symbol `abs`, supplied by the native link environment the frozen recipe uses",
+     "required_for_fact": "externally_visible_side_effects - the Quidra text fixes the ABI, the argument representation and the absence of an implicit failure channel, but not what the foreign body does"
+    }
+   ],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 5,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "`extern TYPE name(params) = \"csymbol\"`: top-level-only foreign declaration binding a Quidra name to an explicit C symbol",
+     "citation": "docs/spec/language.md section 'C FFI' (grammar.ebnf line 10: extern_decl)"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "FFI ABI contract: void or ABI-stable by-value scalar results; explicit signext/zeroext for 8/16-bit integers and bool; managed string/bytes only as `const T &` borrows lowering to pointer+length; no implicit errno/null/ownership failure conversion",
+     "citation": "docs/spec/language.md section 'C FFI'"
+    },
+    {
+     "unit": "documented exception",
+     "description": "Symbol-namespace carve-outs: the generated `main`, the compiler-owned `n_*` mangling namespace and the `quidra_*`/`__quidra_*` namespaces cannot be rebound through extern, and one C symbol may be bound by only one extern per compilation",
+     "citation": "docs/spec/language.md section 'C FFI'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Typed binding with definite initialization",
+     "citation": "docs/spec/language.md section 'Bindings and definite initialization'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Absolute identifier reservation: a reserved builtin name such as `abs` may never be introduced by user code in any naming position, so the Quidra-side FFI name must differ from the C symbol",
+     "citation": "docs/spec/language.md section 'Bindings and definite initialization' (name_resolution_model)"
+    }
+   ]
+  },
+  {
+   "probe_id": "F20.P2",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "NONE",
+   "support_reason": "NONE under N-4 (the canonical_task directs that no fragment be written where the language cannot produce such a symbol with only its standard mechanism; the frozen rubric lists F20.P2 among the N-4 probes), with the mandatory nm evidence recorded. Quidra 0.2.0's FFI is INBOUND ONLY. grammar.ebnf line 10 defines the sole foreign form as extern_decl = \"extern\", type, identifier, \"(\", [parameters], \")\", \"=\", string - a declaration that binds a Quidra name to an existing C symbol - and there is no export form: `export int32 add2(int32 a, int32 b)` is a parse error, and `extern int32 add2(int32 a, int32 b) = \"add2\"` cannot carry a body (parse error) and in any case would only import. User functions are emitted into the compiler-owned mangling namespace: `quidra llvm` shows `define i32 @n_add2(i32 %arg.a, i32 %arg.b)`, and the language reference states that 'the compiler-owned n_* function-mangling namespace' cannot be rebound through extern. nm evidence on the built artifact: `nm EXP | grep -i add2` returns no match (exit 1) and `nm -g EXP` lists only __mh_execute_header, _main, _quidra_runtime_set_args and undefined runtime imports - no symbol named `add2` or `_add2` is present or defined. Neither numbered sub-requirement - (1) the C calling convention/ABI and (2) the exact unmangled external symbol name `add2` - can be requested by any documented construct. Separately, `quidra build` emits a native executable only; the toolchain has no static- or shared-library output for a C caller to link against.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 0,
+   "probe_file": null,
+   "toolchain_verification": {
+    "built": null,
+    "ran": null,
+    "observed_output": "",
+    "diagnostics": "nm: 'no symbol named add2 is present or defined in the artifact built from a Quidra function named add2' - `nm EXP | grep -i add2` exit 1; `nm -g EXP` shows only __mh_execute_header, _main, _quidra_runtime_set_args plus undefined runtime imports; `quidra llvm` shows the definition emitted as @n_add2. Witness and full transcript at semantic-compression/probes/witnesses/F20.P2/quidra/no_c_export/."
+   },
+   "token_count": null,
+   "facts": [],
+   "fact_count": 0,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "No fragment exists (support NONE), so no interpretation of a measured fragment is enumerated. Per methodology 03 section 1.9 this probe is EXCLUDED from the determinacy mean and must not be read as B = 1 earned by determinacy; the absence is charged in Capability Coverage, where both capability points score 0 against the fixed 88-point denominator."
+   ],
+   "locality_lookups": 0,
+   "locality_detail": [],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 0,
+   "complexity_detail": []
+  }
+ ]
+}

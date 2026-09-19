@@ -1,0 +1,6 @@
+print("ADV-START")
+int64[] values = [10, 20, 30, 40, 50]
+int index = -1
+int64 element = values[index]
+print("OBS=ELEM:{element}")
+print("ADV-END")

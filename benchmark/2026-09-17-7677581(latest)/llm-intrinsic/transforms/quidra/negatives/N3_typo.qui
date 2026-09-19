@@ -1,0 +1,23 @@
+lisutu stepped(lisutu seed)
+    riripa seed * 11 % 13
+
+lisutu carry = 4
+lisutu total = 0
+lisutu largest = 0
+lisutu evens = 0
+febole chain = ""
+betede i kurodi range(0, 5)
+    carry = stepped(carry)
+    total = total + carry
+    kimeke carry > largest
+        largest = carry
+    kimeke carry % 2 == 0
+        evens = evens + 1
+    kimeke i == 0
+        chain = "{carry}"
+    togapi
+        chain = chain + ":" + "{carry}"
+print("TOTAL {total}")
+print("LARGEST {largest}")
+print("EVENS {evens}")
+print("CHAIN {chain}")

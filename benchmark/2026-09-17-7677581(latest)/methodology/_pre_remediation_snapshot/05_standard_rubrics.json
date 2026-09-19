@@ -1,0 +1,2072 @@
+{
+  "document_id": "05_standard_rubrics",
+  "title": "FROZEN objective rubrics for Standard-evaluation metrics scored under normalization family G",
+  "status": "FROZEN",
+  "frozen_at": "2026-09-17",
+  "benchmark_run_id": "2026-09-17-7677581",
+  "spec_reference": {
+    "spec_file": "benchmark/2026-09-17-7677581/prompt.md",
+    "sections_implemented": [
+      "8",
+      "8.1",
+      "25.1.G",
+      "26",
+      "27.2",
+      "7",
+      "32"
+    ],
+    "normalization_family": "G (objective rubric/proxy metrics)",
+    "note": "Family G metric scores are the rubric-defined level score itself. The rubric output IS the 0-100 normalized score. No further normalization (no family C/D rescaling, no min-max, no percentile, no log) is applied to any metric in this document."
+  },
+  "fixed_language_columns": [
+    "Quidra",
+    "Python",
+    "C++",
+    "Rust",
+    "Go",
+    "Java",
+    "TypeScript",
+    "Kotlin",
+    "Swift",
+    "Zig"
+  ],
+  "metrics_covered": [
+    "Readability",
+    "Functionality / Expressiveness",
+    "Diagnostics",
+    "Dependency Simplicity",
+    "Portability",
+    "FFI / Interoperability",
+    "Concurrency",
+    "Ecosystem Breadth",
+    "Tooling",
+    "Library Availability",
+    "Package / Dependency Management",
+    "IDE / Editor Support",
+    "Debugger / Profiler Support",
+    "Build / Test Integration",
+    "Production Adoption / Deployment Evidence",
+    "Documentation / Community",
+    "Toolchain Stability / Release Maturity"
+  ],
+  "fairness_declaration": {
+    "derivation_prohibition": "No rubric level, indicator, threshold, domain, capability, or probe in this document was derived from Quidra's syntax, operators, type system, standard library, tooling, or feature set. Every indicator names a capability that exists independently in multiple mainstream language families and is stated in language-neutral terms (spec 32, 6.1.7).",
+    "no_young_language_allowance": "There is no age adjustment, incumbency discount, maturity handicap, curve, bonus, or compensating term anywhere in this document. Quidra 0.2.0 is expected to score at or near the bottom level of several ecosystem and maturity rubrics. Per spec section 7 that outcome is correct and must be reported unchanged.",
+    "no_capability_removal": "No capability was removed from any checklist because Quidra lacks it. Capabilities Quidra lacks remain in the checklists and are scored as unsatisfied indicators.",
+    "symmetry": "Every indicator is written so that any of the 10 languages can satisfy or fail it. No indicator is satisfiable by construction for exactly one language, and none is phrased as the absence of a feature that only one language has.",
+    "na_prohibition": "Per spec 25.1.G and spec 26, no metric in this document may be marked N/A for any of the 10 languages. A language that lacks a capability a rubric intentionally tests receives the rubric-defined LOW score for that indicator or level. N/A is permitted in this document only in the single situation defined in global_rules.na_last_resort, which cannot arise from a missing language capability."
+  },
+  "global_rules": {
+    "scale": {
+      "min": 0,
+      "max": 100,
+      "direction": "higher_is_better",
+      "levels_per_metric": "6 discrete levels for every metric in this document, with the fixed level score set {0, 20, 40, 60, 80, 100}",
+      "no_interpolation": "Only the six level scores may be awarded. Intermediate values, averages of adjacent levels, half-levels and fractional adjustments are prohibited.",
+      "rounding": "Level scores are exact integers. Category aggregation per spec 8.1 is performed on these integers and reported to two decimal places."
+    },
+    "indicator_model": {
+      "description": "Each metric is defined by a fixed, enumerated set of binary indicators or by fixed quantity bands. The level is determined mechanically by the number of satisfied indicators (or by which band the measured quantity falls into). There is no holistic judgement step anywhere in this document.",
+      "satisfied_definition": "An indicator is SATISFIED only when the scorer has recorded, in the per-language evidence record, positive evidence of the exact kind named by that indicator's evidence_source. Absence of evidence is never satisfaction.",
+      "unverifiable_rule": "If an indicator's evidence source cannot be retrieved or the check cannot be executed during the evidence window, the indicator is recorded as NOT SATISFIED with verification_status=\"unverified\" and a free-text reason. This conservative rule is applied identically to all 10 languages, including Quidra.",
+      "no_partial_credit": "An indicator that is partially satisfied is NOT satisfied. Every conjunctive indicator (one containing AND) requires every conjunct.",
+      "monotonicity": "Where one indicator subsumes another (for example a count threshold ladder), satisfying the stronger indicator does not automatically satisfy the weaker one; the scorer records each independently, and both are expected to be satisfied when the evidence supports it."
+    },
+    "evidence_window": {
+      "evidence_cutoff_date": "2026-09-17",
+      "rule": "Only evidence that existed and was publicly retrievable on or before the evidence cutoff date may be used. Evidence collection itself occurs between the benchmark start date and the completion of Standard scoring; every record carries an accession timestamp and, where applicable, the exact URL or the exact host command executed.",
+      "recency_windows": "Where an indicator says 'within 24 months' or 'within 90 days', the window ends at the evidence cutoff date 2026-09-17 and is computed from the artifact's published date."
+    },
+    "first_party_definition": {
+      "official_project_set": "For each language, 'official', 'first-party' and 'the language's own project' mean any member of that language's official_project_set as frozen in official_project_table below. Nothing outside that set is first-party.",
+      "rationale": "Some languages are stewarded by more than one official body (a standards body plus the implementation used here, or a language vendor plus the runtime vendor). Recording the full official set for every language, rather than a single body, prevents an artificial penalty that would come from an arbitrary choice of which official body counts. This rule is applied identically to all 10 languages.",
+      "third_party_rule": "Anything published outside the official_project_set is third-party. Third-party evidence may only be used where an indicator explicitly admits it (Library Availability index selection, Ecosystem Breadth packages, Production Adoption, and the debugger/profiler indicators that explicitly say 'or named in official documentation')."
+    },
+    "host_verification": {
+      "host": "macOS 26.4.1 build 25E253, Darwin 25.4.0, arm64, Apple M2, 8 logical CPUs, 8 GiB RAM",
+      "rule": "Every indicator whose evidence source is E1 must be verified by executing a command on this exact host and preserving the full command line, exit status, stdout and stderr in the per-language evidence record.",
+      "build_recipes": "All builds and runs performed for rubric verification use the frozen recipes in environment/environment.json -> frozen_toolchain_recipes, unchanged, except where an indicator explicitly requires adding one documented first-party flag (for example a debug-info flag or a machine-readable-diagnostics flag). Any such added flag must be recorded verbatim and must be documented in that language's official documentation.",
+      "no_installation_of_extra_software": "Rubric verification must not install software that is not part of the language's official toolchain distribution already present on the host. Where an indicator can only be satisfied by software that is not installed, the indicator is evaluated from official documentation evidence (E2/E3) if that indicator admits documentation evidence, and is otherwise recorded as not satisfied with verification_status=\"unverified\"."
+    },
+    "per_language_evidence_record": {
+      "required_for_every_metric_and_every_language": true,
+      "path_pattern": "benchmark/2026-09-17-7677581/standard/rubrics/<metric_slug>/<language>.json",
+      "required_fields": [
+        "metric",
+        "language",
+        "indicators: [{id, satisfied: true|false, verification_status: \"verified\"|\"unverified\", evidence_source_id, evidence: {url_or_command, accession_timestamp, quoted_excerpt_or_captured_output, measured_value_if_any}, reason_if_unsatisfied}]",
+        "satisfied_count_or_measured_quantity",
+        "awarded_level_score",
+        "scorer_notes"
+      ],
+      "auditability": "A third party holding only this document and the evidence records must be able to recompute every level score without any further judgement."
+    },
+    "application_order": {
+      "1": "Freeze this document (done).",
+      "2": "Build the frozen probe sets defined in frozen_probe_sets for all 10 languages, using first-party features only, before any scoring.",
+      "3": "Collect evidence per language per metric, in the fixed language column order, recording each indicator independently.",
+      "4": "Compute the satisfied count or measured quantity.",
+      "5": "Award the unique level whose criteria the count/quantity matches. Levels are mutually exclusive and exhaustive by construction.",
+      "6": "Write the evidence record. Do not revisit an earlier language after seeing a later language's score."
+    },
+    "prohibited_at_scoring_time": [
+      "adding, removing, reordering, reweighting or reinterpreting any indicator",
+      "changing any threshold, count band, domain list, capability list or probe",
+      "awarding a level whose criteria are not fully met",
+      "awarding partial or interpolated scores",
+      "substituting an evidence source other than the one named for that indicator",
+      "marking a metric N/A because a language lacks the tested capability",
+      "using a different evidence source, probe, flag, corpus or window for one language than for another"
+    ],
+    "na_last_resort": {
+      "only_admissible_case": "A metric may be marked N/A for a language only if the measurement host itself made the check impossible for every language simultaneously (for example the frozen probe set could not be built for any language). A single language's lack of a capability, lack of a registry, lack of a debugger, lack of production users, or lack of release history is NEVER N/A: it is the rubric-defined low score.",
+      "if_triggered": "Document the reason and apply spec section 26 renormalization within the affected Standard category."
+    },
+    "aggregation_into_standard_score": "Each metric's level score enters its spec-8 category as one equally weighted member, per spec 8.1. This document does not define category or overall weights."
+  },
+  "official_project_table": {
+    "_rule": "Frozen identity of each language's official project set, official documentation root, and official implementation repository. Used for every indicator that says 'official' or 'first-party'. Where a language is stewarded by a standards body and separately by the implementation named in frozen_toolchain_recipes, both are official for this benchmark.",
+    "Quidra": {
+      "official_project_set": [
+        "quidra-lang (github.com/quidra-lang)"
+      ],
+      "official_docs_root": [
+        "https://github.com/quidra-lang/quidra (repository documentation, including README, docs/ and any site published from this repository)"
+      ],
+      "official_implementation_repository": [
+        "https://github.com/quidra-lang/quidra"
+      ],
+      "toolchain_under_test": "quidra 0.2.0"
+    },
+    "Python": {
+      "official_project_set": [
+        "Python Software Foundation / CPython project"
+      ],
+      "official_docs_root": [
+        "https://docs.python.org",
+        "https://www.python.org",
+        "https://peps.python.org"
+      ],
+      "official_implementation_repository": [
+        "https://github.com/python/cpython"
+      ],
+      "toolchain_under_test": "Python 3.14.5"
+    },
+    "C++": {
+      "official_project_set": [
+        "ISO/IEC JTC1/SC22/WG21 (the C++ standards committee)",
+        "the LLVM Project / Clang",
+        "Apple (vendor of the Apple clang toolchain used here)"
+      ],
+      "official_docs_root": [
+        "https://isocpp.org",
+        "https://www.open-std.org/jtc1/sc22/wg21/",
+        "https://clang.llvm.org",
+        "https://llvm.org/docs/",
+        "https://developer.apple.com/documentation/xcode"
+      ],
+      "official_implementation_repository": [
+        "https://github.com/llvm/llvm-project"
+      ],
+      "toolchain_under_test": "Apple clang 17.0.0 (clang-1700.6.3.2), -std=c++20"
+    },
+    "Rust": {
+      "official_project_set": [
+        "The Rust Project / Rust Foundation (rust-lang)"
+      ],
+      "official_docs_root": [
+        "https://www.rust-lang.org",
+        "https://doc.rust-lang.org"
+      ],
+      "official_implementation_repository": [
+        "https://github.com/rust-lang/rust"
+      ],
+      "toolchain_under_test": "rustc 1.95.0"
+    },
+    "Go": {
+      "official_project_set": [
+        "The Go Project (golang) / Google"
+      ],
+      "official_docs_root": [
+        "https://go.dev",
+        "https://pkg.go.dev/std"
+      ],
+      "official_implementation_repository": [
+        "https://github.com/golang/go"
+      ],
+      "toolchain_under_test": "go1.26.3 darwin/arm64"
+    },
+    "Java": {
+      "official_project_set": [
+        "OpenJDK project",
+        "Oracle (publisher of the Java SE Platform and Java Language Specification)"
+      ],
+      "official_docs_root": [
+        "https://openjdk.org",
+        "https://docs.oracle.com/en/java/javase/"
+      ],
+      "official_implementation_repository": [
+        "https://github.com/openjdk/jdk"
+      ],
+      "toolchain_under_test": "OpenJDK 26.0.1 (javac 26.0.1), arm64"
+    },
+    "TypeScript": {
+      "official_project_set": [
+        "Microsoft (the TypeScript project)",
+        "the OpenJS Foundation / Node.js project (the runtime named in the frozen run recipe)",
+        "npm, Inc. as operator of the npm registry named by Node.js and TypeScript official documentation"
+      ],
+      "official_docs_root": [
+        "https://www.typescriptlang.org/docs/",
+        "https://nodejs.org/docs/",
+        "https://docs.npmjs.com"
+      ],
+      "official_implementation_repository": [
+        "https://github.com/microsoft/TypeScript",
+        "https://github.com/nodejs/node"
+      ],
+      "toolchain_under_test": "tsc 7.0.2 + node v24.2.0"
+    },
+    "Kotlin": {
+      "official_project_set": [
+        "JetBrains (the Kotlin project)",
+        "the JVM platform provider for the Kotlin/JVM target used here, namely the OpenJDK project"
+      ],
+      "official_docs_root": [
+        "https://kotlinlang.org/docs/"
+      ],
+      "official_implementation_repository": [
+        "https://github.com/JetBrains/kotlin"
+      ],
+      "toolchain_under_test": "kotlinc-jvm 2.3.21 on JRE 26.0.1"
+    },
+    "Swift": {
+      "official_project_set": [
+        "the Swift project (swift.org)",
+        "Apple"
+      ],
+      "official_docs_root": [
+        "https://www.swift.org",
+        "https://docs.swift.org",
+        "https://developer.apple.com/documentation/swift"
+      ],
+      "official_implementation_repository": [
+        "https://github.com/swiftlang/swift"
+      ],
+      "toolchain_under_test": "Apple Swift 6.2.3"
+    },
+    "Zig": {
+      "official_project_set": [
+        "the Zig Software Foundation / Zig project"
+      ],
+      "official_docs_root": [
+        "https://ziglang.org/documentation/",
+        "https://ziglang.org/learn/"
+      ],
+      "official_implementation_repository": [
+        "https://github.com/ziglang/zig"
+      ],
+      "toolchain_under_test": "zig 0.16.0"
+    },
+    "_resolution_procedure_if_a_field_is_wrong_or_missing": "If, during evidence collection, a listed root or repository is found not to be the official one for that language at the evidence cutoff, the scorer replaces it with the resource that the language's own official homepage links to as its documentation or source repository, records the substitution and the reason in the evidence record, and applies the same substitution rule to every other language in the same situation. The official_project_set membership itself may not be expanded at scoring time."
+  },
+  "evidence_sources": {
+    "_rule": "Every indicator names exactly one evidence source id from this table. The same source id means the same kind of evidence for all 10 languages. No language may be scored from a source type that another language was not also examined under.",
+    "E1": {
+      "name": "Direct execution on the frozen measurement host",
+      "definition": "A command executed on the benchmark host (macOS 26.4.1, arm64, Apple M2) using the toolchain version frozen in environment/environment.json and the frozen build/run recipes. Evidence recorded = full command line, exit status, complete stdout and stderr, and the timestamp.",
+      "applies_identically_to": "all 10 languages"
+    },
+    "E2": {
+      "name": "Official first-party toolchain and language documentation",
+      "definition": "Documentation published at a language's official_docs_root as frozen in official_project_table, for the toolchain version under test or the nearest published version, including man pages and built-in --help text shipped by that toolchain. Evidence recorded = exact URL or command, accession timestamp, and a verbatim quoted excerpt supporting the indicator.",
+      "applies_identically_to": "all 10 languages"
+    },
+    "E3": {
+      "name": "Official first-party source repository and release history",
+      "definition": "The repository or repositories listed as official_implementation_repository for the language, including its published releases/tags, its release notes, its governance documents, and its public issue tracker. Evidence recorded = exact URL, accession timestamp, and the specific tag/release/issue identifiers relied on.",
+      "applies_identically_to": "all 10 languages"
+    },
+    "E4": {
+      "name": "The language's canonical package index and its self-published package count",
+      "definition": "The package index selected for that language by the frozen index_selection_rule (see the Library Availability metric). Evidence recorded = index name, index URL, the index's own published total package count (from the index's front page, statistics page, or its documented public API), the exact figure verbatim, and the accession timestamp. If no index satisfies the selection rule for a language, the evidence record states 'no qualifying index at the evidence cutoff' and every E4 indicator for that language is unsatisfied.",
+      "applies_identically_to": "all 10 languages"
+    },
+    "E5": {
+      "name": "Official or major-implementation-maintained developer-tool artifact",
+      "definition": "The published repository, marketplace listing, or official documentation page of a language server (LSP), editor extension, editor grammar, debugger integration, profiler, or debug-adapter integration, where the publisher is a member of that language's official_project_set or is a maintainer of a major implementation of that language. Evidence recorded = artifact name, publisher, exact URL, latest release date, accession timestamp, and the verbatim feature statement relied on.",
+      "applies_identically_to": "all 10 languages"
+    },
+    "E6": {
+      "name": "Named, citable public production-adoption or population evidence",
+      "definition": "A publicly retrievable document that names a specific organization, product or population figure: an engineering blog post or documentation page published by the adopting organization itself; an official case-study/user page published by the language's own project; the official documentation or official repository of a shipped product stating its implementation language; or a published, methodologically documented public developer survey or index. Evidence recorded = organization or source name, exact URL, publication date, accession timestamp, and a verbatim quoted excerpt of at most 15 words. Unnamed claims, aggregated impressions, secondhand lists without a primary citation, and undated pages are not admissible.",
+      "applies_identically_to": "all 10 languages"
+    },
+    "E7": {
+      "name": "The frozen benchmark source corpus produced by this benchmark run",
+      "definition": "The Standard-evaluation implementation sources written for this run: all micro-benchmark programs (spec section 12), the SVM implementation (spec section 13), the GMM implementation (spec section 14), and the LightGrad implementation (spec section 15), for that language. Identical workload set for all 10 languages. Evidence recorded = file list with sizes and hashes, plus the computed measurement values.",
+      "applies_identically_to": "all 10 languages"
+    }
+  },
+  "frozen_probe_sets": {
+    "_rule": "These probe sets are frozen here, before any language is scored. Each probe is a small program expressing one language-neutral requirement. The requirement text below is the specification; each language's implementation of it must be the most direct idiomatic expression of that requirement using first-party features only, and must be stored under benchmark/2026-09-17-7677581/standard/rubrics/probes/<probe_id>/<language>.<ext>. A probe that cannot be written for a language using first-party features is recorded as UNSUPPORTED with the reason, and its indicator is unsatisfied. UNSUPPORTED is a real result, never N/A.",
+    "DIAG": {
+      "purpose": "Diagnostics metric",
+      "probes": [
+        {
+          "id": "DIAG-1",
+          "requirement": "A program that references an identifier that is never declared anywhere."
+        },
+        {
+          "id": "DIAG-2",
+          "requirement": "A program that assigns a value of a textual/string type to a binding declared as an integer type (or the language's nearest equivalent type conflict, if declared types are not available, an operation applying an integer-only operation to a string value)."
+        },
+        {
+          "id": "DIAG-3",
+          "requirement": "A program that calls a function declared with two parameters using one argument."
+        },
+        {
+          "id": "DIAG-4",
+          "requirement": "A program with an unbalanced block or grouping delimiter (one opening delimiter without its closing delimiter)."
+        },
+        {
+          "id": "DIAG-5",
+          "requirement": "A program that declares a local binding, never reads it, and otherwise compiles and runs correctly."
+        },
+        {
+          "id": "DIAG-6",
+          "requirement": "A program that invokes a member/method name that does not exist on the value's type."
+        },
+        {
+          "id": "DIAG-7",
+          "requirement": "A function declared to return an integer whose return statement returns a textual/string value."
+        },
+        {
+          "id": "DIAG-8",
+          "requirement": "A program that compiles successfully and, at run time, reads element index 10 of a 3-element sequence."
+        }
+      ],
+      "capture_rule": "Build and run each probe with the frozen recipe. Capture the COMPLETE stderr+stdout. The 'first diagnostic' is the first complete diagnostic message block emitted for the seeded defect. For DIAG-8 the diagnostic is the runtime error/abort message. If a probe produces NO diagnostic at all, every indicator fails for that probe."
+    },
+    "FFI": {
+      "purpose": "FFI / Interoperability metric",
+      "probes": [
+        {
+          "id": "FFI-1",
+          "requirement": "Call the C standard library function cos(double) from the host's system C library and print the result for input 1.0, using only first-party language features and first-party toolchain flags."
+        },
+        {
+          "id": "FFI-2",
+          "requirement": "Export a function with C calling convention and C-compatible name that takes two 32-bit integers and returns their sum, build it into a linkable artifact, and call it successfully from a C program compiled with clang on this host."
+        },
+        {
+          "id": "FFI-3",
+          "requirement": "Pass, across the C boundary, (a) a struct containing a 32-bit integer and a double, by value or by pointer with a C-compatible memory layout, and (b) a pointer to a contiguous array of doubles together with its length, and read/modify the array in place without copying it into a language-specific container."
+        },
+        {
+          "id": "FFI-4",
+          "requirement": "Make the declarations of a supplied C header file usable from the language using a first-party mechanism (direct header import, a first-party binding generator, or an officially published binding tool), without hand-writing the declarations."
+        }
+      ]
+    },
+    "CONC": {
+      "purpose": "Concurrency metric",
+      "probes": [
+        {
+          "id": "CONC-1",
+          "requirement": "Run a fixed CPU-bound workload (sum of sin(i)*sin(i) for i in 0..N, N chosen so the single-worker version takes between 2 and 10 seconds on this host) split across 4 workers using first-party parallelism, and separately with 1 worker. Record wall-clock time for both. Use the median of 5 runs each."
+        },
+        {
+          "id": "CONC-2",
+          "requirement": "A program in which two concurrent workers increment a shared counter without any synchronization, used to check whether the language rejects it at compile time or whether a first-party race detector reports it."
+        }
+      ]
+    },
+    "EXPR": {
+      "purpose": "Functionality / Expressiveness metric",
+      "probes": [
+        {
+          "id": "EXPR-<capability id>",
+          "requirement": "For each of the 24 capabilities enumerated in the Functionality / Expressiveness metric, one minimal program that uses that capability as the capability text describes, compiles (or loads) without error under the frozen recipe, and produces the stated expected output when run. First-party features and first-party standard library only; a capability that requires any package outside the toolchain distribution is UNSUPPORTED for that language."
+        }
+      ]
+    },
+    "DBG": {
+      "purpose": "Debugger / Profiler Support metric",
+      "probes": [
+        {
+          "id": "DBG-1",
+          "requirement": "A program that defines an aggregate type with a named integer field and a named string field, builds a standard-library dynamic array containing 3 such aggregates, calls a function that loops over the array, and prints a checksum. The program must run for at least 2 seconds of CPU time so that a sampling profiler collects samples."
+        }
+      ]
+    },
+    "TEST": {
+      "purpose": "Build / Test Integration metric",
+      "probes": [
+        {
+          "id": "TEST-1",
+          "requirement": "A test suite of exactly 3 tests using the language's first-party test construct or first-party test framework: two that assert a true condition and one that asserts a false condition."
+        },
+        {
+          "id": "TEST-2",
+          "requirement": "A project of at least two source modules plus one test module, built through the language's first-party build driver from its declarative manifest if one exists."
+        }
+      ]
+    },
+    "DEP": {
+      "purpose": "Dependency Simplicity metric",
+      "probes": [
+        {
+          "id": "DEP-1",
+          "requirement": "The complete frozen Standard workload set for that language (E7 corpus), built and run from a clean state on the host, with the package cache emptied before the offline-build check."
+        }
+      ]
+    },
+    "PORT": {
+      "purpose": "Portability metric",
+      "probes": [
+        {
+          "id": "PORT-1",
+          "requirement": "A hello-world program built for a non-host target (a target whose OS or CPU architecture differs from macOS/arm64) using only documented first-party target-selection flags, with no additional toolchain installation. Success = a target artifact is produced and the toolchain reports success; execution on the foreign target is not required and is not part of the criterion."
+        }
+      ]
+    }
+  },
+  "metrics": [
+    {
+      "metric": "Readability",
+      "table_row_label": "Readability",
+      "standard_category": "Language / Development",
+      "normalization_family": "G",
+      "is_proxy": true,
+      "proxy_statement": "THIS IS AN OBJECTIVE PROXY, NOT A HUMAN STUDY. No human subjects were recruited, tested, surveyed or observed for this metric, and no human-comprehension result is claimed, implied or extrapolated anywhere in this benchmark. Per spec section 8 ('Do not fabricate human-study results for metrics such as Readability. If an objective proxy is used, define it explicitly.'), Readability is scored here as a mechanically computable surface-form proxy consisting of two first-party-artifact indicators (existence of a canonical machine-enforced form, and of an official style guide) and four text-geometry measurements taken over the frozen benchmark source corpus (E7). The proxy measures surface regularity and surface complexity of the same algorithms expressed in each language. It does not measure comprehension, learnability, or subjective clarity, and it must never be reported as if it did.",
+      "proxy_limitations_to_publish_with_the_score": [
+        "The four corpus measurements are taken over code authored for this benchmark. They reflect both the language and the authoring of the implementations, even though the same algorithms, inputs and outputs are implemented idiomatically in all 10 languages per spec section 7.",
+        "Text geometry is not comprehension. A language may score low on this proxy and still be easy for a human to read, and the reverse.",
+        "Thresholds are absolute and were fixed before any measurement; they are not derived from the observed distribution."
+      ],
+      "evidence_sources": [
+        "E1",
+        "E2",
+        "E7"
+      ],
+      "corpus_definition": {
+        "name": "Frozen Readability corpus",
+        "contents": "For each language, every Standard-evaluation implementation source file written for this run: all micro benchmarks (spec 12: Fibonacci, factorial, integer arithmetic, floating-point arithmetic, vector inner product, matrix multiplication, sorting, strings, statistics, file I/O, collections), the SVM implementation (spec 13), the GMM implementation (spec 14) and the LightGrad implementation (spec 15).",
+        "identical_across_languages": "The workload set is identical for all 10 languages. Build scripts, manifests, generated files, vendored third-party sources and test fixtures are EXCLUDED. Only hand-written implementation sources are included.",
+        "preprocessing": "If indicator R1 is satisfied, all four text measurements are taken on the canonical-formatter output. If R1 is not satisfied, they are taken on the committed sources unchanged. This rule is stated in advance and applied identically to all 10 languages.",
+        "if_corpus_incomplete": "If a workload could not be implemented in a language, measure over the files that exist and record the missing workloads. If the corpus is empty for a language, R3, R4, R5 and R6 are all unsatisfied."
+      },
+      "measurement_definitions": {
+        "comment_and_literal_lexing": "Comment syntax and string/character-literal syntax are taken from each language's official documentation (E2) and recorded per language in the evidence record before measurement.",
+        "code_line": "A source line containing at least one non-whitespace character that lies outside a comment.",
+        "routine": "A named callable declaration (function, method, procedure, or equivalent) as defined by the language's official grammar. Anonymous closures are not routines but count toward the nesting depth of the routine that contains them.",
+        "routine_length": "Number of code lines strictly between the routine's first line and its last line, inclusive of both.",
+        "nesting_depth": "For a routine, the maximum number of simultaneously open statement blocks at any point in its body, where a statement block is any construct that the language's official grammar states introduces a new nested statement sequence (conditional, loop, match/switch arm body, exception handler, nested block, block-bodied closure, nested routine). The routine body itself counts as depth 1.",
+        "sigil_density": "Over all characters of the corpus that are non-whitespace and lie outside comments and outside string/character literals, the fraction that are NOT in the set [A-Za-z0-9_].",
+        "reference_implementation": "A single measurement script implementing these definitions, with one per-language lexing table, must be stored at benchmark/2026-09-17-7677581/scripts/readability_proxy.py and run unchanged for all 10 languages; its output is the evidence."
+      },
+      "indicators": [
+        {
+          "id": "R1",
+          "text": "A canonical automatic code formatter for the language is published by a member of the language's official_project_set, and running it over the frozen corpus succeeds and is idempotent (a second run produces byte-identical output).",
+          "evidence_source_id": "E1",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "R2",
+          "text": "A member of the language's official_project_set publishes a written style and/or naming-convention guide as a documentation artifact (not merely a formatter).",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "R3",
+          "text": "Over the frozen corpus: median code-line length <= 80 characters AND 95th-percentile code-line length <= 120 characters.",
+          "evidence_source_id": "E7"
+        },
+        {
+          "id": "R4",
+          "text": "Over the frozen corpus: median per-routine maximum nesting depth <= 4 AND no routine exceeds nesting depth 6.",
+          "evidence_source_id": "E7"
+        },
+        {
+          "id": "R5",
+          "text": "Over the frozen corpus: sigil density <= 0.30.",
+          "evidence_source_id": "E7"
+        },
+        {
+          "id": "R6",
+          "text": "Over the frozen corpus: median routine length <= 30 code lines AND no routine exceeds 100 code lines.",
+          "evidence_source_id": "E7"
+        }
+      ],
+      "scoring_procedure": "Count the satisfied indicators among R1-R6 and award the matching level. No other input may affect the score.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Canonical and low-surface-complexity",
+          "criteria": "All 6 indicators satisfied: canonical official formatter (idempotent on the corpus), official style guide, and all four corpus measurements within their frozen thresholds."
+        },
+        {
+          "score": 80,
+          "name": "Strong",
+          "criteria": "Exactly 5 of R1-R6 satisfied."
+        },
+        {
+          "score": 60,
+          "name": "Adequate",
+          "criteria": "Exactly 4 of R1-R6 satisfied."
+        },
+        {
+          "score": 40,
+          "name": "Mixed",
+          "criteria": "Exactly 3 of R1-R6 satisfied."
+        },
+        {
+          "score": 20,
+          "name": "Weak",
+          "criteria": "Exactly 2 of R1-R6 satisfied."
+        },
+        {
+          "score": 0,
+          "name": "Minimal",
+          "criteria": "0 or 1 of R1-R6 satisfied."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must contain: (a) the exact formatter command executed on the host, its exit status, and the diff proving byte-identical output on a second run; (b) the URL and a verbatim excerpt of the official style guide; (c) the readability_proxy.py output showing median and p95 line length, median and maximum nesting depth, sigil density, and median and maximum routine length, each compared against its frozen threshold. Any missing item forbids 100.",
+      "na_policy": "Never N/A. A language with no formatter, no style guide, and corpus measurements outside all thresholds scores 0."
+    },
+    {
+      "metric": "Functionality / Expressiveness",
+      "table_row_label": "Functionality / Expressiveness",
+      "standard_category": "Language / Development",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "The number of capabilities from a fixed, language-neutral, 24-item general-purpose-programming capability checklist that the language supports using first-party features and its first-party standard library only.",
+      "neutrality_note": "The 24 capabilities were selected to span the mainstream language families represented in the fixed comparison set (dynamic scripting, systems, managed/VM, functional-influenced, and ahead-of-time compiled). No item was added because Quidra has it, and no item was removed because Quidra lacks it. Items that Quidra may fail remain in the list.",
+      "overlap_declaration": "E19 (concurrency primitive in the standard library) and E22 (first-party test construct) also appear as inputs to the Concurrency and Build/Test Integration metrics respectively. This overlap is declared in advance and is not adjusted for, because spec 8.1 fixes equal within-category weights and forbids post-hoc metric-membership changes.",
+      "evidence_sources": [
+        "E1",
+        "E2"
+      ],
+      "capability_checklist": [
+        {
+          "id": "X01",
+          "capability": "User-defined product type with named fields (struct, record, class, or equivalent), constructible and field-accessible."
+        },
+        {
+          "id": "X02",
+          "capability": "User-defined sum type / tagged union with case analysis that the toolchain checks for exhaustiveness, or, if exhaustiveness is not checked, a first-party tagged-union type with a documented discriminant."
+        },
+        {
+          "id": "X03",
+          "capability": "Parametric polymorphism: a type or routine parameterized over a type parameter, instantiable at two different argument types."
+        },
+        {
+          "id": "X04",
+          "capability": "Interface / protocol / trait-style abstraction with dynamic dispatch through a value whose concrete type is chosen at run time."
+        },
+        {
+          "id": "X05",
+          "capability": "First-class functions and closures that capture a variable from the enclosing scope."
+        },
+        {
+          "id": "X06",
+          "capability": "Pattern matching or destructuring binding that decomposes an aggregate into its components in a single binding form."
+        },
+        {
+          "id": "X07",
+          "capability": "A user-definable iterator/generator/sequence abstraction consumable by the language's own loop or iteration construct."
+        },
+        {
+          "id": "X08",
+          "capability": "A first-class error-signalling and handling construct with propagation across call frames (exceptions, or result/error values with a propagation operator or documented propagation idiom in the standard library)."
+        },
+        {
+          "id": "X09",
+          "capability": "A deterministic resource-cleanup construct that runs cleanup on scope exit including on the error path (destructors/RAII, defer, try-with-resources, context manager, or equivalent)."
+        },
+        {
+          "id": "X10",
+          "capability": "Operator overloading or user-defined behaviour for at least one built-in operator on a user-defined type."
+        },
+        {
+          "id": "X11",
+          "capability": "Compile-time or load-time constant evaluation of a non-trivial expression, documented as guaranteed by the language (a constant expression evaluated before run time)."
+        },
+        {
+          "id": "X12",
+          "capability": "First-party metaprogramming: macros, compile-time code generation, or runtime reflection over program structure."
+        },
+        {
+          "id": "X13",
+          "capability": "Modules or namespaces with explicit import and at least two visibility levels (public and non-public)."
+        },
+        {
+          "id": "X14",
+          "capability": "Standard library provides all three of: growable array/list, hash map/dictionary, and set."
+        },
+        {
+          "id": "X15",
+          "capability": "Standard library provides Unicode-aware string handling: documented Unicode text representation and at least one Unicode-aware operation (case mapping, normalization, or codepoint/grapheme iteration)."
+        },
+        {
+          "id": "X16",
+          "capability": "Constraints or bounds on type parameters (trait bounds, where-clauses, interface constraints, type classes, or equivalent) enforced by the toolchain."
+        },
+        {
+          "id": "X17",
+          "capability": "IEEE-754 double-precision floating point with a standard-library math set of at least sqrt, exp, log and the trigonometric functions."
+        },
+        {
+          "id": "X18",
+          "capability": "Standard library file I/O and filesystem operations: read a file, write a file, and query path existence."
+        },
+        {
+          "id": "X19",
+          "capability": "Standard library concurrency primitive of any kind (thread, task, coroutine, process, or async runtime)."
+        },
+        {
+          "id": "X20",
+          "capability": "First-party standard-library serialization to and from a structured textual data format (JSON or an equivalent documented structured format)."
+        },
+        {
+          "id": "X21",
+          "capability": "First-party standard-library regular expressions with match and capture-group extraction."
+        },
+        {
+          "id": "X22",
+          "capability": "First-party unit-test construct or test framework shipped with the toolchain distribution."
+        },
+        {
+          "id": "X23",
+          "capability": "A non-copying view/slice over a contiguous sequence, where mutating through the view is observable in the original storage."
+        },
+        {
+          "id": "X24",
+          "capability": "Arbitrary-precision integer arithmetic in the standard library, OR documented fixed-width integer semantics together with a standard-library checked or wrapping arithmetic API."
+        }
+      ],
+      "verification_rule": "A capability is supported only if its EXPR probe for that language compiles/loads without error under the frozen recipe and produces the expected output when run on the host (E1), AND the feature used is documented in that language's official documentation (E2). A capability that requires any package outside the toolchain distribution is NOT supported. Record the probe path, the command, the output, and the documentation URL for each supported capability, and the reason for each unsupported one.",
+      "scoring_procedure": "Let S = number of supported capabilities out of 24. Award the level whose band contains S.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Comprehensive",
+          "criteria": "S >= 22 of 24 capabilities supported with first-party features only."
+        },
+        {
+          "score": 80,
+          "name": "Broad",
+          "criteria": "18 <= S <= 21."
+        },
+        {
+          "score": 60,
+          "name": "Substantial",
+          "criteria": "14 <= S <= 17."
+        },
+        {
+          "score": 40,
+          "name": "Partial",
+          "criteria": "10 <= S <= 13."
+        },
+        {
+          "score": 20,
+          "name": "Limited",
+          "criteria": "6 <= S <= 9."
+        },
+        {
+          "score": 0,
+          "name": "Minimal",
+          "criteria": "S <= 5."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must list at least 22 capability ids, each with: the probe source path, the exact build/run command, the captured successful output, and the official documentation URL with a verbatim excerpt naming the feature. Capabilities claimed from documentation alone, without an executed probe, do not count.",
+      "na_policy": "Never N/A. Unsupported capabilities are counted as unsupported and lower the score."
+    },
+    {
+      "metric": "Diagnostics",
+      "table_row_label": "Diagnostics",
+      "standard_category": "Language / Development",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "The information content and machine-consumability of the diagnostics that the language's frozen toolchain emits for a fixed set of 8 seeded single-defect programs.",
+      "evidence_sources": [
+        "E1",
+        "E2"
+      ],
+      "probe_set": "DIAG (8 probes, frozen in frozen_probe_sets)",
+      "aggregation_rule": "Each of D1-D5 is evaluated per probe and is SATISFIED for the language only if it holds for at least 6 of the 8 DIAG probes. D6 is a single toolchain-level check. Probes that emit no diagnostic at all count as failing every per-probe indicator.",
+      "indicators": [
+        {
+          "id": "D1",
+          "text": "The first diagnostic states the source file, the line number, and the column (or character offset) of the defect.",
+          "evidence_source_id": "E1"
+        },
+        {
+          "id": "D2",
+          "text": "The first diagnostic reproduces the offending source line or a source excerpt/caret indication pointing at the defect.",
+          "evidence_source_id": "E1"
+        },
+        {
+          "id": "D3",
+          "text": "The first diagnostic carries a stable machine-readable diagnostic identifier (an error/warning code or named rule) that is documented in the official documentation.",
+          "evidence_source_id": "E1",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "D4",
+          "text": "The first diagnostic names the specific program entities involved: the offending identifier by name, and/or both conflicting types spelled out, rather than only a generic category.",
+          "evidence_source_id": "E1"
+        },
+        {
+          "id": "D5",
+          "text": "The first diagnostic includes at least one actionable help/note/suggestion/fix line that states what to do, distinct from restating the error.",
+          "evidence_source_id": "E1"
+        },
+        {
+          "id": "D6",
+          "text": "The toolchain emits its diagnostics in a structured machine-readable format (JSON, SARIF, or equivalent) via a flag or mode documented in the official documentation; verified by executing it on DIAG-2 and parsing the output successfully.",
+          "evidence_source_id": "E1",
+          "supporting_source_id": "E2"
+        }
+      ],
+      "scoring_procedure": "Count the satisfied indicators among D1-D6 and award the matching level.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Located, explained, actionable and machine-readable",
+          "criteria": "All 6 indicators satisfied."
+        },
+        {
+          "score": 80,
+          "name": "Strong",
+          "criteria": "Exactly 5 of D1-D6 satisfied."
+        },
+        {
+          "score": 60,
+          "name": "Adequate",
+          "criteria": "Exactly 4 of D1-D6 satisfied."
+        },
+        {
+          "score": 40,
+          "name": "Basic",
+          "criteria": "Exactly 3 of D1-D6 satisfied."
+        },
+        {
+          "score": 20,
+          "name": "Weak",
+          "criteria": "Exactly 2 of D1-D6 satisfied."
+        },
+        {
+          "score": 0,
+          "name": "Minimal or absent",
+          "criteria": "0 or 1 of D1-D6 satisfied, which includes any language whose toolchain emits no diagnostic for 3 or more of the 8 probes."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must contain the complete captured diagnostic text for all 8 probes, a per-probe yes/no table for D1-D5 showing at least 6 of 8 for each, the documentation URL for the diagnostic-code scheme (D3), and the structured-output command plus the successfully parsed machine-readable diagnostic (D6).",
+      "na_policy": "Never N/A. A toolchain that reports defects without location, entity names or suggestions receives the low level."
+    },
+    {
+      "metric": "Dependency Simplicity",
+      "table_row_label": "Dependency Simplicity",
+      "standard_category": "Language / Development",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "How little external dependency machinery is required to build and run the complete frozen Standard workload set in the language, measured as the number of distinct non-toolchain packages required plus the reproducibility properties of obtaining them.",
+      "evidence_sources": [
+        "E1",
+        "E2",
+        "E7"
+      ],
+      "measured_quantities": {
+        "D_total": "The number of DISTINCT packages, direct plus transitive, that are required to build and run the complete frozen Standard workload corpus (E7) for that language and that are NOT installed by the toolchain distribution present on this host. Determined by resolving the workload's declared dependencies with the language's own package mechanism and counting distinct package identities (name, ignoring version). Publisher identity is irrelevant: a package published by the language's own project still counts if it is not part of the installed toolchain distribution. Standard-library modules that ship with the toolchain count as 0.",
+        "offline_build": "Whether the complete workload set builds successfully with the package cache emptied and with network access disabled (or, equivalently, with the toolchain's documented offline flag). Verified on the host.",
+        "pinning": "Whether the language's own package mechanism can pin exact resolved versions of all transitive dependencies for reproducible rebuild (lockfile, vendoring, or documented exact-pin manifest), per official documentation.",
+        "install_units": "The number of separately installable components that had to be present on this host to compile AND run the workload set (counting one official distribution as one unit). Recorded from environment/environment.json toolchains plus the frozen recipes."
+      },
+      "scoring_procedure": "Compute D_total, offline_build, pinning and install_units, then award the highest level whose criteria are fully met, testing levels from 100 downward.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Self-contained single unit",
+          "criteria": "D_total = 0 AND offline_build succeeds AND install_units = 1 (one official distribution provides both compilation and execution of the workload set)."
+        },
+        {
+          "score": 80,
+          "name": "Self-contained, multiple install units",
+          "criteria": "D_total = 0 AND offline_build succeeds AND install_units >= 2."
+        },
+        {
+          "score": 60,
+          "name": "Few pinned dependencies",
+          "criteria": "1 <= D_total <= 3 AND pinning is available AND offline_build succeeds after a single initial fetch."
+        },
+        {
+          "score": 40,
+          "name": "Moderate pinned dependency graph",
+          "criteria": "4 <= D_total <= 10 AND pinning is available AND offline_build succeeds after a single initial fetch."
+        },
+        {
+          "score": 20,
+          "name": "Large or unpinned dependency graph",
+          "criteria": "11 <= D_total <= 50, OR (1 <= D_total <= 50 AND pinning is not available), OR (1 <= D_total <= 50 AND offline_build fails)."
+        },
+        {
+          "score": 0,
+          "name": "Unbounded or unresolvable",
+          "criteria": "D_total > 50, OR the workload set cannot be built at all on this host without dependency resolution that the language provides no documented way to pin or reproduce."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must contain: the full dependency-resolution output or an explicit statement plus command proving zero non-toolchain packages; the exact offline build command, the cache-clearing command preceding it, and its successful exit status; and the list of installed components from environment/environment.json showing a single official distribution covering both build and run.",
+      "na_policy": "Never N/A. A language whose workloads require a large unpinnable dependency graph receives the low level; a language that needs none receives the high level."
+    },
+    {
+      "metric": "Portability",
+      "table_row_label": "Portability",
+      "standard_category": "Language / Development",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "The breadth of officially supported platforms for the toolchain, the presence of documented cross-target support, the platform independence of the first-party standard library, and implementation independence of the language definition.",
+      "evidence_sources": [
+        "E1",
+        "E2",
+        "E3"
+      ],
+      "indicators": [
+        {
+          "id": "P1",
+          "text": "A member of the language's official_project_set publishes ready-to-install toolchain builds (installers, archives or release assets) for at least 3 distinct operating-system families.",
+          "evidence_source_id": "E3",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "P2",
+          "text": "Those official builds cover at least 2 distinct CPU architecture families (for example x86-64 and AArch64).",
+          "evidence_source_id": "E3",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "P3",
+          "text": "The installed toolchain can produce an artifact for a target whose OS or CPU architecture differs from the host, using only documented first-party target-selection flags and no additional toolchain installation; verified by building probe PORT-1 on the host.",
+          "evidence_source_id": "E1",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "P4",
+          "text": "Official documentation publishes an explicit platform-support list that names supported platforms and their support status (for example a tiered support table or a supported-platforms page).",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "P5",
+          "text": "The first-party standard library documents platform-independent APIs for ALL FOUR of: file input/output, filesystem path manipulation, clock/time, and environment-variable or process access.",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "P6",
+          "text": "The language's behaviour is defined independently of a single implementation: either a published language specification/reference standard exists that an independent implementation could be written against, or at least two independently developed implementations of the language exist and are acknowledged by official documentation.",
+          "evidence_source_id": "E2",
+          "supporting_source_id": "E3"
+        }
+      ],
+      "scoring_procedure": "Count the satisfied indicators among P1-P6 and award the matching level.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Multi-OS, multi-architecture, cross-targeting, specified",
+          "criteria": "All 6 indicators satisfied."
+        },
+        {
+          "score": 80,
+          "name": "Strong",
+          "criteria": "Exactly 5 of P1-P6 satisfied."
+        },
+        {
+          "score": 60,
+          "name": "Adequate",
+          "criteria": "Exactly 4 of P1-P6 satisfied."
+        },
+        {
+          "score": 40,
+          "name": "Partial",
+          "criteria": "Exactly 3 of P1-P6 satisfied."
+        },
+        {
+          "score": 20,
+          "name": "Narrow",
+          "criteria": "Exactly 2 of P1-P6 satisfied."
+        },
+        {
+          "score": 0,
+          "name": "Host-bound",
+          "criteria": "0 or 1 of P1-P6 satisfied."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must contain: the official download/release URLs enumerating OS families and architectures (P1, P2); the exact cross-target build command executed on the host with its successful exit status and the produced artifact path plus a file-type identification of that artifact showing the foreign target (P3); the platform-support page URL with a verbatim excerpt (P4); four standard-library documentation URLs, one per required API area (P5); and the specification URL or the official acknowledgement of a second independent implementation (P6).",
+      "na_policy": "Never N/A. A language available only for the host platform receives the low level."
+    },
+    {
+      "metric": "FFI / Interoperability",
+      "table_row_label": "Interoperability",
+      "standard_category": "Language / Development",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "The ability, using first-party features only, to call into and be called from the platform C ABI, to exchange aggregate and array data across that boundary without copying, to consume existing C declarations mechanically, and to interoperate with at least one further non-C ecosystem.",
+      "evidence_sources": [
+        "E1",
+        "E2"
+      ],
+      "probe_set": "FFI (4 probes, frozen in frozen_probe_sets)",
+      "indicators": [
+        {
+          "id": "F1",
+          "text": "Probe FFI-1 builds and runs successfully on the host using only first-party features and documented first-party flags, printing the correct value of cos(1.0) to at least 6 significant digits.",
+          "evidence_source_id": "E1"
+        },
+        {
+          "id": "F2",
+          "text": "Probe FFI-2 builds successfully and the resulting symbol is callable from a C program compiled with clang on this host, returning the correct sum.",
+          "evidence_source_id": "E1"
+        },
+        {
+          "id": "F3",
+          "text": "The FFI mechanism used by F1 and F2 is documented in the language's official documentation, including how foreign types map to language types.",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "F4",
+          "text": "Probe FFI-3 builds and runs successfully: a mixed-field struct crosses the C boundary with a C-compatible layout, and a pointer+length array of doubles is modified in place across the boundary with the modification observable on the other side, without copying into a language-specific container.",
+          "evidence_source_id": "E1"
+        },
+        {
+          "id": "F5",
+          "text": "Probe FFI-4 succeeds: C declarations from a supplied header become usable through a first-party mechanism (direct header import, a binding generator shipped with the toolchain, or a binding generator published by a member of the official_project_set), without hand-writing the declarations.",
+          "evidence_source_id": "E1",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "F6",
+          "text": "Official documentation describes first-party interoperation with at least one additional non-C ecosystem or ABI (for example the JVM, .NET, Objective-C/Swift runtime, JavaScript/WASM, or Python's C-API), AND the corresponding target, flag or feature is present in the installed toolchain on this host.",
+          "evidence_source_id": "E2",
+          "supporting_source_id": "E1"
+        }
+      ],
+      "scoring_procedure": "Count the satisfied indicators among F1-F6 and award the matching level.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Bidirectional, zero-copy, header-consuming, multi-ecosystem",
+          "criteria": "All 6 indicators satisfied."
+        },
+        {
+          "score": 80,
+          "name": "Strong",
+          "criteria": "Exactly 5 of F1-F6 satisfied."
+        },
+        {
+          "score": 60,
+          "name": "Adequate",
+          "criteria": "Exactly 4 of F1-F6 satisfied."
+        },
+        {
+          "score": 40,
+          "name": "Basic",
+          "criteria": "Exactly 3 of F1-F6 satisfied."
+        },
+        {
+          "score": 20,
+          "name": "Limited",
+          "criteria": "Exactly 2 of F1-F6 satisfied."
+        },
+        {
+          "score": 0,
+          "name": "Closed",
+          "criteria": "0 or 1 of F1-F6 satisfied, which includes any language that cannot call a C library function with first-party features."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must contain, for each of FFI-1 through FFI-4: the probe source path, the exact build and run commands, the exit statuses and the captured correct output; plus the official FFI documentation URL with a verbatim excerpt of the type-mapping rules (F3); plus, for F6, the documentation URL for the additional ecosystem and the host command output proving the target/flag exists in the installed toolchain.",
+      "na_policy": "Never N/A. A language with no first-party foreign-function capability receives 0 rather than N/A, because this metric intentionally tests that capability."
+    },
+    {
+      "metric": "Concurrency",
+      "table_row_label": "Concurrency",
+      "standard_category": "Language / Development",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "First-party support for parallel execution, synchronization, message passing, asynchronous concurrency, data-race detection or prevention, and structured task parallelism.",
+      "evidence_sources": [
+        "E1",
+        "E2"
+      ],
+      "probe_set": "CONC (2 probes, frozen in frozen_probe_sets)",
+      "indicators": [
+        {
+          "id": "C1",
+          "text": "Probe CONC-1 demonstrates real parallel speedup with first-party features only: median wall-clock time of the 4-worker version <= median wall-clock time of the 1-worker version divided by 1.5, on this 8-logical-CPU host, with both versions producing the same numeric result.",
+          "evidence_source_id": "E1"
+        },
+        {
+          "id": "C2",
+          "text": "The first-party standard library documents ALL THREE of: a mutual-exclusion primitive, a condition-variable or equivalent blocking-wait/notify primitive, and atomic operations on a machine word.",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "C3",
+          "text": "The first-party standard library provides a message-passing type for transferring values between concurrent workers (channel, queue, mailbox, or equivalent), documented in official documentation.",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "C4",
+          "text": "The language or its first-party standard library provides an asynchronous concurrency model usable without any third-party package (async/await, coroutines, lightweight/green threads, or a first-party event loop), documented in official documentation.",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "C5",
+          "text": "Probe CONC-2 is either rejected at compile time by the toolchain with a diagnostic naming the unsynchronized shared access, OR is reported at run time by a race detector shipped with the toolchain or published by a member of the official_project_set; verified by executing the check on the host.",
+          "evidence_source_id": "E1",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "C6",
+          "text": "The first-party standard library provides a structured task-parallelism abstraction above raw threads (task group, thread pool, parallel executor, scoped-thread construct, or parallel collection operation), documented in official documentation.",
+          "evidence_source_id": "E2"
+        }
+      ],
+      "scoring_procedure": "Count the satisfied indicators among C1-C6 and award the matching level.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Parallel, synchronized, asynchronous, race-checked and structured",
+          "criteria": "All 6 indicators satisfied."
+        },
+        {
+          "score": 80,
+          "name": "Strong",
+          "criteria": "Exactly 5 of C1-C6 satisfied."
+        },
+        {
+          "score": 60,
+          "name": "Adequate",
+          "criteria": "Exactly 4 of C1-C6 satisfied."
+        },
+        {
+          "score": 40,
+          "name": "Basic",
+          "criteria": "Exactly 3 of C1-C6 satisfied."
+        },
+        {
+          "score": 20,
+          "name": "Limited",
+          "criteria": "Exactly 2 of C1-C6 satisfied."
+        },
+        {
+          "score": 0,
+          "name": "Sequential",
+          "criteria": "0 or 1 of C1-C6 satisfied, which includes any language that cannot achieve parallel speedup and provides no first-party concurrency primitives."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must contain: the CONC-1 probe sources for 1 and 4 workers, all 5 timing runs each, both medians, the computed speedup ratio and the identical numeric results (C1); standard-library documentation URLs with verbatim excerpts for the mutex, the condition variable and the atomics (C2); the channel/queue documentation URL (C3); the asynchronous-model documentation URL (C4); the captured compile-time rejection diagnostic or race-detector report for CONC-2 with the exact command (C5); and the structured-parallelism documentation URL (C6).",
+      "na_policy": "Never N/A. A language without first-party concurrency receives the low level, because this metric intentionally tests that capability. In particular, a runtime-level restriction on parallel execution (such as a global interpreter lock in the installed interpreter build) causes C1 to be unsatisfied on the measured evidence; it is not an excuse for N/A."
+    },
+    {
+      "metric": "Ecosystem Breadth",
+      "table_row_label": "Ecosystem Breadth",
+      "standard_category": "Ecosystem / Production Maturity",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "The number of distinct application domains, from a fixed 12-domain list, for which the language has an obtainable and recently maintained library.",
+      "neutrality_note": "The 12 domains are ordinary general-purpose application areas. None was chosen because of any language's strengths. The list is fixed here before any language is examined.",
+      "evidence_sources": [
+        "E2",
+        "E4",
+        "E6"
+      ],
+      "domain_list": [
+        {
+          "id": "B01",
+          "domain": "HTTP client and/or HTTP server"
+        },
+        {
+          "id": "B02",
+          "domain": "Structured data serialization (JSON or equivalent)"
+        },
+        {
+          "id": "B03",
+          "domain": "Relational database client/driver (SQL)"
+        },
+        {
+          "id": "B04",
+          "domain": "Numerical computing / linear algebra (matrix and vector operations)"
+        },
+        {
+          "id": "B05",
+          "domain": "Machine learning or neural networks"
+        },
+        {
+          "id": "B06",
+          "domain": "Image loading/processing"
+        },
+        {
+          "id": "B07",
+          "domain": "Cryptography and/or TLS"
+        },
+        {
+          "id": "B08",
+          "domain": "Graphical user interface or 2D/3D graphics rendering"
+        },
+        {
+          "id": "B09",
+          "domain": "Command-line argument parsing"
+        },
+        {
+          "id": "B10",
+          "domain": "Structured logging"
+        },
+        {
+          "id": "B11",
+          "domain": "Date, time and time-zone handling"
+        },
+        {
+          "id": "B12",
+          "domain": "Compression (for example gzip, zlib or zstd)"
+        }
+      ],
+      "domain_satisfaction_rule": "A domain counts as covered for a language only if BOTH hold: (a) a library covering that domain is either part of the first-party standard library (E2) or is published in that language's qualifying package index as selected by the frozen index_selection_rule in the Library Availability metric (E4); AND (b) that library has a published release, or a documentation version, dated within 24 months before the evidence cutoff 2026-09-17. Exactly one library is recorded per covered domain: the first one found by the fixed search procedure. If no qualifying index exists for a language, only first-party standard-library coverage can satisfy a domain, which is a real and reportable property of that language.",
+      "fixed_search_procedure": "For each domain, in domain id order: (1) search the language's official standard-library API index (E2) for the domain keyword; if a standard-library module covers the domain, record it and stop. (2) Otherwise query the qualifying package index's own search with the domain keyword, sorted by the index's default relevance ordering, and take the first result whose own description states it covers the domain and whose latest release date is within the 24-month window; record name, version, release date and URL. (3) Otherwise the domain is not covered. The identical keyword list is used for all 10 languages and must be written into the evidence record before the first language is searched.",
+      "scoring_procedure": "Let N = number of covered domains out of 12. Award the level whose band contains N.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Complete breadth",
+          "criteria": "N = 12 of 12 domains covered."
+        },
+        {
+          "score": 80,
+          "name": "Broad",
+          "criteria": "N = 10 or 11."
+        },
+        {
+          "score": 60,
+          "name": "Substantial",
+          "criteria": "7 <= N <= 9."
+        },
+        {
+          "score": 40,
+          "name": "Partial",
+          "criteria": "4 <= N <= 6."
+        },
+        {
+          "score": 20,
+          "name": "Narrow",
+          "criteria": "N = 2 or 3."
+        },
+        {
+          "score": 0,
+          "name": "Minimal",
+          "criteria": "N = 0 or 1."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must name, for all 12 domains, the specific standard-library module or package, its version, its release or documentation date inside the 24-month window, and its URL, all collected with the same fixed keyword list used for every language.",
+      "na_policy": "Never N/A. A language with no package index and a small standard library receives the low level."
+    },
+    {
+      "metric": "Tooling",
+      "table_row_label": "Tooling",
+      "standard_category": "Ecosystem / Production Maturity",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "The presence of six first-party developer tools published by the language's official project set, and how many of them are present and runnable on the frozen measurement host.",
+      "evidence_sources": [
+        "E1",
+        "E2",
+        "E3"
+      ],
+      "indicators": [
+        {
+          "id": "T1",
+          "text": "A first-party build driver: an official command that builds a multi-file project without hand-written per-file compiler invocations.",
+          "evidence_source_id": "E2",
+          "supporting_source_id": "E3"
+        },
+        {
+          "id": "T2",
+          "text": "A first-party code formatter that rewrites source into a canonical form.",
+          "evidence_source_id": "E2",
+          "supporting_source_id": "E3"
+        },
+        {
+          "id": "T3",
+          "text": "A first-party linter or static analyzer that reports issues beyond the compiler's or interpreter's default error set.",
+          "evidence_source_id": "E2",
+          "supporting_source_id": "E3"
+        },
+        {
+          "id": "T4",
+          "text": "A first-party test runner command that discovers and executes tests.",
+          "evidence_source_id": "E2",
+          "supporting_source_id": "E3"
+        },
+        {
+          "id": "T5",
+          "text": "A first-party API documentation generator that produces documentation from source declarations and doc comments.",
+          "evidence_source_id": "E2",
+          "supporting_source_id": "E3"
+        },
+        {
+          "id": "T6",
+          "text": "A first-party package or dependency manager command.",
+          "evidence_source_id": "E2",
+          "supporting_source_id": "E3"
+        }
+      ],
+      "host_presence_check": "Independently of satisfaction, for each satisfied indicator the scorer records whether the tool is present on the frozen host by executing its documented version command (E1) and capturing the output. This count is called H.",
+      "scoring_procedure": "Let T = number of satisfied indicators among T1-T6 and H = number of those tools that were successfully executed on the frozen host. Award the highest level whose criteria are met, testing from 100 downward.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Complete first-party tool suite, installed",
+          "criteria": "T = 6 AND H >= 4."
+        },
+        {
+          "score": 80,
+          "name": "Complete or near-complete suite",
+          "criteria": "T = 6 AND H <= 3, OR T = 5."
+        },
+        {
+          "score": 60,
+          "name": "Substantial",
+          "criteria": "T = 4."
+        },
+        {
+          "score": 40,
+          "name": "Partial",
+          "criteria": "T = 3."
+        },
+        {
+          "score": 20,
+          "name": "Sparse",
+          "criteria": "T = 2."
+        },
+        {
+          "score": 0,
+          "name": "Compiler/interpreter only",
+          "criteria": "T <= 1."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must contain, for all six tools, the official documentation or official repository URL naming the tool and its publisher, plus, for at least four of them, the exact version command executed on the host with its captured output and exit status.",
+      "na_policy": "Never N/A. A language shipping only a compiler or interpreter receives 0 on this metric."
+    },
+    {
+      "metric": "Library Availability",
+      "table_row_label": "Library Availability",
+      "standard_category": "Ecosystem / Production Maturity",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "The size of the language's obtainable third-party library population, measured as the total published package count of the single qualifying package index selected for that language by the frozen index_selection_rule.",
+      "evidence_sources": [
+        "E2",
+        "E4"
+      ],
+      "index_selection_rule": {
+        "qualification": "A package index QUALIFIES for a language if it distributes libraries for that language AND satisfies at least one of: (i) it is referenced by a member of the language's official_project_set in official documentation; (ii) it is the default remote of a package manager that the language's official documentation names; (iii) it is published or maintained by a maintainer of a major implementation of that language.",
+        "selection": "Among qualifying indexes, select the one with the LARGEST total published package count as self-published by that index. Record why it qualified, which clause it satisfied, and the counts of every other qualifying index considered.",
+        "count_source": "The index's own published total, taken from its front page, its statistics page, or its documented public API. Record the figure verbatim with its URL and accession timestamp. Do not estimate, extrapolate, or sum across indexes.",
+        "no_qualifying_index": "If no index qualifies for a language at the evidence cutoff, the recorded count is 0 and the language receives the level for count 0. This is a real property of the language's present ecosystem and is not N/A.",
+        "fairness_note": "Clause (iii) exists so that a language governed by a standards body rather than by a single vendor is not scored as having no libraries merely because its standards body does not operate a registry. It is written language-neutrally and may be used by any of the 10 languages."
+      },
+      "scoring_procedure": "Let C = the selected index's published package count (0 if no index qualifies). Award the level whose band contains C.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Very large library population",
+          "criteria": "C >= 100000 published packages in the selected qualifying index."
+        },
+        {
+          "score": 80,
+          "name": "Large",
+          "criteria": "10000 <= C < 100000."
+        },
+        {
+          "score": 60,
+          "name": "Moderate",
+          "criteria": "1000 <= C < 10000."
+        },
+        {
+          "score": 40,
+          "name": "Small",
+          "criteria": "100 <= C < 1000."
+        },
+        {
+          "score": 20,
+          "name": "Nascent",
+          "criteria": "1 <= C < 100."
+        },
+        {
+          "score": 0,
+          "name": "No qualifying index",
+          "criteria": "C = 0, meaning no index satisfying the qualification clauses exists for the language at the evidence cutoff, or the qualifying index publishes no packages."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must name the selected index, state which qualification clause it satisfied with the supporting URL and verbatim excerpt, give the index's own published package-count figure verbatim with its URL and accession timestamp, and list every other qualifying index considered with its count, showing the selected one is the largest.",
+      "na_policy": "Never N/A. Absence of a package index is scored 0."
+    },
+    {
+      "metric": "Package / Dependency Management",
+      "table_row_label": "Package / Dependency Management",
+      "standard_category": "Ecosystem / Production Maturity",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "The capability of the language's package manager: existence, transitive resolution, version pinning, version-constraint expression, offline/cached operation, and integrity verification.",
+      "evidence_sources": [
+        "E1",
+        "E2"
+      ],
+      "manager_selection_rule": "The package manager evaluated is the one shipped with the language's official toolchain distribution if such a manager exists; otherwise the package manager whose default remote is the index selected by the Library Availability index_selection_rule. Record which manager was evaluated and why. If neither exists, all indicators M1-M6 are unsatisfied.",
+      "indicators": [
+        {
+          "id": "M1",
+          "text": "A package manager for the language exists under the manager_selection_rule and its documentation is published by a member of the official_project_set or by the manager's own maintainers.",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "M2",
+          "text": "The manager resolves transitive dependencies automatically from a declared direct-dependency manifest, as stated in its documentation.",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "M3",
+          "text": "The manager produces a lockfile or an equivalent artifact that records the exact resolved version of every direct and transitive dependency for reproducible rebuilds, as stated in its documentation.",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "M4",
+          "text": "The manifest format supports version constraints or ranges (not only exact pins), with the constraint syntax documented.",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "M5",
+          "text": "The manager supports building from a local cache, a vendored copy, or a documented offline mode after an initial fetch, as stated in its documentation.",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "M6",
+          "text": "The manager verifies the integrity of fetched packages using checksums, hashes or signatures, as stated in its documentation.",
+          "evidence_source_id": "E2"
+        }
+      ],
+      "host_presence_check": "Record whether the selected manager is installed by the official toolchain distribution present on this host, by executing its documented version command (E1) and capturing the output. Call this boolean INSTALLED.",
+      "scoring_procedure": "Let M = number of satisfied indicators among M1-M6. Award the highest level whose criteria are met, testing from 100 downward.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Complete and toolchain-integrated",
+          "criteria": "M = 6 AND INSTALLED is true (the manager is present in the official toolchain distribution on this host and its version command succeeded)."
+        },
+        {
+          "score": 80,
+          "name": "Complete or near-complete",
+          "criteria": "M = 6 AND INSTALLED is false, OR M = 5."
+        },
+        {
+          "score": 60,
+          "name": "Substantial",
+          "criteria": "M = 4."
+        },
+        {
+          "score": 40,
+          "name": "Basic",
+          "criteria": "M = 3."
+        },
+        {
+          "score": 20,
+          "name": "Rudimentary",
+          "criteria": "M = 2."
+        },
+        {
+          "score": 0,
+          "name": "None or manual",
+          "criteria": "M <= 1, which includes any language for which no package manager exists under the manager_selection_rule."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must contain six documentation URLs with verbatim excerpts, one per indicator, plus the manager's version command executed on the host with its captured output and exit status proving it ships with the installed official toolchain distribution.",
+      "na_policy": "Never N/A. A language with no package manager receives 0."
+    },
+    {
+      "metric": "IDE / Editor Support",
+      "table_row_label": "IDE / Editor Support",
+      "standard_category": "Ecosystem / Production Maturity",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "The existence and feature depth of officially published or major-implementation-maintained editor integration for the language.",
+      "evidence_sources": [
+        "E2",
+        "E3",
+        "E5"
+      ],
+      "indicators": [
+        {
+          "id": "I1",
+          "text": "A Language Server Protocol implementation (or an equivalent documented editor-integration server) for the language exists and is published by a member of the official_project_set or by a maintainer of a major implementation of the language.",
+          "evidence_source_id": "E5"
+        },
+        {
+          "id": "I2",
+          "text": "That implementation's official documentation or published feature list states that it provides ALL THREE of: diagnostics, code completion, and go-to-definition.",
+          "evidence_source_id": "E5"
+        },
+        {
+          "id": "I3",
+          "text": "It additionally states that it provides ALL THREE of: hover type/signature information, find-references, and rename or another automated refactoring.",
+          "evidence_source_id": "E5"
+        },
+        {
+          "id": "I4",
+          "text": "An editor extension or plugin for the language is published in a widely used editor's official extension marketplace or plugin repository by a member of the official_project_set or by a maintainer of a major implementation.",
+          "evidence_source_id": "E5"
+        },
+        {
+          "id": "I5",
+          "text": "A first-party syntax grammar or editor mode for the language (TextMate grammar, tree-sitter grammar, or editor major mode) is published in an official repository of the official_project_set.",
+          "evidence_source_id": "E3",
+          "supporting_source_id": "E5"
+        },
+        {
+          "id": "I6",
+          "text": "A dedicated IDE for the language, or an IDE plugin maintained by a member of the official_project_set or by a major implementation maintainer, has a published release dated within 24 months before the evidence cutoff.",
+          "evidence_source_id": "E5"
+        }
+      ],
+      "scoring_procedure": "Count the satisfied indicators among I1-I6 and award the matching level.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Full official editor integration",
+          "criteria": "All 6 indicators satisfied."
+        },
+        {
+          "score": 80,
+          "name": "Strong",
+          "criteria": "Exactly 5 of I1-I6 satisfied."
+        },
+        {
+          "score": 60,
+          "name": "Adequate",
+          "criteria": "Exactly 4 of I1-I6 satisfied."
+        },
+        {
+          "score": 40,
+          "name": "Basic",
+          "criteria": "Exactly 3 of I1-I6 satisfied."
+        },
+        {
+          "score": 20,
+          "name": "Minimal",
+          "criteria": "Exactly 2 of I1-I6 satisfied."
+        },
+        {
+          "score": 0,
+          "name": "None",
+          "criteria": "0 or 1 of I1-I6 satisfied, which includes a language with no language server and no officially published editor integration."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must contain the language server's repository or documentation URL and publisher (I1), verbatim feature-list excerpts covering all six named capabilities (I2, I3), the marketplace listing URL with its publisher field (I4), the official grammar repository URL and file path (I5), and the IDE or IDE-plugin release page URL with a release date inside the 24-month window (I6).",
+      "na_policy": "Never N/A. A language with no editor integration receives 0."
+    },
+    {
+      "metric": "Debugger / Profiler Support",
+      "table_row_label": "Debugger / Profiler Support",
+      "standard_category": "Ecosystem / Production Maturity",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "The ability to produce debug information, to debug at source level with language-level value rendering, to profile CPU and memory, and to debug from an editor through a documented protocol integration.",
+      "evidence_sources": [
+        "E1",
+        "E2",
+        "E5"
+      ],
+      "probe_set": "DBG (probe DBG-1, frozen in frozen_probe_sets)",
+      "indicators": [
+        {
+          "id": "Q1",
+          "text": "The toolchain emits standard source-level debug information (DWARF, PDB, source maps, or an equivalent documented format) through a documented flag or mode; verified by building DBG-1 on the host with that flag and confirming the debug information exists in the produced artifact or in a companion file.",
+          "evidence_source_id": "E1",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "Q2",
+          "text": "A source-level debugger supporting the language is either shipped with the toolchain or named in the language's official documentation, and on this host it can set a breakpoint on a source line of DBG-1, stop there, and print the value of a local variable.",
+          "evidence_source_id": "E1",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "Q3",
+          "text": "In that debugger session, the named fields of the user-defined aggregate and the elements of the standard-library dynamic array in DBG-1 are displayed as language-level values with their field names/elements, not only as raw addresses or bytes.",
+          "evidence_source_id": "E1"
+        },
+        {
+          "id": "Q4",
+          "text": "A CPU profiler for the language is shipped with the toolchain or named in the language's official documentation, and on this host it produces a profile of DBG-1 attributing cost to named functions of the program.",
+          "evidence_source_id": "E1",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "Q5",
+          "text": "A memory, allocation or heap analysis tool for the language is shipped with the toolchain or named in the language's official documentation.",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "Q6",
+          "text": "A Debug Adapter Protocol integration, or an equivalent documented editor-debugging integration, exists for the language and is published by a member of the official_project_set or by a maintainer of a major implementation.",
+          "evidence_source_id": "E5"
+        }
+      ],
+      "scoring_procedure": "Count the satisfied indicators among Q1-Q6 and award the matching level.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Full debug and profile support",
+          "criteria": "All 6 indicators satisfied."
+        },
+        {
+          "score": 80,
+          "name": "Strong",
+          "criteria": "Exactly 5 of Q1-Q6 satisfied."
+        },
+        {
+          "score": 60,
+          "name": "Adequate",
+          "criteria": "Exactly 4 of Q1-Q6 satisfied."
+        },
+        {
+          "score": 40,
+          "name": "Basic",
+          "criteria": "Exactly 3 of Q1-Q6 satisfied."
+        },
+        {
+          "score": 20,
+          "name": "Minimal",
+          "criteria": "Exactly 2 of Q1-Q6 satisfied."
+        },
+        {
+          "score": 0,
+          "name": "None",
+          "criteria": "0 or 1 of Q1-Q6 satisfied, which includes a language with no source-level debugger and no profiler."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must contain: the debug-build command and the command output identifying the debug information (Q1); the full debugger transcript showing the breakpoint hit, the source line, and the printed local (Q2); the transcript lines showing the aggregate's named fields and the array's elements (Q3); the profiler command and the captured per-function profile output (Q4); the documentation URL for the memory/heap tool (Q5); and the DAP or editor-debug integration repository/marketplace URL with its publisher (Q6).",
+      "na_policy": "Never N/A. A language with no debugger and no profiler receives 0, because this metric intentionally tests that capability."
+    },
+    {
+      "metric": "Build / Test Integration",
+      "table_row_label": "Build / Test Integration",
+      "standard_category": "Ecosystem / Production Maturity",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "The degree to which building and testing a multi-module project, including coverage and machine-readable results usable by continuous integration, is supported by first-party tooling.",
+      "evidence_sources": [
+        "E1",
+        "E2"
+      ],
+      "probe_set": "TEST (probes TEST-1 and TEST-2, frozen in frozen_probe_sets)",
+      "indicators": [
+        {
+          "id": "V1",
+          "text": "A first-party build system or build driver builds probe TEST-2 (at least two source modules plus a test module) from a declarative manifest or project definition, without hand-written per-file compiler invocations; verified on the host.",
+          "evidence_source_id": "E1",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "V2",
+          "text": "A first-party test construct or first-party test framework, shipped with the toolchain distribution, is used to express probe TEST-1.",
+          "evidence_source_id": "E1",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "V3",
+          "text": "A first-party test runner command discovers and runs probe TEST-1, reports the pass and fail counts (2 pass, 1 fail), and exits with a non-zero status because of the failing test; verified on the host.",
+          "evidence_source_id": "E1"
+        },
+        {
+          "id": "V4",
+          "text": "First-party code-coverage instrumentation is available through a documented flag or subcommand and produces a coverage report for probe TEST-1 on the host.",
+          "evidence_source_id": "E1",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "V5",
+          "text": "The first-party test runner can emit machine-readable results (JSON, JUnit XML, TAP, or an equivalent documented format) through a documented flag; verified on the host by producing the file and parsing it successfully.",
+          "evidence_source_id": "E1",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "V6",
+          "text": "Official documentation describes continuous-integration usage of the toolchain: documented exit-status semantics for failed builds/tests plus a documented non-interactive/CI mode, or an officially published CI action, workflow or container image.",
+          "evidence_source_id": "E2"
+        }
+      ],
+      "scoring_procedure": "Count the satisfied indicators among V1-V6 and award the matching level.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Full first-party build, test, coverage and CI integration",
+          "criteria": "All 6 indicators satisfied."
+        },
+        {
+          "score": 80,
+          "name": "Strong",
+          "criteria": "Exactly 5 of V1-V6 satisfied."
+        },
+        {
+          "score": 60,
+          "name": "Adequate",
+          "criteria": "Exactly 4 of V1-V6 satisfied."
+        },
+        {
+          "score": 40,
+          "name": "Basic",
+          "criteria": "Exactly 3 of V1-V6 satisfied."
+        },
+        {
+          "score": 20,
+          "name": "Minimal",
+          "criteria": "Exactly 2 of V1-V6 satisfied."
+        },
+        {
+          "score": 0,
+          "name": "None",
+          "criteria": "0 or 1 of V1-V6 satisfied, which includes a language with no first-party build driver and no first-party test facility."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must contain the manifest and build command for TEST-2 with its successful exit status (V1); the TEST-1 sources showing the first-party test construct and its documentation URL (V2); the runner command, its captured 2-pass/1-fail output and its non-zero exit status (V3); the coverage command and the produced report (V4); the machine-readable output command, the produced file and proof it parsed (V5); and the CI documentation URL with a verbatim excerpt (V6).",
+      "na_policy": "Never N/A. A language without first-party build or test tooling receives the low level."
+    },
+    {
+      "metric": "Production Adoption / Deployment Evidence",
+      "table_row_label": "Production Adoption / Deployment Evidence",
+      "standard_category": "Ecosystem / Production Maturity",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "The amount of named, citable, publicly retrievable evidence that the language is used in production outside its own maintainers, plus the existence of a formal steward with a published support policy.",
+      "anti_fabrication_rule": "Every organization, product, figure and survey counted here MUST be backed by a retrievable URL, a publication date, and a verbatim excerpt of at most 15 words recorded in the evidence record. Counts asserted from memory, from model prior knowledge, or from undated or unattributed sources are prohibited and must be recorded as unverified and therefore unsatisfied. The scorer may not infer adoption from a language's popularity.",
+      "evidence_sources": [
+        "E2",
+        "E3",
+        "E6"
+      ],
+      "indicators": [
+        {
+          "id": "A1",
+          "text": "At least 1 named organization other than the language's own maintainers has published a retrievable, dated statement that it uses the language in production, or appears by name on an official case-study/user page published by the language's own project.",
+          "evidence_source_id": "E6"
+        },
+        {
+          "id": "A2",
+          "text": "At least 5 such distinct named organizations, each with its own distinct citation.",
+          "evidence_source_id": "E6"
+        },
+        {
+          "id": "A3",
+          "text": "At least 20 such distinct named organizations, each with its own distinct citation, or an official case-study/user page published by the language's own project that names at least 20 organizations.",
+          "evidence_source_id": "E6"
+        },
+        {
+          "id": "A4",
+          "text": "The language has a formal governance body, foundation, or named corporate steward that publishes an official governance document and an official release or support policy.",
+          "evidence_source_id": "E2",
+          "supporting_source_id": "E3"
+        },
+        {
+          "id": "A5",
+          "text": "At least one end-user-distributed product, service, or infrastructure component states in its own official documentation or official repository that it is implemented in the language.",
+          "evidence_source_id": "E6"
+        },
+        {
+          "id": "A6",
+          "text": "The language appears with a non-zero reported share or rank in at least one publicly retrievable, methodologically documented developer-population survey or language index published within 24 months before the evidence cutoff; the source, the methodology statement and the figure are recorded verbatim.",
+          "evidence_source_id": "E6"
+        }
+      ],
+      "scoring_procedure": "Count the satisfied indicators among A1-A6 and award the matching level.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Broad documented production use with formal stewardship",
+          "criteria": "All 6 indicators satisfied."
+        },
+        {
+          "score": 80,
+          "name": "Substantial documented production use",
+          "criteria": "Exactly 5 of A1-A6 satisfied."
+        },
+        {
+          "score": 60,
+          "name": "Established",
+          "criteria": "Exactly 4 of A1-A6 satisfied."
+        },
+        {
+          "score": 40,
+          "name": "Emerging",
+          "criteria": "Exactly 3 of A1-A6 satisfied."
+        },
+        {
+          "score": 20,
+          "name": "Isolated",
+          "criteria": "Exactly 2 of A1-A6 satisfied."
+        },
+        {
+          "score": 0,
+          "name": "No documented external production use",
+          "criteria": "0 or 1 of A1-A6 satisfied."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must list at least 20 distinct named organizations with 20 distinct dated URLs and verbatim excerpts, the governance document URL and the release/support policy URL, the shipped product with its official statement of implementation language, and the survey/index source with its methodology statement and the language's figure quoted verbatim. A shortfall in any one of these forbids 100 regardless of how well known the language is.",
+      "na_policy": "Never N/A. A language with no retrievable third-party production evidence receives 0. This is the expected and correct outcome for a language with no external users at the evidence cutoff, and no allowance is made for the language's age."
+    },
+    {
+      "metric": "Documentation / Community",
+      "table_row_label": "Documentation / Community",
+      "standard_category": "Ecosystem / Production Maturity",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "The completeness of first-party documentation (language reference, standard-library API reference, tutorial, toolchain/CLI reference) and the existence of demonstrably active public community and issue-tracking channels.",
+      "evidence_sources": [
+        "E1",
+        "E2",
+        "E3"
+      ],
+      "indicators": [
+        {
+          "id": "N1",
+          "text": "A first-party language reference or specification document, describing the language's syntax and semantics, is published at the official documentation root.",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "N2",
+          "text": "A first-party standard-library API reference is published, covering the standard library at a stated version, with per-item entries (types/functions/modules).",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "N3",
+          "text": "A first-party tutorial or getting-started guide that walks a new user from installation to a running program is published.",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "N4",
+          "text": "First-party toolchain/CLI reference documentation exists for the commands used in the frozen recipes: either published command reference pages/man pages, or built-in --help output that enumerates the subcommands and options; verified on the host for the installed toolchain.",
+          "evidence_source_id": "E1",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "N5",
+          "text": "An official public community channel (forum, mailing list, chat server, or discussion board) is designated on the official site, and it contains at least one publicly visible message posted within 90 days before the evidence cutoff.",
+          "evidence_source_id": "E2",
+          "supporting_source_id": "E3"
+        },
+        {
+          "id": "N6",
+          "text": "A public issue tracker for the language implementation is publicly visible and contains at least one issue opened within 90 days before the evidence cutoff by an account that is not a listed maintainer of the project.",
+          "evidence_source_id": "E3"
+        }
+      ],
+      "scoring_procedure": "Count the satisfied indicators among N1-N6 and award the matching level.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Complete documentation with active public community",
+          "criteria": "All 6 indicators satisfied."
+        },
+        {
+          "score": 80,
+          "name": "Strong",
+          "criteria": "Exactly 5 of N1-N6 satisfied."
+        },
+        {
+          "score": 60,
+          "name": "Adequate",
+          "criteria": "Exactly 4 of N1-N6 satisfied."
+        },
+        {
+          "score": 40,
+          "name": "Partial",
+          "criteria": "Exactly 3 of N1-N6 satisfied."
+        },
+        {
+          "score": 20,
+          "name": "Sparse",
+          "criteria": "Exactly 2 of N1-N6 satisfied."
+        },
+        {
+          "score": 0,
+          "name": "Minimal",
+          "criteria": "0 or 1 of N1-N6 satisfied."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must contain four documentation URLs with verbatim excerpts (N1-N3 plus the command reference for N4, or the captured --help output for N4), the community channel URL with the date of a message inside the 90-day window, and the issue-tracker URL with the issue number, its opening date inside the 90-day window, and the reporter's non-maintainer status.",
+      "na_policy": "Never N/A. Sparse documentation or an inactive community receives the low level."
+    },
+    {
+      "metric": "Toolchain Stability / Release Maturity",
+      "table_row_label": "Toolchain Stability / Release Maturity",
+      "standard_category": "Ecosystem / Production Maturity",
+      "normalization_family": "G",
+      "is_proxy": false,
+      "definition": "The published release history, versioning status, age, compatibility policy, release cadence and maintenance policy of the exact toolchain implementation under test.",
+      "scope_rule": "All indicators are evaluated against the toolchain implementation named in environment/environment.json -> toolchains for that language, and its official release history in the official_implementation_repository or official download archive. Where a language has both a standard and an implementation, the release history is the implementation's; the standard may only be used for Y4.",
+      "evidence_sources": [
+        "E2",
+        "E3"
+      ],
+      "indicators": [
+        {
+          "id": "Y1",
+          "text": "The toolchain has a published release history containing at least 3 distinct released versions with retrievable release notes, tags, or dated download artifacts.",
+          "evidence_source_id": "E3"
+        },
+        {
+          "id": "Y2",
+          "text": "The version under test is at or above 1.0 under the project's own published versioning scheme, or the project publishes an explicit statement that the current release line is stable for production use.",
+          "evidence_source_id": "E3",
+          "supporting_source_id": "E2"
+        },
+        {
+          "id": "Y3",
+          "text": "At least 3 years elapsed between the first publicly released version of the toolchain and the evidence cutoff 2026-09-17, evidenced by the dated first release.",
+          "evidence_source_id": "E3"
+        },
+        {
+          "id": "Y4",
+          "text": "An official, documented stability or compatibility policy exists: a backward-compatibility guarantee, a documented deprecation policy, or a published language-version/edition/standard mechanism that defines how existing source keeps compiling across releases.",
+          "evidence_source_id": "E2"
+        },
+        {
+          "id": "Y5",
+          "text": "At least 2 releases of the toolchain were published in the 12 months before the evidence cutoff, or the project publishes a documented regular release schedule and met it in that period.",
+          "evidence_source_id": "E3"
+        },
+        {
+          "id": "Y6",
+          "text": "A documented maintenance policy names which released versions receive continued bug-fix or security maintenance and for how long (long-term support designation, security-fix window, or supported-versions table).",
+          "evidence_source_id": "E2",
+          "supporting_source_id": "E3"
+        }
+      ],
+      "scoring_procedure": "Count the satisfied indicators among Y1-Y6 and award the matching level.",
+      "levels": [
+        {
+          "score": 100,
+          "name": "Mature, stable, maintained and scheduled",
+          "criteria": "All 6 indicators satisfied."
+        },
+        {
+          "score": 80,
+          "name": "Strong",
+          "criteria": "Exactly 5 of Y1-Y6 satisfied."
+        },
+        {
+          "score": 60,
+          "name": "Established",
+          "criteria": "Exactly 4 of Y1-Y6 satisfied."
+        },
+        {
+          "score": 40,
+          "name": "Developing",
+          "criteria": "Exactly 3 of Y1-Y6 satisfied."
+        },
+        {
+          "score": 20,
+          "name": "Early",
+          "criteria": "Exactly 2 of Y1-Y6 satisfied."
+        },
+        {
+          "score": 0,
+          "name": "Pre-release",
+          "criteria": "0 or 1 of Y1-Y6 satisfied, which includes a toolchain below 1.0 with fewer than three published releases, less than three years of history, and no published compatibility or maintenance policy."
+        }
+      ],
+      "top_level_evidence_required": "To award 100 the evidence record must contain the release-history URL with at least 3 version identifiers and dates (Y1), the version string of the toolchain under test with the project's versioning-scheme statement or stability statement (Y2), the dated first release proving at least 3 years of history (Y3), the compatibility/deprecation/edition policy URL with a verbatim excerpt (Y4), the identifiers and dates of at least 2 releases inside the 12-month window or the schedule document plus the releases meeting it (Y5), and the maintenance/LTS policy URL with the named supported versions and windows (Y6).",
+      "na_policy": "Never N/A. A pre-1.0 toolchain with a short history receives the low level. No age adjustment or young-language allowance is applied."
+    }
+  ],
+  "completeness_check": {
+    "metric_count": 17,
+    "required_metrics_from_task": [
+      "Readability",
+      "Functionality / Expressiveness",
+      "Diagnostics",
+      "Dependency Simplicity",
+      "Portability",
+      "FFI / Interoperability",
+      "Concurrency",
+      "Ecosystem Breadth",
+      "Tooling",
+      "Library Availability",
+      "Package / Dependency Management",
+      "IDE / Editor Support",
+      "Debugger / Profiler Support",
+      "Build / Test Integration",
+      "Production Adoption / Deployment Evidence",
+      "Documentation / Community",
+      "Toolchain Stability / Release Maturity"
+    ],
+    "all_required_present": true,
+    "levels_per_metric": {
+      "Readability": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "Functionality / Expressiveness": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "Diagnostics": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "Dependency Simplicity": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "Portability": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "FFI / Interoperability": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "Concurrency": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "Ecosystem Breadth": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "Tooling": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "Library Availability": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "Package / Dependency Management": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "IDE / Editor Support": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "Debugger / Profiler Support": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "Build / Test Integration": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "Production Adoption / Deployment Evidence": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "Documentation / Community": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ],
+      "Toolchain Stability / Release Maturity": [
+        100,
+        80,
+        60,
+        40,
+        20,
+        0
+      ]
+    },
+    "category_membership": {
+      "Readability": "Language / Development",
+      "Functionality / Expressiveness": "Language / Development",
+      "Diagnostics": "Language / Development",
+      "Dependency Simplicity": "Language / Development",
+      "Portability": "Language / Development",
+      "FFI / Interoperability": "Language / Development",
+      "Concurrency": "Language / Development",
+      "Ecosystem Breadth": "Ecosystem / Production Maturity",
+      "Tooling": "Ecosystem / Production Maturity",
+      "Library Availability": "Ecosystem / Production Maturity",
+      "Package / Dependency Management": "Ecosystem / Production Maturity",
+      "IDE / Editor Support": "Ecosystem / Production Maturity",
+      "Debugger / Profiler Support": "Ecosystem / Production Maturity",
+      "Build / Test Integration": "Ecosystem / Production Maturity",
+      "Production Adoption / Deployment Evidence": "Ecosystem / Production Maturity",
+      "Documentation / Community": "Ecosystem / Production Maturity",
+      "Toolchain Stability / Release Maturity": "Ecosystem / Production Maturity"
+    },
+    "every_metric_has_top_level_evidence_statement": true,
+    "every_metric_has_na_policy": true,
+    "every_metric_declares_evidence_sources": true
+  }
+}

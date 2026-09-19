@@ -1,0 +1,161 @@
+== toolchain ==
+$ javac -version
+javac 26.0.1
+$ java -version
+--- stderr ---
+openjdk version "26.0.1" 2026-04-21
+OpenJDK Runtime Environment Homebrew (build 26.0.1)
+OpenJDK 64-Bit Server VM Homebrew (build 26.0.1, mixed mode, sharing)
+
+== (a) fixture builds, runs, output matches the pack exactly ==
+$ python3 packcheck.py
+  a1 pack P12 example is byte-identical to fixture_anon.java : True
+  a2 pack's claimed output is byte-identical to expected_output.txt : True
+  a3 pack P12 example passes the I1 conformance gate : True []
+  a4 inverse(pack P12 example) is byte-identical to fixture_real.java : True
+  a5 it builds : True   exit 0 on run : True   stderr : ''
+  a6 its stdout is byte-identical to the pack's claim : True
+     produced:
+       | SUM 25632
+       | MAX 935
+       | EVENS 24
+       | JOINED 897-558-614-577-405
+
+PACK CHECK PASSED
+
+== (b) harness conventions: pack-only submission through the real pipeline ==
+$ python3 harness.py pipeline/bare_body_submission.md --expected expected_output.txt
+extracted_chars:         950
+gate_conformant:         True
+gate_events:             []
+inverse_substitutions:   19
+build_cmd:               /opt/homebrew/opt/openjdk/bin/javac -J-Duser.language=en -J-Duser.country=US -d /var/folders/71/zhtl3cb131g9fdd6z18yh_cm0000gn/T/i1java-harness-6b3b6cxo/out /var/folders/71/zhtl3cb131g9fdd6z18yh_cm0000gn/T/i1java-harness-6b3b6cxo/Main.java
+build_exit:              0
+build_stderr:            
+run_cmd:                 /opt/homebrew/opt/openjdk/bin/java -cp /var/folders/71/zhtl3cb131g9fdd6z18yh_cm0000gn/T/i1java-harness-6b3b6cxo/out Main
+run_exit:                0
+stdout:
+    | SUM 25632
+    | MAX 935
+    | EVENS 24
+    | JOINED 897-558-614-577-405
+stderr:                  
+stdout_byte_identical:   True
+verdict:                 PASS
+-- and a submission that ignores the transformation must NOT reach the toolchain --
+$ python3 harness.py pipeline/real_source_submission.md --expected expected_output.txt
+extracted_chars:         897
+gate_conformant:         False
+gate_events:             ['class', 'else', 'for', 'if', 'int', 'long', 'public', 'static', 'void']
+verdict:                 FAIL
+reason:                  CONFORMANT check failed (section 4.2a)
+PF-b2 OK: rejected with exit=1 before any build
+
+== (c) validator accepts a correct input AND rejects a corrupted one ==
+$ python3 validate.py
+========================================================================
+POSITIVE CASES (must pass)
+========================================================================
+  P1 round_trip(fixture_real.java)  R1_byte_identity         PASS
+  P1 round_trip(fixture_real.java)  R2_build_identity        PASS
+  P1 round_trip(fixture_real.java)  R3_behavioral_identity   PASS
+  P1 round_trip(fixture_real.java)  R4_non_triviality        PASS
+  P1 round_trip(fixture_real.java)  R5_domain_containment    PASS
+  P2 gate(fixture_anon.java)            conformant=True events=[]  PASS
+  P3 gate(source whose STRING literal contains real keywords) conformant=True  PASS
+  P4 forward() left the string literal untouched: True  PASS
+
+========================================================================
+NEGATIVE CASES (must be REJECTED)
+========================================================================
+  N1 gate(correct REAL source, transformation ignored)
+     conformant=False  H_REAL events=['class', 'else', 'for', 'if', 'int', 'long', 'public', 'static', 'void']
+     -> REJECTED (PASS)
+  N2 round_trip on a CORRUPTED transformed source (one letter changed)
+     R1 byte identity vs real source: False
+     inverse image builds: False   diagnostic: /var/folders/71/zhtl3cb131g9fdd6z18yh_cm0000gn/T/i1java-uc4j8xcs/Main.java:12: error: ';' expected
+     -> REJECTED (PASS)
+  N3 gate(transformed source with ONE real keyword written from memory)
+     conformant=False  H_REAL events=['if']
+     -> REJECTED (PASS)
+  N4 INVERSE_AMBIGUOUS: a variable named with a pseudo-word
+     detector hits=2  inverse image builds=False
+     diagnostic: /var/folders/71/zhtl3cb131g9fdd6z18yh_cm0000gn/T/i1java-sjeeu65y/Main.java:3: error: not a statement
+     -> REJECTED (PASS)
+  N5 round_trip with a MUTATED mapping (one token left unmapped)
+     transformed source still contains the real token 'if': True
+     -> REJECTED (PASS)
+
+========================================================================
+LEXICALIZER FILTER SELF-TEST (each accept() rule must be able to fire)
+========================================================================
+  filter 1 shape            candidate=toolong  accepted=False fired=['1']  PASS
+  filter 2 used             candidate=mepone   accepted=False fired=['2']  PASS
+  filter 3 en_common        candidate=animal   accepted=False fired=['3']  PASS
+  filter 4 prog_terms       candidate=buffer   accepted=False fired=['4']  PASS
+  filter 5 reserved_union   candidate=typeof   accepted=False fired=['5']  PASS
+  filter 6 substring        candidate=zitemu   accepted=False fired=['6']  PASS
+  filter 7 material         candidate=rintln   accepted=False fired=['7']  PASS
+
+========================================================================
+BATTERY PASSED: every positive case passed and every negative case was rejected.
+
+== leak scan of the Reference Pack ==
+$ python3 leakscan.py
+CRITICAL — anonymized real spellings anywhere in the pack
+    class      clean
+    else       clean
+    for        clean
+    if         clean
+    int        clean
+    long       clean
+    public     clean
+    static     clean
+    void       clean
+
+IDENTITY — language / toolchain / extension names anywhere in the pack
+    clean (0 hits across 46 terms)
+
+ADVISORY — other reserved words of the real language, in PROSE only
+    this         x13  (ordinary English usage; published residual)
+
+pack line count      : 249
+pack character count : 9057
+prose characters     : 7639
+code characters      : 1370
+
+LEAK SCAN PASSED (critical and identity scans clean)
+
+== lexicalizer determinism (separate process) ==
+$ python3 lexicalize.py
+wrote /private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/llm-intrinsic/transforms/java/mapping.json
+  K04        if       -> mepone
+  K05        else     -> bilite
+  K07        for      -> lukuki
+  K12        class    -> balinu
+  K21a       int      -> nasisa
+  K21e       void     -> sadora
+  K23        public   -> tenuro
+  U:long     long     -> metolu
+  U:static   static   -> zobolu
+rejection filters fired: {'1': 0, '2': 0, '3': 0, '4': 0, '5': 0, '6': 0, '7': 0}
+DETERMINISM: byte-identical across processes
+
+== artifact hashes ==
+c27ecb7e4e5937b48aacd82732ccf1b22fbb7edef600457b45d04e2877ef2e2e  mapping.json
+d602c55fff5f85da9602247e944421ce1d94f505ac58f307205400b867df9e85  fixture_real.java
+bbfcbc6abb9e82d6f2de638dda92c1ccc2d92a6784e47e0185f96e6ca2e785bc  fixture_anon.java
+ed254b8ea2e6526c9d3f4e2312a91216a177f6fc0c017f53286a7cfe3a9a8609  expected_output.txt
+9203e88d2be1fd3366901aad4f6c9b292f00362c7396abefb42d7dbd903145e8  reference_pack.md
+1c4409388c86c02a292bdd85aa09150f2ef59ece1cb7a3936a8861ffb83800b1  forward.py
+55b8465f9cb15bd909ffdab1aa5eb94661841a41f0020b891b6c9a7624755bb9  inverse.py
+020d039af11ff11221189353d7809ba04785854dc7a7dfa736176abee247bb49  javalex.py
+6197b36e169deebc1e81964875c23f2ee34a1a786f3d36c0c29e95e867851240  lexicalize.py
+b5ab5fb3d0f0655fe17a9b16cfe757518780a88f560def0471eeae8f2ac383f4  validate.py
+92cdf2215ae12d8d04879795d2166f54b5e63f9cbecbade4c6810c8cb82892f3  harness.py
+02e017bee875884633bcf4c5b450b5d561224b71da42f8f8323ad1dc8d535698  wordlists/en_common.txt
+ff2771cd8c6beab062669b8e16161402ff96d05b312ba06e94c629339c2dac75  wordlists/prog_terms.txt
+7a3e24ec0c8f5ab8e6e8a5c36c5e1bd48e2810e575d2ba15574dc2805e112dfd  wordlists/reserved_java.txt
+272592d758de231643f7f34e8392041f382d8e2e5dd33eed6cc048497bb6abd7  wordlists/reserved_union.txt
+
+PREFLIGHT_TOTAL_NONZERO_EXITS=0

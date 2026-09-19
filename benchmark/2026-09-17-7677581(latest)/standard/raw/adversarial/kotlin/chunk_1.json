@@ -1,0 +1,824 @@
+{
+ "language": "Kotlin",
+ "language_key": "kotlin",
+ "chunk": "1",
+ "observations": [
+  {
+   "case_variant_id": "ADV-01/C",
+   "case_id": "ADV-01",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-01_C.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-01_C.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-01_C.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-01_C.jar"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:-1\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "observed_payload": "V:-1",
+   "reached_observation_point": true,
+   "forced_error_handling": "none - but recorded for the record: Kotlin has NO implicit numeric narrowing, so the DEFAULT, UNQUALIFIED conversion form required by authoring rule A4 is the explicit `.toInt()` call. That is a conversion-spelling requirement, not an exception handler, error recovery, check or guard; nothing in the program inspects or survives the hazard, and `.toInt()` does not diagnose it.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 no (no TM3 determination: Kotlin has the construct). D1 no (build exit 0). D2 no (jar produced). D3 no (ADV-START present, exit 0). D4 no (no timeout). D5 no (process exited 0, termination was normal). D6a no (ADV-START, OBS= and ADV-END all present). D6b no: this case's reference_observation is the sentinel DIAGNOSED_FAILURE, not a concrete value, so D6b cannot fire. D6c: the plausible_domain_predicate ^V:-?(0|[1-9][0-9]*)$ with V in [-2147483648,2147483647] matches 'V:-1' -> TRUE, so D6c-ii fires and we proceed to D7. D7a no: all 5 primary runs produced a byte-identical OBS payload. D7b no: Kotlin's frozen secondary configuration `java -ea -jar FILE.jar` was executed and produced the SAME payload with empty stderr and exit 0, so neither D7b condition is met (-ea enables assertions only; the program has none, and it cannot report integer narrowing/overflow). D7c no: no clause of the Kotlin specification makes this undefined - the opposite: Kotlin defines Long.toInt() as taking the least significant 32 bits of the value (kotlin-stdlib, Long.toInt), and the JVM i2l/l2i narrowing it compiles to is fully defined (JVMS l2i). The result is DEFINED and deterministic, which is exactly the D7d note's 'specified ... stable wrong answer'. Therefore D7d fires: Silent Bug, stage score 0. This is the case's own silent_transformation_watch outcome verbatim: 'The characteristic silent outcome is V:-1 (two's-complement truncation of 0x7FFFFFFFFFFFFFFF)'. 9223372036854775807 was silently turned into -1, an entirely ordinary 32-bit integer, and the program reported success. The C variant places the value in the source as a plain manifest constant; kotlinc 2.3.21 nevertheless emitted no diagnostic of any kind (build stdout and stderr both empty).",
+   "silent_transformation": true
+  },
+  {
+   "case_variant_id": "ADV-01/R",
+   "case_id": "ADV-01",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-01_R.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-01_R.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-01_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-01_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:-1\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "observed_payload": "V:-1",
+   "reached_observation_point": true,
+   "forced_error_handling": "none - but recorded for the record: Kotlin has NO implicit numeric narrowing, so the DEFAULT, UNQUALIFIED conversion form required by authoring rule A4 is the explicit `.toInt()` call. That is a conversion-spelling requirement, not an exception handler, error recovery, check or guard; nothing in the program inspects or survives the hazard, and `.toInt()` does not diagnose it. none - `readln()` is Kotlin's ordinary non-null line read (rule A3 'the non-null / non-Result form'); it is not a handler, check or guard.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 no (no TM3 determination: Kotlin has the construct). D1 no (build exit 0). D2 no (jar produced). D3 no (ADV-START present, exit 0). D4 no (no timeout). D5 no (process exited 0, termination was normal). D6a no (ADV-START, OBS= and ADV-END all present). D6b no: this case's reference_observation is the sentinel DIAGNOSED_FAILURE, not a concrete value, so D6b cannot fire. D6c: the plausible_domain_predicate ^V:-?(0|[1-9][0-9]*)$ with V in [-2147483648,2147483647] matches 'V:-1' -> TRUE, so D6c-ii fires and we proceed to D7. D7a no: all 5 primary runs produced a byte-identical OBS payload. D7b no: Kotlin's frozen secondary configuration `java -ea -jar FILE.jar` was executed and produced the SAME payload with empty stderr and exit 0, so neither D7b condition is met (-ea enables assertions only; the program has none, and it cannot report integer narrowing/overflow). D7c no: no clause of the Kotlin specification makes this undefined - the opposite: Kotlin defines Long.toInt() as taking the least significant 32 bits of the value (kotlin-stdlib, Long.toInt), and the JVM i2l/l2i narrowing it compiles to is fully defined (JVMS l2i). The result is DEFINED and deterministic, which is exactly the D7d note's 'specified ... stable wrong answer'. Therefore D7d fires: Silent Bug, stage score 0. This is the case's own silent_transformation_watch outcome verbatim: 'The characteristic silent outcome is V:-1 (two's-complement truncation of 0x7FFFFFFFFFFFFFFF)'. 9223372036854775807 was silently turned into -1, an entirely ordinary 32-bit integer, and the program reported success. The R variant read the value from stdin, so no compiler could know it; the outcome is identical to the C variant, i.e. seeing the constant bought Kotlin nothing.",
+   "silent_transformation": true
+  },
+  {
+   "case_variant_id": "ADV-02/C",
+   "case_id": "ADV-02",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-02_C.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-02_C.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-02_C.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-02_C.jar"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:-9223372036854775806\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "observed_payload": "V:-9223372036854775806",
+   "reached_observation_point": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 no (no TM3 determination: Kotlin has the construct). D1 no (build exit 0). D2 no (jar produced). D3 no (ADV-START present, exit 0). D4 no (no timeout). D5 no (process exited 0, termination was normal). D6a no (ADV-START, OBS= and ADV-END all present). D6b no: reference_observation is the concrete value 'V:9223372036854775810' but the observed payload is 'V:-9223372036854775806', so the byte-for-byte test fails. D6c: the plausible_domain_predicate ^V:-?(0|[1-9][0-9]*)$ with V in [-18446744073709551616,18446744073709551616] matches 'V:-9223372036854775806' -> TRUE, so D6c-ii fires and we proceed to D7. D7a no: all 5 primary runs produced a byte-identical OBS payload. D7b no: Kotlin's frozen secondary configuration `java -ea -jar FILE.jar` was executed and produced the SAME payload with empty stderr and exit 0, so neither D7b condition is met (-ea enables assertions only; the program has none, and it cannot report integer overflow). D7c no: no - Kotlin/JVM defines Long addition as two's-complement wrap-around (JVMS 6.5 ladd: 'the result is the low-order 64 bits of the true mathematical result ... overflow is not indicated'). Defined, not undefined. Therefore D7d fires: Silent Bug, stage score 0. This is the case's silent_transformation_watch outcome exactly: two's-complement wrap to -9223372036854775806. Adding 3 to a large positive number yielded a large NEGATIVE number with no diagnostic. In the C variant both operands are manifest constants and the whole expression is constant-foldable; kotlinc emitted no diagnostic and not even a warning.",
+   "silent_transformation": true
+  },
+  {
+   "case_variant_id": "ADV-02/R",
+   "case_id": "ADV-02",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-02_R.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-02_R.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-02_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-02_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:-9223372036854775806\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "observed_payload": "V:-9223372036854775806",
+   "reached_observation_point": true,
+   "forced_error_handling": "none - `readln()` is Kotlin's ordinary non-null line read (rule A3 'the non-null / non-Result form'); it is not a handler, check or guard.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 no (no TM3 determination: Kotlin has the construct). D1 no (build exit 0). D2 no (jar produced). D3 no (ADV-START present, exit 0). D4 no (no timeout). D5 no (process exited 0, termination was normal). D6a no (ADV-START, OBS= and ADV-END all present). D6b no: reference_observation is the concrete value 'V:9223372036854775810' but the observed payload is 'V:-9223372036854775806', so the byte-for-byte test fails. D6c: the plausible_domain_predicate ^V:-?(0|[1-9][0-9]*)$ with V in [-18446744073709551616,18446744073709551616] matches 'V:-9223372036854775806' -> TRUE, so D6c-ii fires and we proceed to D7. D7a no: all 5 primary runs produced a byte-identical OBS payload. D7b no: Kotlin's frozen secondary configuration `java -ea -jar FILE.jar` was executed and produced the SAME payload with empty stderr and exit 0, so neither D7b condition is met (-ea enables assertions only; the program has none, and it cannot report integer overflow). D7c no: no - Kotlin/JVM defines Long addition as two's-complement wrap-around (JVMS 6.5 ladd: 'the result is the low-order 64 bits of the true mathematical result ... overflow is not indicated'). Defined, not undefined. Therefore D7d fires: Silent Bug, stage score 0. This is the case's silent_transformation_watch outcome exactly: two's-complement wrap to -9223372036854775806. Adding 3 to a large positive number yielded a large NEGATIVE number with no diagnostic. In the R variant the addend 3 is a literal but the augend came from stdin; the outcome is identical.",
+   "silent_transformation": true
+  },
+  {
+   "case_variant_id": "ADV-03/C",
+   "case_id": "ADV-03",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-03_C.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-03_C.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-03_C.jar"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-03_C.kt:4:20: error: value out of range.\n    val a: Long = -9223372036854775808L\n                   ^^^^^^^^^^^^^^^^^^^^\n"
+   },
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "not run: the frozen build recipe rejected the program"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "compile-time rejection: kotlinc refused to compile the program at all. Nothing was written to handle or survive anything - the language would not accept the source.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 no (no TM3 determination). D1 fires: the frozen build recipe `kotlinc ADV-03_C.kt -include-runtime -d ADV-03_C.jar` exited 1. D1a no: the build died by no signal and build output matches no pattern in toolchain_failure_markers (checked mechanically; zero marker hits). D1b-i FIRES: the concatenation of build stdout and stderr contains 'value out of range', which matches this case's declared lexicon L_OVERFLOW (alternative 'out of range') case-insensitively, and also the global fragment L_NARROW. Result: class Compile-time Detection, stage Compile-time Detection, score 100. First diagnostic line VERBATIM: \"ADV-03_C.kt:4:20: error: value out of range.\" Matched fragment: L_OVERFLOW -> 'out of range'. The diagnostic carries file, line and column. HONEST CAVEAT, recorded so an auditor can re-check this 100: what kotlinc rejected is the LITERAL, not the subtraction. Kotlin parses -9223372036854775808L as unary minus applied to the positive literal 9223372036854775808L, which exceeds Long.MAX_VALUE, so the constant itself is out of range and the program is refused before the underflow at line 5 is ever considered. Under A6 re-verification the program IS the program construction step 1 describes ('Obtain the value -9223372036854775808 ... C variant: as a literal'), the diagnostic's line 4 lies inside construction_line_range = lines 4-5, and D1b-i fired on a genuine lexicon match, so the rung is Compile-time Detection by the frozen procedure. Compare ADV-03/R, where the same value arrives from stdin and Kotlin silently wraps it.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-03/R",
+   "case_id": "ADV-03",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-03_R.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-03_R.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-03_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-03_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:9223372036854775805\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "observed_payload": "V:9223372036854775805",
+   "reached_observation_point": true,
+   "forced_error_handling": "none - `readln()` is Kotlin's ordinary non-null line read (rule A3 'the non-null / non-Result form'); it is not a handler, check or guard.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 no (no TM3 determination: Kotlin has the construct). D1 no (build exit 0). D2 no (jar produced). D3 no (ADV-START present, exit 0). D4 no (no timeout). D5 no (process exited 0, termination was normal). D6a no (ADV-START, OBS= and ADV-END all present). D6b no: reference_observation is the concrete value 'V:-9223372036854775811' but the observed payload is 'V:9223372036854775805'. D6c: the plausible_domain_predicate ^V:-?(0|[1-9][0-9]*)$ with V in [-18446744073709551616,18446744073709551616] matches 'V:9223372036854775805' -> TRUE, so D6c-ii fires and we proceed to D7. D7a no: all 5 primary runs produced a byte-identical OBS payload. D7b no: Kotlin's frozen secondary configuration `java -ea -jar FILE.jar` was executed and produced the SAME payload with empty stderr and exit 0, so neither D7b condition is met (-ea enables assertions only; the program has none, and it cannot report integer underflow). D7c no: no - Kotlin/JVM defines Long subtraction as two's-complement wrap-around (JVMS 6.5 lsub, 'overflow is not indicated'). Defined. Therefore D7d fires: Silent Bug, stage score 0. This is the case's silent_transformation_watch outcome exactly: 'wrap to 9223372036854775805, a large POSITIVE number produced by subtracting from a negative one'. It is also the sharpest C-vs-R result in this chunk: the identical value that kotlinc REFUSED as a source literal in ADV-03/C is accepted without a murmur when it arrives at run time, and subtracting 3 from the most negative Long silently produces a large positive Long.",
+   "silent_transformation": true
+  },
+  {
+   "case_variant_id": "ADV-04a/C",
+   "case_id": "ADV-04",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-04a_C.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-04a_C.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-04a_C.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "sub_program": "ADV-04a",
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-04a_C.jar"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=SUB:4294967295\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "observed_payload": "SUB:4294967295",
+   "reached_observation_point": true,
+   "forced_error_handling": "none",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 no (no TM3 determination: Kotlin has the construct). D1 no (build exit 0). D2 no (jar produced). D3 no (ADV-START present, exit 0). D4 no (no timeout). D5 no (process exited 0, termination was normal). D6a no (ADV-START, OBS= and ADV-END all present). D6b no: reference_observation for ADV-04a is the sentinel DIAGNOSED_FAILURE, not a concrete value. D6c: the plausible_domain_predicate ^SUB:(0|[1-9][0-9]*)$ with SUB in [0,4294967295] matches 'SUB:4294967295' -> TRUE, so D6c-ii fires and we proceed to D7. D7a no: all 5 primary runs produced a byte-identical OBS payload. D7b no: Kotlin's frozen secondary configuration `java -ea -jar FILE.jar` was executed and produced the SAME payload with empty stderr and exit 0, so neither D7b condition is met (-ea enables assertions only; the program has none, and it cannot report unsigned underflow). D7c no: no - Kotlin defines UInt arithmetic as modular over 2^32 (kotlin-stdlib, UInt.minus; the unsigned types are implemented on the JVM's int with unsigned semantics). Defined. Therefore D7d fires: Silent Bug, stage score 0. This is ADV-04a's silent_transformation_watch outcome exactly: SUB:4294967295. 0u - 1u silently became the largest 32-bit unsigned value, an entirely ordinary-looking length or count. The C variant writes both operands as manifest constants (0u and 1u); kotlinc emitted no diagnostic and no warning, so the constant bought nothing.",
+   "silent_transformation": true
+  },
+  {
+   "case_variant_id": "ADV-04a/R",
+   "case_id": "ADV-04",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-04a_R.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-04a_R.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-04a_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "sub_program": "ADV-04a",
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-04a_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=SUB:4294967295\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "observed_payload": "SUB:4294967295",
+   "reached_observation_point": true,
+   "forced_error_handling": "none - `readln()` is Kotlin's ordinary non-null line read (rule A3 'the non-null / non-Result form'); it is not a handler, check or guard.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 no (no TM3 determination: Kotlin has the construct). D1 no (build exit 0). D2 no (jar produced). D3 no (ADV-START present, exit 0). D4 no (no timeout). D5 no (process exited 0, termination was normal). D6a no (ADV-START, OBS= and ADV-END all present). D6b no: reference_observation for ADV-04a is the sentinel DIAGNOSED_FAILURE, not a concrete value. D6c: the plausible_domain_predicate ^SUB:(0|[1-9][0-9]*)$ with SUB in [0,4294967295] matches 'SUB:4294967295' -> TRUE, so D6c-ii fires and we proceed to D7. D7a no: all 5 primary runs produced a byte-identical OBS payload. D7b no: Kotlin's frozen secondary configuration `java -ea -jar FILE.jar` was executed and produced the SAME payload with empty stderr and exit 0, so neither D7b condition is met (-ea enables assertions only; the program has none, and it cannot report unsigned underflow). D7c no: no - Kotlin defines UInt arithmetic as modular over 2^32 (kotlin-stdlib, UInt.minus; the unsigned types are implemented on the JVM's int with unsigned semantics). Defined. Therefore D7d fires: Silent Bug, stage score 0. This is ADV-04a's silent_transformation_watch outcome exactly: SUB:4294967295. 0u - 1u silently became the largest 32-bit unsigned value, an entirely ordinary-looking length or count. The R variant read both operands from stdin via toUInt(); identical outcome.",
+   "silent_transformation": true
+  },
+  {
+   "case_variant_id": "ADV-04b/C",
+   "case_id": "ADV-04",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-04b_C.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-04b_C.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-04b_C.jar"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-04b_C.kt:6:24: error: none of the following candidates is applicable:\n\nfun compareTo(other: Byte): Int:\n  Argument type mismatch: actual type is 'UInt', but 'Byte' was expected.\n\nfun compareTo(other: Short): Int:\n  Argument type mismatch: actual type is 'UInt', but 'Short' was expected.\n\nfun compareTo(other: Int): Int:\n  Argument type mismatch: actual type is 'UInt', but 'Int' was expected.\n\nfun compareTo(other: Long): Int:\n  Argument type mismatch: actual type is 'UInt', but 'Long' was expected.\n\nfun compareTo(other: Float): Int:\n  Argument type mismatch: actual type is 'UInt', but 'Float' was expected.\n\nfun compareTo(other: Double): Int:\n  Argument type mismatch: actual type is 'UInt', but 'Double' was expected.\n    val c: Boolean = s < u\n                       ^\n"
+   },
+   "sub_program": "ADV-04b",
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "not run: the frozen build recipe rejected the program"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "compile-time rejection: kotlinc refused the program. No handler, check or guard was written or needed; the type system would not admit the comparison.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 no (no TM3 determination; Kotlin HAS both Int and UInt, so unlike Java the hazard is expressible and TM3a does not apply). D1 fires: the frozen build recipe exited 1. D1a no: no signal, and the build output matches no toolchain_failure_marker (zero marker hits - in particular no KotlinFrontEndException). D1b-i FIRES: the build output contains 'Argument type mismatch: actual type is 'UInt', but 'Int' was expected.', which matches the global lexicon fragment L_TYPE ('type mismatch') case-insensitively. Result: Compile-time Detection, stage Compile-time Detection, score 100. First diagnostic line VERBATIM: \"ADV-04b_C.kt:6:24: error: none of the following candidates is applicable:\" followed by six 'Argument type mismatch' lines, one per Int.compareTo overload (Byte, Short, Int, Long, Float, Double) - none of which accepts a UInt. The diagnostic carries file, line and column, and line 6 lies inside construction_line_range = lines 4-6. NOTE FOR THE AUDITOR: the matched fragment is the GLOBAL L_TYPE, not this case's own declared lexicon L_OVERFLOW; D1b-i explicitly permits either ('or at least one fragment of global_hazard_diagnostic_lexicon.fragments'), so the rung stands without falling through to D1b-ii. A second, incidental global hit on L_NULL was also produced, purely because the phrase 'none of the following candidates' contains the word 'none'; it carries no hazard meaning and is reported here so it is not mistaken for a null diagnostic. SUBSTANCE: Kotlin's UInt is a distinct type with no implicit conversion to or from Int and no mixed-sign comparison operator, so the signed/unsigned comparison hazard of ADV-04b cannot be written down at all. This is the case's own pre-registered expectation ('Kotlin has UInt; the mixed-sign comparison in ADV-04b is expected to be rejected at compile time'). The silent outcome the case is hunting, CMP:false, is unreachable in Kotlin. The C variant's operands are manifest constants.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-04b/R",
+   "case_id": "ADV-04",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-04b_R.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-04b_R.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-04b_R.jar"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-04b_R.kt:6:24: error: none of the following candidates is applicable:\n\nfun compareTo(other: Byte): Int:\n  Argument type mismatch: actual type is 'UInt', but 'Byte' was expected.\n\nfun compareTo(other: Short): Int:\n  Argument type mismatch: actual type is 'UInt', but 'Short' was expected.\n\nfun compareTo(other: Int): Int:\n  Argument type mismatch: actual type is 'UInt', but 'Int' was expected.\n\nfun compareTo(other: Long): Int:\n  Argument type mismatch: actual type is 'UInt', but 'Long' was expected.\n\nfun compareTo(other: Float): Int:\n  Argument type mismatch: actual type is 'UInt', but 'Float' was expected.\n\nfun compareTo(other: Double): Int:\n  Argument type mismatch: actual type is 'UInt', but 'Double' was expected.\n    val c: Boolean = s < u\n                       ^\n"
+   },
+   "sub_program": "ADV-04b",
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "not run: the frozen build recipe rejected the program"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "compile-time rejection: kotlinc refused the program. No handler, check or guard was written or needed; the type system would not admit the comparison.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 no (no TM3 determination; Kotlin HAS both Int and UInt, so unlike Java the hazard is expressible and TM3a does not apply). D1 fires: the frozen build recipe exited 1. D1a no: no signal, and the build output matches no toolchain_failure_marker (zero marker hits - in particular no KotlinFrontEndException). D1b-i FIRES: the build output contains 'Argument type mismatch: actual type is 'UInt', but 'Int' was expected.', which matches the global lexicon fragment L_TYPE ('type mismatch') case-insensitively. Result: Compile-time Detection, stage Compile-time Detection, score 100. First diagnostic line VERBATIM: \"ADV-04b_R.kt:6:24: error: none of the following candidates is applicable:\" followed by six 'Argument type mismatch' lines, one per Int.compareTo overload (Byte, Short, Int, Long, Float, Double) - none of which accepts a UInt. The diagnostic carries file, line and column, and line 6 lies inside construction_line_range = lines 4-6. NOTE FOR THE AUDITOR: the matched fragment is the GLOBAL L_TYPE, not this case's own declared lexicon L_OVERFLOW; D1b-i explicitly permits either ('or at least one fragment of global_hazard_diagnostic_lexicon.fragments'), so the rung stands without falling through to D1b-ii. A second, incidental global hit on L_NULL was also produced, purely because the phrase 'none of the following candidates' contains the word 'none'; it carries no hazard meaning and is reported here so it is not mistaken for a null diagnostic. SUBSTANCE: Kotlin's UInt is a distinct type with no implicit conversion to or from Int and no mixed-sign comparison operator, so the signed/unsigned comparison hazard of ADV-04b cannot be written down at all. This is the case's own pre-registered expectation ('Kotlin has UInt; the mixed-sign comparison in ADV-04b is expected to be rejected at compile time'). The silent outcome the case is hunting, CMP:false, is unreachable in Kotlin. The R variant's operands come from stdin, so the compiler knows only their TYPES, not their values - and the rejection is purely type-based, which is why the R variant is rejected identically. This is the strongest possible form of the result: the detection does not depend on constant visibility at all.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-05/C",
+   "case_id": "ADV-05",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-05_C.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-05_C.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-05_C.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-05_C.jar"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:2147483647\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "observed_payload": "V:2147483647",
+   "reached_observation_point": true,
+   "forced_error_handling": "none - but recorded for the record: Kotlin has NO implicit numeric narrowing, so the DEFAULT, UNQUALIFIED conversion form required by authoring rule A4 is the explicit `.toInt()` call. That is a conversion-spelling requirement, not an exception handler, error recovery, check or guard; nothing in the program inspects or survives the hazard, and `.toInt()` does not diagnose it.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 no (no TM3 determination: Kotlin has the construct). D1 no (build exit 0). D2 no (jar produced). D3 no (ADV-START present, exit 0). D4 no (no timeout). D5 no (process exited 0, termination was normal). D6a no (ADV-START, OBS= and ADV-END all present). D6b no: reference_observation is the sentinel DIAGNOSED_FAILURE. D6c: the plausible_domain_predicate ^V:-?(0|[1-9][0-9]*)$ with V in [-2147483648,2147483647] matches 'V:2147483647' -> TRUE, so D6c-ii fires and we proceed to D7. D7a no: all 5 primary runs produced a byte-identical OBS payload. D7b no: Kotlin's frozen secondary configuration `java -ea -jar FILE.jar` was executed and produced the SAME payload with empty stderr and exit 0, so neither D7b condition is met (-ea enables assertions only; the program has none, and it cannot report float-to-integer range overflow). D7c no: no - this is defined behaviour, not undefined. Kotlin's Double.toInt() compiles to the JVM d2i instruction, which JVMS 6.5 d2i defines to saturate: a value too large for int yields Integer.MAX_VALUE. C and C++ would have undefined behaviour here; the JVM does not. Therefore D7d fires: Silent Bug, stage score 0. This is one of the case's listed silent outcomes verbatim: 'saturation to 2147483647'. A value thirty orders of magnitude outside int range (1e30 = 1000000000000000019884624838656) was silently replaced by 2147483647 - a number that not only looks legal but looks like a deliberately chosen sentinel - and the program exited 0. In the C variant 1e30 is a manifest literal and the whole conversion is constant-foldable; kotlinc emitted nothing.",
+   "silent_transformation": true
+  },
+  {
+   "case_variant_id": "ADV-05/R",
+   "case_id": "ADV-05",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-05_R.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-05_R.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-05_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-05_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=V:2147483647\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "observed_payload": "V:2147483647",
+   "reached_observation_point": true,
+   "forced_error_handling": "none - but recorded for the record: Kotlin has NO implicit numeric narrowing, so the DEFAULT, UNQUALIFIED conversion form required by authoring rule A4 is the explicit `.toInt()` call. That is a conversion-spelling requirement, not an exception handler, error recovery, check or guard; nothing in the program inspects or survives the hazard, and `.toInt()` does not diagnose it. none - `readln()` is Kotlin's ordinary non-null line read (rule A3 'the non-null / non-Result form'); it is not a handler, check or guard.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 no (no TM3 determination: Kotlin has the construct). D1 no (build exit 0). D2 no (jar produced). D3 no (ADV-START present, exit 0). D4 no (no timeout). D5 no (process exited 0, termination was normal). D6a no (ADV-START, OBS= and ADV-END all present). D6b no: reference_observation is the sentinel DIAGNOSED_FAILURE. D6c: the plausible_domain_predicate ^V:-?(0|[1-9][0-9]*)$ with V in [-2147483648,2147483647] matches 'V:2147483647' -> TRUE, so D6c-ii fires and we proceed to D7. D7a no: all 5 primary runs produced a byte-identical OBS payload. D7b no: Kotlin's frozen secondary configuration `java -ea -jar FILE.jar` was executed and produced the SAME payload with empty stderr and exit 0, so neither D7b condition is met (-ea enables assertions only; the program has none, and it cannot report float-to-integer range overflow). D7c no: no - this is defined behaviour, not undefined. Kotlin's Double.toInt() compiles to the JVM d2i instruction, which JVMS 6.5 d2i defines to saturate: a value too large for int yields Integer.MAX_VALUE. C and C++ would have undefined behaviour here; the JVM does not. Therefore D7d fires: Silent Bug, stage score 0. This is one of the case's listed silent outcomes verbatim: 'saturation to 2147483647'. A value thirty orders of magnitude outside int range (1e30 = 1000000000000000019884624838656) was silently replaced by 2147483647 - a number that not only looks legal but looks like a deliberately chosen sentinel - and the program exited 0. In the R variant 1e30 was parsed from stdin; identical outcome.",
+   "silent_transformation": true
+  },
+  {
+   "case_variant_id": "ADV-06/R",
+   "case_id": "ADV-06",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-06_R.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-06_R.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-06_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-06_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=MAX:3.000000|SELFEQ:false\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "observed_payload": "MAX:3.000000|SELFEQ:false",
+   "reached_observation_point": true,
+   "forced_error_handling": "none - `readln()` is Kotlin's ordinary non-null line read (rule A3 'the non-null / non-Result form'); it is not a handler, check or guard.",
+   "class": "Silent Bug",
+   "earliest_observable_stage": "Silent Bug",
+   "classification_reasoning": "D0 no (no TM3 determination: Kotlin has the construct). D1 no (build exit 0). D2 no (jar produced). D3 no (ADV-START present, exit 0). D4 no (no timeout). D5 no (process exited 0, termination was normal). D6a no (ADV-START, OBS= and ADV-END all present). D6b no: reference_observation is the sentinel DIAGNOSED_FAILURE. D6c: the plausible_domain_predicate (evaluated on the MAX field, per the case) ^MAX:-?(0|[1-9][0-9]*)\\.[0-9]{6}\\|SELFEQ:(true|false)$ matches 'MAX:3.000000|SELFEQ:false' - MAX rendered as an ordinary finite six-digit decimal -> TRUE, so D6c-ii fires and we proceed to D7. D7a no: all 5 primary runs produced a byte-identical OBS payload. D7b no: Kotlin's frozen secondary configuration `java -ea -jar FILE.jar` was executed and produced the SAME payload with empty stderr and exit 0, so neither D7b condition is met (-ea enables assertions only; the program has none, and it cannot report NaN contamination). D7c no: no - IEEE 754 semantics are fully defined here and Kotlin specifies them. 0.0/0.0 is NaN; every ordered comparison with NaN is false; and Kotlin specifies that when both operands are statically typed Double, == uses IEEE 754 equality, which is why SELFEQ printed false. Therefore D7d fires: Silent Bug, stage score 0. THIS IS THE FLAGSHIP SILENT CASE OF THE CHUNK and the outcome the case's silent_transformation_watch names verbatim: 'MAX:3.000000|SELFEQ:false'. The data set [3.0, NaN, 1.0] contained an invalid element; the specified loop's `if (x > best)` test is false for NaN, so the NaN was silently skipped; the program printed 3.000000, which really is the maximum of the VALID elements and which no consumer without an independent oracle could possibly question. Nothing anywhere in stdout or stderr indicates that an invalid element was ignored. Per the case, MAX:3.000000 must be recorded as a Silent Bug and never as a success. The SELFEQ:false field is retained as evidence that the NaN really was present and really did reach the reduction - it is the only trace of it, and it is one the case asked for rather than one the program would otherwise print.",
+   "silent_transformation": true
+  },
+  {
+   "case_variant_id": "ADV-07/R",
+   "case_id": "ADV-07",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-07_R.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-07_R.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-07_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-07_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "ADV-START\nOBS=MEAN:Infinity|DIFF:NaN\nADV-END\n",
+    "stderr": "",
+    "timed_out": false
+   },
+   "observed_payload": "MEAN:Infinity|DIFF:NaN",
+   "reached_observation_point": true,
+   "forced_error_handling": "none - `readln()` is Kotlin's ordinary non-null line read (rule A3 'the non-null / non-Result form'); it is not a handler, check or guard.",
+   "class": "Output Verification",
+   "earliest_observable_stage": "Output Verification",
+   "classification_reasoning": "D0 no. D1 no (build exit 0). D2 no. D3 no (ADV-START present). D4 no (completed well inside the 60 s timeout). D5 NO - and this is the rule that must not be misapplied: the concatenated output DOES contain 'Infinity', which matches this case's declared lexicon fragment 'infinit'. But D5's own precondition is 'ADV-START is present AND the process terminated abnormally', and this process exited 0 normally. The lexicon hit is in the program's own OBS payload on stdout, not in a runtime diagnostic. D5 therefore does not fire and this is NOT Runtime Safe Detection. D6 fires (exit 0). D6a no: ADV-START, OBS= and ADV-END are all present. D6b no: reference_observation is the sentinel DIAGNOSED_FAILURE. D6c: the plausible_domain_predicate ^MEAN:-?(0|[1-9][0-9]*)\\.[0-9]{6}\\|DIFF:-?(0|[1-9][0-9]*)\\.[0-9]{6}$ requires BOTH fields to render as ordinary finite decimals; the observed payload 'MEAN:Infinity|DIFF:NaN' fails the regex on both fields. The predicate is FALSE, so D6c-i fires: class Output Verification, stage Output Verification, score 40. SUBSTANCE: 1.0/0.0 produced +Infinity rather than trapping, the infinity flowed through the mean unchanged, and h - h produced NaN. Kotlin/JVM String.format(\"%.6f\", x) renders these as the literal text 'Infinity' and 'NaN' rather than as a decimal, so the defect reached the output but announces itself unmistakably to any consumer. This is the 'honest middle outcome' the case describes: wrong, but visibly wrong. Kotlin did NOT exhibit the dangerous outcome this case exists to catch - it did not saturate the division to a large finite value - so silent_transformation is false.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-08/C",
+   "case_id": "ADV-08",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-08_C.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-08_C.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-08_C.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-08_C.jar"
+    ],
+    "exit": 1,
+    "stdout": "ADV-START\n",
+    "stderr": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat ADV_08_CKt.main(ADV-08_C.kt:6)\n\tat ADV_08_CKt.main(ADV-08_C.kt)\n",
+    "timed_out": false
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none - the JVM's ArithmeticException is thrown BY the runtime and was deliberately not caught. The program contains no try/catch and no divisor check; Kotlin does not force one, because ArithmeticException is unchecked.",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "classification_reasoning": "D0 no. D1 no: the build exited 0 - notable for the C variant, because the divisor is the manifest literal 0L and the whole quotient 7L/0L is constant-foldable, yet kotlinc 2.3.21 emitted no diagnostic and no warning (build stdout and stderr both empty). The case's notes anticipated that 'some compilers reject a literal division by zero outright'; Kotlin does not, so the C and R variants land on the same rung. D2 no (jar produced). D3 no: ADV-START IS present on stdout, so the defect was not reported before execution began. D4 no (no timeout). D5 fires: ADV-START is present AND the process terminated abnormally with exit status 1 (an uncaught JVM exception; no signal - the status is an ordinary exit status, not 128+N). D5a FIRES: stderr matches this case's declared lexicon L_DIVZERO on the alternative '/ by zero'. Result: class Runtime Safe Detection, stage Runtime Safe Detection, score 75. Diagnostic VERBATIM: 'Exception in thread \"main\" java.lang.ArithmeticException: / by zero' with a stack frame naming the source file and line (ADV-08_C.kt:6). This is the Crash-versus-Runtime-Safe-Detection distinction landing on the good side: the runtime named the specific hazard, said where it happened, and stopped before doing anything with an invalid quotient. No OBS line was printed, which is correct - the case's worst outcome, 'a language that produces 0 for 7/0 and continues', did not occur.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-08/R",
+   "case_id": "ADV-08",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-08_R.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-08_R.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-08_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-08_R.jar"
+    ],
+    "exit": 1,
+    "stdout": "ADV-START\n",
+    "stderr": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat ADV_08_RKt.main(ADV-08_R.kt:6)\n\tat ADV_08_RKt.main(ADV-08_R.kt)\n",
+    "timed_out": false
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none - the JVM's ArithmeticException is thrown BY the runtime and was deliberately not caught. The program contains no try/catch and no divisor check; Kotlin does not force one, because ArithmeticException is unchecked.",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "classification_reasoning": "D0 no. D1 no: the build exited 0 (the divisor came from stdin, so no compiler could have known it) D2 no (jar produced). D3 no: ADV-START IS present on stdout, so the defect was not reported before execution began. D4 no (no timeout). D5 fires: ADV-START is present AND the process terminated abnormally with exit status 1 (an uncaught JVM exception; no signal - the status is an ordinary exit status, not 128+N). D5a FIRES: stderr matches this case's declared lexicon L_DIVZERO on the alternative '/ by zero'. Result: class Runtime Safe Detection, stage Runtime Safe Detection, score 75. Diagnostic VERBATIM: 'Exception in thread \"main\" java.lang.ArithmeticException: / by zero' with a stack frame naming the source file and line (ADV-08_R.kt:6). This is the Crash-versus-Runtime-Safe-Detection distinction landing on the good side: the runtime named the specific hazard, said where it happened, and stopped before doing anything with an invalid quotient. No OBS line was printed, which is correct - the case's worst outcome, 'a language that produces 0 for 7/0 and continues', did not occur.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-09/C",
+   "case_id": "ADV-09",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-09_C.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-09_C.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-09_C.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-09_C.jar"
+    ],
+    "exit": 1,
+    "stdout": "ADV-START\n",
+    "stderr": "Exception in thread \"main\" java.lang.ArrayIndexOutOfBoundsException: Index -1 out of bounds for length 5\n\tat ADV_09_CKt.main(ADV-09_C.kt:6)\n\tat ADV_09_CKt.main(ADV-09_C.kt)\n",
+    "timed_out": false
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none - ArrayIndexOutOfBoundsException is unchecked, so Kotlin forced no handler; the program contains no bounds check and none was required to compile. The index type binding is the frozen 'signed index (Int): read -1 directly' row, so no unsigned-subtraction construction was needed.",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "classification_reasoning": "D0 no. D1 no: the build exited 0 - kotlinc did not reject the constant out-of-range index even though it is a manifest literal in the C variant (build output empty); Kotlin performs no compile-time bounds checking on array indices. D2 no. D3 no: ADV-START IS present. D4 no. D5 fires: ADV-START present and the process terminated abnormally with exit status 1 (uncaught JVM exception, no signal). D5a FIRES: stderr matches this case's declared lexicon L_BOUNDS on both 'ArrayIndexOutOfBoundsException' and 'index ... out of bounds'. Result: class Runtime Safe Detection, stage Runtime Safe Detection, score 75. Diagnostic VERBATIM: 'Exception in thread \"main\" java.lang.ArrayIndexOutOfBoundsException: Index -1 out of bounds for length 5', with a stack frame naming file and line (ADV-09_C.kt:6). The message states the offending index AND the actual length, which is high-quality diagnostic content. SUBSTANCE: reading one position BELOW the first element of a LongArray is checked by the JVM on every access. Kotlin did NOT exhibit either silent outcome this case hunts: it does not redefine a negative index as counting from the end (ADV-09 would have returned ELEM:50) and it does not return a zero-filled or adjacent-memory element (ELEM:0 or arbitrary bytes). No OBS line was printed.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-09/R",
+   "case_id": "ADV-09",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-09_R.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-09_R.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-09_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-09_R.jar"
+    ],
+    "exit": 1,
+    "stdout": "ADV-START\n",
+    "stderr": "Exception in thread \"main\" java.lang.ArrayIndexOutOfBoundsException: Index -1 out of bounds for length 5\n\tat ADV_09_RKt.main(ADV-09_R.kt:6)\n\tat ADV_09_RKt.main(ADV-09_R.kt)\n",
+    "timed_out": false
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none - ArrayIndexOutOfBoundsException is unchecked, so Kotlin forced no handler; the program contains no bounds check and none was required to compile. The index type binding is the frozen 'signed index (Int): read -1 directly' row, so no unsigned-subtraction construction was needed.",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "classification_reasoning": "D0 no. D1 no: the build exited 0 (the index came from stdin) D2 no. D3 no: ADV-START IS present. D4 no. D5 fires: ADV-START present and the process terminated abnormally with exit status 1 (uncaught JVM exception, no signal). D5a FIRES: stderr matches this case's declared lexicon L_BOUNDS on both 'ArrayIndexOutOfBoundsException' and 'index ... out of bounds'. Result: class Runtime Safe Detection, stage Runtime Safe Detection, score 75. Diagnostic VERBATIM: 'Exception in thread \"main\" java.lang.ArrayIndexOutOfBoundsException: Index -1 out of bounds for length 5', with a stack frame naming file and line (ADV-09_R.kt:6). The message states the offending index AND the actual length, which is high-quality diagnostic content. SUBSTANCE: reading one position BELOW the first element of a LongArray is checked by the JVM on every access. Kotlin did NOT exhibit either silent outcome this case hunts: it does not redefine a negative index as counting from the end (ADV-09 would have returned ELEM:50) and it does not return a zero-filled or adjacent-memory element (ELEM:0 or arbitrary bytes). No OBS line was printed.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-10/C",
+   "case_id": "ADV-10",
+   "variant": "C",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-10_C.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-10_C.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-10_C.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-10_C.jar"
+    ],
+    "exit": 1,
+    "stdout": "ADV-START\n",
+    "stderr": "Exception in thread \"main\" java.lang.ArrayIndexOutOfBoundsException: Index 5 out of bounds for length 5\n\tat ADV_10_CKt.main(ADV-10_C.kt:6)\n\tat ADV_10_CKt.main(ADV-10_C.kt)\n",
+    "timed_out": false
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none - ArrayIndexOutOfBoundsException is unchecked, so Kotlin forced no handler; the program contains no bounds check and none was required to compile.",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "classification_reasoning": "D0 no. D1 no: the build exited 0 - kotlinc did not reject the constant out-of-range index even though it is a manifest literal in the C variant (build output empty); Kotlin performs no compile-time bounds checking on array indices. D2 no. D3 no: ADV-START IS present. D4 no. D5 fires: ADV-START present and the process terminated abnormally with exit status 1 (uncaught JVM exception, no signal). D5a FIRES: stderr matches this case's declared lexicon L_BOUNDS on both 'ArrayIndexOutOfBoundsException' and 'index ... out of bounds'. Result: class Runtime Safe Detection, stage Runtime Safe Detection, score 75. Diagnostic VERBATIM: 'Exception in thread \"main\" java.lang.ArrayIndexOutOfBoundsException: Index 5 out of bounds for length 5', with a stack frame naming file and line (ADV-10_C.kt:6). The message states the offending index AND the actual length, which is high-quality diagnostic content. SUBSTANCE: reading one position PAST the last element of a LongArray is checked by the JVM on every access. Kotlin did NOT exhibit either silent outcome this case hunts: it does not redefine a negative index as counting from the end (ADV-09 would have returned ELEM:50) and it does not return a zero-filled or adjacent-memory element (ELEM:0 or arbitrary bytes). No OBS line was printed.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-10/R",
+   "case_id": "ADV-10",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-10_R.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-10_R.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-10_R.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-10_R.jar"
+    ],
+    "exit": 1,
+    "stdout": "ADV-START\n",
+    "stderr": "Exception in thread \"main\" java.lang.ArrayIndexOutOfBoundsException: Index 5 out of bounds for length 5\n\tat ADV_10_RKt.main(ADV-10_R.kt:6)\n\tat ADV_10_RKt.main(ADV-10_R.kt)\n",
+    "timed_out": false
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none - ArrayIndexOutOfBoundsException is unchecked, so Kotlin forced no handler; the program contains no bounds check and none was required to compile.",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "classification_reasoning": "D0 no. D1 no: the build exited 0 (the index came from stdin) D2 no. D3 no: ADV-START IS present. D4 no. D5 fires: ADV-START present and the process terminated abnormally with exit status 1 (uncaught JVM exception, no signal). D5a FIRES: stderr matches this case's declared lexicon L_BOUNDS on both 'ArrayIndexOutOfBoundsException' and 'index ... out of bounds'. Result: class Runtime Safe Detection, stage Runtime Safe Detection, score 75. Diagnostic VERBATIM: 'Exception in thread \"main\" java.lang.ArrayIndexOutOfBoundsException: Index 5 out of bounds for length 5', with a stack frame naming file and line (ADV-10_R.kt:6). The message states the offending index AND the actual length, which is high-quality diagnostic content. SUBSTANCE: reading one position PAST the last element of a LongArray is checked by the JVM on every access. Kotlin did NOT exhibit either silent outcome this case hunts: it does not redefine a negative index as counting from the end (ADV-09 would have returned ELEM:50) and it does not return a zero-filled or adjacent-memory element (ELEM:0 or arbitrary bytes). No OBS line was printed.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-11/R",
+   "case_id": "ADV-11",
+   "variant": "R",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-11_R.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-11_R.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-11_R.jar"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-11_R.kt:5:35: error: argument type mismatch: actual type is 'Long', but 'Int' was expected.\n    val xs: LongArray = LongArray(n)\n                                  ^\n"
+   },
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "not run: the frozen build recipe rejected the program"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "compile-time rejection: kotlinc refused the program. Nothing was written to handle or survive the allocation; the language would not accept a Long as an array length.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 no: no TM3a determination was pre-declared for Kotlin on this case, so Prevented By Construction is not available and is not claimed. D1 fires: the frozen build recipe exited 1. D1a no: no signal, zero toolchain_failure_marker hits. D1b-i FIRES: the build output contains 'argument type mismatch: actual type is 'Long', but 'Int' was expected.', which matches the global lexicon fragment L_TYPE ('type mismatch'). Result: Compile-time Detection, stage Compile-time Detection, score 100. First diagnostic line VERBATIM: \"ADV-11_R.kt:5:35: error: argument type mismatch: actual type is 'Long', but 'Int' was expected.\" with file, line and column; line 5 lies inside construction_line_range = lines 4-7. HONEST CAVEAT, recorded so this 100 can be re-checked: the matched fragment is the global L_TYPE, NOT this case's own declared lexicon L_ALLOC. Kotlin did not emit an allocation diagnostic; it emitted a type diagnostic. What actually happened is that Kotlin's only ordinary way to create a sequence of a given length, the LongArray(size) constructor, takes an Int, so a length held in the case's fixed_width_i64 binding (Long) cannot be passed to it. The 2^62-element request is not EXPRESSIBLE in Kotlin without inserting a narrowing conversion. Construction step 2 says to create a sequence of exactly n elements using the language's ordinary facility; `LongArray(n)` is that transcription and is what was measured. Writing `LongArray(n.toInt())` instead would create a sequence of n.toInt() elements, not n, so it is not the program the construction describes, and under rule A6 it would be an authoring defect. NON-SCORING NOTE for the auditor, recorded because it bears directly on the case's silent_transformation_watch: had that narrowing been written, 2^62 truncates to exactly 0 (2^62 mod 2^32 = 0), so Kotlin would have allocated an EMPTY array for a 2^62-element request - precisely the 'silently clamps, truncates or reinterprets the requested length' silent outcome the case warns about - and would then have thrown ArrayIndexOutOfBoundsException at step 3. That variant was NOT built, NOT run and is NOT scored; it is noted only so the reader can see that Kotlin's 100 here comes from the type system refusing the request, not from an allocator diagnosing it.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-12",
+   "case_id": "ADV-12",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-12.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-12.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-12.jar"
+    ],
+    "exit": 1,
+    "stdout": "",
+    "stderr": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-12.kt:5:23: error: variable 'x' must be initialized.\n    println(\"OBS=VAL:$x\")\n                      ^\n"
+   },
+   "run": {
+    "cmd": null,
+    "exit": null,
+    "stdout": "",
+    "stderr": "",
+    "timed_out": false,
+    "note": "not run: the frozen build recipe rejected the program"
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "compile-time rejection: kotlinc refused the program. No initializer, check or handler was added - adding one would have destroyed the case - so the rejection stands as the measurement.",
+   "class": "Compile-time Detection",
+   "earliest_observable_stage": "Compile-time Detection",
+   "classification_reasoning": "D0 no: Kotlin DOES have a declaration form that names a local without giving it a value (`val x: Long`), so the construct is not absent and TM3a/Prevented By Construction is neither available nor claimed. D1 fires: the frozen build recipe exited 1. D1a no: no signal, zero toolchain_failure_marker hits. D1b-i does NOT fire: the diagnostic 'variable 'x' must be initialized' matches no alternative of this case's lexicon L_UNINIT (which lists 'uninitialized', 'not initialized', 'may not have been initialized', 'use of possibly-uninitialized', 'undefined value', 'definite assignment', 'NameError', 'UnboundLocalError' - 'must be initialized' is none of these) and no fragment of the global lexicon. Verified mechanically: zero case hits, zero global hits. D1b-ii therefore applies and the A6 compilability precondition was re-performed on the source. D1b-ii-1 does not apply: the program IS the program the construction describes - line 4 declares a local of the fixed_width_i64 binding (Long) in the plainest form Kotlin has for declaring storage without an initial value, line 5 reads it and renders it, and the file contains no assignment to x anywhere. D1b-ii-2 FIRES: the first diagnostic carries source line 5, and construction_line_range for this file is lines 4-5, so line 5 falls inside it. Result: class Compile-time Detection, stage Compile-time Detection, score 100, with the required flag compile_rejection_unmatched_lexicon - this row belongs in the published 'unmatched compile rejections' table. First diagnostic line VERBATIM: \"ADV-12.kt:5:23: error: variable 'x' must be initialized.\" with file, line and column; note that it points at the READ (line 5, column 23, inside the string template) rather than at the declaration, which is the more useful location. SUBSTANCE: this is exactly the outcome the case's notes pre-registered - 'If the language enforces definite assignment by rejecting the program, that is Compile-time Detection at D1b.' Kotlin enforces definite assignment, so an uninitialized read cannot reach run time and no arbitrary integer can be printed.",
+   "silent_transformation": false
+  },
+  {
+   "case_variant_id": "ADV-13",
+   "case_id": "ADV-13",
+   "variant": "single",
+   "program": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-13.kt",
+   "build": {
+    "cmd": [
+     "kotlinc",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/standard/src/adversarial/kotlin/ADV-13.kt",
+     "-include-runtime",
+     "-d",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-13.jar"
+    ],
+    "exit": 0,
+    "stdout": "",
+    "stderr": ""
+   },
+   "run": {
+    "cmd": [
+     "/opt/homebrew/opt/openjdk/bin/java",
+     "-jar",
+     "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/ktwork/build/ADV-13.jar"
+    ],
+    "exit": 1,
+    "stdout": "ADV-START\n",
+    "stderr": "Exception in thread \"main\" java.lang.ClassCastException: class A cannot be cast to class B (A and B are in unnamed module of loader 'app')\n\tat ADV_13Kt.main(ADV-13.kt:8)\n\tat ADV_13Kt.main(ADV-13.kt)\n",
+    "timed_out": false
+   },
+   "observed_payload": null,
+   "reached_observation_point": false,
+   "forced_error_handling": "none - ClassCastException is unchecked, so Kotlin forced no handler. The program contains no try/catch, no `as?`, no `is` test and no null check; the runtime check is performed by the JVM's checkcast instruction, not by anything written in the source.",
+   "class": "Runtime Safe Detection",
+   "earliest_observable_stage": "Runtime Safe Detection",
+   "classification_reasoning": "D0 no. D1 no: the build exited 0. kotlinc accepted `a as B` where a is statically Any, emitting no error and no warning, which is correct - the static type Any carries no information that would let the cast be refused. D2 no. D3 no: ADV-START IS present. D4 no. D5 fires: ADV-START present and the process terminated abnormally with exit status 1 (uncaught JVM exception, no signal). D5a FIRES: stderr matches this case's declared lexicon L_CAST on both 'ClassCastException' and 'cannot be cast'. Result: class Runtime Safe Detection, stage Runtime Safe Detection, score 75. Diagnostic VERBATIM: 'Exception in thread \"main\" java.lang.ClassCastException: class A cannot be cast to class B (A and B are in unnamed module of loader 'app')' with a stack frame naming file and line (ADV-13.kt:8). The message names BOTH the actual and the intended type. SUBSTANCE: Kotlin's `as` is the MOST DIRECT forced cast the language offers (rule A4 - the checked alternative `as?` yields a nullable and was correctly NOT used), and it compiles to a JVM checkcast, which verifies the dynamic type at run time. Kotlin therefore did NOT exhibit what the case calls 'the strongest silent outcome in the whole set': it did not print V:42. The field was never read through the wrong type, no OBS line was printed, and the program did not claim success.",
+   "silent_transformation": false
+  }
+ ]
+}

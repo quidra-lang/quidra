@@ -1,0 +1,319 @@
+{
+ "probe_id": "F14.P1",
+ "language": "zig",
+ "count": 50,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "Shape",
+   "line": 1,
+   "col": 7
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 1,
+   "col": 13
+  },
+  {
+   "tag": "KW",
+   "text": "union",
+   "line": 1,
+   "col": 15
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 1,
+   "col": 20
+  },
+  {
+   "tag": "KW",
+   "text": "enum",
+   "line": 1,
+   "col": 21
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 1,
+   "col": 25
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 1,
+   "col": 27
+  },
+  {
+   "tag": "IDENT",
+   "text": "circle",
+   "line": 1,
+   "col": 29
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 1,
+   "col": 35
+  },
+  {
+   "tag": "KW",
+   "text": "struct",
+   "line": 1,
+   "col": 37
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 1,
+   "col": 44
+  },
+  {
+   "tag": "IDENT",
+   "text": "r",
+   "line": 1,
+   "col": 46
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 1,
+   "col": 47
+  },
+  {
+   "tag": "IDENT",
+   "text": "f64",
+   "line": 1,
+   "col": 49
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 1,
+   "col": 53
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 1,
+   "col": 54
+  },
+  {
+   "tag": "IDENT",
+   "text": "rect",
+   "line": 1,
+   "col": 56
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 1,
+   "col": 60
+  },
+  {
+   "tag": "KW",
+   "text": "struct",
+   "line": 1,
+   "col": 62
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 1,
+   "col": 69
+  },
+  {
+   "tag": "IDENT",
+   "text": "w",
+   "line": 1,
+   "col": 71
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 1,
+   "col": 72
+  },
+  {
+   "tag": "IDENT",
+   "text": "f64",
+   "line": 1,
+   "col": 74
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 1,
+   "col": 77
+  },
+  {
+   "tag": "IDENT",
+   "text": "h",
+   "line": 1,
+   "col": 79
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 1,
+   "col": 80
+  },
+  {
+   "tag": "IDENT",
+   "text": "f64",
+   "line": 1,
+   "col": 82
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 1,
+   "col": 86
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 1,
+   "col": 88
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 1,
+   "col": 89
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 2,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "s",
+   "line": 2,
+   "col": 7
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 2,
+   "col": 8
+  },
+  {
+   "tag": "IDENT",
+   "text": "Shape",
+   "line": 2,
+   "col": 10
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 2,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 2,
+   "col": 18
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 2,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 2,
+   "col": 21
+  },
+  {
+   "tag": "IDENT",
+   "text": "circle",
+   "line": 2,
+   "col": 22
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 2,
+   "col": 29
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 2,
+   "col": 31
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 2,
+   "col": 32
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 2,
+   "col": 34
+  },
+  {
+   "tag": "IDENT",
+   "text": "r",
+   "line": 2,
+   "col": 35
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 2,
+   "col": 37
+  },
+  {
+   "tag": "NUM",
+   "text": "2.0",
+   "line": 2,
+   "col": 39
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 2,
+   "col": 43
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 2,
+   "col": 45
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 2,
+   "col": 46
+  }
+ ],
+ "class_histogram": {
+  "KW": 6,
+  "IDENT": 13,
+  "OP": 4,
+  "DELIM": 26,
+  "NUM": 1
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/zig/F14.P1.zig",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

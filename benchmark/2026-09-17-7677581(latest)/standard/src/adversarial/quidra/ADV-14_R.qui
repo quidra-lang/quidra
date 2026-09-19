@@ -1,0 +1,20 @@
+string | error next_line()
+    auto received = try input()
+    match received
+        string text
+            return text
+        none
+            return error("no line")
+
+int64 scale(int64 n)
+    return n * 3
+
+void | error run()
+    string argument = try next_line()
+    int64 result = scale(argument)
+    print("OBS=R:{result}")
+    return void
+
+print("ADV-START")
+run()
+print("ADV-END")

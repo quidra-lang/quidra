@@ -1,0 +1,209 @@
+{
+ "probe_id": "F18.P2",
+ "language": "kotlin",
+ "count": 32,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "package",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "util",
+   "line": 1,
+   "col": 9
+  },
+  {
+   "tag": "KW",
+   "text": "fun",
+   "line": 3,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "pubAdd",
+   "line": 3,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 3,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 3,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 3,
+   "col": 13
+  },
+  {
+   "tag": "IDENT",
+   "text": "Int",
+   "line": 3,
+   "col": 15
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 3,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 3,
+   "col": 20
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 3,
+   "col": 21
+  },
+  {
+   "tag": "IDENT",
+   "text": "Int",
+   "line": 3,
+   "col": 23
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 3,
+   "col": 26
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 3,
+   "col": 27
+  },
+  {
+   "tag": "IDENT",
+   "text": "Int",
+   "line": 3,
+   "col": 29
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 3,
+   "col": 33
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 3,
+   "col": 35
+  },
+  {
+   "tag": "OP",
+   "text": "+",
+   "line": 3,
+   "col": 37
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 3,
+   "col": 39
+  },
+  {
+   "tag": "OP",
+   "text": "+",
+   "line": 3,
+   "col": 41
+  },
+  {
+   "tag": "IDENT",
+   "text": "secret",
+   "line": 3,
+   "col": 43
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 3,
+   "col": 49
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 3,
+   "col": 50
+  },
+  {
+   "tag": "KW",
+   "text": "private",
+   "line": 5,
+   "col": 1
+  },
+  {
+   "tag": "KW",
+   "text": "fun",
+   "line": 5,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "secret",
+   "line": 5,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 5,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 5,
+   "col": 20
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 5,
+   "col": 21
+  },
+  {
+   "tag": "IDENT",
+   "text": "Int",
+   "line": 5,
+   "col": 23
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 5,
+   "col": 27
+  },
+  {
+   "tag": "NUM",
+   "text": "1",
+   "line": 5,
+   "col": 29
+  }
+ ],
+ "class_histogram": {
+  "KW": 4,
+  "IDENT": 12,
+  "DELIM": 11,
+  "OP": 4,
+  "NUM": 1
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938"
+}

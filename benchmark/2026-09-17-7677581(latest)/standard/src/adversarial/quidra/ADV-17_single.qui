@@ -1,0 +1,5 @@
+print("ADV-START")
+string | none text = none
+int64 length = len(text)
+print("OBS=LEN:{length}")
+print("ADV-END")

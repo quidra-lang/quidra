@@ -1,0 +1,8 @@
+uint8 first_byte()
+    // BEGIN PROBE F02.P2
+    uint8[16] data
+    data[0] = 1
+    return data[0]
+    // END PROBE F02.P2
+
+print(first_byte())

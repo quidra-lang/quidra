@@ -1,0 +1,9 @@
+Building for debugging...
+[0/3] Write sources
+[2/3] Write swift-version--58304C5D6DBC2206.txt
+[4/5] Compiling ModA ModA.swift
+[5/5] Emitting module ModA
+[6/7] Emitting module ModB
+[7/7] Compiling ModB ModB.swift
+Build complete! (0.82s)
+exit=0

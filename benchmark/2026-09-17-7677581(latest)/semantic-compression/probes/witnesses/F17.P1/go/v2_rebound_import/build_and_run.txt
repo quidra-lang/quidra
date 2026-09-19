@@ -1,0 +1,1 @@
+no-file-opened result: 10 <nil>

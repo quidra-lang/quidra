@@ -1,0 +1,16 @@
+$ python3 -VV
+Python 3.9.6 (default, Dec  2 2025, 07:27:58) 
+[Clang 17.0.0 (clang-1700.6.3.2)]
+
+$ python3 -m py_compile fixture_real.py; echo exit=$?
+exit=0
+
+$ python3 fixture_real.py
+TOTAL 346
+BIGGEST 93
+ODDS 4
+LABEL 33:72:16
+exit=0
+
+$ python3 reference_solution.py | diff - expected_output.txt
+diff exit=0

@@ -1,0 +1,3 @@
+build: (none) -- Python source, no compilation step.
+syntax check: python3 -m py_compile solution.py
+exit=0

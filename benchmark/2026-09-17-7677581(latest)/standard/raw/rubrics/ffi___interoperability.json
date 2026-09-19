@@ -1,0 +1,700 @@
+{
+  "metric": "FFI / Interoperability",
+  "standard_category": "Language / Development",
+  "normalization_family": "G",
+  "rubric_document": "05_standard_rubrics.json",
+  "scores": {
+    "Quidra": {
+      "level": "Closed",
+      "score": 0,
+      "indicators_satisfied": [
+        "F3"
+      ],
+      "indicators_unsatisfied": [
+        "F1",
+        "F2",
+        "F4",
+        "F5",
+        "F6"
+      ],
+      "satisfied_count": 1,
+      "criteria_satisfied": [
+        "F3: the first-party C FFI mechanism (`extern <type> name(params) = \"c_symbol\"`) is documented in Quidra's official repository documentation, and the documentation states the complete foreign-type-to-language-type mapping (which C result and parameter types are admissible and how string/bytes borrows lower to a data-pointer + uint64-length pair)."
+      ],
+      "criteria_failed": [
+        "F1: probe FFI-1 does not build. quidra 0.2.0 hard-reserves the C symbol `cos` (runtime-prelude symbol list in src/checker.cpp), so `extern float64 c_cos(float64 x) = \"cos\"` is rejected with FFI_SYMBOL_CONFLICT. The documented workaround is 'use a distinct C wrapper symbol', but `quidra build` accepts no object, library or linker input (verified: `-lm` -> 'unknown build option'), so a C wrapper cannot be linked with first-party flags.",
+        "F2: no linkable-artifact emission exists; `quidra build` emits only a native executable. Unsatisfied by construction per the frozen recipe cell.",
+        "F4: probe FFI-3 does not build. Both the mixed-field struct parameter and the pointer+length double array are rejected with error[FFI_TYPE] 'External C parameters must use explicit numeric/bool scalar values or const string/bytes references.'",
+        "F5: the toolchain ships no C-header binding generator and no member of quidra-lang publishes one. Unsatisfied by construction per the frozen recipe cell.",
+        "F6: no additional non-C ecosystem or ABI. Official documentation states WASM is not implemented, and no JVM/.NET/Objective-C/JavaScript/Python-C-API target, flag or feature exists in the installed toolchain."
+      ],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "cd standard/rubrics && /.../build/quidra build probes/FFI-1/quidra/ffi1.qui -o build/ffi1-quidra",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "probes/FFI-1/quidra/ffi1.qui:1:1: error[FFI_SYMBOL_CONFLICT] External C symbol is reserved by the compiler/runtime implementation; use a distinct C wrapper symbol.\nprobes/FFI-1/quidra/ffi1.qui:3:13: error[UNKNOWN_NAME] Unknown function 'c_cos'.\n2 error(s) generated.  [exit=1]"
+        },
+        {
+          "source": "E1",
+          "detail": "cd standard/rubrics && /.../build/quidra build probes/FFI-3/quidra/ffi3.qui -o build/ffi3-quidra",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "probes/FFI-3/quidra/ffi3.qui:6:39: error[FFI_TYPE] External C parameters must use explicit numeric/bool scalar values or const string/bytes references.\nprobes/FFI-3/quidra/ffi3.qui:5:34: error[FFI_TYPE] External C parameters must use explicit numeric/bool scalar values or const string/bytes references.\n4 error(s) generated.  [exit=1]"
+        },
+        {
+          "source": "E1",
+          "detail": "SUPPLEMENTARY (not a frozen probe) - /.../build/quidra build /tmp/qffi/acos.qui -o /tmp/qffi/acos && /tmp/qffi/acos   [binds the unreserved libc symbol `acos` instead of the reserved `cos`]",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "acos_roundtrip=1.0000000000  [exit=0]  -- Quidra's C FFI mechanism itself works against the host system C library; F1 fails specifically on the reserved-symbol rule for `cos`, not on a total absence of C calling."
+        },
+        {
+          "source": "E1",
+          "detail": "/.../build/quidra build /tmp/qffi/acos.qui -o /tmp/qffi/acos2 -lm",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "quidra: unknown build option: -lm   -- no first-party flag can link a C wrapper object or library."
+        },
+        {
+          "source": "E2",
+          "detail": "docs/spec/language.md, section 'C FFI', in https://github.com/quidra-lang/quidra (Quidra's frozen official_docs_root; read from the frozen checkout at benchmark/../..)",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "Results are restricted to `void` or ABI-stable by-value scalars: all fixed-width signed/unsigned integer types, `int`/`int64`, `float32`, `float`/`float64`, and `bool`. Scalar and bool parameters are also by value. ... Each borrowed parameter expands at the C ABI boundary to two adjacent C parameters: a non-null read-only data pointer followed by a `uint64` byte length. ... Mutable references, by-value/const-value managed buffers, scalar references, default arguments, generics, managed-value results, arrays, tensors, neural values, unions, and classes remain rejected."
+        },
+        {
+          "source": "E2",
+          "detail": "/.../build/quidra describe  (first-party machine-readable language summary shipped by the toolchain)",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "\"c_ffi\": true, \"c_ffi_model\": \"explicit top-level C symbol declarations: scalar/void results and scalar/bool by-value inputs; ... `main`, the compiler-owned `n_*` mangling namespace, `quidra_*`/`__quidra_*` implementation namespaces, and runtime-prelude symbols cannot be rebound\""
+        },
+        {
+          "source": "E2",
+          "detail": "docs/spec/language.md line 474 (official repository documentation) - F6 negative evidence",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "Concurrency, WASM, self-hosting, broader signal-processing APIs, and broader package distribution remain development areas."
+        },
+        {
+          "source": "E1",
+          "detail": "src/checker.cpp runtime_reserved_c_symbol() in the frozen quidra checkout - the mechanism that blocks F1",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "static const std::unordered_set<std::string> symbols{ \"printf\", \"puts\", \"strlen\", ... \"sin\", \"sinf\", \"cos\", \"cosf\", \"tan\", \"tanf\", \"log\", \"logf\", \"exp\", \"expf\", \"pow\", \"powf\"};"
+        }
+      ],
+      "reasoning": "1 of 6 indicators satisfied, so level 'Closed' (0) and not 'Limited' (20), which requires exactly 2. Quidra has a real, documented, working first-party C FFI (the supplementary `acos` execution proves it calls into the host C library), but every observable criterion except the documentation indicator fails: FFI-1 is blocked because `cos` is on the compiler's reserved runtime-prelude symbol list and no first-party flag can link the C wrapper the documentation prescribes; FFI-2 has no linkable-artifact emission; FFI-3 is rejected at type-check because structs and arrays may not cross the boundary; FFI-4 has no binding generator; and no second ecosystem exists. It is NOT 20 because only F3 is satisfied. The level NAME 'Closed' carries an inclusion clause about languages that cannot call any C function at all; that clause does not describe Quidra, but scoring_procedure fixes the score by the satisfied COUNT, and the count is 1."
+    },
+    "Python": {
+      "level": "Basic",
+      "score": 40,
+      "indicators_satisfied": [
+        "F1",
+        "F3",
+        "F4"
+      ],
+      "indicators_unsatisfied": [
+        "F2",
+        "F5",
+        "F6"
+      ],
+      "satisfied_count": 3,
+      "criteria_satisfied": [
+        "F1: probe FFI-1 built and ran with the frozen command using only ctypes (a first-party stdlib module), printing cos(1.0)=0.5403023059 (11 significant digits).",
+        "F3: ctypes is documented at docs.python.org (official_docs_root) with an explicit 'Fundamental data types' table mapping C types to ctypes types to Python types.",
+        "F4: probe FFI-3 built and ran. sizeof=16 offset=8 for the mixed int32/double ctypes.Structure; a (c_double*5) C-layout buffer and a (Record*3) C-layout buffer were reordered in place by libc qsort through a CFUNCTYPE upcall, with no copy into a Python list."
+      ],
+      "criteria_failed": [
+        "F2: CPython provides no documented first-party mechanism to compile Python source into a C-callable linkable artifact. Unsatisfied by construction per the frozen recipe cell.",
+        "F5: CPython ships no C-header binding generator; ctypes requires hand-written declarations, which FFI-4 forbids. Unsatisfied by construction per the frozen recipe cell.",
+        "F6: no additional non-C ecosystem is both documented and present. docs.python.org/3/library/ctypes.html is a C mechanism; the former WebAssembly platform page (docs.python.org/3/using/wasm.html) returns HTTP 404 at the evidence window, and the installed interpreter reports sysconfig platform 'macosx-10.9-universal2' with no wasm/JVM/.NET/Objective-C builtin module."
+      ],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "cd standard/rubrics && python3 probes/FFI-1/python/ffi1.py",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "cos(1.0)=0.5403023059  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "cd standard/rubrics && python3 probes/FFI-3/python/ffi3.py",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "sizeof=16 offset=8\n1.25 1.50 2.25 3.50 4.75\n1:4.00 2:2.50 3:1.50  [exit=0]"
+        },
+        {
+          "source": "E2",
+          "detail": "https://docs.python.org/3/library/ctypes.html",
+          "accessed": "2026-09-18T20:26:04Z",
+          "excerpt": "ctypes is a foreign function library for Python. It provides C compatible data types, and allows calling functions in DLLs or shared libraries."
+        },
+        {
+          "source": "E2",
+          "detail": "https://docs.python.org/3/library/ctypes.html section 'Fundamental data types' (C type / ctypes type / Python type table)",
+          "accessed": "2026-09-18T20:26:04Z",
+          "excerpt": "c_double  double  float  'd'"
+        },
+        {
+          "source": "E2",
+          "detail": "https://docs.python.org/3/using/wasm.html  (F6 negative evidence)",
+          "accessed": "2026-09-18T20:28:05Z",
+          "excerpt": "HTTP 404 - no WebAssembly platform page is published for the documentation of the version under test."
+        },
+        {
+          "source": "E1",
+          "detail": "python3 -c \"import sysconfig;print(sysconfig.get_platform())\"  and a scan of sys.builtin_module_names for wasm/jvm/objc",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "platform= macosx-10.9-universal2\nwasm_in_platform= False\n(none)"
+        }
+      ],
+      "reasoning": "Exactly 3 of 6 satisfied -> 'Basic' (40). Not 'Adequate' (60), which needs 4: Python has no first-party way to be CALLED from C as a linkable artifact (F2), no header-consuming binding generator (F5), and no second ecosystem present in the installed interpreter (F6). Not 'Limited' (20) because F1, F3 and F4 are all positively verified by execution and by official documentation, including the full zero-copy requirement of FFI-3."
+    },
+    "C++": {
+      "level": "Bidirectional, zero-copy, header-consuming, multi-ecosystem",
+      "score": 100,
+      "indicators_satisfied": [
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "F5",
+        "F6"
+      ],
+      "indicators_unsatisfied": [],
+      "satisfied_count": 6,
+      "criteria_satisfied": [
+        "F1: FFI-1 built with the frozen clang++ -std=c++20 -O2 command and printed cos(1.0)=0.5403023059.",
+        "F2: FFI-2 built as build/libffi2cpp.dylib and the C caller compiled with clang linked against it printed ffi2_add=42.",
+        "F3: language linkage (extern \"C\") is documented by isocpp.org, a frozen member of C++'s official_docs_root; C and C++ share the C type system so the foreign-type mapping is the identity, which the same document relies on.",
+        "F4: FFI-3 printed sizeof=16 offset=8 and both the double array and the mixed int32/double struct array were reordered in place by libc qsort.",
+        "F5: FFI-4 consumed the supplied header by #include with -Iprobes/FFI-4/c and printed supplied_add=42 / supplied_weighted=4.50 / SUPPLIED_SCALE=3; no declaration was hand-written. FFI-4 explicitly admits direct header import.",
+        "F6: Objective-C++ - a non-C ABI (the Objective-C runtime) - is documented by Clang (clang.llvm.org, frozen official_docs_root) and the installed Apple clang 17 compiled and ran an Objective-C++ program against Foundation on this host."
+      ],
+      "criteria_failed": [],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "clang++ -std=c++20 -O2 probes/FFI-1/cpp/ffi1.cpp -o build/ffi1-cpp && ./build/ffi1-cpp",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "cos(1.0)=0.5403023059  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "clang++ -std=c++20 -O2 -fPIC -shared probes/FFI-2/cpp/ffi2.cpp -o build/libffi2cpp.dylib ; clang -std=c17 probes/FFI-2/c/caller.c -Lbuild -lffi2cpp -o build/ffi2-caller-cpp && DYLD_LIBRARY_PATH=build ./build/ffi2-caller-cpp",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "ffi2_add=42  [exit=0 for both commands]"
+        },
+        {
+          "source": "E1",
+          "detail": "clang++ -std=c++20 -O2 probes/FFI-3/cpp/ffi3.cpp -o build/ffi3-cpp && ./build/ffi3-cpp",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "sizeof=16 offset=8\n1.25 1.50 2.25 3.50 4.75\n1:4.00 2:2.50 3:1.50  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "clang++ -std=c++20 -O2 -Iprobes/FFI-4/c probes/FFI-4/cpp/ffi4.cpp -o build/ffi4-cpp && ./build/ffi4-cpp",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "supplied_add=42\nsupplied_weighted=4.50\nSUPPLIED_SCALE=3  [exit=0]"
+        },
+        {
+          "source": "E2",
+          "detail": "https://isocpp.org/wiki/faq/mixing-c-and-cpp",
+          "accessed": "2026-09-18T20:26:56Z",
+          "excerpt": "Just declare the C function extern \"C\" (in your C++ code) and call it (from your C or C++ code)."
+        },
+        {
+          "source": "E2",
+          "detail": "https://clang.llvm.org/docs/UsersManual.html",
+          "accessed": "2026-09-18T20:28:05Z",
+          "excerpt": "Clang is designed to support the C family of programming languages, which includes C , Objective-C , C++ , and Objective-C++ as well as many dialects of those."
+        },
+        {
+          "source": "E1",
+          "detail": "clang++ -std=c++20 -x objective-c++ /tmp/qffi/objcpp.mm -framework Foundation -o objcpp && ./objcpp  (F6 host conjunct)",
+          "accessed": "2026-09-18T20:27:43Z",
+          "excerpt": "objcpp=objc++  [exit=0]"
+        }
+      ],
+      "reasoning": "All 6 indicators satisfied -> 100. Every one is backed by a host execution with exit status 0 and the expected output, plus the two required documentation citations (F3 language linkage at isocpp.org, F6 Objective-C++ at clang.llvm.org with the host compile). Note the wasm route is NOT available to this toolchain (Apple clang registers no WebAssembly backend: `clang --target=wasm32 -c` fails with 'No available targets are compatible with triple \"wasm32\"'); F6 rests entirely on Objective-C++, which was executed."
+    },
+    "Rust": {
+      "level": "Strong",
+      "score": 80,
+      "indicators_satisfied": [
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "F6"
+      ],
+      "indicators_unsatisfied": [
+        "F5"
+      ],
+      "satisfied_count": 5,
+      "criteria_satisfied": [
+        "F1: FFI-1 built with the frozen `rustc -O` command using an `extern \"C\"` block and printed cos(1.0)=0.5403023059.",
+        "F2: FFI-2 built as a cdylib with `--crate-type=cdylib`; the clang-compiled C caller linked against build/libffi2rust.dylib printed ffi2_add=42.",
+        "F3: external blocks are documented in the Rust Reference (doc.rust-lang.org, frozen official_docs_root) and the C type mapping is documented in core::ffi (c_int, c_double, ...).",
+        "F4: FFI-3 printed sizeof=16 offset=8 for a #[repr(C)] struct; the [f64;5] and the [Record;3] were reordered in place by libc qsort through extern \"C\" comparator callbacks, with no copy into a Vec.",
+        "F6: WebAssembly is documented as a supported Rust target at doc.rust-lang.org/rustc/platform-support.html and the installed rustc reports eight wasm32 targets in `rustc --print target-list`."
+      ],
+      "criteria_failed": [
+        "F5: rust-bindgen is admissible (published by rust-lang, a member of Rust's official_project_set) but is not part of the rustc distribution and is not installed on this host; global_rules.host_verification.no_installation_of_extra_software forbids installing it. Recorded availability_state S3, verification_status unverified, indicator NOT SATISFIED per indicator_model.unverifiable_rule and tool_availability_states.scoring_effect.everything_else."
+      ],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "rustc -O probes/FFI-1/rust/ffi1.rs -o build/ffi1-rust && ./build/ffi1-rust",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "cos(1.0)=0.5403023059  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "rustc -O --crate-type=cdylib probes/FFI-2/rust/ffi2.rs -o build/libffi2rust.dylib ; clang -std=c17 probes/FFI-2/c/caller.c -Lbuild -lffi2rust -o build/ffi2-caller-rust && DYLD_LIBRARY_PATH=build ./build/ffi2-caller-rust",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "ffi2_add=42  [exit=0 for both commands]"
+        },
+        {
+          "source": "E1",
+          "detail": "rustc -O probes/FFI-3/rust/ffi3.rs -o build/ffi3-rust && ./build/ffi3-rust",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "sizeof=16 offset=8\n1.25 1.50 2.25 3.50 4.75\n1:4.00 2:2.50 3:1.50  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "command -v bindgen",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "bindgen: not installed (availability_state S3)  [exit=1]"
+        },
+        {
+          "source": "E2",
+          "detail": "https://doc.rust-lang.org/reference/items/external-blocks.html",
+          "accessed": "2026-09-18T20:26:04Z",
+          "excerpt": "External blocks provide declarations of items that are not defined in the current crate and are the basis of Rust's foreign function interface."
+        },
+        {
+          "source": "E2",
+          "detail": "https://doc.rust-lang.org/core/ffi/index.html",
+          "accessed": "2026-09-18T20:26:32Z",
+          "excerpt": "Platform-specific types, as defined by C. ... c_double Equivalent to C's double type. c_int Equivalent to C's signed int ( int ) type."
+        },
+        {
+          "source": "E2",
+          "detail": "https://doc.rust-lang.org/rustc/platform-support.html",
+          "accessed": "2026-09-18T20:28:28Z",
+          "excerpt": "wasm32-unknown-unknown ... WebAssembly"
+        },
+        {
+          "source": "E1",
+          "detail": "rustc --print target-list | grep wasm32   (F6 host conjunct)",
+          "accessed": "2026-09-18T20:28:28Z",
+          "excerpt": "wasm32-unknown-emscripten wasm32-unknown-unknown wasm32-wali-linux-musl wasm32-wasip1 wasm32-wasip1-threads wasm32-wasip2 wasm32-wasip3 wasm32v1-none"
+        },
+        {
+          "source": "E1",
+          "detail": "DISCLOSURE for F6 - rustc -O --target wasm32-unknown-unknown --crate-type=cdylib /tmp/qffi/w.rs",
+          "accessed": "2026-09-18T20:28:05Z",
+          "excerpt": "error[E0463]: can't find crate for `std` | = note: the `wasm32-unknown-unknown` target may not be installed | = help: consider downloading the target with `rustup target add wasm32-unknown-unknown`  -- the TARGET is present in this rustc; the precompiled std/core for it is absent from the Homebrew repackage (availability_state S2)."
+        }
+      ],
+      "reasoning": "Exactly 5 of 6 satisfied -> 'Strong' (80). Not 100: F5 fails because rust-bindgen, though published by rust-lang, is not in the rustc distribution and may not be installed on this host. Not 60: F1, F2, F3, F4 and F6 are each positively evidenced. F6 is scored on its own wording - the indicator's second conjunct is that the target/flag/feature is PRESENT in the installed toolchain, not that it executes; global_rules.tool_availability_states.scoring_effect enumerates the execution-requiring indicators (V3-V5, Q2-Q4, F2, F4, F5, C1, C5, P3) and F6 is deliberately not among them. rustc lists eight wasm32 targets; the missing piece is only the precompiled std for them, which is a Homebrew repackaging artefact and is disclosed above."
+    },
+    "Go": {
+      "level": "Bidirectional, zero-copy, header-consuming, multi-ecosystem",
+      "score": 100,
+      "indicators_satisfied": [
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "F5",
+        "F6"
+      ],
+      "indicators_unsatisfied": [],
+      "satisfied_count": 6,
+      "criteria_satisfied": [
+        "F1: FFI-1 built with the frozen `go build` command using cgo (`#include <math.h>` + import \"C\") and printed cos(1.0)=0.5403023059.",
+        "F2: FFI-2 built with -buildmode=c-shared as build/libffi2go.dylib from a //export'd function; the clang-compiled C caller printed ffi2_add=42.",
+        "F3: cgo is documented at pkg.go.dev/cmd/cgo (go.dev / pkg.go.dev are the frozen official_docs_root) with an explicit C-to-Go numeric type mapping.",
+        "F4: FFI-3 printed sizeof=16 offset=8; the [5]float64 and the [3]Record were reordered in place by libc C.qsort through //export'd Go comparators reached as C function pointers, with no copy into a Go slice or map.",
+        "F5: FFI-4 built with `go build` alone: the supplied header is consumed directly by the cgo preamble (#cgo CFLAGS: -I../c / #include \"supplied.h\") and printed supplied_add=42 / supplied_weighted=4.50 / SUPPLIED_SCALE=3; no declaration was hand-written.",
+        "F6: WebAssembly is documented as a first-party Go port at go.dev/wiki/WebAssembly and the installed go1.26.3 lists js/wasm and wasip1/wasm in `go tool dist list` and actually produced a WebAssembly binary on this host."
+      ],
+      "criteria_failed": [],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "go build -o build/ffi1-go probes/FFI-1/go/ffi1.go && ./build/ffi1-go",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "cos(1.0)=0.5403023059  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "go build -buildmode=c-shared -o build/libffi2go.dylib probes/FFI-2/go/ffi2.go ; clang -std=c17 probes/FFI-2/c/caller.c -Lbuild -lffi2go -o build/ffi2-caller-go && DYLD_LIBRARY_PATH=build ./build/ffi2-caller-go",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "ffi2_add=42  [exit=0 for both commands]"
+        },
+        {
+          "source": "E1",
+          "detail": "go build -o build/ffi3-go probes/FFI-3/go/ffi3.go && ./build/ffi3-go",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "sizeof=16 offset=8\n1.25 1.50 2.25 3.50 4.75\n1:4.00 2:2.50 3:1.50  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "go build -o build/ffi4-go probes/FFI-4/go/ffi4.go && ./build/ffi4-go",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "supplied_add=42\nsupplied_weighted=4.50\nSUPPLIED_SCALE=3  [exit=0]"
+        },
+        {
+          "source": "E2",
+          "detail": "https://pkg.go.dev/cmd/cgo",
+          "accessed": "2026-09-18T20:26:04Z",
+          "excerpt": "The standard C numeric types are available under the names C.char, C.schar (signed char), C.uchar (unsigned char), C.short, C.ushort (unsigned short), C.int, C.uint (unsigned int), C.long, C.ulong (unsigned long), C.longlong (long long), C.ulonglong (unsigned long long), C.float, C.double"
+        },
+        {
+          "source": "E2",
+          "detail": "https://go.dev/wiki/WebAssembly",
+          "accessed": "2026-09-18T20:28:28Z",
+          "excerpt": "JavaScript (GOOS=js) port"
+        },
+        {
+          "source": "E1",
+          "detail": "go tool dist list | grep wasm  ;  GOOS=wasip1 GOARCH=wasm go build -o w_go.wasm gw/main.go && file w_go.wasm   (F6 host conjunct)",
+          "accessed": "2026-09-18T20:28:05Z",
+          "excerpt": "js/wasm\nwasip1/wasm\nw_go.wasm: WebAssembly (wasm) binary module version 0x1 (MVP)"
+        }
+      ],
+      "reasoning": "All 6 indicators satisfied -> 100. cgo covers calling out (F1), being called in through -buildmode=c-shared (F2), the zero-copy struct and pointer+length array (F4) and mechanical header consumption (F5, admitted by FFI-4 as direct header import), all executed here; the type mapping is in cmd/cgo (F3); and the js/wasm and wasip1/wasm ports give the second ecosystem (F6), verified both by the toolchain's own target list and by actually emitting a .wasm binary."
+    },
+    "Java": {
+      "level": "Basic",
+      "score": 40,
+      "indicators_satisfied": [
+        "F1",
+        "F3",
+        "F4"
+      ],
+      "indicators_unsatisfied": [
+        "F2",
+        "F5",
+        "F6"
+      ],
+      "satisfied_count": 3,
+      "criteria_satisfied": [
+        "F1: FFI-1 built and ran with the frozen javac/java commands using java.lang.foreign (shipped in the JDK under test) and printed cos(1.0)=0.5403023059. Restricted-method warnings go to stderr; exit status 0.",
+        "F3: java.lang.foreign.Linker in the JDK 26 API documentation (docs.oracle.com, frozen official_docs_root) documents the downcall mechanism and carries an explicit C-type / memory-layout / Java-carrier mapping table, including `struct Point { int x; long y; }` -> structLayout with an explicit paddingLayout.",
+        "F4: FFI-3 printed sizeof=16 offset=8 from a StructLayout with explicit padding; an off-heap Arena-allocated double buffer and a 3-element record buffer were reordered in place by libc qsort through upcall stubs, with no copy into a Java collection or array."
+      ],
+      "criteria_failed": [
+        "F2: the JDK under test publishes no documented mechanism to compile Java source into a C-callable linkable artifact (jaotc was removed and no replacement ships with OpenJDK 26). Unsatisfied by construction per the frozen recipe cell.",
+        "F5: jextract is admissible (an OpenJDK project, a member of Java's official_project_set) but is not part of this JDK install and may not be installed here. Recorded availability_state S3, verification_status unverified, indicator NOT SATISFIED.",
+        "F6: no additional non-C ecosystem is both documented and present. The JVM is Java's own runtime, not an additional ecosystem; Nashorn (JavaScript) was removed in JDK 15; the installed JDK 26 exposes no WASM, .NET or Objective-C target or flag. The java.scripting module is present but `new ScriptEngineManager().getEngineFactories()` returns 0 engines on this host, so no second ecosystem is reachable."
+      ],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "JAVA_HOME=/opt/homebrew/opt/openjdk javac -d build/java-ffi1 probes/FFI-1/java/Main.java && java -cp build/java-ffi1 Main",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "WARNING: A restricted method in java.lang.foreign.Linker has been called\n...\ncos(1.0)=0.5403023059  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "javac -d build/java-ffi3 probes/FFI-3/java/Main.java && java -cp build/java-ffi3 Main",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "sizeof=16 offset=8\n1.25 1.50 2.25 3.50 4.75\n1:4.00 2:2.50 3:1.50  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "command -v jextract",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "jextract: not installed (availability_state S3)  [exit=1]"
+        },
+        {
+          "source": "E2",
+          "detail": "https://docs.oracle.com/en/java/javase/26/docs/api/java.base/java/lang/foreign/Linker.html",
+          "accessed": "2026-09-18T20:26:32Z",
+          "excerpt": "double  ValueLayout.JAVA_DOUBLE  double ... struct Point { int x; long y; };  MemoryLayout.structLayout( ValueLayout.JAVA_INT.withName(\"x\"), MemoryLayout.paddingLayout(4), ValueLayout.JAVA_LONG.withName(\"y\") );"
+        },
+        {
+          "source": "E1",
+          "detail": "java --list-modules | grep -iE 'wasm|script|nashorn|objc|dotnet'  and a ScriptEngineManager engine-factory count (F6 host conjunct)",
+          "accessed": "2026-09-18T20:28:05Z",
+          "excerpt": "java.scripting@26.0.1\nscript_engine_count=0"
+        }
+      ],
+      "reasoning": "Exactly 3 of 6 satisfied -> 'Basic' (40). Not 'Adequate' (60): F2, F5 and F6 all fail. Java's java.lang.foreign is a genuinely strong outbound FFI - F1 and F4 both executed cleanly, including upcall stubs and off-heap zero-copy buffers - but the JDK cannot be compiled into a C-callable artifact (F2), jextract is not installed and may not be installed (F5, S3), and the installed JDK reaches no non-C ecosystem (F6, verified 0 script engines). Not 'Limited' (20) because three indicators are positively evidenced."
+    },
+    "TypeScript": {
+      "level": "Closed",
+      "score": 0,
+      "indicators_satisfied": [
+        "F6"
+      ],
+      "indicators_unsatisfied": [
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "F5"
+      ],
+      "satisfied_count": 1,
+      "criteria_satisfied": [
+        "F6: WebAssembly - a non-C ABI - is documented as first-party by Node.js (the runtime named in the frozen run recipe, whose project is a member of TypeScript's official_project_set) in the globals and node:wasi documentation, and it is present and functional in the installed node v24.2.0: a WebAssembly module was compiled and instantiated and its exported add(20,22) returned 42."
+      ],
+      "criteria_failed": [
+        "F1: probe FFI-1 compiled (tsc exit 0) and ran (node exit 0) but printed cos(1.0)=UNSUPPORTED. Node.js exposes no foreign-function builtin module (the probe enumerated builtinModules and found none), and the only first-party native entry point, process.dlopen, loads a Node-API addon rather than an arbitrary C shared library - it failed against /usr/lib/libSystem.B.dylib with 'Module did not self-register'. Producing an addon would require a third-party toolchain (node-gyp) and hand-written C++, which F1's first-party restriction forbids.",
+        "F2: neither tsc nor Node.js publishes a documented mechanism to emit a C-callable linkable artifact from TypeScript source. Unsatisfied by construction per the frozen recipe cell.",
+        "F3: no first-party FFI mechanism exists for F1 or F2, so no such mechanism is documented with a foreign-type mapping. Absence of evidence is not satisfaction.",
+        "F4: probe FFI-3 ran and recorded UNSUPPORTED - there is no first-party way to place a mixed-field struct or a pointer+length double array in C-layout memory and hand it to a C function.",
+        "F5: neither tsc nor Node.js ships a C-header binding generator. Unsatisfied by construction per the frozen recipe cell."
+      ],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "tsc -p probes/FFI-1/typescript/tsconfig.json && node probes/FFI-1/typescript/build/ffi1.js",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "node_builtin_ffi_modules=(none)\ndlopen_libSystem_failed=Module did not self-register: '/usr/lib/libSystem.B.dylib'.\ncos(1.0)=UNSUPPORTED  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "tsc -p probes/FFI-3/typescript/tsconfig.json && node probes/FFI-3/typescript/build/ffi3.js",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "node_builtin_ffi_modules=(none)\nUNSUPPORTED: no first-party mechanism to pass a struct or a pointer+length array across the C ABI  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "node -p \"require('node:module').builtinModules.join(',')\"  and  node -e \"require('node:ffi')\"",
+          "accessed": "2026-09-18T20:27:43Z",
+          "excerpt": "node:ffi -> ERR_UNKNOWN_BUILTIN_MODULE   (the full builtin list contains no ffi/dlfcn/foreign module)"
+        },
+        {
+          "source": "E2",
+          "detail": "https://nodejs.org/api/globals.html  (Class: WebAssembly)",
+          "accessed": "2026-09-18T20:28:05Z",
+          "excerpt": "Class: WebAssembly # Added in: v8.0.0 ... WebAssembly related functionality."
+        },
+        {
+          "source": "E2",
+          "detail": "https://nodejs.org/api/wasi.html",
+          "accessed": "2026-09-18T20:26:56Z",
+          "excerpt": "node:wasi (the WebAssembly System Interface API shipped with Node.js)"
+        },
+        {
+          "source": "E1",
+          "detail": "node -e '...new WebAssembly.Instance(new WebAssembly.Module(src)); i.exports.add(20,22)...'  (F6 host conjunct)",
+          "accessed": "2026-09-18T20:28:28Z",
+          "excerpt": "WebAssembly.validate= true\nwasm_add(20,22)= 42\nnode_wasi= function"
+        }
+      ],
+      "reasoning": "1 of 6 satisfied -> 'Closed' (0), and this is the level whose criteria explicitly include 'any language that cannot call a C library function with first-party features' - which is exactly TypeScript's position here. Not 'Limited' (20), which requires 2. The single satisfied indicator is F6: Node.js does interoperate first-party with the WebAssembly ABI, verified by instantiating and calling a wasm module on this host. Every C-boundary indicator fails, verified by running both probes to completion rather than by assumption."
+    },
+    "Kotlin": {
+      "level": "Adequate",
+      "score": 60,
+      "indicators_satisfied": [
+        "F1",
+        "F3",
+        "F4",
+        "F6"
+      ],
+      "indicators_unsatisfied": [
+        "F2",
+        "F5"
+      ],
+      "satisfied_count": 4,
+      "criteria_satisfied": [
+        "F1: FFI-1 built with the frozen kotlinc command and ran on the JVM, calling libc cos through java.lang.foreign, printing cos(1.0)=0.5403023059. OpenJDK is a frozen member of Kotlin's official_project_set, so java.lang.foreign is first-party for Kotlin/JVM.",
+        "F3: the mechanism used by F1 is java.lang.foreign, documented in the JDK 26 API documentation with an explicit C-type / layout / carrier mapping table.",
+        "F4: FFI-3 printed sizeof=16 offset=8 from a StructLayout with explicit padding; an off-heap double buffer and a 3-element record buffer were reordered in place by libc qsort through upcall stubs bound to Kotlin top-level functions, with no copy into a Kotlin collection.",
+        "F6: the JVM/Java ecosystem is an additional non-C ecosystem for Kotlin, documented first-party at kotlinlang.org/docs/java-interop.html, and the installed kotlinc-jvm 2.3.21 on JRE 26.0.1 demonstrably produced JVM bytecode that called java.* APIs on this host."
+      ],
+      "criteria_failed": [
+        "F2: kotlinc-jvm, the toolchain frozen in environment.json, emits JVM class files and jars, not C-callable linkable artifacts. Unsatisfied by construction per the frozen recipe cell. (Kotlin/Native does emit libraries, but the toolchain under test is kotlinc-jvm and consistency requires scoring the toolchain under test.)",
+        "F5: jextract is admissible (OpenJDK, a member of Kotlin's official_project_set) but is not installed on this host and may not be installed. Recorded availability_state S3, verification_status unverified, indicator NOT SATISFIED."
+      ],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "kotlinc -include-runtime -d build/ffi1-kotlin.jar probes/FFI-1/kotlin/ffi1.kt && java -jar build/ffi1-kotlin.jar",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "WARNING: A restricted method in java.lang.foreign.Linker has been called\n...\ncos(1.0)=0.5403023059  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "kotlinc -include-runtime -d build/ffi3-kotlin.jar probes/FFI-3/kotlin/ffi3.kt && java -jar build/ffi3-kotlin.jar",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "sizeof=16 offset=8\n1.25 1.50 2.25 3.50 4.75\n1:4.00 2:2.50 3:1.50  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "command -v jextract",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "jextract: not installed (availability_state S3)  [exit=1]"
+        },
+        {
+          "source": "E2",
+          "detail": "https://docs.oracle.com/en/java/javase/26/docs/api/java.base/java/lang/foreign/Linker.html (OpenJDK/Oracle documentation; OpenJDK is in Kotlin's frozen official_project_set)",
+          "accessed": "2026-09-18T20:26:32Z",
+          "excerpt": "double  ValueLayout.JAVA_DOUBLE  double ... struct Point { int x; long y; };  MemoryLayout.structLayout( ValueLayout.JAVA_INT.withName(\"x\"), MemoryLayout.paddingLayout(4), ValueLayout.JAVA_LONG.withName(\"y\") );"
+        },
+        {
+          "source": "E2",
+          "detail": "https://kotlinlang.org/docs/java-interop.html",
+          "accessed": "2026-09-18T20:26:56Z",
+          "excerpt": "Kotlin is designed with Java interoperability in mind. Existing Java code can be called from Kotlin in a natural way, and Kotlin code can be used from Java rather smoothly as well."
+        }
+      ],
+      "reasoning": "Exactly 4 of 6 satisfied -> 'Adequate' (60). One indicator above Java, and the difference is a real, observable one rather than a modelling choice: Kotlin satisfies F6 because the JVM genuinely is an ADDITIONAL non-C ecosystem for Kotlin (documented at kotlinlang.org and exercised on this host), whereas for Java the JVM is its own runtime and no second ecosystem is reachable. Not 'Strong' (80): F2 fails for the kotlinc-jvm toolchain under test and F5 fails because jextract is not installed (S3)."
+    },
+    "Swift": {
+      "level": "Bidirectional, zero-copy, header-consuming, multi-ecosystem",
+      "score": 100,
+      "indicators_satisfied": [
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "F5",
+        "F6"
+      ],
+      "indicators_unsatisfied": [],
+      "satisfied_count": 6,
+      "criteria_satisfied": [
+        "F1: FFI-1 built with the frozen `swiftc -O` command and printed cos(1.0)=0.5403023059, calling libc cos imported through Swift's Clang importer.",
+        "F2: FFI-2 built with -emit-library as build/libffi2swift.dylib from an @_cdecl(\"ffi2_add\") function; the clang-compiled C caller linked against it and printed ffi2_add=42.",
+        "F3: both mechanisms are documented at frozen official_docs_root URLs. The import side and its foreign-type mapping are at developer.apple.com/documentation/swift/c-interoperability, whose 'Aliases for Imported C Types' section enumerates CBool, CChar, CDouble, CFloat, CInt, CLong, CShort and the rest; the export side, @_cdecl, is named at docs.swift.org as matching the C calling convention.",
+        "F4: FFI-3 printed sizeof=16 offset=8; a [Double] and a [Record] were reordered in place by libc qsort via withUnsafeMutableBufferPointer and @convention(c) comparators, with no copy into a separate Swift container.",
+        "F5: FFI-4 consumed the supplied header with the documented first-party flag -import-objc-header and printed supplied_add=42 / supplied_weighted=4.50 / SUPPLIED_SCALE=3; the struct SuppliedRecord, the static inline functions and the macro constant all came from the header, none hand-written.",
+        "F6: Objective-C interoperation - a non-C ABI - is documented first-party by Apple and swift.org, and the installed Apple Swift 6.2.3 ran a program that resolved an Objective-C class through NSStringFromClass and dispatched an Objective-C selector on this host."
+      ],
+      "criteria_failed": [],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "swiftc -O probes/FFI-1/swift/ffi1.swift -o build/ffi1-swift && ./build/ffi1-swift",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "cos(1.0)=0.5403023059  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "swiftc -O -emit-library -o build/libffi2swift.dylib probes/FFI-2/swift/ffi2.swift ; clang -std=c17 probes/FFI-2/c/caller.c -Lbuild -lffi2swift -o build/ffi2-caller-swift && DYLD_LIBRARY_PATH=build ./build/ffi2-caller-swift",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "ffi2_add=42  [exit=0 for both commands]"
+        },
+        {
+          "source": "E1",
+          "detail": "swiftc -O probes/FFI-3/swift/ffi3.swift -o build/ffi3-swift && ./build/ffi3-swift",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "sizeof=16 offset=8\n1.25 1.50 2.25 3.50 4.75\n1:4.00 2:2.50 3:1.50  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "swiftc -O -import-objc-header probes/FFI-4/c/supplied.h probes/FFI-4/swift/ffi4.swift -o build/ffi4-swift && ./build/ffi4-swift",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "supplied_add=42\nsupplied_weighted=4.50\nSUPPLIED_SCALE=3  [exit=0]"
+        },
+        {
+          "source": "E2",
+          "detail": "https://developer.apple.com/documentation/swift/c-interoperability  (DocC JSON at developer.apple.com/tutorials/data/documentation/swift/c-interoperability.json), topic section 'Aliases for Imported C Types'",
+          "accessed": "2026-09-18T20:26:56Z",
+          "excerpt": "Aliases for Imported C Types: CBool, CChar, CChar8, CChar16, CChar32, CDouble, CLongDouble, CFloat, CFloat16, CInt, CLong, CLongLong, CShort, CSignedChar, CUnsignedChar, CUnsignedInt, CUnsignedLong, CUnsignedLongLong, CUnsignedShort, CWideChar"
+        },
+        {
+          "source": "E2",
+          "detail": "https://docs.swift.org/embedded/documentation/embedded/abi/  (DocC JSON at docs.swift.org/embedded/data/documentation/embedded/abi.json); docs.swift.org is a frozen Swift official_docs_root",
+          "accessed": "2026-09-18T20:28:28Z",
+          "excerpt": "Calling C/C++ functions from Embedded Swift code is supported, and similarly exporting Swift code using `@_extern` , `@_cdecl` or `@_expose` will match the right calling conventions that C/C++ expects."
+        },
+        {
+          "source": "E1",
+          "detail": "swiftc -O /tmp/qffi/o.swift -o o_swift && ./o_swift   (F6 host conjunct: Objective-C runtime interop)",
+          "accessed": "2026-09-18T20:28:05Z",
+          "excerpt": "swift_objc_class=NSTaggedPointerString\nobjc_selector_call=true  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "DISCLOSURE for F3 - swiftc -emit-library on a file using the non-underscored @cdecl / @c attributes",
+          "accessed": "2026-09-18T20:26:56Z",
+          "excerpt": "error: unknown attribute 'cdecl'  /  error: unknown attribute 'c'  -- the formalized attribute is not available in Swift 6.2.3, so the export mechanism actually used is the underscored @_cdecl."
+        }
+      ],
+      "reasoning": "All 6 indicators satisfied -> 100. The only contestable one is F3, because the export attribute available in Swift 6.2.3 is the underscored @_cdecl (the formalized @c / @cdecl spelling is not yet in this compiler, verified). It is nevertheless named as the C-calling-convention export mechanism on docs.swift.org, a frozen Swift official_docs_root, and the foreign-type mapping required by F3 is published in full by Apple. The same standard - the mechanism the probes actually use must be described, with its type mapping, at a frozen official_docs_root - was applied to all ten languages, and it is the standard under which Quidra and Python also earn F3. Under a stricter reading that required a non-underscored, book-level attribute, Swift would drop to 5/6 (80); that alternative is disclosed in limitations."
+    },
+    "Zig": {
+      "level": "Bidirectional, zero-copy, header-consuming, multi-ecosystem",
+      "score": 100,
+      "indicators_satisfied": [
+        "F1",
+        "F2",
+        "F3",
+        "F4",
+        "F5",
+        "F6"
+      ],
+      "indicators_unsatisfied": [],
+      "satisfied_count": 6,
+      "criteria_satisfied": [
+        "F1: FFI-1 built with the frozen `zig build-exe -OReleaseFast -lc` command using `extern \"c\" fn cos(x: f64) f64` and printed cos(1.0)=0.5403023059.",
+        "F2: FFI-2 built with `zig build-lib -dynamic` as build/libffi2zig.dylib from `export fn ffi2_add`; the clang-compiled C caller linked against it and printed ffi2_add=42.",
+        "F3: the mechanism is documented in the official language reference at ziglang.org/documentation/0.16.0/, whose 'C Type Primitives' section states the C ABI type mapping (c_int, c_long, c_longdouble, anyopaque for void) and whose 'Exporting a C Library' section covers the export direction.",
+        "F4: FFI-3 printed sizeof=16 offset=8 for an `extern struct`; the [5]f64 and the [3]Record were reordered in place by libc qsort through `callconv(.c)` comparators, with no copy into a Zig container.",
+        "F5: FFI-4 used `zig translate-c`, a binding generator shipped with the toolchain, to turn the supplied header into Zig declarations, and the resulting program printed supplied_add=42 / supplied_weighted=4.50 / SUPPLIED_SCALE=3; no declaration was hand-written.",
+        "F6: WebAssembly is documented as a first-party target in the same official language reference, `zig targets` lists wasm32/wasm64, and the installed zig 0.16.0 actually emitted a WebAssembly binary for wasm32-wasi on this host."
+      ],
+      "criteria_failed": [],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "zig build-exe -OReleaseFast -lc probes/FFI-1/zig/ffi1.zig -femit-bin=build/ffi1-zig && ./build/ffi1-zig",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "cos(1.0)=0.5403023059  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "zig build-lib -OReleaseFast -dynamic -lc probes/FFI-2/zig/ffi2.zig -femit-bin=build/libffi2zig.dylib ; clang -std=c17 probes/FFI-2/c/caller.c -Lbuild -lffi2zig -o build/ffi2-caller-zig && DYLD_LIBRARY_PATH=build ./build/ffi2-caller-zig",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "ffi2_add=42  [exit=0 for both commands; the linker emitted only a macOS deployment-version warning]"
+        },
+        {
+          "source": "E1",
+          "detail": "zig build-exe -OReleaseFast -lc probes/FFI-3/zig/ffi3.zig -femit-bin=build/ffi3-zig && ./build/ffi3-zig",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "sizeof=16 offset=8\n1.25 1.50 2.25 3.50 4.75\n1:4.00 2:2.50 3:1.50  [exit=0]"
+        },
+        {
+          "source": "E1",
+          "detail": "zig translate-c -lc probes/FFI-4/c/supplied.h > build/ffi4_supplied.zig ; zig build-exe -OReleaseFast -lc probes/FFI-4/zig/ffi4.zig -femit-bin=build/ffi4-zig && ./build/ffi4-zig",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "supplied_add=42\nsupplied_weighted=4.50\nSUPPLIED_SCALE=3  [exit=0]"
+        },
+        {
+          "source": "E2",
+          "detail": "https://ziglang.org/documentation/0.16.0/  section 'C Type Primitives'",
+          "accessed": "2026-09-18T20:26:04Z",
+          "excerpt": "These have guaranteed C ABI compatibility and can be used like any other type. c_char c_short c_ushort c_int c_uint c_long c_ulong c_longlong c_ulonglong c_longdouble To interop with the C void type, use anyopaque ."
+        },
+        {
+          "source": "E2",
+          "detail": "https://ziglang.org/documentation/0.16.0/  sections 'Import from C Header File', 'C Translation CLI', 'Exporting a C Library', 'WebAssembly'",
+          "accessed": "2026-09-18T20:26:04Z",
+          "excerpt": "The @cImport builtin function can be used to directly import symbols from .h files"
+        },
+        {
+          "source": "E1",
+          "detail": "zig targets | grep wasm  ;  zig build-exe -target wasm32-wasi /tmp/qffi/w2.zig -femit-bin=w_zig.wasm && file w_zig.wasm   (F6 host conjunct)",
+          "accessed": "2026-09-18T20:28:05Z",
+          "excerpt": "\"wasm32\",\n\"wasm64\",\nw_zig.wasm: WebAssembly (wasm) binary module version 0x1 (MVP)"
+        }
+      ],
+      "reasoning": "All 6 indicators satisfied -> 100. Zig is one of only three toolchains here that ship their own C-header binding generator and could satisfy F5 by execution rather than by documentation (Zig's translate-c, Go's cgo preamble, C++'s and Swift's direct header import). Every indicator is backed by a host execution with exit status 0 and the expected output, plus the reference-manual citations for F3 and F6."
+    }
+  },
+  "cross_language_consistency_note": "All ten languages were scored against the same four frozen probes (FFI-1..FFI-4 in 05_standard_rubrics.json -> frozen_probe_sets), implemented from one language-neutral specification and one shared C side: a single probes/FFI-2/c/caller.c used unchanged for every language that produced a linkable artifact, and a single header-only probes/FFI-4/c/supplied.h used unchanged for every language that consumed a header. Every probe prints the same canonical strings, recorded in probes/EXPECTED_OUTPUT.txt, so 'passed' means byte-identical output for all ten: 'cos(1.0)=0.5403023059'; 'ffi2_add=42'; 'sizeof=16 offset=8' + the sorted doubles + the sorted records; 'supplied_add=42' + 'supplied_weighted=4.50' + 'SUPPLIED_SCALE=3'. FFI-3 was made uniform by routing every language through the SAME C function, libc qsort, which forces four things at once for everyone: a pointer+length array modified in place, an element size the language must compute, a mixed int32/double struct whose fields C reads at its own offsets, and a C-ABI callback back into the language. Each language additionally prints its own measured struct size and field offset, so 'C-compatible layout' is an observed 16/8 rather than an assertion. Every language was run under exactly the command frozen for it in rubric_verification_recipes.by_language, with no flag added or removed, in one final pass whose exit statuses are all recorded. Three interpretive rules were fixed BEFORE any language was scored and then applied to all ten without exception. (1) F3 is read as: the FFI mechanism(s) the probes actually use or attempt must be documented at that language's frozen official_docs_root, including the foreign-type-to-language-type mapping. This is what gives F3 to Python (ctypes fundamental-types table), Java and Kotlin (the Linker C-type/layout/carrier table), Swift (Apple's C-type aliases plus @_cdecl at docs.swift.org) and Quidra (the C FFI section of docs/spec/language.md), and what denies it to TypeScript, where no such mechanism exists to document. The alternative strict reading - that F3 fails whenever the F2 direction is unsupported - would have removed F3 from Python, Java, Kotlin and Quidra alike; it was rejected for all four together, not for any one of them. (2) F6's second conjunct is read as PRESENCE of the target/flag/feature in the installed toolchain, not successful end-to-end execution, because global_rules.tool_availability_states.scoring_effect enumerates the indicators that require successful execution (V3, V4, V5, Q2, Q3, Q4, F2, F4, F5, C1, C5, P3) and F6 is deliberately absent from that list. Presence was still evidenced by a host command for every language: an executed Objective-C++ program (C++), an emitted .wasm binary (Go, Zig), an instantiated and called wasm module (TypeScript), an executed Objective-C selector dispatch (Swift), executed JVM interop (Kotlin), the toolchain's own target list (Rust), and explicit negative commands for Python (no wasm platform, no relevant builtin), Java (java.scripting present but 0 engine factories) and Quidra (official docs state WASM is unimplemented). (3) A 'not installed and may not be installed' tool is NOT SATISFIED with availability_state S3 for every language equally: rust-bindgen for Rust and jextract for Java and Kotlin all fail F5 on identical grounds, and none of the three was rescued. Post-assignment cross-check: no two languages with the same observable evidence received different levels, and no two with different evidence received the same level. The four languages at 100 (C++, Go, Swift, Zig) are exactly the four that passed all four probes by execution AND reach a second ecosystem - the same evidence, the same level. Rust at 80 differs from them on exactly one observable, F5 (S3). Kotlin at 60 differs from Java at 40 on exactly one observable, F6, and that difference is substantive rather than definitional: the JVM is an additional ecosystem for Kotlin and is Java's own runtime. Python and Java both sit at 40 with different satisfied sets of the same size (F1/F3/F4 for both, in fact the identical set) - same evidence, same level. Quidra and TypeScript both sit at 0 with one indicator each, but for opposite reasons, recorded separately: TypeScript has no C FFI at all, while Quidra has a working, documented C FFI that this probe set nonetheless defeats. Zig's FFI-4 probe reads the translate-c output through probes/FFI-4/zig/ffi4_supplied.zig, a symlink to the build/ffi4_supplied.zig path that the frozen recipe writes. Zig refuses @import of a path outside the root module directory, and the frozen command may not be altered; the symlink surfaces the same generated file inside the module without changing the command or hand-writing any declaration.",
+  "limitations": [
+    "F5 could not be executed for Rust (rust-bindgen), Java (jextract) or Kotlin (jextract). All three tools are admissible under the frozen rules - rust-bindgen is published by rust-lang, jextract by the OpenJDK project - but none is part of its language's installed distribution here and global_rules.host_verification.no_installation_of_extra_software forbids installing them. All three are recorded availability_state S3, verification_status unverified, NOT SATISFIED, exactly as tool_availability_states.scoring_effect.everything_else requires. This costs Rust 20 points and is a host-provisioning artefact, not a measured property of the language; it belongs in standard/rubrics/host_limited_indicators.json.",
+    "Rust's F6 rests on `rustc --print target-list` reporting eight wasm32 targets. An actual wasm build FAILS on this host because the Homebrew rustc repackage ships no precompiled core/std for wasm32 (availability_state S2; verbatim error recorded in Rust's evidence). Under a stricter reading of F6 that demanded a successful wasm build, Rust would fall to 4/6 and 60. The presence reading was chosen for the reason given in the consistency note and applied to all ten.",
+    "Swift's F2 mechanism is the underscored @_cdecl. The formalized non-underscored spelling (@c / @cdecl, SE-0495) is NOT available in Apple Swift 6.2.3 - both were tried and rejected with 'unknown attribute'. @_cdecl is named as the C-calling-convention export mechanism on docs.swift.org (a frozen Swift official_docs_root), but only on an Embedded Swift ABI page, and it is an underscored attribute that Swift's own reference guides describe as unofficial. Under a stricter F3 reading Swift would be 5/6 and 80. This is the single most contestable indicator in the metric.",
+    "Java's F6 was scored NOT SATISFIED. The java.scripting module IS present in the installed JDK 26, but it ships no engine (`new ScriptEngineManager().getEngineFactories()` returned 0 on this host), so no additional non-C ecosystem is actually reachable; Nashorn was removed in JDK 15 and the JDK exposes no WASM, .NET or Objective-C target. A scorer who counted the presence of the java.scripting module alone would give Java 4/6 and 60. The command and its output are recorded so the alternative is auditable.",
+    "C++'s F6 rests entirely on Objective-C++, which was compiled and executed here. The wasm route is NOT available to this toolchain: Apple clang 17 registers no WebAssembly backend (`clang --target=wasm32 -c` fails with 'No available targets are compatible with triple \"wasm32\"'). On a host with upstream LLVM rather than Apple clang, C++ would satisfy F6 by a second independent route as well.",
+    "Quidra's F1 failure is narrow and is reported as such rather than as an inability to call C. `quidra 0.2.0` reserves the C symbol `cos` in its runtime-prelude list (src/checker.cpp), so the frozen probe cannot bind it; a supplementary, clearly-labelled non-probe execution binding the unreserved libc symbol `acos` succeeded, proving the FFI mechanism itself works against the host C library. The documented workaround - 'use a distinct C wrapper symbol' - cannot be applied with first-party flags because `quidra build` accepts no object, library or linker input (`-lm` -> 'unknown build option'). The supplementary run was NOT counted toward any indicator.",
+    "FFI-1 through FFI-4 give no credit for FFI ergonomics, safety, or performance, and no partial credit within a probe. A language that passes a probe barely and one that passes it idiomatically score identically, by design of the frozen rubric.",
+    "Only E1 and E2 were consulted, as this metric's evidence_sources specify. No E3-E7 evidence was used for any language, so no language was advantaged or disadvantaged by repository, package-index or adoption evidence here.",
+    "The probe sources, the shared caller.c and supplied.h, the expected-output file and the full command/exit-status log now live under standard/rubrics/probes/ and were all written before any language was scored; the evidence-collection order placed Quidra last, per global_rules.evidence_collection_order."
+  ]
+}

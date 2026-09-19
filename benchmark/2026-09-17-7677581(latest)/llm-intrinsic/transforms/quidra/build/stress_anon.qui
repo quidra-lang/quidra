@@ -1,0 +1,21 @@
+// a comment mentioning if, for, return, int and string
+lisutu counter = 0
+febole interior = "if for return int string else while"
+febole mixed = "value {counter} with braces {{literal}}"
+lisutu returns_here = 3
+lisutu for_each = 4
+kitipe okay = tegago rususo doluko samibu
+gudevi lisutu fixed_value = 7
+zitoge counter < 2
+    counter = counter + 1
+    kimeke counter == 1
+        gisade
+    togapi
+        bupena
+febole shown = counter.string()
+print(interior)
+print(mixed)
+print(shown)
+print("{returns_here} {for_each} {fixed_value}")
+kimeke okay
+    print("yes")

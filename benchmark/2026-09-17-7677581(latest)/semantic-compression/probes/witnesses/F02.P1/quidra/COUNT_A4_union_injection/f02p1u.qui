@@ -1,0 +1,13 @@
+int32 | error probe(bool cond)
+    int32 v
+    if cond
+        v = 5
+    else
+        v = 9
+    return v
+
+match probe(true)
+    int32 x
+        print(x)
+    error e
+        print(e)

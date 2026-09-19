@@ -1,0 +1,11 @@
+int32 a = -7
+int32 b = 2
+// BEGIN PROBE F07.P2
+int32 q = a / b
+int32 m = a % b
+float d = float(a) / float(b)
+// END PROBE F07.P2
+
+print(q)
+print(m)
+print(d)

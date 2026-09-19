@@ -1,0 +1,153 @@
+{
+  "condition": "I1",
+  "language_id": "zig",
+  "seed": 20260918,
+  "generated_at": "2026-09-19T00:00:00+00:00",
+  "generator": "PW-1 / methodology 10 sections 5.1-5.3",
+  "primitives": {
+    "rng": "park-miller-48271",
+    "hash": "fnv1a32",
+    "pick_divisor": 128,
+    "pattern": "CVCVCV, exactly 6 lowercase ASCII characters",
+    "key_format": "<condition>|<language_id>|<seed>|<role_token_key>"
+  },
+  "wordlist_sha256": {
+    "en_common": "54056731d43f793f8d0ea08285d4f736b18438694dc7c6813c1e3acbd1f01a00",
+    "prog_terms": "dfea414450548daad073a375e585dfcb7d9c2e4eda64254598d6aab4dc3fa92b",
+    "reserved_union": "d8b112ebaae29508258ad8dd0fe2c6112a827471ec6b5f4cbeeb7fbf22d97f03",
+    "reserved_zig": "f18db1f61db7d680b8847f269283f794e0093a603a676ac2b7c391c6ce916e86"
+  },
+  "lexer_guards": {
+    "G1": "a WORD immediately preceded by OP '@' is a compiler builtin name and is never substituted in either direction",
+    "G2": "@\"...\" is a quoted identifier; its body lexes as STRING and is therefore unreachable by substitution"
+  },
+  "not_transformed_in_I1": {
+    "note": "methodology 10 section 7.1: V-roles keep their real spelling in I1; ordinary user identifiers are never renamed.",
+    "v_roles": {
+      "V01": "std.Io.File.stdout().writer(...).interface.print",
+      "V16": "std (reached through the @import builtin)",
+      "V17": "std.Io.Threaded / .init_single_threaded (the Io instance the output path requires)",
+      "V18": "{d} inside a text literal (NOT_TRANSFORMABLE: its syntax lies inside a text literal)"
+    },
+    "user_identifiers": [
+      "std",
+      "tio",
+      "io",
+      "wbuf",
+      "out",
+      "state",
+      "sum",
+      "largest",
+      "evens",
+      "first",
+      "i",
+      "term"
+    ]
+  },
+  "mapping": {
+    "K01": {
+      "real": "fn",
+      "pseudo": "delosu",
+      "role_prose": "introduces a function definition",
+      "chars": 6
+    },
+    "K02": {
+      "real": "const",
+      "pseudo": "viduzu",
+      "role_prose": "introduces a named value binding that may not be reassigned",
+      "chars": 6
+    },
+    "K03": {
+      "real": "var",
+      "pseudo": "rikuvu",
+      "role_prose": "introduces a named value binding that may be reassigned",
+      "chars": 6
+    },
+    "K04": {
+      "real": "if",
+      "pseudo": "ganimu",
+      "role_prose": "introduces a conditional branch",
+      "chars": 6
+    },
+    "K08": {
+      "real": "while",
+      "pseudo": "zavulu",
+      "role_prose": "introduces conditional iteration",
+      "chars": 6
+    },
+    "K21a": {
+      "real": "u64",
+      "pseudo": "sebezo",
+      "role_prose": "the unsigned 64-bit integer type name used by the task",
+      "chars": 6
+    },
+    "K21e": {
+      "real": "void",
+      "pseudo": "bogizu",
+      "role_prose": "the result-less designation of a function that yields no value",
+      "chars": 6
+    },
+    "K22": {
+      "real": "main",
+      "pseudo": "bikoli",
+      "role_prose": "the toolchain-fixed name of the program entry point",
+      "chars": 6
+    },
+    "K23": {
+      "real": "pub",
+      "pseudo": "mukete",
+      "role_prose": "visibility marker required on the entry point declaration",
+      "chars": 6
+    },
+    "K27": {
+      "real": "try",
+      "pseudo": "mozako",
+      "role_prose": "error-propagation marker: applied to a call that may fail, it forwards the failure out of the enclosing function",
+      "chars": 6
+    },
+    "U:u8": {
+      "real": "u8",
+      "pseudo": "renibu",
+      "role_prose": "the unsigned 8-bit integer (byte) type name",
+      "chars": 6
+    },
+    "U:undefined": {
+      "real": "undefined",
+      "pseudo": "beluba",
+      "role_prose": "the explicitly-uninitialized initial value of a binding whose contents are written before they are read",
+      "chars": 6
+    }
+  },
+  "reverse": {
+    "delosu": "fn",
+    "viduzu": "const",
+    "rikuvu": "var",
+    "ganimu": "if",
+    "zavulu": "while",
+    "sebezo": "u64",
+    "bogizu": "void",
+    "bikoli": "main",
+    "mukete": "pub",
+    "mozako": "try",
+    "renibu": "u8",
+    "beluba": "undefined"
+  },
+  "collision_redraws": {
+    "K01": 0,
+    "K02": 0,
+    "K03": 3,
+    "K04": 0,
+    "K08": 0,
+    "K21a": 0,
+    "K21e": 2,
+    "K22": 1,
+    "K23": 1,
+    "K27": 3,
+    "U:u8": 2,
+    "U:undefined": 0
+  },
+  "rejection_filters_fired": {
+    "substring": 12
+  },
+  "anonymized_token_count": 12
+}

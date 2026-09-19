@@ -1,0 +1,482 @@
+{
+ "probe_id": "F19.P2",
+ "language": "typescript",
+ "count": 70,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "async",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "KW",
+   "text": "function",
+   "line": 1,
+   "col": 7
+  },
+  {
+   "tag": "IDENT",
+   "text": "run",
+   "line": 1,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 1,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 1,
+   "col": 20
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 1,
+   "col": 22
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 2,
+   "col": 3
+  },
+  {
+   "tag": "IDENT",
+   "text": "counter",
+   "line": 2,
+   "col": 9
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 2,
+   "col": 17
+  },
+  {
+   "tag": "KW",
+   "text": "new",
+   "line": 2,
+   "col": 19
+  },
+  {
+   "tag": "IDENT",
+   "text": "BigInt64Array",
+   "line": 2,
+   "col": 23
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 2,
+   "col": 36
+  },
+  {
+   "tag": "KW",
+   "text": "new",
+   "line": 2,
+   "col": 37
+  },
+  {
+   "tag": "IDENT",
+   "text": "SharedArrayBuffer",
+   "line": 2,
+   "col": 41
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 2,
+   "col": 58
+  },
+  {
+   "tag": "NUM",
+   "text": "8",
+   "line": 2,
+   "col": 59
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 2,
+   "col": 60
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 2,
+   "col": 61
+  },
+  {
+   "tag": "KW",
+   "text": "const",
+   "line": 3,
+   "col": 3
+  },
+  {
+   "tag": "IDENT",
+   "text": "bump",
+   "line": 3,
+   "col": 9
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 3,
+   "col": 14
+  },
+  {
+   "tag": "KW",
+   "text": "async",
+   "line": 3,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 3,
+   "col": 22
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 3,
+   "col": 23
+  },
+  {
+   "tag": "OP",
+   "text": "=>",
+   "line": 3,
+   "col": 25
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 3,
+   "col": 28
+  },
+  {
+   "tag": "KW",
+   "text": "for",
+   "line": 4,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 4,
+   "col": 9
+  },
+  {
+   "tag": "KW",
+   "text": "let",
+   "line": 4,
+   "col": 10
+  },
+  {
+   "tag": "IDENT",
+   "text": "i",
+   "line": 4,
+   "col": 14
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 4,
+   "col": 16
+  },
+  {
+   "tag": "NUM",
+   "text": "0",
+   "line": 4,
+   "col": 18
+  },
+  {
+   "tag": "IDENT",
+   "text": "i",
+   "line": 4,
+   "col": 21
+  },
+  {
+   "tag": "OP",
+   "text": "<",
+   "line": 4,
+   "col": 23
+  },
+  {
+   "tag": "NUM",
+   "text": "1000",
+   "line": 4,
+   "col": 25
+  },
+  {
+   "tag": "IDENT",
+   "text": "i",
+   "line": 4,
+   "col": 31
+  },
+  {
+   "tag": "OP",
+   "text": "++",
+   "line": 4,
+   "col": 32
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 4,
+   "col": 34
+  },
+  {
+   "tag": "IDENT",
+   "text": "Atomics",
+   "line": 4,
+   "col": 36
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 4,
+   "col": 43
+  },
+  {
+   "tag": "IDENT",
+   "text": "add",
+   "line": 4,
+   "col": 44
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 4,
+   "col": 47
+  },
+  {
+   "tag": "IDENT",
+   "text": "counter",
+   "line": 4,
+   "col": 48
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 4,
+   "col": 55
+  },
+  {
+   "tag": "NUM",
+   "text": "0",
+   "line": 4,
+   "col": 57
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 4,
+   "col": 58
+  },
+  {
+   "tag": "NUM",
+   "text": "1n",
+   "line": 4,
+   "col": 60
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 4,
+   "col": 62
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 5,
+   "col": 3
+  },
+  {
+   "tag": "KW",
+   "text": "await",
+   "line": 6,
+   "col": 3
+  },
+  {
+   "tag": "IDENT",
+   "text": "Promise",
+   "line": 6,
+   "col": 9
+  },
+  {
+   "tag": "DELIM",
+   "text": ".",
+   "line": 6,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "all",
+   "line": 6,
+   "col": 17
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 6,
+   "col": 20
+  },
+  {
+   "tag": "DELIM",
+   "text": "[",
+   "line": 6,
+   "col": 21
+  },
+  {
+   "tag": "IDENT",
+   "text": "bump",
+   "line": 6,
+   "col": 22
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 6,
+   "col": 26
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 6,
+   "col": 27
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 6,
+   "col": 28
+  },
+  {
+   "tag": "IDENT",
+   "text": "bump",
+   "line": 6,
+   "col": 30
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 6,
+   "col": 34
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 6,
+   "col": 35
+  },
+  {
+   "tag": "DELIM",
+   "text": "]",
+   "line": 6,
+   "col": 36
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 6,
+   "col": 37
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 7,
+   "col": 3
+  },
+  {
+   "tag": "IDENT",
+   "text": "counter",
+   "line": 7,
+   "col": 10
+  },
+  {
+   "tag": "DELIM",
+   "text": "[",
+   "line": 7,
+   "col": 17
+  },
+  {
+   "tag": "NUM",
+   "text": "0",
+   "line": 7,
+   "col": 18
+  },
+  {
+   "tag": "DELIM",
+   "text": "]",
+   "line": 7,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 8,
+   "col": 1
+  }
+ ],
+ "class_histogram": {
+  "KW": 11,
+  "IDENT": 16,
+  "DELIM": 31,
+  "OP": 6,
+  "NUM": 6
+ },
+ "removed_by_R4": [
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 2,
+   "col": 62
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 4,
+   "col": 19
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 4,
+   "col": 29
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 4,
+   "col": 63
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 5,
+   "col": 4
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 6,
+   "col": 38
+  },
+  {
+   "tag": "DELIM",
+   "text": ";",
+   "line": 7,
+   "col": 20
+  }
+ ],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/typescript/F19.P2.ts",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

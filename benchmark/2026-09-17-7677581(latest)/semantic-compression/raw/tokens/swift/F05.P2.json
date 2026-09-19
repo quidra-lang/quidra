@@ -1,0 +1,181 @@
+{
+ "probe_id": "F05.P2",
+ "language": "swift",
+ "count": 27,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "func",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "put",
+   "line": 1,
+   "col": 6
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 1,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "_",
+   "line": 1,
+   "col": 10
+  },
+  {
+   "tag": "IDENT",
+   "text": "target",
+   "line": 1,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 1,
+   "col": 18
+  },
+  {
+   "tag": "KW",
+   "text": "inout",
+   "line": 1,
+   "col": 20
+  },
+  {
+   "tag": "IDENT",
+   "text": "Int32",
+   "line": 1,
+   "col": 26
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 1,
+   "col": 31
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 1,
+   "col": 33
+  },
+  {
+   "tag": "IDENT",
+   "text": "target",
+   "line": 2,
+   "col": 5
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 2,
+   "col": 12
+  },
+  {
+   "tag": "NUM",
+   "text": "12",
+   "line": 2,
+   "col": 14
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 3,
+   "col": 1
+  },
+  {
+   "tag": "KW",
+   "text": "var",
+   "line": 4,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "cell",
+   "line": 4,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 4,
+   "col": 9
+  },
+  {
+   "tag": "IDENT",
+   "text": "Int32",
+   "line": 4,
+   "col": 11
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 4,
+   "col": 17
+  },
+  {
+   "tag": "NUM",
+   "text": "3",
+   "line": 4,
+   "col": 19
+  },
+  {
+   "tag": "IDENT",
+   "text": "put",
+   "line": 5,
+   "col": 1
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 5,
+   "col": 4
+  },
+  {
+   "tag": "OP",
+   "text": "&",
+   "line": 5,
+   "col": 5
+  },
+  {
+   "tag": "IDENT",
+   "text": "cell",
+   "line": 5,
+   "col": 6
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 5,
+   "col": 10
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 6,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "cell",
+   "line": 6,
+   "col": 8
+  }
+ ],
+ "class_histogram": {
+  "KW": 4,
+  "IDENT": 10,
+  "DELIM": 8,
+  "OP": 3,
+  "NUM": 2
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/swift/F05.P2.swift",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

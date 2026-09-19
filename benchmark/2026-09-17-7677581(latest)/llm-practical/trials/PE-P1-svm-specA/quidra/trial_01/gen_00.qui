@@ -1,0 +1,280 @@
+// WL-SVM: soft-margin SVM trained by dual gradient ascent.
+// Three logical modules, in one translation unit:
+//   data - the LCG-PM generator and the dataset builder
+//   svm  - training, support-vector extraction, w/b recovery, f, g, evaluation
+//   app  - entry point and output formatting
+
+// ------------------------------------------------------------------ module data
+
+class Rng
+    int state
+
+    int next_state()
+        state = (48271 * state) % 2147483647
+        return state
+
+    float next_uniform()
+        return float(next_state()) / 2147483647.0
+
+    float next_normal()
+        float t = 0.0
+        int k = 0
+        while k < 12
+            t = t + next_uniform()
+            k = k + 1
+        return t - 6.0
+
+void data_fill_block(Rng &rng, float[] &out, int offset, const float[] &mu, int count, int dims, float sigma)
+    for n in range(count)
+        for d in range(dims)
+            out[offset + n * dims + d] = mu[d] + sigma * rng.next_normal()
+
+// ------------------------------------------------------------------- module svm
+
+class TrainResult
+    float[] alpha
+    float beta
+    bool judge
+    float error_last
+    float max_abs_delta
+
+class Model
+    float[] w
+    float b
+    int ns_margin
+    int ns_inside
+
+void svm_gram(const float[] &x, int count, int dims, float[] &g)
+    for i in range(count)
+        for j in range(count)
+            float acc = 0.0
+            for d in range(dims)
+                acc = acc + x[i * dims + d] * x[j * dims + d]
+            g[i * count + j] = acc
+
+TrainResult svm_train(const float[] &g, const float[] &y, int count, int sweeps, float lr, float bound, float limit)
+    float[] alpha = array(count, fill = 0.0)
+    float beta = 1.0
+    bool judge = false
+    float error_sum = 0.0
+    float max_delta = 0.0
+    int sweep = 0
+    while sweep < sweeps
+        judge = false
+        error_sum = 0.0
+        max_delta = 0.0
+        for i in range(count)
+            float yi = y[i]
+            int base = i * count
+            float item1 = 0.0
+            for j in range(count)
+                item1 = item1 + alpha[j] * yi * y[j] * g[base + j]
+            float item2 = 0.0
+            for j in range(count)
+                item2 = item2 + alpha[j] * yi * y[j]
+            float delta = 1.0 - item1 - beta * item2
+            float ad = abs(delta)
+            if ad > max_delta
+                max_delta = ad
+            alpha[i] = alpha[i] + lr * delta
+            if alpha[i] < 0.0
+                alpha[i] = 0.0
+            elif alpha[i] > bound
+                alpha[i] = bound
+            elif ad > limit
+                judge = true
+                error_sum = error_sum + (ad - limit)
+        float s = 0.0
+        for i in range(count)
+            s = s + alpha[i] * y[i]
+        beta = beta + s * s / 2.0
+        sweep = sweep + 1
+    return TrainResult(alpha = alpha, beta = beta, judge = judge, error_last = error_sum, max_abs_delta = max_delta)
+
+Model svm_recover(const float[] &alpha, const float[] &x, const float[] &y, int count, int dims, float bound, float eps)
+    int[] s_margin = []
+    int[] s_inside = []
+    for i in range(count)
+        if eps < alpha[i] and alpha[i] < bound - eps
+            s_margin = s_margin.append(i)
+        if alpha[i] >= bound - eps
+            s_inside = s_inside.append(i)
+    float[] w = array(dims, fill = 0.0)
+    for d in range(dims)
+        float acc = 0.0
+        for i in s_margin
+            acc = acc + alpha[i] * y[i] * x[i * dims + d]
+        for i in s_inside
+            acc = acc + alpha[i] * y[i] * x[i * dims + d]
+        w[d] = acc
+    float b = 0.0
+    for i in s_margin
+        float dp = 0.0
+        for d in range(dims)
+            dp = dp + w[d] * x[i * dims + d]
+        b = b + (y[i] - dp)
+    b = b / float(len(s_margin))
+    return Model(w = w, b = b, ns_margin = len(s_margin), ns_inside = len(s_inside))
+
+float svm_f(const float[] &w, const float[] &points, int offset, int dims, float b)
+    float acc = 0.0
+    for d in range(dims)
+        acc = acc + w[d] * points[offset + d]
+    return acc + b
+
+int svm_g(const float[] &w, const float[] &points, int offset, int dims, float b)
+    if svm_f(&w, &points, offset, dims, b) >= 0.0
+        return 1
+    return -1
+
+float svm_objective(const float[] &alpha, const float[] &y, const float[] &g, int count)
+    float total = 0.0
+    for i in range(count)
+        total = total + alpha[i]
+    float quad = 0.0
+    for i in range(count)
+        int base = i * count
+        float inner = 0.0
+        for j in range(count)
+            inner = inner + alpha[i] * alpha[j] * y[i] * y[j] * g[base + j]
+        quad = quad + inner
+    return total - 0.5 * quad
+
+// ------------------------------------------------------------------- module app
+
+string fmt6(float v)
+    float value = v
+    if value == 0.0
+        value = 0.0
+    string text = "{value:frac=6}"
+    if text == "-0.000000"
+        text = "0.000000"
+    return text
+
+string fmt12(float v)
+    float value = v
+    if value == 0.0
+        value = 0.0
+    string text = "{value:frac=12}"
+    if text == "-0.000000000000"
+        text = "0.000000000000"
+    return text
+
+const int cfg_dims = 4
+const int cfg_train_c1 = 100
+const int cfg_train_c2 = 100
+const int cfg_test_c1 = 50
+const int cfg_test_c2 = 50
+const int cfg_train = 200
+const int cfg_test = 100
+const float cfg_sigma = 0.8
+const int cfg_seed = 1234567
+const float cfg_bound = 10.0
+const float cfg_lr = 0.0001
+const float cfg_limit = 0.0001
+const int cfg_sweeps = 1000
+const float cfg_eps = 0.0000001
+
+float[] cfg_mu1 = [1.0, 1.0, 0.5, -0.5]
+float[] cfg_mu2 = [-1.0, -1.0, -0.5, 0.5]
+
+Rng generator = Rng(state = cfg_seed)
+
+float[] x_train = array(cfg_train * cfg_dims, fill = 0.0)
+float[] x_test = array(cfg_test * cfg_dims, fill = 0.0)
+
+data_fill_block(&generator, &x_train, 0, &cfg_mu1, cfg_train_c1, cfg_dims, cfg_sigma)
+data_fill_block(&generator, &x_train, cfg_train_c1 * cfg_dims, &cfg_mu2, cfg_train_c2, cfg_dims, cfg_sigma)
+data_fill_block(&generator, &x_test, 0, &cfg_mu1, cfg_test_c1, cfg_dims, cfg_sigma)
+data_fill_block(&generator, &x_test, cfg_test_c1 * cfg_dims, &cfg_mu2, cfg_test_c2, cfg_dims, cfg_sigma)
+
+float[] y_train = array(cfg_train, fill = 1.0)
+for idx in range(cfg_train_c1, cfg_train)
+    y_train[idx] = -1.0
+
+float[] gram = array(cfg_train * cfg_train, fill = 0.0)
+svm_gram(&x_train, cfg_train, cfg_dims, &gram)
+
+TrainResult trained = svm_train(&gram, &y_train, cfg_train, cfg_sweeps, cfg_lr, cfg_bound, cfg_limit)
+float[] alpha = trained.alpha
+
+Model model = svm_recover(&alpha, &x_train, &y_train, cfg_train, cfg_dims, cfg_bound, cfg_eps)
+float[] weights = model.w
+float bias = model.b
+
+float objective = svm_objective(&alpha, &y_train, &gram, cfg_train)
+
+float alpha_sum = 0.0
+for idx in range(cfg_train)
+    alpha_sum = alpha_sum + alpha[idx]
+
+float alpha_y_sum = 0.0
+for idx in range(cfg_train)
+    alpha_y_sum = alpha_y_sum + alpha[idx] * y_train[idx]
+
+float alpha_checksum = 0.0
+for idx in range(cfg_train)
+    alpha_checksum = alpha_checksum + alpha[idx] * float((idx % 97) + 1)
+
+int train_correct = 0
+for idx in range(cfg_train)
+    int label = svm_g(&weights, &x_train, idx * cfg_dims, cfg_dims, bias)
+    int truth = -1
+    if idx < cfg_train_c1
+        truth = 1
+    if label == truth
+        train_correct = train_correct + 1
+
+int[] pred = array(cfg_test, fill = 0)
+int correct_c1 = 0
+int correct_c2 = 0
+for idx in range(cfg_test)
+    int label = svm_g(&weights, &x_test, idx * cfg_dims, cfg_dims, bias)
+    pred[idx] = label
+    if idx < cfg_test_c1
+        if label == 1
+            correct_c1 = correct_c1 + 1
+    else
+        if label == -1
+            correct_c2 = correct_c2 + 1
+
+int test_correct = correct_c1 + correct_c2
+
+int converged = 1
+if trained.judge
+    converged = 0
+
+print("SVM_VERSION 1")
+print("SWEEPS {cfg_sweeps}")
+print("CONVERGED {converged}")
+print("ERROR_LAST " + fmt6(trained.error_last))
+print("MAX_ABS_DELTA " + fmt6(trained.max_abs_delta))
+print("BETA " + fmt6(trained.beta))
+print("NS_MARGIN {model.ns_margin}")
+print("NS_INSIDE {model.ns_inside}")
+
+string[] w_parts = ["W"]
+for idx in range(cfg_dims)
+    w_parts = w_parts.append(fmt6(weights[idx]))
+print(w_parts.join(" "))
+
+print("B " + fmt6(bias))
+print("OBJECTIVE " + fmt6(objective))
+print("ALPHA_SUM " + fmt6(alpha_sum))
+print("ALPHA_Y_SUM " + fmt12(alpha_y_sum))
+print("ALPHA_CHECKSUM " + fmt6(alpha_checksum))
+print("TRAIN_ACC " + fmt6(float(train_correct) / float(cfg_train)))
+print("TEST_ACC " + fmt6(float(test_correct) / float(cfg_test)))
+print("TEST_ACC_C1 " + fmt6(float(correct_c1) / float(cfg_test_c1)))
+print("TEST_ACC_C2 " + fmt6(float(correct_c2) / float(cfg_test_c2)))
+print("TEST_CORRECT {correct_c1} {correct_c2} {test_correct}")
+
+string[] pred_parts = ["PRED"]
+for idx in range(cfg_test)
+    pred_parts = pred_parts.append(pred[idx].string())
+print(pred_parts.join(" "))
+
+string[] alpha_parts = ["ALPHA"]
+for idx in range(cfg_train)
+    alpha_parts = alpha_parts.append(fmt6(alpha[idx]))
+print(alpha_parts.join(" "))

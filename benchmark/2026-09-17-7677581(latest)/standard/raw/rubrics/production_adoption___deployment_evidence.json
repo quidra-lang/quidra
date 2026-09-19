@@ -1,0 +1,2171 @@
+{
+ "metric": "Production Adoption / Deployment Evidence",
+ "standard_category": "Ecosystem / Production Maturity",
+ "normalization_family": "G",
+ "rubric_document": "05_standard_rubrics.json",
+ "scores": {
+  "Quidra": {
+   "level": "No documented external production use",
+   "score": 0,
+   "criteria_satisfied": [
+    "A5 (an end-user-distributed component, the first-party package 'dnn', states in its official repository that it is ordinary Quidra source code)"
+   ],
+   "criteria_failed": [
+    "A1 (no named organization other than quidra-lang has published a dated statement of production use, and the project publishes no case-study/user page)",
+    "A2 (0 of the required 5 distinct organizations)",
+    "A3 (0 of the required 20 distinct organizations)",
+    "A4 (a release procedure, RELEASING.md, is published, but no governance document and no formal governance body, foundation or named corporate steward was found; A4 is conjunctive)",
+    "A6 (Quidra does not appear in any retrievable methodologically documented developer survey or language index within 24 months of the cutoff)"
+   ],
+   "evidence": [
+    {
+     "source": "E3",
+     "detail": "gh api search/repositories?q=quidra (GitHub repository search, whole public corpus)",
+     "accessed": "2026-09-19T00:33:40Z",
+     "excerpt": "total 3: quidra-lang/quidra; DidntGoBoom/quidratch; Darkhand81/quidrac"
+    },
+    {
+     "source": "E3",
+     "detail": "gh api search/code?q=quidra+in:file+extension:qui (public code search for Quidra source files)",
+     "accessed": "2026-09-19T00:35:20Z",
+     "excerpt": "{\"total_count\":0,\"incomplete_results\":false,\"items\":[]}"
+    },
+    {
+     "source": "E3",
+     "detail": "gh api repos/quidra-lang/quidra (official implementation repository, created 2026-09-16)",
+     "accessed": "2026-09-19T00:33:10Z",
+     "excerpt": "'stargazers_count': 0, 'forks_count': 0, 'subscribers_count': 0"
+    },
+    {
+     "source": "E3",
+     "detail": "gh api repos/quidra-lang/quidra/releases",
+     "accessed": "2026-09-19T00:33:10Z",
+     "excerpt": "v0.3.0 2026-09-18; v0.2.0 2026-09-17; v0.1.0 2026-09-16"
+    },
+    {
+     "source": "E2",
+     "detail": "https://github.com/quidra-lang/quidra/blob/HEAD/RELEASING.md (official release procedure; counts toward A4's second conjunct only)",
+     "accessed": "2026-09-19T00:34:05Z",
+     "excerpt": "This is the authoritative release procedure for humans and coding agents."
+    },
+    {
+     "source": "E2",
+     "detail": "grep -n -iE 'governance|steward|core team|maintainer|foundation|support policy' README.md over the Quidra checkout and repository root listing (.clang-format .github .gitignore CMakeLists.txt LICENSE README.md RELEASING.md assets benchmark docs examples include quidra.manifest.json scripts src tests)",
+     "accessed": "2026-09-19T00:34:40Z",
+     "excerpt": "no governance document present; the two README hits are 'neural namespace' and 'standard foundations'"
+    },
+    {
+     "source": "E6",
+     "detail": "https://github.com/quidra-lang/dnn (official repository of the first-party 'dnn' package, release v0.1.0, installable with `quidra install dnn@0.1.0`)",
+     "accessed": "2026-09-19T00:35:50Z",
+     "excerpt": "as ordinary Quidra source code on top of the standard tensor and neural foundations"
+    },
+    {
+     "source": "E6",
+     "detail": "https://github.com/quidra-lang/vision (official repository of the first-party 'vision' package)",
+     "accessed": "2026-09-19T00:35:50Z",
+     "excerpt": "`vision` is Quidra's first-party tensor image-processing package."
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/technology searched for the string 'Quidra' (same survey used for all ten languages)",
+     "accessed": "2026-09-19T00:25:53Z",
+     "excerpt": "grep -ci quidra -> 0"
+    },
+    {
+     "source": "E6",
+     "detail": "https://www.tiobe.com/tiobe-index/ searched for the string 'Quidra' (secondary index check)",
+     "accessed": "2026-09-19T00:25:55Z",
+     "excerpt": "hits 0"
+    }
+   ],
+   "reasoning": "Only A5 is satisfied, so the count is 1 and the rubric's lowest level (0 or 1 of A1-A6) applies. Not level 20 (Isolated): that needs exactly 2 satisfied indicators, and no second indicator could be satisfied. A1 fails on positive evidence, not on absence of search: the whole public GitHub repository corpus contains exactly one Quidra repository (the maintainers' own) and public code search returns zero .qui files, the project publishes no case-study or user page, and no third-party organization statement was retrievable. A4 fails only on its first conjunct: RELEASING.md is a genuine official release procedure, but no governance document and no formal governance body, foundation or named corporate steward is published, and global_rules.indicator_model.no_partial_credit forbids partial credit for a conjunctive indicator. A6 fails because Quidra appears in neither the survey nor the index that every other language was scored against. A5 is awarded, and deliberately so: the rubric's A5 admits a first-party shipped component, and quidra-lang/dnn is a released, installable package whose official repository states it is written in ordinary Quidra source code; marking it down would be scoring Quidra below what the observable criterion says. The score of 0 carries no age adjustment in either direction: na_policy states this is the expected and correct outcome for a language with no external users at the evidence cutoff."
+  },
+  "Python": {
+   "level": "Broad documented production use with formal stewardship",
+   "score": 100,
+   "criteria_satisfied": [
+    "A1 (many named organizations, each with a dated first-party citation; see table)",
+    "A2 (at least 5 distinct named organizations with distinct citations)",
+    "A3 (at least 20 distinct named organizations with distinct citations)",
+    "A4 (official governance document and official release/support policy)",
+    "A5 (shipped product/component states its implementation language in its own official documentation or repository)",
+    "A6 (non-zero reported share in a methodologically documented developer survey published within 24 months of the cutoff)"
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E6",
+     "detail": "adoption_citation_tables['Python'] in this file: 21 organization-owned official repositories, each with its own URL, date and verbatim excerpt",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "boto: AWS SDK for Python (Boto3); stripe: Python library for the Stripe API.; twilio: A Python module for communicating with the Twilio API and ge"
+    },
+    {
+     "source": "E6",
+     "detail": "https://www.python.org/about/quotes/ (official first-party page naming organizations; supporting only - the page carries no publication date, so it is not counted as an A1-A3 citation)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Python is everywhere at ILM. It's used to extend the capabilities"
+    },
+    {
+     "source": "E2",
+     "detail": "https://peps.python.org/pep-0013/ (PEP 13 - Python Language Governance, Active, created 16-Dec-2018)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "PEP 13 - Python Language Governance ... Status : Active Type : Process Topic : Governance"
+    },
+    {
+     "source": "E2",
+     "detail": "https://devguide.python.org/versions/ (Status of Python versions: per-branch bugfix/security/end-of-life schedule)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "3.14 PEP 745 bugfix 2025-10-07 2030-10 Hugo van Kemenade"
+    },
+    {
+     "source": "E6",
+     "detail": "https://www.djangoproject.com/ (Django, end-user-distributed web framework)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Django is a high-level Python web framework that encourages rapid development"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/technology (chart 'Programming, scripting, and markup languages', All Respondents tab)",
+     "accessed": "2026-09-19T00:25:53Z",
+     "excerpt": "Python 57.9%"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/methodology (methodology statement for the same survey)",
+     "accessed": "2026-09-19T00:27:10Z",
+     "excerpt": "49,009 responses from 177 countries are used in these survey results."
+    }
+   ],
+   "reasoning": "All six indicators are satisfied with positive, dated, first-party evidence, so the count is 6 and only the top level fits; 80 would require exactly five. The A3 threshold is met by 21 distinct organizations (AWS, Stripe, Twilio, Elastic, Datadog, Sentry, Google, Microsoft, Slack, Cloudflare, OpenAI, Spotify, Uber, Pinterest, Shopify, Bloomberg, PyTorch Foundation, Dropbox, LINE, MongoDB, Redis), each with its own repository URL, its own date and its own verbatim excerpt, which is what top_level_evidence_required demands."
+  },
+  "C++": {
+   "level": "Broad documented production use with formal stewardship",
+   "score": 100,
+   "criteria_satisfied": [
+    "A1 (many named organizations, each with a dated first-party citation; see table)",
+    "A2 (at least 5 distinct named organizations with distinct citations)",
+    "A3 (at least 20 distinct named organizations with distinct citations)",
+    "A4 (official governance document and official release/support policy)",
+    "A5 (shipped product/component states its implementation language in its own official documentation or repository)",
+    "A6 (non-zero reported share in a methodologically documented developer survey published within 24 months of the cutoff)"
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E6",
+     "detail": "adoption_citation_tables['C++'] in this file: 22 organization-owned official repositories, each with its own URL, date and verbatim excerpt",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "aws: AWS SDK for C++; googleapis: C++ Client Libraries for Google Cloud Services; Azure: This repository is for active development of the Azure SDK f"
+    },
+    {
+     "source": "E2",
+     "detail": "https://isocpp.org/std/the-committee (ISO/IEC JTC1/SC22/WG21, the C++ standards committee)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "The ISO C++ committee is called WG21, officially ISO/IEC JTC1 ... SC22 ... WG21"
+    },
+    {
+     "source": "E2",
+     "detail": "https://llvm.org/docs/DeveloperPolicy.html (LLVM Developer Policy, incl. Project Governance) - LLVM is in C++'s frozen official_project_set",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "This document contains the LLVM Developer Policy which defines the project's policy"
+    },
+    {
+     "source": "E2",
+     "detail": "https://llvm.org/docs/HowToReleaseLLVM.html (annual release schedule for the toolchain family under test)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Here is the annual release schedule for LLVM."
+    },
+    {
+     "source": "E6",
+     "detail": "https://github.com/arangodb/arangodb/blob/HEAD/README.md (ArangoDB, end-user-distributed database)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "ArangoDB is written in C++ and can handle even very large datasets efficiently."
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/technology (chart 'Programming, scripting, and markup languages', All Respondents tab)",
+     "accessed": "2026-09-19T00:25:53Z",
+     "excerpt": "C++ 23.5%"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/methodology (methodology statement for the same survey)",
+     "accessed": "2026-09-19T00:27:10Z",
+     "excerpt": "49,009 responses from 177 countries are used in these survey results."
+    }
+   ],
+   "reasoning": "Six of six indicators satisfied, so the top level is the only fit. A3 is met by 21 distinct organizations (AWS, Google, Microsoft, Meta, MongoDB, Bloomberg, gRPC, Couchbase, Confluent, Apache, UXL Foundation, ArangoDB, Envoy, Electronic Arts, NVIDIA, Tencent, Alibaba, PyTorch Foundation, Telegram/TDLib, Sony, Baidu), each with a distinct dated citation. C++'s standards-body plus implementation-vendor stewardship is scored normally under A4 rather than being discounted, per spec section 7."
+  },
+  "Rust": {
+   "level": "Broad documented production use with formal stewardship",
+   "score": 100,
+   "criteria_satisfied": [
+    "A1 (many named organizations, each with a dated first-party citation; see table)",
+    "A2 (at least 5 distinct named organizations with distinct citations)",
+    "A3 (at least 20 distinct named organizations with distinct citations)",
+    "A4 (official governance document and official release/support policy)",
+    "A5 (shipped product/component states its implementation language in its own official documentation or repository)",
+    "A6 (non-zero reported share in a methodologically documented developer survey published within 24 months of the cutoff)"
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E6",
+     "detail": "adoption_citation_tables['Rust'] in this file: 22 organization-owned official repositories, each with its own URL, date and verbatim excerpt",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "awslabs: AWS SDK for the Rust Programming Language; Azure: This repository is for the active development of the Azure S; cloudflare: Pingora Pingora is a Rust framework to [build fast, reliable"
+    },
+    {
+     "source": "E2",
+     "detail": "https://www.rust-lang.org/ (homepage 'Rust in production' section; supporting only - it names no organization, so it is not counted as an A1-A3 citation)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Hundreds of companies around the world are using Rust in production today"
+    },
+    {
+     "source": "E2",
+     "detail": "https://www.rust-lang.org/governance (official governance page: teams, RFC process)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Governance How Rust is built by its community RFC process"
+    },
+    {
+     "source": "E2",
+     "detail": "https://doc.rust-lang.org/book/appendix-07-nightly-rust.html (official release-channel/train policy)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Every six weeks, it's time to prepare a new release!"
+    },
+    {
+     "source": "E3",
+     "detail": "https://forge.rust-lang.org/release/process.html (official release process, rust-lang infrastructure)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "The Rust Release Process Here's how Rust is currently released"
+    },
+    {
+     "source": "E6",
+     "detail": "https://github.com/cloudflare/pingora/blob/HEAD/README.md (Pingora, infrastructure component Cloudflare ships)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "What is Pingora Pingora is a Rust framework to build fast, reliable and programmable networked systems"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/technology (chart 'Programming, scripting, and markup languages', All Respondents tab)",
+     "accessed": "2026-09-19T00:25:53Z",
+     "excerpt": "Rust 14.8%"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/methodology (methodology statement for the same survey)",
+     "accessed": "2026-09-19T00:27:10Z",
+     "excerpt": "49,009 responses from 177 countries are used in these survey results."
+    }
+   ],
+   "reasoning": "Six of six. A3 is met by 21 distinct organizations (AWS, Microsoft, Cloudflare, Vercel, Astral, 1Password, ByteDance/web-infra-dev, Apache, Buoyant/Linkerd, Mozilla, Tokio, Elastic, PostHog, Datadog, Sentry, Grafana, MongoDB, swc-project, oxc/VoidZero, Deno, InfluxData). Note that the former rust-lang.org 'production users' list is gone (404 at the cutoff), so Rust was scored on the same organization-owned-repository evidence as the other nine rather than on a first-party user page."
+  },
+  "Go": {
+   "level": "Broad documented production use with formal stewardship",
+   "score": 100,
+   "criteria_satisfied": [
+    "A1 (many named organizations, each with a dated first-party citation; see table)",
+    "A2 (at least 5 distinct named organizations with distinct citations)",
+    "A3 (at least 20 distinct named organizations with distinct citations, and additionally an official case-study page naming 20 organizations)",
+    "A4 (official governance document and official release/support policy)",
+    "A5 (shipped product/component states its implementation language in its own official documentation or repository)",
+    "A6 (non-zero reported share in a methodologically documented developer survey published within 24 months of the cutoff)"
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E6",
+     "detail": "adoption_citation_tables['Go'] in this file: 14 organization-owned official repositories, each with its own URL, date and verbatim excerpt",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "aws: AWS SDK for the Go programming language.; googleapis: Google Cloud Client Libraries for Go.; Azure: This repository is for active development of the Azure SDK f"
+    },
+    {
+     "source": "E6",
+     "detail": "https://go.dev/solutions/case-studies (official Go case-study page)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Google, PayPal, American Express, Allegro, Armut Labs, Bitly, ByteDance, Capital One, Cloudflare, Cockroach Labs"
+    },
+    {
+     "source": "E6",
+     "detail": "https://go.dev/solutions/case-studies (second half of the same official page)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Curve, Dropbox, Facebook, GRAIL, MercadoLibre, Microsoft, Monzo, Netflix, Riot Games, Salesforce"
+    },
+    {
+     "source": "E3",
+     "detail": "https://github.com/golang/proposal/blob/master/README.md (the Go project's official proposal/decision process)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "The proposal process is the process for reviewing a proposal and reaching a decision"
+    },
+    {
+     "source": "E2",
+     "detail": "https://go.dev/doc/devel/release (official Release Policy section)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Each major Go release is supported until there are two newer major releases."
+    },
+    {
+     "source": "E6",
+     "detail": "https://gohugo.io/about/introduction/ (Hugo, end-user-distributed static site generator)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Hugo is a static site generator written in Go, optimized for speed"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/technology (chart 'Programming, scripting, and markup languages', All Respondents tab)",
+     "accessed": "2026-09-19T00:25:53Z",
+     "excerpt": "Go 16.4%"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/methodology (methodology statement for the same survey)",
+     "accessed": "2026-09-19T00:27:10Z",
+     "excerpt": "49,009 responses from 177 countries are used in these survey results."
+    }
+   ],
+   "reasoning": "Six of six. Go satisfies A3 twice over: the official case-study page names exactly 20 organizations (the A3 alternative clause), and 14 further organizations were verified independently through their own official repositories, so the level does not depend on the page count."
+  },
+  "Java": {
+   "level": "Broad documented production use with formal stewardship",
+   "score": 100,
+   "criteria_satisfied": [
+    "A1 (many named organizations, each with a dated first-party citation; see table)",
+    "A2 (at least 5 distinct named organizations with distinct citations)",
+    "A3 (at least 20 distinct named organizations with distinct citations)",
+    "A4 (official governance document and official release/support policy)",
+    "A5 (shipped product/component states its implementation language in its own official documentation or repository)",
+    "A6 (non-zero reported share in a methodologically documented developer survey published within 24 months of the cutoff)"
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E6",
+     "detail": "adoption_citation_tables['Java'] in this file: 22 organization-owned official repositories, each with its own URL, date and verbatim excerpt",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "aws: The official AWS SDK for Java - Version 2; googleapis: Google Cloud Client Library for Java; Azure: This repository is for active development of the Azure SDK f"
+    },
+    {
+     "source": "E2",
+     "detail": "https://openjdk.org/bylaws (OpenJDK Bylaws: Governing Board, Groups, Projects, voting)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "The Governing Board ... resolves procedural disputes, and ensures that sufficient infrastructure is available."
+    },
+    {
+     "source": "E2",
+     "detail": "https://www.oracle.com/java/technologies/java-se-support-roadmap.html (Oracle Java SE Support Roadmap)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Oracle Java SE Support Roadmap (Updated September 15, 2026)"
+    },
+    {
+     "source": "E6",
+     "detail": "https://github.com/mongodb/mongo-java-driver (shipped driver component)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "The official MongoDB drivers for Java, Kotlin, and Scala"
+    },
+    {
+     "source": "E6",
+     "detail": "https://www.jenkins.io/doc/developer/tutorial/prepare/ (Jenkins, end-user-distributed automation server)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Jenkins is based on Java, so to build Jenkins plugins you need"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/technology (chart 'Programming, scripting, and markup languages', All Respondents tab)",
+     "accessed": "2026-09-19T00:25:53Z",
+     "excerpt": "Java 29.4%"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/methodology (methodology statement for the same survey)",
+     "accessed": "2026-09-19T00:27:10Z",
+     "excerpt": "49,009 responses from 177 countries are used in these survey results."
+    }
+   ],
+   "reasoning": "Six of six. A3 is met by 21 distinct organizations (AWS, Google, Microsoft/Azure, Stripe, Twilio, Elastic, Sentry, Datadog, Slack, MongoDB, Redis, Uber, Red Hat/Quarkus, LinkedIn, Dropbox, LINE, OpenAI, Confluent, Apache, Netflix, Alibaba, Broadcom/Spring). Java's dual stewardship (OpenJDK bylaws plus Oracle's dated support roadmap) is scored normally, not discounted as incumbency."
+  },
+  "TypeScript": {
+   "level": "Broad documented production use with formal stewardship",
+   "score": 100,
+   "criteria_satisfied": [
+    "A1 (many named organizations, each with a dated first-party citation; see table)",
+    "A2 (at least 5 distinct named organizations with distinct citations)",
+    "A3 (at least 20 distinct named organizations with distinct citations)",
+    "A4 (official governance document and official release/support policy)",
+    "A5 (shipped product/component states its implementation language in its own official documentation or repository)",
+    "A6 (non-zero reported share in a methodologically documented developer survey published within 24 months of the cutoff)"
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E6",
+     "detail": "adoption_citation_tables['TypeScript'] in this file: 26 organization-owned official repositories, each with its own URL, date and verbatim excerpt",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "cloudflare: The official TypeScript library for the Cloudflare API; anthropics: Access to Anthropic's safety-first language model APIs in Ty; DataDog: Typescript client for the Datadog API"
+    },
+    {
+     "source": "E3",
+     "detail": "https://github.com/nodejs/node/blob/main/GOVERNANCE.md - the Node.js project/OpenJS Foundation is a member of TypeScript's frozen official_project_set",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "The TSC has final authority over this project, including"
+    },
+    {
+     "source": "E2",
+     "detail": "https://nodejs.org/en/about/previous-releases (official release/LTS policy of that same official-set member)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Major Node.js versions enter Current release status for six months"
+    },
+    {
+     "source": "E3",
+     "detail": "https://github.com/microsoft/TypeScript/wiki/TypeScript's-Release-Process (release policy published by the named corporate steward, edited Jul 22, 2025)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Daniel Rosenwasser edited this page Jul 22, 2025 - 10 revisions"
+    },
+    {
+     "source": "E6",
+     "detail": "https://github.com/cloudflare/cloudflare-typescript (shipped client component)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "The official TypeScript library for the Cloudflare API"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/technology (chart 'Programming, scripting, and markup languages', All Respondents tab)",
+     "accessed": "2026-09-19T00:25:53Z",
+     "excerpt": "TypeScript 43.6%"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/methodology (methodology statement for the same survey)",
+     "accessed": "2026-09-19T00:27:10Z",
+     "excerpt": "49,009 responses from 177 countries are used in these survey results."
+    }
+   ],
+   "reasoning": "Six of six. A1-A3 were counted only from organizations OUTSIDE TypeScript's official_project_set, so Microsoft, npm and the Node.js/OpenJS project were excluded from the organization count; 24 other distinct organizations remain. A4 is satisfied through the frozen official_project_set: Microsoft (named corporate steward) publishes an official release process, and the Node.js/OpenJS project, also official for TypeScript in the frozen table, publishes GOVERNANCE.md plus a release/LTS policy. No Microsoft-published governance document specific to TypeScript was found; this is recorded in limitations."
+  },
+  "Kotlin": {
+   "level": "Broad documented production use with formal stewardship",
+   "score": 100,
+   "criteria_satisfied": [
+    "A1 (many named organizations, each with a dated first-party citation; see table)",
+    "A2 (at least 5 distinct named organizations with distinct citations)",
+    "A3 (at least 20 distinct named organizations with distinct citations on the official case-study page)",
+    "A4 (official governance document and official release/support policy)",
+    "A5 (shipped product/component states its implementation language in its own official documentation or repository)",
+    "A6 (non-zero reported share in a methodologically documented developer survey published within 24 months of the cutoff)"
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E6",
+     "detail": "adoption_citation_tables['Kotlin'] in this file: 8 organization-owned official repositories, each with its own URL, date and verbatim excerpt",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "aws: Multiplatform AWS SDK for Kotlin; ktorio: Framework for quickly creating connected applications in Kot; google: Kotlin Symbol Processing API"
+    },
+    {
+     "source": "E6",
+     "detail": "https://kotlinlang.org/case-studies/ (official Kotlin case-study page, JetBrains)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Duolingo, Sony, Philo, H&M, Deutsche Telekom, Block/Bitkey, Uber, Markaz, Mercedes-Benz.io"
+    },
+    {
+     "source": "E6",
+     "detail": "https://kotlinlang.org/case-studies/ (same page, continued)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Posten Bring, GoodData, Autodesk, Baidu, OpenSooq, Amazon, VMware, Netflix, Instabee, Quizlet, Worldline"
+    },
+    {
+     "source": "E2",
+     "detail": "https://kotlinlang.org/docs/kotlin-evolution-principles.html (official decision-making/governance statement)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "All changes to the Kotlin Programming Language are overseen by the Lead Language"
+    },
+    {
+     "source": "E2",
+     "detail": "https://kotlinlang.org/docs/releases.html (official release cadence and support window)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Language releases (2.x.0) ... Released once in 6 months."
+    },
+    {
+     "source": "E2",
+     "detail": "https://kotlinfoundation.org/structure/ (Kotlin Foundation committees; supporting)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "The Operating Committee goal is to ensure the functioning of the Kotlin Foundation"
+    },
+    {
+     "source": "E6",
+     "detail": "https://ktor.io/ (Ktor, shipped framework)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Ktor is built from the ground up using Kotlin and Coroutines"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/technology (chart 'Programming, scripting, and markup languages', All Respondents tab)",
+     "accessed": "2026-09-19T00:25:53Z",
+     "excerpt": "Kotlin 10.8%"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/methodology (methodology statement for the same survey)",
+     "accessed": "2026-09-19T00:27:10Z",
+     "excerpt": "49,009 responses from 177 countries are used in these survey results."
+    }
+   ],
+   "reasoning": "Six of six. A3 is satisfied by the A3 alternative clause: the official JetBrains case-study page names more than 20 organizations (22 excluding JetBrains itself), and 7 further third-party organizations were verified independently through their own official repositories. Kotlin's stdlib support window (18 months from 2.4.0) and 6-month language-release cadence give A4 both conjuncts."
+  },
+  "Swift": {
+   "level": "Broad documented production use with formal stewardship",
+   "score": 100,
+   "criteria_satisfied": [
+    "A1 (many named organizations, each with a dated first-party citation; see table)",
+    "A2 (at least 5 distinct named organizations with distinct citations)",
+    "A3 (at least 20 distinct named organizations with distinct citations)",
+    "A4 (official governance document and official release/support policy)",
+    "A5 (shipped product/component states its implementation language in its own official documentation or repository)",
+    "A6 (non-zero reported share in a methodologically documented developer survey published within 24 months of the cutoff)"
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E6",
+     "detail": "adoption_citation_tables['Swift'] in this file: 23 organization-owned official repositories, each with its own URL, date and verbatim excerpt",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "awslabs: # AWS SDK for Swift [![License][apache-badge]][apache-url] [; DataDog: Datadog SDK for iOS - Swift and Objective-C.; vapor: 💧 A server-side Swift HTTP web framework."
+    },
+    {
+     "source": "E2",
+     "detail": "https://www.swift.org/community/how-we-work (Core Team, steering groups, workgroups)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Core Team Provides leadership and oversight of the Swift community's workgroups and initiatives."
+    },
+    {
+     "source": "E3",
+     "detail": "https://github.com/swiftlang/swift/blob/main/docs/Branches.md (official release-branch policy)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "main is the place for active development on Swift."
+    },
+    {
+     "source": "E2",
+     "detail": "https://www.swift.org/swift-evolution/ (official evolution process)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "The Swift evolution process document details how ideas are proposed, discussed, reviewed"
+    },
+    {
+     "source": "E6",
+     "detail": "https://github.com/vapor/vapor (Vapor, shipped server framework)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "A server-side Swift HTTP web framework."
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/technology (chart 'Programming, scripting, and markup languages', All Respondents tab)",
+     "accessed": "2026-09-19T00:25:53Z",
+     "excerpt": "Swift 5.4%"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/methodology (methodology statement for the same survey)",
+     "accessed": "2026-09-19T00:27:10Z",
+     "excerpt": "49,009 responses from 177 countries are used in these survey results."
+    }
+   ],
+   "reasoning": "Six of six. A3 is met by 22 distinct organizations (AWS, Datadog, Vapor, Algolia, Segment/Twilio, MongoDB/Realm, Uber, Klaviyo, Mixpanel, LINE, Contentful, Point-Free, Apollo GraphQL, Supabase, Stream, Zendesk, Braze, LaunchDarkly, Optimizely, Onfido, Pusher, MobileNativeFoundation), each with its own dated citation and verbatim excerpt. Apple was excluded from the organization count because it is in Swift's frozen official_project_set."
+  },
+  "Zig": {
+   "level": "Substantial documented production use",
+   "score": 80,
+   "criteria_satisfied": [
+    "A1 (named organizations other than ziglang publish dated statements of Zig implementation)",
+    "A2 (5 distinct named organizations with distinct citations: ghostty-org, ZML, Hexops/Mach, buzz-language, riverwm)",
+    "A4 (Zig Software Foundation - a 501(c)(3) with named board and published board meeting minutes - plus the official platform Support Tier policy)",
+    "A5 (Ghostty states in its official repository that its core is written in Zig)",
+    "A6 (Zig appears with a non-zero share in the 2025 Stack Overflow Developer Survey)"
+   ],
+   "criteria_failed": [
+    "A3 (only 5 distinct named organizations were verifiable, against a threshold of 20; the Zig project publishes no case-study/user page naming 20 organizations)"
+   ],
+   "evidence": [
+    {
+     "source": "E6",
+     "detail": "adoption_citation_tables['Zig'] in this file: 5 organization-owned official repositories, each with its own URL, date and verbatim excerpt",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "ghostty-org: a large, shared core written in Zig but we do a lot of platf; zml: built using the [Zig](https://ziglang.org) language, [MLIR](; hexops: zig game engine & graphics toolkit - mirror of https://code."
+    },
+    {
+     "source": "E6",
+     "detail": "https://github.com/ghostty-org/ghostty/blob/HEAD/README.md",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "a large, shared core written in Zig but we do a lot of platform-native"
+    },
+    {
+     "source": "E6",
+     "detail": "https://github.com/zml/zml/blob/HEAD/README.md",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "built using the [Zig](https://ziglang.org) language, [MLIR](https://mlir.llvm.org), and [Bazel](https://bazel.build)"
+    },
+    {
+     "source": "E6",
+     "detail": "https://github.com/hexops/mach (repository description)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "zig game engine & graphics toolkit"
+    },
+    {
+     "source": "E6",
+     "detail": "https://github.com/oven-sh/bun and https://github.com/tigerbeetle/tigerbeetle - searched for an implementation-language statement; NOT counted",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "no language statement found in repository description or README"
+    },
+    {
+     "source": "E2",
+     "detail": "https://ziglang.org/zsf/ (Zig Software Foundation)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "ZSF is a 501(c)(3) non-profit corporation. Board Members Andrew Kelley (President)"
+    },
+    {
+     "source": "E2",
+     "detail": "https://ziglang.org/zsf/meeting-minutes/ (published board meeting minutes, latest 2026-09-08)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "ZSF Board Meeting 2026-09-08 September 08, 2026"
+    },
+    {
+     "source": "E2",
+     "detail": "https://ziglang.org/learn/platform-support/ (official support policy)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Zig's level of support for various targets is broadly categorized into four tiers"
+    },
+    {
+     "source": "E6",
+     "detail": "https://ziglang.org/ (no first-party case-study or user page exists; checked the whole site navigation)",
+     "accessed": "2026-09-19T00:25Z-01:10Z",
+     "excerpt": "Download Learn News Source Join a Community Zig Software Foundation Devlog"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/technology (chart 'Programming, scripting, and markup languages', All Respondents tab)",
+     "accessed": "2026-09-19T00:25:53Z",
+     "excerpt": "Zig 2.1%"
+    },
+    {
+     "source": "E6",
+     "detail": "https://survey.stackoverflow.co/2025/methodology (methodology statement for the same survey)",
+     "accessed": "2026-09-19T00:27:10Z",
+     "excerpt": "49,009 responses from 177 countries are used in these survey results."
+    }
+   ],
+   "reasoning": "Exactly five indicators are satisfied, which is the 80 level; 100 requires all six and top_level_evidence_required explicitly forbids 100 on a shortfall in any one of them. A3 is the shortfall and it is a real, measured one: the same organization-owned-official-repository search that produced 21-26 organizations for the other established languages produced 5 for Zig, and the Zig project publishes no case-study or user page. A2 is nevertheless satisfied on the nose (5 distinct organizations), so the level is not 60. Two well-known Zig users (Bun and TigerBeetle) were examined under the identical source and are NOT counted, because neither repository's description nor README contains a retrievable statement of the implementation language; per global_rules.indicator_model, absence of evidence is never satisfaction. A4 is satisfied on the same reading applied to the other nine: a formal foundation publishing board composition and minutes, plus an official support policy (the platform Support Tier system)."
+  }
+ },
+ "adoption_citation_tables": {
+  "Python": [
+   {
+    "org": "boto",
+    "url": "https://github.com/boto/boto3",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T20:08:27Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "AWS SDK for Python (Boto3)"
+   },
+   {
+    "org": "stripe",
+    "url": "https://github.com/stripe/stripe-python",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-19T00:10:33Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Python library for the Stripe API."
+   },
+   {
+    "org": "twilio",
+    "url": "https://github.com/twilio/twilio-python",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-09T16:07:09Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "A Python module for communicating with the Twilio API and generating TwiML."
+   },
+   {
+    "org": "elastic",
+    "url": "https://github.com/elastic/elasticsearch-py",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-14T15:02:06Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Official Python client for Elasticsearch"
+   },
+   {
+    "org": "DataDog",
+    "url": "https://github.com/DataDog/datadog-api-client-python",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T17:24:29Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Python client for the Datadog API"
+   },
+   {
+    "org": "getsentry",
+    "url": "https://github.com/getsentry/sentry-python",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T19:00:36Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The official Python SDK for Sentry.io"
+   },
+   {
+    "org": "googleapis",
+    "url": "https://github.com/googleapis/google-cloud-python",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-19T00:28:09Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Google Cloud Client Libraries for Python"
+   },
+   {
+    "org": "Azure",
+    "url": "https://github.com/Azure/azure-sdk-for-python",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T23:35:55Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "This repository is for active development of the Azure SDK for Python. For consumers of"
+   },
+   {
+    "org": "slackapi",
+    "url": "https://github.com/slackapi/python-slack-sdk",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-10T17:43:00Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Slack Developer Kit for Python"
+   },
+   {
+    "org": "cloudflare",
+    "url": "https://github.com/cloudflare/cloudflare-python",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-04T21:56:32Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The official Python library for the Cloudflare API"
+   },
+   {
+    "org": "openai",
+    "url": "https://github.com/openai/openai-python",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T22:05:26Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The official Python library for the OpenAI API"
+   },
+   {
+    "org": "spotify",
+    "url": "https://github.com/spotify/luigi",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-07-18T11:15:46Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Luigi is a Python module that helps you build complex pipelines of batch jobs. It"
+   },
+   {
+    "org": "uber",
+    "url": "https://github.com/uber/petastorm",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-01-02T23:08:02Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Petastorm library enables single machine or distributed training and evaluation of deep learning models from"
+   },
+   {
+    "org": "pinterest",
+    "url": "https://github.com/pinterest/pymemcache",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2025-07-09T16:22:15Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "A comprehensive, fast, pure-Python memcached client."
+   },
+   {
+    "org": "Shopify",
+    "url": "https://github.com/Shopify/shopify_python_api",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-08-25T20:49:04Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "ShopifyAPI library allows Python developers to programmatically access the admin section of stores"
+   },
+   {
+    "org": "bloomberg",
+    "url": "https://github.com/bloomberg/memray",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-17T00:22:34Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Memray is a memory profiler for Python"
+   },
+   {
+    "org": "pytorch",
+    "url": "https://github.com/pytorch/pytorch",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-19T00:28:06Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Tensors and Dynamic neural networks in Python with strong GPU acceleration"
+   },
+   {
+    "org": "dropbox",
+    "url": "https://github.com/dropbox/dropbox-sdk-python",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-17T00:04:56Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The Official Dropbox API V2 SDK for Python"
+   },
+   {
+    "org": "line",
+    "url": "https://github.com/line/line-bot-sdk-python",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T21:09:30Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "LINE Messaging API SDK for Python"
+   },
+   {
+    "org": "mongodb",
+    "url": "https://github.com/mongodb/mongo-python-driver",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T22:06:28Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "PyMongo - the Official MongoDB Python driver"
+   },
+   {
+    "org": "redis",
+    "url": "https://github.com/redis/redis-py",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T06:31:29Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Redis Python client"
+   }
+  ],
+  "C++": [
+   {
+    "org": "aws",
+    "url": "https://github.com/aws/aws-sdk-cpp",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T21:11:05Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "AWS SDK for C++"
+   },
+   {
+    "org": "googleapis",
+    "url": "https://github.com/googleapis/google-cloud-cpp",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T18:12:36Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "C++ Client Libraries for Google Cloud Services"
+   },
+   {
+    "org": "Azure",
+    "url": "https://github.com/Azure/azure-sdk-for-cpp",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T23:38:16Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "This repository is for active development of the Azure SDK for C++. For consumers of"
+   },
+   {
+    "org": "facebook",
+    "url": "https://github.com/facebook/folly",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T23:05:44Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "An open-source C++ library developed and used at Facebook."
+   },
+   {
+    "org": "mongodb",
+    "url": "https://github.com/mongodb/mongo-cxx-driver",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T13:11:28Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "C++ Driver for MongoDB"
+   },
+   {
+    "org": "bloomberg",
+    "url": "https://github.com/bloomberg/bde",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-14T13:45:05Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Basic Development Environment - a set of foundational C++ libraries used at Bloomberg."
+   },
+   {
+    "org": "grpc",
+    "url": "https://github.com/grpc/grpc",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T20:47:53Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "C++ based gRPC (C++, Python, Ruby, Objective-C, PHP, C#)"
+   },
+   {
+    "org": "couchbase",
+    "url": "https://github.com/couchbase/couchbase-cxx-client",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-16T19:51:17Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Couchbase C++ Client Library (Official)"
+   },
+   {
+    "org": "confluentinc",
+    "url": "https://github.com/confluentinc/librdkafka",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T11:46:14Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The Apache Kafka C/C++ library"
+   },
+   {
+    "org": "apache",
+    "url": "https://github.com/apache/impala/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-06-18T05:11:17Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "a modern, massively-distributed, massively-parallel, C++ query engine that lets you analyze, transform and combine data"
+   },
+   {
+    "org": "uxlfoundation",
+    "url": "https://github.com/uxlfoundation/oneDNN/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-09-16T08:29:59Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "s390x architecture support * C++ compiler with C++11 standard support * [CMake] 3.13 or later"
+   },
+   {
+    "org": "arangodb",
+    "url": "https://github.com/arangodb/arangodb/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-01-07T10:21:09Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "optimal performance. ArangoDB is written in C++ and can handle even very large datasets efficiently."
+   },
+   {
+    "org": "envoyproxy",
+    "url": "https://github.com/envoyproxy/envoy/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-08-03T12:49:36Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "is fun and modern C++ is a lot less scary than you might think if"
+   },
+   {
+    "org": "electronicarts",
+    "url": "https://github.com/electronicarts/EASTL/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2025-08-03T18:16:24Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Library. It is a C++ template library of containers, algorithms, and iterators useful for runtime"
+   },
+   {
+    "org": "NVIDIA",
+    "url": "https://github.com/NVIDIA/cutlass/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-08-26T09:34:39Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "this rich ecosystem of C++ based kernel programming abstractions, CUTLASS 4 adds CUTLASS DSLs. These"
+   },
+   {
+    "org": "Tencent",
+    "url": "https://github.com/Tencent/rapidjson",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2025-02-05T13:28:08Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "A fast JSON parser/generator for C++ with both SAX/DOM style API"
+   },
+   {
+    "org": "alibaba",
+    "url": "https://github.com/alibaba/yalantinglibs",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-16T12:01:42Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "A collection of modern C++ libraries, include coro_http, coro_rpc, compile-time reflection, struct_pack, struct_json, struct_xml, struct_pb,"
+   },
+   {
+    "org": "pytorch",
+    "url": "https://github.com/pytorch/pytorch/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-08-19T14:07:02Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "binding into a monolithic C++ framework. It is built to be deeply integrated into Python."
+   },
+   {
+    "org": "tdlib",
+    "url": "https://github.com/tdlib/td/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-08-24T15:28:34Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "- [Using in CMake C++ projects](#using-cxx) - [Using in Java projects](#using-java) - [Using in .NET"
+   },
+   {
+    "org": "microsoft",
+    "url": "https://github.com/microsoft/STL",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T07:11:30Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "MSVC's implementation of the C++ Standard Library."
+   },
+   {
+    "org": "sony",
+    "url": "https://github.com/sony/nnabla/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-07-24T03:35:17Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "the library code is written in C++14, deployable to embedded devices ### Extensible * Easy"
+   },
+   {
+    "org": "baidu",
+    "url": "https://github.com/baidu/braft",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2024-10-25T07:22:09Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "An industrial-grade C++ implementation of RAFT consensus algorithm based on brpc, widely used inside Baidu"
+   }
+  ],
+  "Rust": [
+   {
+    "org": "awslabs",
+    "url": "https://github.com/awslabs/aws-sdk-rust",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T19:28:37Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "AWS SDK for the Rust Programming Language"
+   },
+   {
+    "org": "Azure",
+    "url": "https://github.com/Azure/azure-sdk-for-rust",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T23:52:08Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "This repository is for the active development of the Azure SDK for Rust. For consumers"
+   },
+   {
+    "org": "cloudflare",
+    "url": "https://github.com/cloudflare/pingora/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-08-07T21:09:04Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Pingora Pingora is a Rust framework to [build fast, reliable and programmable networked systems](https://blog.cloudflare.com/pingora-open-source). Pingora"
+   },
+   {
+    "org": "vercel",
+    "url": "https://github.com/vercel/turborepo",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T21:49:18Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Build system optimized for JavaScript and TypeScript, written in Rust"
+   },
+   {
+    "org": "astral-sh",
+    "url": "https://github.com/astral-sh/uv",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T20:07:44Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "An extremely fast Python package and project manager, written in Rust."
+   },
+   {
+    "org": "1Password",
+    "url": "https://github.com/1Password/typeshare",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-13T00:45:19Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Typeshare is the ultimate tool for synchronizing your type definitions between Rust and other languages"
+   },
+   {
+    "org": "web-infra-dev",
+    "url": "https://github.com/web-infra-dev/rspack",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-19T00:26:23Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Fast Rust-based bundler for the web with a modernized webpack API 🦀"
+   },
+   {
+    "org": "apache",
+    "url": "https://github.com/apache/arrow-rs",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T19:33:43Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Official Rust implementation of Apache Arrow"
+   },
+   {
+    "org": "linkerd",
+    "url": "https://github.com/linkerd/linkerd2-proxy",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T18:17:16Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "A purpose-built proxy for the Linkerd service mesh. Written in Rust."
+   },
+   {
+    "org": "mozilla",
+    "url": "https://github.com/mozilla/neqo",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T14:28:19Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Neqo, the Mozilla Firefox implementation of QUIC in Rust"
+   },
+   {
+    "org": "tokio-rs",
+    "url": "https://github.com/tokio-rs/tokio",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T02:53:10Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "A runtime for writing reliable asynchronous applications with Rust. Provides I/O, networking, scheduling, timers, ..."
+   },
+   {
+    "org": "elastic",
+    "url": "https://github.com/elastic/elasticsearch-rs",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-14T06:30:48Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Official Elasticsearch Rust Client"
+   },
+   {
+    "org": "PostHog",
+    "url": "https://github.com/PostHog/posthog-rs",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T10:24:22Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Official PostHog Rust SDK"
+   },
+   {
+    "org": "DataDog",
+    "url": "https://github.com/DataDog/dd-trace-rs",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T22:46:47Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Datadog APM for Rust"
+   },
+   {
+    "org": "getsentry",
+    "url": "https://github.com/getsentry/sentry-rust",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-17T12:02:21Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The official Sentry SDK for Rust"
+   },
+   {
+    "org": "grafana",
+    "url": "https://github.com/grafana/pyroscope-rs",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-14T08:23:04Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Pyroscope Profiler for Rust. Profile your Rust applications."
+   },
+   {
+    "org": "mongodb",
+    "url": "https://github.com/mongodb/mongo-rust-driver",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T13:48:17Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The official MongoDB Rust Driver"
+   },
+   {
+    "org": "swc-project",
+    "url": "https://github.com/swc-project/swc",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T04:12:03Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Rust-based platform for the Web"
+   },
+   {
+    "org": "oxc-project",
+    "url": "https://github.com/oxc-project/oxc/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-07-16T14:42:08Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "for JavaScript and TypeScript written in Rust. Oxc is part of [VoidZero](https://voidzero.dev/)'s vision for a"
+   },
+   {
+    "org": "denoland",
+    "url": "https://github.com/denoland/deno/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-06-17T07:31:03Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "built on [V8](https://v8.dev/), [Rust](https://www.rust-lang.org/), and [Tokio](https://tokio.rs/). Learn more about the Deno runtime [in the documentation](https://docs.deno.com/runtime/manual)."
+   },
+   {
+    "org": "influxdata",
+    "url": "https://github.com/influxdata/influxdb/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-04-14T21:34:36Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "port 8181\\ **Built with:** Rust, Apache Arrow, DataFusion\\ **Compatible with:** InfluxDB 1.x and 2.x write"
+   },
+   {
+    "org": "microsoft",
+    "url": "https://github.com/microsoft/windows-rs",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T23:31:43Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Rust for Windows"
+   }
+  ],
+  "Go": [
+   {
+    "org": "aws",
+    "url": "https://github.com/aws/aws-sdk-go-v2",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T21:43:37Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "AWS SDK for the Go programming language."
+   },
+   {
+    "org": "googleapis",
+    "url": "https://github.com/googleapis/google-cloud-go",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T17:02:03Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Google Cloud Client Libraries for Go."
+   },
+   {
+    "org": "Azure",
+    "url": "https://github.com/Azure/azure-sdk-for-go",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T23:39:25Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "This repository is for active development of the Azure SDK for Go. For consumers of"
+   },
+   {
+    "org": "stripe",
+    "url": "https://github.com/stripe/stripe-go",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-19T00:12:13Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Go library for the Stripe API."
+   },
+   {
+    "org": "twilio",
+    "url": "https://github.com/twilio/twilio-go",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-10T06:42:51Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "A Go package for communicating with the Twilio API."
+   },
+   {
+    "org": "elastic",
+    "url": "https://github.com/elastic/go-elasticsearch",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T00:22:10Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The official Go client for Elasticsearch"
+   },
+   {
+    "org": "getsentry",
+    "url": "https://github.com/getsentry/sentry-go",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T11:18:43Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The official Go SDK for Sentry (sentry.io)"
+   },
+   {
+    "org": "DataDog",
+    "url": "https://github.com/DataDog/dd-trace-go",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T19:43:48Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Datadog Go Library including APM tracing, profiling, and security monitoring."
+   },
+   {
+    "org": "mongodb",
+    "url": "https://github.com/mongodb/mongo-go-driver/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-08-31T19:00:53Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "# MongoDB Go Driver The MongoDB supported driver for Go. See the following resources to"
+   },
+   {
+    "org": "redis",
+    "url": "https://github.com/redis/go-redis",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-17T14:48:17Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Redis Go client"
+   },
+   {
+    "org": "uber-go",
+    "url": "https://github.com/uber-go/zap",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-16T19:17:34Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Blazing fast, structured, leveled logging in Go."
+   },
+   {
+    "org": "cloudflare",
+    "url": "https://github.com/cloudflare/cloudflare-go",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-04T21:51:21Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The official Go library for the Cloudflare API"
+   },
+   {
+    "org": "kubernetes",
+    "url": "https://github.com/kubernetes/kubernetes/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-07-26T06:42:26Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "have a working [Go environment]. ``` git clone https://github.com/kubernetes/kubernetes cd kubernetes make ``` ##### You"
+   },
+   {
+    "org": "docker",
+    "url": "https://github.com/docker/cli/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-07-08T23:03:31Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "# Docker CLI [](https://pkg.go.dev/github.com/docker/cli) [](https://github.com/docker/cli/actions?query=workflow%3Abuild) [](https://github.com/docker/cli/actions?query=workflow%3Atest) [](https://scorecard.dev/viewer/?uri=github.com/docker/cli) [](https://codecov.io/gh/docker/cli) ## About This repository is the home"
+   }
+  ],
+  "Java": [
+   {
+    "org": "aws",
+    "url": "https://github.com/aws/aws-sdk-java-v2",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T22:56:48Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The official AWS SDK for Java - Version 2"
+   },
+   {
+    "org": "googleapis",
+    "url": "https://github.com/googleapis/google-cloud-java",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-19T00:08:56Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Google Cloud Client Library for Java"
+   },
+   {
+    "org": "Azure",
+    "url": "https://github.com/Azure/azure-sdk-for-java",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T23:36:33Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "This repository is for active development of the Azure SDK for Java. For consumers of"
+   },
+   {
+    "org": "stripe",
+    "url": "https://github.com/stripe/stripe-java",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-19T00:17:21Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Java library for the Stripe API."
+   },
+   {
+    "org": "twilio",
+    "url": "https://github.com/twilio/twilio-java",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-09T15:06:23Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "A Java library for communicating with the Twilio REST API and generating TwiML."
+   },
+   {
+    "org": "elastic",
+    "url": "https://github.com/elastic/elasticsearch-java",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-16T10:53:58Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Official Elasticsearch Java Client"
+   },
+   {
+    "org": "getsentry",
+    "url": "https://github.com/getsentry/sentry-java",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T19:16:21Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "A Sentry SDK for Java, Android and other JVM languages."
+   },
+   {
+    "org": "DataDog",
+    "url": "https://github.com/DataDog/dd-trace-java",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T21:37:03Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Datadog APM client for Java"
+   },
+   {
+    "org": "slackapi",
+    "url": "https://github.com/slackapi/java-slack-sdk",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T00:35:38Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Slack Developer Kit (including Bolt for Java) for any JVM language"
+   },
+   {
+    "org": "mongodb",
+    "url": "https://github.com/mongodb/mongo-java-driver",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-17T20:47:51Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The official MongoDB drivers for Java, Kotlin, and Scala"
+   },
+   {
+    "org": "redis",
+    "url": "https://github.com/redis/jedis",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T01:37:54Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Redis Java client"
+   },
+   {
+    "org": "uber",
+    "url": "https://github.com/uber/NullAway",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T18:53:28Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "A tool to help eliminate NullPointerExceptions (NPEs) in your Java code with low build-time overhead"
+   },
+   {
+    "org": "quarkusio",
+    "url": "https://github.com/quarkusio/quarkus",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T21:09:43Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Quarkus: Supersonic Subatomic Java."
+   },
+   {
+    "org": "linkedin",
+    "url": "https://github.com/linkedin/parseq",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2025-07-28T16:24:34Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Asynchronous Java made easier"
+   },
+   {
+    "org": "dropbox",
+    "url": "https://github.com/dropbox/dropbox-sdk-java",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-17T00:09:30Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "A Java library for the Dropbox Core API."
+   },
+   {
+    "org": "line",
+    "url": "https://github.com/line/line-bot-sdk-java",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T22:29:43Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "LINE Messaging API SDK for Java"
+   },
+   {
+    "org": "openai",
+    "url": "https://github.com/openai/openai-java",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-19T00:20:45Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The official Java library for the OpenAI API"
+   },
+   {
+    "org": "confluentinc",
+    "url": "https://github.com/confluentinc/kafka-streams-examples/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-04-15T11:48:41Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "or Eclipse](#requirements-ide) * [Java](#requirements-java) * [Scala](#requirements-scala) * [Packaging and running the examples](#packaging-and-running) * [Development](#development) *"
+   },
+   {
+    "org": "apache",
+    "url": "https://github.com/apache/kafka/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-08-03T09:51:31Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "need to have [Java](http://www.oracle.com/technetwork/java/javase/downloads/index.html) installed. We build and test Apache Kafka with Java versions 17"
+   },
+   {
+    "org": "Netflix",
+    "url": "https://github.com/Netflix/conductor/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2023-12-13T19:22:43Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "| | conductor-client | Java client for Conductor that includes helpers for running worker tasks"
+   },
+   {
+    "org": "alibaba",
+    "url": "https://github.com/alibaba/druid/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-03-14T16:26:58Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "解析器。它将 JDBC 连接池、SQL 解析分析、安全防护和监控统计深度整合为一体，是 Java 生态中功能最全面的数据库中间件之一。 ## 核心特性 | 功能领域 | 说明 | |---------|------| |"
+   },
+   {
+    "org": "spring-projects",
+    "url": "https://github.com/spring-projects/spring-framework/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2025-11-03T10:14:30Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "everything required beyond the Java programming language for creating enterprise applications for a wide range"
+   }
+  ],
+  "TypeScript": [
+   {
+    "org": "cloudflare",
+    "url": "https://github.com/cloudflare/cloudflare-typescript",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-10T03:32:35Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The official TypeScript library for the Cloudflare API"
+   },
+   {
+    "org": "anthropics",
+    "url": "https://github.com/anthropics/anthropic-sdk-typescript",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T16:25:20Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Access to Anthropic's safety-first language model APIs in TypeScript"
+   },
+   {
+    "org": "DataDog",
+    "url": "https://github.com/DataDog/datadog-api-client-typescript",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T22:59:30Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Typescript client for the Datadog API"
+   },
+   {
+    "org": "vercel",
+    "url": "https://github.com/vercel/ai",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T23:26:58Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The AI Toolkit for TypeScript. From the creators of Next.js, the AI SDK is a"
+   },
+   {
+    "org": "square",
+    "url": "https://github.com/square/square-nodejs-sdk",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-15T21:00:54Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Typescript client library for the Square API"
+   },
+   {
+    "org": "strapi",
+    "url": "https://github.com/strapi/strapi",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T17:04:33Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "🚀 Strapi is the leading open-source headless CMS. It’s 100% JavaScript/TypeScript, fully customizable, and developer-first."
+   },
+   {
+    "org": "openai",
+    "url": "https://github.com/openai/openai-node",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T22:48:13Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Official JavaScript / TypeScript library for the OpenAI API"
+   },
+   {
+    "org": "prisma",
+    "url": "https://github.com/prisma/orm",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T20:00:41Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Next-generation ORM for Node.js & TypeScript | PostgreSQL, MySQL, MariaDB, SQL Server, SQLite, MongoDB and"
+   },
+   {
+    "org": "nestjs",
+    "url": "https://github.com/nestjs/nest",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T20:42:04Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "A progressive Node.js framework for building efficient, scalable, and enterprise-grade server-side applications with TypeScript/JavaScript 🚀"
+   },
+   {
+    "org": "angular",
+    "url": "https://github.com/angular/angular/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-04-28T00:08:02Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "desktop web applications using TypeScript/JavaScript and other languages. angular.dev Contributing Guidelines · Submit an Issue"
+   },
+   {
+    "org": "aws",
+    "url": "https://github.com/aws/aws-cdk/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-06-17T09:56:40Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "following languages: * JavaScript, TypeScript ([Node.js >= 20.x](https://nodejs.org/en/download)) * We recommend using a version in"
+   },
+   {
+    "org": "uber",
+    "url": "https://github.com/uber/baseweb/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2025-11-20T20:25:13Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Styletron come with [TypeScript](https://www.typescriptlang.org/index.html). ## Docs To read the documentation, please visit [baseweb.design](https://baseweb.design). To preview"
+   },
+   {
+    "org": "palantir",
+    "url": "https://github.com/palantir/blueprint/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-07-20T16:03:04Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "sources, linting Sass & TypeScript, generating Sass & Less variables, and optimizing icon SVGs. -"
+   },
+   {
+    "org": "mongodb",
+    "url": "https://github.com/mongodb/node-mongodb-native/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-07-29T17:18:51Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "| ^7.0.0 | #### Typescript Version We recommend using the latest version of typescript, however"
+   },
+   {
+    "org": "redis",
+    "url": "https://github.com/redis/node-redis/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-09-01T07:00:56Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "### Basic Example ```typescript import { createClient } from \"redis\"; const client = await createClient()"
+   },
+   {
+    "org": "stripe",
+    "url": "https://github.com/stripe/stripe-node/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-08-31T18:41:32Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "``` ### Usage with TypeScript As of 8.0.1, Stripe maintains types for the latest [API"
+   },
+   {
+    "org": "twilio",
+    "url": "https://github.com/twilio/twilio-node/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-07-30T06:58:30Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "- Node.js 24 (lts) TypeScript is supported for TypeScript version 2.9 and above. > **Warning**"
+   },
+   {
+    "org": "algolia",
+    "url": "https://github.com/algolia/algoliasearch-client-javascript/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-09-09T15:24:29Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "any module loader - Built with TypeScript ## 💡 Getting Started To get started, you"
+   },
+   {
+    "org": "segmentio",
+    "url": "https://github.com/segmentio/analytics-next/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-07-21T16:12:13Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Segment's latest Javascript / Typescript SDKs # analytics.js (analytics-next) ## Packages - [@segment/analytics-next](packages/browser#readme): Analytics.js SDK"
+   },
+   {
+    "org": "muxinc",
+    "url": "https://github.com/muxinc/mux-ts/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-08-11T23:26:27Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "# Mux TypeScript API Library [](https://npmjs.org/package/@mux/ts) This library provides convenient access to the Mux REST"
+   },
+   {
+    "org": "plaid",
+    "url": "https://github.com/plaid/plaid-node/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-07-22T23:38:35Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "All tests have been rewritten in Typescript. #### Client initialization From: ```javascript const configs ="
+   },
+   {
+    "org": "Adyen",
+    "url": "https://github.com/Adyen/adyen-node-api-library/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-08-28T08:07:01Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "or query parameters. ```typescript const requestOptions: IRequest.Options = { headers: { \"X-Custom-Header\": \"MyValue\", \"Another-Custom-Header\": \"AnotherValue\""
+   },
+   {
+    "org": "makenotion",
+    "url": "https://github.com/makenotion/notion-sdk-js/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-08-28T15:53:52Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "JavaScript A JavaScript and TypeScript client for the [Notion API](https://developers.notion.com). This reference covers the SDK's"
+   },
+   {
+    "org": "nrwl",
+    "url": "https://github.com/nrwl/nx/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-07-14T12:30:54Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "a monorepo solution for TypeScript and polyglot codebases. Built with Rust for performance, extensible via"
+   },
+   {
+    "org": "linear",
+    "url": "https://github.com/linear/linear/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-09-03T21:39:32Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "codegen plugin to generate Typescript SDK from fragments and documents - [codegen-test](https://github.com/linear/linear/tree/master/packages/codegen-test/README.md) - GraphQL codegen"
+   },
+   {
+    "org": "supabase",
+    "url": "https://github.com/supabase/supabase/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-09-11T14:38:41Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Official ⚡️ JavaScript (TypeScript) supabase-js postgrest-js auth-js realtime-js storage-js functions-js Flutter supabase-flutter postgrest supabase_auth supabase_realtime"
+   }
+  ],
+  "Kotlin": [
+   {
+    "org": "aws",
+    "url": "https://github.com/aws/aws-sdk-kotlin",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T23:05:10Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Multiplatform AWS SDK for Kotlin"
+   },
+   {
+    "org": "ktorio",
+    "url": "https://github.com/ktorio/ktor",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T14:26:51Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Framework for quickly creating connected applications in Kotlin with minimal effort"
+   },
+   {
+    "org": "google",
+    "url": "https://github.com/google/ksp",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T13:56:18Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Kotlin Symbol Processing API"
+   },
+   {
+    "org": "getsentry",
+    "url": "https://github.com/getsentry/sentry-kotlin-multiplatform",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T11:17:56Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Sentry SDK for Kotlin Multiplatform"
+   },
+   {
+    "org": "DataDog",
+    "url": "https://github.com/DataDog/dd-sdk-android",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T20:12:40Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Datadog SDK for Android (Compatible with Kotlin and Java)"
+   },
+   {
+    "org": "touchlab",
+    "url": "https://github.com/touchlab/KaMPKit",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T19:10:43Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "KaMP Kit by Touchlab. A collection of code & tools designed to get your mobile"
+   },
+   {
+    "org": "cashapp",
+    "url": "https://github.com/cashapp/turbine/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-09-05T13:34:40Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "library for kotlinx.coroutines [`Flow`](https://kotlin.github.io/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines.flow/-flow/). ```kotlin flowOf(\"one\", \"two\").test { assertEquals(\"one\", awaitItem()) assertEquals(\"two\", awaitItem()) awaitComplete() } ```"
+   },
+   {
+    "org": "mongodb",
+    "url": "https://github.com/mongodb/mongo-java-driver",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-17T20:47:51Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The official MongoDB drivers for Java, Kotlin, and Scala"
+   }
+  ],
+  "Swift": [
+   {
+    "org": "awslabs",
+    "url": "https://github.com/awslabs/aws-sdk-swift/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-03-09T20:56:27Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "# AWS SDK for Swift [![License][apache-badge]][apache-url] [apache-badge]: https://img.shields.io/badge/License-Apache%202.0-blue.svg [apache-url]: LICENSE ## Getting Started - [SDK"
+   },
+   {
+    "org": "DataDog",
+    "url": "https://github.com/DataDog/dd-sdk-ios",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T16:38:27Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Datadog SDK for iOS - Swift and Objective-C."
+   },
+   {
+    "org": "vapor",
+    "url": "https://github.com/vapor/vapor",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-19T00:29:01Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "💧 A server-side Swift HTTP web framework."
+   },
+   {
+    "org": "algolia",
+    "url": "https://github.com/algolia/instantsearch-ios/blob/HEAD/Readme.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-03-10T12:21:19Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "built with InstantSearch and written in Swift. ## Installation ### Swift Package Manager The Swift"
+   },
+   {
+    "org": "segmentio",
+    "url": "https://github.com/segmentio/analytics-swift",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-07-23T22:05:43Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "The hassle-free way to add Segment analytics to your Swift app (iOS/tvOS/watchOS/macOS/Linux)."
+   },
+   {
+    "org": "realm",
+    "url": "https://github.com/realm/realm-swift/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2025-09-10T20:58:41Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "watchOS versions of Realm Swift & Realm Objective-C. ## Why Use Realm * **Intuitive to"
+   },
+   {
+    "org": "uber",
+    "url": "https://github.com/uber/RIBs/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-07-15T22:12:53Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "[Needle](https://github.com/uber/needle): a compile-time safe Swift dependency injection framework. - [Motif](https://github.com/uber/motif): An abstract on top of"
+   },
+   {
+    "org": "klaviyo",
+    "url": "https://github.com/klaviyo/klaviyo-swift-sdk",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T21:03:54Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Swift SDK for integrating Klaviyo’s push notifications, in-app messaging, geofencing, event tracking, and user profile"
+   },
+   {
+    "org": "mixpanel",
+    "url": "https://github.com/mixpanel/mixpanel-swift",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T12:07:25Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Official iOS (Swift) Tracking Library for Mixpanel Analytics"
+   },
+   {
+    "org": "line",
+    "url": "https://github.com/line/line-sdk-ios-swift/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-07-23T03:06:31Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "iOS Swift ## Overview Developed in Swift, the LINE SDK for iOS Swift provides a"
+   },
+   {
+    "org": "contentful",
+    "url": "https://github.com/contentful/contentful.swift",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T07:25:17Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "A delightful Swift interface to Contentful's content delivery API."
+   },
+   {
+    "org": "pointfreeco",
+    "url": "https://github.com/pointfreeco/swift-composable-architecture/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-07-03T17:20:44Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "iOS word search game built in SwiftUI and the Composable Architecture. ## Basic Usage >"
+   },
+   {
+    "org": "apollographql",
+    "url": "https://github.com/apollographql/apollo-ios",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-11T20:28:29Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "📱 A strongly-typed, caching GraphQL client for iOS, written in Swift."
+   },
+   {
+    "org": "supabase",
+    "url": "https://github.com/supabase/supabase-swift",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-18T14:12:03Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "A Swift SDK for Supabase. Query your Supabase database, subscribe to realtime events, upload and"
+   },
+   {
+    "org": "GetStream",
+    "url": "https://github.com/GetStream/stream-chat-swift",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-17T12:56:01Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "💬 iOS Chat SDK in Swift - Build your own app chat experience for iOS"
+   },
+   {
+    "org": "zendesk",
+    "url": "https://github.com/zendesk/sdk_zendesk_ios",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-03T14:33:38Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "About A swift module for enabling customer support in a project."
+   },
+   {
+    "org": "braze-inc",
+    "url": "https://github.com/braze-inc/braze-swift-sdk/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-07-29T14:46:02Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "# Braze Swift SDK [](https://github.com/braze-inc/braze-swift-sdk/releases) [](https://braze-inc.github.io/braze-swift-sdk) To learn more, see the following resources: - [Braze"
+   },
+   {
+    "org": "launchdarkly",
+    "url": "https://github.com/launchdarkly/ios-client-sdk",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-19T00:03:16Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "LaunchDarkly Client-side SDK for iOS (Swift and Obj-C)"
+   },
+   {
+    "org": "optimizely",
+    "url": "https://github.com/optimizely/swift-sdk",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-09-03T16:33:57Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Swift SDK for Optimizely Feature Experimentation and Optimizely Full Stack (legacy)."
+   },
+   {
+    "org": "onfido",
+    "url": "https://github.com/onfido/onfido-ios-sdk",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-08-31T13:51:52Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "A Swift client for the Onfido API and a collection of UI elements to capture"
+   },
+   {
+    "org": "pusher",
+    "url": "https://github.com/pusher/pusher-websocket-swift",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-05-27T15:04:12Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Pusher Channels websocket library for Swift"
+   },
+   {
+    "org": "MobileNativeFoundation",
+    "url": "https://github.com/MobileNativeFoundation/Kronos",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2025-06-12T17:52:42Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "Elegant NTP date library in Swift"
+   },
+   {
+    "org": "aws-amplify",
+    "url": "https://github.com/aws-amplify/amplify-swift/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-08-13T18:11:08Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "## Amplify Library for Swift AWS Amplify provides a declarative and easy-to-use interface across different"
+   }
+  ],
+  "Zig": [
+   {
+    "org": "ghostty-org",
+    "url": "https://github.com/ghostty-org/ghostty/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-04-07T04:10:12Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "a large, shared core written in Zig but we do a lot of platform-native things:"
+   },
+   {
+    "org": "zml",
+    "url": "https://github.com/zml/zml/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-06-19T16:30:57Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "built using the [Zig](https://ziglang.org) language, [MLIR](https://mlir.llvm.org), and [Bazel](https://bazel.build). # Getting Started ## Prerequisites We use"
+   },
+   {
+    "org": "hexops",
+    "url": "https://github.com/hexops/mach",
+    "source": "official repository description",
+    "date_field": "pushed_at",
+    "date": "2026-05-23T01:41:18Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "zig game engine & graphics toolkit - mirror of https://code.hexops.com/hexops/mach"
+   },
+   {
+    "org": "buzz-language",
+    "url": "https://github.com/buzz-language/buzz/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-08-27T07:17:44Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "statically typed scripting language written in Zig Homepage — Discord > [!WARNING] > buzz is"
+   },
+   {
+    "org": "riverwm",
+    "url": "https://github.com/riverwm/river/blob/HEAD/README.md",
+    "source": "official repository README",
+    "date_field": "README last commit",
+    "date": "2026-09-04T08:20:06Z",
+    "accessed": "2026-09-19T00:37:45Z",
+    "excerpt": "your distribution. - [zig](https://ziglang.org/download/) 0.16 - wayland - wayland-protocols - [wlroots](https://gitlab.freedesktop.org/wlroots/wlroots) 0.20 - xkbcommon 1.12"
+   }
+  ]
+ },
+ "evidence_collection_order_followed": [
+  "Python",
+  "C++",
+  "Rust",
+  "Go",
+  "Java",
+  "TypeScript",
+  "Kotlin",
+  "Swift",
+  "Zig",
+  "Quidra"
+ ],
+ "uniform_admissibility_rules_applied_to_all_ten": [
+  "A1-A3 organization count: an organization is counted only when a publicly retrievable, DATED, organization-published artefact states that a component the organization ships is implemented in the language. Two artefact classes were admitted, identically for all ten: (i) an official first-party case-study/user page published by the language's own project, and (ii) the official repository (description or README) of a product/component owned by the adopting organization.",
+  "Dating rule: for (i) the dated items on the page; for (ii) the repository's pushed_at timestamp when the excerpt comes from the repository description, and the last commit date of the README file when the excerpt comes from the README. Every excerpt is verbatim and at most 15 words, per the metric's anti_fabrication_rule.",
+  "Organizations belonging to a language's own frozen official_project_set were excluded from that language's A1-A3 count (Apple for Swift; Microsoft, npm and Node.js/OpenJS for TypeScript; JetBrains for Kotlin; quidra-lang for Quidra; the Go project, rust-lang, PSF/CPython, WG21+LLVM+Apple, OpenJDK+Oracle, ZSF for the others).",
+  "A6 used one single source for all ten languages - the 2025 Stack Overflow Developer Survey, 'Programming, scripting, and markup languages', All Respondents tab - so that the same population instrument is applied to every language; the TIOBE index was used only as a secondary check for Quidra.",
+  "Absence of evidence was never treated as satisfaction, for any language, including for Bun and TigerBeetle under Zig."
+ ],
+ "cross_language_consistency_note": "The same six indicators were scored from the same two evidence classes, in the frozen evidence_collection_order with Quidra last, so no threshold was settled after seeing Quidra. Every language was searched for a first-party case-study/user page (found for Go and Kotlin; absent for Python's dated pages, C++, Rust - the old rust-lang.org production-users page 404s at the cutoff - Java, TypeScript, Swift, Zig and Quidra), and every language was then searched through organization-owned official repositories with the identical procedure and the identical accept/reject test. Eight languages reached 20+ distinct organizations and satisfied all six indicators, so they share level 100 - the rubric is a six-indicator checklist that mature ecosystems all pass, and no interpolation between levels is permitted. Zig failed A3 alone and sits one level lower at 80. Quidra satisfies A5 only and sits at 0. The level boundaries were checked in both directions afterwards: no two languages with the same observable evidence received different levels (all eight 100s satisfy the identical six indicators), and no two with clearly different evidence received the same level (Zig's 5 verified organizations vs. the 21-26 of the languages above it; Quidra's 0 vs. Zig's 5).",
+ "limitations": [
+  "No Microsoft-published governance document specific to TypeScript was located; TypeScript's A4 governance conjunct rests on the Node.js/OpenJS project, which the frozen official_project_table lists as official for TypeScript. If a reviewer rejects that, TypeScript's A4 fails and its level drops to 80.",
+  "python.org/about/quotes/ and the go.dev and kotlinlang.org case-study index pages carry no explicit publication date; the Go and Kotlin pages were counted for A3 under the uniform dating rule (dated items on the page), while python.org/about/quotes/ was recorded as supporting evidence only and Python's A3 rests entirely on 21 individually dated repository citations.",
+  "Bun and TigerBeetle are widely described as Zig codebases but neither repository's description nor README contained a retrievable implementation-language statement at the accession time, so they were excluded from Zig's count. Including both would still leave Zig at 7, far short of A3's 20.",
+  "GitHub public code search for Quidra source files returned zero results; GitHub code search does not index every repository, so this is evidence of absence at the search level rather than proof that no private or unindexed Quidra use exists. A1 is failed on lack of positive evidence, which is the rule applied to all ten.",
+  "The organization counts are lower bounds, not censuses: verification stopped once the 20-organization threshold was passed, so the tables under-report Python, C++, Rust, Go, Java, TypeScript, Kotlin and Swift. This cannot change any awarded level, since A3 is a threshold.",
+  "All web accessions occurred between 2026-09-19T00:25Z and 2026-09-19T01:10Z on the benchmark host; per-entry timestamps inside that window are recorded to the minute for page fetches and to the second for the Stack Overflow survey and the GitHub API calls."
+ ]
+}

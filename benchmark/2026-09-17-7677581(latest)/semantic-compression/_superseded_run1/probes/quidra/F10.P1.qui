@@ -1,0 +1,8 @@
+int32 narrow()
+    int big = 42
+    // BEGIN PROBE F10.P1
+    int32 small = int32(big)
+    return small
+    // END PROBE F10.P1
+
+print(narrow())

@@ -1,0 +1,9 @@
+// BEGIN PROBE F15.P2
+T max_of<T>(T a, T b)
+    if a > b
+        return a
+    return b
+
+int m = max_of(3, 5)
+print(m)
+// END PROBE F15.P2

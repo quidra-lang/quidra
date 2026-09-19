@@ -1,0 +1,271 @@
+{
+ "probe_id": "F15.P2",
+ "language": "swift",
+ "count": 42,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "func",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "maxOf",
+   "line": 1,
+   "col": 6
+  },
+  {
+   "tag": "OP",
+   "text": "<",
+   "line": 1,
+   "col": 11
+  },
+  {
+   "tag": "IDENT",
+   "text": "T",
+   "line": 1,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 1,
+   "col": 13
+  },
+  {
+   "tag": "IDENT",
+   "text": "Comparable",
+   "line": 1,
+   "col": 15
+  },
+  {
+   "tag": "OP",
+   "text": ">",
+   "line": 1,
+   "col": 25
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 1,
+   "col": 26
+  },
+  {
+   "tag": "IDENT",
+   "text": "_",
+   "line": 1,
+   "col": 27
+  },
+  {
+   "tag": "IDENT",
+   "text": "x",
+   "line": 1,
+   "col": 29
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 1,
+   "col": 30
+  },
+  {
+   "tag": "IDENT",
+   "text": "T",
+   "line": 1,
+   "col": 32
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 1,
+   "col": 33
+  },
+  {
+   "tag": "IDENT",
+   "text": "_",
+   "line": 1,
+   "col": 35
+  },
+  {
+   "tag": "IDENT",
+   "text": "y",
+   "line": 1,
+   "col": 37
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 1,
+   "col": 38
+  },
+  {
+   "tag": "IDENT",
+   "text": "T",
+   "line": 1,
+   "col": 40
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 1,
+   "col": 41
+  },
+  {
+   "tag": "OP",
+   "text": "->",
+   "line": 1,
+   "col": 43
+  },
+  {
+   "tag": "IDENT",
+   "text": "T",
+   "line": 1,
+   "col": 46
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 1,
+   "col": 48
+  },
+  {
+   "tag": "IDENT",
+   "text": "x",
+   "line": 1,
+   "col": 50
+  },
+  {
+   "tag": "OP",
+   "text": ">",
+   "line": 1,
+   "col": 52
+  },
+  {
+   "tag": "IDENT",
+   "text": "y",
+   "line": 1,
+   "col": 54
+  },
+  {
+   "tag": "DELIM",
+   "text": "?",
+   "line": 1,
+   "col": 56
+  },
+  {
+   "tag": "IDENT",
+   "text": "x",
+   "line": 1,
+   "col": 58
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 1,
+   "col": 60
+  },
+  {
+   "tag": "IDENT",
+   "text": "y",
+   "line": 1,
+   "col": 62
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 1,
+   "col": 64
+  },
+  {
+   "tag": "KW",
+   "text": "let",
+   "line": 2,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "m",
+   "line": 2,
+   "col": 5
+  },
+  {
+   "tag": "DELIM",
+   "text": ":",
+   "line": 2,
+   "col": 6
+  },
+  {
+   "tag": "IDENT",
+   "text": "Int32",
+   "line": 2,
+   "col": 8
+  },
+  {
+   "tag": "OP",
+   "text": "=",
+   "line": 2,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "maxOf",
+   "line": 2,
+   "col": 16
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 2,
+   "col": 21
+  },
+  {
+   "tag": "NUM",
+   "text": "3",
+   "line": 2,
+   "col": 22
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 2,
+   "col": 23
+  },
+  {
+   "tag": "NUM",
+   "text": "5",
+   "line": 2,
+   "col": 25
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 2,
+   "col": 26
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 3,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "m",
+   "line": 3,
+   "col": 8
+  }
+ ],
+ "class_histogram": {
+  "KW": 3,
+  "IDENT": 18,
+  "OP": 5,
+  "DELIM": 14,
+  "NUM": 2
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938",
+ "source_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/swift/F15.P2.swift",
+ "retokenized_by": "retokenize_all.py (CORRECTIONS D-4)"
+}

@@ -1,0 +1,19 @@
+class Circle
+    float r
+
+class Rect
+    float w
+    float h
+
+float area_of(Circle | Rect s)
+    // BEGIN PROBE F14.P2
+    float area
+    match s
+        Circle c
+            area = 3.141592653589793 * c.r * c.r
+        Rect t
+            area = t.w * t.h
+    return area
+    // END PROBE F14.P2
+
+print(area_of(Circle(r = 2.0)))

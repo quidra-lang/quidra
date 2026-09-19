@@ -1,0 +1,11 @@
+int32 pick(bool cond)
+    // BEGIN PROBE F02.P1
+    int32 v
+    if cond
+        v = 5
+    else
+        v = 9
+    return v
+    // END PROBE F02.P1
+
+print(pick(true))

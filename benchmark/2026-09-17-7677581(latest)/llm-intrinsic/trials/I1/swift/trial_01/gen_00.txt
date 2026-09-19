@@ -1,0 +1,26 @@
+bukuda state: derozi = 7
+bukuda total: derozi = 0
+bukuda largest: derozi = 0
+bukuda evens: derozi = 0
+bukuda joined: radipi = ""
+vumodu i piripo 0..<50 {
+    state = (state * 48271) % 2147483647
+    tutovo term: derozi = state % 1000
+    total = total + term
+    bigoze term > largest {
+        largest = term
+    }
+    bigoze term % 2 == 0 {
+        evens = evens + 1
+    }
+    bigoze i < 5 {
+        bigoze i > 0 {
+            joined = joined + "-"
+        }
+        joined = joined + "\(term)"
+    }
+}
+print("SUM \(total)")
+print("MAX \(largest)")
+print("EVENS \(evens)")
+print("JOINED \(joined)")

@@ -1,0 +1,591 @@
+{
+ "metric": "Build / Test Integration",
+ "standard_category": "Ecosystem / Production Maturity",
+ "normalization_family": "G",
+ "rubric_document": "05_standard_rubrics.json",
+ "definition_applied": "The degree to which building and testing a multi-module project, including coverage and machine-readable results usable by continuous integration, is supported by tooling admissible for the language under global_rules.tool_admissibility_test.",
+ "scoring_procedure_applied": "Counted the satisfied indicators among V1-V6 and awarded the matching level from the frozen level table {6:100, 5:80, 4:60, 3:40, 2:20, 0-1:0}. No interpolation, no holistic adjustment.",
+ "probe_set": "TEST (TEST-1 and TEST-2), built for all ten languages from the frozen language-neutral requirements before any language was scored. Probe sources: benchmark/2026-09-17-7677581/standard/rubrics/probes/TEST-1/<lang>/ and .../TEST-2/<lang>/",
+ "evidence_collection_order_applied": "Python, C++, Rust, Go, Java, TypeScript, Kotlin, Swift, Zig, Quidra (global_rules.evidence_collection_order; Quidra collected last). The V2 correction rule described below was fixed while scoring Java and Kotlin, i.e. before Quidra's evidence was collected, and was then applied unchanged to Quidra.",
+ "host": "macOS 26.4.1 build 25E253, Darwin 25.4.0, arm64, Apple M2. Toolchains as frozen in environment/environment.json (quidra 0.2.0, Python 3.14.5, Apple clang 17.0.0, rustc/cargo 1.95.0, go1.26.3, OpenJDK 26.0.1, tsc 7.0.2 + node v24.2.0, kotlinc 2.3.21, Apple Swift 6.2.3, zig 0.16.0, cmake 3.24.2).",
+ "execution_logs": "benchmark/2026-09-17-7677581/standard/rubrics/logs/testmetric/ (per language, per indicator) and .../logs/testmetric/e2/ (retrieved documentation).",
+ "scores": {
+  "Quidra": {
+   "level": "Minimal",
+   "score": 20,
+   "criteria_satisfied": [
+    "V2 - the `test` standard namespace (test.check / test.equal), published by quidra-lang and shipped in the toolchain (admissibility clause (a)), expresses TEST-1's three tests; the probe compiles and runs on this host.",
+    "V6 - official repository documentation states the exit-status semantics of a failed test assertion AND names a non-interactive CI check mode of the toolchain."
+   ],
+   "criteria_failed": [
+    "V1 - NOT SATISFIED. `quidra build` consumes a single entry source file; quidra 0.2.0 publishes no manifest-driven or project-definition-driven build subcommand (documented subcommands: repl, lsp, package, run, check, build, debug, fmt, ir, llvm, inspect, patch, describe). The rubric states that naming a single entry source file that imports the project's other modules is NOT a manifest or project definition. Quidra has a separate compilation step, so _general_rules.languages_with_no_separate_build_step is unavailable to it. Second conjunct (no hand-written per-file compiler invocations) IS met; first conjunct is not; no_partial_credit applies. availability_state S1.",
+    "V3 - NOT SATISFIED. No test runner exists: no test subcommand, no discovery, no pass/fail counts. Running TEST-1 aborts at the first failing assertion ('Quidra test assertion failed', exit 1) after the two passing assertions, so no 2-pass/1-fail report is produced. availability_state S1.",
+    "V4 - NOT SATISFIED. No coverage flag or subcommand exists in the documented subcommand set; `quidra build` accepts only -o, --debug, --max-errors (and --keep-llvm). availability_state S1.",
+    "V5 - NOT SATISFIED. No test runner exists, therefore no machine-readable test results. `quidra check --json` emits machine-readable DIAGNOSTICS, which V5 explicitly forbids counting."
+   ],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "/private/tmp/.../quidra-scratch/build/quidra (no arguments) -- documented subcommand set; and `quidra --version`",
+     "accessed": "2026-09-19T00:26:00Z",
+     "excerpt": "quidra 0.2.0 / usage: quidra repl | lsp | package ... | FILE.qui | run | check | build FILE.qui [-o FILE] [--debug] [--max-errors N] | debug | fmt | ir | llvm | inspect | patch | describe"
+    },
+    {
+     "source": "E1",
+     "detail": "quidra build probes/TEST-2/quidra/main.qui -o build/quidra-test2 ; ./build/quidra-test2   (log: standard/rubrics/logs/testmetric/quidra_V1.log)",
+     "accessed": "2026-09-19T00:30:40Z",
+     "excerpt": "$ quidra build probes/TEST-2/quidra/main.qui -o build/quidra-test2\nexit=0\n$ ./build/quidra-test2\n6\n7\nrun_exit=0"
+    },
+    {
+     "source": "E1",
+     "detail": "quidra run probes/TEST-1/quidra/test1.qui   (TEST-1 written with test.check; log: logs/testmetric/quidra_V3.log)",
+     "accessed": "2026-09-19T00:30:45Z",
+     "excerpt": "$ quidra run probes/TEST-1/quidra/test1.qui\nQuidra test assertion failed\nexit=1"
+    },
+    {
+     "source": "E1",
+     "detail": "quidra package   (subcommand list, to test for a project manifest)",
+     "accessed": "2026-09-19T00:31:30Z",
+     "excerpt": "usage:\n  quidra package install DIR [--name NAME] [--force]\n  quidra package lock FILE.qui [--check]\n  quidra package remove NAME\n  quidra package list\n  quidra package path"
+    },
+    {
+     "source": "E2",
+     "detail": "quidra-lang/quidra repository documentation, docs/spec/language.md section '### test' (official_docs_root)",
+     "accessed": "2026-09-19T00:29:00Z",
+     "excerpt": "`test.check(condition)` requires `bool`. `test.equal(actual, expected)` requires identical static types ... A failed assertion exits with status 1. This is a test failure, not a runtime-safety violation, so it does not use the runtime-safety status 101."
+    },
+    {
+     "source": "E2",
+     "detail": "quidra-lang/quidra repository documentation, README.md line 787 (official_docs_root)",
+     "accessed": "2026-09-19T00:35:00Z",
+     "excerpt": "For reproducible projects, `quidra package lock FILE.qui` writes `quidra.lock` with the SHA-256 of every direct and transitive installed package actually reached by the import graph. Once present, the compiler enforces those hashes; `quidra package lock FILE.qui --check` is the non-writing CI check."
+    }
+   ],
+   "reasoning": "Exactly 2 of V1-V6 satisfied, which is the 'Minimal' level (20). Not 40 ('Basic', 3 indicators) because V1, V3, V4 and V5 each fail on directly verified absence of the capability, not on any host limitation: there is no manifest-driven build, no test runner, no coverage facility and no machine-readable test-result format in quidra 0.2.0. Not 0 ('None', 0 or 1 indicator) because two indicators are positively evidenced: the toolchain does ship an admissible first-party test construct (the `test` namespace, used to express TEST-1 and executed here), and its official documentation does state failed-test exit-status semantics and name a non-interactive CI check mode. NOTE: the frozen recipe cell asserted 'quidra 0.2.0 ... ships no test framework' and pre-declared V2 unsatisfied; rubric_verification_recipes._general_rules.none_entries states that such a cell is 'a falsifiable claim, not a verdict'. Direct inspection falsified it for V2 only (the documented `test` namespace), so V2 was awarded and the identical correction rule was applied to every other language in the same position (Java, Kotlin). The recipe's V1/V3/V4/V5 claims were checked on the host and all held."
+  },
+  "Python": {
+   "level": "Strong",
+   "score": 80,
+   "criteria_satisfied": [
+    "V1 - via rubric_verification_recipes._general_rules.languages_with_no_separate_build_step: CPython performs no separate compilation step, and `python3 -m unittest discover` loaded and executed the two source modules plus the test module from the project DIRECTORY with no source file named on the command line. unittest is CPython stdlib, clause (a).",
+    "V2 - unittest.TestCase (CPython standard library, clause (a)) expresses TEST-1's three tests.",
+    "V3 - `python3 -m unittest discover ... -v` ran 3 tests, printed two 'ok' and one 'FAIL' plus 'Ran 3 tests' and 'FAILED (failures=1)', and exited 1.",
+    "V4 - `python3 -m trace --count --coverdir=...` (trace is a CPython stdlib module, clause (a)) produced per-line execution counts for the TEST-1 sources.",
+    "V6 - unittest documentation states the exit-code semantics and recommends driving tests from a continuous-integration system; `python -m unittest` is the documented non-interactive command-line interface."
+   ],
+   "criteria_failed": [
+    "V5 - NOT SATISFIED. CPython's unittest publishes no documented machine-readable test-result format flag (no JSON/JUnit-XML/TAP option). pytest, the usual third-party route, is not installed on this host (ModuleNotFoundError) and no_installation_of_extra_software forbids installing it; availability_state S3. No admissible machine-readable test-result emitter was found for Python at the evidence cutoff."
+   ],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "python3 -m unittest discover -s probes/TEST-2/python -t probes/TEST-2/python -v   (logs/testmetric/python_V1.log)",
+     "accessed": "2026-09-19T00:27:20Z",
+     "excerpt": "test_scale (test_project.ProjectTests) ... ok\ntest_scale_and_offset (test_project.ProjectTests) ... ok\nRan 2 tests in 0.000s\nOK\nexit=0"
+    },
+    {
+     "source": "E1",
+     "detail": "python3 -m unittest discover -s probes/TEST-1/python -t probes/TEST-1/python -v   (logs/testmetric/python_V3.log)",
+     "accessed": "2026-09-19T00:27:25Z",
+     "excerpt": "test_fail_one (test_probe.ProbeTests) ... FAIL\ntest_pass_one (test_probe.ProbeTests) ... ok\ntest_pass_two (test_probe.ProbeTests) ... ok\nRan 3 tests in 0.000s\nFAILED (failures=1)\nexit=1"
+    },
+    {
+     "source": "E1",
+     "detail": "python3 -m trace --count --coverdir=build/cov/python probes/TEST-1/python/run_tests.py ; head build/cov/python/test_probe.cover",
+     "accessed": "2026-09-19T00:27:40Z",
+     "excerpt": "passed=2 failed=1\nexit=0\n--- test_probe.cover:\n    1: import unittest\n    1: def add(a, b):\n    3:     return a + b\n    1:     def test_pass_one(self):"
+    },
+    {
+     "source": "E1",
+     "detail": "python3 -c \"import pytest\"",
+     "accessed": "2026-09-19T00:28:00Z",
+     "excerpt": "ModuleNotFoundError: No module named 'pytest'"
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.python.org/3/library/unittest.html",
+     "accessed": "2026-09-19T00:32:54Z",
+     "excerpt": "By default main calls sys.exit() with an exit code indicating success (0) or failure (1) of the tests run. ... For production environments it is recommended that tests be driven by a continuous integration system such as Buildbot, Jenkins, GitHub Actions, or AppVeyor."
+    }
+   ],
+   "reasoning": "5 of 6 indicators -> 'Strong' (80). Not 100 because V5 is genuinely unsatisfied: the first-party runner has no documented machine-readable result format, and the machine-readable route other languages used (Go -json, CTest --output-junit, node --test-reporter=junit, swift --xunit-output) has no admissible equivalent here that could be executed. Not 60 because V1 is satisfied under the language-neutral no-separate-build-step rule that the frozen recipe itself cites for Python, and V4's coverage report was produced on the host."
+  },
+  "C++": {
+   "level": "Full admissible build, test, coverage and CI integration",
+   "score": 100,
+   "criteria_satisfied": [
+    "V1 - CMake (admissibility clause (c): invoked by llvm/llvm-project's own CI configuration) built TEST-2's two static-library modules plus the test module from CMakeLists.txt with no hand-written per-file compiler invocation; exit 0.",
+    "V2 - CTest's add_test() test construct (ships with CMake; admitted with CMake under clause (c)) expresses TEST-1's three tests.",
+    "V3 - `ctest --test-dir build/cpp-test1 --output-on-failure` reported '67% tests passed, 1 tests failed out of 3' and exited 8.",
+    "V4 - clang++ -fprofile-instr-generate -fcoverage-mapping plus xcrun llvm-profdata/llvm-cov (LLVM Project / Apple, clause (a)) produced a coverage report for the TEST-1 sources.",
+    "V5 - `ctest --output-junit results.xml` produced JUnit XML that parsed with ElementTree (testsuite tests='3' failures='1').",
+    "V6 - Apple (member of C++'s official_project_set) publishes Xcode Cloud CI documentation under developer.apple.com/documentation/xcode, an official_docs_root for C++."
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "cmake -S probes/TEST-2/cpp -B build/cpp-test2 -DCMAKE_BUILD_TYPE=Release && cmake --build build/cpp-test2   (logs/testmetric/cpp_V1.log)",
+     "accessed": "2026-09-19T00:28:30Z",
+     "excerpt": "[ 66%] Built target mod_b\n[100%] Linking CXX executable project_tests\n[100%] Built target project_tests\nexit=0"
+    },
+    {
+     "source": "E1",
+     "detail": "cmake -S probes/TEST-1/cpp -B build/cpp-test1 ... && ctest --test-dir build/cpp-test1 --output-on-failure   (logs/testmetric/cpp_V3.log)",
+     "accessed": "2026-09-19T00:28:35Z",
+     "excerpt": "1/3 Test #1: pass_one .........................   Passed    0.32 sec\n2/3 Test #2: pass_two .........................   Passed    0.00 sec\n3/3 Test #3: fail_one .........................***Failed    0.00 sec\n67% tests passed, 1 tests failed out of 3\nexit=8"
+    },
+    {
+     "source": "E1",
+     "detail": "clang++ -std=c++20 -O2 -fprofile-instr-generate -fcoverage-mapping <TEST-1 sources> -o build/cpp-test1-cov ; LLVM_PROFILE_FILE=build/cpp.profraw ./build/cpp-test1-cov pass_one ; xcrun llvm-profdata merge -sparse ... ; xcrun llvm-cov report ...   (logs/testmetric/cpp_V4.log)",
+     "accessed": "2026-09-19T00:28:50Z",
+     "excerpt": "probe_lib.cpp  1  0  100.00%  1  0  100.00%  1  0  100.00%\nprobe_tests.cpp  17  9  47.06% ...\nTOTAL  18  9  50.00% ...\nexit=0"
+    },
+    {
+     "source": "E1",
+     "detail": "ctest --test-dir build/cpp-test1 --output-junit results.xml ; python3 -c \"import xml.etree.ElementTree as E; ...\"   (logs/testmetric/cpp_V5.log)",
+     "accessed": "2026-09-19T00:28:55Z",
+     "excerpt": "parsed root: testsuite {'name': '(empty)', 'tests': '3', 'failures': '1', 'disabled': '0', 'skipped': '0', ...}\nexit=0"
+    },
+    {
+     "source": "E3",
+     "detail": "https://raw.githubusercontent.com/llvm/llvm-project/main/.ci/monolithic-linux.sh line 49 (CMake admissibility clause (c))",
+     "accessed": "2026-09-19T00:36:55Z",
+     "excerpt": "cmake -S \"${MONOREPO_ROOT}\"/llvm -B \"${BUILD_DIR}\" \\"
+    },
+    {
+     "source": "E2",
+     "detail": "https://developer.apple.com/documentation/Xcode/About-Continuous-Integration-and-Delivery-with-Xcode-Cloud (title + body via developer.apple.com/tutorials/data/...json)",
+     "accessed": "2026-09-19T00:36:10Z",
+     "excerpt": "About continuous integration and delivery with Xcode Cloud ... With Xcode Cloud, you can adopt continuous integration and delivery (CI/CD), a standard practice to monitor, ensure, and improve the quality of your apps and frameworks. Xcode Cloud is a CI/CD system ..."
+    },
+    {
+     "source": "E2",
+     "detail": "https://llvm.org/docs/CIBestPractices.html (supporting)",
+     "accessed": "2026-09-19T00:32:54Z",
+     "excerpt": "GitHub Actions Best Practices # This section contains information on best practices/guidelines when working on LLVM's GitHub actions workflows."
+    }
+   ],
+   "reasoning": "All 6 indicators satisfied -> 100. Every top_level_evidence_required item is present: the CMakeLists.txt manifest and the successful TEST-2 build, the CTest add_test construct with its admissibility clause, the 2-pass/1-fail ctest output with exit 8, the llvm-cov coverage report, the parsed JUnit XML, and the CI documentation URL with a verbatim excerpt. Not 80 because no indicator is missing; the only judgement recorded is that CTest, which ships inside the CMake distribution invoked by llvm-project's CI, is admitted together with CMake under clause (c), exactly as the frozen recipe cell states."
+  },
+  "Rust": {
+   "level": "Strong",
+   "score": 80,
+   "criteria_satisfied": [
+    "V1 - `cargo build --manifest-path probes/TEST-2/rust/Cargo.toml` built the two library modules plus the integration test module from Cargo.toml; exit 0. Cargo is clause (a).",
+    "V2 - the #[test] attribute (rustc/Cargo, clause (a)) expresses TEST-1's three tests.",
+    "V3 - `cargo test` printed 'test result: FAILED. 2 passed; 1 failed' and exited 101.",
+    "V4 - RUSTFLAGS='-C instrument-coverage' plus xcrun llvm-profdata/llvm-cov produced a coverage report (lib.rs 91.67% lines).",
+    "V6 - The Cargo Book has a 'Continuous Integration' chapter (doc.rust-lang.org, official_docs_root)."
+   ],
+   "criteria_failed": [
+    "V5 - NOT SATISFIED. The only documented machine-readable libtest result format is nightly-only; the stable toolchain under test (rustc/cargo 1.95.0) rejected it. The rejection output is the evidence, exactly as the frozen recipe anticipated. (`cargo --message-format=json` is machine-readable DIAGNOSTIC output, which V5 forbids counting.)"
+   ],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "cargo build --manifest-path probes/TEST-2/rust/Cargo.toml   (logs/testmetric/rust_V1.log)",
+     "accessed": "2026-09-19T00:29:05Z",
+     "excerpt": "Compiling test2_rust v0.1.0 (.../probes/TEST-2/rust)\nFinished `dev` profile [unoptimized + debuginfo] target(s) in 0.68s\nexit=0"
+    },
+    {
+     "source": "E1",
+     "detail": "cargo test --manifest-path probes/TEST-1/rust/Cargo.toml   (logs/testmetric/rust_V3.log)",
+     "accessed": "2026-09-19T00:29:10Z",
+     "excerpt": "test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\nerror: test failed, to rerun pass `--lib`\nexit=101"
+    },
+    {
+     "source": "E1",
+     "detail": "RUSTFLAGS=\"-C instrument-coverage\" LLVM_PROFILE_FILE=build/rust-%p.profraw cargo test ... ; xcrun llvm-profdata merge -sparse build/rust-*.profraw -o build/rust.profdata ; xcrun llvm-cov report <test binary> -instr-profile=build/rust.profdata   (logs/testmetric/rust_V4.log)",
+     "accessed": "2026-09-19T00:29:30Z",
+     "excerpt": ".../probes/TEST-1/rust/src/lib.rs  15  1  93.33%  4  0  100.00%  12  1  91.67%\nTOTAL  15  1  93.33%  4  0  100.00%  12  1  91.67%\nexit=0"
+    },
+    {
+     "source": "E1",
+     "detail": "cargo test --manifest-path probes/TEST-1/rust/Cargo.toml -- -Z unstable-options --format json --report-time   (logs/testmetric/rust_V5.log)",
+     "accessed": "2026-09-19T00:29:45Z",
+     "excerpt": "error: the option `Z` is only accepted on the nightly compiler\nerror: test failed, to rerun pass `--lib`\nexit=101"
+    },
+    {
+     "source": "E2",
+     "detail": "https://doc.rust-lang.org/cargo/guide/continuous-integration.html",
+     "accessed": "2026-09-19T00:32:54Z",
+     "excerpt": "Continuous Integration - The Cargo Book ... See GitHub Actions documentation for more information."
+    }
+   ],
+   "reasoning": "5 of 6 -> 'Strong' (80). Not 100 because V5 failed on a verified execution: the documented machine-readable test-result format is unstable and the stable toolchain under test refused it; the rubric's no_partial_credit rule leaves it unsatisfied, and diagnostic JSON may not substitute. Not 60 because V4's coverage report was produced here (the llvm-tools component was reachable through xcrun, so no S2 fallback was needed)."
+  },
+  "Go": {
+   "level": "Full admissible build, test, coverage and CI integration",
+   "score": 100,
+   "criteria_satisfied": [
+    "V1 - `go build ./...` inside probes/TEST-2/go built the two packages plus the test module from go.mod, the declarative manifest; exit 0. The go command is clause (a).",
+    "V2 - the testing package and TestXxx functions (Go distribution, clause (a)) express TEST-1's three tests.",
+    "V3 - `go test ./... -v` printed --- PASS for two tests and --- FAIL for one, plus package-level FAIL, and exited 1.",
+    "V4 - `go test ./... -coverprofile=...` plus `go tool cover -func=` produced a coverage report (100.0% of statements).",
+    "V5 - `go test ./... -json` produced newline-delimited JSON that parsed into 17 records with pass/fail actions.",
+    "V6 - pkg.go.dev/std documents testing.M.Run's exit-code semantics and go.dev/wiki documents continuous-integration usage of the toolchain."
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "(cd probes/TEST-2/go && go build ./...)   (logs/testmetric/go_V1.log)",
+     "accessed": "2026-09-19T00:29:55Z",
+     "excerpt": "exit=0"
+    },
+    {
+     "source": "E1",
+     "detail": "(cd probes/TEST-1/go && go test ./... -v)   (logs/testmetric/go_V3.log)",
+     "accessed": "2026-09-19T00:30:00Z",
+     "excerpt": "--- PASS: TestPassOne (0.00s)\n--- PASS: TestPassTwo (0.00s)\n    probe_test.go:21: assertion failed: Add(1,1) == 3\n--- FAIL: TestFailOne (0.00s)\nFAIL\ttest1go\t0.384s\nexit=1"
+    },
+    {
+     "source": "E1",
+     "detail": "(cd probes/TEST-1/go && go test ./... -coverprofile=../../../build/go.cover) ; (cd probes/TEST-1/go && go tool cover -func=../../../build/go.cover)   (logs/testmetric/go_V4.log)",
+     "accessed": "2026-09-19T00:30:10Z",
+     "excerpt": "coverage: 100.0% of statements\ntest1go/probe.go:3:\tAdd\t\t100.0%\ntotal:\t\t\t(statements)\t100.0%\nexit=0"
+    },
+    {
+     "source": "E1",
+     "detail": "(cd probes/TEST-1/go && go test ./... -json > ../../../build/go-test.json) ; python3 parse   (logs/testmetric/go_V5.log)",
+     "accessed": "2026-09-19T00:30:15Z",
+     "excerpt": "parsed 17 JSON records\nactions: ['fail', 'output', 'pass', 'run', 'start']\nfirst record: {\"Time\": \"2026-09-19T09:28:17.817926+09:00\", \"Action\": \"start\", \"Package\": \"test1go\"}\nexit=0"
+    },
+    {
+     "source": "E2",
+     "detail": "https://pkg.go.dev/testing (func (m *M) Run)",
+     "accessed": "2026-09-19T00:36:30Z",
+     "excerpt": "Run runs the tests. It returns an exit code to pass to os.Exit. The exit code is zero when all tests pass, and non-zero for any kind of failure."
+    },
+    {
+     "source": "E2",
+     "detail": "https://go.dev/wiki/HostedContinuousIntegration",
+     "accessed": "2026-09-19T00:34:40Z",
+     "excerpt": "A number of hosted continuous integration platforms have support for Go"
+    }
+   ],
+   "reasoning": "All 6 satisfied -> 100. Every V1-V5 check executed successfully on this host and V6 is documented at go.dev / pkg.go.dev/std, both official_docs_root entries for Go. Not 80 because no indicator is missing; the only deviation from the frozen recipe was running `go tool cover` from inside the module directory instead of the parent (the recipe's relative path put the command outside the module, where the go command reports 'package test1go is not in std'); same tool, same flag, same profile file, and both invocations are recorded."
+  },
+  "Java": {
+   "level": "Minimal",
+   "score": 20,
+   "criteria_satisfied": [
+    "V2 - the JDK's `assert` statement (OpenJDK/Oracle, admissibility clause (a); documented by Oracle as the construct that 'enables you to test your assumptions about your program') expresses TEST-1's three tests; javac 26.0.1 compiled the probe and `java -ea` ran it on this host. This is the SAME correction rule applied to Quidra and Kotlin: a first-party assertion construct, documented as a testing facility and demonstrated on the host, satisfies V2 even when no runner is available.",
+    "V6 - openjdk.org (official_docs_root) documents continuous-integration usage of the toolchain, and the `java` tool reference documents exit-status semantics."
+   ],
+   "criteria_failed": [
+    "V1 - NOT SATISFIED, verification_status=unverified, availability_state S3. The frozen recipe names Maven; Maven is admissible but is not part of the JDK distribution, is not installed on this host (`command -v mvn` -> exit 1; `mvn ...` -> command not found, 127) and no_installation_of_extra_software forbids installing it. Gradle, ant, bazel, sbt and mill are likewise absent. HOST ARTEFACT, not a language property.",
+    "V3 - NOT SATISFIED, unverified, S3. The frozen recipe names the JUnit Platform Console Standalone launcher; no junit-platform-console-standalone*.jar exists anywhere on this host, so the JUnit probe cannot even be compiled (javac: 'package org.junit.jupiter.api does not exist', 9 errors, exit 1). The `assert`-based route that satisfied V2 aborts on the first failing assertion and prints no pass/fail counts, so it cannot satisfy V3. HOST ARTEFACT for the JUnit route.",
+    "V4 - NOT SATISFIED, unverified, S3. The frozen recipe names jcov (openjdk/jcov, clause (a)); it is not present in this host's JDK install and may not be installed.",
+    "V5 - NOT SATISFIED, unverified, S3. The recipe's machine-readable route is the same JUnit console launcher's --reports-dir, which is unavailable for the same reason."
+   ],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "command -v mvn ; mvn -B -f probes/TEST-2/java/pom.xml package   (logs/testmetric/java_V1.log)",
+     "accessed": "2026-09-19T00:30:20Z",
+     "excerpt": "$ command -v mvn\nwhich_exit=1\n$ mvn -B -f probes/TEST-2/java/pom.xml package\ncommand not found: mvn\nexit=127"
+    },
+    {
+     "source": "E1",
+     "detail": "PATH=/opt/homebrew/opt/openjdk/bin:$PATH javac -d build/java-test1 probes/TEST-1/java/Probe.java probes/TEST-1/java/ProbeTests.java ; find / -name 'junit-platform-console-standalone*.jar'   (logs/testmetric/java_V3.log)",
+     "accessed": "2026-09-19T00:30:30Z",
+     "excerpt": "javac 26.0.1\nprobes/TEST-1/java/ProbeTests.java:4: error: package org.junit.jupiter.api does not exist\n... 9 errors\njavac_exit=1\n(find for junit-platform-console-standalone: no results)"
+    },
+    {
+     "source": "E1",
+     "detail": "javac -d build/java-test1-alt probes/TEST-1/java/alt/ProbeAssertTests.java ; java -ea -cp build/java-test1-alt ProbeAssertTests   (logs/testmetric/java_alt.log)",
+     "accessed": "2026-09-19T00:30:35Z",
+     "excerpt": "javac_exit=0\nException in thread \"main\" java.lang.AssertionError: fail_one\n\tat ProbeAssertTests.failOne(ProbeAssertTests.java:9)\n\tat ProbeAssertTests.main(ProbeAssertTests.java:14)\nrun_exit=1"
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.oracle.com/javase/8/docs/technotes/guides/language/assert.html (Oracle, 'Programming With Assertions'); the corresponding -ea flag is documented in the java tool reference at docs.oracle.com/en/java/javase/25/docs/specs/man/java.html",
+     "accessed": "2026-09-19T00:37:20Z",
+     "excerpt": "An assertion is a statement in the Java programming language that enables you to test your assumptions about your program."
+    },
+    {
+     "source": "E2",
+     "detail": "https://openjdk.org/guide/ (OpenJDK Developers' Guide, official_docs_root)",
+     "accessed": "2026-09-19T00:36:00Z",
+     "excerpt": "GitHub actions GitHub has a feature called GitHub actions (GHA) that can be used to automate testing. The GHA is executed whenever a push is made to a branch in your repository."
+    },
+    {
+     "source": "E2",
+     "detail": "https://docs.oracle.com/en/java/javase/25/docs/specs/man/java.html, section 'Exit Status'",
+     "accessed": "2026-09-19T00:35:50Z",
+     "excerpt": "The following exit values are typically returned by the launcher when the launcher is called with the wrong arguments, serious errors, or exceptions thrown by the JVM. ... If a source file contains errors, appropriate error messages are written to the standard error stream, and the launcher exits with a non-zero exit code."
+    }
+   ],
+   "reasoning": "2 of 6 -> 'Minimal' (20). This score is dominated by HOST PROVISIONING, not by Java's ecosystem: Maven, Gradle, JUnit and jcov are all admissible under the three-clause test and are the ordinary build/test stack for Java, but none is installed on this host and global_rules.host_verification.no_installation_of_extra_software forbids installing them, so indicator_model.unverifiable_rule forces V1, V3, V4 and V5 to NOT SATISFIED with availability_state S3. The rubric mandates exactly this treatment and mandates publishing the S3 entries. Not 0 because V2 and V6 are positively evidenced; not 40 because no third indicator could be executed here."
+  },
+  "TypeScript": {
+   "level": "Full admissible build, test, coverage and CI integration",
+   "score": 100,
+   "criteria_satisfied": [
+    "V1 - `tsc -p probes/TEST-2/typescript/tsconfig.json` built the two source modules plus the test module from tsconfig.json, the declarative project-definition file; exit 0. tsc is Microsoft, clause (a).",
+    "V2 - node:test (ships with Node.js, a member of TypeScript's official_project_set, clause (a)) expresses TEST-1's three tests.",
+    "V3 - `node --test` reported 'tests 3 / pass 2 / fail 1' and exited 1.",
+    "V4 - `node --test --experimental-test-coverage` produced a coverage table (all files 100.00 line / 100.00 branch / 100.00 funcs).",
+    "V5 - `node --test --test-reporter=junit --test-reporter-destination=build/ts-results.xml` produced JUnit XML that parsed with ElementTree.",
+    "V6 - Node.js documentation states the exit-code semantics for failing tests and for coverage thresholds, and documents the non-interactive junit reporter used by CI."
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "tsc -p probes/TEST-2/typescript/tsconfig.json   (logs/testmetric/ts_V1.log)",
+     "accessed": "2026-09-19T00:30:50Z",
+     "excerpt": "exit=0\nmod_a.js\nmod_b.js\nproject.test.js"
+    },
+    {
+     "source": "E1",
+     "detail": "tsc -p probes/TEST-1/typescript/tsconfig.json && node --test 'probes/TEST-1/typescript/build/*.test.js'   (logs/testmetric/ts_V3.log)",
+     "accessed": "2026-09-19T00:31:00Z",
+     "excerpt": "ℹ tests 3\nℹ pass 2\nℹ fail 1\n✖ fail_one (6.2885ms)\n  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value\nexit=1"
+    },
+    {
+     "source": "E1",
+     "detail": "node --test --experimental-test-coverage 'probes/TEST-1/typescript/build/*.test.js'   (logs/testmetric/ts_V4.log)",
+     "accessed": "2026-09-19T00:31:05Z",
+     "excerpt": "ℹ file           | line % | branch % | funcs % | uncovered lines\nℹ all files      | 100.00 |   100.00 |  100.00 |"
+    },
+    {
+     "source": "E1",
+     "detail": "node --test --test-reporter=junit --test-reporter-destination=build/ts-results.xml 'probes/TEST-1/typescript/build/*.test.js' ; python3 ElementTree parse   (logs/testmetric/ts_V5.log)",
+     "accessed": "2026-09-19T00:31:10Z",
+     "excerpt": "node_exit=1\nparsed root: testsuites {}\nexit=0"
+    },
+    {
+     "source": "E2",
+     "detail": "https://nodejs.org/docs/latest-v24.x/api/test.html",
+     "accessed": "2026-09-19T00:32:54Z",
+     "excerpt": "If any tests fail, the process exit code is set to 1. ... junit The junit reporter outputs test results in a jUnit XML format"
+    },
+    {
+     "source": "E2",
+     "detail": "https://nodejs.org/docs/latest-v24.x/api/cli.html",
+     "accessed": "2026-09-19T00:36:40Z",
+     "excerpt": "If code coverage does not reach the threshold specified, the process will exit with code 1."
+    }
+   ],
+   "reasoning": "All 6 satisfied -> 100. Two recorded deviations, neither of which changes a tool or a flag: (1) `node --test <dir>` in Node 24 treats a bare directory argument as a module path, so the same command was given the directory's *.test.js glob instead; (2) @types/node cannot be installed on this host, so the probe carries its own ambient declarations for node:test and node:assert, written in first-party TypeScript. Without them tsc exits 2 (TS2591) and V1 would have failed on a package-installation restriction rather than on the build driver. Not 80 because every indicator including V5 was verified by execution."
+  },
+  "Kotlin": {
+   "level": "Minimal",
+   "score": 20,
+   "criteria_satisfied": [
+    "V2 - kotlin.test's assertion functions (kotlin-test.jar ships in the kotlinc distribution published by JetBrains, clause (a)) express TEST-1's three tests; kotlinc 2.3.21 compiled the probe and the JVM ran it here. Same correction rule as Quidra and Java.",
+    "V6 - kotlinlang.org/docs (official_docs_root) publishes a continuous-integration page for the toolchain."
+   ],
+   "criteria_failed": [
+    "V1 - NOT SATISFIED, unverified, availability_state S3. The frozen recipe names Gradle (admissible under clause (b): kotlinlang.org documents Gradle as the way to build a multi-module Kotlin project). Gradle is not installed on this host (`command -v gradle` -> exit 1; `gradle -p ... build` -> command not found, 127) and may not be installed. The probe's settings.gradle.kts/build.gradle.kts project definition is written and preserved. HOST ARTEFACT.",
+    "V3 - NOT SATISFIED, unverified, S3. kotlin.test's @Test annotation is an expect/actual typealias onto a JUnit annotation, so it does not resolve from kotlin-test.jar alone ('unresolved reference Test'), and adding the distribution's kotlin-test-junit5.jar does not help ('illegal annotation class Test') because no JUnit platform jar exists on this host; the console launcher named by the recipe is likewise absent. The assertion-only route that satisfied V2 aborts at the first failure with no pass/fail counts.",
+    "V4 - NOT SATISFIED, unverified, S3. kotlinx-kover (JetBrains, clause (a)) requires Gradle; neither is installed.",
+    "V5 - NOT SATISFIED, unverified, S3. Same JUnit console launcher --reports-dir route as V3."
+   ],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "command -v gradle ; gradle -p probes/TEST-2/kotlin build   (logs/testmetric/kotlin_V1.log)",
+     "accessed": "2026-09-19T00:31:15Z",
+     "excerpt": "$ command -v gradle\nwhich_exit=1\n$ gradle -p probes/TEST-2/kotlin build\ncommand not found: gradle\nexit=127"
+    },
+    {
+     "source": "E1",
+     "detail": "kotlinc -cp <dist>/lib/kotlin-test.jar -d build/kotlin-test1 probes/TEST-1/kotlin/*.kt   and with kotlin-test-junit5.jar added   (logs/testmetric/kotlin_V3.log, kotlin_V3b.log)",
+     "accessed": "2026-09-19T00:31:20Z",
+     "excerpt": "probes/TEST-1/kotlin/ProbeTests.kt:3:20: error: unresolved reference 'Test'.\n... with kotlin-test-junit5.jar: error: illegal annotation class 'Test'.\nkotlinc_exit=1\n(find for junit-platform-console-standalone*.jar: no results)"
+    },
+    {
+     "source": "E1",
+     "detail": "kotlinc -cp <dist>/lib/kotlin-test.jar -include-runtime -d build/kotlin-alt.jar probes/TEST-1/kotlin/alt/ProbeAssertTests.kt ; java -cp build/kotlin-alt.jar:<dist>/lib/kotlin-test.jar ProbeAssertTestsKt   (logs/testmetric/kotlin_alt.log)",
+     "accessed": "2026-09-19T00:31:25Z",
+     "excerpt": "kotlinc_exit=0\nException in thread \"main\" java.lang.AssertionError: fail_one\n\tat kotlin.test.DefaultAsserter.fail(DefaultAsserter.kt:16)\n\tat ProbeAssertTestsKt.failOne(ProbeAssertTests.kt:10)\nrun_exit=1"
+    },
+    {
+     "source": "E2",
+     "detail": "https://kotlinlang.org/docs/kotlin-and-ci.html",
+     "accessed": "2026-09-19T00:33:34Z",
+     "excerpt": "Kotlin and continuous integration with TeamCity On this page, you'll learn how to configure TeamCity to build Kotlin applications. ... Kotlin integrates directly with standard build tools like Gradle and Maven, so configuring a Kotlin build in TeamCity requires the same workflow as any project."
+    }
+   ],
+   "reasoning": "2 of 6 -> 'Minimal' (20). As for Java, four indicators fall to availability_state S3: Gradle, the JUnit platform and kotlinx-kover are all admissible and are the ordinary Kotlin build/test stack, but none is installed here and installing them is forbidden. Kotlin additionally hits a structural consequence of that absence: kotlin.test's @Test is a typealias onto JUnit, so even the shipped test library's annotations cannot compile without JUnit. Not 0 because V2 (kotlin.test assertions, compiled and executed here) and V6 are positively evidenced; not 40 because no further indicator could be executed."
+  },
+  "Swift": {
+   "level": "Full admissible build, test, coverage and CI integration",
+   "score": 100,
+   "criteria_satisfied": [
+    "V1 - `swift build --package-path probes/TEST-2/swift` built the two library targets plus the test target from Package.swift, the declarative manifest; exit 0. SwiftPM ships with the Swift toolchain, clause (a).",
+    "V2 - XCTest (ships with the Swift toolchain, clause (a)) expresses TEST-1's three tests.",
+    "V3 - `swift test` reported 'Executed 3 tests, with 1 failure' with per-test passed/failed lines and exited 1.",
+    "V4 - `swift test --enable-code-coverage` plus xcrun llvm-profdata/llvm-cov produced a coverage report for Sources/Probe/Probe.swift.",
+    "V5 - `swift test --parallel --xunit-output <path>` produced xUnit XML that parsed (testsuite tests='3' failures='1').",
+    "V6 - swift.org (official_docs_root) publishes official Swift container images."
+   ],
+   "criteria_failed": [],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "swift build --package-path probes/TEST-2/swift   (logs/testmetric/swift_V1.log)",
+     "accessed": "2026-09-19T00:31:10Z",
+     "excerpt": "[7/7] Compiling ModB ModB.swift\nBuild complete! (0.82s)\nexit=0"
+    },
+    {
+     "source": "E1",
+     "detail": "swift test --package-path probes/TEST-1/swift   (logs/testmetric/swift_V3.log)",
+     "accessed": "2026-09-19T00:31:15Z",
+     "excerpt": "Test Case '-[ProbeTests.ProbeTests testPassOne]' passed (0.000 seconds).\nTest Case '-[ProbeTests.ProbeTests testPassTwo]' passed (0.000 seconds).\nTest Suite 'All tests' failed ...\n\t Executed 3 tests, with 1 failure (0 unexpected) in 0.177 seconds\nexit=1"
+    },
+    {
+     "source": "E1",
+     "detail": "swift test --package-path probes/TEST-1/swift --enable-code-coverage ; xcrun llvm-profdata merge -sparse <bin>/codecov/*.profraw -o <bin>/codecov/default.profdata ; xcrun llvm-cov report <bin>/test1-swiftPackageTests.xctest/Contents/MacOS/test1-swiftPackageTests -instr-profile <bin>/codecov/default.profdata   (logs/testmetric/swift_V4.log)",
+     "accessed": "2026-09-19T00:31:40Z",
+     "excerpt": "Sources/Probe/Probe.swift  1  0  100.00%  1  0  100.00%  1  0  100.00%\nTOTAL  16  1  93.75%  9  0  100.00%  24  3  87.50%\nexit=0"
+    },
+    {
+     "source": "E1",
+     "detail": "swift test --package-path probes/TEST-1/swift --parallel --xunit-output $PWD/build/swift-results.xml ; python3 ElementTree parse   (logs/testmetric/swift_V5.log)",
+     "accessed": "2026-09-19T00:31:55Z",
+     "excerpt": "parsed root: testsuites {}\nchildren: [('testsuite', {'name': 'TestResults', 'errors': '0', 'tests': '3', 'failures': '1', 'time': '0.39140183300000003'})]\nexit=0"
+    },
+    {
+     "source": "E2",
+     "detail": "https://www.swift.org/install/linux/docker/",
+     "accessed": "2026-09-19T00:33:34Z",
+     "excerpt": "Swift official Docker images are hosted on hub.docker.com/_/swift. Nightly builds and previews of Swift using Docker images under the swiftlang namespace are available in the Swift Docker repository on Docker Hub."
+    }
+   ],
+   "reasoning": "All 6 satisfied -> 100. Two recorded, tool-preserving adjustments: SwiftPM only merges the coverage profraws into default.profdata after a successful run, so with the deliberately failing TEST-1 the profraws were merged with the same xcrun llvm-profdata command the C++ and Rust recipes use; and `--xunit-output` emits the XCTest report only under `--parallel` (without it only the swift-testing companion file appears), so the documented --parallel flag was added and recorded. Not 80 because every indicator including V4 and V5 produced and parsed its artifact."
+  },
+  "Zig": {
+   "level": "Adequate",
+   "score": 60,
+   "criteria_satisfied": [
+    "V1 - `zig build --build-file probes/TEST-2/zig/build.zig` built the two source modules plus the test module from build.zig, the project definition the Zig distribution's own build driver consumes; exit 0. Clause (a).",
+    "V2 - Zig's built-in `test` blocks with std.testing (language + standard library, clause (a)) express TEST-1's three tests.",
+    "V3 - `zig test probes/TEST-1/zig/test1.zig` printed '2 passed; 0 skipped; 1 failed.' and exited 1.",
+    "V6 - the official language reference documents the failing-test exit code and `zig fmt --check` is a documented non-interactive check mode that exits with an error."
+   ],
+   "criteria_failed": [
+    "V4 - NOT SATISFIED, availability_state S1. The Zig distribution ships no code-coverage flag or subcommand: `zig test --help`, `zig build --help` and `zig --help` contain no coverage option (the only near-matches are --time-report and -fstack-report, which are diagnostics), and no coverage tool is admissible for Zig under clauses (a), (b) or (c) at the evidence cutoff.",
+    "V5 - NOT SATISFIED, availability_state S1. `zig test` publishes no machine-readable result-format flag; `--debug-link-snapshot` (linker state in JSON) and `--time-report` are machine-readable DIAGNOSTIC output, which V5 explicitly forbids counting."
+   ],
+   "evidence": [
+    {
+     "source": "E1",
+     "detail": "zig build --build-file probes/TEST-2/zig/build.zig   (logs/testmetric/zig_V1.log)",
+     "accessed": "2026-09-19T00:32:00Z",
+     "excerpt": "exit=0"
+    },
+    {
+     "source": "E1",
+     "detail": "zig test probes/TEST-1/zig/test1.zig   (logs/testmetric/zig_V3.log)",
+     "accessed": "2026-09-19T00:32:05Z",
+     "excerpt": "1/3 test1.test.pass_one...OK\n2/3 test1.test.pass_two...OK\n3/3 test1.test.fail_one...FAIL (TestUnexpectedResult)\n2 passed; 0 skipped; 1 failed.\nerror: the following test command failed with exit code 1:\nexit=1"
+    },
+    {
+     "source": "E1",
+     "detail": "zig test --help | grep -iE 'cov|json|xml|junit|report' ; zig build --help | grep -iE 'cov|json|xml|junit' ; zig --help | grep -iE 'cov'   (logs/testmetric/zig_V4V5.log)",
+     "accessed": "2026-09-19T00:32:20Z",
+     "excerpt": "--time-report             Send timing diagnostics to '--listen' clients\n-fstack-report               Print stack size diagnostics\n--debug-link-snapshot        Enable dumping of the linker's state in JSON format\n(zig build --help: no match, grep_exit=1)\n(zig --help: no match, grep_exit=1)"
+    },
+    {
+     "source": "E2",
+     "detail": "https://ziglang.org/documentation/0.16.0/ (language reference, verbatim toolchain transcript)",
+     "accessed": "2026-09-19T00:35:10Z",
+     "excerpt": "error: the following test command failed with exit code 1:"
+    },
+    {
+     "source": "E2",
+     "detail": "`zig fmt --help` (built-in help text shipped by the toolchain under test, zig 0.16.0)",
+     "accessed": "2026-09-19T00:35:20Z",
+     "excerpt": "--check                List non-conforming files and exit with an error\n                         if the list is non-empty"
+    }
+   ],
+   "reasoning": "4 of 6 -> 'Adequate' (60). Not 80 because both V4 and V5 fail, and they fail on verified absence in the distribution (availability_state S1), not on a host limitation: the frozen recipe's 'none' cells for Zig coverage and machine-readable results were treated as falsifiable and were re-checked against the shipped --help text of the toolchain under test, and they held. Not 40 because V1, V2, V3 and V6 are each positively evidenced, with build.zig consumed by the distribution's own build driver."
+  }
+ },
+ "cross_language_consistency_note": "One indicator set, one probe pair and one operational test per indicator were applied to all ten columns. (a) V1: the two conjuncts were checked separately for every language - the driver must consume a manifest or project-definition file (Cargo.toml, go.mod, CMakeLists.txt, Package.swift, tsconfig.json, build.zig, pom.xml, build.gradle.kts) AND no per-file compiler invocation may be hand-written. The languages_with_no_separate_build_step exception was offered to every language and qualified only Python, which has no separate compilation step; TypeScript, which does compile, satisfied V1 through tsconfig.json rather than through that exception, and Quidra, which also compiles, could not use it. (b) V2: one rule for all ten - a construct or framework that is admissible under the three-clause test, is presented by the language's own official documentation as a means of writing test assertions, and is demonstrated on this host expressing TEST-1's three tests. This rule was written when Java's and Kotlin's JUnit routes proved unavailable (S3) and before Quidra was examined, and it is what let Quidra's `test` namespace, Java's `assert` statement and Kotlin's kotlin.test assertions each count; each of those three then failed V3 for the identical reason. (c) V3: one output test for all ten - the runner's own output must let both the passing and the failing count be read off (either as totals, as with Rust's '2 passed; 1 failed', CTest's '67% tests passed, 1 tests failed out of 3', Swift's 'Executed 3 tests, with 1 failure', node's 'pass 2 / fail 1', Zig's '2 passed; 0 skipped; 1 failed', or as a complete per-test status list plus a total, as with Go's --- PASS/--- FAIL and Python's per-test ok/FAIL with 'Ran 3 tests' and 'FAILED (failures=1)') AND the process must exit non-zero because of the failing test. An assertion primitive that aborts at the first failure satisfies neither half and failed V3 for Quidra, Java and Kotlin alike. (d) V4 and V5 required a produced artifact: a coverage report printed on this host, and a machine-readable results file that was parsed here. A flag that exists but produced nothing counts as unsatisfied for every language (Rust's nightly-only --format json, Python's absent format flag, Zig's absent flags). Machine-readable DIAGNOSTIC output was refused for every language, including Quidra's `check --json`, Rust's --message-format=json and Zig's --debug-link-snapshot. (e) V6: one three-branch test for all ten - documented exit-status semantics for failed builds/tests together with a documented non-interactive/CI mode, OR an officially published CI action/workflow/container image, OR an official documentation page describing CI usage of the toolchain. It was satisfied through branch 1 for TypeScript, Zig and Quidra, through branch 2 for Swift, and through branch 3 for Python, C++, Rust, Go, Java and Kotlin. Only documentation at each language's frozen official_docs_root was accepted. (f) Every non-execution was classified by global_rules.tool_availability_states and the reason recorded: S1 (no admissible tool exists) for Quidra's V1/V3/V4/V5 and Zig's V4/V5; S3 (admissible tool exists, not in the distribution, not installed, installation forbidden) for all four of Java's and Kotlin's failed indicators. Two languages sharing a level therefore do not necessarily share a cause, and the causes are recorded per indicator. (g) No language was scored from reputation: every satisfied indicator carries either a command executed on this host with its exit status and captured output, or a URL with an accession timestamp and a verbatim excerpt.",
+ "host_limited_indicators_to_publish": {
+  "_note": "Required by global_rules.tool_availability_states.required_publication. These indicators are NOT SATISFIED for host-provisioning reasons and are artefacts of how this host was provisioned, not measured language properties.",
+  "_mandatory_sentence": "Quidra's toolchain was built from source on this host by the benchmark team, so no Quidra indicator can fail for a repackaging reason. Indicators that other languages lost to states S2, S3 and S4 are listed below and are host artefacts, not measured language properties.",
+  "entries": [
+   {
+    "language": "Java",
+    "metric": "Build / Test Integration",
+    "indicator": "V1",
+    "state": "S3",
+    "tool": "Apache Maven (`mvn -B -f pom.xml package`)",
+    "reason": "Maven is admissible and is the frozen recipe's build driver for Java, but it is not part of the JDK distribution and is not installed on this host; installing it is forbidden."
+   },
+   {
+    "language": "Java",
+    "metric": "Build / Test Integration",
+    "indicator": "V3",
+    "state": "S3",
+    "tool": "junit-platform-console-standalone.jar",
+    "reason": "No JUnit platform jar exists on this host, so the JUnit TEST-1 probe cannot be compiled or run."
+   },
+   {
+    "language": "Java",
+    "metric": "Build / Test Integration",
+    "indicator": "V4",
+    "state": "S3",
+    "tool": "jcov (openjdk/jcov)",
+    "reason": "Not present in this host's JDK install; installation forbidden."
+   },
+   {
+    "language": "Java",
+    "metric": "Build / Test Integration",
+    "indicator": "V5",
+    "state": "S3",
+    "tool": "junit-platform-console-standalone.jar --reports-dir",
+    "reason": "Same absent console launcher as V3."
+   },
+   {
+    "language": "Kotlin",
+    "metric": "Build / Test Integration",
+    "indicator": "V1",
+    "state": "S3",
+    "tool": "Gradle (`gradle -p <project> build`)",
+    "reason": "Gradle is admissible under clause (b) and is the frozen recipe's build driver for Kotlin, but it is not installed on this host; installation forbidden."
+   },
+   {
+    "language": "Kotlin",
+    "metric": "Build / Test Integration",
+    "indicator": "V3",
+    "state": "S3",
+    "tool": "junit-platform-console-standalone.jar (and any JUnit platform jar)",
+    "reason": "kotlin.test's @Test is a typealias onto a JUnit annotation, so without a JUnit jar the annotated probe does not compile and no runner exists to execute it."
+   },
+   {
+    "language": "Kotlin",
+    "metric": "Build / Test Integration",
+    "indicator": "V4",
+    "state": "S3",
+    "tool": "kotlinx-kover via Gradle",
+    "reason": "Neither Kover nor Gradle is installed on this host; installation forbidden."
+   },
+   {
+    "language": "Kotlin",
+    "metric": "Build / Test Integration",
+    "indicator": "V5",
+    "state": "S3",
+    "tool": "junit-platform-console-standalone.jar --reports-dir",
+    "reason": "Same absent console launcher as V3."
+   }
+  ]
+ },
+ "limitations": [
+  "Java and Kotlin: four indicators each (V1, V3, V4, V5) could not be executed because Maven, Gradle, the JUnit platform and the coverage tools named by the frozen recipes are absent from this host and global_rules.host_verification.no_installation_of_extra_software forbids installing them. Their scores of 20 are therefore substantially host artefacts. The rubric's unverifiable_rule mandates this outcome and mandates its publication; readers must not read Java's or Kotlin's 20 as a statement about those ecosystems' build/test tooling, which is admissible and mature but was not present here. Quidra's identical score of 20 has a different cause: availability_state S1, i.e. no such tool exists for Quidra 0.2.0 at all.",
+  "Java: the `java`/`javac` binaries first on PATH on this host are the macOS stub launchers, which report 'Unable to locate a Java Runtime that supports javac'. The frozen toolchain (Homebrew OpenJDK 26.0.1) was invoked explicitly at /opt/homebrew/opt/openjdk/bin. An earlier log in this run (standard/rubrics/logs/conc2_c5.log) shows the stub failure being recorded as a Java result, which may have affected other metrics; that is outside this metric and is flagged rather than corrected here.",
+  "Python V5: no admissible machine-readable test-result emitter could be found AND executed for Python. pytest is not installed and may not be installed, so even if it were admissible the indicator would still be unverified. If a future audit establishes an admissible, present emitter, Python's count would become 6.",
+  "TypeScript: @types/node cannot be installed on this host, so the TEST-1/TEST-2 TypeScript probes carry hand-written ambient declarations for node:test and node:assert. Without them tsc exits 2 with TS2591 and V1/V2 would have failed on a package-installation restriction rather than on the build driver or the test construct. This is a deviation in probe source, not in tool or flag, and is recorded here rather than absorbed silently.",
+  "Three recipe path/flag adjustments were required and are recorded with both the original and the executed command: Go's `go tool cover` had to run inside the module directory; `node --test` was given the build directory's *.test.js glob because Node 24 treats a bare directory argument as a module path; Swift's `--xunit-output` emits the XCTest report only together with the documented `--parallel` flag, and SwiftPM's coverage profraws had to be merged with the same xcrun llvm-profdata command the C++ and Rust recipes use because SwiftPM does not merge them after a failing run. No tool was substituted for any language.",
+  "V2 correction: rubric_verification_recipes.by_language.Quidra.test_build_and_run asserted that quidra 0.2.0 'ships no test framework'. Direct inspection of the toolchain and of the official documentation falsified that for V2: the language ships a `test` standard namespace (test.check / test.equal) documented in docs/spec/language.md and README.md with defined failed-test exit-status semantics. Per _general_rules.none_entries, which states that a 'none' cell is a falsifiable claim rather than a verdict, V2 was awarded to Quidra and the same correction rule was applied to Java and Kotlin, the two other languages whose framework route was unavailable. The recipe's V1, V3, V4 and V5 claims for Quidra were re-checked on the host and all held.",
+  "Evidence-window note: all documentation cited long predates the 2026-09-17 evidence cutoff, but it was retrieved on 2026-09-19 (during the scoring window, as global_rules.evidence_window permits). Page contents were not independently verified against an archived 2026-09-17 snapshot.",
+  "The per-language evidence records required by global_rules.per_language_evidence_record were written to benchmark/2026-09-17-7677581/standard/rubrics/build___test_integration/<language>.json alongside this aggregate. The benchmark-wide host_limited_indicators.json did not exist at scoring time; this metric's entries are carried in the host_limited_indicators_to_publish block above for whoever assembles that file."
+ ]
+}

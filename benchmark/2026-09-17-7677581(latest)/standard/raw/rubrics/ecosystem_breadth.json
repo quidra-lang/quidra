@@ -1,0 +1,567 @@
+{
+  "metric": "Ecosystem Breadth",
+  "standard_category": "Ecosystem / Production Maturity",
+  "normalization_family": "G",
+  "rubric_document": "05_standard_rubrics.json",
+  "procedure_actually_executed": {
+    "domains": "The frozen 12-domain list B01..B12 was used unchanged.",
+    "queries": "The frozen_query_list strings were issued verbatim, exactly once per domain per language, in domain id order: B01 http, B02 json, B03 sql, B04 'linear algebra', B05 'machine learning', B06 image, B07 cryptography, B08 graphics, B09 'command line argument parsing', B10 logging, B11 'time zone', B12 compression. No synonym, qualifier, language name or retry was used, per frozen_query_list.no_second_query.",
+    "step_order": "For every language, step (1) the official standard-library API index / shipped toolchain module set was checked first; only if it did not cover the domain was step (2), the qualifying package index's own default-ordered search, issued.",
+    "collection_order": "Evidence was collected in global_rules.evidence_collection_order: Python, C++, Rust, Go, Java, TypeScript, Kotlin, Swift, Zig, Quidra. Quidra was examined last. No threshold, keyword or interpretation was settled after Quidra was seen.",
+    "window": "24-month window = 2024-09-17 .. 2026-09-17 inclusive of the cutoff. Index entries whose only publication date falls outside that window were rejected and the next default-ordered result was examined.",
+    "index_selection": "Per language, the single qualifying package index was selected under the Library Availability metric's frozen index_selection_rule; the satisfied qualification clause is recorded in each language's evidence block.",
+    "selected_indexes": {
+      "Quidra": "none qualifies",
+      "Python": "PyPI (pypi.org)",
+      "C++": "vcpkg (vcpkg.io / microsoft/vcpkg)",
+      "Rust": "crates.io",
+      "Go": "the Go module index / pkg.go.dev",
+      "Java": "Maven Central (central.sonatype.com)",
+      "TypeScript": "npm registry (registry.npmjs.org)",
+      "Kotlin": "Maven Central (central.sonatype.com)",
+      "Swift": "Swift Package Index (swiftpackageindex.com)",
+      "Zig": "none qualifies"
+    },
+    "uniform_interpretations_fixed_before_scoring_and_applied_to_all_ten": [
+      "B10 is scored as the domain area the frozen provenance mapping names (PyPI 'Topic :: System :: Logging'), i.e. a logging library, not only libraries whose description contains the word 'structured'. Applied identically to all ten; no language gained or lost a domain relative to the alternative reading except Zig and C++, which were checked under both readings and are unchanged.",
+      "A cloud-service API client (AWS/Azure SDK 'machinelearning' modules) does NOT satisfy B05, because it provides remote service access rather than machine-learning or neural-network functionality in the language. Applied identically to Go, Java and Kotlin, where such SDK modules occupy the top default-ordered results.",
+      "A parser/formatter/linter/query-builder for a domain's data format does NOT satisfy the domain when the domain names a client, driver or runtime capability (B01 HTTP client/server, B03 relational database client/driver). Applied identically to C++, Rust, TypeScript, Java and Kotlin.",
+      "Clause (a) 'first-party standard library' is satisfied only by modules the language's own official documentation presents as part of that language's standard library or core libraries AND that are importable under the frozen build recipe with no dependency declaration and no additional install. Operating-system SDK frameworks that merely happen to be reachable from the compiler (macOS SDK C libraries for C++, Apple platform frameworks such as CoreML/Accelerate/Metal/CryptoKit for Swift) were NOT counted as standard library for any language. This is the single rule that keeps C++ and Swift comparable on this host.",
+      "Where an index publishes an entry-update date rather than an upstream release date (vcpkg), the index entry's own publication date in the official index repository was used, recorded as such. For arg-router, the only B09 result for C++, both the index entry date (2024-07-16) and the upstream release date (2023-08-08) fall outside the window, so the verdict does not depend on which is used."
+    ]
+  },
+  "scores": {
+    "Quidra": {
+      "level": "Partial",
+      "score": 40,
+      "covered_domain_count": 6,
+      "criteria_satisfied": [
+        "B01 HTTP client and/or HTTP server - standard module 'http' shipped inside the toolchain under test (quidra 0.2.0)",
+        "B02 Structured data serialization (JSON) - standard module 'json'",
+        "B04 Numerical computing / linear algebra - standard modules 'linear' (dot, matmul) and 'tensor'",
+        "B05 Machine learning or neural networks - standard module 'neural' (Define-by-Run autograd, neural.grad)",
+        "B06 Image loading/processing - standard module 'image' (image.read/image.write, PNG/TIFF/JPEG/BMP/WebP)",
+        "B09 Command-line argument parsing - standard module 'cli' (declarative argument()/option()/flag() binding)"
+      ],
+      "criteria_failed": [
+        "B03 Relational database client/driver (SQL) - no standard module; 'sql' does not resolve",
+        "B07 Cryptography and/or TLS - no standard module; 'crypto' does not resolve (TLS is used internally by http but no cryptography/TLS API is exposed)",
+        "B08 GUI or 2D/3D graphics rendering - no standard module",
+        "B10 Structured logging - no standard module; 'log' does not resolve",
+        "B11 Date, time and time-zone handling - standard module 'time' is monotonic Instant/Duration only; no dates, no calendar, no time zones",
+        "B12 Compression - no standard module; 'compress' does not resolve",
+        "No qualifying package index exists for Quidra at the evidence cutoff, so step (2) of the fixed search procedure could not be executed for any of the six uncovered domains"
+      ],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/build/quidra describe  (exit 0; 23691 bytes JSON)",
+          "accessed": "2026-09-18T20:37:05Z",
+          "excerpt": "\"standard_modules\": [\"math\",\"cli\",\"file\",\"environment\",\"test\",\"time\",\"random\",\"process\",\"map\",\"set\",\"json\",\"http\",\"stats\",\"linear\",\"signal\",\"image\",\"tensor\",\"neural\"]"
+        },
+        {
+          "source": "E1",
+          "detail": "build/quidra check on six probe files (b01 http.get, b02 json.parse, b04 linear.matmul, b05 neural.grad, b06 image.read, b09 cli binding)",
+          "accessed": "2026-09-18T20:38:10Z",
+          "excerpt": "b01.qui: ok / b02.qui: ok / b04.qui: ok / b05.qui: ok / b06.qui: ok / b09.qui: ok"
+        },
+        {
+          "source": "E1",
+          "detail": "build/quidra check on four absence probes (sql.open, crypto.sha256, gui.window, log.info, compress.gzip)",
+          "accessed": "2026-09-18T20:38:12Z",
+          "excerpt": "error[UNKNOWN_TYPE] Unknown type 'sql.Connection'. / error[UNKNOWN_NAME] Unknown name 'crypto'. / error[UNKNOWN_TYPE] Unknown type 'gui.Window'. / error[UNKNOWN_NAME] Unknown name 'log'. / error[UNKNOWN_NAME] Unknown name 'compress'."
+        },
+        {
+          "source": "E2",
+          "detail": "quidra repository documentation, docs/spec/language.md line 562 (official_docs_root: github.com/quidra-lang/quidra repository documentation)",
+          "accessed": "2026-09-18T20:36:40Z",
+          "excerpt": "`time.now()` returns a monotonic `time.Instant`. `time.since(start)` returns a `time.Duration`."
+        },
+        {
+          "source": "E2",
+          "detail": "quidra repository README.md, package management section (line 787)",
+          "accessed": "2026-09-18T20:38:40Z",
+          "excerpt": "Network fetching is intentionally outside this core command, so installing a package never executes a package script or silently contacts a registry."
+        },
+        {
+          "source": "E1",
+          "detail": "build/quidra package (usage output)",
+          "accessed": "2026-09-18T20:38:35Z",
+          "excerpt": "quidra package install DIR [--name NAME] [--force] / quidra package lock FILE.qui [--check] / quidra package remove NAME / quidra package list / quidra package path"
+        },
+        {
+          "source": "E2",
+          "detail": "benchmark/2026-09-17-7677581/environment/environment.json -> first_party_packages",
+          "accessed": "2026-09-18T20:22:10Z",
+          "excerpt": "\"dnn\": {\"url\": \"https://github.com/quidra-lang/dnn\", ...}, \"vision\": {\"url\": \"https://github.com/quidra-lang/vision\", ...}"
+        }
+      ],
+      "reasoning": "N = 6 covered domains, which falls in the Partial band (4 <= N <= 6), score 40. Not Substantial (60): that band requires N >= 7 and Quidra covers six. Not Narrow (20): that band requires N <= 3 and Quidra verifiably covers six, all of them as compiler-built-in standard namespaces of the toolchain under test, confirmed by executing `quidra check` on a probe per domain. The six uncovered domains are genuine absences, not unverified checks: the compiler rejects sql/crypto/gui/log/compress by name. Quidra's package manager is a local deterministic store whose own documentation states installing a package never contacts a registry, so no qualifying package index exists and step (2) of the fixed search procedure is unavailable for every uncovered domain - a real and reportable property of the language's present ecosystem, scored as the rubric's low outcome and not as N/A (na_policy: 'Never N/A'). environment.json's first_party_packages (dnn, vision) are separately fetched repositories and are excluded by domain_satisfaction_rule, which excludes them unless distributed with the toolchain under test; this is the same treatment given to every other language's separately fetched first-party packages."
+    },
+    "Python": {
+      "level": "Complete breadth",
+      "score": 100,
+      "covered_domain_count": 12,
+      "criteria_satisfied": [
+        "B01 stdlib http.client / http.server (Python 3.14.5, docs.python.org/3/library/http.html)",
+        "B02 stdlib json (docs.python.org/3/library/json.html)",
+        "B03 stdlib sqlite3 - DB-API 2.0 interface for SQLite (docs.python.org/3/library/sqlite3.html)",
+        "B04 PyPI alumath-linear-algebra, released 2025-06-12, 'A friendly matrix multiplication package'",
+        "B05 PyPI machine-learning-toolkit, released 2025-06-19, 'Utility for evaluating ML models with scikit-learn'",
+        "B06 PyPI image-proceosimoes-image-processor, released 2025-09-19, 'Um pacote simples para processamento de imagens'",
+        "B07 stdlib ssl and hashlib",
+        "B08 PyPI gofish-graphics, released 2025-11-16, 'Python wrapper for GoFish Graphics - JavaScript is the source of truth for rendering'",
+        "B09 stdlib argparse",
+        "B10 stdlib logging",
+        "B11 stdlib zoneinfo (IANA time zone support)",
+        "B12 stdlib gzip and zlib"
+      ],
+      "criteria_failed": [],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "/opt/homebrew/bin/python3 -c \"import importlib; [importlib.import_module(m) for m in ...]\"  (frozen toolchain Python 3.14.5)",
+          "accessed": "2026-09-18T20:40:15Z",
+          "excerpt": "3.14.5 (main, May 10 2026, 10:21:34) [Clang 21.0.0] / OK http.client / OK http.server / OK json / OK sqlite3 / OK ssl / OK hashlib / FAIL tkinter ModuleNotFoundError / OK argparse / OK logging / OK zoneinfo / OK gzip / OK zlib"
+        },
+        {
+          "source": "E4",
+          "detail": "https://pypi.org/search/?q=linear+algebra  (default ordering: 関連性 / relevance)",
+          "accessed": "2026-09-18T20:31:20Z",
+          "excerpt": "10,000+ projects for \"linear algebra\" ... alumath-linear-algebra 2025年6月12日 A friendly matrix multiplication package by Kabango Mathias."
+        },
+        {
+          "source": "E4",
+          "detail": "https://pypi.org/search/?q=machine+learning  (default ordering: relevance)",
+          "accessed": "2026-09-18T20:31:45Z",
+          "excerpt": "machine-learning-toolkit 2025年6月19日 Utility for evaluating ML models with scikit-learn"
+        },
+        {
+          "source": "E4",
+          "detail": "https://pypi.org/search/?q=image  (default ordering: relevance)",
+          "accessed": "2026-09-18T20:31:50Z",
+          "excerpt": "image-proceosimoes-image-processor 2025年9月19日 Um pacote simples para processamento de imagens"
+        },
+        {
+          "source": "E4",
+          "detail": "https://pypi.org/search/?q=graphics  (default ordering: relevance)",
+          "accessed": "2026-09-18T20:41:30Z",
+          "excerpt": "9,931 projects for \"graphics\" ... gofish-graphics 2025年11月16日 Python wrapper for GoFish Graphics - JavaScript is the source of truth for rendering"
+        },
+        {
+          "source": "E2",
+          "detail": "https://docs.python.org/3/installing/index.html (index qualification, clause (i): referenced by a member of the official_project_set in official documentation)",
+          "accessed": "2026-09-18T20:39:31Z",
+          "excerpt": "The Python Package Index (PyPI) is a public repository of open source licensed packages made available for use by other Python users."
+        }
+      ],
+      "reasoning": "N = 12, the only band that awards 100. Nine domains are satisfied by modules of the standard library shipped inside the toolchain under test and verified importable on this host; three (B04, B05, B06) and one more (B08) were resolved through PyPI, the single qualifying index, with the frozen query string, the index's default relevance ordering, and a release date inside the 24-month window recorded for each. Not 80: 80 requires N <= 11 and no domain is uncovered. Note that tkinter, the standard-library route to B08, is absent from this host's Homebrew-repackaged Python (availability state S2); B08 was therefore awarded through the ordinary package-index route, so the level does not depend on the host's repackaging."
+    },
+    "C++": {
+      "level": "Broad",
+      "score": 80,
+      "covered_domain_count": 11,
+      "criteria_satisfied": [
+        "B01 vcpkg libmicrohttpd 1.0.5, port published 2026-05-14, 'make it easy to run an HTTP server as part of another application'",
+        "B02 vcpkg json5-parser 1.0.0, port published 2024-09-24, 'An enhancement of the JSON Spirit C++ library to understand json5'",
+        "B03 vcpkg sqlitecpp 3.3.3, port published 2025-05-28, 'SQLiteC++ (SQLiteCpp) is a smart and easy to use C++ SQLite3 wrapper'",
+        "B04 vcpkg suitesparse-graphblas 10.5.0, port published 2026-09-15, 'graph algorithms in the language of linear algebra' (eigen3 5.0.1, port 2025-12-27, recorded as the canonical matrix/vector alternative)",
+        "B05 vcpkg ggml 0.11.1, port published 2026-08-28, 'Tensor library for machine learning'",
+        "B06 vcpkg qt5-imageformats 5.15.19, port published 2026-06-12, 'provides optional support for other image file formats'",
+        "B07 vcpkg abumq-ripe 4.2.2, port published 2025-12-01, 'Lightweight cryptography library wrapper'",
+        "B08 vcpkg plutovg 1.3.3, port published 2026-05-19, 'Tiny 2D vector graphics library in C'",
+        "B10 vcpkg ng-log 0.8.4, port published 2026-08-31, 'C++ library for application-level logging'",
+        "B11 vcpkg cctz 2.5, port published 2025-09-05, 'all the necessary tools for computing with dates, times, and time zones'",
+        "B12 vcpkg aws-c-compression 1.0.0, port published 2026-08-31, 'C99 implementation of huffman encoding/decoding'"
+      ],
+      "criteria_failed": [
+        "B09 Command-line argument parsing - NOT COVERED. The C++ standard library has no argument-parsing facility, and the frozen query returned exactly one vcpkg package, arg-router 1.4.0, whose index entry was last published 2024-07-16 and whose upstream release v1.4.0 was published 2023-08-08; both are outside the 24-month window, and frozen_query_list.no_second_query forbids retrying with a different string."
+      ],
+      "evidence": [
+        {
+          "source": "E4",
+          "detail": "https://vcpkg.io/en/packages?query=command%20line%20argument%20parsing  (default ordering: Best Match)",
+          "accessed": "2026-09-18T20:34:05Z",
+          "excerpt": "Showing 1-1 of 1 packages ... arg-router | Version: 1.4.0 | C++ command line argument parsing and routing."
+        },
+        {
+          "source": "E3",
+          "detail": "https://api.github.com/repos/microsoft/vcpkg/commits?path=ports/arg-router&per_page=1 and https://api.github.com/repos/cmannett85/arg_router/releases",
+          "accessed": "2026-09-18T20:34:40Z",
+          "excerpt": "arg-router 2024-07-16 [many ports] Patch Tuesday for July 2024 (#39896) ; cmannett85/arg_router v1.4.0 2023-08-08"
+        },
+        {
+          "source": "E4",
+          "detail": "https://vcpkg.io/en/packages?query=http , ?query=json , ?query=sql , ?query=linear%20algebra , ?query=machine%20learning , ?query=image , ?query=cryptography , ?query=graphics , ?query=logging , ?query=time%20zone , ?query=compression  (all default ordering: Best Match)",
+          "accessed": "2026-09-18T20:33:10Z..20:34:20Z",
+          "excerpt": "libmicrohttpd | Version: 1.0.5 | GNU libmicrohttpd is a small C library that is supposed to make it easy to run an HTTP server as part of another application ; ggml | Version: 0.11.1 | Tensor library for machine learning ; plutovg | Version: 1.3.3 | Tiny 2D vector graphics library in C ; cctz | Version: 2.5 | two libraries that cooperate with <chrono> to give C++ programmers all the necessary tools for computing with dates, times, and time zones in a simple and correct manner."
+        },
+        {
+          "source": "E3",
+          "detail": "https://api.github.com/repos/microsoft/vcpkg/commits?path=ports/<port>&per_page=1 for every selected port",
+          "accessed": "2026-09-18T20:34:40Z",
+          "excerpt": "libmicrohttpd 2026-05-14 ; json5-parser 2024-09-24 ; sqlitecpp 2025-05-28 ; suitesparse-graphblas 2026-09-15 ; eigen3 2025-12-27 ; ggml 2026-08-28 ; qt5-imageformats 2026-06-12 ; abumq-ripe 2025-12-01 ; plutovg 2026-05-19 ; ng-log 2026-08-31 ; cctz 2025-09-05 ; aws-c-compression 2026-08-31"
+        },
+        {
+          "source": "E1",
+          "detail": "/usr/bin/clang++ -std=c++20 -O2 tz.cpp -o tzbin  (std::chrono::locate_zone probe, frozen C++ recipe)",
+          "accessed": "2026-09-18T20:43:10Z",
+          "excerpt": "tz.cpp:3:35: error: no member named 'locate_zone' in namespace 'std::chrono' / 1 error generated."
+        }
+      ],
+      "reasoning": "N = 11, which is the Broad band (N = 10 or 11), score 80. Not 100: 100 requires all 12 and B09 is uncovered under the frozen procedure. Not 60: that band requires N <= 9 and eleven domains are covered with a named package, version, in-window index publication date and URL each. The single uncovered domain is B09 and it is uncovered for a mechanical reason recorded above, not for lack of searching: the frozen phrase query returns exactly one vcpkg package and its most recent publication of any kind predates the 24-month window. vcpkg is the selected index under index_selection_rule clause (iii): it is published by Microsoft, a maintainer of MSVC, which is listed in C++'s frozen major_implementations. The C++20 chrono time-zone database is not present in this host's Apple libc++ (verified by compilation), so B11 was awarded through the index route and does not depend on the host."
+    },
+    "Rust": {
+      "level": "Complete breadth",
+      "score": 100,
+      "covered_domain_count": 12,
+      "criteria_satisfied": [
+        "B01 crates.io http 1.5.0, updated 2026-07-29, 'A set of types for representing HTTP requests and responses'",
+        "B02 crates.io datafusion-functions-json 0.55.2, 2026-09-14, 'JSON functions for DataFusion' (serde_json 1.0.151, 2026-07-20, recorded as the canonical alternative)",
+        "B03 crates.io gluesql 0.20.0, 2026-08-30, 'GlueSQL - Open source SQL database engine fully written in Rust'",
+        "B04 crates.io graphblas_sparse_linear_algebra 0.63.1, 2026-05-28 (stacked_linear_algebra_graph 0.14.0, 2025-02-06, also in window)",
+        "B05 crates.io mlx-rs 0.32.0, 2026-09-12, 'Unofficial rust wrapper for Apple's mlx machine learning library'",
+        "B06 crates.io image 0.25.10, 2026-03-10, 'Imaging library. Provides basic image processing and encoders/decoders for common image formats'",
+        "B07 crates.io tor-llcrypto 0.46.0, 2026-09-02, 'Low level cryptography wrappers used by Tor'",
+        "B08 crates.io graphics 0.6.7, 2026-08-26, 'A 3D rendering engine for rust programs, with GUI integration'",
+        "B09 crates.io pareg 0.13.0, 2026-08-01, 'Rust library with useful tools for command line argument parsing'",
+        "B10 crates.io logforth 0.30.1, 2026-06-03, 'A versatile and extensible logging implementation'",
+        "B11 crates.io temporal_rs 0.2.6, 2026-08-05 / iana-time-zone 0.1.65, 2026-01-28, 'get the IANA time zone for the current system'",
+        "B12 crates.io oxiarc-deflate 0.4.2, 2026-09-12, 'Pure Rust DEFLATE compression algorithm (RFC 1951)'"
+      ],
+      "criteria_failed": [],
+      "evidence": [
+        {
+          "source": "E4",
+          "detail": "https://crates.io/api/v1/crates?q=<frozen query>&per_page=6 (and per_page=20 for B03), crates.io documented public API, default ordering (relevance)",
+          "accessed": "2026-09-18T20:28:40Z",
+          "excerpt": "{\"name\":\"http\",\"newest_version\":\"1.5.0\",\"updated_at\":\"2026-07-29\",\"description\":\"A set of types for representing HTTP requests and responses.\"}"
+        },
+        {
+          "source": "E4",
+          "detail": "https://crates.io/api/v1/crates?q=sql&per_page=20",
+          "accessed": "2026-09-18T20:29:20Z",
+          "excerpt": "18 gluesql 0.20.0 2026-08-30 GlueSQL - Open source SQL database engine fully written in Rust with pure functional execution layer"
+        },
+        {
+          "source": "E4",
+          "detail": "https://crates.io/api/v1/crates?q=command%20line%20argument%20parsing&per_page=6",
+          "accessed": "2026-09-18T20:28:55Z",
+          "excerpt": "pareg 0.13.0 2026-08-01 Rust library with useful tools for command line argument parsing"
+        },
+        {
+          "source": "E2",
+          "detail": "https://doc.rust-lang.org/cargo/reference/publishing.html (index qualification, clauses (i) and (ii))",
+          "accessed": "2026-09-18T20:39:35Z",
+          "excerpt": "Publishing on crates.io - The Cargo Book"
+        }
+      ],
+      "reasoning": "N = 12, the only band that awards 100. Every domain was resolved with the frozen query against crates.io, the single qualifying index (named by the official Cargo documentation), under the API's default relevance ordering, with a name, version, release date inside the 24-month window and URL recorded. For B03 the first seventeen default-ordered results were query builders, parsers, transpilers or dataframe modules rather than a relational database client, so the first result whose own description states relational SQL database access (gluesql) was taken and the rejections were recorded. Not 80: 80 requires at least one uncovered domain and none is uncovered."
+    },
+    "Go": {
+      "level": "Complete breadth",
+      "score": 100,
+      "covered_domain_count": 12,
+      "criteria_satisfied": [
+        "B01 stdlib net/http",
+        "B02 stdlib encoding/json",
+        "B03 stdlib database/sql",
+        "B04 pkg.go.dev gonum.org/v1/gonum/mat v0.17.0, published 2025-12-29, 'implementations of float64 and complex128 matrix structures and linear algebra operations on them'",
+        "B05 pkg.go.dev github.com/vistone/fingerprint/modules/ml v1.0.28, published 2026-03-17, 'Package ml provides machine learning fingerprint classification functionality'",
+        "B06 stdlib image and image/png",
+        "B07 stdlib crypto/tls",
+        "B08 pkg.go.dev github.com/hajimehoshi/ebiten/v2 v2.10.2, published 2026-09-11, 'provides graphics and input API to develop a 2D game'",
+        "B09 stdlib flag",
+        "B10 stdlib log/slog - 'Package slog provides structured logging'",
+        "B11 stdlib time",
+        "B12 stdlib compress/gzip"
+      ],
+      "criteria_failed": [],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "go doc net/http | encoding/json | database/sql | image | image/png | crypto/tls | flag | log/slog | time | compress/gzip  (go1.26.3 darwin/arm64)",
+          "accessed": "2026-09-18T20:32:05Z",
+          "excerpt": "net/http PRESENT / encoding/json PRESENT / database/sql PRESENT / image PRESENT / image/png PRESENT / crypto/tls PRESENT / flag PRESENT / log/slog PRESENT / time PRESENT / compress/gzip PRESENT"
+        },
+        {
+          "source": "E2",
+          "detail": "go doc log/slog (official documentation shipped with the toolchain under test)",
+          "accessed": "2026-09-18T20:32:05Z",
+          "excerpt": "Package slog provides structured logging, in which log records include a message, a severity level, and various other attributes expressed as key-value pairs."
+        },
+        {
+          "source": "E4",
+          "detail": "https://pkg.go.dev/search?q=linear+algebra , ?q=machine+learning , ?q=graphics  (default ordering)",
+          "accessed": "2026-09-18T20:32:30Z",
+          "excerpt": "mat (gonum.org/v1/gonum/mat) Package mat provides implementations of float64 and complex128 matrix structures and linear algebra operations on them. v0.17.0 published on Dec 29, 2025 ; ebiten (github.com/hajimehoshi/ebiten/v2) Package ebiten provides graphics and input API to develop a 2D game. v2.10.2 published on Sep 11, 2026"
+        },
+        {
+          "source": "E4",
+          "detail": "https://pkg.go.dev/search?q=machine+learning (full default-ordered page, 25 modules)",
+          "accessed": "2026-09-18T20:33:00Z",
+          "excerpt": "ml (github.com/vistone/fingerprint/modules/ml) Package ml provides machine learning fingerprint classification functionality ... v1.0.28 published on Mar 17, 2026"
+        }
+      ],
+      "reasoning": "N = 12, the only band that awards 100. Nine domains are covered by packages of the Go standard library shipped inside go1.26.3 and verified present on this host with `go doc`; the remaining three were resolved through pkg.go.dev, the Go project's own module index, with the frozen query, default ordering and an in-window publication date. For B05 the first two default-ordered results were out of window (gorgonia, 2023) or cloud-service API clients (aws-sdk-go/service/machinelearning), which do not provide machine learning in the language under the interpretation applied to all ten; the first genuine in-window ML library was taken. Not 80: no domain is uncovered."
+    },
+    "Java": {
+      "level": "Broad",
+      "score": 80,
+      "covered_domain_count": 11,
+      "criteria_satisfied": [
+        "B01 stdlib java.net.http.HttpClient (JDK 26.0.1)",
+        "B02 Maven Central org.json:json, latest 20260814, published 2026-08-14, 'JSON is a light-weight, language independent, data interchange format ... implement JSON encoders/decoders in Java'",
+        "B03 stdlib java.sql (JDBC)",
+        "B04 Maven Central io.github.alphameo:linear_algebra 3.0.0, published 2025-01-15, 'A Java Linear Algebra Library'",
+        "B05 Maven Central org.neo4j.gds:machine-learning-algorithms 2026.08.1, published 2026-09-10, 'Neo4j Graph Data Science :: Machine Learning Applications'",
+        "B06 stdlib javax.imageio.ImageIO",
+        "B07 stdlib javax.crypto and javax.net.ssl",
+        "B08 stdlib java.awt / javax.swing",
+        "B10 stdlib java.util.logging",
+        "B11 stdlib java.time (ZoneId, IANA zones)",
+        "B12 stdlib java.util.zip (GZIPOutputStream)"
+      ],
+      "criteria_failed": [
+        "B09 Command-line argument parsing - NOT COVERED. The Java SE 26 API has no argument-parsing facility, and the frozen query returned zero results on Maven Central, the selected qualifying index. frozen_query_list.no_second_query forbids retrying with a different string."
+      ],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "/opt/homebrew/opt/openjdk/libexec/openjdk.jdk/Contents/Home/bin/javac -d out J.java && java -cp out J  (javac 26.0.1, frozen Java recipe)",
+          "accessed": "2026-09-18T20:41:05Z",
+          "excerpt": "true / Asia/Tokyo / AES / x / true / javax.swing.JFrame / java.sql.DriverManager / java.util.zip.GZIPOutputStream"
+        },
+        {
+          "source": "E4",
+          "detail": "https://central.sonatype.com/search?q=command+line+argument+parsing  (Maven Central's own search UI, default ordering: Best Match)",
+          "accessed": "2026-09-18T20:44:20Z",
+          "excerpt": "Search Results for com... Sort by: Best Match. Showing 0 results out of the 884469 available packages"
+        },
+        {
+          "source": "E4",
+          "detail": "POST https://central.sonatype.com/api/internal/browse/components {\"page\":0,\"size\":20,\"searchTerm\":\"<frozen query>\"} for all twelve frozen queries; release dates from https://repo1.maven.org/maven2/<path>/maven-metadata.xml lastUpdated",
+          "accessed": "2026-09-18T20:36:20Z..20:37:40Z",
+          "excerpt": "org.json:json 20260814 v=20260814 JSON is a light-weight, language independent, data interchange format ; org.neo4j.gds:machine-learning-algorithms 20260910 v=2026.08.1 Neo4j Graph Data Science :: Machine Learning Applications ; io.github.alphameo:linear_algebra 20250115 v=3.0.0 A Java Linear Algebra Library"
+        },
+        {
+          "source": "E2",
+          "detail": "https://dev.java/learn/ (Oracle's official Java learning documentation, linked as 'Java Tutorials' from the JDK 26 Documentation Home at https://docs.oracle.com/en/java/javase/26/, which is inside Java's frozen official_docs_root) - index qualification clause (ii), the index is the default remote of a package manager the official documentation names",
+          "accessed": "2026-09-18T20:43:40Z",
+          "excerpt": "Oracle Java Platform extension enables you to develop your Maven and Gradle Java project in Visual Studio Code"
+        },
+        {
+          "source": "E2",
+          "detail": "https://maven.apache.org/guides/introduction/introduction-to-repositories.html (establishing that Maven Central is Maven's default remote)",
+          "accessed": "2026-09-18T20:44:00Z",
+          "excerpt": "By default, Maven will download from the central repository."
+        }
+      ],
+      "reasoning": "N = 11, the Broad band (N = 10 or 11), score 80. Eight domains are covered by Java SE modules shipped inside the JDK 26.0.1 toolchain under test and verified by compiling and running a probe on this host; three more were resolved through Maven Central. Not 100: B09 is uncovered, because Maven Central's own default search returns zero results for the frozen phrase and the JDK ships no argument parser. Not 60: that band requires N <= 9 and eleven domains carry named evidence with in-window dates. This is a mechanical outcome of the frozen single-query rule rather than a claim about the Java ecosystem's real contents; see limitations."
+    },
+    "TypeScript": {
+      "level": "Complete breadth",
+      "score": 100,
+      "covered_domain_count": 12,
+      "criteria_satisfied": [
+        "B01 Node core module http/https (toolchain under test: tsc 7.0.2 + node v24.2.0)",
+        "B02 npm parse-json 8.3.0, published 2025-04-09, 'Parse JSON with more helpful errors' (also Node core JSON)",
+        "B03 Node core module node:sqlite (present in node v24.2.0); npm @google-cloud/sql 0.28.0, 2026-09-08, 'Sql client for Node.js' recorded as the index-route alternative",
+        "B04 npm matrixflow-js 3.2.2, published 2026-08-25, 'Dense matrix computation and linear algebra for JavaScript'",
+        "B05 npm @tensorflow/tfjs 4.22.0, published 2024-10-21, 'An open-source machine learning framework'",
+        "B06 npm image-size 2.0.4, published 2026-09-14, 'get dimensions of any image file' (expo-image-loader 57.0.1, 2026-07-15, 'Image loader', recorded as alternative)",
+        "B07 npm elliptic 6.6.1, published 2024-11-13, 'EC cryptography' (also Node core crypto)",
+        "B08 npm @univerjs/sheets-graphics 0.25.2, published 2026-09-17, 'In-cell graphics rendering support for Univer Sheets'",
+        "B09 Node core util.parseArgs (verified present); npm commander 15.0.0, 2026-05-29, 'the complete solution for node.js command-line programs'",
+        "B10 npm logging 4.2.0, published 2025-06-08, 'Lightweight informative modern console logging'",
+        "B11 npm date-fns-tz 3.2.0, published 2024-09-30, 'Time zone support for date-fns v3 with the Intl API'",
+        "B12 npm compression 1.8.2, published 2026-09-11, 'Node.js compression middleware' (also Node core zlib)"
+      ],
+      "criteria_failed": [],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "/opt/homebrew/bin/node -e \"require('http'); require('node:sqlite'); require('zlib'); require('crypto'); typeof require('util').parseArgs; new Intl.DateTimeFormat('en',{timeZone:'Asia/Tokyo'})\"  (node v24.2.0)",
+          "accessed": "2026-09-18T20:30:20Z",
+          "excerpt": "v24.2.0 / OK http / OK https / OK node:sqlite / OK zlib / OK crypto / OK util / parseArgs: function / Intl tz: 1/1/1970"
+        },
+        {
+          "source": "E4",
+          "detail": "https://registry.npmjs.org/-/v1/search?text=<frozen query>&size=6 (and size=20 for B03), npm registry's documented public search API, default ordering",
+          "accessed": "2026-09-18T20:30:05Z",
+          "excerpt": "http-proxy-agent 9.1.0 2026-06-08 An HTTP(s) proxy `http.Agent` implementation for HTTP ; matrixflow-js 3.2.2 2026-08-25 Dense matrix computation and linear algebra for JavaScript ; @tensorflow/tfjs 4.22.0 2024-10-21 An open-source machine learning framework."
+        },
+        {
+          "source": "E4",
+          "detail": "https://registry.npmjs.org/-/v1/search?text=sql&size=20",
+          "accessed": "2026-09-18T20:30:25Z",
+          "excerpt": "7 @google-cloud/sql 0.28.0 2026-09-08 Sql client for Node.js"
+        },
+        {
+          "source": "E4",
+          "detail": "https://registry.npmjs.org/-/v1/search?text=command%20line%20argument%20parsing&size=6",
+          "accessed": "2026-09-18T20:30:10Z",
+          "excerpt": "@fynjs/cli-args 1.1.3 2026-09-18 (EXCLUDED: published after the 2026-09-17 evidence cutoff) ... commander 15.0.0 2026-05-29 the complete solution for node.js command-line programs"
+        }
+      ],
+      "reasoning": "N = 12, the only band that awards 100. The npm registry is the selected qualifying index: npm, Inc. is itself a member of TypeScript's frozen official_project_set and docs.npmjs.com is in its official_docs_root. Every domain has either a Node core module shipped inside the toolchain under test or a named npm package with version, publication date inside the 24-month window and URL. One result (@fynjs/cli-args, 2026-09-18) was excluded for publishing after the evidence cutoff and the next qualifying default-ordered result was taken. Not 80: no domain is uncovered."
+    },
+    "Kotlin": {
+      "level": "Broad",
+      "score": 80,
+      "covered_domain_count": 11,
+      "criteria_satisfied": [
+        "B01 Maven Central org.thepalaceproject.http:org.librarysimplified.http.api 2.6.0, published 2026-09-08, 'Library Simplified HTTP client (API)'",
+        "B02 Maven Central org.json:json 20260814, published 2026-08-14, JSON encoders/decoders",
+        "B03 Maven Central com.google.cloud.sql:cloud-sql-connector-jdbc-sqlserver 1.30.0, published 2026-08-24, 'Socket factory for the Microsoft JDBC Driver for SQL Server'",
+        "B04 Maven Central dev.lounres:kone.linearAlgebra-jvm, published 2026-09-14, 'Set of libraries for experimental mathematics' (io.github.alphameo:linear_algebra 3.0.0, 2025-01-15, recorded as alternative)",
+        "B05 Maven Central org.neo4j.gds:machine-learning-algorithms 2026.08.1, published 2026-09-10",
+        "B06 Maven Central org.lucee:image 3.1.0.11-RC, published 2026-08-07, 'Implementation of the Image functions and cfimage tag'",
+        "B07 Maven Central dev.whyoleg.cryptography:cryptography-provider-base-jvm 0.6.0, published 2026-04-02, 'cryptography-kotlin base provider'",
+        "B08 Maven Central dev.icerock.moko:graphics 0.10.2, published 2026-08-31, 'Graphics primitives for mobile (android & ios) Kotlin Multiplatform development'",
+        "B10 Maven Central org.jboss.logging:jboss-logging 3.6.3.Final, published 2026-03-17, 'The JBoss Logging Framework'",
+        "B11 Maven Central org.jetbrains.kotlinx:kotlinx-datetime-zoneinfo, published 2026-09-15",
+        "B12 Maven Central org.neo4j.gds:compression 2026.05.0, published 2026-05-28, 'Neo4j Graph Data Science :: Compression'"
+      ],
+      "criteria_failed": [
+        "B09 Command-line argument parsing - NOT COVERED. The Kotlin standard library shipped in the kotlinc-jvm 2.3.21 distribution has no argument-parsing facility, and the frozen query returned zero results on Maven Central, the selected qualifying index."
+      ],
+      "evidence": [
+        {
+          "source": "E4",
+          "detail": "https://central.sonatype.com/search?q=command+line+argument+parsing  (default ordering: Best Match)",
+          "accessed": "2026-09-18T20:44:20Z",
+          "excerpt": "Showing 0 results out of the 884469 available packages"
+        },
+        {
+          "source": "E4",
+          "detail": "POST https://central.sonatype.com/api/internal/browse/components for all twelve frozen queries; publication dates from https://repo1.maven.org/maven2/<path>/maven-metadata.xml lastUpdated",
+          "accessed": "2026-09-18T20:36:20Z..20:37:40Z",
+          "excerpt": "org.thepalaceproject.http:org.librarysimplified.http.api 20260908 v=2.6.0 Library Simplified HTTP client (API) ; dev.icerock.moko:graphics 20260831 v=0.10.2 Graphics primitives for mobile (android & ios) Kotlin Multiplatform development ; org.jetbrains.kotlinx:kotlinx-datetime-zoneinfo 20260915"
+        },
+        {
+          "source": "E2",
+          "detail": "https://kotlinlang.org/docs/gradle-configure-project.html (index qualification clause (i)/(ii): Kotlin's official documentation names Maven Central)",
+          "accessed": "2026-09-18T20:39:40Z",
+          "excerpt": "In the repositories{} block, set the name of the repository: repositories { mavenCentral() } ... Popular repositories are Maven Central and Google's Maven repository"
+        },
+        {
+          "source": "E1",
+          "detail": "ls /opt/homebrew/Cellar/kotlin/*/libexec/lib/  (contents of the kotlinc-jvm 2.3.21 distribution under test)",
+          "accessed": "2026-09-18T20:41:50Z",
+          "excerpt": "kotlin-compiler.jar / kotlin-reflect.jar / kotlin-annotations-jvm.jar / kotlin-metadata-jvm.jar / kotlin-daemon.jar / kotlin-main-kts.jar (no argument-parsing library)"
+        }
+      ],
+      "reasoning": "N = 11, the Broad band, score 80. The Kotlin standard library shipped in the kotlinc distribution covers none of the twelve domains by itself, so eleven were resolved through Maven Central, the single qualifying index named by kotlinlang.org, each with group:artifact, version, in-window publication date and URL. Not 100: B09 is uncovered because Maven Central's own default search returns zero results for the frozen phrase. Not 60: eleven domains carry named, dated evidence. Kotlin and Java receive the same level because they were searched in the same index with the same twelve strings and the same domain failed; note that the verdict does not turn on whether java.* counts as shipped inside the Kotlin distribution, because the JDK also has no argument parser."
+    },
+    "Swift": {
+      "level": "Complete breadth",
+      "score": 100,
+      "covered_domain_count": 12,
+      "criteria_satisfied": [
+        "B01 Foundation URLSession (Swift core library, importable under the frozen swiftc recipe)",
+        "B02 Foundation JSONSerialization / Codable",
+        "B03 Swift Package Index groue/GRDB.swift, 'A toolkit for SQLite databases, with a focus on application development', active about 1 month before accession",
+        "B04 Swift Package Index computer-graphics-tools/simd-tools 0.0.4, latest release 8 months before accession, 'utility functions and extensions for working with SIMD matrices and vectors in Swift'",
+        "B05 Swift Package Index pytorch/executorch, 'On-device AI across mobile, embedded and edge for PyTorch', active 1 hour before accession",
+        "B06 Swift Package Index onevcat/Kingfisher, 'A lightweight, pure-Swift library for downloading and caching images from the web', active 3 days before accession",
+        "B07 Swift Package Index apple/swift-crypto, 'Open-source implementation of a substantial portion of the API of Apple CryptoKit', active 2 days before accession",
+        "B08 Swift Package Index swhitty/SwiftDraw, 'Native SVG parser and renderer for SwiftUI, UIKit and AppKit', active 23 days before accession",
+        "B09 Swift Package Index apple/swift-argument-parser 1.8.2, latest release 3 months before accession, 'Straightforward, type-safe argument parsing for Swift'",
+        "B10 Swift Package Index CocoaLumberjack/CocoaLumberjack, 'A fast & simple, yet powerful & flexible logging framework', active 2 days before accession",
+        "B11 Foundation TimeZone (IANA identifiers)",
+        "B12 Swift Package Index facebook/zstd, 'Zstandard - Fast real-time compression algorithm', active 4 hours before accession"
+      ],
+      "criteria_failed": [],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "/usr/bin/swiftc -O f.swift -o fbin && ./fbin  (Apple Swift 6.2.3, frozen Swift recipe; imports Foundation only)",
+          "accessed": "2026-09-18T20:40:40Z",
+          "excerpt": "{\"a\":1} Asia/Tokyo __NSURLSessionLocal"
+        },
+        {
+          "source": "E4",
+          "detail": "https://swiftpackageindex.com/search?query=<frozen query> for all twelve frozen queries (default ordering)",
+          "accessed": "2026-09-18T20:35:10Z..20:35:50Z",
+          "excerpt": "GRDB A toolkit for SQLite databases, with a focus on application development ; swift-argument-parser Straightforward, type-safe argument parsing for Swift apple/swift-argument-parser Active 1 day ago ; zstd Zstandard - Fast real-time compression algorithm"
+        },
+        {
+          "source": "E4",
+          "detail": "https://swiftpackageindex.com/computer-graphics-tools/simd-tools and https://swiftpackageindex.com/apple/swift-argument-parser (package pages, release dates)",
+          "accessed": "2026-09-18T20:42:40Z",
+          "excerpt": "0.0.4 Latest Release Released 8 months ago ; 1.8.2 Latest Release Released 3 months ago"
+        },
+        {
+          "source": "E2",
+          "detail": "https://www.swift.org/packages/ (index qualification clause (i): referenced by a member of Swift's official_project_set in official documentation)",
+          "accessed": "2026-09-18T20:33:50Z",
+          "excerpt": "There are thousands more packages to browse at the Swift Package Index"
+        }
+      ],
+      "reasoning": "N = 12, the only band that awards 100. Two domains (B02, B11) and B01 are covered by Foundation, a Swift core library importable under the frozen swiftc recipe with no dependency declaration, verified by compiling and running a probe on this host; the other nine were resolved through the Swift Package Index, which swift.org itself points readers to. For B04 the first default-ordered result (LASwift) was three years stale and the second (Numerix) has no published release at all, so the first result with both an in-window published release and a matrix/vector description was taken and the rejections recorded. Not 80: no domain is uncovered. Apple platform frameworks that are not Swift core libraries (CoreML, Accelerate, Metal, CryptoKit, os.Logger, the Compression framework) were deliberately NOT counted as standard library, under the same rule that excluded macOS SDK C libraries from C++'s standard-library route; Swift reaches 12 without them."
+    },
+    "Zig": {
+      "level": "Partial",
+      "score": 40,
+      "covered_domain_count": 6,
+      "criteria_satisfied": [
+        "B01 std.http - std/http/Client.zig and std/http/Server.zig shipped in zig 0.16.0",
+        "B02 std.json",
+        "B07 std.crypto (including std.crypto.tls)",
+        "B10 std.log - 'a standardized interface for logging'",
+        "B11 std.tz - 'The Time Zone Information Format (TZif), RFC 8536'",
+        "B12 std.compress - flate, lzma, lzma2, xz, zstd"
+      ],
+      "criteria_failed": [
+        "B03 Relational database client/driver (SQL) - no standard-library module",
+        "B04 Numerical computing / linear algebra - std.math contains no matrix or linear-algebra facility (grep for 'matrix' over std/math returns nothing); @Vector and std.simd are SIMD primitives, not a linear-algebra library",
+        "B05 Machine learning or neural networks - no standard-library module",
+        "B06 Image loading/processing - no standard-library module (no image/png/jpeg/draw entry in std)",
+        "B08 GUI or 2D/3D graphics rendering - std.gpu supplies SPIR-V shader built-ins (position_in, frag_coord, ExecutionMode) for authoring GPU kernels; it does not render, and there is no GUI or rendering module",
+        "B09 Command-line argument parsing - std.process.Args is an argument ITERATOR only; the standard library contains no flag/option/subcommand parser",
+        "No qualifying package index exists for Zig at the evidence cutoff, so step (2) of the fixed search procedure could not be executed for any of the six uncovered domains"
+      ],
+      "evidence": [
+        {
+          "source": "E1",
+          "detail": "zig env; ls /opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std/ ; ls std/compress ; ls std/math ; ls std/process ; grep -ril matrix std/math",
+          "accessed": "2026-09-18T20:34:55Z",
+          "excerpt": "std_dir = \"/opt/homebrew/Cellar/zig/0.16.0_1/lib/zig/std\" ; http.zig json.zig crypto.zig log.zig tz.zig compress/ (flate lzma lzma2 xz zstd) ; std/process: Args.zig Child.zig Environ.zig Preopens.zig ; grep matrix over std/math: (no matches) ; (no image/png/jpeg/gui module in std)"
+        },
+        {
+          "source": "E2",
+          "detail": "zig 0.16.0 standard-library source doc comments (documentation shipped with the toolchain under test): std/log.zig, std/tz.zig, std/http.zig, std/gpu.zig",
+          "accessed": "2026-09-18T20:35:05Z",
+          "excerpt": "std.log is a standardized interface for logging which allows for the logging of programs and libraries using this interface to be formatted and filtered ; //! The Time Zone Information Format (TZif) https://datatracker.ietf.org/doc/html/rfc8536 ; pub const Client = @import(\"http/Client.zig\"); pub const Server = @import(\"http/Server.zig\");"
+        },
+        {
+          "source": "E1",
+          "detail": "zig fetch --help (zig 0.16.0)",
+          "accessed": "2026-09-18T20:33:30Z",
+          "excerpt": "Usage: zig fetch [options] <url> ... <url> must point to one of the following: - A git+http / git+https server for the package - A tarball file ... - A git bundle file containing package source"
+        },
+        {
+          "source": "E2",
+          "detail": "https://ziglang.org/learn/overview/ and https://ziglang.org/documentation/0.16.0/ (searched for any named package registry or index)",
+          "accessed": "2026-09-18T20:33:35Z",
+          "excerpt": "Zig Build System and Package Manager - Zig comes with a build system, so you don't need a separate tool to orchestrate your build process. $ zig init info: created build.zig info: created build.zig.zon (no registry, index or default remote is named anywhere in the official documentation)"
+        }
+      ],
+      "reasoning": "N = 6, which falls in the Partial band (4 <= N <= 6), score 40. Not 60: that band requires N >= 7 and only six domains are covered. Not 20: that band requires N <= 3 and six standard-library modules were located in the toolchain under test and confirmed by reading the shipped source and its official doc comments. Zig has a package manager but no package index: `zig fetch` takes a URL, a git server or a tarball, and neither ziglang.org's documentation nor its learn pages name a registry, index or default remote, so no index satisfies any of the three index_selection_rule qualification clauses and only standard-library coverage can satisfy a domain. B08 was scored as uncovered because std.gpu provides shader-authoring built-ins rather than a rendering or GUI library; this is the single judgement call in Zig's record and it is disclosed in limitations. B09 was scored as uncovered because std.process.Args iterates raw arguments without parsing options, flags or subcommands."
+    }
+  },
+  "cross_language_consistency_note": "The same level means the same thing for all ten because the level is a pure function of N, and N was produced by one identical procedure. (1) The same twelve frozen domains and the same twelve frozen query strings were issued, verbatim, in the same B01..B12 order, exactly once per domain per language, for all ten; no synonym, retry or language-specific string was used anywhere. (2) The same two-step order was applied everywhere: the shipped standard library first, the single qualifying package index second. (3) The same clause-(a) definition of 'standard library' was applied to all ten - modules the language's own official documentation presents as its standard or core library AND importable under the frozen build recipe with no dependency declaration - which is what keeps C++ and Swift comparable on a macOS host, since it excludes macOS SDK C libraries from C++ and Apple platform frameworks (CoreML, Accelerate, Metal, CryptoKit, os.Logger, Compression) from Swift alike. (4) The same 24-month window, ending at the 2026-09-17 cutoff, was applied to every index result, and results published after the cutoff were excluded for every language (this excluded one npm package for TypeScript). (5) The same three domain-reading decisions were fixed before scoring and applied to all ten: cloud-service SDK clients do not satisfy B05 (this cost Go, Java and Kotlin their top default-ordered results), parsers/formatters/query-builders do not satisfy B01 or B03 (this cost C++, Rust, TypeScript, Java and Kotlin their top results), and B10 is read as the logging domain its frozen provenance mapping names rather than requiring the literal word 'structured' (which is what lets Zig's std.log count, and would not have changed any other language's N). (6) The re-read across the ten assignments confirms the two required invariants. No two languages with the same observable evidence got different levels: Java and Kotlin were searched in the same index with the same strings, the same single domain (B09) failed for both, and both are 11/80; Zig and Quidra both have a standard library and no qualifying package index, both cover exactly six domains, and both are 6/40; Python, Rust, Go, TypeScript and Swift each cover all twelve and are all 100. No two languages with clearly different evidence got the same level: C++, Java and Kotlin sit at 11 while the five 12s sit above them, and the separation in every case is a domain that is genuinely uncovered under the frozen procedure and is named, with its rejected candidates and their dates, in that language's record. (7) Quidra was examined last, after all nine other records were written, and nothing about the procedure was decided or revised after seeing it.",
+  "limitations": [
+    "Evidence was accessed on 2026-09-18, one day after the frozen 2026-09-17 evidence cutoff. Two index entries dated after the cutoff were found and explicitly excluded (@fynjs/cli-args 1.1.3, npm, 2026-09-18 for TypeScript B09; software.amazon.awssdk:machinelearning 2.55.0, Maven Central, 2026-09-17 was in-window but rejected on other grounds). All other recorded artifacts predate the cutoff. Index result ORDERINGS, however, were observed one day after the cutoff and may differ marginally from an ordering observed on 2026-09-17; this affects all ten languages identically.",
+    "B09 for C++, Java and Kotlin is the single most consequential finding and an auditor must understand its cause. It is not a claim that those ecosystems lack command-line argument parsers - they plainly contain picocli, CLI11, clipp, clap-like libraries and many others. It is the mechanical result of frozen_query_list: the frozen string is the full phrase 'command line argument parsing', frozen_query_list.no_second_query forbids any retry, and Maven Central's own default search returns literally zero results for that phrase while vcpkg's returns exactly one package whose most recent publication of any kind (2024-07-16 index entry, 2023-08-08 upstream release) falls outside the 24-month window. The same phrase DOES return qualifying results on crates.io, npm, the Swift Package Index and PyPI, and Python, Go, TypeScript and Quidra satisfy B09 from their standard libraries. Scored strictly as written, this costs C++, Java and Kotlin 20 points each. Nothing in the frozen document permits rephrasing the query at scoring time.",
+    "Zig B08 rests on one judgement: std.gpu ships SPIR-V shader built-ins but no renderer or GUI, and was scored as not covering 'Graphical user interface or 2D/3D graphics rendering'. Reading it the other way would make Zig N=7 and move it from 40 to 60. The reading applied is that a domain is covered by a library that performs the named capability, which is the same reading that rejected format parsers for B01/B03 in five other languages.",
+    "vcpkg (C++) does not publish per-package release dates on vcpkg.io, so the in-window date recorded for every C++ package is the last publication date of that port's entry in the official microsoft/vcpkg repository, obtained from the GitHub commits API and labelled as such. Every other index publishes a release or version date directly. The C++ verdict does not depend on this substitution: the one decisive package (arg-router) is out of window under both its index-entry date and its upstream release date.",
+    "The Swift Package Index search page displays repository activity recency ('Active N ago') rather than release dates, so for Swift the activity recency shown in the search result is recorded, and the package pages were opened to obtain explicit 'Latest Release / Released N ago' dates for the two packages where recency was near the window edge or where release existence was in doubt (simd-tools 0.0.4, swift-argument-parser 1.8.2; Numerix was rejected for having no published release at all). Exact calendar release dates for the remaining Swift packages could not be obtained because the GitHub releases API rate-limited this host during collection; all of them showed activity within days or weeks, far inside the window.",
+    "GitHub API rate limiting also prevented independent upstream release-date confirmation for the Swift selections listed above. No other language depended on that API except C++, whose port-date queries completed before the limit was reached.",
+    "Maven Central's browse API (POST /api/internal/browse/components) was used for the twelve Java/Kotlin queries because search.maven.org's Solr endpoint returned empty responses from this host; the zero-result verdict for B09 was independently confirmed in Maven Central's own web UI, which reported 'Showing 0 results out of the 884469 available packages' with its default 'Best Match' ordering.",
+    "PyPI's search endpoint returns a bot-challenge page to curl from this host, so Python's four index queries were issued through the desktop app's browser pane against the same pypi.org/search URLs with PyPI's default relevance ordering. The rendered page was in Japanese (the browser profile's locale); dates are recorded in the ISO form of the displayed Japanese dates.",
+    "Java's index qualification rests on clause (ii) rather than a direct reference: no page inside Java's frozen official_docs_root (openjdk.org, docs.oracle.com/en/java/javase/) was found to name Maven Central. The chain used is that the JDK 26 Documentation Home at docs.oracle.com/en/java/javase/26/ links 'Java Tutorials' to Oracle's dev.java, which names Maven as the build tool, and Apache Maven's own documentation states 'By default, Maven will download from the central repository.' An auditor who rejects that chain would leave Java with no qualifying index, dropping it to standard-library-only coverage of 8 domains and a score of 60. Kotlin is unaffected: kotlinlang.org names mavenCentral() directly.",
+    "For Quidra, no capability was scored from documentation alone: every one of the twelve domains was probed by executing `quidra check` on a source file on this host, and both the six passes and the five named absence failures (sql, crypto, gui, log, compress) are recorded with their compiler diagnostics."
+  ]
+}

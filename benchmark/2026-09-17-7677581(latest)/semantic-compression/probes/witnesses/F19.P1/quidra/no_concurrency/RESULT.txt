@@ -1,0 +1,18 @@
+Refutation witness for F19.P1/F19.P2 (Quidra 0.2.0): attempts to reach any standard
+concurrency or asynchronous facility. Every attempt is rejected by the frontend.
+
+  thread.spawn(f)        -> error[UNKNOWN_NAME] Unknown name 'thread'.
+  auto t = task.run(f)   -> error[UNKNOWN_NAME] Unknown name 'task'.
+  concurrent.run(f)      -> error[UNKNOWN_NAME] Unknown name 'concurrent'.
+  process.thread(f)      -> error[UNKNOWN_MODULE_MEMBER] Module 'process' has no exported callable 'thread'.
+  async int f()          -> error[PARSE_ERROR] Expected newline after binding.
+  await f()              -> error[PARSE_ERROR] Expected a block indented by four spaces.
+
+The 18 standard namespaces (math, cli, file, environment, test, time, random, process,
+map, set, json, http, stats, linear, signal, image, tensor, neural) contain no thread,
+task, future, channel, lock or atomic facility. `process.run(program, args)` launches an
+external executable and blocks until it completes, returning process.Result; it provides
+no way to start a unit and join it later, so it is not a concurrency facility.
+
+docs/spec/language.md, "Implementation scope": "Concurrency, WASM, self-hosting, broader
+signal-processing APIs, and broader package distribution remain development areas."

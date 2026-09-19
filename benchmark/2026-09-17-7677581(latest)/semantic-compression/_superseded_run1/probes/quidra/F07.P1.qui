@@ -1,0 +1,8 @@
+int32 a = 6
+int32 b = 7
+int32 c = 5
+// BEGIN PROBE F07.P1
+int32 r = a * b + c
+// END PROBE F07.P1
+
+print(r)

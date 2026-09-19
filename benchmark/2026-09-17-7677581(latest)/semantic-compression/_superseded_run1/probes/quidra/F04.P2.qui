@@ -1,0 +1,8 @@
+int first_through_view()
+    int[] xs = [1, 2, 3]
+    // BEGIN PROBE F04.P2
+    const int[] &v = &xs
+    return v[0]
+    // END PROBE F04.P2
+
+print(first_through_view())

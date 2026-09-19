@@ -1,0 +1,185 @@
+{
+ "probe_id": "F18.P2",
+ "language": "go",
+ "count": 28,
+ "tokens": [
+  {
+   "tag": "KW",
+   "text": "func",
+   "line": 1,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "PubAdd",
+   "line": 1,
+   "col": 6
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 1,
+   "col": 12
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 1,
+   "col": 13
+  },
+  {
+   "tag": "DELIM",
+   "text": ",",
+   "line": 1,
+   "col": 14
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 1,
+   "col": 16
+  },
+  {
+   "tag": "IDENT",
+   "text": "int32",
+   "line": 1,
+   "col": 18
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 1,
+   "col": 23
+  },
+  {
+   "tag": "IDENT",
+   "text": "int32",
+   "line": 1,
+   "col": 25
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 1,
+   "col": 31
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 1,
+   "col": 33
+  },
+  {
+   "tag": "IDENT",
+   "text": "a",
+   "line": 1,
+   "col": 40
+  },
+  {
+   "tag": "OP",
+   "text": "+",
+   "line": 1,
+   "col": 42
+  },
+  {
+   "tag": "IDENT",
+   "text": "b",
+   "line": 1,
+   "col": 44
+  },
+  {
+   "tag": "OP",
+   "text": "+",
+   "line": 1,
+   "col": 46
+  },
+  {
+   "tag": "IDENT",
+   "text": "secret",
+   "line": 1,
+   "col": 48
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 1,
+   "col": 54
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 1,
+   "col": 55
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 1,
+   "col": 57
+  },
+  {
+   "tag": "KW",
+   "text": "func",
+   "line": 3,
+   "col": 1
+  },
+  {
+   "tag": "IDENT",
+   "text": "secret",
+   "line": 3,
+   "col": 6
+  },
+  {
+   "tag": "DELIM",
+   "text": "(",
+   "line": 3,
+   "col": 12
+  },
+  {
+   "tag": "DELIM",
+   "text": ")",
+   "line": 3,
+   "col": 13
+  },
+  {
+   "tag": "IDENT",
+   "text": "int32",
+   "line": 3,
+   "col": 15
+  },
+  {
+   "tag": "DELIM",
+   "text": "{",
+   "line": 3,
+   "col": 21
+  },
+  {
+   "tag": "KW",
+   "text": "return",
+   "line": 3,
+   "col": 23
+  },
+  {
+   "tag": "NUM",
+   "text": "1",
+   "line": 3,
+   "col": 30
+  },
+  {
+   "tag": "DELIM",
+   "text": "}",
+   "line": 3,
+   "col": 32
+  }
+ ],
+ "class_histogram": {
+  "KW": 4,
+  "IDENT": 10,
+  "DELIM": 11,
+  "OP": 2,
+  "NUM": 1
+ },
+ "removed_by_R4": [],
+ "profile_sha256": "cf1c11b31beed28abaebe0e30ee9a6e2b5e637717a266ed24b9467e35c71b140",
+ "script_sha256": "be1736fe91b53e9a8ec51016f54cfa4b64f83af288e8efc33e4fbdd55f92e938"
+}

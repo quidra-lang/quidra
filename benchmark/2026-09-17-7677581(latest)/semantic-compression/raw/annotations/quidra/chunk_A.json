@@ -1,0 +1,1802 @@
+{
+ "language": "Quidra",
+ "language_key": "quidra",
+ "chunk": "A",
+ "probes": [
+  {
+   "probe_id": "F01.P1",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "FULL",
+   "support_reason": "F-1: both numbered sub-requirements are delivered - (1) `const int n = 7` is Quidra's form for a binding that can never be reassigned (grammar.ebnf `binding = [ \"const\" ], type, ...`), and (2) `return n` produces `n` from the enclosing function whose declared result is the same `int` type. F-2: only documented language features (const value binding, `int`, `return`). F-3: builds and runs unmodified under the frozen semantic_compression recipe `quidra build FILE.qui -o BIN` / `./BIN`, printing 7 (and identically under `quidra run`). F-4: no third-party package, no code generation, no flag beyond the frozen recipe. F-6: no sentence in the Quidra reference places `const` bindings or `return` under a normative prohibition or deprecation.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F01.P1.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "7",
+    "diagnostics": ""
+   },
+   "token_count": 7,
+   "facts": [
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "const int n",
+     "value": "named addressable storage (case (i)), not a temporary",
+     "locally_recoverable": true,
+     "justification": "language.md 'Addresses, references, and const authority': 'For addressable storage `x`, `x` denotes its value and `&x` denotes its storage address.' A `binding` (grammar.ebnf line `binding = [ \"const\" ], type, [ \"&\" ], identifier, ...`) introduces such storage; the form carries no `&`, so `n` is not a handle to storage owned elsewhere."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "const",
+     "value": "immutable: `n` can never be reassigned, and no writable path to it can be created",
+     "locally_recoverable": true,
+     "justification": "language.md: 'const removes write authority through that binding/reference path' and 'Authority may be reduced from a writable path to a const path, but cannot be recovered through the weaker path.' Verified: `n = 8` -> error[WRITE_CAPABILITY]; `int &w = &n` -> error[REFERENCE_BINDING]."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "const int n",
+     "value": "no alias exists and no writable alias can ever be created: an alias requires a written `&`, and `const` cannot be promoted to a writable path",
+     "locally_recoverable": true,
+     "justification": "language.md 'Addresses, references, and const authority': 'Quidra uses `&` consistently for safe storage addresses ... Quidra has no `*` dereference operator', and grammar.ebnf `binding = [ \"const\" ], type, [ \"&\" ], identifier, [ \"=\", [ \"&\" ], expression ]` makes the `&` mandatory in both the declarator and the initializer. No `&` is written here, so no alias exists and none can arise inside the fragment. This is an absence fact entailed by a universal rule (methodology 02 s1.4 clause (ii)), on the same basis as the frozen Go worked ledger's K03 row at s6.2 ('no alias can exist without a visible `&` - entailed by a universal rule, so it survives the absence-facts test'). Additionally verified: `int &w = &n` -> error[REFERENCE_BINDING]."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "const int n = 7",
+     "value": "definitely initialized with the value 7 at the declaration",
+     "locally_recoverable": true,
+     "justification": "grammar.ebnf static constraints: 'const value bindings require initialization'. The initializer is present in the fragment, so the state is fixed by the local form."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int",
+     "value": "signed 64-bit two's-complement integer",
+     "locally_recoverable": true,
+     "justification": "language.md 'Types': '`int` and `int64` are the same signed 64-bit type.' The annotation is written in the fragment, so no inference is needed."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "= 7",
+     "value": "no conversion occurs: the literal is an ordinary `int` literal and the destination is `int`",
+     "locally_recoverable": true,
+     "justification": "numeric-and-bytes.md: integer literals 'are ordinary `int` literals unless an expected numeric type can represent the literal exactly', and 'Implicit numeric conversion is permitted only when every value of the source type is exactly representable by the destination type.' Source and destination types are identical, so no conversion is applied."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "const int n = 7",
+     "value": "no allocation and no managed ownership: `int` is a direct scalar value, so the binding owns direct scalar storage and no retain/release applies",
+     "locally_recoverable": true,
+     "justification": "architecture.md 'Runtime representation and lifetime policy': 'direct scalar values copy directly'; 'Heap-backed runtime values use deterministic managed ownership with explicit retain/release operations' - which an `int` is not. Value narrowed to the allocation/ownership disposition so that the S2 initialization row below is not a DUP under A3.3."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "const int n",
+     "value": "storage lives for the enclosing lexical scope and no cleanup runs at scope exit (scalar, not a managed value)",
+     "locally_recoverable": true,
+     "justification": "architecture.md value-storage policy (scalars are direct values, not heap-backed managed values) together with language.md 'Blocks use four spaces per indentation level; ... A dedent closes a block.' Quidra exposes no user-visible destructor or finalizer in any construct, so the absence of cleanup is entailed by a universal rule."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return n",
+     "value": "control leaves the enclosing function carrying `n`; no statement after it executes",
+     "locally_recoverable": true,
+     "justification": "language.md 'Functions, calls, and defaults': '`return` itself carries control-flow information'; 'A non-void result must be produced on every normally continuing path.' grammar.ebnf `return_stmt`."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "return n",
+     "value": "cannot fail: returning an already-initialized scalar has no failure mode",
+     "locally_recoverable": true,
+     "justification": "Absence fact entailed by a universal rule (02 s1.4 clause (ii)): language.md L427 enumerates the complete closed set of deterministic runtime errors (integer overflow, division/remainder by zero, bounds failures, invalid allocation sizes, out-of-range casts, zero range steps, call-depth limit); a `return` of an initialized scalar performs none of them, and Quidra has no exceptions and no unwinding."
+    },
+    {
+     "fact_kind": "externally_visible_side_effects",
+     "site": "return n",
+     "value": "no externally visible side effect: the statement writes no storage outside the fragment, performs no I/O and names no entity declared elsewhere",
+     "locally_recoverable": true,
+     "justification": "Absence fact entailed by a universal rule (02 s1.4 clause (ii)): the only name in the statement is `n`, declared inside the fragment, and Quidra's only write forms are assignment and a written `&` reference path (language.md 'Addresses, references, and const authority'), neither of which appears."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "= 7 (initialization operation)",
+     "value": "the literal's value is copied into the binding's storage",
+     "locally_recoverable": true,
+     "justification": "Methodology 02 rule E2 makes the initializer its own S2 site, and the frozen worked ledgers s6.2 (Go `s2` = K06 + K10) and s6.3 (Python `s2` = K06 + K10) count the copy at that site separately from the S1 binding's K10 row. architecture.md: 'direct scalar values copy directly'."
+    }
+   ],
+   "fact_count": 12,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "A1=copy (the literal's value is copied into the binding's storage) x A2=no caller-observable mutation (`const` removes write authority through this path and no other path to `n` can be created) x A3=operand guaranteed initialized (const value bindings require initialization; reading an uninitialized binding is a compile-time error) x A4=fixed-width signed 64-bit integer (`int` is spelled in the fragment). No other class on any in-scope axis is realizable: move/consume and deferred forms do not exist in the grammar, no `&` appears so no alias class is reachable, the literal needs no conversion so 'converting copy' is unreachable, and Quidra has no macro or textual-substitution facility so the non-call class is unreachable. || DISCLOSURE (not counted here, recorded so the record is not silent): the enclosing signature is outside the measured fragment under Rule 1.1.2, and a tagged-union enclosing result type reopens A4 on dimension 8. Witness built and run: `int | error probe()` over the byte-identical fragment (scratchpad/verify/f01u.qui) prints 7 and matches as the `int` alternative, i.e. the produced value carries a runtime discriminator (language.md L13). The numeric widening class is NOT realizable here (`float probe()` -> error[TYPE_MISMATCH], since `int -> float` is not lossless, language.md L419), which is what the audit verified; the union class was not considered by it. B is left at 1 because the same class is un-enumerated for all nine peers (every one of them can widen a `return` into an Object/any/interface/optional destination) and Rule 1.1.3 requires the boundary to be settled identically for all ten, not for the subject language alone. If it is settled as counted, this probe becomes B = 2."
+   ],
+   "locality_lookups": 0,
+   "locality_detail": [],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 6,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Binding declaration `type identifier = expression`: the type precedes the name and the initializer establishes the value.",
+     "citation": "docs/spec/grammar.ebnf production `binding`; docs/spec/language.md 'Bindings and definite initialization'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`const` value-binding modifier: an immutable initialized value binding; const removes write authority through that binding path and cannot be promoted back.",
+     "citation": "docs/spec/language.md 'Addresses, references, and const authority'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`int` names the signed 64-bit type, and `int`/`int64` are the same type.",
+     "citation": "docs/spec/language.md 'Types'; docs/spec/numeric-and-bytes.md 'Built-in scalar types'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "An integer literal is an ordinary `int` literal unless an expected numeric type can represent it exactly; its type therefore depends on the surrounding typed context.",
+     "citation": "docs/spec/numeric-and-bytes.md 'Built-in scalar types'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`const` value bindings require initialization at the declaration (static-acceptance rule; required to predict `initialization_state`).",
+     "citation": "docs/spec/grammar.ebnf static/frontend constraints, final paragraph"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`return expression` transfers control out of the enclosing function with that value; a non-void function must produce a result on every normally continuing path.",
+     "citation": "docs/spec/grammar.ebnf production `return_stmt`; docs/spec/language.md 'Functions, calls, and defaults'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F01.P2",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "FULL",
+   "support_reason": "F-1: both numbered sub-requirements are delivered at the outermost declaration scope of one compilation unit (Quidra's normal home for such declarations - 'Top-level statements execute in source order', language.md). (1) `int counter = 0` is a named storage location of the signed 64-bit `int` type - which covers the full 64-bit signed range - initialized to 0 and reassignable by ordinary code in the same unit (the file's later `counter = LIMIT` does exactly that). (2) `const int LIMIT = 100` is the same integer type and is Quidra's immutable constant form: the language treats a `const` binding as a constant rather than as a mutable variable, rejecting both reassignment and any writable path to it. Quidra has no separate compile-time-constant construct, and the task's clause reads 'use a compile-time/immutable constant form if the language has one'; `const` is that form. F-2/F-3/F-4: documented features only; builds and runs under the frozen recipe, printing 100. F-6: no normative prohibition applies.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F01.P2.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "100",
+    "diagnostics": ""
+   },
+   "token_count": 9,
+   "facts": [
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "int counter",
+     "value": "named addressable storage at the outermost declaration scope",
+     "locally_recoverable": true,
+     "justification": "language.md 'Source structure': 'Top-level statements execute in source order.' grammar.ebnf `program` admits `statement` (hence `binding`) at top level. language.md 'Addresses...': addressable storage `x` has an address `&x`."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "int counter (no `const`)",
+     "value": "mutable: assignable by ordinary code in the same unit",
+     "locally_recoverable": true,
+     "justification": "grammar.ebnf `binding = [ \"const\" ], type, ...` - `const` is optional and is the only write-authority marker; language.md: 'const removes write authority through that binding/reference path', so its absence leaves write authority. Verified: the file's later `counter = LIMIT` compiles and runs."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "int counter",
+     "value": "no alias to `counter` exists or can arise inside the fragment: forming one requires a written `&` in both the declarator and the initializer, and none appears",
+     "locally_recoverable": true,
+     "justification": "language.md 'Addresses, references, and const authority': 'Quidra uses `&` consistently for safe storage addresses ... Quidra has no `*` dereference operator', and grammar.ebnf `binding = [ \"const\" ], type, [ \"&\" ], identifier, [ \"=\", [ \"&\" ], expression ]` makes the `&` mandatory in both the declarator and the initializer. No `&` is written here, so no alias exists and none can arise inside the fragment. This is an absence fact entailed by a universal rule (methodology 02 s1.4 clause (ii)), on the same basis as the frozen Go worked ledger's K03 row at s6.2 ('no alias can exist without a visible `&` - entailed by a universal rule, so it survives the absence-facts test')."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int counter = 0",
+     "value": "definitely initialized to 0 by the initializer",
+     "locally_recoverable": true,
+     "justification": "language.md 'Bindings and definite initialization': 'Whole-value assignment establishes the destination value'; the initializer is present in the fragment."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int (counter)",
+     "value": "signed 64-bit two's-complement integer, i.e. the full signed 64-bit range",
+     "locally_recoverable": true,
+     "justification": "language.md 'Types': '`int` and `int64` are the same signed 64-bit type.'"
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "int counter = 0",
+     "value": "no allocation and no managed ownership: a direct scalar value",
+     "locally_recoverable": true,
+     "justification": "architecture.md 'Runtime representation and lifetime policy': 'direct scalar values copy directly'; managed retain/release applies to heap-backed runtime values only."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "int counter (top-level)",
+     "value": "the storage exists for the whole program run; no cleanup runs (scalar)",
+     "locally_recoverable": true,
+     "justification": "architecture.md core contracts: 'Top-level statements form the entrypoint.' language.md 'Source structure': top-level statements execute in source order, so a top-level binding's scope is the compilation unit's execution."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "const int LIMIT",
+     "value": "named addressable storage holding an immutable value",
+     "locally_recoverable": true,
+     "justification": "Same rules as `counter`; a distinct entity, so not a duplicate under the anti-double-counting rule A3.4."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "const (LIMIT)",
+     "value": "immutable: cannot be reassigned, and no writable path to it can be created",
+     "locally_recoverable": true,
+     "justification": "language.md 'Addresses, references, and const authority': 'const removes write authority through that binding/reference path' and authority 'cannot be recovered through the weaker path'. Verified: assigning a `const` binding gives error[WRITE_CAPABILITY]; `int &w = &c` gives error[REFERENCE_BINDING]."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "const int LIMIT = 100",
+     "value": "definitely initialized to 100; a const value binding may not be left uninitialized",
+     "locally_recoverable": true,
+     "justification": "grammar.ebnf static constraints: 'const value bindings require initialization'."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int (LIMIT)",
+     "value": "signed 64-bit two's-complement integer - the same type as `counter`",
+     "locally_recoverable": true,
+     "justification": "language.md 'Types'. Distinct entity from `counter`, so a separate fact under A3.4."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "const int LIMIT = 100",
+     "value": "no allocation and no managed ownership: a direct scalar value",
+     "locally_recoverable": true,
+     "justification": "architecture.md 'Runtime representation and lifetime policy': 'direct scalar values copy directly'."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "const int LIMIT (top-level)",
+     "value": "the storage exists for the whole program run; no cleanup runs",
+     "locally_recoverable": true,
+     "justification": "architecture.md: 'Top-level statements form the entrypoint.'"
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "= 0",
+     "value": "no conversion: the literal is typed by the expected `int` context",
+     "locally_recoverable": true,
+     "justification": "numeric-and-bytes.md 'Numeric conversion' plus the literal-typing rule; source and destination are both `int`."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "= 100",
+     "value": "no conversion: the literal is typed by the expected `int` context",
+     "locally_recoverable": true,
+     "justification": "Same rules, at a different initialization operation (a different site under E2, so not a duplicate under A3.3)."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "const int LIMIT",
+     "value": "no alias exists and no writable alias can ever be created: an alias requires a written `&`, and authority 'cannot be recovered through the weaker path' once `const`",
+     "locally_recoverable": true,
+     "justification": "language.md 'Addresses, references, and const authority': 'Quidra uses `&` consistently for safe storage addresses ... Quidra has no `*` dereference operator', and grammar.ebnf `binding = [ \"const\" ], type, [ \"&\" ], identifier, [ \"=\", [ \"&\" ], expression ]` makes the `&` mandatory in both the declarator and the initializer. No `&` is written here, so no alias exists and none can arise inside the fragment. This is an absence fact entailed by a universal rule (methodology 02 s1.4 clause (ii)), on the same basis as the frozen Go worked ledger's K03 row at s6.2 ('no alias can exist without a visible `&` - entailed by a universal rule, so it survives the absence-facts test'). Verified: `int &w = &LIMIT` -> error[REFERENCE_BINDING]. Recorded as its own (site, kind) row rather than folded into the K02 value, which A3.2 requires (disjoint kinds are separate facts)."
+    }
+   ],
+   "fact_count": 16,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "A1=copy (each literal is copied into its binding's storage) x A2=no mutation at the span (the span consists of two declarations) x A3=both operands guaranteed initialized (both initializers are present; `const` additionally requires initialization) x A4=fixed-width signed 64-bit integer for both x A8=no observable resource event (both are direct scalar values; managed retain/release applies only to heap-backed values, and Quidra exposes no refcount query, no identity operator and no user-visible finalizer with which a conforming program could observe one). No other class on any in-scope axis is realizable."
+   ],
+   "locality_lookups": 0,
+   "locality_detail": [],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 6,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Binding declaration `type identifier = expression`.",
+     "citation": "docs/spec/grammar.ebnf production `binding`; docs/spec/language.md 'Bindings and definite initialization'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`const` value-binding modifier: immutable binding, no write authority through it or any path derived from it.",
+     "citation": "docs/spec/language.md 'Addresses, references, and const authority'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`int` names the signed 64-bit type.",
+     "citation": "docs/spec/language.md 'Types'; docs/spec/numeric-and-bytes.md 'Built-in scalar types'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Integer literal typing by expected numeric context.",
+     "citation": "docs/spec/numeric-and-bytes.md 'Built-in scalar types'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Top-level declaration scope: top-level statements execute in source order and form the program entrypoint, so a top-level binding lives for the program run.",
+     "citation": "docs/spec/language.md 'Source structure'; docs/spec/architecture.md core contracts 'Top-level statements form the entrypoint.'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`const` value bindings require initialization (static-acceptance rule required to predict `initialization_state`).",
+     "citation": "docs/spec/grammar.ebnf static/frontend constraints"
+    }
+   ]
+  },
+  {
+   "probe_id": "F02.P1",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "FULL",
+   "support_reason": "F-1: all three numbered sub-requirements are delivered. (1) `int32 v` declares a signed 32-bit local with no initial value - Quidra documents this form explicitly ('A declaration without an initializer leaves a scalar or ordinary aggregate binding uninitialized') and no placeholder is written. (2) a two-way `if`/`else` on the already-declared boolean `cond` assigns 5 and 9. (3) `return v` reads `v` after the branch. F-2/F-3/F-4: documented features only; builds and runs under `quidra build`/`./BIN`, printing 5. F-6: no normative prohibition applies to declaration-without-initializer, `if`/`else` or `return` in the Quidra reference.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F02.P1.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "5",
+    "diagnostics": ""
+   },
+   "token_count": 13,
+   "facts": [
+    {
+     "fact_kind": "initialization_state",
+     "site": "int32 v",
+     "value": "declared with no value: the binding exists but holds nothing, and reading it before a definite assignment is rejected",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Bindings and definite initialization': 'A declaration without an initializer leaves a scalar or ordinary aggregate binding uninitialized.' Verified: `int32 v` followed by `return v` gives error[UNINITIALIZED] 'Binding \\'v\\' may be uninitialized.' No placeholder value is written and none is required."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "int32 v",
+     "value": "names addressable storage that exists at the declaration",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Addresses, references, and const authority': addressable storage `x` has an address `&x`; docs/spec/language.md states that taking an address does not read the stored value, so uninitialized storage may be referenced."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "int32 v (no `const`)",
+     "value": "mutable: assignable, and assignment is what establishes it",
+     "locally_recoverable": true,
+     "justification": "grammar.ebnf `binding = [ \"const\" ], type, ...`; `const` is the only write-authority marker and is absent. docs/spec/language.md: 'const value bindings require initialization', so the uninitialized form is necessarily non-const."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int32",
+     "value": "signed 32-bit two's-complement integer",
+     "locally_recoverable": true,
+     "justification": "docs/spec/numeric-and-bytes.md 'Built-in scalar types' lists `int32` among the fixed-width signed types; widths are fixed by the language, not by the target."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "int32 v",
+     "value": "no alias to `v` exists or can arise inside the fragment: forming a reference requires a written `&` and none appears",
+     "locally_recoverable": true,
+     "justification": "language.md 'Addresses, references, and const authority': 'Quidra uses `&` consistently for safe storage addresses ... Quidra has no `*` dereference operator', and grammar.ebnf `binding = [ \"const\" ], type, [ \"&\" ], identifier, [ \"=\", [ \"&\" ], expression ]` makes the `&` mandatory in both the declarator and the initializer. No `&` is written here, so no alias exists and none can arise inside the fragment. This is an absence fact entailed by a universal rule (methodology 02 s1.4 clause (ii)), on the same basis as the frozen Go worked ledger's K03 row at s6.2 ('no alias can exist without a visible `&` - entailed by a universal rule, so it survives the absence-facts test')."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "int32 v",
+     "value": "no allocation and no managed ownership: direct scalar storage",
+     "locally_recoverable": true,
+     "justification": "docs/spec/architecture.md 'Runtime representation and lifetime policy': 'direct scalar values copy directly'; 'ordinary initialized local updates stay on scalar SSA/storage paths rather than entering the managed-allocation initialization registry.'"
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "int32 v",
+     "value": "scope-bounded storage; no cleanup runs at scope exit",
+     "locally_recoverable": true,
+     "justification": "docs/spec/architecture.md value-storage policy: `int32` is a direct scalar, not a heap-backed managed value; Quidra exposes no user-visible destructor or finalizer in any construct."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "if cond / else",
+     "value": "a two-way branch: exactly one arm executes and both arms continue to the following statement",
+     "locally_recoverable": true,
+     "justification": "grammar.ebnf `if_stmt = \"if\", expression, suite, { \"elif\", ... }, [ \"else\", suite ]`; docs/spec/language.md 'Conditions and iteration': 'Conditions are `bool`. ... they do not implicitly coerce numeric or other values to `bool`', so the branch is a plain two-way selection with no coercion step."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "v = 5",
+     "value": "establishes `v`'s value on the true path",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: 'Whole-value assignment establishes the destination value.'"
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "v = 9",
+     "value": "establishes `v`'s value on the false path, so that every continuing branch has established `v` at the merge",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: 'All continuing branches must establish ordinary binding initialization before a subsequent read; branches that return do not contribute to the merge.' Verified: deleting the `else` arm gives error[UNINITIALIZED] at the later read. A distinct S2 operation from `v = 5`, with a distinct value, so not a duplicate under A3.3."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "v = 5",
+     "value": "no conversion: the integer literal is typed by the expected `int32` context",
+     "locally_recoverable": true,
+     "justification": "docs/spec/numeric-and-bytes.md: integer literals 'are ordinary `int` literals unless an expected numeric type can represent the literal exactly' - `int32` represents 5 exactly - and 'Implicit numeric conversion is permitted only when every value of the source type is exactly representable by the destination type.'"
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "v = 9",
+     "value": "no conversion: the integer literal is typed by the expected `int32` context",
+     "locally_recoverable": false,
+     "justification": "DUP under methodology 02 A3.3: the identical fact value for the same entity (`v`) has already been counted at `v = 5`; a later row with the same entity and the same value counts 0 in the density numerator. Recorded rather than deleted so the ledger stays re-derivable. (Previously counted, which inflated this probe's density.)"
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return v",
+     "value": "control leaves the enclosing function carrying `v`",
+     "locally_recoverable": true,
+     "justification": "grammar.ebnf `return_stmt`; docs/spec/language.md 'Functions, calls, and defaults'."
+    }
+   ],
+   "fact_count": 12,
+   "determinacy_B": 3,
+   "determinacy_enumeration": [
+    "CLASS 1 - A4 = fixed-width signed integer. A1=copy (each literal is copied into `v`'s storage) x A2=the only storage written is `v`, declared inside the fragment x A3=operand guaranteed initialized at the read (the definite-initialization merge rule requires every continuing branch to establish `v`) x A9=the span returns from the enclosing function. Witness: enclosing header `int32 probe(bool cond)` prints 5; `int64 probe(bool cond)` over the byte-identical fragment also prints 5 (/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/verify/w_int64.qui, `quidra run`).",
+    "CLASS 2 - A4 = binary floating point. The measured fragment ends at `return v`; the enclosing signature is OUTSIDE the fragment under methodology 03 Rule 1.1.2, and language.md L419 permits an implicit numeric conversion in a typed conversion context whenever every value of the source type is exactly representable in the destination, which `int32 -> float`/`float64` is. Witness: the byte-identical fragment under `float probe(bool cond)` builds and prints 5.0, not 5 (/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/verify/w_float.qui, `quidra run`). Materially different from class 1 on Rule 1.2.1 dimensions 8 (representation: width and precision of the value produced) and 9 (observable result). EXCLUDED CLASSES: fixed-width unsigned (`uint32 probe`/`uint64 probe` are rejected - `int32 -> uint32` is not lossless, language.md L419) and arbitrary precision (LOW-B-BY-ABSENCE: Quidra has no comptime/bignum integer type at all, language.md 'Types' enumerates a closed set of fixed-width numeric built-ins). CORRECTION: the previous B=1 asserted 'No alternative class is realizable' while reasoning only about `v` and never about the value the fragment PRODUCES at `return v`; the enclosing signature is external and reopens A4.",
+    "CLASS 3 - A4 = tagged-union payload (representation change). language.md L13: 'Values and smaller unions can flow to compatible larger unions without wrapper calls; the runtime discriminator is adjusted to the destination type.' The enclosing signature is outside the fragment, so an enclosing result type of `int32 | error` makes the byte-identical fragment produce a discriminated union value with a discriminator write instead of a bare scalar. Witness (built and run): scratchpad/verify/f02p1u.qui (`int32 | error probe(bool cond)`) prints 5. Materially different on Rule 1.2.1 dimension 8 (boxing/layout/representation of the value produced) and dimension 6 (a discriminator is installed). This is the same class Java's V2 (boxing at `return`) was counted for."
+   ],
+   "locality_lookups": 1,
+   "locality_detail": [
+    {
+     "hop": "callee signature - the enclosing function declaration, whose declared result type the probe places outside the measured fragment (methodology 03 Rule 1.1.2)",
+     "required_for_fact": "type_and_representation of the value the fragment produces at `return v`. Required, not optional, under Rule 2.4.1: without it the fact has no single outcome class - witnessed by `float probe` printing 5.0 against `int32 probe` printing 5."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H2 - Hidden writable aliasing or mutation",
+     "why": "Local site 2 is the whole `if`/`else` statement. `v`'s declaration is at local site 1 and is therefore not local to site 2 (methodology 04 SS0.7: 'tokens in a different local site of the same fragment' are not local). A bare name that is a reference binding is written exactly like a value binding at its use site - Quidra 'has no `*` dereference operator; using a reference name accesses the referenced storage directly' (language.md) - so an instantiation consistent with site 2 (`int32 &v = &y` at site 1) makes `v = 5` write storage also reachable as `y`, with no token at site 2 marking it. Verified that such a write is visible through the other name: `int32 &x = &y; x += 1` leaves `y == 11`."
+    },
+    {
+     "checklist_item": "H1 - Implicit conversions",
+     "why": "At local site 3 (`return v`) an implicit numeric conversion may be applied to the produced value, with nothing at the site naming it: language.md L419 permits implicit conversion in a typed conversion context when every source value is exactly representable in the destination, and the destination here is the enclosing signature's result type, which methodology 04 s0.7 places outside this local site. Verified: the byte-identical fragment under `float probe(bool cond)` prints 5.0 rather than 5, i.e. the conversion changes the representation and the printed value. The LED gate fails because the local site plus the reference do not fix one outcome. Assigned to H1 rather than H7 under the single-assignment precedence of s1.3.1."
+    }
+   ],
+   "hidden_count": 2,
+   "complexity_units": 7,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Binding declaration without an initializer, which leaves the binding uninitialized.",
+     "citation": "docs/spec/grammar.ebnf production `binding` (initializer optional); docs/spec/language.md 'Bindings and definite initialization'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Definite-initialization merge: all continuing branches must establish initialization before a subsequent read; branches that return do not contribute; a loop body does not establish it. The outcome depends on the surrounding control flow, not on the construct.",
+     "citation": "docs/spec/language.md 'Bindings and definite initialization'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`int32` names the signed 32-bit type.",
+     "citation": "docs/spec/numeric-and-bytes.md 'Built-in scalar types'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Assignment statement: whole-value assignment establishes the destination value.",
+     "citation": "docs/spec/grammar.ebnf production `assignment`; docs/spec/language.md 'Bindings and definite initialization'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`if`/`elif`/`else` conditional with a `bool` condition and no implicit truthiness coercion.",
+     "citation": "docs/spec/grammar.ebnf production `if_stmt`; docs/spec/language.md 'Conditions and iteration'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`return expression`.",
+     "citation": "docs/spec/grammar.ebnf production `return_stmt`; docs/spec/language.md 'Functions, calls, and defaults'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Integer literal typing by expected numeric context.",
+     "citation": "docs/spec/numeric-and-bytes.md 'Built-in scalar types'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F02.P2",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "FULL",
+   "support_reason": "F-1: all three numbered sub-requirements are delivered without the P-a substitution. (1) `uint8[16] buffer` obtains storage for exactly 16 unsigned-8-bit elements whose contents are NOT specified to be zero or any other value: Quidra documents this as its mechanism for uninitialized bulk storage ('A fixed declaration such as `int[10] values` allocates its fixed storage immediately with all elements initially uninitialized', language.md), and the behaviour was verified - reading an unwritten element produces 'runtime error[UNINITIALIZED]' rather than 0, so it is genuinely uninitialized rather than zero-filled. (2) `buffer[0] = 1` writes 1 into element 0. (3) `return buffer[0]` reads element 0. R10 selected this form over `uint8[] buffer = array(16)`, the other documented uninitialized-storage form, because it is shorter under the frozen tokenizer (5 tokens vs 9 for the acquisition). F-2/F-3/F-4: documented features only; builds and runs under the frozen recipe, printing 1. F-6: no normative prohibition applies.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F02.P2.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "1",
+    "diagnostics": ""
+   },
+   "token_count": 16,
+   "facts": [
+    {
+     "fact_kind": "initialization_state",
+     "site": "uint8[16] buffer",
+     "value": "storage for all 16 elements exists immediately and every element is uninitialized - not zero-, default- or none-filled; initialization is tracked per element",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Arrays and shapes': 'A fixed declaration such as `int[10] values` allocates its fixed storage immediately with all elements initially uninitialized.' docs/spec/architecture.md: 'The managed allocation registry carries a compact initialization bitmap until the allocation becomes fully initialized. Reads validate this state; stored zero bits are never used as an initialization sentinel.' Verified: reading `buffer[1]` gives 'Quidra runtime error[UNINITIALIZED] ... value is uninitialized', which proves the storage is not zero-filled."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "uint8[16] buffer",
+     "value": "names the array's storage directly; the fixed shape belongs to the type rather than to runtime data",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Arrays and shapes': '`T[n]` has a fixed nonnegative integer-literal length'; docs/spec/architecture.md: 'Fixed array lengths belong to types; dynamic lengths are runtime data.'"
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "uint8[16] buffer (no `const`)",
+     "value": "mutable: elements may be written",
+     "locally_recoverable": true,
+     "justification": "grammar.ebnf `binding = [ \"const\" ], type, ...`; `const` is the only write-authority marker and is absent."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "uint8[16] buffer",
+     "value": "no alias can exist: an alias requires a written `&` in both the declarator and the initializer, and none appears",
+     "locally_recoverable": true,
+     "justification": "language.md 'Addresses, references, and const authority': 'Quidra uses `&` consistently for safe storage addresses ... Quidra has no `*` dereference operator', and grammar.ebnf `binding = [ \"const\" ], type, [ \"&\" ], identifier, [ \"=\", [ \"&\" ], expression ]` makes the `&` mandatory in both the declarator and the initializer. No `&` is written here, so no alias exists and none can arise inside the fragment. This is an absence fact entailed by a universal rule (methodology 02 s1.4 clause (ii)), on the same basis as the frozen Go worked ledger's K03 row at s6.2 ('no alias can exist without a visible `&` - entailed by a universal rule, so it survives the absence-facts test'). Verified against the toolchain: the reference form `uint8[16] &buffer = &other` compiles only when both `&` are written."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "uint8[16]",
+     "value": "a fixed 16-element array of `uint8` (unsigned 8-bit); consecutive fixed dimensions are stored as one contiguous row-major block",
+     "locally_recoverable": true,
+     "justification": "docs/spec/numeric-and-bytes.md 'Built-in scalar types' for `uint8`; docs/spec/language.md 'Arrays and shapes' for `T[n]`; docs/spec/architecture.md: 'Consecutive fixed dimensions are a representation optimization boundary: the LLVM backend stores eligible fixed runs as one headerless row-major block.'"
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "uint8[16] buffer",
+     "value": "storage is allocated at the declaration and no element values are copied into it",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: the fixed declaration 'allocates its fixed storage immediately'; docs/spec/architecture.md: '`array(n)` and uninitialized fixed arrays allocate storage immediately while initialization is tracked independently per leaf element.'"
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "uint8[16] buffer",
+     "value": "scope-bounded managed allocation released by deterministic managed ownership (retain/release); no user-visible destructor or finalizer runs",
+     "locally_recoverable": true,
+     "justification": "docs/spec/architecture.md 'Runtime representation and lifetime policy': 'Heap-backed runtime values use deterministic managed ownership with explicit retain/release operations in typed IR and generated LLVM.' Recorded under methodology 02 SS1.4/K13's frozen reclamation rule for reference-counted managed languages (basis_class universal-rule), on the same terms as Swift's ARC."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "buffer[0] = 1",
+     "value": "initializes exactly element 0; the other 15 elements remain uninitialized",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Bindings and definite initialization': 'Runtime-sized `array(n)` values use the same per-element model'; 'Individual elements may be written before the whole array is read.' Verified: after this write, `buffer[0]` reads 1 while `buffer[1]` still fails as uninitialized."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "buffer[0] (write, constant index)",
+     "value": "cannot fail on bounds: for an array whose length is statically known, a constant index outside [0, length) is rejected at compile time, so index 0 into `uint8[16]` carries a static bounds proof",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Function values and union payload initialization': 'For arrays whose type has a statically known length, a constant index outside `[0, length)` is rejected at compile time. Dynamic arrays remain bounds-checked at runtime.' docs/spec/architecture.md: 'a statically valid fixed-array constant index ... carries `bounds_proven`; only that explicit fact selects an unchecked address calculation in LLVM.' Verified: `buffer[20] = 1` gives a compile-time error[INDEX_BOUNDS]."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "buffer[0] = 1",
+     "value": "no conversion: the integer literal is typed by the expected `uint8` element type",
+     "locally_recoverable": true,
+     "justification": "docs/spec/numeric-and-bytes.md: integer literals take an expected numeric type that can represent them exactly; implicit conversion is otherwise lossless-only."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "buffer[0] (in `return buffer[0]`)",
+     "value": "produces a `uint8` value read out of element 0, not a writable path to it",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Arrays and shapes': 'Indexing requires `int`, starts at zero, and checks bounds'; an index expression yields the element's value. A writable path would require the explicit `&` address form."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "buffer[0] (result)",
+     "value": "the ELEMENT type is `uint8` (unsigned 8-bit); the type of the value the fragment PRODUCES is decided by the enclosing signature, which lies outside the probe region",
+     "locally_recoverable": false,
+     "justification": "LOOKUP (hops_decl = 1) under K05's 'does NOT count when the category depends on a declaration outside the probe region'. Witnesses: the byte-identical fragment produces `uint8` 1, `int32` 1 and `float32` 1.0 depending on the enclosing header. Previously recorded as locally recoverable, which credited density for a fact the record simultaneously books as needing a hop."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "buffer[0] (read)",
+     "value": "cannot fail: the constant index carries the same static bounds proof, and the per-element initialization read check is satisfied because the immediately preceding statement in the fragment established element 0",
+     "locally_recoverable": true,
+     "justification": "Same bounds citation as the write. For initialization: docs/spec/language.md 'Reading an element that has not been initialized is rejected at runtime' - the fragment itself contains the establishing write, so the answer is fixed by the local surface form."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return buffer[0]",
+     "value": "control leaves the enclosing function carrying the element's value",
+     "locally_recoverable": true,
+     "justification": "grammar.ebnf `return_stmt`; docs/spec/language.md 'Functions, calls, and defaults'."
+    }
+   ],
+   "fact_count": 13,
+   "determinacy_B": 4,
+   "determinacy_enumeration": [
+    "CLASS 1 - A4 = fixed-width UNSIGNED integer. A1=copy (the literal 1 is copied into element 0) x A3=declared uninitialized, with element 0 established by the write inside the fragment x A6=cannot fail (the constant index into a statically known length is compile-time checked and carries `bounds_proven`) x A8=storage is allocated at the declaration, an event no conforming Quidra program can observe. Witness: enclosing header `uint8 probe()` prints 1; `uint32 probe()` over the byte-identical fragment also prints 1 (scratchpad/verify/b_u32.qui).",
+    "CLASS 2 - A4 = fixed-width SIGNED integer. The measured fragment ends at `return buffer[0]`; the enclosing function's declared result type is OUTSIDE the fragment (methodology 03 Rule 1.1.2) and language.md L419 permits implicit lossless numeric conversion in a typed conversion context, which `uint8 -> int16/int32/int` is. Witness: the byte-identical fragment under `int32 probe()` builds and prints 1 (scratchpad/verify/b_i32.qui). Materially different from class 1 on Rule 1.2.1 dimension 8 (signedness and width of the value produced).",
+    "CLASS 3 - A4 = binary FLOATING POINT. Witness: the byte-identical fragment under `float32 probe()` builds and prints 1.0 rather than 1 (scratchpad/verify/b_f32.qui). Materially different from classes 1 and 2 on dimensions 8 (representation) and 9 (observable result). EXCLUDED CLASS: arbitrary precision - LOW-B-BY-ABSENCE, class_id A4-arbitrary-precision: Quidra provides no arbitrary-precision or comptime integer type at all (language.md 'Types' fixes a closed set of fixed-width numeric built-ins), so no program in the language can realize it; this is determinacy earned by omission and is flagged as such under Rule 1.9.5. CORRECTION: the previous B=1 claimed the A4 axis was fully pinned by `uint8[16]`, which pins the ELEMENT type only; the type of the value PRODUCED is decided outside the fragment. This is the same openness Zig was charged for on the structurally identical fragment.",
+    "CLASS 4 - A4 = tagged-union payload (representation change). language.md L13: 'Values and smaller unions can flow to compatible larger unions without wrapper calls; the runtime discriminator is adjusted to the destination type.' The enclosing signature is outside the fragment, so an enclosing result type of `uint8 | error` makes the byte-identical fragment produce a discriminated union value with a discriminator write instead of a bare scalar. Witness (built and run): scratchpad/verify/b_un.qui (`uint8 | error probe()`) prints 1. Materially different on Rule 1.2.1 dimension 8 (boxing/layout/representation of the value produced) and dimension 6 (a discriminator is installed). This is the same class Java's V2 (boxing at `return`) was counted for."
+   ],
+   "locality_lookups": 1,
+   "locality_detail": [
+    {
+     "hop": "callee signature - the enclosing function declaration, whose declared result type the probe places outside the measured fragment (methodology 03 Rule 1.1.2)",
+     "required_for_fact": "type_and_representation of the value produced by `return buffer[0]`. Required under Rule 2.4.1: the witnesses above show the answer genuinely changes (uint8 / int32 / float32) with no change inside the fragment."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H2 - Hidden writable aliasing or mutation",
+     "why": "Local site 2 is `buffer[0] = 1`; `buffer`'s declaration is at local site 1 and is not local to site 2 under methodology 04 SS0.7. Quidra reference bindings are used by their bare name and there is no dereference operator, so an instantiation consistent with site 2 (`uint8[16] &buffer = &other` at site 1) makes the element write reach storage also reachable under another name, with no token at site 2 marking it."
+    }
+   ],
+   "hidden_count": 1,
+   "complexity_units": 7,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Fixed-shape array declaration `T[n] name`: the array type precedes the binding name and the fixed length belongs to the type.",
+     "citation": "docs/spec/language.md 'Arrays and shapes'; docs/spec/grammar.ebnf production `array_type`"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Uninitialized fixed-array storage: storage exists immediately while initialization is tracked per element, and reading an element that has not been initialized is a deterministic runtime failure. The outcome at a read depends on which elements were written, not on the read's own syntax.",
+     "citation": "docs/spec/language.md 'Arrays and shapes' and 'Bindings and definite initialization'; docs/spec/architecture.md 'The managed allocation registry carries a compact initialization bitmap...'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Element assignment `a[i] = v`, which initializes exactly that element and never appends or resizes.",
+     "citation": "docs/spec/language.md 'Arrays and shapes': 'Assignment to an element does not append or resize an array.'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`uint8` names the unsigned 8-bit type; there is no `char`.",
+     "citation": "docs/spec/numeric-and-bytes.md 'Built-in scalar types'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Static bounds proof: a constant index into a statically known length is rejected at compile time when out of range and is unchecked when in range, while dynamic arrays remain runtime-checked. Which applies depends on whether the operand's shape is static.",
+     "citation": "docs/spec/language.md 'Function values and union payload initialization', final paragraph; docs/spec/architecture.md `bounds_proven`"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Integer literal typing by expected numeric context.",
+     "citation": "docs/spec/numeric-and-bytes.md 'Built-in scalar types'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`return expression`.",
+     "citation": "docs/spec/grammar.ebnf production `return_stmt`"
+    }
+   ]
+  },
+  {
+   "probe_id": "F03.P1",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "FULL",
+   "support_reason": "F-1: all three numbered sub-requirements are delivered by exactly one statement. (1) `x += 1` increases `x` by 1. (2) it does so in place - the assignment target is evaluated exactly once and the name is not rebound, since rebinding requires the distinct `&x = &other` form - so a subsequent read of `x` observes the increased value (verified: the probe prints 1 for `x` initialized to 0). (3) R10 selects the fewest-token form under the frozen tokenizer among the in-place update forms Quidra provides: `x += 1` is 3 tokens against `x = x + 1` at 5; Quidra has no increment operator (the grammar defines no `++`). F-2/F-3/F-4: documented features only; builds and runs under the frozen recipe. F-6: no normative prohibition applies to compound assignment. || RECORDED REJECTION of an audit finding (value_vs_storage / K01 at `x += 1`, suggested as +1 fact for quidra, go, rust and zig). The row is NA, not COUNT, and it is NA in all ten languages. Methodology 02 s1.2 gates K01 at an S2 operation site with G-value: 'applicable only when the operation produces a value that the probe subsequently uses, returns, or observes. A discarded/void result makes the row NA.' The canonical_task fixes the fragment as exactly one in-place update statement whose result is discarded, in every language. Rule E4 bars the row a second time: 'An S2 site asserts facts about the operation ... never about the identity/mutability/type of an operand', and the storage-versus-value question about `x` belongs to `x`'s binding site, which this probe places outside the fragment. The finding is right that the 5/5 split across the ten is not defensible; the correct resolution is to strike the row from the five that counted it, not to add it to the five that did not.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F03.P1.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "1",
+    "diagnostics": "| Execution-mode record (Rule 1.3.3): the frozen recipe lists two execution modes for Quidra ('run': './BIN' after `quidra build`, and 'interpreter_run': `quidra run FILE.qui`). Both were exercised for this probe and for its overflow witness; the observed behaviour is identical in both modes (in-range: 1; at int32 max: runtime error[INTEGER_OVERFLOW], exit 101). The cross-mode identity is recorded rather than assumed."
+   },
+   "token_count": 3,
+   "facts": [
+    {
+     "fact_kind": "mutability",
+     "site": "x += 1",
+     "value": "this operation modifies an already-initialized entity in place; the name `x` is not rebound to different storage",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Bindings and definite initialization': 'Compound assignments `+=`, `-=`, `*=`, `/=`, and `%=` are available when the corresponding binary operator is valid. The assignment target is evaluated exactly once.' Rebinding in Quidra requires the distinct `&name = &other` address-assignment form (grammar.ebnf `address_assignment`), which is absent here, so the target storage is unchanged."
+    },
+    {
+     "fact_kind": "overflow_exceptional_numeric",
+     "site": "x += 1 (the `+` it performs)",
+     "value": "conditional on the operand's declared type, which is outside the fragment: integer operands trap deterministically on overflow (exit 101), floating-point operands follow IEEE-754 with no trap",
+     "locally_recoverable": false,
+     "justification": "LOOKUP (hops_decl = 1). This record's own locality_detail already names the declaration of `x` as the hop required for overflow_exceptional_numeric ('which numeric type it has, which A10 class holds'), and determinacy entries 2 and 4 realize float operands. Under 02 s2.2 a row is COUNT iff hops_decl == 0, and s2.5 requires a single behaviourally determinate answer; neither holds. Previously COUNT with a conditional value, which is the disposition Swift and Kotlin were denied at the identical row."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "x += 1",
+     "value": "conditional on the operand's declared type: an integer operand may fail (deterministic termination, exit 101); a floating-point operand cannot fail at all",
+     "locally_recoverable": false,
+     "justification": "LOOKUP (hops_decl = 1), for the same reason as the overflow row: the local form does not yield one determinate K07 answer without the declaration of `x`. Swift, Zig and Rust declined the parallel row on exactly this ground."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "x += 1",
+     "value": "falls through to the next statement, except that an overflow terminates the program at this site: control neither unwinds nor reaches a handler, because Quidra has no exception or unwinding mechanism",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Strings and arithmetic'; docs/spec/architecture.md core contracts (errors are values propagated only by explicit `try`; runtime safety failures are deterministic terminations)."
+    },
+    {
+     "fact_kind": "externally_visible_side_effects",
+     "site": "x += 1",
+     "value": "writes the storage named `x`, which is declared outside the fragment; the write is a direct storage write and runs no other code",
+     "locally_recoverable": true,
+     "justification": "Quidra has no operator overloading (the grammar defines a fixed operator set and no operator-declaration form) and no property accessors or setters - docs/spec/language.md 'Classes' documents fields as plain storage and methods as ordinary named functions - so `+=` cannot dispatch to user code. Verified: declaring two functions with the same name gives error[DUPLICATE_NAME], so no overload set exists."
+    }
+   ],
+   "fact_count": 3,
+   "determinacy_B": 4,
+   "determinacy_enumeration": [
+    "A1=copy x A2=the operand variable's own storage is written (`x` is an ordinary value binding) x A7=target fixed by compile-time information x A10=traps on overflow (`x` is one of the integer types). Witness: `int32 x = 0; x += 1` returns 1, and `int32 x = 2147483647; x += 1` terminates with runtime error[INTEGER_OVERFLOW], exit 101.",
+    "A1=copy x A2=the operand variable's own storage is written x A7=target fixed at compile time x A10=IEEE-754 rounding/NaN/Inf applies (`x` is `float32`/`float`). Witness: `float x = 1.5; x += 1` prints 2.5; no overflow trap exists for floating types, whose exceptional values 'follow the corresponding IEEE-754 binary32 or binary64 behavior' (language.md 'Strings and arithmetic'). Materially different from entry 1 on dimensions 3 (failure) and 9 (observable result).",
+    "A1=copy x A2=state referred to by the operand is mutated, but not the operand variable's own storage (`x` is a reference binding `int32 &x = &y`) x A7=target fixed at compile time x A10=traps on overflow. Witness: `int32 y = 10; int32 &x = &y; x += 1; return y` prints 11 - the write is observable through a name the fragment never mentions. Quidra reference bindings are used by their bare name and there is no dereference operator, so the call form at this site is identical to entry 1. Materially different on dimensions 1 (mutation) and 2 (aliasing).",
+    "A1=copy x A2=state referred to by the operand is mutated (`x` is a reference binding) x A7=target fixed at compile time x A10=IEEE-754 rounding applies (`float &x`). Witness: the combination of the entry-2 and entry-3 witnesses; materially different from each of them on the dimension the other fixes. || EXCLUDED CLASSES (disposition required by Rule 1.7.1 step 4; each carries a spec citation and a refutation witness per Rule 1.3.1.e): (a) A10 = 'wraps modulo 2^n' - EXCLUDED, LOW-B-BY-ABSENCE, class_id R2: language.md L427 makes integer overflow at every integer width a deterministic runtime error, and Quidra provides no wrapping operator or wrapping-arithmetic form at all; refutation witness scratchpad/verify/ovf.qui -> 'Quidra runtime error[INTEGER_OVERFLOW] at 3:15', exit 101, i.e. no completion wraps. (b) A10 = 'build-mode dependent' - EXCLUDED, LOW-B-BY-ABSENCE, class_id R5: the frozen recipe exposes a single optimized-and-checked mode and language.md L427 states the outcome unconditionally; no build flag in the shipped toolchain selects a different arithmetic edge. (c) A7 = 'operator user-redefinable' - EXCLUDED, LOW-B-BY-ABSENCE, class_id R8: grammar.ebnf `class_member` admits only fields and functions, so no program in the language can redefine `+=`; refutation witness: a class declaring an `operator+` member is rejected at parse time. (d) A1 = 'non-call / token substitution' - EXCLUDED, LOW-B-BY-ABSENCE, class_id A1: Quidra has no macro or preprocessor facility in grammar.ebnf, so no token-substitution completion exists. (e) R4 = 'undefined behaviour' - EXCLUDED (not by absence): language.md L427 gives every listed edge a defined deterministic outcome. DISCLOSURE per Rule 1.9.5: four of the five exclusions above are LOW-B-BY-ABSENCE, i.e. this probe's B = 4 is held down in part by constructs the language does not have, not only by design; counting those classes as realizable would put this probe at B = 8."
+   ],
+   "locality_lookups": 1,
+   "locality_detail": [
+    {
+     "hop": "variable decl",
+     "required_for_fact": "mutability, value_vs_storage, overflow_exceptional_numeric, externally_visible_side_effects - the declaration of `x` is the single declared entity that resolves all four: it states whether `x` is a value binding or a reference binding (value_vs_storage, externally_visible_side_effects, and which A2 class holds), whether it carries `const` (mutability), and which numeric type it has (which A10 class holds)."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H2 - Hidden writable aliasing or mutation",
+     "why": "`x` may be a reference binding declared outside the local site, in which case `x += 1` writes storage also reachable under another name. Quidra 'has no `*` dereference operator; using a reference name accesses the referenced storage directly' (language.md 'Addresses, references, and const authority'), so nothing at the use site distinguishes the two, and the LED gate fails: the local site plus the reference do not fix one outcome. Verified by the entry-3 determinacy witness. (The mutation of the assignment target itself is locally evident and is not what is charged here; the concealed behaviour is that the target may alias another name's storage.)"
+    },
+    {
+     "checklist_item": "H5 - Implicit exception / failure propagation",
+     "why": "On integer overflow the form terminates the program deterministically (exit status 101) and no token at the local site marks that the site can leave abnormally. Quidra spells `error` propagation with `try` but has no marker for a checked-arithmetic trap. The failure is reachable in the probe's declared input domain, which fixes only that `x` is an already-initialized signed 32-bit local and therefore admits INT32_MAX. Verified: exit 101 with runtime error[INTEGER_OVERFLOW]."
+    }
+   ],
+   "hidden_count": 2,
+   "complexity_units": 5,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Compound assignment `+=`: available when the corresponding binary operator is valid; the assignment target is evaluated exactly once.",
+     "citation": "docs/spec/grammar.ebnf production `assignment_operator`; docs/spec/language.md 'Bindings and definite initialization'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Checked integer arithmetic: an overflow check is inserted at every integer operation with no construct written for it, and overflow at every integer width is a deterministic runtime error with exit status 101, in every shipped execution mode.",
+     "citation": "docs/spec/language.md 'Strings and arithmetic'; docs/spec/architecture.md 'Native execution cost model'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Write authority: an assignment requires a target with write authority, and a `const` binding or `const T &` path is rejected. Whether the statement is legal depends on the target's declaration, not on the statement.",
+     "citation": "docs/spec/language.md 'Addresses, references, and const authority'; verified error[WRITE_CAPABILITY]"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "A reference binding is used by its bare name and accesses the referenced storage directly; Quidra has no dereference operator, so a write through a reference is spelled exactly like a write to a value binding.",
+     "citation": "docs/spec/language.md 'Addresses, references, and const authority'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Numeric arithmetic requires matching operand types, and an untyped integer literal takes the expected numeric type when that type can represent it exactly.",
+     "citation": "docs/spec/language.md 'Strings and arithmetic'; docs/spec/numeric-and-bytes.md 'Built-in scalar types'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F03.P2",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "FULL",
+   "support_reason": "F-1: all three numbered sub-requirements are delivered by exactly one statement. (1) `xs[1] = 42` sets element 1 to 42; (2) in place, so a subsequent read of element 1 through the name `xs` observes 42 (verified: the probe prints 42); (3) it does not rebuild, reassign or replace `xs` - the language states that 'Assignment to an element does not append or resize an array', and replacing the binding would require a whole-value assignment or the `&xs = &other` rebind form, neither of which is written. `int[]` is Quidra's normal dynamic ordered integer sequence ('`T[]` has runtime length'). Disclosure for the auditor, which does not change the support level because it is not one of the probe's numbered sub-requirements: Quidra's growth operations `append`/`concat` return new array values rather than resizing the receiver in place. F-2/F-3/F-4: documented features only; builds and runs under the frozen recipe. F-6: no normative prohibition applies.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F03.P2.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "42",
+    "diagnostics": ""
+   },
+   "token_count": 6,
+   "facts": [
+    {
+     "fact_kind": "mutability",
+     "site": "xs[1] = 42",
+     "value": "modifies element 1 of the sequence in place; `xs` itself is neither rebound nor replaced, and the sequence is not resized",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Arrays and shapes': 'Assignment to an element does not append or resize an array.' Rebinding requires the distinct `&xs = &other` form (grammar.ebnf `address_assignment`), which is absent."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "xs[1] (index)",
+     "value": "conditional on the declared shape of `xs`, which is outside the fragment: a runtime-length `int[]` is bounds-checked at run time (deterministic failure, exit 101), while a statically sized `int[3]` carries `bounds_proven` and has no runtime failure mode at all",
+     "locally_recoverable": false,
+     "justification": "LOOKUP (hops_decl = 1). This record's own locality_detail already names the declaration of `xs` as the hop required for possible_failure ('it states the shape (fixed vs runtime length, which decides whether the site can fail)'), and the determinacy enumeration splits its classes on exactly that axis. A fact cannot be both locally recoverable and the reason a hop is required. Go and Zig recorded the identical built-in split as a LOOKUP and did not count it."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "xs[1] = 42",
+     "value": "falls through to the next statement, except that an out-of-range index terminates the program at this site with no unwinding and no handler",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Strings and arithmetic'; Quidra has no exception or unwinding mechanism - errors are ordinary union values propagated only by an explicit `try` (docs/spec/language.md 'Error propagation and match')."
+    },
+    {
+     "fact_kind": "externally_visible_side_effects",
+     "site": "xs[1] = 42",
+     "value": "writes element 1 of the sequence named `xs`, which is declared outside the fragment; the store runs no other code",
+     "locally_recoverable": true,
+     "justification": "Quidra defines a fixed operator set with no operator-declaration form and no index-operator overloading, and classes expose fields as plain storage with no property setters (docs/spec/language.md 'Classes'); docs/spec/architecture.md: 'Call syntax is semantically resolved by the checker into function calls, built-ins, explicit numeric casts, or constructors before IR lowering', and an index suffix is none of those. Verified: two functions of the same name give error[DUPLICATE_NAME], so no overload set exists."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "xs[1] = 42",
+     "value": "no allocation, no reallocation and no copy of the sequence: the scalar is stored into existing element storage",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Arrays and shapes': 'Assignment to an element does not append or resize an array'; docs/spec/language.md 'Text and dynamic array operations': '`append`, `concat`, and `sorted` return new array values. They do not resize the receiver's backing storage in place, so an existing safe address such as `&values[i]` is never invalidated by the operation itself.' The right-hand side is a numeric literal, so no managed value is cloned."
+    }
+   ],
+   "fact_count": 4,
+   "determinacy_B": 3,
+   "determinacy_enumeration": [
+    "A1=copy x A2=state referred to by the operand is mutated, not the operand variable's own storage (an element store leaves the binding and the sequence's extent as they were) x A6=may trap/abort x A7=target fixed by compile-time information. This is the reading in which `xs` has a runtime length (`int[]`): the element store is bounds-checked at run time. Witness: `int[] xs = [1]; xs[1] = 42` terminates with runtime error[INDEX_BOUNDS], exit 101, while `int[] xs = [1,2,3]; xs[1] = 42` returns 42.",
+    "A1=copy x A2=state referred to by the operand is mutated x A6=cannot fail x A7=target fixed by compile-time information. This is the reading in which `xs` has a statically known length (`int[3]`): the constant index 1 is proven in range at compile time, carries `bounds_proven`, and selects an unchecked address calculation, so the site has no runtime failure mode at all. Witness: `int[3] xs = [1,2,3]; xs[1] = 42` returns 42 with no check, while `int[3] xs; xs[20] = 1` is rejected at compile time with error[INDEX_BOUNDS] rather than trapping at run time. Materially different from entry 1 on dimension 3 (failure). The two readings are not distinguished by anything in the fragment, because `xs`'s shape lives in its declaration.",
+    "CLASS 3 - A2 = state reachable under another name is written. `xs` may be a reference binding declared outside the measured fragment (`int[] &xs = &other`), in which case the element store writes storage that another name also reaches; grammar.ebnf `binding = [const], type, [\"&\"], identifier, [\"=\", [\"&\"], expression]` makes the form realizable and language.md L292 states 'both paths address the same storage'. Witness (built and run, scratchpad/verify/refarr.qui): `int[] other = [1,2,3]; int[] &xs = &other; xs[1] = 42; return other[1]` prints 42 - the write is observable through a name the fragment never mentions. Materially different from classes 1 and 2 on Rule 1.2.1 dimension 2 (aliasing) and dimension 1 (which program state visible after the span can change). CORRECTION: this class was previously excluded from B although this record's own hidden_items charges H2 for exactly the same openness; Go and Zig both split their two classes on this axis."
+   ],
+   "locality_lookups": 1,
+   "locality_detail": [
+    {
+     "hop": "variable decl",
+     "required_for_fact": "possible_failure, mutability, value_vs_storage, aliasing_writable_aliasing, externally_visible_side_effects - the declaration of `xs` is the single declared entity that resolves all of them: it states the shape (fixed vs runtime length, which decides whether the site can fail), whether the binding carries `const`, and whether `xs` is itself a reference to storage named elsewhere."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H2 - Hidden writable aliasing or mutation",
+     "why": "`xs` may be a reference binding (`int[] &xs = &other`) declared outside the local site, in which case the element write reaches storage also reachable under another name. Quidra 'has no `*` dereference operator; using a reference name accesses the referenced storage directly' (language.md), so nothing at the use site distinguishes the two and the LED gate fails. The mutation of the indexed target itself is locally evident and is not what is charged."
+    }
+   ],
+   "hidden_count": 1,
+   "complexity_units": 5,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Element-assignment form `a[i] = v`, which writes in place and never appends or resizes.",
+     "citation": "docs/spec/language.md 'Arrays and shapes'; docs/spec/grammar.ebnf productions `assignment`, `index_suffix`"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Bounds checking is inserted at every dynamic index with no construct written for it; an out-of-range index is a deterministic runtime failure with exit status 101.",
+     "citation": "docs/spec/language.md 'Arrays and shapes' and 'Strings and arithmetic'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Fixed vs dynamic shape: for a statically known length a constant out-of-range index is a compile-time error and an in-range constant index is statically bounds-proven and unchecked, while dynamic arrays remain runtime-checked.",
+     "citation": "docs/spec/language.md 'Function values and union payload initialization', final paragraph; docs/spec/architecture.md `bounds_proven`"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "A reference binding is used by its bare name with no dereference operator, so a write through a reference is spelled exactly like a write to a value binding.",
+     "citation": "docs/spec/language.md 'Addresses, references, and const authority'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Array value semantics: 'An array's storage and nested elements obey value semantics', and ordinary `=` has observable independent value semantics, while the backend may share storage only when that sharing is unobservable. Whether a write is visible elsewhere therefore depends on how the operand was bound.",
+     "citation": "docs/spec/language.md 'Arrays and shapes'; docs/spec/architecture.md core contracts"
+    }
+   ]
+  },
+  {
+   "probe_id": "F04.P1",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "FULL",
+   "support_reason": "F-1: all four numbered sub-requirements are delivered. (1) `int32 slot = 4` is a mutable signed-32-bit local initialized to 4; (2) `int32 &port = &slot` introduces a second name denoting the same storage with write access - Quidra's documented writable-reference form; (3) `port = 9` writes 9 through it; (4) `return slot` reads `slot`, not `port`. Observable result 9, as the task requires. F-2/F-3/F-4: documented features only; builds and runs under the frozen recipe, printing 9. F-6: the Quidra reference documents `&` as the ordinary safe address form, with no sentence marking it deprecated, unstable, internal or not-to-be-used.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F04.P1.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "9",
+    "diagnostics": ""
+   },
+   "token_count": 15,
+   "facts": [
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "int32 slot",
+     "value": "named addressable storage",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Addresses, references, and const authority': 'For addressable storage `x`, `x` denotes its value and `&x` denotes its storage address.'"
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "int32 slot (no `const`)",
+     "value": "mutable",
+     "locally_recoverable": true,
+     "justification": "docs/spec/grammar.ebnf `binding = [ \"const\" ], type, [ \"&\" ], identifier, ...`; `const` is the only write-authority marker and is absent."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int32 slot = 4",
+     "value": "definitely initialized to 4",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Bindings and definite initialization': 'Whole-value assignment establishes the destination value.'"
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int32",
+     "value": "signed 32-bit two's-complement integer",
+     "locally_recoverable": true,
+     "justification": "docs/spec/numeric-and-bytes.md 'Built-in scalar types'"
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "int32 slot = 4",
+     "value": "no allocation and no managed ownership: a direct scalar value is copied into the binding's storage",
+     "locally_recoverable": true,
+     "justification": "docs/spec/architecture.md 'Runtime representation and lifetime policy': 'direct scalar values copy directly'."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "int32 slot = 4",
+     "value": "at this point `slot` is the only name for this storage: no alias exists yet, because an alias requires a written `&` and none appears in this statement",
+     "locally_recoverable": true,
+     "justification": "language.md 'Addresses, references, and const authority': 'Quidra uses `&` consistently for safe storage addresses ... Quidra has no `*` dereference operator', and grammar.ebnf `binding = [ \"const\" ], type, [ \"&\" ], identifier, [ \"=\", [ \"&\" ], expression ]` makes the `&` mandatory in both the declarator and the initializer. No `&` is written here, so no alias exists and none can arise inside the fragment. This is an absence fact entailed by a universal rule (methodology 02 s1.4 clause (ii)), on the same basis as the frozen Go worked ledger's K03 row at s6.2 ('no alias can exist without a visible `&` - entailed by a universal rule, so it survives the absence-facts test'). (The alias is created one statement later, at `int32 &port = &slot`, where it is recorded on its own row.)"
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "int32 slot",
+     "value": "scope-bounded scalar storage; no cleanup runs at scope exit",
+     "locally_recoverable": true,
+     "justification": "docs/spec/architecture.md value-storage policy; Quidra exposes no user-visible destructor or finalizer."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "= 4",
+     "value": "no conversion: the literal is typed by the expected `int32` context",
+     "locally_recoverable": true,
+     "justification": "docs/spec/numeric-and-bytes.md 'Built-in scalar types' and 'Numeric conversion' (implicit conversion is lossless-only)."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "int32 &port",
+     "value": "a handle denoting storage owned elsewhere: a read/write access path, not an independent object",
+     "locally_recoverable": true,
+     "justification": "docs/spec/architecture.md core contracts: 'Local `T &alias = &storage` bindings provide read/write access and may be rebound with `&alias = &other`.' docs/spec/language.md: 'Quidra has no `*` dereference operator; using a reference name accesses the referenced storage directly.'"
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "int32 &port = &slot",
+     "value": "an alias is necessarily created: `port` and `slot` denote the same storage and both may write it. `&` is mandatory on both the binding type and the target expression, and it forms a safe abstract storage address, never a raw pointer",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Addresses, references, and const authority': the `int a = 1 / int &b = &a / b = 5` example, after which 'a and b both read as 5'; and 'This address is an abstract, safe language-level identity, not an integer memory address.' grammar.ebnf static constraints: \"'&' forms safe storage addresses only in explicit address contexts and is not a raw pointer\". Verified: the probe writes 9 through `port` and reading `slot` yields 9."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "int32 &port",
+     "value": "read/write authority through this path, and the binding may itself be rebound with `&port = &other`",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: '`T &` is a read/write access path'; 'A writable reference can be rebound explicitly. A const reference cannot be rebound.'"
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int32 &",
+     "value": "a read/write reference to `int32`; reference contracts preserve exact types",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: 'Reference contracts preserve exact types, including fixed array shapes and class identity.'"
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int32 &port = &slot",
+     "value": "the reference is established at the declaration, and a writable reference may be formed over storage that is not yet initialized because taking an address does not read the stored value",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: 'Taking an address does not read the stored value, so uninitialized storage may be referenced by a writable reference that can initialize it'; a `const T &` would instead require initialized storage."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "= &slot",
+     "value": "borrows existing storage: no allocation, no copy of the value, and no read of it",
+     "locally_recoverable": true,
+     "justification": "docs/spec/architecture.md core contracts: 'Address formation is not a value read.' docs/spec/language.md: 'Addresses are rooted in existing storage: a binding, a receiver field, or substorage beneath one', and temporaries such as `&5` are not valid address targets."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "int32 &port = &slot",
+     "value": "the reference pins its containing storage for the reference's scope and unpins on leaving that scope; it cannot outlive its root because temporaries are not valid address targets",
+     "locally_recoverable": true,
+     "justification": "docs/spec/architecture.md 'Runtime representation and lifetime policy': 'Safe references pin the containing managed allocation so an observable `&storage` remains valid even if the original owning binding is reassigned; rebinding or leaving the reference scope unpins it.'"
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "port = 9",
+     "value": "this operation writes the already-initialized storage denoted by `port`, i.e. `slot`; it does not rebind `port`",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: '`b = c` assigns a value through `b`; `&b = &c` changes the address held by `b`.' The `&` rebind form is absent here."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "= 9",
+     "value": "no conversion: the literal is typed by the expected `int32` context of the referenced storage",
+     "locally_recoverable": true,
+     "justification": "docs/spec/numeric-and-bytes.md 'Numeric conversion'."
+    },
+    {
+     "fact_kind": "externally_visible_side_effects",
+     "site": "port = 9",
+     "value": "no effect outside the fragment: the only storage written is `slot`, which is declared inside the probe region, and Quidra addresses are rooted in existing storage so the reference cannot reach anything else",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: 'Addresses are rooted in existing storage'; the address target is spelled `&slot` inside the fragment. Recorded under methodology 02 K11's frozen boundary rule (modifying an entity declared inside the probe region is not an externally visible effect)."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return slot",
+     "value": "control leaves the enclosing function carrying `slot`'s value",
+     "locally_recoverable": true,
+     "justification": "docs/spec/grammar.ebnf `return_stmt`; docs/spec/language.md 'Functions, calls, and defaults'."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "port = 9",
+     "value": "cannot fail: a scalar store through an established writable reference has no failure mode",
+     "locally_recoverable": true,
+     "justification": "Absence fact entailed by a universal rule (02 s1.4 clause (ii)): language.md L427 enumerates the closed set of deterministic runtime errors and a plain scalar assignment performs none of them; the reference is established inside the fragment, and language.md L346 states reference parameters and bindings always denote real addressable storage (architecture.md: emitted `nonnull`)."
+    }
+   ],
+   "fact_count": 20,
+   "determinacy_B": 3,
+   "determinacy_enumeration": [
+    "CLASS 1 - A4 = fixed-width signed integer. A1=copy x A2=the only storage written is `slot`, declared inside the fragment, reached through the reference `port` whose `&` is written inside the fragment x A8=no observable resource event (direct scalar storage) x A9=the span returns from the enclosing function. Witness: `int32 probe()` prints 9; `int64 probe()` over the byte-identical fragment prints 9 (scratchpad/f04audit/t_int64.qui).",
+    "CLASS 2 - A4 = binary floating point. The measured fragment is the four statements through `return slot`; the enclosing function signature is OUTSIDE it under Rule 1.1.2, and language.md L419 permits implicit lossless numeric conversion in a typed conversion context, which `int32 -> float`/`float64` is. Witness (built and run): the byte-identical fragment under `float probe()` prints 9.0 rather than 9 (scratchpad/verify/w_f04.qui). Materially different on dimensions 8 (representation) and 9 (observable result). EXCLUDED CLASSES: `uint32 probe()` / `uint64 probe()` / `float32 probe()` are rejected by the compiler (int32 is not exactly representable in any of them, language.md L419) - refutation witnesses recorded; A2-alias-openness is excluded because both `&` are written inside the fragment; token-substitution (A1) is excluded LOW-B-BY-ABSENCE, class_id A1, because Quidra has no macro or preprocessor facility. CORRECTION: the previous enumeration asserted 'Every declaration the facts depend on is inside the fragment', which is falsified by the enclosing signature.",
+    "CLASS 3 - A4 = tagged-union payload (representation change). language.md L13: 'Values and smaller unions can flow to compatible larger unions without wrapper calls; the runtime discriminator is adjusted to the destination type.' The enclosing signature is outside the fragment, so an enclosing result type of `int32 | error` makes the byte-identical fragment produce a discriminated union value with a discriminator write instead of a bare scalar. Witness (built and run): scratchpad/verify/f04p1u.qui (`int32 | error probe()`) prints 9. Materially different on Rule 1.2.1 dimension 8 (boxing/layout/representation of the value produced) and dimension 6 (a discriminator is installed). This is the same class Java's V2 (boxing at `return`) was counted for."
+   ],
+   "locality_lookups": 1,
+   "locality_detail": [
+    {
+     "hop": "callee signature - the enclosing function declaration, whose declared result type the probe places outside the measured fragment (methodology 03 Rule 1.1.2)",
+     "required_for_fact": "type_and_representation of the value the fragment produces at `return slot`. Required under Rule 2.4.1: `float probe()` yields 9.0 and `int32 probe()` yields 9 over a byte-identical fragment, so the fact has no outcome class without the signature."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H2 - Hidden writable aliasing or mutation",
+     "why": "Local site 3 is `port = 9`. `port`'s declaration is at local site 2 and is not local to site 3 under methodology 04 SS0.7, and Quidra has no dereference operator, so at site 3 a write through a reference is spelled exactly like a write to a value binding. An instantiation consistent with site 3 alone therefore writes storage reachable under another name with no local marker. (The charge is symmetric with any language whose reference bindings are used by their bare name; it is not charged at site 2, where `&` is written.)"
+    }
+   ],
+   "hidden_count": 1,
+   "complexity_units": 9,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Binding declaration `type identifier = expression`.",
+     "citation": "docs/spec/grammar.ebnf production `binding`"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`int32` names the signed 32-bit type.",
+     "citation": "docs/spec/numeric-and-bytes.md 'Built-in scalar types'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Writable reference binding `T &name = &storage`: a read/write access path to existing storage.",
+     "citation": "docs/spec/language.md 'Addresses, references, and const authority'; docs/spec/grammar.ebnf production `binding` with the optional `&`"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Address formation `&storage`: a safe abstract storage address that is not a pointer, cannot be converted to an integer, and cannot target a temporary; there is no dereference operator.",
+     "citation": "docs/spec/language.md 'Addresses, references, and const authority'; docs/spec/grammar.ebnf static/frontend constraints"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Const/authority model: `T &` is read/write, `const T &` is a live read-only path that cannot be rebound or promoted back to `T &`, and `const` is path-local. Which authority a path has depends on its declaration, not on its use.",
+     "citation": "docs/spec/language.md 'Addresses, references, and const authority'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Assignment through a reference (`name = value`) writes the referenced storage, while address-assignment (`&name = &other`) rebinds the reference. Two distinct forms with distinct meanings.",
+     "citation": "docs/spec/grammar.ebnf productions `assignment` and `address_assignment`; docs/spec/language.md: '`b = c` assigns a value through `b`; `&b = &c` changes the address held by `b`'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Reference pinning: a safe reference pins its containing managed allocation so the address stays valid even if the owning binding is reassigned, and leaving the reference scope unpins it. No construct is written for the pin.",
+     "citation": "docs/spec/architecture.md 'Runtime representation and lifetime policy'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`return expression`.",
+     "citation": "docs/spec/grammar.ebnf production `return_stmt`"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Integer literal typing by expected numeric context.",
+     "citation": "docs/spec/numeric-and-bytes.md 'Built-in scalar types'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F04.P2",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "FULL",
+   "support_reason": "F-1: both numbered sub-requirements are delivered. (1) `const int[] &window = &xs` introduces a read-only view over `xs`'s existing elements without copying them - Quidra documents `const T &` as 'a live read-only access path to the same storage model', and the non-copying property was verified by an observer that no copy could satisfy: after forming the view, writing `xs[0] = 55` makes `window[0]` read 55. (2) `return window[0]` reads element 0 through the view (probe prints 7). The OBSERVATION TARGET, which is non-normative for support, is met in both halves: a reader can tell from the form alone that no copy occurred (`&` forms an access path, and address formation is not a value read) and that a write through `window` would be rejected (`const` removes write authority; verified error[WRITE_CAPABILITY]). F-2/F-3/F-4: documented features only; builds and runs under the frozen recipe. F-6: no normative prohibition applies.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F04.P2.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "7",
+    "diagnostics": ""
+   },
+   "token_count": 14,
+   "facts": [
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "const int[] &window",
+     "value": "a handle denoting storage owned elsewhere: a live read-only access path, not an independent array value",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Addresses, references, and const authority': '`const T &` is a live read-only access path to the same storage model.'"
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "const int[] &window",
+     "value": "no write authority through this path: element writes, rebinding, and promotion to a writable reference are all rejected",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: 'However, `view = 8`, `&view = &other`, and `int &writer = &view` are compile-time errors. Authority may be reduced from a writable path to a const path, but cannot be recovered through the weaker path.' Verified: `window[0] = 1` gives error[WRITE_CAPABILITY] 'Cannot write through a const access path'; `int[] &w = &window` gives error[REFERENCE_BINDING]."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "const int[] &window = &xs",
+     "value": "a read alias to `xs`'s storage is necessarily created and no writable alias is created through this path; because const is path-local, a write performed through another writable path remains visible through `window`",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: 'The meaning of const is path-local: it prevents writes through that binding or reference path; it does not freeze the underlying storage against changes made through another writable path', and the worked example in which a change to `value` is visible through `view`. Verified: writing `xs[0] = 55` after forming the view makes `window[0]` read 55."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "= &xs",
+     "value": "no copy of the elements and no allocation: the view is an access path to the same storage, and address formation is not a value read",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: '`const T &` is a live read-only access path to the same storage model'; docs/spec/architecture.md: 'Address formation is not a value read.' Verified by the liveness observer above, which no copy could produce."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "= &xs (initialization operation)",
+     "value": "no conversion occurs: the initializer's type is preserved exactly, including the array shape and element type",
+     "locally_recoverable": true,
+     "justification": "language.md L346: 'Reference contracts preserve exact types, including fixed array shapes and class identity.' The S2 initialization site is created by rule E2 and K06 is '*' at S2; the value is fixed by the written form. (Added in place of the K11 row that sat at the S1 binding site, where the s1.2 matrix leaves K11 blank.)"
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "const int[] &",
+     "value": "a read-only reference to a runtime-length array of `int` (signed 64-bit); reference contracts preserve the exact type including array shape",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Arrays and shapes' ('`T[]` has runtime length') and 'Addresses...': 'Reference contracts preserve exact types, including fixed array shapes and class identity.'"
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "const int[] &window = &xs",
+     "value": "the reference pins the containing managed allocation for the reference's scope and unpins on leaving it; the referenced storage stays alive even if the owning binding is later replaced",
+     "locally_recoverable": true,
+     "justification": "docs/spec/architecture.md 'Runtime representation and lifetime policy'; docs/spec/language.md: 'The implementation keeps the old backing storage alive as long as such a reference needs it. This is a lifetime guarantee, not a guarantee that a physical machine address is observable or fixed.'"
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "const int[] &window = &xs",
+     "value": "the referenced storage is definitely initialized at this point, because a const reference may only be formed over initialized stable storage",
+     "locally_recoverable": true,
+     "justification": "docs/spec/grammar.ebnf static/frontend constraints: 'const references require initialized stable storage and cannot be rebound or promoted back to writable references'; docs/spec/language.md: 'A `const T &` reference instead requires initialized storage at formation because that path cannot initialize the target.'"
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "window[0]",
+     "value": "indexing is bounds-checked and an out-of-range index is a deterministic runtime failure (INDEX_BOUNDS, exit status 101)",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Arrays and shapes' ('Indexing ... checks bounds') and 'Strings and arithmetic' (exit status 101). Verified on a dynamic array."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "window[0]",
+     "value": "falls through, except that an out-of-range index terminates the program at this site with no unwinding and no handler",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Strings and arithmetic'; Quidra has no exception mechanism."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "window[0] (result)",
+     "value": "produces an `int` value read from element 0, not a writable path to it; a writable path would require the explicit `&` address form",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Arrays and shapes'; 'Addresses, references, and const authority'."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "window[0] (result)",
+     "value": "result type `int`, signed 64-bit",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Types'; the element type is spelled in the fragment's reference declaration."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return window[0]",
+     "value": "control leaves the enclosing function carrying the element value",
+     "locally_recoverable": true,
+     "justification": "docs/spec/grammar.ebnf `return_stmt`."
+    }
+   ],
+   "fact_count": 13,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "A1=alias to the operand's own storage (the `&xs` target is spelled in the fragment and `const T &` is documented as an access path to the same storage, verified by the liveness observer) x A2=no caller-observable mutation through this span (the const path cannot write, rebind, or be promoted to a writable path; all three were verified to be compile-time errors) x A8=a read-only borrow begins here and ends when `window` leaves scope, with no allocation, no copy, no move and no destruction. The pin/unpin bookkeeping that accompanies the borrow is excluded under the observational-equivalence rule and flagged UNOBSERVABLE-RESOURCE-EVENT: Quidra exposes no identity operator, no reference-count query and no user-visible finalizer, so no conforming program can detect it - an observer was attempted and failed. No other class is realizable."
+   ],
+   "locality_lookups": 1,
+   "locality_detail": [
+    {
+     "hop": "variable decl",
+     "required_for_fact": "aliasing_writable_aliasing - the fragment fixes that no write is possible through `window`, but the second half of the aliasing question ('whether writes are possible through more than one of them') additionally needs the declaration of `xs`, because `const` is path-local and a write through `xs` itself remains visible through the view. Reading `xs`'s declaration also confirms mutability, value_vs_storage, allocation_copy_move_borrow_destroy and lifetime_resource_effect, all of which are already resolved locally, so it is one hop resolving the single remaining fact and `H_i` is minimal at 1."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H4 - Implicit allocation, copy, move, destruction, or cleanup",
+     "why": "Forming `const int[] &window = &xs` pins the containing managed allocation for the reference's scope: architecture.md 'Runtime representation and lifetime policy' - 'Safe references pin the containing managed allocation so an observable `&storage` remains valid even if the original owning binding is reassigned; rebinding or leaving the reference scope unpins it.' That is a retain/release resource event (s0.8 dimension 'resource behavior') begun and ended by a form that carries no token tied to it: `&` names the address, not the pinning, and no `defer`/`using`/`close` construct exists. H4's only unobservability exclusion is garbage-collector reclamation, and Quidra's is explicit managed retain/release, not GC. Swift is charged H4 for the structurally identical 'the view retains the base's whole buffer' event. CORRECTION: previously excluded by invoking methodology 03 Rule 1.4.5 (observational equivalence), which is a determinacy merge rule with no force in this checklist."
+    }
+   ],
+   "hidden_count": 1,
+   "complexity_units": 9,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Read-only reference binding `const T &name = &storage`.",
+     "citation": "docs/spec/language.md 'Addresses, references, and const authority'; docs/spec/grammar.ebnf production `binding`"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Address formation `&storage`: a safe abstract storage address, not a pointer; no dereference operator exists.",
+     "citation": "docs/spec/language.md 'Addresses, references, and const authority'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Const authority is path-local: it prevents writes through that path only, cannot be rebound, and cannot be promoted back to a writable reference, while the underlying storage may still change through another writable path.",
+     "citation": "docs/spec/language.md 'Addresses, references, and const authority'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "A `const T &` may only be formed over initialized stable storage, whereas a writable `T &` may be formed over uninitialized storage and initialize it. Which applies depends on the authority of the reference being declared.",
+     "citation": "docs/spec/grammar.ebnf static/frontend constraints; docs/spec/language.md 'Addresses, references, and const authority'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`T[]` array type with runtime length and value semantics.",
+     "citation": "docs/spec/language.md 'Arrays and shapes'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Index expression `a[i]`: zero-based, requires `int`.",
+     "citation": "docs/spec/language.md 'Arrays and shapes'; docs/spec/grammar.ebnf production `index_suffix`"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Bounds checking inserted at a dynamic index with no construct written; failure is deterministic with exit status 101.",
+     "citation": "docs/spec/language.md 'Arrays and shapes' and 'Strings and arithmetic'"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Reference pinning keeps the containing managed allocation alive for the reference's scope, including after the owning binding is replaced.",
+     "citation": "docs/spec/architecture.md 'Runtime representation and lifetime policy'; docs/spec/language.md 'Addresses, references, and const authority'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`return expression`.",
+     "citation": "docs/spec/grammar.ebnf production `return_stmt`"
+    }
+   ]
+  },
+  {
+   "probe_id": "F04.P3",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "NONE",
+   "support_reason": "NONE under rubric criteria N-1 and N-4. N-1: Quidra provides no documented standard operation that distinguishes 'the same object' from 'an equal value' for heap-allocated objects, so sub-requirement (3) cannot be delivered. The language reference states it directly - language.md, 'Addresses, references, and const authority': 'Quidra intentionally has no Python-style `is` identity operator. Value equality and class equality are separate semantic questions; object allocation identity is not exposed.' architecture.md core contracts repeats it: 'Object identity is not exposed through an `is` operator', and 'Class, array, and bytes equality is value equality ... backend helpers compare fields, elements, or byte contents rather than pointer identity.' language.md 'Classes' adds: 'Class `==` and `!=` compare values rather than allocation identity.' The `&` address form is not a substitute: 'This address is an abstract, safe language-level identity, not an integer memory address. It cannot be printed as a pointer, converted to an integer, or used in pointer arithmetic', and the grammar provides no comparison of addresses. Verified against the frozen toolchain: `bool same = &first == &second` gives 'error[PARSE_ERROR] Expected expression', and `bool same = first is second` gives 'error[PARSE_ERROR] Expected newline after binding'. Sub-requirement (2) is also unavailable on its own terms, because ordinary class bindings have deep value semantics ('Copying a class value produces independent nested class, array, and union storage'), so routing a value through a one-element container yields an independent copy rather than a second name for one object. N-4: F04.P3's canonical_task explicitly directs that no fragment be written for a language lacking the mechanism, and F04.P3 is named in the rubric's N-4 list. Per na_policy NA-2 and NA-6 this is a NONE with a written justification, never an N/A: both capability points remain in the fixed 88-point denominator and score 0.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 0.0,
+   "probe_file": null,
+   "toolchain_verification": {
+    "built": null,
+    "ran": null,
+    "observed_output": "",
+    "diagnostics": "Attempted mechanisms, both rejected by quidra 0.2.0: `bool same = &first == &second` -> 'error[PARSE_ERROR] Expected expression'; `bool same = first is second` -> 'error[PARSE_ERROR] Expected newline after binding'. No fragment is written, per the canonical_task's own direction."
+   },
+   "token_count": null,
+   "facts": [],
+   "fact_count": 0,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "Not measured. Support is NONE, so no fragment exists and methodology 03 SS1.9 excludes this probe from the determinacy mean (support_level NONE, none_reason_code UNSUPPORTED). The value 1 is recorded only because this schema requires an integer >= 1; it must not be read as 'fully determined' and must not be aggregated as a measurement."
+   ],
+   "locality_lookups": 0,
+   "locality_detail": [],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 0,
+   "complexity_detail": []
+  },
+  {
+   "probe_id": "F05.P1",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "FULL",
+   "support_reason": "F-1: all three numbered sub-requirements are delivered. (1) `int[] x = [1, 2, 3]` binds a growable integer sequence containing 1, 2, 3 (`T[]` is Quidra's runtime-length array). (2) `f(x)` is the plainest ordinary call-site syntax with no sigil, address-of, borrow marker, copy, clone, wrapper, annotation or modifier at the argument position; `f` is declared elsewhere in the same compilation unit as `void f(int[] values)`, the plainest parameter form, and is excluded from the measured fragment. (3) `return x[0]` reads element 0 after the call (probe prints 1). F-2/F-3/F-4: documented features only; builds and runs under the frozen recipe. F-6: no normative prohibition applies to an ordinary call. || COMPARABILITY DISCLOSURE (audit finding on fact-splitting granularity, no unilateral change made). The ten ledgers for this probe are split between a per-sub-expression convention (Go 21 facts / 21 tokens, Python 19 / 18) and a per-statement convention (Java 12 / 33, Rust 12 / 23), with Quidra mid-pack at 14 / 21 = 0.67, below Go, Python, TypeScript and Swift. Methodology 02 s1.1-s1.2 fixes one convention - sites are enumerated mechanically and 'two sites of the same class and shape are annotated with the same rows in every language' - so the spread is annotator practice, not language. Quidra's ledger is not adjusted here because moving one language to a convention the other nine do not share would enlarge the incomparability rather than reduce it; the fix belongs to a corpus-wide re-sweep at the s1.2 matrix depth, which is the direction this correction pass took wherever Quidra itself was the under-enumerated column (F06.P1, F06.P2, F07.P2, F08.P1, F08.P2, F09.P1, F10.P1, F10.P2, F16.P1, F16.P2, F17.P1, F18.P1, F18.P2).",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F05.P1.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "1",
+    "diagnostics": ""
+   },
+   "token_count": 21,
+   "facts": [
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "int[] x",
+     "value": "names storage holding an array value with value semantics, not a shared handle to a container",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Arrays and shapes': 'An array's storage and nested elements obey value semantics. Copying a nested array cannot make a later write to one copy modify another.'"
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "int[] x (no `const`)",
+     "value": "mutable",
+     "locally_recoverable": true,
+     "justification": "docs/spec/grammar.ebnf `binding = [ \"const\" ], type, ...`; `const` is the only write-authority marker and is absent."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int[] x = [1, 2, 3]",
+     "value": "definitely initialized with three elements, so the sequence's length is fixed at 3 by the local form",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Arrays and shapes'; the array literal is written in the fragment."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int[]",
+     "value": "a runtime-length array of `int` (signed 64-bit)",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Arrays and shapes': '`T[]` has runtime length'; 'Types': '`int` and `int64` are the same signed 64-bit type.'"
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "= [1, 2, 3]",
+     "value": "an array literal constructs a new array value; the storage is a heap-backed managed runtime value",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Arrays and shapes'; docs/spec/architecture.md 'Runtime representation and lifetime policy': 'Heap-backed runtime values use deterministic managed ownership with explicit retain/release operations in typed IR and generated LLVM.'"
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "int[] x",
+     "value": "released by deterministic managed retain/release when the last owning reference is released; there is no user-visible destructor or finalizer and the release point is fixed by the program's ownership graph rather than by this form",
+     "locally_recoverable": true,
+     "justification": "docs/spec/architecture.md 'Runtime representation and lifetime policy': 'Owned expression temporaries are released after their last use ... Composite drop helpers recursively release managed fields, array elements, and union payloads.' Recorded under methodology 02 K13's frozen reclamation rule for reference-counted managed languages (basis_class universal-rule), on exactly the same terms as Swift's ARC."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "x (the argument position of `f(x)`)",
+     "value": "the call hands out no alias at all - neither writable nor read-only. A reference parameter of either authority would force an explicit `&` at this argument position, and the bare form therefore establishes by-value passing",
+     "locally_recoverable": true,
+     "justification": "grammar.ebnf `parameter = [ \"const\" ], type, [ \"&\" ], identifier, ...` and `argument = \"&\", identifier, \"=\", \"&\", expression | identifier, \"=\", expression | [ \"&\" ], expression`; docs/spec/language.md 'Addresses, references, and const authority': 'Reference parameters use the same model and remain explicit at both declaration and call sites ... Both calls use `&data`: the parameter declaration determines whether the callee receives read-only or read/write authority ... Reference markers cannot be omitted or supplied to ordinary parameters.' Verified twice against the frozen toolchain: calling `void f(int[] &values)` as `f(x)` gives 'error[WRITE_CAPABILITY] Argument reference form must match parameter', and calling `void f(const int[] &values)` as `f(x)` gives the same error - so a bare argument cannot bind to a writable OR a read-only reference parameter."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "x (the argument position of `f(x)`)",
+     "value": "passed by value: the callee receives an independent value, and no borrow of the caller's storage is created",
+     "locally_recoverable": true,
+     "justification": "docs/spec/architecture.md core contracts: 'Ordinary `=` has observable independent value semantics for arrays, bytes, classes, and other values. The backend may share storage, use copy-on-write, elide copies, or move values when that is unobservable.' Combined with the mandatory-marker rule above, the bare argument form fixes independent value semantics at this position."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "x (the argument position of `f(x)`)",
+     "value": "the callee can neither write `x` nor write its elements through this argument",
+     "locally_recoverable": true,
+     "justification": "grammar.ebnf `parameter = [ \"const\" ], type, [ \"&\" ], identifier, ...` and `argument = \"&\", identifier, \"=\", \"&\", expression | identifier, \"=\", expression | [ \"&\" ], expression`; docs/spec/language.md 'Addresses, references, and const authority': 'Reference parameters use the same model and remain explicit at both declaration and call sites ... Both calls use `&data`: the parameter declaration determines whether the callee receives read-only or read/write authority ... Reference markers cannot be omitted or supplied to ordinary parameters.' Verified twice against the frozen toolchain: calling `void f(int[] &values)` as `f(x)` gives 'error[WRITE_CAPABILITY] Argument reference form must match parameter', and calling `void f(const int[] &values)` as `f(x)` gives the same error - so a bare argument cannot bind to a writable OR a read-only reference parameter. Verified: `void f(int[] values)` whose body executes `values[0] = 99` leaves the caller's `x[0]` at 1."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "f(x)",
+     "value": "no error is propagated into the enclosing function at this site: propagation is explicit through `try`, which is not written here, and Quidra has no exceptions",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Error propagation and match': '`try` requires an expression whose union includes `error`, inside a function that can return that error. On error it returns the same error from the current function.' docs/spec/architecture.md core contracts: '`error` propagation is explicit through `try`.' Note for the auditor: this states that no failure of `f` can be signalled into this function as a value or an exception; it does not assert that `f` cannot terminate the process, which depends on `f`'s body and is charged as a locality hop."
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "x[0] (in `return x[0]`)",
+     "value": "produces an `int` value read from element 0, not a writable path to it",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Arrays and shapes'; a writable path would require the explicit `&` address form."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "x[0] (result)",
+     "value": "result type `int`, signed 64-bit",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Types' and 'Arrays and shapes'; the element type is spelled in the fragment."
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "x[0]",
+     "value": "indexing is bounds-checked and an out-of-range index is a deterministic runtime failure (INDEX_BOUNDS, exit status 101); here the array's length is established as 3 inside the fragment, so index 0 is in range",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Arrays and shapes' and 'Strings and arithmetic'. The binding of `x` to a 3-element literal is inside the probe region, so the answer is fixed by the local surface form."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return x[0]",
+     "value": "control leaves the enclosing function carrying the element value",
+     "locally_recoverable": true,
+     "justification": "docs/spec/grammar.ebnf `return_stmt`."
+    }
+   ],
+   "fact_count": 14,
+   "determinacy_B": 2,
+   "determinacy_enumeration": [
+    "P1 (copy) x M0 (no caller-observable state can have changed through this argument) x E0 (the callee cannot retain access after the call). The callee receives an independent array value. Witness: `void f(int[] values)` whose body executes `values[0] = 99`; the observer `return x[0]` yields 1, so nothing of the caller changed. This vector also absorbs the corpus's mandated outcome 'callee cannot observe caller's object at all', which no observer distinguishes from it (observational-equivalence merge).",
+    "P2 (converting copy) x M0 x E0. An implicit union widening at the argument position can hand the callee a value of a different type than the operand's: 'Values and smaller unions can flow to compatible larger unions without wrapper calls; the runtime discriminator is adjusted to the destination type' (language.md 'Types'). Witness: `void f(int[] | none values)` with the identical call site `f(x)` builds and runs, and the callee's `match values` selects the `int[]` alternative and prints 3 - a value of tagged-union type with an adjusted discriminator, materially different on dimensions 4 (conversion) and 8 (representation). M and E remain closed because the union payload is a value copy and references are not storable in unions. || EXCLUDED CLASSES (Rule 1.3.1.e requires a spec citation AND a refutation witness for each; recorded here rather than left in prose): P3 (callee may retain the alias beyond the call) - EXCLUDED, LOW-B-BY-ABSENCE, class_id P3: architecture.md emits reference parameters `nocapture` because 'references are not storable values and cannot escape a call boundary', and language.md L313 states references are not storable inside class fields or arrays, so no program can retain one; refutation witness: storing a reference parameter in a field is rejected at compile time. P4/M1/M2/M3 (callee may write the caller's elements / may replace or resize the sequence observably) - EXCLUDED: language.md L346 'Reference markers cannot be omitted or supplied to ordinary parameters', so a bare `f(x)` cannot bind a `T &` parameter; refutation witness: `void f(int[] &values)` + `f(x)` -> compile-time error, and `f(&x)` is required. P5/P6 (macro or token-substitution completion) - EXCLUDED, LOW-B-BY-ABSENCE, class_id P5/P6: Quidra has no preprocessor or macro facility in grammar.ebnf. E1 (callee cannot observe the caller's object at all) is merged with the by-value class under Rule 1.4.5. DISCLOSURE per Rule 1.9.5: three of these exclusions are absence-driven, so this probe's B = 2 is in part determinacy earned by omission."
+   ],
+   "locality_lookups": 1,
+   "locality_detail": [
+    {
+     "hop": "callee signature",
+     "required_for_fact": "control_flow_effect and externally_visible_side_effects - `f`'s declaration carries its body inline in Quidra (grammar.ebnf `function = type, identifier, ..., suite`), so signature and body are one declared entity and one hop under methodology 03 Rule 2.2.2. Quidra function signatures carry no effect annotation, so nothing at the declaration level says whether `f` performs I/O or whether it returns at all; reading the declaration (whose body in the frozen program is a bare `return`) resolves both facts. The other four facts in this probe's fact set - aliasing_writable_aliasing, mutability, allocation_copy_move_borrow_destroy and value_vs_storage - are resolved from the fragment alone by the mandatory-reference-marker rule, so no hop is required for them."
+    }
+   ],
+   "hidden_items": [
+    {
+     "checklist_item": "H1 - Implicit conversions",
+     "why": "At local site 2 (`f(x)`) an implicit union widening may convert the argument to a larger union type and adjust its runtime discriminator, with nothing written at the argument position: 'Values and smaller unions can flow to compatible larger unions without wrapper calls; the runtime discriminator is adjusted to the destination type' (language.md 'Types'). The change is observable - the callee can `match` on the alternative, and the value's representation becomes a tagged union - so the LED gate fails: the local site does not fix whether a conversion occurs. Verified: `void f(int[] | none values)` accepts the identical bare call `f(x)`. Assigned to H1 rather than H7 under the single-assignment precedence."
+    },
+    {
+     "checklist_item": "H4 - Implicit allocation, copy, move, destruction, or cleanup",
+     "why": "Local site 2 (`f(x)`) passes a heap-backed managed array by value with nothing at the argument position naming a copy. This record's own K10 justification cites architecture.md - 'The backend may share storage, use copy-on-write, elide copies, or move values when that is unobservable' - to keep the resource event out of B. Methodology 03 Rule 1.2.2.b is explicit that this is not free: the event is flagged UNOBSERVABLE-RESOURCE-EVENT and 'reported to methodology 04 ... Determinacy does not charge it; Hidden Semantic Cost does ... neither may drop it'. Recorded here as the Rule 1.2.2.b cross-charge. C++ charges H4 for the by-value vector copy at the same call, Swift for the COW/refcount traffic, Java and Kotlin for the merged varargs event.",
+     "rule_cross_reference": "methodology 03 Rule 1.2.2.b (UNOBSERVABLE-RESOURCE-EVENT)"
+    },
+    {
+     "checklist_item": "H5 - Implicit exception / failure propagation",
+     "why": "Local site 2 (`f(x)`) may leave abnormally with no local token. language.md L427 makes integer overflow, dynamically determined division/remainder by zero, array and bytes bounds failures, invalid allocation sizes, out-of-range casts, zero range steps and the call-depth guard deterministic runtime errors that terminate the process with exit status 101; any conforming body for `f` can reach one, and NO Quidra signature can announce it (function declarations carry no effect or failure annotation) and no marker appears at the call site. Observed: exit 101 with `Quidra runtime error[INTEGER_OVERFLOW]` / `[INDEX_BOUNDS]` (scratchpad/verify/ovf.qui, idx.qui). Adjudicated over any conforming completion of `f`, which is the reading the corpus's determinacy metric already uses for this probe and the reading applied to Python, C++, Go, Java, Kotlin, TypeScript and Zig here; the alternative frozen-body reading would turn on the accident that Quidra's frozen `f` is inert while five peers' frozen `f` mutates. Zig is charged H5 in the same words for its undeclared panic/abort channel. CORRECTION: previously charged only as a locality hop, which is a different metric."
+    },
+    {
+     "checklist_item": "H4 - Implicit allocation, copy, move, destruction, or cleanup",
+     "why": "Local site 3 (`return x[0]`) is the scope exit at which `x`'s heap-backed managed array buffer is released: architecture.md - 'Heap-backed runtime values use deterministic managed ownership with explicit retain/release operations in typed IR and generated LLVM' and 'Composite drop helpers recursively release managed fields, array elements, and union payloads'. No token at the site names the release, and Quidra has no `defer`/`using`/`drop` construct with which one could be written. The GC exclusion of s0.8 does not reach deterministic reference counting; this is the mandated LED illustration of s1.2.1 ('a scope exit that runs cleanup with no locally written token naming it -> H4 triggers'), and it is what C++ (~vector), Rust (drop) and Swift (ARC) are charged for at the same construct. The allocation itself is excluded: `[1, 2, 3]` is a container literal, which H4's exclusion list names."
+    }
+   ],
+   "hidden_count": 4,
+   "complexity_units": 11,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Binding declaration `type identifier = expression`.",
+     "citation": "docs/spec/grammar.ebnf production `binding`"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Array literal `[e, e, e]`: a composite literal constructing a new array value; a trailing comma adds no element.",
+     "citation": "docs/spec/language.md 'Arrays and shapes'; docs/spec/grammar.ebnf production `array`"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`T[]` runtime-length array type with value semantics.",
+     "citation": "docs/spec/language.md 'Arrays and shapes'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Ordinary call form `f(args)` with positional arguments; positional arguments precede named ones.",
+     "citation": "docs/spec/grammar.ebnf production `direct_call`; docs/spec/language.md 'Functions, calls, and defaults'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Reference markers are mandatory and must match: they cannot be omitted for a reference parameter nor supplied for an ordinary one, so a bare argument is by value. What the call site must be written as depends on the callee's parameter declaration.",
+     "citation": "docs/spec/language.md 'Addresses, references, and const authority'; verified error[WRITE_CAPABILITY]"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Union widening: values and smaller unions flow to compatible larger unions without wrapper calls, and the runtime discriminator is adjusted to the destination type. No construct is written for the conversion.",
+     "citation": "docs/spec/language.md 'Types'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Index expression `a[i]`: zero-based, requires `int`.",
+     "citation": "docs/spec/language.md 'Arrays and shapes'; docs/spec/grammar.ebnf production `index_suffix`"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Bounds checking inserted at a dynamic index with no construct written; failure is deterministic with exit status 101.",
+     "citation": "docs/spec/language.md 'Arrays and shapes' and 'Strings and arithmetic'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`return expression`.",
+     "citation": "docs/spec/grammar.ebnf production `return_stmt`"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Managed ownership: heap-backed runtime values use deterministic retain/release, owned expression temporaries are released after their last use, and composite drop helpers recursively release array elements. No construct is written for any of it.",
+     "citation": "docs/spec/architecture.md 'Runtime representation and lifetime policy'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Value-copy policy at a by-value boundary: ordinary `=` and by-value passing have observable independent value semantics for aggregates, while the backend may share storage, use copy-on-write, elide copies or move values when that is unobservable.",
+     "citation": "docs/spec/architecture.md core contracts and 'Runtime representation and lifetime policy'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F05.P2",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "FULL",
+   "support_reason": "F-1: all four numbered sub-requirements are delivered, with no container or object wrapper (which the task marks as not acceptable for FULL). (1) `void put(int32 &value)` takes writable access to a caller-owned signed 32-bit variable and its body is exactly the one assignment `value = 12`. (2) `int32 cell = 3` is the caller's mutable local of the same type. (3) `put(&cell)` uses Quidra's REQUIRED explicit reference form: the `&` is mandatory at the call site and `int32 &` is mandatory in the parameter declaration - 'Reference markers cannot be omitted or supplied to ordinary parameters' - verified, since calling the same function as `put(cell)` is rejected with error[WRITE_CAPABILITY]. (4) `return cell` reads `cell` after the call; observed value 12. Note on the fragment boundary, for the auditor: the probe places `put`'s full declaration and body inside the measured fragment. Quidra declares functions at top level only, so the fragment is written as the caller's three statements followed by `put`'s declaration, which keeps the enclosing function header (pure scaffolding under R1) outside the markers while putting every text the corpus requires inside them. Forward reference is legal in Quidra - 'declaration order does not change the result'. F-2/F-3/F-4: documented features only; builds and runs under the frozen recipe. F-6: no normative prohibition applies.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 2.0,
+   "probe_file": "/private/tmp/claude-501/-Users-koba-Desktop-Quidra/c7dc7758-3bc7-4b38-ac54-4af31eae0682/scratchpad/bench/quidra-scratch/benchmark/2026-09-17-7677581/semantic-compression/probes/quidra/F05.P2.qui",
+   "toolchain_verification": {
+    "built": true,
+    "ran": true,
+    "observed_output": "12",
+    "diagnostics": ""
+   },
+   "token_count": 21,
+   "facts": [
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "int32 cell",
+     "value": "named addressable storage",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Addresses, references, and const authority'."
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "int32 cell (no `const`)",
+     "value": "mutable",
+     "locally_recoverable": true,
+     "justification": "docs/spec/grammar.ebnf `binding = [ \"const\" ], type, ...`."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int32 cell = 3",
+     "value": "definitely initialized to 3",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Bindings and definite initialization'."
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int32 cell",
+     "value": "signed 32-bit two's-complement integer",
+     "locally_recoverable": true,
+     "justification": "docs/spec/numeric-and-bytes.md 'Built-in scalar types'."
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "int32 cell",
+     "value": "scope-bounded scalar storage; no cleanup runs at scope exit",
+     "locally_recoverable": true,
+     "justification": "docs/spec/architecture.md value-storage policy: scalars are direct values, not heap-backed managed values."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "= 3",
+     "value": "no conversion: the literal is typed by the expected `int32` context",
+     "locally_recoverable": true,
+     "justification": "docs/spec/numeric-and-bytes.md 'Numeric conversion'."
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "&cell (the argument position of `put(&cell)`)",
+     "value": "the call hands out a writable alias to `cell`'s own storage; the `&` is mandatory here and must match the parameter's declared authority",
+     "locally_recoverable": true,
+     "justification": "grammar.ebnf `parameter = [ \"const\" ], type, [ \"&\" ], identifier, ...` and `argument = \"&\", identifier, \"=\", \"&\", expression | identifier, \"=\", expression | [ \"&\" ], expression`; docs/spec/language.md 'Addresses, references, and const authority': 'Reference parameters use the same model and remain explicit at both declaration and call sites ... Both calls use `&data`: the parameter declaration determines whether the callee receives read-only or read/write authority ... Reference markers cannot be omitted or supplied to ordinary parameters.' Verified twice against the frozen toolchain: calling `void f(int[] &values)` as `f(x)` gives 'error[WRITE_CAPABILITY] Argument reference form must match parameter', and calling `void f(const int[] &values)` as `f(x)` gives the same error - so a bare argument cannot bind to a writable OR a read-only reference parameter."
+    },
+    {
+     "fact_kind": "allocation_copy_move_borrow_destroy",
+     "site": "&cell (the argument position)",
+     "value": "borrows existing storage: no copy of the value, no allocation, and no read of the value at address formation",
+     "locally_recoverable": true,
+     "justification": "docs/spec/architecture.md core contracts: 'Address formation is not a value read.' docs/spec/language.md: 'Addresses are rooted in existing storage: a binding, a receiver field, or substorage beneath one.'"
+    },
+    {
+     "fact_kind": "lifetime_resource_effect",
+     "site": "&cell (the argument position)",
+     "value": "the borrow is call-scoped and cannot outlive the call: references are not storable values and cannot escape a call boundary",
+     "locally_recoverable": true,
+     "justification": "docs/spec/architecture.md core contracts: 'Reference parameters are emitted `nonnull` because source references always denote real addressable storage, and `nocapture` because references are not storable values and cannot escape a call boundary.' docs/spec/language.md: 'References are not storable inside class fields or arrays.' Verified: declaring a class field `int &slot` is a parse error."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "put(&cell)",
+     "value": "control transfers to `put` and returns here: `put`'s body is inside the fragment and is a single scalar assignment, so the call falls through",
+     "locally_recoverable": true,
+     "justification": "docs/spec/grammar.ebnf production `function`; the callee's whole declaration and body are inside the measured fragment."
+    },
+    {
+     "fact_kind": "externally_visible_side_effects",
+     "site": "put(&cell)",
+     "value": "no effect outside the fragment: the only storage the call can write is `cell`, which is declared inside the probe region, and `put`'s body - also inside the fragment - performs no I/O and reads no non-local state",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Addresses, references, and const authority' (addresses are rooted in existing storage); docs/spec/language.md 'Functions, calls, and defaults' (Quidra functions receive everything they use through parameters; a top-level binding is not visible inside a function body - verified: assigning a top-level binding from inside a function gives error[UNKNOWN_NAME] 'Undefined assignment target'). Recorded under methodology 02 K11's frozen boundary rule."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "void put(...) (signature)",
+     "value": "declared result `void`: the function completes normally without data and may fall through",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Functions, calls, and defaults': 'A `void` function can fall through or execute bare `return`.'"
+    },
+    {
+     "fact_kind": "possible_failure",
+     "site": "void put(...) (signature)",
+     "value": "`put` cannot signal failure to its caller: its declared result contains no `error` alternative, and Quidra has no exceptions - failure is only ever an `error` alternative of a result union",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Error propagation and match'; docs/spec/architecture.md core contracts: '`error` propagation is explicit through `try`; `none` represents normal absence.'"
+    },
+    {
+     "fact_kind": "value_vs_storage",
+     "site": "int32 &value (parameter)",
+     "value": "a handle denoting storage owned by the caller, not an independent copy",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Addresses, references, and const authority': 'Reference parameters use the same model and remain explicit at both declaration and call sites.'"
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "int32 &value (parameter)",
+     "value": "read/write authority through this path; `const T &` would instead be read-only, and for reference parameters that distinction is caller-visible and part of the signature",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: 'for reference parameters, `T &` versus `const T &` is caller-visible authority and must match.'"
+    },
+    {
+     "fact_kind": "type_and_representation",
+     "site": "int32 & (parameter)",
+     "value": "a read/write reference to `int32`; reference contracts preserve exact types",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: 'Reference contracts preserve exact types, including fixed array shapes and class identity.'"
+    },
+    {
+     "fact_kind": "aliasing_writable_aliasing",
+     "site": "int32 &value (parameter)",
+     "value": "the parameter may legally alias other reference arguments of the same call, so no non-aliasing guarantee attaches to it",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: 'Reference aliasing is allowed. The same storage may be passed to multiple reference parameters, including `f(&data, &data)`'; docs/spec/architecture.md: 'Reference parameters are deliberately not emitted `noalias` or as invariant memory: another `T &` argument may legally alias and mutate the same storage.' A distinct subject from the argument-position fact above."
+    },
+    {
+     "fact_kind": "initialization_state",
+     "site": "int32 &value (parameter)",
+     "value": "a writable reference parameter may receive storage that is not yet initialized and initialize it; the checker infers read-before-write requirements, and this body writes before any read, so `put` requires no prior initialization of its target",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: 'The checker infers read-before-write requirements for writable parameters. A write-only writable parameter can initialize previously uninitialized storage; a read-only reference always requires initialized storage.'"
+    },
+    {
+     "fact_kind": "mutability",
+     "site": "value = 12",
+     "value": "this operation writes the caller's already-initialized storage through the reference; it does not rebind the reference",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md: '`b = c` assigns a value through `b`; `&b = &c` changes the address held by `b`.'"
+    },
+    {
+     "fact_kind": "externally_visible_side_effects",
+     "site": "value = 12",
+     "value": "writes storage owned by the caller, which is observable outside `put`'s body",
+     "locally_recoverable": true,
+     "justification": "docs/spec/language.md 'Addresses, references, and const authority': the `initialize(&data)` worked example, after which the caller's `data` reads 7. Verified: the probe prints 12."
+    },
+    {
+     "fact_kind": "conversion_behavior",
+     "site": "= 12",
+     "value": "no conversion: the literal is typed by the expected `int32` context of the referenced storage",
+     "locally_recoverable": true,
+     "justification": "docs/spec/numeric-and-bytes.md 'Numeric conversion'."
+    },
+    {
+     "fact_kind": "control_flow_effect",
+     "site": "return cell",
+     "value": "control leaves the enclosing function carrying `cell`'s value",
+     "locally_recoverable": true,
+     "justification": "docs/spec/grammar.ebnf `return_stmt`."
+    }
+   ],
+   "fact_count": 22,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "P4 (alias to the operand's own storage) x M1 (the callee may write the caller's variable's own storage) x E0 (the callee cannot retain access beyond the call). Every element is closed by text inside the fragment: the parameter is declared `int32 &value`, the call site writes `&cell`, and `put`'s body is the single assignment `value = 12`, so M0, M2 and M3 are not realizable. P1/P2 are refuted because the reference form is mandatory and must match, and 'Reference contracts preserve exact types', leaving no copy or converting copy at this position; P3 is refuted because Quidra has no move or consume form; P5 because it has no deferred, lazy or by-name call form; P6 because it has no macro or textual-substitution facility and `put(&cell)` cannot resolve to a constructor (class construction requires named field initializers - verified error[ARGUMENT_MISMATCH]) or to a cast (cast spellings are reserved type names). E1 is refuted by the reference's own contract: reference parameters are `nocapture` because 'references are not storable values and cannot escape a call boundary', and references cannot be stored in class fields or arrays - verified, `class Holder / int &slot` is a parse error."
+   ],
+   "locality_lookups": 0,
+   "locality_detail": [],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 12,
+   "complexity_detail": [
+    {
+     "unit": "distinct syntax form",
+     "description": "Function declaration `type name(parameters)` with a suite body and explicit boundary types.",
+     "citation": "docs/spec/grammar.ebnf production `function`; docs/spec/language.md 'Functions, calls, and defaults'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Reference parameter `T &name`: read/write authority over caller storage.",
+     "citation": "docs/spec/grammar.ebnf production `parameter`; docs/spec/language.md 'Addresses, references, and const authority'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Call-site address argument `&expression`.",
+     "citation": "docs/spec/grammar.ebnf production `argument`; docs/spec/language.md 'Addresses, references, and const authority'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Reference-authority matching: markers cannot be omitted or supplied to ordinary parameters, and for reference parameters `T &` versus `const T &` is caller-visible authority that must match. What the call site must be written as depends on the callee's parameter declaration.",
+     "citation": "docs/spec/language.md 'Addresses, references, and const authority' and 'Classes'; verified error[WRITE_CAPABILITY]"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Assignment through a reference writes the referenced storage (as distinct from `&name = &other`, which rebinds).",
+     "citation": "docs/spec/grammar.ebnf productions `assignment` and `address_assignment`; docs/spec/language.md 'Addresses, references, and const authority'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`void` result type: the function completes normally without data and may fall through.",
+     "citation": "docs/spec/language.md 'Types' and 'Functions, calls, and defaults'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "Binding declaration `type identifier = expression`.",
+     "citation": "docs/spec/grammar.ebnf production `binding`"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`int32` names the signed 32-bit type.",
+     "citation": "docs/spec/numeric-and-bytes.md 'Built-in scalar types'"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Storage-effect inference for reference parameters: the checker infers read-before-write requirements, a write-only writable parameter may initialize previously uninitialized storage, and a read-only reference always requires initialized storage. The obligation depends on what the callee's body does, not on the parameter's syntax.",
+     "citation": "docs/spec/language.md 'Addresses, references, and const authority'; docs/spec/architecture.md core contracts (StorageEffect model)"
+    },
+    {
+     "unit": "implicit rule",
+     "description": "Reference escape rule: references are not storable values and cannot escape a call boundary (emitted `nocapture`), and cannot be stored in class fields or arrays. No construct is written for the restriction.",
+     "citation": "docs/spec/architecture.md core contracts and 'Call syntax is semantically resolved...' paragraph; docs/spec/language.md 'Addresses, references, and const authority'"
+    },
+    {
+     "unit": "distinct syntax form",
+     "description": "`return expression`.",
+     "citation": "docs/spec/grammar.ebnf production `return_stmt`"
+    },
+    {
+     "unit": "context-dependent rule",
+     "description": "Integer literal typing by expected numeric context.",
+     "citation": "docs/spec/numeric-and-bytes.md 'Built-in scalar types'"
+    }
+   ]
+  },
+  {
+   "probe_id": "F05.P3",
+   "language": "Quidra",
+   "language_key": "quidra",
+   "support": "NONE",
+   "support_reason": "NONE under rubric criteria N-1 and N-4. N-1: Quidra cannot construct a function or closure value at all, and cannot refer to one in value position, so sub-requirement (1) - declaring a unary function value `neg` inside the measured fragment that captures the enclosing local `k` - cannot be delivered. The language reference states it directly: language.md, 'Function values and union payload initialization': 'Function and method declarations are callable names, not first-class values in the current language. A bare function or method name in value position is rejected with `FUNCTION_NOT_VALUE`.' Verified against the frozen toolchain: `auto g = neg` gives \"error[FUNCTION_NOT_VALUE] Function 'neg' is callable but is not a first-class value.\" The grammar corroborates this on three independent points: (a) there is no lambda, closure or function-literal production - `primary = integer | float | string | \"true\" | \"false\" | \"void\" | \"none\" | array | \"super\" | identifier | \"(\", expression, \")\"`; (b) there is no function type - `type = array_type, { \"|\", array_type }` over `qualified_identifier` with optional type arguments only; (c) functions are top-level only - `program = { NEWLINE | import_decl | extern_decl | cli_decl | class_decl | function | statement }` while `suite` admits only statements - so a function cannot be declared inside a function body and there is no enclosing scope for it to capture. language.md 'Functions, calls, and defaults' confirms the capture prohibition for the one place where an enclosing value could otherwise leak in: defaults 'cannot reference parameters or caller-local bindings'. Sub-requirement (2)'s fallback clause (apply `neg` to each element with the ordinary iteration construct, referring to `neg` by name) would be expressible in isolation, but (1) is not, and the probe's canonical_task explicitly directs that no fragment be written when the language cannot construct a function or closure value or refer to one in value position. N-4: F05.P3 is named in the rubric's N-4 list. Per na_policy NA-2 and NA-6 this is a NONE with a written justification, never an N/A: both capability points remain in the fixed 88-point denominator and score 0.",
+   "capability_points_possible": 2,
+   "capability_points_awarded": 0.0,
+   "probe_file": null,
+   "toolchain_verification": {
+    "built": null,
+    "ran": null,
+    "observed_output": "",
+    "diagnostics": "Attempted mechanism, rejected by quidra 0.2.0: `int neg(int a) ... auto g = neg` -> \"error[FUNCTION_NOT_VALUE] Function 'neg' is callable but is not a first-class value.\" followed by \"error[UNKNOWN_NAME] Unknown function 'g'.\" No fragment is written, per the canonical_task's own direction."
+   },
+   "token_count": null,
+   "facts": [],
+   "fact_count": 0,
+   "determinacy_B": 1,
+   "determinacy_enumeration": [
+    "Not measured. Support is NONE, so no fragment exists and methodology 03 SS1.9 excludes this probe from the determinacy mean (support_level NONE, none_reason_code UNSUPPORTED). The value 1 is recorded only because this schema requires an integer >= 1; it must not be read as 'fully determined' and must not be aggregated as a measurement."
+   ],
+   "locality_lookups": 0,
+   "locality_detail": [],
+   "hidden_items": [],
+   "hidden_count": 0,
+   "complexity_units": 0,
+   "complexity_detail": []
+  }
+ ]
+}

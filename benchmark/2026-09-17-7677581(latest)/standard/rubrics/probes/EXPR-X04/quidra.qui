@@ -1,0 +1,14 @@
+// Quidra 0.2.0 has no interface/protocol/trait construct and the language
+// specification states: "Method selection is static; there is no dynamic
+// dispatch, `virtual`, or object slicing."  Probe attempts subtype dispatch.
+class Speaker
+    string speak()
+        return "base"
+
+class Dog : Speaker
+    override string speak()
+        return "woof"
+
+Dog d = Dog()
+Speaker s = d
+print(s.speak())

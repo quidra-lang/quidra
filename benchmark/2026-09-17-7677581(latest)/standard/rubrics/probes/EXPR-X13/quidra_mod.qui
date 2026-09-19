@@ -1,0 +1,5 @@
+int priv_fn()
+    return 7
+
+int pub_fn()
+    return priv_fn()

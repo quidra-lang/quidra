@@ -1,0 +1,4 @@
+import mod_a = "./mod_a.qui"
+
+int scale_and_offset(int x)
+    return mod_a.scale(x) + 1

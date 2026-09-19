@@ -1,0 +1,9 @@
+$ zig test --help | grep -iE 'cov|json|xml|junit|report'
+  --time-report             Send timing diagnostics to '--listen' clients
+  -fstack-report               Print stack size diagnostics
+  --debug-link-snapshot        Enable dumping of the linker's state in JSON format
+grep_exit=0
+$ zig build --help | grep -iE 'cov|json|xml|junit'
+grep_exit=1
+$ zig --help | grep -iE 'cov'
+grep_exit=1

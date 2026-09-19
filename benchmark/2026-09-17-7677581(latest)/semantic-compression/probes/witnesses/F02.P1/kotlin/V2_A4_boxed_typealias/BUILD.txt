@@ -1,0 +1,14 @@
+kotlinc w.kt -include-runtime -d w.jar && java -jar w.jar
+kotlinc-jvm 2.3.21 (JRE 24.0.2+12-54)
+observed: value=5 runtime_class=java.lang.Integer
+Contrast the frozen probe, which observes a primitive int (no boxing).
+Negative controls run at the same time (all REJECTED by kotlinc, so these A4 classes
+are NOT realizable in Kotlin and Swift's V2/V3/V4 have no Kotlin counterpart):
+  typealias Int = Double            -> error: assignment type mismatch: actual type is 'Int', but 'Double' was expected.
+  typealias Int = UInt              -> error: assignment type mismatch: actual type is 'Int', but 'UInt' was expected.
+  typealias Int = java.math.BigInteger -> error: assignment type mismatch ... 'BigInteger' was expected.
+  typealias Int = java.lang.Integer -> error: assignment type mismatch ... 'Integer' was expected.
+  typealias Int = String            -> error: assignment type mismatch ... 'String' was expected.
+  (a user-defined type is unreachable for the same reason: Kotlin has no
+   ExpressibleByIntegerLiteral analogue, so an integer literal can only initialize a
+   signed built-in integer type or a supertype of one.)

@@ -1,0 +1,55 @@
+// CONC-1, Quidra. Frozen workload: sum of sin(i)*sin(i) for i in 0..N.
+// N = 500000000, split into 4 fixed contiguous chunks. W workers take chunks
+// c with c % W == w, so the per-chunk partial sums and the final combination
+// order are IDENTICAL at W=1 and W=4 and the printed result is bit-identical.
+// Worker mechanism: child processes created with process.run, the only
+// worker-creation facility in quidra 0.2.0's first-party standard library.
+
+cli args
+    int workers = argument()
+    int worker = option(default = -1)
+    string self = option(default = "./build/conc1-quidra")
+
+float chunk_sum(int c)
+    float s = 0.0
+    int start = c * 125000000
+    int stop = start + 125000000
+    for i in range(start, stop)
+        float x = math.sin(float(i))
+        s = s + x * x
+    return s
+
+void child(int w, int total_workers)
+    for c in range(0, 4)
+        if c % total_workers == w
+            float value = chunk_sum(c)
+            print("{c} {value.string()}")
+
+float[] gather(int total_workers, string program)
+    float[] partial = array(4, fill = 0.0)
+    for w in range(0, total_workers)
+        process.Result result = process.run(program, [total_workers.string(), "--worker", w.string(), "--self", program])
+        string[] lines = result.output.split(enter)
+        for line in lines
+            string text = line.trim()
+            if len(text) > 0
+                string[] fields = text.split(" ")
+                match int.parse(fields[0])
+                    int index
+                        match float.parse(fields[1])
+                            float value
+                                partial[index] = value
+                            error problem
+                                print("bad value")
+                    error problem
+                        print("bad index")
+    return partial
+
+if args.worker >= 0
+    child(args.worker, args.workers)
+else
+    float[] partial = gather(args.workers, args.self)
+    float total = 0.0
+    for c in range(0, 4)
+        total = total + partial[c]
+    print("workers={args.workers} result={total:frac=10}")

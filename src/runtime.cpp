@@ -3858,21 +3858,19 @@ void* neural_random_mask_apply(
     const double rate=neural_object_double_field(receiver,0);
     auto* rng_state=neural_object_pointer_field(receiver,8);
     auto state=neural_state_u64(rng_state);
+
+    // rate == 0 is a true graph identity. Reuse the input node instead of
+    // copying CPU values or cloning a GPU tensor descriptor and allocating an
+    // otherwise redundant RandomMask autograd node.
+    if(rate==0.0){
+        neural_set_state_u64(rng_state,state);
+        return neural_descriptor(input);
+    }
+
     auto node=std::make_shared<NeuralNode>(input->dtype);
     node->shape=input->shape;
     node->parents={input};
     node->op=NeuralOp::RandomMask;
-
-    // rate == 0 is an identity. Avoid allocation and kernel work.
-    if(rate==0.0){
-        if(input->device_tensor)
-            node->device_tensor=static_cast<TensorValue*>(
-                quidra_tensor_clone(input->device_tensor));
-        else
-            node->data=input->data;
-        neural_set_state_u64(rng_state,state);
-        return neural_descriptor(std::move(node));
-    }
 
     if(input->device_tensor){
         if(input->dtype!=9&&input->dtype!=10)
@@ -6260,8 +6258,8 @@ void* neural_grad_t(
 
             // These are the same reductions as sum_gradient_x and
             // sum_gradient respectively in the previous implementation.
-            std::vector<T> scale_gradient=sum_gradient_x;
-            std::vector<T> bias_gradient=sum_gradient;
+            std::vector<T> scale_gradient=std::move(sum_gradient_x);
+            std::vector<T> bias_gradient=std::move(sum_gradient);
             const T sample_count=static_cast<T>(samples);
             for(std::size_t i=0;i<input_values.size();++i){
                 const auto feature=neural_normalize_feature(i,layout);

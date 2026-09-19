@@ -171,7 +171,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
 elseif(MSVC)
   # MSVC C4456 treats repeated condition-declaration names across an if/else-if
   # variant-matching chain as shadowing. The names are intentionally branch-local.
-  target_compile_options(quidra_core PRIVATE /W4 /wd4456)
+  target_compile_options(quidra_core PRIVATE /W4 /wd4456 /bigobj)
   target_compile_options(quidra_runtime PRIVATE /W4 /Gy /Gw)
   target_compile_options(quidra PRIVATE /W4)
   # Windows reserves only 1 MiB of stack for executables by default. Compiler

@@ -384,7 +384,14 @@ int size = len(data)
 size = 4
 print(data[size])
 )", "call ptr @quidra_array_slot(ptr");
- // dynamic array loop bounds lower to proven slots.
+ llvm_contains(R"(int[] data = array(8, fill = 0)
+int size = len(data)
+for i in range(0, size)
+    data = array(0, fill = 0)
+    print(data[i])
+)", "call ptr @quidra_array_slot(ptr");
+ // dynamic array loop bounds lower to proven slots only while the length relation
+ // is loop invariant; replacing the array inside the loop keeps the checked path.
 
  // Release lowering keeps the public function ABI but threads recursion depth
  // through an internal implementation instead of touching TLS on every direct

@@ -906,6 +906,10 @@ public:
     Program load(const fs::path& root) {
         Program merged;
         merged.language_version = std::string(language_version);
+        const auto absolute_root = root.is_absolute()
+            ? root.lexically_normal()
+            : (cwd_ / root).lexically_normal();
+        merged.root_source_file = absolute_root.string();
         if (enforce_package_lock_) {
             try {
                 package_lock_ = read_package_lock(cwd_);
@@ -1143,6 +1147,12 @@ private:
         }
         Parser parser(std::move(tokens), max_errors_);
         Program program = parser.parse();
+        const auto source_file = absolute.string();
+        for (auto& function : program.functions) function.source_file = source_file;
+        for (auto& declaration : program.classes) {
+            declaration.source_file = source_file;
+            for (auto& method : declaration.methods) method.source_file = source_file;
+        }
 
         for (const auto& class_decl : program.classes) {
             if (class_decl.name.rfind("$cli.", 0) == 0) continue;
@@ -1462,6 +1472,7 @@ class GenericExpander {
 public:
     explicit GenericExpander(Program source) : source_(std::move(source)) {
         output_.language_version = source_.language_version;
+        output_.root_source_file = source_.root_source_file;
         validate_declarations();
 
         for (auto& class_decl : source_.classes) {
@@ -2531,6 +2542,7 @@ private:
         try {
             FunctionDecl out;
             out.name = source.name;
+            out.source_file = source.source_file;
             out.return_type = materialize_type(source.return_type, substitution, deferred);
             out.span = source.span;
             out.is_override = source.is_override;
@@ -2648,6 +2660,7 @@ private:
 
         ClassDecl out;
         out.name = concrete_name;
+        out.source_file = source.source_file;
         out.span = source.span;
 
         if (source.parent_type) {

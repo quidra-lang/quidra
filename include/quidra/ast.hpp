@@ -127,6 +127,7 @@ struct Stmt {
 struct Parameter { std::string name; TypeName type; bool writable{}; SourceSpan span{}; ExprPtr default_value; bool is_const{}; };
 struct FunctionDecl {
     std::string name;
+    std::string source_file;
     std::vector<Parameter> parameters;
     TypeName return_type;
     std::vector<StmtPtr> body;
@@ -146,6 +147,7 @@ struct FieldDecl {
 
 struct ClassDecl {
     std::string name;
+    std::string source_file;
     std::optional<std::string> parent;
     std::vector<FieldDecl> fields;
     std::vector<FunctionDecl> methods;
@@ -163,6 +165,7 @@ struct ImportDecl {
 
 struct Program {
     std::string language_version;
+    std::string root_source_file;
     std::vector<ClassDecl> classes;
     std::vector<FunctionDecl> functions;
     std::vector<StmtPtr> statements;

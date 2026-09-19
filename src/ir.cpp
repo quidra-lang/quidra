@@ -3074,7 +3074,10 @@ struct Lowerer {
     }
 
     void lower_function(const FunctionDecl& source){
-        Function out; out.name=source.name; const auto& sig=checked.functions.at(source.name); out.result=sig.result;
+        Function out; out.name=source.name; out.source_file=source.source_file;
+        out.source_line=static_cast<std::uint32_t>(source.span.start.line);
+        out.source_column=static_cast<std::uint32_t>(source.span.start.column);
+        const auto& sig=checked.functions.at(source.name); out.result=sig.result;
         out.external_symbol=source.external_symbol;
         for(std::size_t i=0;i<sig.parameters.size();++i){const auto& p=sig.parameters[i];out.parameters.push_back(Parameter{
             p.name, p.type, p.writable, parameter_is_borrowed(source.name, i), p.is_const});}
@@ -3087,7 +3090,11 @@ struct Lowerer {
 
     void lower_method(const std::string& class_name,const FunctionDecl& source){
         const auto internal="$method."+class_name+"."+source.name;
-        const auto& sig=checked.functions.at(internal);Function out;out.name=internal;out.result=sig.result;
+        const auto& sig=checked.functions.at(internal);Function out;out.name=internal;
+        out.source_file=source.source_file;
+        out.source_line=static_cast<std::uint32_t>(source.span.start.line);
+        out.source_column=static_cast<std::uint32_t>(source.span.start.column);
+        out.result=sig.result;
         for(std::size_t i=0;i<sig.parameters.size();++i){const auto& p=sig.parameters[i];out.parameters.push_back(Parameter{
             p.name, p.type, p.writable,
             p.name=="$receiver"||parameter_is_borrowed(internal,i), p.is_const});}
@@ -3101,6 +3108,11 @@ struct Lowerer {
     void lower_main(const std::vector<StmtPtr>& statements) {
         Function out;
         out.name = "$entry";
+        out.source_file = checked.program.root_source_file;
+        if (!statements.empty()) {
+            out.source_line = static_cast<std::uint32_t>(statements.front()->span.start.line);
+            out.source_column = static_cast<std::uint32_t>(statements.front()->span.start.column);
+        }
         out.result = Type::simple(TypeKind::Int);
         out.entrypoint = true;
         current_class.clear();

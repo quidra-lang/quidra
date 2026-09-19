@@ -293,6 +293,9 @@ struct Parameter {
 };
 struct Function {
     std::string name;
+    std::string source_file;
+    std::uint32_t source_line{1};
+    std::uint32_t source_column{1};
     std::vector<Parameter> parameters;
     Type result{Type::simple(TypeKind::Void)};
     std::vector<Block> blocks;

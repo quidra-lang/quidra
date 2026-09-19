@@ -4576,12 +4576,6 @@ Type Checker::check_call_expr(const Expr& expression,
                     if (!field || !supplied.insert(*argument.name).second) {
                         error("ARGUMENT_MISMATCH", "Unknown or duplicate class field.", argument.span);
                     }
-                    if (field->is_private && current_class_ != name) {
-                        error("PRIVATE_MEMBER",
-                              "Private field '" + field->name +
-                                  "' cannot be initialized outside class '" + name + "'.",
-                              argument.span);
-                    }
                     any_poison |= poisoned(check_expr(*argument.value, &field->type));
                     initialized_paths.insert(field->name);
                     if (field->type.kind == TypeKind::Class) {

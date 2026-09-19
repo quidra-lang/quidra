@@ -915,6 +915,22 @@ string separator = tab
 print("A{separator}B")
 print("nested {error("ok")}")
 )",
+ R"(class PrivateCounter
+    private int value = 0
+
+    private void increment_raw()
+        value = value + 1
+
+    void increment()
+        increment_raw()
+
+    int get()
+        return value
+
+PrivateCounter counter = PrivateCounter()
+counter.increment()
+print(counter.get())
+)",
  R"(class Point
     int x
     int y
@@ -1924,6 +1940,21 @@ print(combine(1, 2, 3))
 print(combine(1, first = 2))
 )", "ARGUMENT_MISMATCH", "Argument 'first' is supplied more than once");
  bad_code("int[2] values = [1]\n", "ARRAY_SHAPE");
+ bad_code(R"(class Secret
+    private int value = 1
+Secret secret = Secret()
+print(secret.value)
+)", "PRIVATE_MEMBER");
+ bad_code(R"(class Secret
+    private int value
+Secret secret = Secret(value = 1)
+)", "PRIVATE_MEMBER");
+ bad_code(R"(class Secret
+    private void hidden()
+        return
+Secret secret = Secret()
+secret.hidden()
+)", "PRIVATE_MEMBER");
  bad_code("class A\n    int x\nclass A\n    int y\n", "DUPLICATE_NAME");
  bad_code(R"(T identity<T>(T value)
     return value

@@ -502,7 +502,20 @@ Point point = Point(x = 3.0)
 print(point.length_squared())
 ```
 
-Fields and methods use one `class` construct. Methods access fields directly; there is no `self` or `this` syntax.
+Fields and methods use one `class` construct. Methods access fields directly; there is no `self` or `this` syntax. Members are public by default; prefix a field or method with `private` to restrict access to methods of that class.
+
+```quidra
+class Counter
+    private int value = 0
+
+    private void increment_raw()
+        value = value + 1
+
+    void increment()
+        increment_raw()
+```
+
+Private fields cannot be read, written, addressed, or supplied as constructor fields outside their declaring class. Private methods cannot be called outside that class.
 
 Construction is named by field. Fields may remain uninitialized when no value/default is supplied, and the checker tracks that state field by field.
 

@@ -1066,7 +1066,7 @@ std::string semantic_tokens_json(const Program& program,std::string_view source)
     std::size_t previous_line=0;
     std::size_t previous_start=0;
     bool first=true;
-    for(const auto& token:Lexer(source).scan()) {
+    for(const auto& token:tokens) {
         std::optional<int> type;
         if(is_keyword_token(token.kind)) type=8;
         else if(token.kind==TokenKind::String) type=9;

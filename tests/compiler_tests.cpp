@@ -345,6 +345,22 @@ print(reals[1])
      "map.Map<int, int> values = map.Map<int, int>()\nvalues.set(1, 2)\n",
      "_set(ptr %arg._receiver", "@quidra_init_mark_range");
 
+ // Compiler-owned +1 induction variables are bounded by their loop
+ // conditions, so they do not need a checked-overflow branch on every iteration.
+ llvm_function_not_contains(R"(void walk_range()
+    for i in range(0, 8)
+        print(i)
+
+walk_range()
+)", "@n_walk_range(", "@llvm.sadd.with.overflow.i64");
+ llvm_function_not_contains(R"(void walk_array(const int[] &values)
+    for value in values
+        print(value)
+
+int[] values = array(8, fill = 1)
+walk_array(&values)
+)", "@n_walk_array(", "@llvm.sadd.with.overflow.i64");
+
  // Hot string/parse patterns keep their source semantics while lowering to
  // allocation-light native operations.
  ir_contains(R"(for i in range(0, 2)

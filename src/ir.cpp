@@ -4167,7 +4167,13 @@ struct Lowerer {
             if (range_bounds_trackable) active_range_bounds.pop_back();
             if(!terminated()) block->instructions.push_back(Jump{step_label});
             auto& sb=add_block(step_label); block=&sb;
-            auto x=fresh(), st=fresh(), nx=fresh(); block->instructions.push_back(LoadLocal{x,i_name,locals[i_name]}); block->instructions.push_back(LoadLocal{st,step_name,locals[step_name]}); block->instructions.push_back(Binary{nx,"+",x,st,Type::simple(TypeKind::Int),Type::simple(TypeKind::Int)}); block->instructions.push_back(StoreLocal{i_name,nx,locals[i_name]}); block->instructions.push_back(Jump{cond});
+            // For the canonical +1 range step, the body is entered only when
+            // i < end. Therefore i + 1 <= end <= int.max, so the compiler-owned
+            // induction increment cannot overflow. Arbitrary user-provided
+            // steps keep ordinary checked arithmetic.
+            const bool unit_positive_step =
+                !source_step || literal_is(source_step, 1);
+            auto x=fresh(), st=fresh(), nx=fresh(); block->instructions.push_back(LoadLocal{x,i_name,locals[i_name]}); block->instructions.push_back(LoadLocal{st,step_name,locals[step_name]}); block->instructions.push_back(Binary{nx,"+",x,st,Type::simple(TypeKind::Int),Type::simple(TypeKind::Int),0,0,unit_positive_step}); block->instructions.push_back(StoreLocal{i_name,nx,locals[i_name]}); block->instructions.push_back(Jump{cond});
             auto& db=add_block(done); block=&db; return;
         }
         const auto array_type=type_of(*n.iterable);
@@ -4230,7 +4236,10 @@ struct Lowerer {
         };
 
         auto& sb=add_block(step_label); block=&sb; write_back();
-        auto old=fresh(); block->instructions.push_back(LoadLocal{old,idx_name,locals[idx_name]}); auto one=const_int(1), next=fresh(); block->instructions.push_back(Binary{next,"+",old,one,Type::simple(TypeKind::Int),Type::simple(TypeKind::Int)}); block->instructions.push_back(StoreLocal{idx_name,next,locals[idx_name]}); block->instructions.push_back(Jump{cond});
+        // The hidden sequence index increments only after idx < len succeeded,
+        // hence idx + 1 <= len and cannot overflow an int. This proof concerns
+        // compiler-owned loop state only; user arithmetic remains checked.
+        auto old=fresh(); block->instructions.push_back(LoadLocal{old,idx_name,locals[idx_name]}); auto one=const_int(1), next=fresh(); block->instructions.push_back(Binary{next,"+",old,one,Type::simple(TypeKind::Int),Type::simple(TypeKind::Int),0,0,true}); block->instructions.push_back(StoreLocal{idx_name,next,locals[idx_name]}); block->instructions.push_back(Jump{cond});
         auto& brb=add_block(break_label); block=&brb; write_back(); block->instructions.push_back(Jump{done});
         auto& db=add_block(done); block=&db;
         if(iterable_temporary && requires_lifetime_management(array_type))

@@ -1247,10 +1247,9 @@ bool launch(Module* module, const char* kernel,
             error = std::string("NVIDIA kernel launch failed: ") + kernel;
             return false;
         }
-        if (api.ctx_synchronize() != 0) {
-            error = std::string("NVIDIA kernel synchronization failed: ") + kernel;
-            return false;
-        }
+        // Default-stream ordering preserves GPU dependencies. Host-visible reads and
+        // explicit transfers are the synchronization boundaries; blocking here would
+        // serialize every elementwise/activation/optimizer kernel in a DNN chain.
         return true;
     }
 
@@ -1278,10 +1277,8 @@ bool launch(Module* module, const char* kernel,
             error = std::string("AMD HIP kernel launch failed: ") + kernel;
             return false;
         }
-        if (api.device_synchronize() != 0) {
-            error = std::string("AMD HIP kernel synchronization failed: ") + kernel;
-            return false;
-        }
+        // Keep native HIP launches asynchronous for the same reason as CUDA:
+        // same-device work is ordered by the default stream and host transfers wait.
         return true;
     }
 

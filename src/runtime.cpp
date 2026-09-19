@@ -5704,11 +5704,15 @@ void* neural_grad_device(
             TensorValue* left_gradient=nullptr;
             TensorValue* right_gradient=nullptr;
             if(node->op==NeuralOp::Add){
-                left_gradient=static_cast<TensorValue*>(quidra_tensor_clone(g));
+                // Transfer the completed gradient itself to one parent. Only the
+                // second parent needs a descriptor clone.
                 right_gradient=static_cast<TensorValue*>(quidra_tensor_clone(g));
+                left_gradient=g;
+                g=nullptr;
             }else if(node->op==NeuralOp::Sub){
-                left_gradient=static_cast<TensorValue*>(quidra_tensor_clone(g));
                 right_gradient=neural_device_negate_tensor(g,line,column);
+                left_gradient=g;
+                g=nullptr;
             }else{
                 neural_device_binary_backward(
                     g,a,b,node->op==NeuralOp::Mul?3:4,
@@ -5727,7 +5731,8 @@ void* neural_grad_device(
             const bool scalar_left=node->aux_index[1]!=0;
             TensorValue* result=nullptr;
             if(operation==1||(operation==2&&!scalar_left)){
-                result=static_cast<TensorValue*>(quidra_tensor_clone(g));
+                result=g;
+                g=nullptr;
             }else if(operation==2){
                 result=neural_device_negate_tensor(g,line,column);
             }else{
@@ -5986,7 +5991,8 @@ void* neural_grad_device(
             neural_add_device_gradient(gradients,bias,bias_result,line,column);
         }else if(node->op==NeuralOp::RandomMask){
             if(!node->device_aux){
-                auto* result=static_cast<TensorValue*>(quidra_tensor_clone(g));
+                auto* result=g;
+                g=nullptr;
                 neural_add_device_gradient(
                     gradients,node->parents[0],result,line,column);
             }else{
@@ -5999,7 +6005,7 @@ void* neural_grad_device(
 
         // Every child has already contributed in reverse-topological order.
         // Release this gradient now instead of retaining the entire backward pass.
-        quidra_tensor_drop(g);
+        if(g) quidra_tensor_drop(g);
         gradients.erase(node.get());
     }
 

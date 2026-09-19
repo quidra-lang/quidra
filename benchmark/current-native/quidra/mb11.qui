@@ -4,22 +4,10 @@
 // Quidra's standard `set.Set<T>` and the built-in growable array cover the set
 // and list phases directly, exactly as section 4.12(d) pins them.
 //
-// FORCED SUBSTITUTION for the map phase. Section 4.12(d) pins `map.Map<int,int>`,
-// but v0.1's `map.Map` has NO removal operation and MB-11's delete phase requires
-// one. Verified in the compiler's own desugared definition of the container
-// (quidra/src/frontend.cpp:305-383): the methods are `__hash`, `__find`,
-// `__place`, `__rehash`, `has`, `get`, `set`, `size`, `keys`, `values` -- there is
-// no `remove`, `delete`, `erase` or `discard`. MB-11's stated fallback clause
-// therefore fires (contrary to 06_micro_workloads.md:1074-1079, which records it
-// as verified inert), and the map phase uses the workload's pinned reference
-// container: open addressing with linear probing, power-of-two capacity from 16,
-// hash (key * 0x9E3779B1) mod 2^32 masked to the capacity, load factor 0.75,
-// doubling with a full rehash, and tombstone-free deletion by backward shift.
-// Quidra has no bitwise operators, so the mask is written as a remainder by the
-// power-of-two capacity, which is the same value. Per the fallback's own
-// consequences this row must be published separately, recorded as a
-// missing-capability result, and never presented as Quidra's standard-container
-// number.
+// The frozen v0.1 source used the workload's fallback map because public
+// `map.Map` had no deletion operation. Current Quidra provides deterministic
+// `map.Map.remove`, so this diagnostic uses the standard container directly
+// while preserving the same lookup, checksum, deletion, set, and list phases.
 //
 // Mode selection (methodology 06 section 5.2). Quidra's `cli` module has no
 // OPTIONAL positional argument: `argument()` is positional but mandatory (a bare

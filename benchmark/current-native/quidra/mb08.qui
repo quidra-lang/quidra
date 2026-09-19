@@ -5,15 +5,11 @@
 // fresh inside each timed round from that working buffer and read with
 // `text[i]`, which is the code-point access API section 4.12(b) pins for Quidra.
 //
-// Capability note (verified against the v0.1 compiler): Quidra has NO
-// bytes -> string conversion. `string(d)`, `d.string()` and `d.text()` are all
-// rejected, and docs/spec/language.md only offers the string -> bytes direction
-// (`.utf8()`, `.codepoints()`). The pass-5 construction therefore goes through
-// `string[]` + `join`, which is both the language's ordinary string-building
-// operation and the one section 4.12(b) already names for Quidra. The per-byte
-// glyph array holds exactly the literals the build phase already uses; it is the
-// only available spelling of "one code point for this byte value", not a
-// precomputation of anything the pseudocode iterates.
+// The frozen v0.1 source reconstructed text through a per-byte glyph array
+// because no checked binary-to-text conversion existed. Current Quidra exposes
+// explicit `string.from_utf8(bin) -> string | error`, so this diagnostic keeps
+// working data byte-oriented and performs one explicit validated conversion for
+// the native-string pass.
 //
 // Mode selection (methodology 06 section 5.2). Quidra's `cli` module has no
 // OPTIONAL positional argument: `argument()` is positional but mandatory (a bare

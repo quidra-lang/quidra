@@ -1,13 +1,9 @@
 // CURRENT-EQUIVALENT DIAGNOSTIC: uses Quidra's current XOR primitive; the frozen historical source remains unchanged.
 // MB-03 - Integer arithmetic: five-operation integer mix.
 //
-// Quidra has no bitwise operators, so the exclusive-or of the pinned algorithm
-// is composed from arithmetic. Both operands are non-negative and below 2^31.
-// The bit-serial synthesis below is retained deliberately: methodology 06
-// section 2.5 rule 5 bans precomputation and table lookup, and the frozen text
-// does not carve XOR out of that ban, so the conservative reading is the one
-// implemented here. This is a measured missing-primitive cost, not an
-// implementation choice made for speed.
+// The frozen v0.1 source synthesized XOR arithmetically because the primitive
+// did not exist then. Current Quidra has explicit XOR, so this diagnostic uses
+// the pinned operation directly while leaving the historical source unchanged.
 //
 // Mode selection (methodology 06 section 5.2). Quidra's `cli` module has no
 // OPTIONAL positional argument: `argument()` is positional but mandatory (a bare

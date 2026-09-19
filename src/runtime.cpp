@@ -7253,16 +7253,21 @@ extern "C" char* quidra_string_build_append_move(
     constexpr std::size_t small_part_count = 16;
     std::array<std::size_t, small_part_count> small_lengths{};
     std::array<unsigned char, small_part_count> small_aliases{};
+    std::array<std::array<char, 32>, small_part_count> small_numeric{};
     std::vector<std::size_t> large_lengths;
     std::vector<unsigned char> large_aliases;
+    std::vector<std::array<char, 32>> large_numeric;
     if (count > small_part_count) {
         large_lengths.resize(count);
         large_aliases.assign(count, 0);
+        large_numeric.resize(count);
     }
     auto* lengths = count <= small_part_count
         ? small_lengths.data() : large_lengths.data();
     auto* aliases = count <= small_part_count
         ? small_aliases.data() : large_aliases.data();
+    auto* numeric_parts = count <= small_part_count
+        ? small_numeric.data() : large_numeric.data();
 
     std::size_t added = 0;
     std::size_t added_codepoints = 0;
@@ -7278,7 +7283,6 @@ extern "C" char* quidra_string_build_append_move(
         added_codepoints = (count - 1) * separator_codepoints;
     }
 
-    std::array<char, 32> numeric{};
     for (std::size_t i = 0; i < count; ++i) {
         aliases[i] = 0;
         switch (kinds[i]) {
@@ -7298,6 +7302,7 @@ extern "C" char* quidra_string_build_append_move(
             }
             case 1: {
                 const auto value = std::bit_cast<long long>(raw_values[i]);
+                auto& numeric = numeric_parts[i];
                 const auto converted = std::to_chars(
                     numeric.data(), numeric.data() + numeric.size(), value, 10);
                 if (converted.ec != std::errc{})
@@ -7309,6 +7314,7 @@ extern "C" char* quidra_string_build_append_move(
                 break;
             }
             case 2: {
+                auto& numeric = numeric_parts[i];
                 const auto converted = std::to_chars(
                     numeric.data(), numeric.data() + numeric.size(),
                     raw_values[i], 10);
@@ -7398,21 +7404,13 @@ extern "C" char* quidra_string_build_append_move(
                 }
                 break;
             }
-            case 1: {
-                const auto value = std::bit_cast<long long>(raw_values[i]);
-                const auto converted = std::to_chars(
-                    result + offset, result + new_length, value, 10);
-                if (converted.ec != std::errc{})
-                    runtime_text_failure("integer formatting failed");
-                offset = static_cast<std::size_t>(converted.ptr - result);
-                break;
-            }
+            case 1:
             case 2: {
-                const auto converted = std::to_chars(
-                    result + offset, result + new_length, raw_values[i], 10);
-                if (converted.ec != std::errc{})
-                    runtime_text_failure("integer formatting failed");
-                offset = static_cast<std::size_t>(converted.ptr - result);
+                if (lengths[i] != 0) {
+                    std::memcpy(
+                        result + offset, numeric_parts[i].data(), lengths[i]);
+                    offset += lengths[i];
+                }
                 break;
             }
             case 3: {

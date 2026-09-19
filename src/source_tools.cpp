@@ -172,7 +172,11 @@ struct NodeCollector {
     }
 
     void expr(const Expr& expression) {
-        const auto type = checked.expr_types.at(&expression);
+        std::optional<Type> type;
+        if (const auto found = checked.expr_types.find(&expression);
+            found != checked.expr_types.end()) {
+            type = found->second;
+        }
         const auto id = emit(expr_kind(expression), expression.span, type);
         parents.push_back(id);
         std::visit([&](const auto& node) {

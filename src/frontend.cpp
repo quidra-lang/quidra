@@ -106,7 +106,7 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
         exports.functions.emplace("generator", std::string(*standard_function_target(module, "generator")));
     } else if (module == "process") {
         exports.classes.emplace("Result", "$std.process.Result");
-        for (const char* name : {"run", "exit"}) {
+        for (const char* name : {"run", "shell", "exit"}) {
             exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
         }
     } else if (module == "map") {

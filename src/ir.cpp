@@ -1879,59 +1879,16 @@ struct Lowerer {
             block->instructions.push_back(Release{value, type});
     }
 
-    std::optional<EnumConstructionInfo> enum_construction_info(
-        const Expr& expression) const {
-        if (const auto found = checked.enum_constructions.find(&expression);
-            found != checked.enum_constructions.end()) {
-            return found->second;
-        }
-
-        const auto type_it = checked.raw_types.find(&expression);
-        if (type_it == checked.raw_types.end()) return std::nullopt;
-        const auto& enum_type = type_it->second;
-        if (enum_type.kind != TypeKind::Union || enum_type.union_name.empty())
-            return std::nullopt;
-
-        std::string variant;
-        if (const auto* call = std::get_if<MethodCallExpr>(&expression.data)) {
-            const auto* receiver = std::get_if<NameExpr>(&call->receiver->data);
-            if (!receiver || receiver->name != enum_type.union_name)
-                return std::nullopt;
-            variant = call->method;
-        } else if (const auto* member =
-                       std::get_if<MemberExpr>(&expression.data)) {
-            const auto* receiver = std::get_if<NameExpr>(&member->base->data);
-            if (!receiver || receiver->name != enum_type.union_name)
-                return std::nullopt;
-            variant = member->name;
-        } else {
-            return std::nullopt;
-        }
-
-        const auto found = std::find(
-            enum_type.case_names.begin(), enum_type.case_names.end(), variant);
-        if (found == enum_type.case_names.end())
-            return std::nullopt;
-        const auto tag = static_cast<int>(
-            found - enum_type.case_names.begin());
-        if (tag < 0 ||
-            static_cast<std::size_t>(tag) >= enum_type.cases.size())
-            return std::nullopt;
-        return EnumConstructionInfo{
-            enum_type, tag, enum_type.cases[static_cast<std::size_t>(tag)]};
-    }
-
     ValueId raw_expr(const Expr& e) {
-        if (const auto construction = enum_construction_info(e)) {
+        if (const auto construction = checked.enum_constructions.find(&e);
+            construction != checked.enum_constructions.end()) {
             ValueId payload = 0;
             if (const auto* call = std::get_if<MethodCallExpr>(&e.data);
                 call && !call->args.empty())
-                payload = destination_value(
-                    *call->args.front().value, construction->payload_type);
+                payload = destination_value(*call->args.front().value, construction->second.payload_type);
             auto out = fresh();
-            block->instructions.push_back(VariantMake{
-                out, construction->tag, payload,
-                construction->type, construction->payload_type});
+            block->instructions.push_back(VariantMake{out, construction->second.tag, payload,
+                construction->second.type, construction->second.payload_type});
             return out;
         }
         if (const auto* n=std::get_if<IntegerExpr>(&e.data)) {
@@ -5760,42 +5717,9 @@ struct Lowerer {
         const auto before_full=fully_initialized_array_locals;
         std::optional<std::unordered_set<std::string>> joined_full;
         for(auto& c:n.cases){
-            Type ct;
-            int case_tag = -1;
-            const auto checked_type = checked.case_types.find(&c);
-            const auto checked_tag = checked.case_tags.find(&c);
-            if (checked_type != checked.case_types.end() &&
-                checked_tag != checked.case_tags.end()) {
-                ct = checked_type->second;
-                case_tag = checked_tag->second;
-            } else if (mt.kind == TypeKind::Union &&
-                       !mt.union_name.empty()) {
-                const auto prefix = mt.union_name + ".";
-                if (c.type.name.rfind(prefix, 0) != 0) {
-                    throw std::logic_error(
-                        "checked enum match case has invalid variant syntax");
-                }
-                const auto variant = c.type.name.substr(prefix.size());
-                const auto found = std::find(
-                    mt.case_names.begin(), mt.case_names.end(), variant);
-                if (found == mt.case_names.end()) {
-                    throw std::logic_error(
-                        "checked enum match case has unknown variant");
-                }
-                case_tag = static_cast<int>(
-                    found - mt.case_names.begin());
-                if (case_tag < 0 ||
-                    static_cast<std::size_t>(case_tag) >= mt.cases.size()) {
-                    throw std::logic_error(
-                        "checked enum match tag is outside variant payloads");
-                }
-                ct = mt.cases[static_cast<std::size_t>(case_tag)];
-            } else {
-                throw std::logic_error(
-                    "checked match case metadata is missing");
-            }
+            const auto ct=checked.case_types.at(&c);
             auto yes=label("match.case"),next=label("match.next");
-            auto num=const_int(case_tag),test=fresh();
+            auto num=const_int(checked.case_tags.at(&c)),test=fresh();
             block->instructions.push_back(Binary{
                 test,"==",tag,num,Type::simple(TypeKind::Int),Type::simple(TypeKind::Bool)});
             block->instructions.push_back(Branch{test,yes,next});

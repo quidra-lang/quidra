@@ -108,6 +108,11 @@ struct ManagedAllocation {
     bool string_utf8_validated{};
     bool string_codepoint_length_known{};
     std::size_t string_codepoint_length{};
+    // Once validation proves byte length == code-point length, every byte is
+    // ASCII. Keep that proof with the allocation so integer indexing can lower
+    // to a direct byte load instead of re-entering the UTF-8 decoder.
+    bool string_ascii_known{};
+    bool string_ascii{};
     bool string_index_cursor_valid{};
     std::size_t string_index_cursor_codepoint{};
     std::size_t string_index_cursor_byte{};
@@ -347,6 +352,9 @@ void mark_managed_string(char* value, std::size_t byte_length,
     allocation.string_utf8_validated = true;
     allocation.string_codepoint_length_known = codepoints.has_value();
     allocation.string_codepoint_length = codepoints.value_or(0);
+    allocation.string_ascii_known = codepoints.has_value();
+    allocation.string_ascii =
+        codepoints.has_value() && codepoints.value() == byte_length;
     allocation.string_index_cursor_valid = false;
     allocation.string_index_cursor_codepoint = 0;
     allocation.string_index_cursor_byte = 0;
@@ -6729,6 +6737,34 @@ extern "C" char* quidra_string_index(const char* text, long long index,
         std::exit(101);
     }
 
+    // Managed ASCII strings are the overwhelmingly common case for protocol,
+    // file and benchmark text. UTF-8 validation already proved that code-point
+    // and byte offsets are identical, so preserve full Quidra string semantics
+    // while making s[i] as cheap as an ordinary byte-indexed string access.
+    if (const auto it =
+            managed_allocations.find(reinterpret_cast<std::uintptr_t>(text));
+        it != managed_allocations.end() && it->second.string_ascii_known &&
+        it->second.string_ascii) {
+        const auto length = it->second.string_byte_length;
+        const auto position = static_cast<std::size_t>(index);
+        if (position >= length) {
+            std::fprintf(stderr,
+                         "Quidra runtime error[INDEX_BOUNDS] at %llu:%llu: string index %lld outside length %zu\n",
+                         line, column, index, length);
+            std::exit(101);
+        }
+        const auto byte = static_cast<unsigned char>(text[position]);
+        static const auto ascii_singletons = [] {
+            std::array<std::array<char, 2>, 128> values{};
+            for (std::size_t i = 1; i < values.size(); ++i) {
+                values[i][0] = static_cast<char>(i);
+                values[i][1] = '\0';
+            }
+            return values;
+        }();
+        return const_cast<char*>(ascii_singletons[byte].data());
+    }
+
     const auto bounds = utf8_index_bounds(text, static_cast<std::size_t>(index));
     if (!bounds.found) {
         ManagedAllocation* allocation = nullptr;
@@ -7073,6 +7109,9 @@ extern "C" char* quidra_string_append_move_many(
     it->second.string_codepoint_length_known = true;
     it->second.string_codepoint_length = old_codepoints + added_codepoints;
     it->second.string_utf8_validated = true;
+    it->second.string_ascii_known = true;
+    it->second.string_ascii =
+        (old_codepoints + added_codepoints) == new_length;
     return result;
 }
 
@@ -7585,9 +7624,24 @@ extern "C" int quidra_input_read(char** out) {
 
 extern "C" bool quidra_parse_signed(const char* text, long long* out) {
     if (!text || !out || !*text) return false;
+
+    // Fast path for canonical decimal text produced by Quidra itself and by the
+    // common file/serialization path. from_chars is locale-free and allocation-free.
+    ManagedAllocation* allocation = nullptr;
+    const auto view = cached_string_view(text, allocation);
+    long long value = 0;
+    const auto parsed = std::from_chars(
+        view.data(), view.data() + view.size(), value, 10);
+    if (parsed.ec == std::errc{} && parsed.ptr == view.data() + view.size()) {
+        *out = value;
+        return true;
+    }
+
+    // Keep the historical acceptance rules (leading whitespace / '+') for
+    // non-canonical user input instead of changing language behaviour.
     errno = 0;
     char* end = nullptr;
-    const auto value = std::strtoll(text, &end, 10);
+    value = std::strtoll(text, &end, 10);
     if (errno == ERANGE || end == text || !end || *end != '\0') return false;
     *out = value;
     return true;
@@ -7595,12 +7649,41 @@ extern "C" bool quidra_parse_signed(const char* text, long long* out) {
 
 extern "C" bool quidra_parse_unsigned(const char* text, unsigned long long* out) {
     if (!text || !out || !*text || *text == '-') return false;
+
+    ManagedAllocation* allocation = nullptr;
+    const auto view = cached_string_view(text, allocation);
+    unsigned long long value = 0;
+    const auto parsed = std::from_chars(
+        view.data(), view.data() + view.size(), value, 10);
+    if (parsed.ec == std::errc{} && parsed.ptr == view.data() + view.size()) {
+        *out = value;
+        return true;
+    }
+
     errno = 0;
     char* end = nullptr;
-    const auto value = std::strtoull(text, &end, 10);
+    value = std::strtoull(text, &end, 10);
     if (errno == ERANGE || end == text || !end || *end != '\0') return false;
     *out = value;
     return true;
+}
+
+extern "C" char* quidra_integer_text_signed(long long value) {
+    std::array<char, 32> buffer{};
+    const auto converted = std::to_chars(buffer.data(), buffer.data() + buffer.size(), value, 10);
+    if (converted.ec != std::errc{}) runtime_text_failure("integer formatting failed");
+    return copy_validated_runtime_text(
+        std::string_view(buffer.data(), static_cast<std::size_t>(converted.ptr - buffer.data())),
+        static_cast<std::size_t>(converted.ptr - buffer.data()));
+}
+
+extern "C" char* quidra_integer_text_unsigned(unsigned long long value) {
+    std::array<char, 32> buffer{};
+    const auto converted = std::to_chars(buffer.data(), buffer.data() + buffer.size(), value, 10);
+    if (converted.ec != std::errc{}) runtime_text_failure("integer formatting failed");
+    return copy_validated_runtime_text(
+        std::string_view(buffer.data(), static_cast<std::size_t>(converted.ptr - buffer.data())),
+        static_cast<std::size_t>(converted.ptr - buffer.data()));
 }
 
 extern "C" bool quidra_parse_float32(const char* text, float* out) {

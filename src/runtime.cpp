@@ -3526,6 +3526,82 @@ void* neural_normalize_inference(
         "neural.normalize_inference", input,
         {scale, bias, mean, variance}, line, column);
     if(tensor_on_cpu(*input.storage)){
+        const auto layout=neural_normalize_layout(
+            input.shape,tensor_logical_count(input),line,column);
+        if(tensor_logical_count(*scale)!=layout.features||
+           tensor_logical_count(*bias)!=layout.features||
+           tensor_logical_count(*mean)!=layout.features||
+           tensor_logical_count(*variance)!=layout.features)
+            neural_fail("normalization feature dimensions do not match",line,column);
+
+        // Dense CPU inference is the common DNN path. Read directly from
+        // tensor storage and write the result once instead of materializing
+        // five NeuralBuffer copies before producing the output tensor.
+        if(tensor_is_contiguous_value(input)&&
+           tensor_is_contiguous_value(*scale)&&
+           tensor_is_contiguous_value(*bias)&&
+           tensor_is_contiguous_value(*mean)&&
+           tensor_is_contiguous_value(*variance)){
+            tensor_require_initialized(*scale,line,column);
+            tensor_require_initialized(*bias,line,column);
+            tensor_require_initialized(*mean,line,column);
+            tensor_require_initialized(*variance,line,column);
+            auto* output=tensor_storage_create(
+                input.storage->dtype,tensor_logical_count(input),1);
+            if(input.storage->dtype==10){
+                const auto* source=reinterpret_cast<const float*>(
+                    input.storage->data.data())+input.offset;
+                const auto* scale_data=reinterpret_cast<const float*>(
+                    scale->storage->data.data())+scale->offset;
+                const auto* bias_data=reinterpret_cast<const float*>(
+                    bias->storage->data.data())+bias->offset;
+                const auto* mean_data=reinterpret_cast<const float*>(
+                    mean->storage->data.data())+mean->offset;
+                const auto* variance_data=reinterpret_cast<const float*>(
+                    variance->storage->data.data())+variance->offset;
+                auto* destination=reinterpret_cast<float*>(output->data.data());
+                std::vector<float> denominator(layout.features);
+                const float e=static_cast<float>(epsilon);
+                for(std::size_t feature=0;feature<layout.features;++feature)
+                    denominator[feature]=std::sqrt(
+                        static_cast<float>(variance_data[feature]+e));
+                for(std::size_t i=0;i<output->count;++i){
+                    const auto feature=neural_normalize_feature(i,layout);
+                    destination[i]=static_cast<float>(
+                        static_cast<float>(
+                            (source[i]-mean_data[feature])/denominator[feature])*
+                        scale_data[feature]+bias_data[feature]);
+                }
+            }else if(input.storage->dtype==9){
+                const auto* source=reinterpret_cast<const double*>(
+                    input.storage->data.data())+input.offset;
+                const auto* scale_data=reinterpret_cast<const double*>(
+                    scale->storage->data.data())+scale->offset;
+                const auto* bias_data=reinterpret_cast<const double*>(
+                    bias->storage->data.data())+bias->offset;
+                const auto* mean_data=reinterpret_cast<const double*>(
+                    mean->storage->data.data())+mean->offset;
+                const auto* variance_data=reinterpret_cast<const double*>(
+                    variance->storage->data.data())+variance->offset;
+                auto* destination=reinterpret_cast<double*>(output->data.data());
+                std::vector<double> denominator(layout.features);
+                for(std::size_t feature=0;feature<layout.features;++feature)
+                    denominator[feature]=std::sqrt(
+                        variance_data[feature]+epsilon);
+                for(std::size_t i=0;i<output->count;++i){
+                    const auto feature=neural_normalize_feature(i,layout);
+                    destination[i]=
+                        ((source[i]-mean_data[feature])/denominator[feature])*
+                        scale_data[feature]+bias_data[feature];
+                }
+            }else{
+                tensor_storage_release(output);
+                neural_fail("invalid normalization dtype",line,column);
+            }
+            return tensor_descriptor(
+                output,input.shape,tensor_contiguous_strides(input.shape),0);
+        }
+
         const auto values=neural_normalize_values(
             tensor_float_values(input,line,column),input.shape,
             tensor_float_values(*scale,line,column),tensor_float_values(*bias,line,column),

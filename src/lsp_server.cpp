@@ -220,6 +220,11 @@ std::optional<std::string> string_member(const Json& value,std::string_view name
     if(!found||found->kind!=Json::Kind::String) return std::nullopt;
     return found->text;
 }
+std::optional<bool> bool_member(const Json& value,std::string_view name) {
+    const auto* found=member(value,name);
+    if(!found||found->kind!=Json::Kind::Bool) return std::nullopt;
+    return found->boolean;
+}
 const Json& required(const Json& value,std::string_view name,Json::Kind kind) {
     const auto* found=member(value,name);
     if(!found||found->kind!=kind)
@@ -866,6 +871,221 @@ std::vector<CompletionSymbol> completions_at(
 }
 
 
+bool same_span(SourceSpan left,SourceSpan right) {
+    return left.start.offset==right.start.offset&&left.end.offset==right.end.offset;
+}
+
+std::optional<Token> identifier_token_at(std::string_view source,std::size_t offset) {
+    for(const auto& token:Lexer(source).scan()) {
+        if(token.kind==TokenKind::Identifier&&contains_offset(token.span,offset)) return token;
+    }
+    return std::nullopt;
+}
+
+std::optional<SourceSpan> resolved_definition_span(
+    const Program& program,std::string_view source,std::string_view name,std::size_t offset) {
+    if(auto found=definition_span(program,source,name,offset)) return found;
+
+    const auto* expression=expression_at(program,offset);
+    if(!expression) return std::nullopt;
+    const bool method=std::holds_alternative<MethodCallExpr>(expression->data);
+    const bool member_access=std::holds_alternative<MemberExpr>(expression->data);
+    if(!method&&!member_access) return std::nullopt;
+
+    const auto tokens=Lexer(source).scan();
+    std::optional<SourceSpan> candidate;
+    std::size_t matches=0;
+    for(const auto& declaration:program.classes) {
+        if(method) {
+            for(const auto& item:declaration.methods) {
+                if(item.name!=name) continue;
+                if(auto span=identifier_span(tokens,item.span,name,item.return_type.span.end.offset)) {
+                    candidate=span;
+                    ++matches;
+                }
+            }
+        } else {
+            for(const auto& field:declaration.fields) {
+                if(field.name!=name) continue;
+                if(auto span=identifier_span(tokens,field.span,name)) {
+                    candidate=span;
+                    ++matches;
+                }
+            }
+        }
+    }
+    return matches==1?candidate:std::nullopt;
+}
+
+std::vector<SourceSpan> reference_spans(
+    const Program& program,std::string_view source,std::string_view name,SourceSpan target) {
+    std::vector<SourceSpan> result;
+    for(const auto& token:Lexer(source).scan()) {
+        if(token.kind!=TokenKind::Identifier||token.text!=name) continue;
+        const auto resolved=resolved_definition_span(program,source,name,token.span.start.offset);
+        if(resolved&&same_span(*resolved,target)) result.push_back(token.span);
+    }
+    return result;
+}
+
+bool valid_rename_identifier(std::string_view name) {
+    if(name.empty()) return false;
+    std::size_t identifiers=0;
+    for(const auto& token:Lexer(name).scan()) {
+        if(token.kind==TokenKind::Eof||token.kind==TokenKind::Newline) continue;
+        if(token.kind!=TokenKind::Identifier||token.text!=name) return false;
+        ++identifiers;
+    }
+    if(identifiers!=1) return false;
+    if(builtin_scalar_type(name)) return false;
+    for(const auto& builtin:builtin_callables)
+        if(builtin.name==name) return false;
+    return true;
+}
+
+bool is_keyword_token(TokenKind kind) {
+    const auto value=static_cast<int>(kind);
+    return value>=static_cast<int>(TokenKind::KwClass)&&
+           value<=static_cast<int>(TokenKind::KwBitXor);
+}
+
+bool is_operator_token(TokenKind kind) {
+    switch(kind) {
+        case TokenKind::Pipe:
+        case TokenKind::Ampersand:
+        case TokenKind::Assign:
+        case TokenKind::PlusAssign:
+        case TokenKind::MinusAssign:
+        case TokenKind::StarAssign:
+        case TokenKind::SlashAssign:
+        case TokenKind::PercentAssign:
+        case TokenKind::Plus:
+        case TokenKind::Minus:
+        case TokenKind::Star:
+        case TokenKind::Slash:
+        case TokenKind::Percent:
+        case TokenKind::EqEq:
+        case TokenKind::NotEq:
+        case TokenKind::Less:
+        case TokenKind::LessEq:
+        case TokenKind::Greater:
+        case TokenKind::GreaterEq:
+            return true;
+        default:
+            return false;
+    }
+}
+
+int declaration_semantic_type(
+    const Program& program,std::string_view source,const Token& token) {
+    const auto tokens=Lexer(source).scan();
+    for(const auto& import:program.imports)
+        if(import.alias==token.text&&contains_offset(import.span,token.span.start.offset)) return 0;
+    for(const auto& declaration:program.classes) {
+        if(declaration.name==token.text) {
+            if(auto span=identifier_span(tokens,declaration.span,token.text);
+               span&&same_span(*span,token.span)) return 2;
+        }
+        for(const auto& field:declaration.fields) {
+            if(field.name==token.text&&contains_offset(field.span,token.span.start.offset)) return 7;
+        }
+        for(const auto& method:declaration.methods) {
+            if(method.name==token.text) {
+                if(auto span=identifier_span(tokens,method.span,token.text,method.return_type.span.end.offset);
+                   span&&same_span(*span,token.span)) return 4;
+            }
+            for(const auto& parameter:method.parameters)
+                if(parameter.name==token.text&&contains_offset(parameter.span,token.span.start.offset))
+                    return 5;
+        }
+    }
+    for(const auto& function:program.functions) {
+        if(function.name==token.text) {
+            if(auto span=identifier_span(tokens,function.span,token.text,function.return_type.span.end.offset);
+               span&&same_span(*span,token.span)) return 3;
+        }
+        for(const auto& parameter:function.parameters)
+            if(parameter.name==token.text&&contains_offset(parameter.span,token.span.start.offset))
+                return 5;
+    }
+    return 6;
+}
+
+int identifier_semantic_type(
+    const Program& program,std::string_view source,const Token& token) {
+    if(builtin_scalar_type(token.text)||
+       token.text=="auto"||token.text=="void"||token.text=="none"||
+       token.text=="error"||token.text=="never") return 1;
+
+    if(const auto* expression=expression_at(program,token.span.start.offset)) {
+        if(const auto* call=std::get_if<MethodCallExpr>(&expression->data);
+           call&&call->method==token.text) return 4;
+        if(const auto* member=std::get_if<MemberExpr>(&expression->data);
+           member&&member->name==token.text) return 7;
+        if(const auto* call=std::get_if<CallExpr>(&expression->data);
+           call&&call->callee==token.text) return 3;
+    }
+
+    const auto target=resolved_definition_span(
+        program,source,token.text,token.span.start.offset);
+    if(!target) {
+        for(const auto& import:program.imports) if(import.alias==token.text) return 0;
+        for(const auto& declaration:program.classes) if(declaration.name==token.text) return 2;
+        for(const auto& function:program.functions) if(function.name==token.text) return 3;
+        return 6;
+    }
+
+    Token definition_token=token;
+    for(const auto& candidate:Lexer(source).scan()) {
+        if(candidate.kind==TokenKind::Identifier&&candidate.text==token.text&&
+           contains_offset(*target,candidate.span.start.offset)) {
+            definition_token=candidate;
+            break;
+        }
+    }
+    return declaration_semantic_type(program,source,definition_token);
+}
+
+std::string semantic_tokens_json(const Program& program,std::string_view source) {
+    std::vector<unsigned long long> data;
+    std::size_t previous_line=0;
+    std::size_t previous_start=0;
+    bool first=true;
+    for(const auto& token:Lexer(source).scan()) {
+        std::optional<int> type;
+        if(is_keyword_token(token.kind)) type=8;
+        else if(token.kind==TokenKind::String) type=9;
+        else if(token.kind==TokenKind::Integer||token.kind==TokenKind::Float) type=10;
+        else if(is_operator_token(token.kind)) type=11;
+        else if(token.kind==TokenKind::Identifier)
+            type=identifier_semantic_type(program,source,token);
+        if(!type) continue;
+
+        const auto start=lsp_position(source,token.span.start.offset);
+        const auto end=lsp_position(source,token.span.end.offset);
+        if(start.line!=end.line||end.character<=start.character) continue;
+        const auto delta_line=first?start.line:start.line-previous_line;
+        const auto delta_start=first||delta_line?start.character:start.character-previous_start;
+        data.push_back(delta_line);
+        data.push_back(delta_start);
+        data.push_back(end.character-start.character);
+        data.push_back(static_cast<unsigned long long>(*type));
+        data.push_back(0);
+        previous_line=start.line;
+        previous_start=start.character;
+        first=false;
+    }
+    std::ostringstream out;
+    out<<"{\"data\":[";
+    for(std::size_t i=0;i<data.size();++i) {
+        if(i) out<<",";
+        out<<data[i];
+    }
+    out<<"]}";
+    return out.str();
+}
+
+
 class Server {
 public:
     int run() {
@@ -898,6 +1118,9 @@ public:
                 else if(*method=="textDocument/definition") definition(message,id);
                 else if(*method=="textDocument/completion") completion(message,id);
                 else if(*method=="textDocument/signatureHelp") signature_help(message,id);
+                else if(*method=="textDocument/references") references(message,id);
+                else if(*method=="textDocument/rename") rename(message,id);
+                else if(*method=="textDocument/semanticTokens/full") semantic_tokens(message,id);
                 else if(id) fail_response(id,-32601,"method not supported");
             } catch(const std::exception& error) {
                 if(id) fail_response(id,-32603,error.what());
@@ -925,7 +1148,12 @@ private:
             "\"documentFormattingProvider\":true,"
             "\"hoverProvider\":true,\"definitionProvider\":true,"
             "\"completionProvider\":{\"triggerCharacters\":[\".\"]},"
-            "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]}},"
+            "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]},"
+            "\"referencesProvider\":true,\"renameProvider\":true,"
+            "\"semanticTokensProvider\":{\"legend\":{\"tokenTypes\":["
+            "\"namespace\",\"type\",\"class\",\"function\",\"method\",\"parameter\","
+            "\"variable\",\"property\",\"keyword\",\"string\",\"number\",\"operator\"],"
+            "\"tokenModifiers\":[]},\"full\":true}},"
             "\"serverInfo\":{\"name\":\"Quidra\",\"version\":\""+escape(compiler_version)+"\"}}");
     }
 
@@ -1188,6 +1416,106 @@ private:
             respond(id,"null");
         } catch(const CompileErrors&) {
             respond(id,"null");
+        }
+    }
+
+    void references(const Json& message,const Json* id) {
+        const auto& params=required(message,"params",Json::Kind::Object);
+        const auto& document=required(params,"textDocument",Json::Kind::Object);
+        const auto uri=required_string(document,"uri");
+        const auto source=document_source(uri);
+        const auto offset=raw_offset(source,request_position(message));
+        try {
+            const auto program=root_program(source);
+            const auto token=identifier_token_at(source,offset);
+            if(!token) { respond(id,"[]"); return; }
+            const auto target=resolved_definition_span(
+                program,source,token->text,token->span.start.offset);
+            if(!target) { respond(id,"[]"); return; }
+
+            bool include_declaration=true;
+            if(const auto* context=member(params,"context");context&&context->kind==Json::Kind::Object) {
+                if(const auto requested=bool_member(*context,"includeDeclaration"))
+                    include_declaration=*requested;
+            }
+            const auto spans=reference_spans(program,source,token->text,*target);
+            std::ostringstream result;
+            result<<"[";
+            bool first=true;
+            for(const auto& span:spans) {
+                if(!include_declaration&&contains_offset(*target,span.start.offset)) continue;
+                if(!first) result<<",";
+                first=false;
+                result<<"{\"uri\":\""<<escape(uri)<<"\",\"range\":"
+                      <<range_json(source,span)<<"}";
+            }
+            result<<"]";
+            respond(id,result.str());
+        } catch(const CompileError&) {
+            respond(id,"[]");
+        } catch(const CompileErrors&) {
+            respond(id,"[]");
+        }
+    }
+
+    void rename(const Json& message,const Json* id) {
+        const auto& params=required(message,"params",Json::Kind::Object);
+        const auto& document=required(params,"textDocument",Json::Kind::Object);
+        const auto uri=required_string(document,"uri");
+        const auto new_name=required_string(params,"newName");
+        if(!valid_rename_identifier(new_name))
+            throw std::runtime_error("rename target must be a non-reserved Quidra identifier");
+
+        const auto source=document_source(uri);
+        const auto offset=raw_offset(source,request_position(message));
+        try {
+            const auto program=root_program(source);
+            const auto token=identifier_token_at(source,offset);
+            if(!token) { respond(id,"null"); return; }
+            const auto target=resolved_definition_span(
+                program,source,token->text,token->span.start.offset);
+            if(!target) { respond(id,"null"); return; }
+
+            if(new_name!=token->text) {
+                for(const auto& candidate:Lexer(source).scan()) {
+                    if(candidate.kind!=TokenKind::Identifier||candidate.text!=new_name) continue;
+                    const auto other=resolved_definition_span(
+                        program,source,new_name,candidate.span.start.offset);
+                    if(other&&!same_span(*other,*target))
+                        throw std::runtime_error(
+                            "rename target conflicts with an existing visible definition");
+                }
+            }
+
+            const auto spans=reference_spans(program,source,token->text,*target);
+            std::ostringstream result;
+            result<<"{\"changes\":{\""<<escape(uri)<<"\":[";
+            for(std::size_t i=0;i<spans.size();++i) {
+                if(i) result<<",";
+                result<<"{\"range\":"<<range_json(source,spans[i])
+                      <<",\"newText\":\""<<escape(new_name)<<"\"}";
+            }
+            result<<"]}}";
+            respond(id,result.str());
+        } catch(const CompileError&) {
+            respond(id,"null");
+        } catch(const CompileErrors&) {
+            respond(id,"null");
+        }
+    }
+
+    void semantic_tokens(const Json& message,const Json* id) {
+        const auto& params=required(message,"params",Json::Kind::Object);
+        const auto& document=required(params,"textDocument",Json::Kind::Object);
+        const auto uri=required_string(document,"uri");
+        const auto source=document_source(uri);
+        try {
+            const auto program=root_program(source);
+            respond(id,semantic_tokens_json(program,source));
+        } catch(const CompileError&) {
+            respond(id,"{\"data\":[]}");
+        } catch(const CompileErrors&) {
+            respond(id,"{\"data\":[]}");
         }
     }
 };

@@ -59,6 +59,7 @@ Codes are contracts for the category of failure. Message wording may become more
 | `OVERRIDE_REQUIRED` | A method replaces an inherited method without `override`. | Add `override`. |
 | `PARSE_DEPTH` | Parser nesting exceeds the safety budget. | Reduce pathological nesting. |
 | `PARSE_ERROR` | Tokens do not form valid Quidra grammar. | Correct the syntax near the reported span. |
+| `PRIVATE_MEMBER` | A private field is read, written, or addressed outside its declaring class, or a private method is called outside its declaring class. | Access the member only from a method declared by its owning class, or expose an intentional public method. Private fields may still be supplied by name during construction. |
 | `PATCH_HASH_MISMATCH` | A patch node changed since inspection. | Re-inspect and use the new hash. |
 | `PATCH_OVERLAP` | Patch operations target overlapping spans. | Split or remove overlapping replacements. |
 | `RANGE_CONTEXT` | A `range` value is used outside its supported iteration context. | Use it as the iterable of `for`. |
@@ -66,7 +67,7 @@ Codes are contracts for the category of failure. Message wording may become more
 | `RESERVED_MAIN` | Source declares the compiler-reserved native entrypoint name. | Rename it; top-level statements define program entry. |
 | `RETURN_OUTSIDE_FUNCTION` | `return` appears at top level. | Return only from a function/method. |
 | `SHIFT_COUNT` | A statically known shift count is negative or not smaller than the fixed-width integer operand. | Use a shift count in `[0, width)`. |
-| `SHADOWING` | A user declaration reuses a reserved identifier, hides a visible name, or conflicts with a visible class member. | Choose a distinct non-reserved name; qualification does not make a reserved identifier reusable. |
+| `SHADOWING` | A user declaration reuses a reserved identifier, hides a visible name, or conflicts with an occupied class member name, including an inherited private member. | Choose a distinct non-reserved name; qualification does not make a reserved identifier reusable. |
 | `STANDARD_KEY_TYPE` | A standard-library keyed container uses an unsupported key/element type. | Use one of the documented deterministic key types. |
 | `STALE_REVISION` | Patch base revision does not match current source. | Re-inspect and regenerate the patch. |
 | `SUMMARY_ANALYSIS` | Interprocedural initialization/effect summaries cannot reach a valid stable contract. | Simplify or correct the recursive effect relationship reported. |

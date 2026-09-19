@@ -58,7 +58,7 @@ for name in ["int8","int16","int32","int64 (= int)","uint8","uint16","uint32","u
     assert name in x["current_types"], name
 for name in ["print","write","input","range","array","len","abs","sqrt","min","max","error"]:
     assert name in x["current_builtins"], name
-assert x["standard_modules"] == ["math","cli","file","environment","test","time","random","process","map","set","json","http","stats","linear","signal","image","tensor","neural"]
+assert x["standard_modules"] == ["math","cli","file","environment","test","time","task","random","process","map","set","json","http","stats","linear","signal","image","tensor","neural"]
 assert x["array_growth_model"].startswith("append(value)")
 assert "Unicode code-point" in x["string_operation_model"]
 assert "tensor<T><D0, D1, ...>" in x["current_types"]

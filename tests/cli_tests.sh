@@ -2411,6 +2411,34 @@ assert "error[" not in text, text
 PY
 
 
+cat > "$TMP/function-values.qui" <<'QUI'
+int twice(int value)
+    return value * 2
+
+int apply(fn<int>(int) operation, int value)
+    return operation(value)
+
+fn<int>(int) operation = twice
+print(operation(4))
+print(apply(twice, 5))
+QUI
+function_values_output="$("$QUIDRA" run "$TMP/function-values.qui")"
+function_values_expected=$(printf '8\n10')
+[[ "$function_values_output" == "$function_values_expected" ]]
+
+cat > "$TMP/function-value-context.qui" <<'QUI'
+int twice(int value)
+    return value * 2
+
+auto operation = twice
+QUI
+set +e
+"$QUIDRA" check "$TMP/function-value-context.qui" --json > "$TMP/function-value-context.json"
+function_value_context_rc=$?
+set -e
+[[ "$function_value_context_rc" -eq 1 ]]
+grep -q 'FUNCTION_REFERENCE_CONTEXT' "$TMP/function-value-context.json"
+
 cat > "$TMP/task-all.qui" <<'QUI'
 void alpha()
     print("alpha")
@@ -2422,24 +2450,8 @@ task.all([alpha, beta])
 QUI
 
 task_output="$("$QUIDRA" run "$TMP/task-all.qui" | sort)"
-[[ "$task_output" == 
-void touch(int[] &values, int[] &same)
-    values[0] = 7
-    same[1] = values[0] + 2
-
-void mixed(const int[] &view, int[] &sink)
-    sink[0] = view[0] + 1
-
-int[] data = [1, 2, 3]
-touch(&data, &data)
-print(data[0])
-print(data[1])
-mixed(&data, &data)
-print(data[0])
-QUI
-reference_aliasing_output=$("$QUIDRA" run "$TMP/reference-aliasing.qui")
-reference_aliasing_expected=$(printf '7\n9\n8')
-[[ "$reference_aliasing_output" == "$reference_aliasing_expected" ]]
+task_expected=$(printf 'alpha\nbeta')
+[[ "$task_output" == "$task_expected" ]]
 
 cat > "$TMP/reference-alias-call-entry.qui" <<'QUI'
 void read_before_initialize(int &later, int &first)

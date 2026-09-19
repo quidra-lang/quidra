@@ -337,6 +337,15 @@ print(signed_right)
  bad_code("extern int32 implicit_text(string text) = \"implicit_text\"\n", "FFI_REFERENCE");
  bad_code("extern int32 implicit_bytes(bin data) = \"implicit_bytes\"\n", "FFI_REFERENCE");
  good("extern int32 mutable_bytes(bin &data) = \"mutable_bytes\"\n");
+ good("extern int c_apply(fn<int>(int) callback, int value) = \"c_apply\"\n");
+ llvm_contains("extern int c_apply(fn<int>(int) callback, int value) = \"c_apply\"\n", "declare i64 @c_apply(ptr, i64)");
+ llvm_contains(R"(int twice(int value)
+    return value * 2
+extern int c_apply(fn<int>(int) callback, int value) = "c_apply"
+int result = c_apply(twice, 21)
+)", "call i64 @c_apply(ptr");
+ bad_code("extern int unsafe_callback(fn<int8>(int8) callback) = \"unsafe_callback\"\n", "FFI_CALLBACK_TYPE");
+ bad_code("extern int unsafe_callback(fn<string>(int) callback) = \"unsafe_callback\"\n", "FFI_CALLBACK_TYPE");
  bad_code("extern int32 mutable_text(string &text) = \"mutable_text\"\n", "FFI_REFERENCE");
  bad_code("extern int32 const_value(const string text) = \"const_value\"\n", "FFI_REFERENCE");
  bad_code("extern int32 c_puts(const string &text) = \"puts\"\n", "FFI_SYMBOL_CONFLICT");

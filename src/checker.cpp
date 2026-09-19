@@ -6483,6 +6483,27 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                         return false;
                 }
             };
+            const auto ffi_callback_scalar=[](const Type& type) {
+                switch(type.kind) {
+                    case TypeKind::Int:
+                    case TypeKind::Int32:
+                    case TypeKind::UInt32:
+                    case TypeKind::UInt64:
+                    case TypeKind::Float:
+                    case TypeKind::Float32:
+                        return true;
+                    default:
+                        return false;
+                }
+            };
+            const auto ffi_callback=[&](const Type& type) {
+                if(type.kind!=TypeKind::Function || !type.first) return false;
+                if(type.first->kind!=TypeKind::Void && !ffi_callback_scalar(*type.first))
+                    return false;
+                return std::all_of(
+                    type.parameters.begin(), type.parameters.end(),
+                    [&](const Type& parameter) { return ffi_callback_scalar(parameter); });
+            };
             if(function.external_symbol) {
                 const auto& symbol=*function.external_symbol;
                 const auto valid_symbol=!symbol.empty() &&
@@ -6520,6 +6541,11 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                     if(ffi_scalar(type)) {
                         if(parameter.writable || parameter.is_const)
                             error("FFI_REFERENCE","External C scalar parameters are explicit by-value inputs and cannot use const/reference parameter forms.",parameter.span);
+                    } else if(type.kind==TypeKind::Function) {
+                        if(parameter.writable || parameter.is_const)
+                            error("FFI_REFERENCE","External C callbacks are explicit by-value function pointers and cannot use const/reference parameter forms.",parameter.span);
+                        if(!ffi_callback(type))
+                            error("FFI_CALLBACK_TYPE","External C callbacks require fn signatures containing only int32/uint32/int/uint64/float32/float value parameters and the same scalar set or void as the result.",parameter.span);
                     } else if(type.kind==TypeKind::String) {
                         if(!parameter.writable || !parameter.is_const)
                             error("FFI_REFERENCE","External C string inputs must be explicit call-scoped read-only borrows written as const string &.",parameter.span);
@@ -6527,7 +6553,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                         if(!parameter.writable)
                             error("FFI_REFERENCE","External C bin parameters must be explicit call-scoped borrows written as const bin & or bin &.",parameter.span);
                     } else {
-                        error("FFI_TYPE","External C parameters must use explicit numeric/bool scalar values, const string &, const bin &, or bin &.",parameter.span);
+                        error("FFI_TYPE","External C parameters must use explicit numeric/bool scalar values, ABI-safe fn callbacks, const string &, const bin &, or bin &.",parameter.span);
                     }
                 }
                 if (parameter.default_value) {

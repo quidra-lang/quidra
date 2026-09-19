@@ -15,11 +15,12 @@ Codes are contracts for the category of failure. Message wording may become more
 | `DIVIDE_BY_ZERO` | Integer division or remainder has a divisor proven to be zero. | Make the divisor nonzero; dynamic zero remains a checked runtime failure. |
 | `DUPLICATE_IMPORT_ALIAS` | Two imports expose the same alias. | Give imports distinct aliases. |
 | `DUPLICATE_NAME` | A declaration duplicates an existing name or uses a name reserved for that declaration kind. | Rename or remove the declaration; reserved names cannot be reused. |
+| `FFI_CALLBACK_TYPE` | An external C callback uses a function signature outside the explicit callback ABI subset. | Use capture-free `fn` values with only `int32`, `uint32`, `int`, `uint64`, `float32`, or `float` value parameters and the same scalar set or `void` result. |
 | `FFI_DEFAULT` | An external C parameter declares a default argument. | Remove the default; external C parameters are supplied at every call site. |
-| `FFI_REFERENCE` | An external C parameter uses a reference/const form its type does not admit. | Pass numeric/bool scalars by value; declare `string`/`bin` inputs as `const T &`. |
+| `FFI_REFERENCE` | An external C parameter uses a reference/const form its type does not admit. | Pass scalars and callbacks by value; use `const string &`, `const bin &`, or mutable `bin &` only where admitted. |
 | `FFI_SYMBOL` | An external C symbol is not an ASCII C identifier. | Bind an ordinary C identifier symbol. |
 | `FFI_SYMBOL_CONFLICT` | An external C symbol is reserved by the compiler/runtime implementation, or is already bound by another `extern` declaration. | Use a distinct C wrapper symbol; bind each C symbol once per compilation. |
-| `FFI_TYPE` | An external C result or parameter type is not admitted at the C ABI boundary. | Use `void` or an explicit numeric/bool scalar result, and scalar values or `const string &` / `const bin &` parameters. |
+| `FFI_TYPE` | An external C result or parameter type is not admitted at the C ABI boundary. | Use `void` or an explicit numeric/bool scalar result, and scalar values, ABI-safe callbacks, or explicit string/bin borrows. |
 | `FLOAT_RANGE` | A floating literal is not a finite representable source literal. | Use a finite literal in range. |
 | `FUNCTION_NOT_VALUE` | A function or method name is used where a first-class value is required. | Call it directly; declarations are not first-class values. |
 | `GENERIC_ARGUMENTS_REQUIRED` | A generic class was used where explicit type arguments are required. | Supply the class type arguments with `<...>`; generic functions and methods may omit them when inference is unambiguous. |

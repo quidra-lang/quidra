@@ -68,6 +68,8 @@ def prelude(path: Path, code: str) -> str:
     if rel == "README.md":
         if code.lstrip().startswith("int | none | error doubled("):
             return LOOKUP
+        if code.strip().startswith("auto result = lookup(1)"):
+            return LOOKUP
         if code.strip() == "Parent | Child value":
             return PARENTS
     if rel == "docs/spec/language.md":

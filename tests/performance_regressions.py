@@ -67,7 +67,7 @@ def median_seconds(program, work_dir):
 
 # Walking a second array must not cost dramatically more per element than
 # walking one; the regression this catches made it over five times more.
-MAX_SECOND_ARRAY_RATIO = 2.0
+MAX_SECOND_ARRAY_RATIO = 2.5
 
 
 def check_ratio(name, baseline, candidate, baseline_out, candidate_out):

@@ -2082,6 +2082,28 @@ class DerivedVisible : BaseVisible
 )", "PARSE_ERROR");
  bad_code("class Secret\n    private private int value\n", "PARSE_ERROR");
  bad_code("private int value = 1\n", "PARSE_ERROR");
+ good_code(R"(class SecretRef
+    private int value = 1
+    int read_other(SecretRef other)
+        const int &alias = &other.value
+        return alias
+SecretRef a = SecretRef()
+SecretRef b = SecretRef()
+print(a.read_other(b))
+)");
+ bad_code(R"(class BasePrivateRef
+    private int value = 1
+class DerivedPrivateRef : BasePrivateRef
+    int read()
+        const int &alias = &value
+        return alias
+)", "PRIVATE_MEMBER");
+ bad_code(R"(class BasePrivateOther
+    private int value = 1
+class DerivedPrivateOther : BasePrivateOther
+    int read(BasePrivateOther other)
+        return other.value
+)", "PRIVATE_MEMBER");
  bad_code("class A\n    int x\nclass A\n    int y\n", "DUPLICATE_NAME");
  bad_code(R"(T identity<T>(T value)
     return value

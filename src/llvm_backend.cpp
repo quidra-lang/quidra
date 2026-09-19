@@ -1137,6 +1137,20 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::StringSlice>){values[n.out]=Type::simple(TypeKind::String);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_slice(ptr "<<value(n.text)<<", i64 "<<value(n.start)<<", i64 "<<value(n.end)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringTrim>){values[n.out]=Type::simple(TypeKind::String);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_trim(ptr "<<value(n.text)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringSplit>){values[n.out]=Type::array(Type::simple(TypeKind::String));out<<"  "<<value(n.out)<<" = call ptr @quidra_string_split(ptr "<<value(n.text)<<", ptr "<<value(n.separator)<<")\n";}
+        if constexpr(std::is_same_v<T,ir::StringSplitIterBegin>){
+            values[n.out]=Type::simple(TypeKind::Bin);
+            out<<"  "<<value(n.out)<<" = call ptr @quidra_string_split_iter_begin(ptr "<<value(n.text)
+               <<", ptr "<<value(n.separator)<<")\n";
+        }
+        if constexpr(std::is_same_v<T,ir::StringSplitIterNext>){
+            values[n.text]=Type::simple(TypeKind::String);
+            values[n.has_value]=Type::simple(TypeKind::Bool);
+            out<<"  "<<value(n.text)<<" = call ptr @quidra_string_split_iter_next(ptr "<<value(n.cursor)<<")\n";
+            out<<"  "<<value(n.has_value)<<" = icmp ne ptr "<<value(n.text)<<", null\n";
+        }
+        if constexpr(std::is_same_v<T,ir::StringSplitIterEnd>){
+            out<<"  call void @quidra_string_split_iter_end(ptr "<<value(n.cursor)<<")\n";
+        }
         if constexpr(std::is_same_v<T,ir::StringParseTwoSigned>){
             values[n.left]=Type::simple(TypeKind::Int);
             values[n.right]=Type::simple(TypeKind::Int);
@@ -4137,6 +4151,9 @@ declare i64 @quidra_string_find(ptr, ptr)
 declare ptr @quidra_string_slice(ptr, i64, i64)
 declare ptr @quidra_string_trim(ptr)
 declare ptr @quidra_string_split(ptr, ptr)
+declare ptr @quidra_string_split_iter_begin(ptr, ptr)
+declare ptr @quidra_string_split_iter_next(ptr)
+declare void @quidra_string_split_iter_end(ptr)
 declare ptr @quidra_string_parse_two_signed(ptr, i8)
 declare ptr @quidra_string_utf8(ptr)
 declare ptr @quidra_bin_try_utf8(ptr)

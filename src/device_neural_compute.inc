@@ -534,7 +534,8 @@ bool cudnn_conv2d_forward(
     if(chosen<0){
         std::array<CudnnApi::FwdPerf,8> perf{};
         int returned=0;
-        const auto query=api.find_fwd_algorithms?api.find_fwd_algorithms:api.get_fwd_algorithms;
+        const auto query=(!deterministic&&api.find_fwd_algorithms)
+            ?api.find_fwd_algorithms:api.get_fwd_algorithms;
         if(query(handle,x_desc,w_desc,conv_desc,y_desc,
                  static_cast<int>(perf.size()),&returned,perf.data())!=0||
            returned<=0){cleanup();return false;}

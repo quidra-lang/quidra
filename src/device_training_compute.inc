@@ -824,7 +824,7 @@ bool cudnn_conv2d_backward(
     if(data_algo<0){
         std::array<CudnnApi::BwdDataPerf,8> data_perf{};
         int data_returned=0;
-        const auto query=api.find_bwd_data_algorithms
+        const auto query=(!deterministic&&api.find_bwd_data_algorithms)
             ?api.find_bwd_data_algorithms:api.get_bwd_data_algorithms;
         if(query(handle,w_desc,dy_desc,conv_desc,dx_desc,
                  static_cast<int>(data_perf.size()),&data_returned,data_perf.data())!=0||
@@ -849,7 +849,7 @@ bool cudnn_conv2d_backward(
     if(filter_algo<0){
         std::array<CudnnApi::BwdFilterPerf,8> filter_perf{};
         int filter_returned=0;
-        const auto query=api.find_bwd_filter_algorithms
+        const auto query=(!deterministic&&api.find_bwd_filter_algorithms)
             ?api.find_bwd_filter_algorithms:api.get_bwd_filter_algorithms;
         if(query(handle,x_desc,dy_desc,conv_desc,dw_desc,
                  static_cast<int>(filter_perf.size()),&filter_returned,filter_perf.data())!=0||

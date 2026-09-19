@@ -166,6 +166,13 @@ struct TensorSet {
     std::uint32_t column{};
 };
 struct ParseNumber { ValueId out; ValueId text; Type target_type; Type result_type; };
+struct ParseNumberDirect {
+    ValueId value_out;
+    ValueId ok_out;
+    ValueId error_out;
+    ValueId text;
+    Type target_type;
+};
 struct NumericAbs { ValueId out; ValueId value; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct Sqrt { ValueId out; ValueId value; Type type; std::uint32_t line{}; std::uint32_t column{}; };
 struct MathUnary { ValueId out; ValueId value; Type type; BuiltinCallable operation; };
@@ -283,7 +290,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  NeuralAffine, NeuralConvolve2D, NeuralUpdate, NeuralNormalize,
                                  NeuralRandomMask, NeuralMomentUpdate,
                                  NeuralSave, NeuralLoad,
-                                 StatsMean, StatsReduce, LinearMatmul, LinearDot, ImageRead, ImageWrite, ImageTensorOp, TensorBinary, TensorIndex, TensorSet, ParseNumber, NumericAbs, Sqrt, MathUnary, MathRoundInt, MathPow,
+                                 StatsMean, StatsReduce, LinearMatmul, LinearDot, ImageRead, ImageWrite, ImageTensorOp, TensorBinary, TensorIndex, TensorSet, ParseNumber, ParseNumberDirect, NumericAbs, Sqrt, MathUnary, MathRoundInt, MathPow,
                                  CliArgument, CliOption, CliFlag, CliFinish,
                                  FileRead, FileReadBin, FileWrite, FileWriteBin, FileExists, FileIsDirectory, FileRemove, FileCopy, FileMove, FileMkdir, FileList,
                                  EnvironmentGet, EnvironmentHas, TestAssert,

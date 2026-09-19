@@ -900,7 +900,8 @@ bool compute_binary_backward(
         void* args[]={&lg,&rg,&g,&a,&b,&n};
         return launch_hip_1d(
             left_gradient,
-            "neural-binary-backward-"+std::to_string(dtype)+"-"+std::to_string(operation),
+            "neural-binary-backward-"+std::to_string(dtype)+"-"+std::to_string(operation)+
+                (shared_output?"-shared":"-split"),
             source,count,args,error);
     }
 #ifdef __APPLE__

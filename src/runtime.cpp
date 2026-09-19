@@ -5758,14 +5758,23 @@ void* neural_grad_t(
                             const T gradient=g[output_index(batch_index,output_channel,oy,ox)];
                             bias_gradient[static_cast<std::size_t>(output_channel)]=static_cast<T>(
                                 bias_gradient[static_cast<std::size_t>(output_channel)]+gradient);
+                            const auto origin_y=oy*stride-padding;
+                            const auto origin_x=ox*stride-padding;
+                            const auto ky_begin=origin_y<0?-origin_y:0;
+                            const auto kx_begin=origin_x<0?-origin_x:0;
+                            const auto ky_limit=height-origin_y;
+                            const auto kx_limit=width-origin_x;
+                            const auto ky_end=ky_limit<kernel_h?ky_limit:kernel_h;
+                            const auto kx_end=kx_limit<kernel_w?kx_limit:kernel_w;
                             for(long long input_channel=0;input_channel<in_c;++input_channel)
-                                for(long long ky=0;ky<kernel_h;++ky)
-                                    for(long long kx=0;kx<kernel_w;++kx){
-                                        const auto iy=oy*stride+ky-padding;
-                                        const auto ix=ox*stride+kx-padding;
-                                        if(iy<0||ix<0||iy>=height||ix>=width) continue;
-                                        const auto input_offset=input_index(batch_index,input_channel,iy,ix);
-                                        const auto weight_offset=weight_index(output_channel,input_channel,ky,kx);
+                                for(long long ky=ky_begin;ky<ky_end;++ky)
+                                    for(long long kx=kx_begin;kx<kx_end;++kx){
+                                        const auto iy=origin_y+ky;
+                                        const auto ix=origin_x+kx;
+                                        const auto input_offset=input_index(
+                                            batch_index,input_channel,iy,ix);
+                                        const auto weight_offset=weight_index(
+                                            output_channel,input_channel,ky,kx);
                                         input_gradient[input_offset]=static_cast<T>(
                                             input_gradient[input_offset]+static_cast<T>(
                                                 gradient*weight_values[weight_offset]));

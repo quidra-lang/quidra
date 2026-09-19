@@ -1945,7 +1945,7 @@ print(combine(1, first = 2))
 Secret secret = Secret()
 print(secret.value)
 )", "PRIVATE_MEMBER");
- good_code(R"(class Secret
+ good(R"(class Secret
     private int value
 Secret secret = Secret(value = 1)
 )");
@@ -1998,7 +1998,7 @@ class DerivedSecret : BaseSecret
     void replace()
         value = 2
 )", "PRIVATE_MEMBER");
- good_code(R"(class Secret
+ good(R"(class Secret
     private int value = 1
 
     void copy_from(Secret other)
@@ -2026,14 +2026,14 @@ class DerivedSecret : MiddleSecret
     int reveal()
         return value
 )", "PRIVATE_MEMBER");
- good_code(R"(class Secret
+ good(R"(class Secret
     private int value = 1
 
     void update_other(Secret other)
         int &alias = &other.value
         alias = 2
 )");
- good_code(R"(class Secret
+ good(R"(class Secret
     private void hidden()
         return
 
@@ -2057,7 +2057,7 @@ box.hidden()
 Secret secret = Secret()
 print(secret.echo<int>(1))
 )", "PRIVATE_MEMBER");
- good_code(R"(class BaseVisible
+ good(R"(class BaseVisible
     void visible()
         return
 class DerivedVisible : BaseVisible
@@ -2082,7 +2082,7 @@ class DerivedVisible : BaseVisible
 )", "PARSE_ERROR");
  bad_code("class Secret\n    private private int value\n", "PARSE_ERROR");
  bad_code("private int value = 1\n", "PARSE_ERROR");
- good_code(R"(class SecretRef
+ good(R"(class SecretRef
     private int value = 1
     int read_other(SecretRef other)
         const int &alias = &other.value
@@ -2104,7 +2104,7 @@ class DerivedPrivateOther : BasePrivateOther
     int read(BasePrivateOther other)
         return other.value
 )", "PRIVATE_MEMBER");
- good_code(R"(class PrivateInit
+ good(R"(class PrivateInit
     private int value
     int read()
         return value

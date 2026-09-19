@@ -188,9 +188,7 @@ print(math.abs(float(model.right.raw()[0].item()) - 1.9) < 0.000001)
 
 neural<float32> left_second = model.left.track()
 neural<float32> right_second = model.right.track()
-neural<float32> loss_second =
-    neural.mean(left_second * left_second) +
-    neural.mean(right_second * right_second)
+neural<float32> loss_second = neural.mean(left_second * left_second) + neural.mean(right_second * right_second)
 neural.Gradients gradients_second = neural.grad(loss_second)
 neural.moment_update(
     &model,

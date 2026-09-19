@@ -279,14 +279,14 @@ match rgb_written
             error problem
                 print("shape-error")
 
-        tensor<uint8><1, _, _> | error gray = image.read("$TMP/rgb.png", channels = 1)
+        tensor<uint8><1, _, _> | error gray = image.read("$TMP/rgb.png", channel = 1)
         match gray
             tensor<uint8><1, _, _> pixels
                 print(pixels[0, 0, 0].item())
             error problem
                 print(problem)
 
-        tensor<float32><3, _, _> | error float_rgb = image.read("$TMP/rgb.png", dtype = float32)
+        tensor<float32><3, _, _> | error float_rgb = image.read("$TMP/rgb.png", type = float32)
         match float_rgb
             tensor<float32><3, _, _> pixels
                 print(pixels[0, 0, 0].item())
@@ -295,7 +295,7 @@ match rgb_written
     error problem
         print(problem)
 
-// A target format must reject a dtype it cannot represent instead of narrowing.
+// A target format must reject an element type it cannot represent instead of narrowing.
 auto bad_jpeg = image.write("$TMP/u16.jpg", png16)
 match bad_jpeg
     void

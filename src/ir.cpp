@@ -2753,6 +2753,197 @@ struct Lowerer {
         return out;
     }
 
+    bool is_signed_parse_wrapper(const std::string& target) const {
+        const auto signature = checked.functions.find(target);
+        if (signature == checked.functions.end() ||
+            signature->second.result.kind != TypeKind::Int ||
+            signature->second.parameters.size() != 1 ||
+            signature->second.parameters.front().type.kind != TypeKind::String)
+            return false;
+
+        const FunctionDecl* function = nullptr;
+        for (const auto& candidate : checked.program.functions) {
+            if (candidate.name == target) {
+                function = &candidate;
+                break;
+            }
+        }
+        if (!function || function->parameters.size() != 1 ||
+            function->body.size() != 1)
+            return false;
+
+        const auto* match =
+            std::get_if<MatchStmt>(&function->body.front()->data);
+        if (!match || !match->value || match->cases.size() != 2)
+            return false;
+        const auto* parse =
+            std::get_if<MethodCallExpr>(&match->value->data);
+        if (!parse || parse->method != "parse" || parse->args.size() != 1 ||
+            !parse->args.front().value)
+            return false;
+        const auto* receiver =
+            std::get_if<NameExpr>(&parse->receiver->data);
+        const auto* argument =
+            std::get_if<NameExpr>(&parse->args.front().value->data);
+        if (!receiver || receiver->name != "int" || !argument ||
+            argument->name != function->parameters.front().name)
+            return false;
+
+        for (const auto& current : match->cases) {
+            const auto type = checked.case_types.find(&current);
+            if (type == checked.case_types.end() ||
+                type->second.kind != TypeKind::Int)
+                continue;
+            if (!current.binder || current.body.size() != 1)
+                return false;
+            const auto* returned =
+                std::get_if<ReturnStmt>(&current.body.front()->data);
+            if (!returned || !returned->value)
+                return false;
+            const auto* name =
+                std::get_if<NameExpr>(&returned->value->data);
+            return name && name->name == *current.binder;
+        }
+        return false;
+    }
+
+    const CallExpr* split_parse_call(
+        const BindingStmt& binding, const std::string& fields_name,
+        std::uint64_t expected_index) const {
+        if (binding.reference || !binding.value) return nullptr;
+        const auto binding_type_it = checked.expr_types.find(binding.value.get());
+        if (binding_type_it == checked.expr_types.end() ||
+            binding_type_it->second.kind != TypeKind::Int)
+            return nullptr;
+        const auto* call = std::get_if<CallExpr>(&binding.value->data);
+        if (!call || call->args.size() != 1 || !call->args.front().value)
+            return nullptr;
+        const auto resolution =
+            checked.call_resolutions.find(binding.value.get());
+        if (resolution == checked.call_resolutions.end() ||
+            resolution->second.kind != CallKind::Function ||
+            !is_signed_parse_wrapper(resolution->second.target))
+            return nullptr;
+
+        const auto* index =
+            std::get_if<IndexExpr>(&call->args.front().value->data);
+        if (!index || index->items.size() != 1 ||
+            index->items.front().slice || !index->items.front().index)
+            return nullptr;
+        const auto* base = std::get_if<NameExpr>(&index->base->data);
+        const auto* literal =
+            std::get_if<IntegerExpr>(&index->items.front().index->data);
+        if (!base || base->name != fields_name || !literal ||
+            !literal->fits_u64 || literal->value != expected_index)
+            return nullptr;
+        return call;
+    }
+
+    bool lower_split_parse_pair(
+        const Stmt& split_statement, const Stmt& left_statement,
+        const Stmt& right_statement, bool fields_used_later) {
+        if (fields_used_later) return false;
+        const auto* split_binding =
+            std::get_if<BindingStmt>(&split_statement.data);
+        const auto* left_binding =
+            std::get_if<BindingStmt>(&left_statement.data);
+        const auto* right_binding =
+            std::get_if<BindingStmt>(&right_statement.data);
+        if (!split_binding || !left_binding || !right_binding ||
+            split_binding->reference || left_binding->reference ||
+            right_binding->reference || !split_binding->value)
+            return false;
+
+        const auto fields_type = checked.binding_types.at(&split_statement);
+        const auto left_type = checked.binding_types.at(&left_statement);
+        const auto right_type = checked.binding_types.at(&right_statement);
+        if (fields_type.kind != TypeKind::Array || !fields_type.first ||
+            fields_type.first->kind != TypeKind::String ||
+            left_type.kind != TypeKind::Int || right_type.kind != TypeKind::Int)
+            return false;
+
+        const auto* split =
+            std::get_if<MethodCallExpr>(&split_binding->value->data);
+        if (!split || split->method != "split" || split->args.size() != 1 ||
+            !split->args.front().value)
+            return false;
+        const auto* source_name =
+            std::get_if<NameExpr>(&split->receiver->data);
+        const auto* separator =
+            std::get_if<StringExpr>(&split->args.front().value->data);
+        if (!source_name || is_source_reference(source_name->name) ||
+            checked.field_accesses.contains(split->receiver.get()) ||
+            !separator || separator->value.size() != 1)
+            return false;
+        const auto separator_byte =
+            static_cast<unsigned char>(separator->value.front());
+        if (separator_byte == 0 || separator_byte >= 0x80U)
+            return false;
+
+        const auto* left_call =
+            split_parse_call(*left_binding, split_binding->name, 0);
+        const auto* right_call =
+            split_parse_call(*right_binding, split_binding->name, 1);
+        if (!left_call || !right_call) return false;
+
+        block->instructions.push_back(SourceLocation{
+            static_cast<std::uint32_t>(split_statement.span.start.line),
+            static_cast<std::uint32_t>(split_statement.span.start.column)});
+
+        const auto fields_local =
+            bind_source_local(split_binding->name, fields_type);
+        const auto left_local =
+            bind_source_local(left_binding->name, left_type);
+        const auto right_local =
+            bind_source_local(right_binding->name, right_type);
+        block->instructions.push_back(DeclareLocal{
+            fields_local, fields_type, split_binding->name,
+            static_cast<std::uint32_t>(split_statement.span.start.line),
+            static_cast<std::uint32_t>(split_statement.span.start.column)});
+        block->instructions.push_back(DeclareLocal{
+            left_local, left_type, left_binding->name,
+            static_cast<std::uint32_t>(left_statement.span.start.line),
+            static_cast<std::uint32_t>(left_statement.span.start.column)});
+        block->instructions.push_back(DeclareLocal{
+            right_local, right_type, right_binding->name,
+            static_cast<std::uint32_t>(right_statement.span.start.line),
+            static_cast<std::uint32_t>(right_statement.span.start.column)});
+
+        auto text = expr(*split->receiver);
+        auto left = fresh();
+        auto right = fresh();
+        auto ok = fresh();
+        block->instructions.push_back(
+            StringParseTwoSigned{left, right, ok, text, separator_byte});
+
+        const auto fast = label("split.parse.fast");
+        const auto slow = label("split.parse.slow");
+        const auto done = label("split.parse.end");
+        block->instructions.push_back(Branch{ok, fast, slow});
+
+        block = &add_block(fast);
+        block->instructions.push_back(
+            StoreLocal{left_local, left, left_type, true});
+        block->instructions.push_back(
+            StoreLocal{right_local, right, right_type, true});
+        block->instructions.push_back(Jump{done});
+
+        block = &add_block(slow);
+        auto split_value = expr(*split_binding->value);
+        block->instructions.push_back(
+            StoreLocal{fields_local, split_value, fields_type});
+        auto left_value = expr(*left_binding->value);
+        block->instructions.push_back(
+            StoreLocal{left_local, left_value, left_type, true});
+        auto right_value = expr(*right_binding->value);
+        block->instructions.push_back(
+            StoreLocal{right_local, right_value, right_type, true});
+        block->instructions.push_back(Jump{done});
+
+        block = &add_block(done);
+        return true;
+    }
+
     bool lower_string_array_join_pair(
         const Stmt& array_statement, const Stmt& join_statement,
         bool used_later) {
@@ -2818,6 +3009,26 @@ struct Lowerer {
     void lower_loop_statement_sequence(
         const std::vector<StmtPtr>& statements) {
         for (std::size_t i = 0; i < statements.size(); ++i) {
+            if (i + 2 < statements.size()) {
+                const auto* split_binding =
+                    std::get_if<BindingStmt>(&statements[i]->data);
+                bool fields_used_later = false;
+                if (split_binding) {
+                    for (std::size_t j = i + 3;
+                         j < statements.size() && !fields_used_later; ++j) {
+                        fields_used_later = statement_mentions_name(
+                            *statements[j], split_binding->name);
+                    }
+                }
+                if (split_binding &&
+                    lower_split_parse_pair(
+                        *statements[i], *statements[i + 1],
+                        *statements[i + 2], fields_used_later)) {
+                    i += 2;
+                    if (terminated()) break;
+                    continue;
+                }
+            }
             if (i + 1 < statements.size()) {
                 const auto* binding =
                     std::get_if<BindingStmt>(&statements[i]->data);
@@ -3975,6 +4186,7 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,StringSlice>)out<<"%"<<n.out<<" = string.slice %"<<n.text<<", %"<<n.start<<", %"<<n.end;
     if constexpr(std::is_same_v<T,StringTrim>)out<<"%"<<n.out<<" = string.trim %"<<n.text;
     if constexpr(std::is_same_v<T,StringSplit>)out<<"%"<<n.out<<" = string.split %"<<n.text<<", %"<<n.separator;
+    if constexpr(std::is_same_v<T,StringParseTwoSigned>)out<<"%"<<n.left<<", %"<<n.right<<", %"<<n.ok<<" = string.parse_two_signed %"<<n.text<<", "<<static_cast<unsigned>(n.separator);
     if constexpr(std::is_same_v<T,StringUtf8>)out<<"%"<<n.out<<" = string.utf8 %"<<n.text;
     if constexpr(std::is_same_v<T,StringFromUtf8>)out<<"%"<<n.out<<" = string.from_utf8 %"<<n.bin;
     if constexpr(std::is_same_v<T,StringCodepoints>)out<<"%"<<n.out<<" = string.codepoints %"<<n.text;

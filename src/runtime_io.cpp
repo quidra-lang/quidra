@@ -27,6 +27,14 @@ bool read_all_bytes(const char* path, std::string& data) {
     std::ifstream in(path, std::ios::binary);
     if (!in) return false;
 
+    std::error_code size_error;
+    const auto file_bytes = std::filesystem::file_size(path, size_error);
+    if (!size_error &&
+        file_bytes <= static_cast<std::uintmax_t>(
+            std::numeric_limits<std::size_t>::max())) {
+        data.reserve(static_cast<std::size_t>(file_bytes));
+    }
+
     std::array<char, 64 * 1024> buffer{};
     while (true) {
         in.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));

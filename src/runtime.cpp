@@ -6048,25 +6048,32 @@ void* neural_grad_t(
            node->op==NeuralOp::Mul||node->op==NeuralOp::Div){
             const auto& a=node->parents[0]->data.typed<T>();
             const auto& b=node->parents[1]->data.typed<T>();
-            std::vector<T> left_gradient(g.size()),right_gradient(g.size());
+            std::vector<T> left_gradient,right_gradient;
             if(node->op==NeuralOp::Add){
-                left_gradient=g;
-                right_gradient=g;
+                // This node's gradient is complete in reverse-topological order.
+                // Reuse its buffer for one parent and copy only for the second.
+                left_gradient=std::move(found->second);
+                right_gradient=left_gradient;
             }else if(node->op==NeuralOp::Sub){
-                left_gradient=g;
-                for(std::size_t i=0;i<g.size();++i)
-                    right_gradient[i]=static_cast<T>(-g[i]);
-            }else if(node->op==NeuralOp::Mul){
-                for(std::size_t i=0;i<g.size();++i){
-                    left_gradient[i]=static_cast<T>(g[i]*b[i]);
-                    right_gradient[i]=static_cast<T>(g[i]*a[i]);
-                }
+                left_gradient=std::move(found->second);
+                right_gradient.resize(left_gradient.size());
+                for(std::size_t i=0;i<left_gradient.size();++i)
+                    right_gradient[i]=static_cast<T>(-left_gradient[i]);
             }else{
-                for(std::size_t i=0;i<g.size();++i){
-                    left_gradient[i]=static_cast<T>(g[i]/b[i]);
-                    right_gradient[i]=static_cast<T>(
-                        -static_cast<T>(g[i]*a[i])/
-                        static_cast<T>(b[i]*b[i]));
+                left_gradient.resize(g.size());
+                right_gradient.resize(g.size());
+                if(node->op==NeuralOp::Mul){
+                    for(std::size_t i=0;i<g.size();++i){
+                        left_gradient[i]=static_cast<T>(g[i]*b[i]);
+                        right_gradient[i]=static_cast<T>(g[i]*a[i]);
+                    }
+                }else{
+                    for(std::size_t i=0;i<g.size();++i){
+                        left_gradient[i]=static_cast<T>(g[i]/b[i]);
+                        right_gradient[i]=static_cast<T>(
+                            -static_cast<T>(g[i]*a[i])/
+                            static_cast<T>(b[i]*b[i]));
+                    }
                 }
             }
             neural_add_gradient(gradients,node->parents[0],std::move(left_gradient));
@@ -6079,19 +6086,22 @@ void* neural_grad_t(
             const auto operation=static_cast<int>(node->aux_index[0]);
             const bool scalar_left=node->aux_index[1]!=0;
             const T scalar_value=static_cast<T>(node->aux.scalar_as_double(0));
-            std::vector<T> input_gradient(g.size());
-            for(std::size_t i=0;i<g.size();++i){
-                if(operation==1)input_gradient[i]=g[i];
+            // Scalar backward is one-to-one, so transform the completed gradient
+            // buffer in place instead of allocating an equally sized temporary.
+            std::vector<T> input_gradient=std::move(found->second);
+            for(std::size_t i=0;i<input_gradient.size();++i){
+                const T gradient=input_gradient[i];
+                if(operation==1)input_gradient[i]=gradient;
                 else if(operation==2)
-                    input_gradient[i]=scalar_left?static_cast<T>(-g[i]):g[i];
+                    input_gradient[i]=scalar_left?static_cast<T>(-gradient):gradient;
                 else if(operation==3)
-                    input_gradient[i]=static_cast<T>(g[i]*scalar_value);
+                    input_gradient[i]=static_cast<T>(gradient*scalar_value);
                 else if(scalar_left){
-                    const T gs=static_cast<T>(g[i]*scalar_value);
+                    const T gs=static_cast<T>(gradient*scalar_value);
                     const T xx=static_cast<T>(input[i]*input[i]);
                     input_gradient[i]=static_cast<T>(-static_cast<T>(gs/xx));
                 }else{
-                    input_gradient[i]=static_cast<T>(g[i]/scalar_value);
+                    input_gradient[i]=static_cast<T>(gradient/scalar_value);
                 }
             }
             neural_add_gradient(
@@ -6100,14 +6110,16 @@ void* neural_grad_t(
                  node->op==NeuralOp::Exponential||
                  node->op==NeuralOp::Logarithm){
             const auto& input=node->parents[0]->data.typed<T>();
-            std::vector<T> input_gradient(g.size());
-            for(std::size_t i=0;i<g.size();++i){
+            std::vector<T> input_gradient=std::move(found->second);
+            for(std::size_t i=0;i<input_gradient.size();++i){
+                const T gradient=input_gradient[i];
                 if(node->op==NeuralOp::Absolute)
-                    input_gradient[i]=input[i]>T{0}?g[i]:input[i]<T{0}?static_cast<T>(-g[i]):T{0};
+                    input_gradient[i]=input[i]>T{0}?gradient:
+                        input[i]<T{0}?static_cast<T>(-gradient):T{0};
                 else if(node->op==NeuralOp::Exponential)
-                    input_gradient[i]=static_cast<T>(g[i]*node_values[i]);
+                    input_gradient[i]=static_cast<T>(gradient*node_values[i]);
                 else
-                    input_gradient[i]=static_cast<T>(g[i]/input[i]);
+                    input_gradient[i]=static_cast<T>(gradient/input[i]);
             }
             neural_add_gradient(gradients,node->parents[0],std::move(input_gradient));
         }else if(node->op==NeuralOp::Mean){
@@ -6118,35 +6130,33 @@ void* neural_grad_t(
         }else if(node->op==NeuralOp::SumLast||node->op==NeuralOp::MaxLast){
             const auto& input=node->parents[0]->data.typed<T>();
             const auto width=static_cast<std::size_t>(node->shape.back());
-            std::vector<T> input_gradient(g.size(),T{0});
-            for(std::size_t base=0;base<g.size();base+=width){
+            std::vector<T> input_gradient=std::move(found->second);
+            for(std::size_t base=0;base<input_gradient.size();base+=width){
                 T total=T{0};
                 for(std::size_t j=0;j<width;++j)
-                    total=static_cast<T>(total+g[base+j]);
+                    total=static_cast<T>(total+input_gradient[base+j]);
                 if(node->op==NeuralOp::SumLast){
                     for(std::size_t j=0;j<width;++j) input_gradient[base+j]=total;
                 }else{
                     std::size_t selected=0;
                     for(std::size_t j=1;j<width;++j)
                         if(input[base+j]>input[base+selected]) selected=j;
-                    input_gradient[base+selected]=total;
+                    for(std::size_t j=0;j<width;++j)
+                        input_gradient[base+j]=j==selected?total:T{0};
                 }
             }
             neural_add_gradient(gradients,node->parents[0],std::move(input_gradient));
         }else if(node->op==NeuralOp::RandomMask){
-            if(node->aux.empty()){
-                neural_add_gradient(
-                    gradients,node->parents[0],std::vector<T>(g));
-            }else{
-                if(node->aux.size()!=g.size())
+            std::vector<T> input_gradient=std::move(found->second);
+            if(!node->aux.empty()){
+                if(node->aux.size()!=input_gradient.size())
                     neural_fail("random mask backward mask size mismatch",0,0);
                 const auto& mask=node->aux.typed<T>();
-                std::vector<T> input_gradient(g.size());
-                for(std::size_t i=0;i<g.size();++i)
-                    input_gradient[i]=static_cast<T>(g[i]*mask[i]);
-                neural_add_gradient(
-                    gradients,node->parents[0],std::move(input_gradient));
+                for(std::size_t i=0;i<input_gradient.size();++i)
+                    input_gradient[i]=static_cast<T>(input_gradient[i]*mask[i]);
             }
+            neural_add_gradient(
+                gradients,node->parents[0],std::move(input_gradient));
         }else if(node->op==NeuralOp::Normalize){
             const auto& input=node->parents[0];
             const auto& scale=node->parents[1];
@@ -6161,7 +6171,10 @@ void* neural_grad_t(
                node->aux.size()!=features*2)
                 neural_fail("normalization backward cache layout mismatch",0,0);
             const auto& backward_cache=node->aux.typed<T>();
-            std::vector<T> input_gradient(input_values.size(),T{0});
+            // The input gradient has the same element count as the incoming
+            // gradient. Keep the completed buffer and overwrite it after the
+            // two feature reductions instead of allocating another full tensor.
+            std::vector<T> input_gradient=std::move(found->second);
             std::vector<T> sum_gradient(features,T{0});
             std::vector<T> sum_gradient_x(features,T{0});
 
@@ -6176,9 +6189,9 @@ void* neural_grad_t(
                 const T xhat=static_cast<T>(
                     static_cast<T>(input_values[i]-mean)*inverse);
                 sum_gradient[feature]=static_cast<T>(
-                    sum_gradient[feature]+g[i]);
+                    sum_gradient[feature]+input_gradient[i]);
                 sum_gradient_x[feature]=static_cast<T>(
-                    sum_gradient_x[feature]+static_cast<T>(g[i]*xhat));
+                    sum_gradient_x[feature]+static_cast<T>(input_gradient[i]*xhat));
             }
 
             // These are the same reductions as sum_gradient_x and
@@ -6197,7 +6210,7 @@ void* neural_grad_t(
                         static_cast<T>(scale_values[feature]*inverse)/
                         sample_count)*
                     static_cast<T>(
-                        static_cast<T>(sample_count*g[i])-
+                        static_cast<T>(sample_count*input_gradient[i])-
                         sum_gradient[feature]-
                         static_cast<T>(xhat*sum_gradient_x[feature])));
             }

@@ -3893,29 +3893,93 @@ std::vector<T> neural_conv2d_values_t(
     count=safe_mul(count,static_cast<std::size_t>(out_h));
     count=safe_mul(count,static_cast<std::size_t>(out_w));
     std::vector<T> result(count,T{0});
-    const auto in_index=[&](long long bn,long long ch,long long y,long long x){
-        return static_cast<std::size_t>(((bn*in_c+ch)*h+y)*w+x);
-    };
-    const auto weight_index=[&](long long oc,long long ic,long long y,long long x){
-        return static_cast<std::size_t>(((oc*in_c+ic)*kh+y)*kw+x);
-    };
-    const auto out_index=[&](long long bn,long long oc,long long y,long long x){
-        return static_cast<std::size_t>(((bn*out_c+oc)*out_h+y)*out_w+x);
-    };
-    for(long long bn=0;bn<n;++bn) for(long long oc=0;oc<out_c;++oc)
-        for(long long oy=0;oy<out_h;++oy) for(long long ox=0;ox<out_w;++ox){
-            T total=bias[static_cast<std::size_t>(oc)];
-            for(long long ic=0;ic<in_c;++ic) for(long long ky=0;ky<kh;++ky)
-                for(long long kx=0;kx<kw;++kx){
-                    const auto iy=oy*stride+ky-padding;
-                    const auto ix=ox*stride+kx-padding;
-                    if(iy<0||ix<0||iy>=h||ix>=w) continue;
-                    total=static_cast<T>(total+static_cast<T>(
-                        input[in_index(bn,ic,iy,ix)]*
-                        weight[weight_index(oc,ic,ky,kx)]));
+    const auto input_plane=static_cast<std::size_t>(h)*static_cast<std::size_t>(w);
+    const auto output_plane=static_cast<std::size_t>(out_h)*static_cast<std::size_t>(out_w);
+    const auto kernel_plane=static_cast<std::size_t>(kh)*static_cast<std::size_t>(kw);
+
+    // 1x1 is the common pointwise-convolution case. Keep the exact channel
+    // reduction order while removing kernel loops and boundary checks entirely.
+    if(kh==1&&kw==1&&padding==0){
+        for(long long bn=0;bn<n;++bn){
+            const auto* input_batch=input.data()+
+                static_cast<std::size_t>(bn*in_c)*input_plane;
+            auto* output_batch=result.data()+
+                static_cast<std::size_t>(bn*out_c)*output_plane;
+            for(long long oc=0;oc<out_c;++oc){
+                const auto* weight_out=weight.data()+
+                    static_cast<std::size_t>(oc*in_c);
+                auto* output_out=output_batch+
+                    static_cast<std::size_t>(oc)*output_plane;
+                for(long long oy=0;oy<out_h;++oy){
+                    const auto iy=oy*stride;
+                    for(long long ox=0;ox<out_w;++ox){
+                        const auto ix=ox*stride;
+                        const auto spatial=static_cast<std::size_t>(iy*w+ix);
+                        T total=bias[static_cast<std::size_t>(oc)];
+                        for(long long ic=0;ic<in_c;++ic){
+                            total=static_cast<T>(total+static_cast<T>(
+                                input_batch[static_cast<std::size_t>(ic)*input_plane+spatial]*
+                                weight_out[static_cast<std::size_t>(ic)]));
+                        }
+                        output_out[static_cast<std::size_t>(oy*out_w+ox)]=total;
+                    }
                 }
-            result[out_index(bn,oc,oy,ox)]=total;
+            }
         }
+        return result;
+    }
+
+    // Compute valid kernel bounds once per output position, then walk input and
+    // weight rows contiguously. This preserves the original ic->ky->kx
+    // accumulation order (and therefore deterministic CPU semantics) while
+    // removing six-dimensional index arithmetic and bounds branches from every
+    // multiply-add.
+    for(long long bn=0;bn<n;++bn){
+        const auto* input_batch=input.data()+
+            static_cast<std::size_t>(bn*in_c)*input_plane;
+        auto* output_batch=result.data()+
+            static_cast<std::size_t>(bn*out_c)*output_plane;
+        for(long long oc=0;oc<out_c;++oc){
+            const auto* weight_out=weight.data()+
+                static_cast<std::size_t>(oc*in_c)*kernel_plane;
+            auto* output_out=output_batch+
+                static_cast<std::size_t>(oc)*output_plane;
+            for(long long oy=0;oy<out_h;++oy){
+                const auto origin_y=oy*stride-padding;
+                const auto ky_begin=origin_y<0?-origin_y:0;
+                const auto ky_limit=h-origin_y;
+                const auto ky_end=ky_limit<kh?ky_limit:kh;
+                for(long long ox=0;ox<out_w;++ox){
+                    const auto origin_x=ox*stride-padding;
+                    const auto kx_begin=origin_x<0?-origin_x:0;
+                    const auto kx_limit=w-origin_x;
+                    const auto kx_end=kx_limit<kw?kx_limit:kw;
+                    T total=bias[static_cast<std::size_t>(oc)];
+                    if(ky_begin<ky_end&&kx_begin<kx_end){
+                        for(long long ic=0;ic<in_c;++ic){
+                            const auto* input_channel=input_batch+
+                                static_cast<std::size_t>(ic)*input_plane;
+                            const auto* weight_channel=weight_out+
+                                static_cast<std::size_t>(ic)*kernel_plane;
+                            for(long long ky=ky_begin;ky<ky_end;++ky){
+                                const auto input_row=static_cast<std::size_t>(
+                                    (origin_y+ky)*w+origin_x+kx_begin);
+                                const auto weight_row=static_cast<std::size_t>(
+                                    ky*kw+kx_begin);
+                                const auto* input_cursor=input_channel+input_row;
+                                const auto* weight_cursor=weight_channel+weight_row;
+                                for(long long kx=kx_begin;kx<kx_end;++kx){
+                                    total=static_cast<T>(total+static_cast<T>(
+                                        *input_cursor++**weight_cursor++));
+                                }
+                            }
+                        }
+                    }
+                    output_out[static_cast<std::size_t>(oy*out_w+ox)]=total;
+                }
+            }
+        }
+    }
     return result;
 }
 

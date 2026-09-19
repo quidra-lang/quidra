@@ -1589,6 +1589,50 @@ bool standard_collection_key_type(const TypeName& type) {
            type.name == "string";
 }
 
+std::optional<std::vector<StmtPtr>> standard_collection_hash_body(
+    const TypeName& type,
+    const std::string& parameter) {
+    if (!type.arguments.empty() || !type.dimensions.empty()) return std::nullopt;
+
+    std::ostringstream source;
+    if (type.name == "bool") {
+        source << "int __hash(bool " << parameter << ")\n"
+               << "    if " << parameter << "\n"
+               << "        return 1\n"
+               << "    return 0\n";
+    } else if (
+        type.name == "int" || type.name == "int8" || type.name == "int16" ||
+        type.name == "int32" || type.name == "uint8" || type.name == "uint16" ||
+        type.name == "uint32") {
+        source << "int __hash(" << type.name << " " << parameter << ")\n"
+               << "    int __value = int(" << parameter << ")\n"
+               << "    int __result = __value % 2147483647\n"
+               << "    if __result < 0\n"
+               << "        __result += 2147483647\n"
+               << "    return __result\n";
+    } else if (type.name == "uint64") {
+        source << "int __hash(uint64 " << parameter << ")\n"
+               << "    uint64 __result = " << parameter << " % uint64(2147483647)\n"
+               << "    return int(__result)\n";
+    } else if (type.name == "bigint") {
+        source << "int __hash(bigint " << parameter << ")\n"
+               << "    bigint __result = " << parameter << " % bigint(2147483647)\n"
+               << "    if __result < 0\n"
+               << "        __result += 2147483647\n"
+               << "    return int(__result)\n";
+    } else {
+        return std::nullopt;
+    }
+
+    Parser parser(Lexer(source.str()).scan(), 20);
+    auto program = parser.parse();
+    if (program.functions.size() != 1 || !program.classes.empty() ||
+        !program.statements.empty()) {
+        throw std::logic_error("invalid built-in collection hash specialization");
+    }
+    return std::move(program.functions.front().body);
+}
+
 using Substitution = std::unordered_map<std::string, TypeName>;
 
 TypeName substitute_raw(
@@ -2885,6 +2929,17 @@ private:
         for (const auto& method : source.methods) {
             if (!method.type_parameters.empty()) continue;
             auto copy = clone_function(method, class_substitution, {}, concrete_name);
+            if ((source.name == "$std.map.Map" || source.name == "$std.set.Set") &&
+                method.name == "__hash") {
+                const auto parameter = source.name == "$std.map.Map" ? "K" : "T";
+                if (const auto key = class_substitution.find(parameter);
+                    key != class_substitution.end()) {
+                    if (auto body = standard_collection_hash_body(
+                            key->second, copy.parameters.front().name)) {
+                        copy.body = std::move(*body);
+                    }
+                }
+            }
             copy.type_parameters.clear();
             output_.classes[class_index_.at(concrete_name)].methods.push_back(std::move(copy));
         }

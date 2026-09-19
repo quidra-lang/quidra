@@ -5910,15 +5910,20 @@ void* neural_grad_t(
             const auto& a=node->parents[0]->data.typed<T>();
             const auto& b=node->parents[1]->data.typed<T>();
             std::vector<T> left_gradient(g.size()),right_gradient(g.size());
-            for(std::size_t i=0;i<g.size();++i){
-                if(node->op==NeuralOp::Add){
-                    left_gradient[i]=g[i]; right_gradient[i]=g[i];
-                }else if(node->op==NeuralOp::Sub){
-                    left_gradient[i]=g[i]; right_gradient[i]=static_cast<T>(-g[i]);
-                }else if(node->op==NeuralOp::Mul){
+            if(node->op==NeuralOp::Add){
+                left_gradient=g;
+                right_gradient=g;
+            }else if(node->op==NeuralOp::Sub){
+                left_gradient=g;
+                for(std::size_t i=0;i<g.size();++i)
+                    right_gradient[i]=static_cast<T>(-g[i]);
+            }else if(node->op==NeuralOp::Mul){
+                for(std::size_t i=0;i<g.size();++i){
                     left_gradient[i]=static_cast<T>(g[i]*b[i]);
                     right_gradient[i]=static_cast<T>(g[i]*a[i]);
-                }else{
+                }
+            }else{
+                for(std::size_t i=0;i<g.size();++i){
                     left_gradient[i]=static_cast<T>(g[i]/b[i]);
                     right_gradient[i]=static_cast<T>(
                         -static_cast<T>(g[i]*a[i])/

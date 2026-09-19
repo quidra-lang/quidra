@@ -5,6 +5,7 @@ extern "C" bool quidra_string_index_equal_ascii(const char*, long long, unsigned
 extern "C" char* quidra_runtime_try_copy_text_bytes(const char*, unsigned long long);
 extern "C" void* quidra_string_split(const char*, const char*);
 extern "C" void* quidra_string_split_iter_begin(const char*, const char*);
+extern "C" void* quidra_string_split_iter_begin_move(const char*, const char*);
 extern "C" char* quidra_string_split_iter_next(void*);
 extern "C" void quidra_string_split_iter_end(void*);
 extern "C" unsigned long long quidra_runtime_text_byte_length(const char*);
@@ -89,6 +90,35 @@ int main() {
     quidra_string_split_iter_end(split_iter);
     if (std::strcmp(iter_b, "b") != 0) return 1;
     quidra_managed_release(iter_b, nullptr);
+
+    // A compiler-proven dead, uniquely owned split source can become the
+    // iterator slab directly. The iterator keeps its own owner while pieces are borrowed.
+    char* movable = quidra_runtime_try_copy_text_bytes("left right", 10);
+    if (!movable) return 1;
+    void* move_iter = quidra_string_split_iter_begin_move(movable, " ");
+    char* move_left = quidra_string_split_iter_next(move_iter);
+    if (move_left != movable || std::strcmp(move_left, "left") != 0) return 1;
+    quidra_managed_release(movable, nullptr);
+    char* move_right = quidra_string_split_iter_next(move_iter);
+    if (!move_right || std::strcmp(move_right, "right") != 0 ||
+        quidra_string_split_iter_next(move_iter) != nullptr) return 1;
+    quidra_managed_retain(move_right);
+    quidra_string_split_iter_end(move_iter);
+    if (std::strcmp(move_right, "right") != 0) return 1;
+    quidra_managed_release(move_right, nullptr);
+
+    // An observable alias forces the old private-slab path and leaves source text intact.
+    char* aliased = quidra_runtime_try_copy_text_bytes("left right", 10);
+    if (!aliased) return 1;
+    quidra_managed_retain(aliased);
+    void* alias_iter = quidra_string_split_iter_begin_move(aliased, " ");
+    char* alias_left = quidra_string_split_iter_next(alias_iter);
+    if (!alias_left || alias_left == aliased ||
+        std::strcmp(alias_left, "left") != 0 ||
+        std::strcmp(aliased, "left right") != 0) return 1;
+    quidra_string_split_iter_end(alias_iter);
+    quidra_managed_release(aliased, nullptr);
+    quidra_managed_release(aliased, nullptr);
 
     // Slice byte-length caching must never leak code-point metadata between
     // different slices that share one backing slab.

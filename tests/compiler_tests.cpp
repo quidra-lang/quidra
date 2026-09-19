@@ -365,6 +365,10 @@ for i in range(0, 1)
     int right = parse_decimal(fields[1])
     print(left + right)
 )", "string.parse_two_signed");
+ ir_contains(R"(string text = "a b"
+for part in text.split(" ")
+    print(part)
+)", "string.split_iter.begin");
 
  // Proven dynamic-array loop bounds remove runtime slot checks only when the
  // array length relation is statically preserved.

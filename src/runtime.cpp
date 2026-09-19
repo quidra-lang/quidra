@@ -6269,8 +6269,8 @@ void* neural_grad_t(
                         sample_count)*
                     static_cast<T>(
                         static_cast<T>(sample_count*input_gradient[i])-
-                        bias_gradient[feature]-
-                        static_cast<T>(xhat*scale_gradient[feature])));
+                        sum_gradient[feature]-
+                        static_cast<T>(xhat*sum_gradient_x[feature])));
             }
             // The feature reductions are no longer needed by the input-gradient
             // formula. Transfer their storage directly to the parameter results.

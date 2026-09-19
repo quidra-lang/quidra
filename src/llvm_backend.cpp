@@ -2901,13 +2901,13 @@ struct FunctionEmitter {
             }else if(n.source_type.kind==TypeKind::BigReal){
                 out<<"  "<<value(n.out)<<" = call ptr @quidra_bigreal_text(ptr "<<value(n.value)<<", i32 34)\n";
             }else if(is_integer(n.source_type)){
-                out<<"  "<<value(n.out)<<" = call ptr @quidra_alloc(i64 32)\n";
                 std::string widened=value(n.value);
                 if(integer_width(n.source_type)<64){
                     widened=temp("text.int");
                     out<<"  "<<widened<<" = "<<(is_signed_integer(n.source_type)?"sext":"zext")<<" "<<llvm_type(n.source_type)<<" "<<value(n.value)<<" to i64\n";
                 }
-                out<<"  call i32 (ptr, i64, ptr, ...) @snprintf(ptr "<<value(n.out)<<", i64 32, ptr "<<(is_signed_integer(n.source_type)?"@.fmt.int.text":"@.fmt.uint.text")<<", i64 "<<widened<<")\n";
+                out<<"  "<<value(n.out)<<" = call ptr "<<(is_signed_integer(n.source_type)?"@quidra_integer_text_signed":"@quidra_integer_text_unsigned")
+                   <<"(i64 "<<widened<<")\n";
             }else if(is_float(n.source_type)){
                 std::string widened=value(n.value);
                 if(n.source_type.kind==TypeKind::Float32){
@@ -3943,6 +3943,8 @@ declare ptr @quidra_string_join(ptr, ptr, i64, i64)
 declare ptr @quidra_string_concat_many(ptr, i64)
 declare ptr @quidra_string_concat2(ptr, ptr)
 declare i1 @quidra_string_equal(ptr, ptr)
+declare ptr @quidra_integer_text_signed(i64)
+declare ptr @quidra_integer_text_unsigned(i64)
 declare i1 @quidra_string_can_append_move(ptr)
 declare ptr @quidra_string_append_move_many(ptr, ptr, i64)
 declare ptr @quidra_string_repeat(i64, ptr)

@@ -814,20 +814,15 @@ bool cudnn_conv2d_backward(
     static std::mutex data_cache_mutex,filter_cache_mutex;
     static std::unordered_map<std::string,std::pair<int,std::size_t>> data_cache,filter_cache;
 
-    auto load_cached=[&](auto& mutex,auto& cache,int& algo,std::size_t& bytes,Buffer*& ws){
+    auto load_cached=[&](auto& mutex,auto& cache,int& algo,std::size_t& bytes){
         std::lock_guard lock(mutex);
         if(const auto found=cache.find(algorithm_key);found!=cache.end()){
             algo=found->second.first;bytes=found->second.second;
         }
-        if(algo>=0&&bytes){
-            std::string alloc_error;
-            ws=allocate(input_gradient->global_index,bytes,alloc_error);
-            if(!ws){cache.erase(algorithm_key);algo=-1;bytes=0;}
-        }
     };
 
-    int data_algo=-1; Buffer* data_ws=nullptr; std::size_t data_ws_bytes=0;
-    load_cached(data_cache_mutex,data_cache,data_algo,data_ws_bytes,data_ws);
+    int data_algo=-1; std::size_t data_ws_bytes=0;
+    load_cached(data_cache_mutex,data_cache,data_algo,data_ws_bytes);
     if(data_algo<0){
         std::array<CudnnApi::BwdDataPerf,8> data_perf{};
         int data_returned=0;
@@ -841,18 +836,19 @@ bool cudnn_conv2d_backward(
             if(p.status!=0||(deterministic&&p.determinism!=1))continue;
             std::size_t bytes=0;
             if(api.get_bwd_data_workspace(handle,w_desc,dy_desc,conv_desc,dx_desc,p.algo,&bytes)!=0)continue;
-            std::string alloc_error;
-            Buffer* ws=bytes?allocate(input_gradient->global_index,bytes,alloc_error):nullptr;
+            std::string workspace_error;
+            const auto ws=bytes
+                ?api.workspace(input_gradient->backend_index,bytes,workspace_error):0;
             if(bytes&&!ws)continue;
-            data_algo=p.algo;data_ws=ws;data_ws_bytes=bytes;
+            data_algo=p.algo;data_ws_bytes=bytes;
             {std::lock_guard lock(data_cache_mutex);data_cache[algorithm_key]={data_algo,data_ws_bytes};}
             break;
         }
     }
     if(data_algo<0){cleanup();return false;}
 
-    int filter_algo=-1; Buffer* filter_ws=nullptr; std::size_t filter_ws_bytes=0;
-    load_cached(filter_cache_mutex,filter_cache,filter_algo,filter_ws_bytes,filter_ws);
+    int filter_algo=-1; std::size_t filter_ws_bytes=0;
+    load_cached(filter_cache_mutex,filter_cache,filter_algo,filter_ws_bytes);
     if(filter_algo<0){
         std::array<CudnnApi::BwdFilterPerf,8> filter_perf{};
         int filter_returned=0;
@@ -861,7 +857,6 @@ bool cudnn_conv2d_backward(
         if(query(handle,x_desc,dy_desc,conv_desc,dw_desc,
                  static_cast<int>(filter_perf.size()),&filter_returned,filter_perf.data())!=0||
            filter_returned<=0){
-            if(data_ws)release(data_ws);
             cleanup();
             return false;
         }
@@ -870,16 +865,28 @@ bool cudnn_conv2d_backward(
             if(p.status!=0||(deterministic&&p.determinism!=1))continue;
             std::size_t bytes=0;
             if(api.get_bwd_filter_workspace(handle,x_desc,dy_desc,conv_desc,dw_desc,p.algo,&bytes)!=0)continue;
-            std::string alloc_error;
-            Buffer* ws=bytes?allocate(input_gradient->global_index,bytes,alloc_error):nullptr;
+            std::string workspace_error;
+            const auto ws=bytes
+                ?api.workspace(input_gradient->backend_index,bytes,workspace_error):0;
             if(bytes&&!ws)continue;
-            filter_algo=p.algo;filter_ws=ws;filter_ws_bytes=bytes;
+            filter_algo=p.algo;filter_ws_bytes=bytes;
             {std::lock_guard lock(filter_cache_mutex);filter_cache[algorithm_key]={filter_algo,filter_ws_bytes};}
             break;
         }
     }
     if(filter_algo<0){
-        if(data_ws)release(data_ws);
+        cleanup();
+        return false;
+    }
+
+    const auto shared_workspace_bytes=data_ws_bytes>filter_ws_bytes
+        ?data_ws_bytes:filter_ws_bytes;
+    std::string workspace_error;
+    const auto shared_workspace=shared_workspace_bytes
+        ?api.workspace(input_gradient->backend_index,shared_workspace_bytes,workspace_error):0;
+    if(shared_workspace_bytes&&!shared_workspace){
+        {std::lock_guard lock(data_cache_mutex);data_cache.erase(algorithm_key);}
+        {std::lock_guard lock(filter_cache_mutex);filter_cache.erase(algorithm_key);}
         cleanup();
         return false;
     }
@@ -890,39 +897,35 @@ bool cudnn_conv2d_backward(
     const auto mut=[](Buffer* b){
         return reinterpret_cast<void*>(static_cast<std::uintptr_t>(b->cuda_pointer));
     };
-    void* data_ws_ptr=data_ws?mut(data_ws):nullptr;
-    void* filter_ws_ptr=filter_ws?mut(filter_ws):nullptr;
+    void* shared_ws_ptr=shared_workspace
+        ?reinterpret_cast<void*>(static_cast<std::uintptr_t>(shared_workspace))
+        :nullptr;
     int status=0;
     if(dtype==10){
         const float one=1.0f,zero=0.0f;
         status=api.convolution_backward_data(handle,&one,w_desc,ptr(weight),dy_desc,
-            ptr(gradient),conv_desc,data_algo,data_ws_ptr,data_ws_bytes,&zero,
+            ptr(gradient),conv_desc,data_algo,shared_ws_ptr,data_ws_bytes,&zero,
             dx_desc,mut(input_gradient));
         if(status==0)status=api.convolution_backward_filter(handle,&one,x_desc,ptr(input),
-            dy_desc,ptr(gradient),conv_desc,filter_algo,filter_ws_ptr,filter_ws_bytes,
+            dy_desc,ptr(gradient),conv_desc,filter_algo,shared_ws_ptr,filter_ws_bytes,
             &zero,dw_desc,mut(weight_gradient));
         if(status==0)status=api.convolution_backward_bias(handle,&one,dy_desc,ptr(gradient),
             &zero,db_desc,mut(bias_gradient));
     }else{
         const double one=1.0,zero=0.0;
         status=api.convolution_backward_data(handle,&one,w_desc,ptr(weight),dy_desc,
-            ptr(gradient),conv_desc,data_algo,data_ws_ptr,data_ws_bytes,&zero,
+            ptr(gradient),conv_desc,data_algo,shared_ws_ptr,data_ws_bytes,&zero,
             dx_desc,mut(input_gradient));
         if(status==0)status=api.convolution_backward_filter(handle,&one,x_desc,ptr(input),
-            dy_desc,ptr(gradient),conv_desc,filter_algo,filter_ws_ptr,filter_ws_bytes,
+            dy_desc,ptr(gradient),conv_desc,filter_algo,shared_ws_ptr,filter_ws_bytes,
             &zero,dw_desc,mut(weight_gradient));
         if(status==0)status=api.convolution_backward_bias(handle,&one,dy_desc,ptr(gradient),
             &zero,db_desc,mut(bias_gradient));
     }
-    // Backward cuDNN calls enqueue work that still references both workspaces
-    // and the operation descriptors. Synchronize before destroying those
-    // resources; native fallback kernels remain asynchronous.
-    auto& cu=cuda();
-    const bool synchronized=status==0&&cu.ctx_synchronize&&cu.ctx_synchronize()==0;
-    if(data_ws)release(data_ws);
-    if(filter_ws)release(filter_ws);
+    // Both backward kernels share retained per-device scratch. Default-stream
+    // ordering serializes that scratch use without blocking the host.
     cleanup();
-    if(!synchronized){
+    if(status!=0){
         {std::lock_guard lock(data_cache_mutex);data_cache.erase(algorithm_key);}
         {std::lock_guard lock(filter_cache_mutex);filter_cache.erase(algorithm_key);}
         return false;

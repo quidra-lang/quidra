@@ -378,6 +378,24 @@ for outer in range(0, 1)
         index += 1
 )", "string.split_iter.begin");
 
+ // Nonnegative modulo invariants prove hot integer arithmetic safe without
+ // weakening the default overflow semantics.
+ ir_contains(R"(int bounded_hash(const uint8[] &data, int size)
+    int h = 0
+    for i in range(0, size)
+        h = (h * 131 + int(data[i])) % 1000000007
+    return h
+)", "no-overflow");
+ llvm_contains(R"(int bounded_hash(const uint8[] &data, int size)
+    int h = 0
+    for i in range(0, size)
+        h = (h * 131 + int(data[i])) % 1000000007
+    return h
+)", "mul nsw i64");
+ llvm_contains(R"(int checked_add(int value)
+    return value + 1
+)", "llvm.sadd.with.overflow.i64");
+
  // Proven dynamic-array loop bounds remove runtime slot checks only when the
  // array length relation is statically preserved.
  llvm_not_contains(R"(int[] data = array(8, fill = 0)

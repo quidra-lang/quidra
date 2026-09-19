@@ -305,7 +305,7 @@ struct Lowerer {
                 nonnegative_integer_range(
                     *binding->value, proven_nonnegative_integer_ranges);
             if (!initial) continue;
-            IntegerRangeCandidate candidate{*initial};
+            IntegerRangeCandidate candidate{*initial, std::nullopt, {}, 0, false};
             inspect_integer_range_candidate(
                 body, binding->name,
                 proven_nonnegative_integer_ranges, candidate);

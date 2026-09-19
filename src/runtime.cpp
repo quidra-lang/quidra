@@ -3362,6 +3362,53 @@ void neural_apply_parameter_delta(
 
 } // namespace
 
+extern "C" void quidra_neural_all_reduce_sum(
+    void* raw,unsigned long long line,unsigned long long column) {
+    if(!raw) neural_fail("neural.all_reduce_sum received a null tensor array",line,column);
+    long long signed_count=0;
+    std::memcpy(&signed_count,raw,sizeof(signed_count));
+    if(signed_count<=0)
+        neural_fail("neural.all_reduce_sum requires at least one tensor",line,column);
+    const auto count=static_cast<std::size_t>(signed_count);
+    if(count>std::numeric_limits<std::size_t>::max()/sizeof(void*))
+        neural_fail("neural.all_reduce_sum tensor array is too large",line,column);
+    auto* payload=static_cast<unsigned char*>(raw)+8;
+    quidra_init_require_range(payload,count*sizeof(void*),line,column);
+
+    std::vector<TensorValue*> tensors;
+    std::vector<quidra::device::Buffer*> buffers;
+    tensors.reserve(count);
+    buffers.reserve(count);
+    int dtype=0;
+    std::vector<long long> shape;
+    std::size_t element_count=0;
+    for(std::size_t index=0;index<count;++index){
+        TensorValue* tensor=nullptr;
+        std::memcpy(&tensor,payload+index*sizeof(void*),sizeof(void*));
+        if(!tensor||!tensor->storage)
+            neural_fail("neural.all_reduce_sum received an invalid tensor",line,column);
+        tensor_require_initialized(*tensor,line,column);
+        if(tensor_on_cpu(*tensor->storage))
+            neural_fail("neural.all_reduce_sum requires GPU tensors",line,column);
+        if(index==0){
+            dtype=tensor->storage->dtype;
+            shape=tensor->shape;
+            element_count=tensor_logical_count(*tensor);
+            if(dtype!=9&&dtype!=10)
+                neural_fail("neural.all_reduce_sum requires float32 or float tensors",line,column);
+        }else if(tensor->storage->dtype!=dtype||tensor->shape!=shape){
+            neural_fail("neural.all_reduce_sum tensors must have identical dtype and shape",line,column);
+        }
+        tensor_detach_for_write(*tensor,line,column);
+        tensors.push_back(tensor);
+        buffers.push_back(tensor->storage->gpu_buffer);
+    }
+    std::string backend_error;
+    if(!quidra::device::compute_all_reduce_sum(
+           buffers,dtype,element_count,backend_error))
+        neural_fail(backend_error.c_str(),line,column);
+}
+
 extern "C" void* quidra_neural_track(void* raw,unsigned long long line,unsigned long long column) {
     if(!raw)neural_fail("null tensor",line,column);
     return neural_descriptor(neural_constant_node(*static_cast<TensorValue*>(raw),line,column));

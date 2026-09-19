@@ -1608,6 +1608,10 @@ struct FunctionEmitter {
                <<value(n.input)<<", ptr "<<value(n.state)<<", double "<<value(n.rate)
                <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
         }
+        if constexpr(std::is_same_v<T,ir::NeuralAllReduceSum>){
+            out<<"  call void @quidra_neural_all_reduce_sum(ptr "<<value(n.values)
+               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+        }
         if constexpr(std::is_same_v<T,ir::NeuralSave>){
             const auto schema_name=pool.intern(n.schema);
             const auto schema_ptr=temp("quistate.schema");
@@ -4499,6 +4503,7 @@ declare ptr @quidra_neural_tensor_unary(ptr, i32, i64, i64)
 declare ptr @quidra_neural_binary(ptr, ptr, i32, i64, i64)
 declare ptr @quidra_neural_binary_scalar(ptr, double, i32, i1, i64, i64)
 declare ptr @quidra_neural_grad(ptr, i64, i64)
+declare void @quidra_neural_all_reduce_sum(ptr, i64, i64)
 declare i1 @quidra_neural_update_parameter(ptr, ptr, double, i64, i64)
 declare ptr @quidra_neural_normalize(ptr, ptr, ptr, ptr, ptr, double, double, i1, i64, i64)
 declare ptr @quidra_neural_random_mask(ptr, ptr, double, i64, i64)

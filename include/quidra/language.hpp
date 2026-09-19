@@ -165,6 +165,7 @@ enum class BuiltinCallable {
     NeuralRandomMask,
     NeuralMomentUpdate,
     NeuralGrad,
+    NeuralAllReduceSum,
     NeuralSave,
     NeuralLoad
 };
@@ -192,7 +193,7 @@ inline constexpr std::array<BuiltinCallableInfo, 11> builtin_callables{{
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 95> intrinsic_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 96> intrinsic_callables{{
     {"$std.math.sin", BuiltinCallable::MathSin},
     {"$std.math.cos", BuiltinCallable::MathCos},
     {"$std.math.tan", BuiltinCallable::MathTan},
@@ -286,6 +287,7 @@ inline constexpr std::array<BuiltinCallableInfo, 95> intrinsic_callables{{
     {"$std.neural.random_mask", BuiltinCallable::NeuralRandomMask},
     {"$std.neural.moment_update", BuiltinCallable::NeuralMomentUpdate},
     {"$std.neural.grad", BuiltinCallable::NeuralGrad},
+    {"$std.neural.all_reduce_sum", BuiltinCallable::NeuralAllReduceSum},
     {"$std.neural.save", BuiltinCallable::NeuralSave},
     {"$std.neural.load", BuiltinCallable::NeuralLoad},
 }};
@@ -413,6 +415,7 @@ inline constexpr std::optional<std::string_view> standard_function_target(
         if (member == "random_mask") return "$std.neural.random_mask";
         if (member == "moment_update") return "$std.neural.moment_update";
         if (member == "grad") return "$std.neural.grad";
+        if (member == "all_reduce_sum") return "$std.neural.all_reduce_sum";
         if (member == "save") return "$std.neural.save";
         if (member == "load") return "$std.neural.load";
         return std::nullopt;

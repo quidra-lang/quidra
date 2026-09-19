@@ -119,6 +119,7 @@ struct NeuralUntrack { ValueId out; ValueId value; Type type; };
 struct NeuralUnary { ValueId out; ValueId value; Type type; BuiltinCallable operation; std::uint32_t line{}; std::uint32_t column{}; };
 struct NeuralBinary { ValueId out; std::string op; ValueId left; ValueId right; Type left_type; Type right_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct NeuralGrad { ValueId out; ValueId loss; Type loss_type; std::uint32_t line{}; std::uint32_t column{}; };
+struct NeuralAllReduceSum { ValueId values; Type tensor_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct NeuralAffine { ValueId out; ValueId input; ValueId weight; ValueId bias; Type input_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct NeuralConvolve2D { ValueId out; ValueId input; ValueId weight; ValueId bias; ValueId stride; ValueId padding; Type input_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct NeuralParameterRef { std::string path; ValueId value; };
@@ -327,7 +328,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  NumericConvert, ArrayNumericCast, TensorCreate, TensorTransfer, TensorReshape, TensorTranspose, TensorContiguous,
                                  TensorShape, TensorIsContiguous, TensorItem, TensorCast,
                                  ShapedConstraintCheck, ExtentEqualCheck, NeuralNumericCast,
-                                 NeuralTrack, NeuralUntrack, NeuralUnary, NeuralBinary, NeuralGrad,
+                                 NeuralTrack, NeuralUntrack, NeuralUnary, NeuralBinary, NeuralGrad, NeuralAllReduceSum,
                                  NeuralAffine, NeuralConvolve2D, NeuralUpdate, NeuralNormalize,
                                  NeuralRandomMask, NeuralMomentUpdate,
                                  NeuralSave, NeuralLoad,

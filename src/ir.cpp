@@ -2771,6 +2771,15 @@ struct Lowerer {
                     release_arg(7,gradients);
                     return 0;
                 }
+                case BuiltinCallable::NeuralAllReduceSum: {
+                    auto values=expr(*n.args[0].value);
+                    const auto array_type=type_of(*n.args[0].value);
+                    block->instructions.push_back(NeuralAllReduceSum{
+                        values,*array_type.first,
+                        static_cast<std::uint32_t>(e.span.start.line),
+                        static_cast<std::uint32_t>(e.span.start.column)});
+                    return 0;
+                }
                 case BuiltinCallable::NeuralSave: {
                     std::vector<NeuralStateValue> values;
                     std::vector<std::pair<const Expr*,ValueId>> roots;
@@ -5714,6 +5723,7 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,NeuralUnary>)out<<"%"<<n.out<<" = neural.unary %"<<n.value;
     if constexpr(std::is_same_v<T,NeuralBinary>)out<<"%"<<n.out<<" = neural.binary "<<n.op<<" %"<<n.left<<", %"<<n.right;
     if constexpr(std::is_same_v<T,NeuralGrad>)out<<"%"<<n.out<<" = neural.grad %"<<n.loss;
+if constexpr(std::is_same_v<T,NeuralAllReduceSum>)out<<"neural.all_reduce_sum %"<<n.values;
 if constexpr(std::is_same_v<T,NeuralAffine>)out<<"%"<<n.out<<" = neural.affine %"<<n.input;
 if constexpr(std::is_same_v<T,NeuralConvolve2D>)out<<"%"<<n.out<<" = neural.convolve2d %"<<n.input;
 if constexpr(std::is_same_v<T,NeuralUpdate>)out<<"neural.update params="<<n.parameters.size();

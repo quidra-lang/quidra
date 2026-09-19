@@ -3242,6 +3242,47 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         ? simple(TypeKind::Invalid) : simple(TypeKind::Void);
                     break;
                 }
+                case BuiltinCallable::NeuralAllReduceSum: {
+                    if (node->args.size() != 1) {
+                        error("ARGUMENT_MISMATCH",
+                              "neural.all_reduce_sum requires one writable tensor array.",
+                              expression.span);
+                        type = simple(TypeKind::Invalid);
+                        break;
+                    }
+                    const auto& values_arg = node->args[0];
+                    if (!values_arg.writable ||
+                        (values_arg.name && *values_arg.name != "values")) {
+                        error("WRITE_CAPABILITY",
+                              "neural.all_reduce_sum requires &values.",
+                              values_arg.span);
+                    }
+                    if (!stable_writable_storage(*values_arg.value)) {
+                        error("WRITE_CAPABILITY",
+                              "neural.all_reduce_sum requires existing stable array storage.",
+                              values_arg.span);
+                    }
+                    auto values = check_address_target(*values_arg.value);
+                    bool valid = !poisoned(values) && values.kind == TypeKind::Array &&
+                        values.first && values.first->kind == TypeKind::Tensor &&
+                        values.first->first &&
+                        (values.first->first->kind == TypeKind::Float32 ||
+                         values.first->first->kind == TypeKind::Float);
+                    if (!poisoned(values) && !valid) {
+                        error("TYPE_MISMATCH",
+                              "neural.all_reduce_sum requires tensor<float32>[] or tensor<float>[].",
+                              values_arg.span);
+                    }
+                    if (valid) {
+                        StorageEffect write_effect;
+                        write_effect.required.insert("");
+                        write_effect.writes.insert("");
+                        apply_storage_effect_to_target(
+                            *values_arg.value, write_effect, values_arg.span);
+                    }
+                    type = valid ? simple(TypeKind::Void) : simple(TypeKind::Invalid);
+                    break;
+                }
                 case BuiltinCallable::NeuralNormalize:
                 case BuiltinCallable::NeuralNormalizeInference: {
                     const bool training=builtin==BuiltinCallable::NeuralNormalize;

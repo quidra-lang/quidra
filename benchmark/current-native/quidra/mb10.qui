@@ -7,14 +7,12 @@
 // Quidra's normal file I/O, not a shortcut around a buffered writer it does not
 // have.
 //
-// HISTORICAL SUBSTITUTION NOTE: this workload remains byte-for-byte compatible
-// with the frozen benchmark source. The original v0.1 run used `string[]` +
-// `join` because StringConcat/StringAppendMove scratch arrays were emitted as
-// loop-local LLVM allocas and could exhaust the stack at this iteration count.
-// Current develop plans those instruction-local scratch arrays once in the
-// function entry frame, so that compiler defect is fixed. The substitution is
-// retained only to preserve comparability with the historical workload; it must
-// not be interpreted as a current Quidra capability limitation.
+// CURRENT-EQUIVALENT NOTE: the frozen v0.1 source used `string[]` + `join`
+// because StringConcat/StringAppendMove scratch arrays were emitted as loop-local
+// LLVM allocas and could exhaust the stack at this iteration count. Current
+// develop plans those scratch arrays once in the function entry frame and makes
+// sole-owner string append linear, so this diagnostic uses the direct accumulator
+// form while the frozen historical source remains untouched.
 //
 // Mode selection (methodology 06 section 5.2). Quidra's `cli` module has no
 // OPTIONAL positional argument: `argument()` is positional but mandatory (a bare

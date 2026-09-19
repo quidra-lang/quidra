@@ -15,7 +15,7 @@ historical source encoded a capability gap that no longer exists:
   million-element `string[]` staging workaround.
 - MB11: public `map.Map.remove` replaces the historical custom fallback map.
 
-The other eight Quidra sources are byte-for-byte inherited from the frozen
+The other seven Quidra sources are byte-for-byte inherited from the frozen
 suite. Correctness is gated against the same golden output before timing.
 
 Typical invocation:

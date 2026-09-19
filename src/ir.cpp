@@ -3,6 +3,7 @@
 #include "operator_policy.hpp"
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>

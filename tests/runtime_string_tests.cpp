@@ -7,6 +7,7 @@ extern "C" void* quidra_string_split(const char*, const char*);
 extern "C" void* quidra_string_split_iter_begin(const char*, const char*);
 extern "C" char* quidra_string_split_iter_next(void*);
 extern "C" void quidra_string_split_iter_end(void*);
+extern "C" unsigned long long quidra_runtime_text_byte_length(const char*);
 extern "C" void quidra_managed_retain(void*);
 extern "C" void quidra_managed_release(void*, void*);
 
@@ -79,6 +80,9 @@ int main() {
         std::strcmp(iter_a, "a") != 0 ||
         std::strcmp(iter_b, "b") != 0 ||
         std::strcmp(iter_empty, "") != 0 ||
+        quidra_runtime_text_byte_length(iter_a) != 1 ||
+        quidra_runtime_text_byte_length(iter_b) != 1 ||
+        quidra_runtime_text_byte_length(iter_empty) != 0 ||
         quidra_string_split_iter_next(split_iter) != nullptr) return 1;
     quidra_managed_retain(iter_b);
     quidra_string_split_iter_end(split_iter);

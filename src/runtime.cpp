@@ -6256,10 +6256,6 @@ void* neural_grad_t(
                     sum_gradient_x[feature]+static_cast<T>(input_gradient[i]*xhat));
             }
 
-            // These are the same reductions as sum_gradient_x and
-            // sum_gradient respectively in the previous implementation.
-            std::vector<T> scale_gradient=std::move(sum_gradient_x);
-            std::vector<T> bias_gradient=std::move(sum_gradient);
             const T sample_count=static_cast<T>(samples);
             for(std::size_t i=0;i<input_values.size();++i){
                 const auto feature=neural_normalize_feature(i,layout);
@@ -6276,6 +6272,10 @@ void* neural_grad_t(
                         bias_gradient[feature]-
                         static_cast<T>(xhat*scale_gradient[feature])));
             }
+            // The feature reductions are no longer needed by the input-gradient
+            // formula. Transfer their storage directly to the parameter results.
+            std::vector<T> scale_gradient=std::move(sum_gradient_x);
+            std::vector<T> bias_gradient=std::move(sum_gradient);
             neural_add_gradient(
                 gradients,input,std::move(input_gradient));
             neural_add_gradient(

@@ -332,14 +332,14 @@ This is implemented by the **LLM Practical Effectiveness Evaluation** in Section
 
 It measures how effectively the selected LLM can use the language as it actually exists today, including any advantage or disadvantage created by pretraining exposure, ecosystem prevalence, familiar syntax, and existing examples.
 
-Calculate exactly these four independent primary scores:
+The benchmark defines exactly four independent primary scores:
 
 - **Semantic Compression Overall Score**
 - **LLM Intrinsic Learnability Score**
 - **Standard Overall Score**
 - **LLM Practical Effectiveness Score**
 
-Create a separate ranking for each score.
+Attempt all four evaluations, but publish a primary score and its separate ranking only when that evaluation is `COMPLETE` under Section 4.1. For any other status, publish the status and valid diagnostic evidence without a primary score or ranking.
 
 **Do not calculate, publish, imply, or use any cross-evaluation weighted overall score or overall ranking.**
 
@@ -441,7 +441,7 @@ Support is credited when the fixed probe can be expressed using documented langu
 
 ### 6.1.3 Semantic facts inventory
 
-For each fixed probe, annotate the semantic facts that a competent reader or static tool would need to know, including as applicable:
+For each fixed probe, the semantic-site matrix defines the semantic propositions that a competent reader or static tool would need to resolve. The shared taxonomy includes, as applicable:
 
 - value versus storage
 - mutability
@@ -457,7 +457,19 @@ For each fixed probe, annotate the semantic facts that a competent reader or sta
 - control-flow effect
 - lifetime / resource effect
 
-The same fact taxonomy must be used for every language.
+The taxonomy is a classification vocabulary, **not a source of free-form fact counting**. Only frozen `site_id` rows may contribute facts.
+
+For each language and each `site_id`, record exactly one semantic value plus one evidence state:
+
+- `EXPLICIT_LOCAL` — the site's semantic value is determined by the probe's local source form under the language specification;
+- `NONLOCAL` — the semantic value can be determined, but requires one or more external semantic lookups;
+- `IMPLICIT` — the language imposes the behavior/default without a local source signal;
+- `ABSENT` — the frozen semantic proposition does not occur for that supported probe under the matrix rule; or
+- `UNSUPPORTED` — the language cannot express the capability represented by the row.
+
+The semantic value may differ by language; the **row definition, evidence-state meanings, and counting rule may not**.
+
+Free-form explanations, multiple prose observations about one row, AST-node count, specification paragraph count, or annotator verbosity never increase the fact count.
 
 ### 6.1.4 Required Semantic Compression metrics
 
@@ -467,11 +479,19 @@ Calculate and report all of the following normalized 0-100 metrics.
 
 Raw value:
 
-**explicitly recoverable semantic facts / lexical source tokens**
+**explicit local semantic sites / lexical source tokens**
+
+where:
+
+**explicit local semantic sites = number of frozen `site_id` rows whose evidence state is `EXPLICIT_LOCAL`**
+
+Each `site_id` contributes at most one fact, except when the matrix froze an explicit multiplicity rule before any language was annotated. The numerator therefore cannot change because one language received a more detailed prose annotation than another.
 
 Comments and whitespace do not count as source tokens. Use a documented language-neutral token-counting rule or a language lexer with an explicit reconciliation rule so punctuation-heavy and word-heavy syntaxes are treated consistently.
 
-Only facts from the fixed semantic-fact inventory count. Do not award points for decorative syntax or duplicate spelling of the same fact.
+A single syntax token may legitimately make several frozen semantic sites explicit; that is semantic compression and those distinct predeclared sites each count once. Conversely, repeating or elaborating syntax for the same site does not create additional facts.
+
+`NONLOCAL`, `IMPLICIT`, `ABSENT`, and `UNSUPPORTED` rows do not enter the Semantic Density numerator. Their effects are captured by Semantic Locality, Hidden Semantic Cost, Capability Coverage, or other applicable fixed metrics.
 
 Higher raw density is better.
 

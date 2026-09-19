@@ -8518,67 +8518,80 @@ extern "C" bool quidra_string_parse_two_signed(
 
     ManagedAllocation* allocation = nullptr;
     const auto source = cached_string_view(text, allocation);
-    const auto* begin = source.data();
-    const auto* end = begin + source.size();
+    const char* cursor = source.data();
+    const char* const end = cursor + source.size();
 
-    // This helper backs the compiler's split(single-byte separator) + parse-two
-    // fusion. Scan the original slice directly instead of constructing
-    // substrings or re-entering generic string search machinery.
-    const auto* first = static_cast<const char*>(
-        std::memchr(begin, separator, source.size()));
-    if (!first) return false;
+    // Internal success-only fast path for split(single-byte separator) followed
+    // by two signed int parses. Delimiter discovery and decimal parsing share
+    // one pass over each field. Spellings outside this canonical subset return
+    // false so the compiler-emitted original split/parse path preserves every
+    // public parsing and error semantic.
+    const auto parse_field =
+        [separator](const char*& current, const char* finish,
+                    bool require_separator, long long& out) {
+            if (current == finish) return false;
 
-    const auto* right_begin = first + 1;
-    const auto* second = static_cast<const char*>(
-        std::memchr(right_begin, separator,
-                    static_cast<std::size_t>(end - right_begin)));
-    const auto* right_end = second ? second : end;
-
-    // Fast-path only the canonical decimal spelling. Any spelling accepted by
-    // int.parse but intentionally omitted here (for example leading '+') simply
-    // returns false and the compiler-generated fallback preserves the public
-    // parse/error semantics exactly.
-    const auto parse_canonical = [](const char* value_begin,
-                                    const char* value_end,
-                                    long long& out) {
-        if (value_begin == value_end) return false;
-
-        bool negative = false;
-        if (*value_begin == '-') {
-            negative = true;
-            ++value_begin;
-            if (value_begin == value_end) return false;
-        }
-
-        const auto positive_limit =
-            static_cast<std::uint64_t>(std::numeric_limits<long long>::max());
-        const auto limit = negative ? positive_limit + 1U : positive_limit;
-        std::uint64_t magnitude = 0;
-        for (const char* cursor = value_begin; cursor != value_end; ++cursor) {
-            const auto digit =
-                static_cast<unsigned>(static_cast<unsigned char>(*cursor)) -
-                static_cast<unsigned>(static_cast<unsigned char>('0'));
-            if (digit > 9U) return false;
-            if (magnitude > (limit - digit) / 10U) return false;
-            magnitude = magnitude * 10U + digit;
-        }
-
-        if (negative) {
-            if (magnitude == positive_limit + 1U) {
-                out = std::numeric_limits<long long>::min();
-            } else {
-                out = -static_cast<long long>(magnitude);
+            bool negative = false;
+            if (*current == '-') {
+                negative = true;
+                ++current;
+                if (current == finish ||
+                    static_cast<unsigned char>(*current) == separator) {
+                    return false;
+                }
             }
-        } else {
-            out = static_cast<long long>(magnitude);
-        }
-        return true;
-    };
+
+            constexpr auto positive_limit =
+                static_cast<unsigned long long>(
+                    std::numeric_limits<long long>::max());
+            constexpr auto magnitude_cutoff = positive_limit / 10ULL;
+            constexpr auto positive_last_digit =
+                static_cast<unsigned>(positive_limit % 10ULL);
+            const auto last_digit_limit =
+                positive_last_digit + (negative ? 1U : 0U);
+
+            unsigned long long magnitude = 0;
+            bool saw_digit = false;
+            while (current != finish &&
+                   static_cast<unsigned char>(*current) != separator) {
+                const auto byte = static_cast<unsigned char>(*current);
+                if (byte < static_cast<unsigned char>('0') ||
+                    byte > static_cast<unsigned char>('9')) {
+                    return false;
+                }
+                const auto digit = static_cast<unsigned>(byte - '0');
+                if (magnitude > magnitude_cutoff ||
+                    (magnitude == magnitude_cutoff &&
+                     digit > last_digit_limit)) {
+                    return false;
+                }
+                magnitude = magnitude * 10ULL + digit;
+                saw_digit = true;
+                ++current;
+            }
+            if (!saw_digit) return false;
+
+            if (require_separator) {
+                if (current == finish) return false;
+                ++current;
+            }
+
+            if (negative) {
+                if (magnitude == positive_limit + 1ULL) {
+                    out = std::numeric_limits<long long>::min();
+                } else {
+                    out = -static_cast<long long>(magnitude);
+                }
+            } else {
+                out = static_cast<long long>(magnitude);
+            }
+            return true;
+        };
 
     long long left = 0;
     long long right = 0;
-    if (!parse_canonical(begin, first, left) ||
-        !parse_canonical(right_begin, right_end, right)) {
+    if (!parse_field(cursor, end, true, left) ||
+        !parse_field(cursor, end, false, right)) {
         return false;
     }
 

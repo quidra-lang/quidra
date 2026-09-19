@@ -1261,6 +1261,42 @@ struct Lowerer {
             return out;
         }
         if (const auto* n=std::get_if<BinaryExpr>(&e.data)) {
+            if((n->op=="=="||n->op=="!=") && type_of(e).kind==TypeKind::Bool){
+                const IndexExpr* indexed=nullptr;
+                const StringExpr* literal=nullptr;
+                const Expr* indexed_expression=nullptr;
+                if(const auto* left_index=std::get_if<IndexExpr>(&n->left->data);
+                   left_index && std::holds_alternative<StringExpr>(n->right->data)){
+                    indexed=left_index;
+                    literal=&std::get<StringExpr>(n->right->data);
+                    indexed_expression=n->left.get();
+                }else if(const auto* right_index=std::get_if<IndexExpr>(&n->right->data);
+                          right_index && std::holds_alternative<StringExpr>(n->left->data)){
+                    indexed=right_index;
+                    literal=&std::get<StringExpr>(n->left->data);
+                    indexed_expression=n->right.get();
+                }
+                if(indexed && literal && indexed->items.size()==1 &&
+                   !indexed->items.front().slice && indexed->items.front().index &&
+                   type_of(*indexed->base).kind==TypeKind::String &&
+                   literal->value.size()==1){
+                    const auto byte=static_cast<unsigned char>(literal->value[0]);
+                    if(byte!=0 && byte<0x80U){
+                        const bool base_owned=expression_owns_result(*indexed->base);
+                        auto text=expr(*indexed->base);
+                        auto index=expr(*indexed->items.front().index);
+                        auto out=fresh();
+                        block->instructions.push_back(StringIndexAsciiCompare{
+                            out,text,index,byte,n->op=="!=",
+                            static_cast<std::uint32_t>(indexed_expression->span.start.line),
+                            static_cast<std::uint32_t>(indexed_expression->span.start.column)});
+                        if(base_owned)
+                            block->instructions.push_back(
+                                Release{text,Type::simple(TypeKind::String)});
+                        return out;
+                    }
+                }
+            }
             if(n->op=="+" && type_of(e).kind==TypeKind::String){
                 std::vector<const Expr*> parts;
                 std::vector<const Expr*> pending_concat{&e};
@@ -3632,6 +3668,7 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,ArrayGrowMove>)out<<"%"<<n.out<<" = array.grow_move %"<<n.array<<" : "<<type_name(n.array_type);
     if constexpr(std::is_same_v<T,ArraySorted>)out<<"%"<<n.out<<" = array.sorted %"<<n.array<<" : "<<type_name(n.array_type);
     if constexpr(std::is_same_v<T,StringIndex>)out<<"%"<<n.out<<" = string.index %"<<n.text<<", %"<<n.index;
+    if constexpr(std::is_same_v<T,StringIndexAsciiCompare>)out<<"%"<<n.out<<" = string.index_ascii_compare %"<<n.text<<", %"<<n.index<<", "<<static_cast<unsigned>(n.byte)<<(n.negate?" !=":" ==");
     if constexpr(std::is_same_v<T,StringLength>)out<<"%"<<n.out<<" = string.length %"<<n.text;
     if constexpr(std::is_same_v<T,StringContains>)out<<"%"<<n.out<<" = string.contains %"<<n.text<<", %"<<n.needle;
     if constexpr(std::is_same_v<T,StringStartsWith>)out<<"%"<<n.out<<" = string.starts_with %"<<n.text<<", %"<<n.prefix;

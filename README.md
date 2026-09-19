@@ -452,13 +452,14 @@ int[3] fixed = [4, 5, 6]
 int[] zeros = array(5, fill = 0)
 
 bin data = bin.fill(8, 0)
-data[0] = bin.parse("1")
+data[0] = bin.fill(1, 1)
 bin first = data[0]
+bin | error parsed = bin.parse("0101")
 ```
 
 Fixed array lengths are part of the type. Arrays have value semantics, including nested arrays.
 
-`bin` is mutable packed raw binary data. `len(data)` is the number of bits, `data[i]` returns a one-bit `bin`, and `data[start:end]` returns a `bin` slice. `bin.fill(n, bit)` allocates exactly `n` bits and requires `bit` to be `0` or `1`; `bin.parse("0101")` parses a written bit pattern. Binary-to-numeric interpretation is always explicit, for example `uint8(bits)`, and the bit length must match the destination width exactly.
+`bin` is mutable packed raw binary data. `len(data)` is the number of bits, `data[i]` returns a one-bit `bin`, and `data[start:end]` returns a `bin` slice. `bin.fill(n, bit)` allocates exactly `n` bits and requires `bit` to be `0` or `1`; `bin.parse("0101")` parses a written bit pattern and always has static type `bin | error`. A valid literal may be optimized as success-proven internally, but its source-visible type does not narrow. Binary-to-numeric interpretation is always explicit, for example `uint8(bits)`, and the bit length must match the destination width exactly.
 
 ### Strings
 
@@ -1100,7 +1101,7 @@ match loaded
         print(problem)
 ```
 
-Decoded images use CHW layout and have compiler-known rank 3: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample type and channel count by default. An expected type such as `tensor<uint8><3, _, _> | error` is an acceptance constraint: it accepts only rank-3 uint8 RGB and does not convert a mismatch. Use `channel = 1|3|4` to request channel conversion and `type = float32` (or another numeric built-in type) to request element-type conversion. Type conversion never normalizes sample ranges. RGB-to-gray uses the fixed `0.299R + 0.587G + 0.114B` rule. `image.write` writes only when the target codec can represent the tensor element type exactly; alpha is removed only when an explicit channel conversion requests that result.
+Decoded images use CHW layout and have compiler-known rank 3: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample type and channel count by default. An expected type such as `tensor<uint8><3, _, _> | error` is an acceptance constraint: it accepts only rank-3 uint8 RGB and does not convert a mismatch. Use `channel = value` (which must evaluate to 1, 3, or 4) to request channel conversion and `type = float32` (or another numeric built-in type) to request element-type conversion. These option values can drive diagnostics and conversion behavior but do not narrow an `auto` result type; write the expected union type explicitly when the result type must be fixed. Type conversion never normalizes sample ranges. RGB-to-gray uses the fixed `0.299R + 0.587G + 0.114B` rule. `image.write` writes only when the target codec can represent the tensor element type exactly; alpha is removed only when an explicit channel conversion requests that result.
 
 The library boundary is intentionally small:
 

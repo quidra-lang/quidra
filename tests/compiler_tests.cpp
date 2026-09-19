@@ -1237,12 +1237,12 @@ int | error parsed = int.parse("123")
 float32 | error parsed_float = float32.parse("1.5")
 bin allocated = bin.fill(8, 0)
 string repeated = string.repeat("a", 3)
-bin data = bin.parse("0000000111111110")
+bin data = bin.fill(16, 0)
 bin first = data[0]
 bin slice = data[0:8]
 uint8[] decoded = uint8[](data)
 bin copy = data
-copy[0] = bin.parse("1")
+copy[0] = bin.fill(1, 1)
 bool same = data == copy
 for value in data
     bin x = value
@@ -1261,20 +1261,72 @@ print(x)
  "int x\nx = 4\nprint(x)\n", "auto x = int(41)\nprint(x)\n", "int end = 7\nprint(end)\n", "// comment only\nint x = 1 // trailing comment\nprint(x)\n"}) good(s);
  good("int exit = 7\nprint(exit)\n");
 
- ir_contains(R"(bin bits = bin.parse("01")
-print(bits[0])
+ ir_contains(R"(bin | error parse_bits()
+    return bin.parse("01")
+auto parsed = parse_bits()
+match parsed
+    bin bits
+        print(bits[0])
+    error problem
+        print(problem)
 )", "release %");
- ir_contains(R"(bool flag = bool(bin.parse("1"))
-print(flag)
+ ir_contains(R"(bool | error parse_flag()
+    bin bits = try bin.parse("1")
+    return bool(bits)
+auto parsed = parse_flag()
+match parsed
+    bool flag
+        print(flag)
+    error problem
+        print(problem)
 )", "release %");
- ir_contains(R"(bin bits = bin.fill(1, 0)
-bits[0] = bin.parse("1")
-print(bits)
+ ir_contains(R"(bin | error update_bits()
+    bin bits = bin.fill(1, 0)
+    bin one = try bin.parse("1")
+    bits[0] = one
+    return bits
+auto parsed = update_bits()
+match parsed
+    bin bits
+        print(bits)
+    error problem
+        print(problem)
 )", "release %");
- ir_contains(R"(bin bits = bin.parse("01")
-for bit in bits
-    print(bit)
+ ir_contains(R"(bin | error parse_bits()
+    return bin.parse("01")
+auto parsed = parse_bits()
+match parsed
+    bin bits
+        for bit in bits
+            print(bit)
+    error problem
+        print(problem)
 )", "bin.get");
+
+ good(R"(bin | error literal = bin.parse("0101")
+string text = "0101"
+bin | error dynamic = bin.parse(text)
+)");
+ bad_code("bin direct = bin.parse(\"0101\")\n", "TYPE_MISMATCH");
+ bad_code(R"(string text = "0101"
+bin direct = bin.parse(text)
+)", "TYPE_MISMATCH");
+ bad_code("auto invalid = bin.parse(\"0102\")\n", "BIN_PARSE");
+ llvm_not_contains(R"(auto parsed = bin.parse("0101")
+match parsed
+    bin bits
+        print(bits)
+    error problem
+        print(problem)
+)", "bin.parse.fail");
+ llvm_contains(R"(string text = "0101"
+auto parsed = bin.parse(text)
+match parsed
+    bin bits
+        print(bits)
+    error problem
+        print(problem)
+)", "bin.parse.fail");
 
  good(R"(float scalar = 3.0
 float32 scalar32 = 2.0
@@ -1401,7 +1453,18 @@ auto decoded_image = image.read("input.png")
  bad_code("auto loaded = image.read<uint8>(\"input.png\")\n", "GENERIC_TARGET");
  good(R"(tensor<uint8><1, _, _> | error gray = image.read("input.png", channel = 1)
 tensor<float32><3, _, _> | error converted = image.read("input.png", type = float32)
+int channel = 3
+auto dynamic_channel = image.read("input.png", channel = channel)
 )");
+ bad(R"(auto loaded = image.read("input.png", channel = 3)
+tensor<float32><3, _, _> | error narrowed = loaded
+)");
+ bad(R"(auto loaded = image.read("input.png", type = float32)
+tensor<float32><3, _, _> | error narrowed = loaded
+)");
+ bad_code(
+     "tensor<float32><1, _, _> | error loaded = image.read(\"input.png\", channel = 3, type = float32)\n",
+     "TYPE_MISMATCH");
  bad_code("tensor<uint8><1, _, _> | error gray = image.read(\"input.png\", channels = 1)\n", "ARGUMENT_MISMATCH");
  bad_code("tensor<float32><3, _, _> | error converted = image.read(\"input.png\", dtype = float32)\n", "ARGUMENT_MISMATCH");
  ir_contains(
@@ -2008,6 +2071,26 @@ match widened
  bad_code("tensor<float32><2, 4> wrong = tensor.zeros<float32>([2, 3])\n", "TYPE_MISMATCH");
  bad_code("tensor<float32><3, _> wrong_rank = tensor.zeros<float32>([3, 4, 5])\n", "TYPE_MISMATCH");
  good("tensor<float32><3, _, _> exact_rank = tensor.zeros<float32>([3, 4, 5])\n");
+ good(R"(auto generated = tensor.zeros<float32>([2, 3])
+int[2] generated_shape = generated.shape()
+)");
+ ir_contains(R"(auto generated = tensor.zeros<float32>([2, 3])
+tensor<float32><2, 4> checked_at_runtime = generated
+)", "shape.constraint");
+ ir_contains(R"(tensor<float32><2, 3> source = tensor.zeros<float32>([2, 3])
+auto transposed = source.transpose(0, 1)
+tensor<float32><2, 3> checked_at_runtime = transposed
+)", "shape.constraint");
+ bad_code(R"(tensor<float32><2, 3> source = tensor.zeros<float32>([2, 3])
+auto invalid = source.transpose(0, 2)
+)", "ARGUMENT_MISMATCH");
+ good(R"(T identity<T>(T value)
+    return value
+int integer_value = 1
+float float_value = 1.0
+int integer_result = identity(integer_value)
+float float_result = identity(float_value)
+)");
  bad_code("tensor<float32><2, 3> value = tensor.ones<float32>([2, 3])\nint[3] wrong_shape = value.shape()\n", "TYPE_MISMATCH");
  good(R"(tensor<float32> erase(tensor<float32> value)
     return value

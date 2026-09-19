@@ -51,16 +51,17 @@ A fixed declaration such as `int[10] values` allocates its fixed storage immedia
 ```quidra
 bin zeros = bin.fill(8, 0)
 bin ones = bin.fill(5, 1)
-bin pattern = bin.parse("01010000")
+bin | error pattern = bin.parse("01010000")
 
-pattern[0] = bin.parse("1")
+bin data = bin.fill(8, 0)
+data[0] = bin.fill(1, 1)
 bin first = pattern[0]
 bin nibble = pattern[0:4]
 ```
 
 `bin.fill(n, bit)` allocates exactly `n` bits and accepts only `0` or `1` for `bit`. Length zero is valid. Negative lengths, invalid allocation sizes, and fill values other than 0 or 1 are rejected. `len(value)` returns the bit count. Indexing is zero-based and returns a one-bit `bin`; slicing uses a half-open bit range and returns `bin`. `print(bin)` and `bin.string()` expose the exact 0/1 sequence.
 
-Written bit patterns use parsing rather than a separate literal grammar. `bin.parse(text)` accepts only `0` and `1`. A statically known valid string is accepted directly as `bin`; a runtime string produces `bin | error`.
+Written bit patterns use parsing rather than a separate literal grammar. `bin.parse(text)` accepts only `0` and `1` and always has static type `bin | error`, whether `text` is a literal or a runtime value. A statically known invalid literal may be rejected at compile time. A statically known valid literal may carry an internal success fact for optimization, but that fact does not remove the `error` alternative from the source-visible type.
 
 Conversions between `bin` and other concrete types are always explicit. `bin(integer)` preserves the integer type's fixed-width bit representation, and `intN(bin)` / `uintN(bin)` require the bit length to equal the destination width exactly. `bin(bool)` produces one bit and `bool(bin)` requires exactly one bit. Flat integer/bool arrays convert explicitly with `bin(values)`; the reverse uses `T[](bits)` and requires the bit length to be exactly divisible by the element width. No conversion pads, truncates, wraps, or silently changes bit count.
 
@@ -81,6 +82,8 @@ print(x)
 A declaration without an initializer leaves a scalar or ordinary aggregate binding uninitialized. Fixed arrays are the storage-oriented exception: their storage exists immediately, while initialization is tracked per element. Runtime-sized `array(n)` values use the same per-element model. Reading an element that has not been initialized is rejected at runtime; whole-array operations require the participating elements to be initialized. Whole-value assignment establishes the destination value. All continuing branches must establish ordinary binding initialization before a subsequent read; branches that return do not contribute to the merge. A loop may execute zero times, so assignment only within a loop does not establish initialization after it.
 
 `auto x = expression` infers a static storable type. `auto x` is invalid. Assignments preserve the declared or inferred type. Compound assignments `+=`, `-=`, `*=`, `/=`, and `%=` are available when the corresponding binary operator is valid. The assignment target is evaluated exactly once, so an expression such as `values[next(&index)] += 1` does not repeat the index computation or its side effects.
+
+Ordinary value arguments never specialize a call's static return type based on their values. Values determine behavior and compile-time facts; static types determine static types. An explicitly supplied expected type may constrain a result, and overload or generic resolution may select a return type from the static types of arguments. Compile-time-known values may still prove invalid input, prove an expected-type contradiction, remove unreachable checks, or enable other optimization; those facts remain internal and do not silently narrow the source-visible return type. In short: **values determine behavior and facts; types determine types; write the type when the result type must be fixed.**
 
 Quidra uses absolute reservation plus monotonic visibility. A language-reserved identifier cannot be introduced by user code in any naming position, including bindings, parameters, functions, classes, fields, methods, generic parameters, loop/match binders, CLI fields, or import aliases. Qualification does not make a reserved spelling reusable. Standard-library internal declarations are language-owned and are the only implementation-level exception.
 
@@ -503,7 +506,7 @@ float32 value = z[0, 10, 20].item()
 
 Slices may share internal storage, but source semantics remain value-oriented. Mutating a copied tensor or slice triggers copy-on-write when needed. Slice assignment and writable `&` references to tensor elements are intentionally not exposed.
 
-`.transpose(axis0, axis1)` swaps two non-negative axes as a metadata-only view: shape and strides are permuted while storage, offset, and device placement are preserved. When both axes and the input shape are statically known, inferred extent facts are permuted as well. `.reshape(shape)` requires contiguous storage and never performs a hidden copy. Use `.contiguous()` explicitly before reshaping a non-contiguous view. A statically known shape establishes inferred result rank and extents. `.shape()` returns `int[N]` when rank N is inferred at that program point and `int[]` when rank is unknown. `.is_contiguous()` reports layout state. `linear.dot` requires two rank-1 tensors. `linear.matmul` supports vector-matrix, matrix-vector, and matrix-matrix multiplication; vector-vector multiplication remains `linear.dot`. Statically known rank mismatches are rejected and unknown rank retains runtime validation. Image values decoded by `image.read` always carry inferred rank 3.
+`.transpose(axis0, axis1)` swaps two non-negative axes as a metadata-only view: shape and strides are permuted while storage, offset, and device placement are preserved. Constant axis values may be used to reject an invalid axis at compile time, but they do not permute or specialize the source-visible static shape type. `.reshape(shape)` requires contiguous storage and never performs a hidden copy. Use `.contiguous()` explicitly before reshaping a non-contiguous view. The static length of the shape array establishes result rank; its extent values may be used for diagnostics or expected-type checks but do not refine the source-visible result extents. `.shape()` returns `int[N]` when rank N is inferred at that program point and `int[]` when rank is unknown. `.is_contiguous()` reports layout state. `linear.dot` requires two rank-1 tensors. `linear.matmul` supports vector-matrix, matrix-vector, and matrix-matrix multiplication; vector-vector multiplication remains `linear.dot`. Statically known rank mismatches are rejected and unknown rank retains runtime validation. Image values decoded by `image.read` always carry inferred rank 3.
 
 Tensor `+`, `-`, `*`, `/`, and integer `%` are elementwise. Tensor-to-tensor implicit broadcasting requires identical rank; each axis must match or have size 1 on one side. Rank-changing broadcasting is not implicit. Scalars are the one exception and broadcast to any tensor rank.
 
@@ -726,7 +729,7 @@ image.read(path, channel = 1)
 image.read(path, channel = 3, type = float32)
 ```
 
-`channel` accepts only literal 1, 3, or 4. 1→3 replicates gray; 3/4→1 uses `0.299R + 0.587G + 0.114B` and ignores alpha; 4→3 explicitly discards alpha; 1/3→4 adds opaque alpha (integer maximum or 1.0 for floating point). `type = T` explicitly changes numeric representation without normalizing ranges. Integer-to-integer conversion fails if any value is out of range; integer-to-float and float-to-float use the explicit numeric rounding policy; float-to-integer remains forbidden without an explicit rounding operation. A conversion argument that conflicts with the surrounding expected output type is a compile-time error.
+`channel` is an ordinary `int` value. Runtime values are accepted and must evaluate to 1, 3, or 4; a compile-time-known invalid value may be rejected early. The value does not specialize an `auto` result type. 1→3 replicates gray; 3/4→1 uses `0.299R + 0.587G + 0.114B` and ignores alpha; 4→3 explicitly discards alpha; 1/3→4 adds opaque alpha (integer maximum or 1.0 for floating point). `type = T` explicitly changes numeric representation without normalizing ranges. Integer-to-integer conversion fails if any value is out of range; integer-to-float and float-to-float use the explicit numeric rounding policy; float-to-integer remains forbidden without an explicit rounding operation. A conversion argument that conflicts with the surrounding expected output type is a compile-time error.
 
 `image.write(path, image, quality = 95)` accepts a fully initialized CPU CHW numeric tensor and returns `void | error`. Image codecs and filesystem I/O are host operations: a GPU tensor is rejected rather than being copied to CPU implicitly, so callers must write `image.write(path, image.cpu(), ...)` when that transfer is intended. The codec is selected from the filename extension and writing succeeds only when that codec can represent the tensor element type without conversion: PNG supports `uint8` and `uint16`, TIFF supports every built-in numeric tensor element type, and JPEG/BMP/WebP require `uint8`. JPEG and WebP quality is 1 through 100. JPEG rejects RGBA input unless the caller explicitly converts channels first.
 

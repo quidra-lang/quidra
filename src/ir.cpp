@@ -2244,7 +2244,9 @@ struct Lowerer {
                 }
                 if(target && target->kind==TypeKind::Bin){
                     auto text=expr(*n->args[0].value),out=fresh();
-                    block->instructions.push_back(ParseBin{out,text,checked.raw_types.at(&e)});
+                    block->instructions.push_back(ParseBin{
+                        out,text,checked.raw_types.at(&e),
+                        std::holds_alternative<StringExpr>(n->args[0].value->data)});
                     release_temporary(*n->args[0].value,text);
                     return out;
                 }
@@ -5560,6 +5562,7 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,BinLength>)out<<"%"<<n.out<<" = bin.length %"<<n.bin;
     if constexpr(std::is_same_v<T,BinGet>)out<<"%"<<n.out<<" = bin.get %"<<n.bin<<", %"<<n.index;
     if constexpr(std::is_same_v<T,BinSet>)out<<"bin.set %"<<n.bin<<", %"<<n.index<<", %"<<n.value;
+    if constexpr(std::is_same_v<T,ParseBin>)out<<"%"<<n.out<<" = bin.parse %"<<n.text<<" : "<<type_name(n.result_type)<<(n.success_proven?" success-proven":"");
     if constexpr(std::is_same_v<T,MathRoundInt>)out<<"%"<<n.out<<" = math.round-int %"<<n.value;
     if constexpr(std::is_same_v<T,NumericConvert>)out<<"%"<<n.out<<" = convert %"<<n.value<<" : "<<type_name(n.source_type)<<" -> "<<type_name(n.target_type)<<(n.checked_range?" checked":"");
     if constexpr(std::is_same_v<T,TensorCreate>)out<<"%"<<n.out<<" = tensor.create %"<<n.shape<<" : "<<type_name(n.type)<<" init="<<(n.fill_mode==0?"uninitialized":n.fill_mode==1?"zeros":"ones")<<(n.gpu?" gpu=%"+std::to_string(*n.gpu):" cpu");

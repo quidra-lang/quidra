@@ -1919,25 +1919,32 @@ struct FunctionEmitter {
             }else{
                 const auto result=value(n.out);
                 out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
-                const auto ok=temp("bin.parse.ok");
-                const auto ok_label=unique_label("bin.parse.ok");
-                const auto fail_label=unique_label("bin.parse.fail");
-                const auto done_label=unique_label("bin.parse.done");
-                out<<"  "<<ok<<" = icmp ne ptr "<<parsed<<", null\n";
-                out<<"  br i1 "<<ok<<", label %"<<ok_label<<", label %"<<fail_label<<"\n";
-                out<<ok_label<<":\n";
-                out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Bin))<<", ptr "<<result<<"\n";
-                const auto ok_payload=temp("bin.parse.payload");
-                out<<"  "<<ok_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n";
-                out<<"  store ptr "<<parsed<<", ptr "<<ok_payload<<"\n";
-                out<<"  br label %"<<done_label<<"\n";
-                out<<fail_label<<":\n";
-                out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
-                const auto err_payload=temp("bin.parse.error.payload");
-                out<<"  "<<err_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n";
-                out<<"  store ptr @.err.parse, ptr "<<err_payload<<"\n";
-                out<<"  br label %"<<done_label<<"\n";
-                out<<done_label<<":\n";
+                if(n.success_proven){
+                    out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Bin))<<", ptr "<<result<<"\n";
+                    const auto ok_payload=temp("bin.parse.payload");
+                    out<<"  "<<ok_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n";
+                    out<<"  store ptr "<<parsed<<", ptr "<<ok_payload<<"\n";
+                }else{
+                    const auto ok=temp("bin.parse.ok");
+                    const auto ok_label=unique_label("bin.parse.ok");
+                    const auto fail_label=unique_label("bin.parse.fail");
+                    const auto done_label=unique_label("bin.parse.done");
+                    out<<"  "<<ok<<" = icmp ne ptr "<<parsed<<", null\n";
+                    out<<"  br i1 "<<ok<<", label %"<<ok_label<<", label %"<<fail_label<<"\n";
+                    out<<ok_label<<":\n";
+                    out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Bin))<<", ptr "<<result<<"\n";
+                    const auto ok_payload=temp("bin.parse.payload");
+                    out<<"  "<<ok_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n";
+                    out<<"  store ptr "<<parsed<<", ptr "<<ok_payload<<"\n";
+                    out<<"  br label %"<<done_label<<"\n";
+                    out<<fail_label<<":\n";
+                    out<<"  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
+                    const auto err_payload=temp("bin.parse.error.payload");
+                    out<<"  "<<err_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n";
+                    out<<"  store ptr @.err.parse, ptr "<<err_payload<<"\n";
+                    out<<"  br label %"<<done_label<<"\n";
+                    out<<done_label<<":\n";
+                }
             }
         }
         if constexpr(std::is_same_v<T,ir::BinConvert>){

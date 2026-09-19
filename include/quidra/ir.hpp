@@ -75,7 +75,7 @@ struct BinLength { ValueId out; ValueId bin; };
 struct BinGet { ValueId out; ValueId bin; ValueId index; std::uint32_t line{}; std::uint32_t column{}; bool bounds_proven{}; };
 struct BinSet { ValueId bin; ValueId index; ValueId value; std::uint32_t line{}; std::uint32_t column{}; bool bounds_proven{}; };
 struct BinSlice { ValueId out; ValueId bin; ValueId start; ValueId end; };
-struct ParseBin { ValueId out; ValueId text; Type result_type; };
+struct ParseBin { ValueId out; ValueId text; Type result_type; bool success_proven{}; };
 struct BinConvert { ValueId out; ValueId value; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct NumericConvert { ValueId out; ValueId value; Type source_type; Type target_type; bool checked_range{}; std::uint32_t line{}; std::uint32_t column{}; };
 struct ArrayNumericCast { ValueId out; ValueId array; Type source_type; Type target_type; std::uint32_t line{}; std::uint32_t column{}; };

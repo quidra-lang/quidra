@@ -2243,9 +2243,9 @@ PY
 
 cat > "$TMP/bin-value.qui" <<'QUI'
 bin data = bin.fill(4, 0)
-data[0] = bin.parse("1")
+data[0] = bin.fill(1, 1)
 bin copy = data
-copy[2] = bin.parse("1")
+copy[2] = bin.fill(1, 1)
 print(len(data))
 print(data[0])
 print(data[1])
@@ -2257,7 +2257,7 @@ print(data == copy)
 for value in data
     print(value)
 for &value in copy
-    value = bin.parse("1")
+    value = bin.fill(1, 1)
 print(copy[0])
 print(data[0])
 QUI

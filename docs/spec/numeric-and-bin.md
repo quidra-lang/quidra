@@ -204,7 +204,7 @@ JSON number parsing is likewise lossless at the syntax boundary: a valid JSON nu
 ```quidra
 bin zeros = bin.fill(8, 0)
 bin ones = bin.fill(5, 1)
-bin pattern = bin.parse("01010000")
+bin | error pattern = bin.parse("01010000")
 ```
 
 `bin.fill(n, bit)` allocates exactly `n` bits, with `bit` restricted to `0` or `1`. `bin(value)` is reserved for explicit conversion. `len(value)` returns the bit count. Negative lengths, fill values other than 0 or 1, and invalid allocation sizes fail deterministically.
@@ -212,17 +212,18 @@ bin pattern = bin.parse("01010000")
 A written bit pattern is parsed rather than given a separate binary literal grammar:
 
 ```quidra
-bin value = bin.parse("01010000")
+bin | error value = bin.parse("01010000")
 ```
 
-A statically known valid string produces `bin` directly. A runtime string produces `bin | error`. Only `0` and `1` are accepted.
+`bin.parse` always has static type `bin | error`, for literals and runtime strings alike. Only `0` and `1` are accepted. A statically known invalid literal may be diagnosed at compile time; a statically known valid literal may be marked internally as success-proven so the backend can remove the impossible error branch without changing the source-visible union type.
 
 Indexing and slicing operate in bits:
 
 ```quidra
-bin first = value[0]
-bin high = value[0:4]
-value[0] = bin.parse("1")
+bin bits = bin.fill(8, 0)
+bin first = bits[0]
+bin high = bits[0:4]
+bits[0] = bin.fill(1, 1)
 ```
 
 An index result is a one-bit `bin`. Bin elements do not expose addressable references. `print(value)` and `value.string()` display the exact 0/1 sequence.
@@ -254,9 +255,10 @@ int8[] restored = int8[](raw)
 Ordinary `bin` assignment is independent:
 
 ```quidra
-bin a = bin.parse("001")
+bin a = bin.fill(3, 0)
+a[2] = bin.fill(1, 1)
 bin b = a
-b[0] = bin.parse("1")
+b[0] = bin.fill(1, 1)
 
 print(a) // 001
 print(b) // 101

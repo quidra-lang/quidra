@@ -36,6 +36,14 @@ struct Lowerer {
     std::vector<std::optional<std::string>> return_shaped_constraints;
     std::vector<std::optional<std::string>> return_array_constraints;
 
+    struct ActiveRangeBound {
+        std::string index_name;
+        const Expr* end{};
+    };
+    std::vector<ActiveRangeBound> active_range_bounds;
+    std::unordered_map<std::string, std::string> scalar_length_of_array;
+    std::unordered_map<std::string, std::string> array_length_from_scalar;
+
     explicit Lowerer(
         const CheckedProgram& c, const Expr* repl = nullptr,
         std::size_t replay_prefix_offset = 0)
@@ -83,6 +91,132 @@ struct Lowerer {
         const auto cached = reference_array_initialization.find(name->name);
         if (cached == reference_array_initialization.end()) return std::nullopt;
         return cached->second;
+    }
+
+    std::optional<std::string> direct_array_length_source(
+        const Expr& expression) const {
+        const auto* call = std::get_if<CallExpr>(&expression.data);
+        if (!call || call->callee != "len" || call->args.size() != 1 ||
+            !call->args.front().value)
+            return std::nullopt;
+        const auto resolution = checked.call_resolutions.find(&expression);
+        if (resolution == checked.call_resolutions.end() ||
+            resolution->second.kind != CallKind::Builtin ||
+            resolution->second.builtin != BuiltinCallable::Len)
+            return std::nullopt;
+        const auto* name =
+            std::get_if<NameExpr>(&call->args.front().value->data);
+        if (!name || type_of(*call->args.front().value).kind != TypeKind::Array)
+            return std::nullopt;
+        return name->name;
+    }
+
+    bool scalar_names_array_length(
+        const std::string& scalar, const std::string& array) const {
+        const auto scalar_relation = scalar_length_of_array.find(scalar);
+        if (scalar_relation != scalar_length_of_array.end() &&
+            scalar_relation->second == array)
+            return true;
+        const auto array_relation = array_length_from_scalar.find(array);
+        return array_relation != array_length_from_scalar.end() &&
+               array_relation->second == scalar;
+    }
+
+    std::optional<long long> range_end_distance_from_array_length(
+        const Expr& end, const std::string& array) const {
+        if (const auto direct = direct_array_length_source(end);
+            direct && *direct == array)
+            return 0;
+        if (const auto* name = std::get_if<NameExpr>(&end.data)) {
+            if (scalar_names_array_length(name->name, array)) return 0;
+            return std::nullopt;
+        }
+        const auto* binary = std::get_if<BinaryExpr>(&end.data);
+        if (!binary || binary->op != "-") return std::nullopt;
+        const auto* amount =
+            std::get_if<IntegerExpr>(&binary->right->data);
+        if (!amount || !amount->fits_u64 ||
+            amount->value >
+                static_cast<std::uint64_t>(std::numeric_limits<long long>::max()))
+            return std::nullopt;
+        const auto distance = static_cast<long long>(amount->value);
+        if (const auto direct = direct_array_length_source(*binary->left);
+            direct && *direct == array)
+            return distance;
+        const auto* name =
+            std::get_if<NameExpr>(&binary->left->data);
+        if (name && scalar_names_array_length(name->name, array))
+            return distance;
+        return std::nullopt;
+    }
+
+    bool dynamic_array_bounds_proven(
+        const Expr& base, const Expr& index) const {
+        const auto* base_name = std::get_if<NameExpr>(&base.data);
+        if (!base_name || checked.field_accesses.contains(&base) ||
+            is_source_reference(base_name->name))
+            return false;
+
+        for (auto range = active_range_bounds.rbegin();
+             range != active_range_bounds.rend(); ++range) {
+            if (!range->end) continue;
+            const auto distance =
+                range_end_distance_from_array_length(
+                    *range->end, base_name->name);
+            if (!distance || *distance < 0) continue;
+
+            if (const auto* name = std::get_if<NameExpr>(&index.data)) {
+                if (name->name == range->index_name)
+                    return true;
+            }
+
+            if (const auto* binary = std::get_if<BinaryExpr>(&index.data)) {
+                if (binary->op == "+") {
+                    const NameExpr* name =
+                        std::get_if<NameExpr>(&binary->left->data);
+                    const IntegerExpr* amount =
+                        std::get_if<IntegerExpr>(&binary->right->data);
+                    if (!name || !amount) {
+                        name = std::get_if<NameExpr>(&binary->right->data);
+                        amount = std::get_if<IntegerExpr>(&binary->left->data);
+                    }
+                    if (name && amount && amount->fits_u64 &&
+                        name->name == range->index_name &&
+                        amount->value <=
+                            static_cast<std::uint64_t>(*distance)) {
+                        return true;
+                    }
+                }
+
+                // len(array) - 1 - i is in [0, len(array)) for
+                // i in range(0, len(array)).
+                if (binary->op == "-") {
+                    const auto* loop_index =
+                        std::get_if<NameExpr>(&binary->right->data);
+                    const auto* prefix =
+                        std::get_if<BinaryExpr>(&binary->left->data);
+                    if (loop_index &&
+                        loop_index->name == range->index_name &&
+                        prefix && prefix->op == "-") {
+                        const auto* one =
+                            std::get_if<IntegerExpr>(&prefix->right->data);
+                        if (one && one->fits_u64 && one->value == 1) {
+                            if (const auto direct =
+                                    direct_array_length_source(*prefix->left);
+                                direct && *direct == base_name->name)
+                                return true;
+                            if (const auto* length_name =
+                                    std::get_if<NameExpr>(&prefix->left->data);
+                                length_name &&
+                                scalar_names_array_length(
+                                    length_name->name, base_name->name))
+                                return true;
+                        }
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     bool array_expression_fully_initialized(const Expr& expression) const {

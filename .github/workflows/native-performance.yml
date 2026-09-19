@@ -39,7 +39,7 @@ jobs:
         run: |
           python3 benchmark/current-native/run.py \
             --configs quidra_native \
-            --workloads mb03,mb08,mb10,mb11 \
+            --workloads mb03,mb08,mb09,mb10,mb11 \
             --verify-only --timeout 1800 \
             --out "${RUNNER_TEMP}/current-overlay-verify.json"
       - name: Current-equivalent native micro workloads

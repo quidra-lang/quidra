@@ -916,20 +916,67 @@ std::optional<SourceSpan> resolved_definition_span(
     return matches==1?candidate:std::nullopt;
 }
 
+std::optional<SourceSpan> semantic_member_definition_span(
+    const CheckedProgram& checked,const Expr* expression,std::string_view name,
+    const std::vector<Token>& tokens) {
+    if(!expression) return std::nullopt;
+
+    if(std::holds_alternative<MethodCallExpr>(expression->data)) {
+        const auto method=checked.method_calls.find(expression);
+        if(method==checked.method_calls.end()) return std::nullopt;
+        for(const auto& declaration:checked.program.classes) {
+            const auto info=checked.classes.find(declaration.name);
+            if(info==checked.classes.end()) continue;
+            const auto target=info->second.methods.find(std::string(name));
+            if(target==info->second.methods.end()||
+               target->second!=method->second.internal_name) continue;
+            for(const auto& item:declaration.methods) {
+                if(item.name!=name) continue;
+                if(auto span=identifier_span(
+                       tokens,item.span,name,item.return_type.span.end.offset))
+                    return span;
+            }
+        }
+    }
+
+    if(std::holds_alternative<MemberExpr>(expression->data)) {
+        const auto field=checked.field_accesses.find(expression);
+        if(field==checked.field_accesses.end()) return std::nullopt;
+        for(const auto& declaration:checked.program.classes) {
+            if(declaration.name!=field->second.owner) continue;
+            for(const auto& item:declaration.fields) {
+                if(item.name!=name) continue;
+                if(auto span=identifier_span(tokens,item.span,name)) return span;
+            }
+        }
+    }
+    return std::nullopt;
+}
+
 std::optional<SourceSpan> resolved_definition_span(
-    const Program& program,std::string_view source,std::string_view name,std::size_t offset) {
+    const CheckedProgram& checked,std::string_view source,std::string_view name,
+    std::size_t offset,const std::vector<Token>& tokens) {
+    const auto* expression=expression_at(checked.program,offset);
+    if(auto semantic=semantic_member_definition_span(
+           checked,expression,name,tokens))
+        return semantic;
+    return resolved_definition_span(checked.program,name,offset,tokens);
+}
+
+std::optional<SourceSpan> resolved_definition_span(
+    const CheckedProgram& checked,std::string_view source,std::string_view name,std::size_t offset) {
     const auto tokens=Lexer(source).scan();
-    return resolved_definition_span(program,name,offset,tokens);
+    return resolved_definition_span(checked,source,name,offset,tokens);
 }
 
 std::vector<SourceSpan> reference_spans(
-    const Program& program,std::string_view source,std::string_view name,SourceSpan target) {
+    const CheckedProgram& checked,std::string_view source,std::string_view name,SourceSpan target) {
     const auto tokens=Lexer(source).scan();
     std::vector<SourceSpan> result;
     for(const auto& token:tokens) {
         if(token.kind!=TokenKind::Identifier||token.text!=name) continue;
         const auto resolved=resolved_definition_span(
-            program,name,token.span.start.offset,tokens);
+            checked,source,name,token.span.start.offset,tokens);
         if(resolved&&same_span(*resolved,target)) result.push_back(token.span);
     }
     return result;
@@ -1309,8 +1356,8 @@ private:
         const auto source=document_source(uri);
         const auto offset=raw_offset(source,request_position(message));
         try {
-            const auto program=root_program(source);
-            const auto* expression=expression_at(program,offset);
+            const auto checked=semantic_check(uri,source);
+            const auto* expression=expression_at(checked.program,offset);
             if(!expression) { respond(id,"null"); return; }
 
             std::string name;
@@ -1321,7 +1368,7 @@ private:
             if(name.empty()) { respond(id,"null"); return; }
 
             const auto tokens=Lexer(source).scan();
-            auto span=resolved_definition_span(program,name,offset,tokens);
+            auto span=resolved_definition_span(checked,source,name,offset,tokens);
             if(!span) { respond(id,"null"); return; }
             respond(id,"{\"uri\":\""+escape(uri)+"\",\"range\":"+
                        range_json(source,*span)+"}");
@@ -1425,11 +1472,11 @@ private:
         const auto source=document_source(uri);
         const auto offset=raw_offset(source,request_position(message));
         try {
-            const auto program=root_program(source);
+            const auto checked=semantic_check(uri,source);
             const auto token=identifier_token_at(source,offset);
             if(!token) { respond(id,"[]"); return; }
             const auto target=resolved_definition_span(
-                program,source,token->text,token->span.start.offset);
+                checked,source,token->text,token->span.start.offset);
             if(!target) { respond(id,"[]"); return; }
 
             bool include_declaration=true;
@@ -1437,7 +1484,7 @@ private:
                 if(const auto requested=bool_member(*context,"includeDeclaration"))
                     include_declaration=*requested;
             }
-            const auto spans=reference_spans(program,source,token->text,*target);
+            const auto spans=reference_spans(checked,source,token->text,*target);
             std::ostringstream result;
             result<<"[";
             bool first=true;
@@ -1468,25 +1515,25 @@ private:
         const auto source=document_source(uri);
         const auto offset=raw_offset(source,request_position(message));
         try {
-            const auto program=root_program(source);
+            const auto checked=semantic_check(uri,source);
             const auto token=identifier_token_at(source,offset);
             if(!token) { respond(id,"null"); return; }
             const auto target=resolved_definition_span(
-                program,source,token->text,token->span.start.offset);
+                checked,source,token->text,token->span.start.offset);
             if(!target) { respond(id,"null"); return; }
 
             if(new_name!=token->text) {
                 for(const auto& candidate:Lexer(source).scan()) {
                     if(candidate.kind!=TokenKind::Identifier||candidate.text!=new_name) continue;
                     const auto other=resolved_definition_span(
-                        program,source,new_name,candidate.span.start.offset);
+                        checked,source,new_name,candidate.span.start.offset);
                     if(other&&!same_span(*other,*target))
                         throw std::runtime_error(
                             "rename target conflicts with an existing visible definition");
                 }
             }
 
-            const auto spans=reference_spans(program,source,token->text,*target);
+            const auto spans=reference_spans(checked,source,token->text,*target);
             std::ostringstream result;
             result<<"{\"changes\":{\""<<escape(uri)<<"\":[";
             for(std::size_t i=0;i<spans.size();++i) {

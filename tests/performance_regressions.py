@@ -181,6 +181,25 @@ print(total)
 """,
     3000, 6000, lambda n: str(n), allow_too_fast=True)
 
+# Explicit bin -> UTF-8 decoding validates and copies each input once. Repeating
+# that conversion must stay linear in the byte count rather than materializing
+# per-byte text fragments or rescanning a growing prefix.
+check_scaling(
+    "explicit UTF-8 bin decoding",
+    """int n = {n}
+string source = string.repeat("a", n)
+bin data = source.utf8()
+int total = 0
+for pass in range(0, 8)
+    match string.from_utf8(data)
+        string text
+            total += len(text)
+        error problem
+            process.exit(1)
+print(total)
+""",
+    250000, 500000, lambda n: str(n * 8), allow_too_fast=True)
+
 # Every checked element access through a writable array reference consults the
 # runtime initialization tracker, which cached exactly one allocation. A loop
 # that reads one array while writing another missed that cache on every access

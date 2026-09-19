@@ -470,42 +470,15 @@ bool cudnn_conv2d_forward(
     std::lock_guard operation_lock(*operation_mutex);
     const auto mode=dnn_mode();
 
-    CudnnApi::TensorDescriptor x_desc=nullptr,y_desc=nullptr,b_desc=nullptr;
-    CudnnApi::FilterDescriptor w_desc=nullptr;
-    CudnnApi::ConvolutionDescriptor conv_desc=nullptr;
-    const auto cleanup=[&]{
-        if(x_desc)api.destroy_tensor(x_desc);
-        if(y_desc)api.destroy_tensor(y_desc);
-        if(b_desc)api.destroy_tensor(b_desc);
-        if(w_desc)api.destroy_filter(w_desc);
-        if(conv_desc)api.destroy_convolution(conv_desc);
-    };
-    if(api.create_tensor(&x_desc)!=0||api.create_tensor(&y_desc)!=0||
-       api.create_tensor(&b_desc)!=0||api.create_filter(&w_desc)!=0||
-       api.create_convolution(&conv_desc)!=0){cleanup();return false;}
-
-    constexpr int nchw=0,cross_correlation=1;
-    const int data_type=dtype==10?0:1;
-    if(api.set_tensor4d(x_desc,nchw,data_type,static_cast<int>(batches),
-                        static_cast<int>(channels_in),static_cast<int>(height),
-                        static_cast<int>(width))!=0||
-       api.set_tensor4d(y_desc,nchw,data_type,static_cast<int>(batches),
-                        static_cast<int>(channels_out),static_cast<int>(output_h),
-                        static_cast<int>(output_w))!=0||
-       api.set_tensor4d(b_desc,nchw,data_type,1,static_cast<int>(channels_out),1,1)!=0||
-       api.set_filter4d(w_desc,data_type,nchw,static_cast<int>(channels_out),
-                        static_cast<int>(channels_in),static_cast<int>(kernel_h),
-                        static_cast<int>(kernel_w))!=0||
-       api.set_convolution2d(conv_desc,static_cast<int>(padding),static_cast<int>(padding),
-                             static_cast<int>(stride),static_cast<int>(stride),1,1,
-                             cross_correlation,data_type)!=0){
-        cleanup();return false;
-    }
-    if(api.set_convolution_math_type){
-        constexpr int default_math=0,fma_math=3;
-        const int math=mode==DnnMode::Deterministic?fma_math:default_math;
-        (void)api.set_convolution_math_type(conv_desc,math);
-    }
+    auto* descriptors=api.convolution_descriptors(
+        output->backend_index,dtype,mode,batches,channels_in,height,width,
+        channels_out,kernel_h,kernel_w,output_h,output_w,stride,padding,ignored);
+    if(!descriptors)return false;
+    const auto x_desc=descriptors->input;
+    const auto y_desc=descriptors->output;
+    const auto b_desc=descriptors->bias;
+    const auto w_desc=descriptors->weight;
+    const auto conv_desc=descriptors->convolution;
 
     const bool deterministic=mode==DnnMode::Deterministic;
     std::ostringstream algorithm_key_stream;
@@ -544,7 +517,7 @@ bool cudnn_conv2d_forward(
             ?api.find_fwd_algorithms:api.get_fwd_algorithms;
         if(query(handle,x_desc,w_desc,conv_desc,y_desc,
                  static_cast<int>(perf.size()),&returned,perf.data())!=0||
-           returned<=0){cleanup();return false;}
+           returned<=0){return false;}
         for(int i=0;i<returned;++i){
             if(perf[static_cast<std::size_t>(i)].status!=0)continue;
             if(deterministic&&perf[static_cast<std::size_t>(i)].determinism!=1)continue;
@@ -565,7 +538,7 @@ bool cudnn_conv2d_forward(
             break;
         }
     }
-    if(chosen<0){cleanup();return false;}
+    if(chosen<0){return false;}
 
     const auto ws_ptr=workspace
         ?reinterpret_cast<void*>(static_cast<std::uintptr_t>(workspace))
@@ -592,10 +565,6 @@ bool cudnn_conv2d_forward(
         if(status==0)
             status=api.add_tensor(handle,&one,b_desc,b_ptr,&one,y_desc,y_ptr);
     }
-    // The descriptor objects are host-side call metadata. The device workspace
-    // itself is retained by CudnnApi, so queued default-stream work can remain
-    // asynchronous after this call returns.
-    cleanup();
     if(status!=0){
         std::lock_guard lock(algorithm_cache_mutex);
         algorithm_cache.erase(algorithm_key);

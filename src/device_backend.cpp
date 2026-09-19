@@ -378,6 +378,14 @@ struct CudnnApi {
     using BwdDataPerf = FwdPerf;
     using BwdFilterPerf = FwdPerf;
 
+    struct ConvDescriptors {
+        TensorDescriptor input{};
+        TensorDescriptor output{};
+        TensorDescriptor bias{};
+        FilterDescriptor weight{};
+        ConvolutionDescriptor convolution{};
+    };
+
     DynamicLibrary library;
     Status (*create)(Handle*){};
     Status (*destroy)(Handle){};
@@ -440,6 +448,11 @@ struct CudnnApi {
     // access, so steady-state convolution does not need per-call allocation.
     std::vector<CudaApi::CUdeviceptr> workspaces;
     std::vector<std::size_t> workspace_sizes;
+    // cuDNN descriptors are immutable after configuration. Cache one set per
+    // NVIDIA device/shape/mode so steady-state Conv2D avoids host-side
+    // descriptor create/set/destroy traffic in both forward and backward.
+    std::unordered_map<std::string,std::unique_ptr<ConvDescriptors>> convolution_descriptor_cache;
+    std::mutex descriptor_mutex;
     std::mutex mutex;
     bool ready{};
 
@@ -491,6 +504,17 @@ struct CudnnApi {
     }
 
     ~CudnnApi() {
+        for(auto& entry:convolution_descriptor_cache){
+            auto& descriptors=*entry.second;
+            if(descriptors.input&&destroy_tensor)(void)destroy_tensor(descriptors.input);
+            if(descriptors.output&&destroy_tensor)(void)destroy_tensor(descriptors.output);
+            if(descriptors.bias&&destroy_tensor)(void)destroy_tensor(descriptors.bias);
+            if(descriptors.weight&&destroy_filter)(void)destroy_filter(descriptors.weight);
+            if(descriptors.convolution&&destroy_convolution)
+                (void)destroy_convolution(descriptors.convolution);
+        }
+        convolution_descriptor_cache.clear();
+
         auto& cu=cuda();
         for(std::size_t i=0;i<handles.size();++i){
             const bool has_workspace=i<workspaces.size()&&workspaces[i]!=0;
@@ -504,6 +528,75 @@ struct CudnnApi {
             }
             if(handles[i]&&destroy)(void)destroy(handles[i]);
         }
+    }
+
+    ConvDescriptors* convolution_descriptors(
+        int backend_index,int dtype,DnnMode mode,
+        std::size_t batches,std::size_t channels_in,std::size_t height,
+        std::size_t width,std::size_t channels_out,std::size_t kernel_h,
+        std::size_t kernel_w,std::size_t output_h,std::size_t output_w,
+        std::size_t stride,std::size_t padding,std::string& error) {
+        std::ostringstream key_stream;
+        key_stream<<backend_index<<':'<<dtype<<':'<<static_cast<int>(mode)<<':'
+                  <<batches<<':'<<channels_in<<':'<<height<<':'<<width<<':'
+                  <<channels_out<<':'<<kernel_h<<':'<<kernel_w<<':'
+                  <<output_h<<':'<<output_w<<':'<<stride<<':'<<padding;
+        const auto key=key_stream.str();
+
+        std::lock_guard lock(descriptor_mutex);
+        if(const auto found=convolution_descriptor_cache.find(key);
+           found!=convolution_descriptor_cache.end())
+            return found->second.get();
+
+        auto descriptors=std::make_unique<ConvDescriptors>();
+        const auto cleanup=[&]{
+            if(descriptors->input)destroy_tensor(descriptors->input);
+            if(descriptors->output)destroy_tensor(descriptors->output);
+            if(descriptors->bias)destroy_tensor(descriptors->bias);
+            if(descriptors->weight)destroy_filter(descriptors->weight);
+            if(descriptors->convolution)destroy_convolution(descriptors->convolution);
+        };
+        if(create_tensor(&descriptors->input)!=0||
+           create_tensor(&descriptors->output)!=0||
+           create_tensor(&descriptors->bias)!=0||
+           create_filter(&descriptors->weight)!=0||
+           create_convolution(&descriptors->convolution)!=0){
+            cleanup();
+            error="cuDNN convolution descriptor creation failed";
+            return nullptr;
+        }
+
+        constexpr int nchw=0,cross_correlation=1;
+        const int data_type=dtype==10?0:1;
+        if(set_tensor4d(descriptors->input,nchw,data_type,static_cast<int>(batches),
+                        static_cast<int>(channels_in),static_cast<int>(height),
+                        static_cast<int>(width))!=0||
+           set_tensor4d(descriptors->output,nchw,data_type,static_cast<int>(batches),
+                        static_cast<int>(channels_out),static_cast<int>(output_h),
+                        static_cast<int>(output_w))!=0||
+           set_tensor4d(descriptors->bias,nchw,data_type,1,
+                        static_cast<int>(channels_out),1,1)!=0||
+           set_filter4d(descriptors->weight,data_type,nchw,
+                        static_cast<int>(channels_out),static_cast<int>(channels_in),
+                        static_cast<int>(kernel_h),static_cast<int>(kernel_w))!=0||
+           set_convolution2d(descriptors->convolution,
+                             static_cast<int>(padding),static_cast<int>(padding),
+                             static_cast<int>(stride),static_cast<int>(stride),
+                             1,1,cross_correlation,data_type)!=0){
+            cleanup();
+            error="cuDNN convolution descriptor configuration failed";
+            return nullptr;
+        }
+        if(set_convolution_math_type){
+            constexpr int default_math=0,fma_math=3;
+            (void)set_convolution_math_type(
+                descriptors->convolution,
+                mode==DnnMode::Deterministic?fma_math:default_math);
+        }
+
+        auto* result=descriptors.get();
+        convolution_descriptor_cache.emplace(key,std::move(descriptors));
+        return result;
     }
 
     Handle handle(int backend_index,std::string& error) {

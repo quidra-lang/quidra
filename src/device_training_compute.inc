@@ -859,42 +859,17 @@ bool cudnn_conv2d_backward(
     std::lock_guard operation_lock(*operation_mutex);
     const auto mode=dnn_mode();
 
-    // x/dx and w/dw have identical layouts. cuDNN descriptors describe
-    // layout only, so share them instead of allocating duplicate descriptors
-    // for the two gradient destinations on every backward call.
-    CudnnApi::TensorDescriptor x_desc=nullptr,dy_desc=nullptr,db_desc=nullptr;
-    CudnnApi::FilterDescriptor w_desc=nullptr;
-    CudnnApi::ConvolutionDescriptor conv_desc=nullptr;
-    const auto cleanup=[&]{
-        if(x_desc)api.destroy_tensor(x_desc);
-        if(dy_desc)api.destroy_tensor(dy_desc);
-        if(db_desc)api.destroy_tensor(db_desc);
-        if(w_desc)api.destroy_filter(w_desc);
-        if(conv_desc)api.destroy_convolution(conv_desc);
-    };
-    if(api.create_tensor(&x_desc)!=0||api.create_tensor(&dy_desc)!=0||
-       api.create_tensor(&db_desc)!=0||api.create_filter(&w_desc)!=0||
-       api.create_convolution(&conv_desc)!=0){cleanup();return false;}
-    constexpr int nchw=0,cross_correlation=1;
-    const int data_type=dtype==10?0:1;
-    if(api.set_tensor4d(x_desc,nchw,data_type,static_cast<int>(batches),
-                        static_cast<int>(channels_in),static_cast<int>(height),
-                        static_cast<int>(width))!=0||
-       api.set_tensor4d(dy_desc,nchw,data_type,static_cast<int>(batches),
-                        static_cast<int>(channels_out),static_cast<int>(output_h),
-                        static_cast<int>(output_w))!=0||
-       api.set_tensor4d(db_desc,nchw,data_type,1,static_cast<int>(channels_out),1,1)!=0||
-       api.set_filter4d(w_desc,data_type,nchw,static_cast<int>(channels_out),
-                        static_cast<int>(channels_in),static_cast<int>(kernel_h),
-                        static_cast<int>(kernel_w))!=0||
-       api.set_convolution2d(conv_desc,static_cast<int>(padding),static_cast<int>(padding),
-                             static_cast<int>(stride),static_cast<int>(stride),1,1,
-                             cross_correlation,data_type)!=0){cleanup();return false;}
-    if(api.set_convolution_math_type){
-        constexpr int default_math=0,fma_math=3;
-        (void)api.set_convolution_math_type(
-            conv_desc,mode==DnnMode::Deterministic?fma_math:default_math);
-    }
+    auto* descriptors=api.convolution_descriptors(
+        input_gradient->backend_index,dtype,mode,batches,channels_in,height,width,
+        channels_out,kernel_h,kernel_w,output_h,output_w,stride,padding,ignored);
+    if(!descriptors)return false;
+    // Input-gradient and weight-gradient layouts equal input and weight, so the
+    // cached input/filter descriptors serve both source and gradient tensors.
+    const auto x_desc=descriptors->input;
+    const auto dy_desc=descriptors->output;
+    const auto db_desc=descriptors->bias;
+    const auto w_desc=descriptors->weight;
+    const auto conv_desc=descriptors->convolution;
 
     const bool deterministic=mode==DnnMode::Deterministic;
     std::ostringstream algorithm_key_stream;
@@ -922,7 +897,7 @@ bool cudnn_conv2d_backward(
             ?api.find_bwd_data_algorithms:api.get_bwd_data_algorithms;
         if(query(handle,w_desc,dy_desc,conv_desc,x_desc,
                  static_cast<int>(data_perf.size()),&data_returned,data_perf.data())!=0||
-           data_returned<=0){cleanup();return false;}
+           data_returned<=0){return false;}
         for(int i=0;i<data_returned;++i){
             const auto& p=data_perf[static_cast<std::size_t>(i)];
             if(p.status!=0||(deterministic&&p.determinism!=1))continue;
@@ -937,7 +912,7 @@ bool cudnn_conv2d_backward(
             break;
         }
     }
-    if(data_algo<0){cleanup();return false;}
+    if(data_algo<0){return false;}
 
     int filter_algo=-1; std::size_t filter_ws_bytes=0;
     load_cached(filter_cache_mutex,filter_cache,filter_algo,filter_ws_bytes);
@@ -949,7 +924,6 @@ bool cudnn_conv2d_backward(
         if(query(handle,x_desc,dy_desc,conv_desc,w_desc,
                  static_cast<int>(filter_perf.size()),&filter_returned,filter_perf.data())!=0||
            filter_returned<=0){
-            cleanup();
             return false;
         }
         for(int i=0;i<filter_returned;++i){
@@ -967,7 +941,6 @@ bool cudnn_conv2d_backward(
         }
     }
     if(filter_algo<0){
-        cleanup();
         return false;
     }
 
@@ -979,7 +952,6 @@ bool cudnn_conv2d_backward(
     if(shared_workspace_bytes&&!shared_workspace){
         {std::lock_guard lock(data_cache_mutex);data_cache.erase(algorithm_key);}
         {std::lock_guard lock(filter_cache_mutex);filter_cache.erase(algorithm_key);}
-        cleanup();
         return false;
     }
 
@@ -1016,7 +988,6 @@ bool cudnn_conv2d_backward(
     }
     // Both backward kernels share retained per-device scratch. Default-stream
     // ordering serializes that scratch use without blocking the host.
-    cleanup();
     if(status!=0){
         {std::lock_guard lock(data_cache_mutex);data_cache.erase(algorithm_key);}
         {std::lock_guard lock(filter_cache_mutex);filter_cache.erase(algorithm_key);}

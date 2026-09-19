@@ -113,6 +113,10 @@ bool compute_normalize_inference(
     int dtype, std::size_t count, std::size_t features,
     std::size_t inner, double epsilon, std::string& error);
 
+bool compute_binary_backward(
+    Buffer* left_gradient, Buffer* right_gradient,
+    const Buffer* gradient, const Buffer* left, const Buffer* right,
+    int dtype, int operation, std::size_t count, std::string& error);
 bool compute_abs_backward(Buffer* output, const Buffer* gradient,
                           const Buffer* input, int dtype,
                           std::size_t count, std::string& error);

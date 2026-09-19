@@ -5262,6 +5262,42 @@ TensorValue* neural_device_binary_tensor(
         quidra_tensor_binary(left,right,nullptr,0,operation,line,column));
 }
 
+void neural_device_binary_backward(
+    TensorValue* gradient,TensorValue* left,TensorValue* right,int operation,
+    TensorValue*& left_gradient,TensorValue*& right_gradient,
+    unsigned long long line,unsigned long long column) {
+    auto* gd=neural_device_dense_clone(*gradient,line,column);
+    auto* ad=neural_device_dense_clone(*left,line,column);
+    auto* bd=neural_device_dense_clone(*right,line,column);
+    if(gd->shape!=ad->shape||gd->shape!=bd->shape){
+        quidra_tensor_drop(gd);quidra_tensor_drop(ad);quidra_tensor_drop(bd);
+        neural_fail("neural binary backward shape mismatch",line,column);
+    }
+    const auto count=tensor_logical_count(*gd);
+    auto* left_storage=tensor_storage_create(
+        gd->storage->dtype,count,1,gd->storage->device,line,column);
+    auto* right_storage=tensor_storage_create(
+        gd->storage->dtype,count,1,gd->storage->device,line,column);
+    left_gradient=tensor_descriptor(
+        left_storage,left->shape,tensor_contiguous_strides(left->shape),0);
+    right_gradient=tensor_descriptor(
+        right_storage,right->shape,tensor_contiguous_strides(right->shape),0);
+
+    std::string backend_error;
+    const bool ok=quidra::device::compute_binary_backward(
+        left_storage->gpu_buffer,right_storage->gpu_buffer,
+        gd->storage->gpu_buffer,ad->storage->gpu_buffer,bd->storage->gpu_buffer,
+        gd->storage->dtype,operation,count,backend_error);
+    quidra_tensor_drop(gd);quidra_tensor_drop(ad);quidra_tensor_drop(bd);
+    if(!ok){
+        quidra_tensor_drop(left_gradient);
+        quidra_tensor_drop(right_gradient);
+        left_gradient=nullptr;
+        right_gradient=nullptr;
+        neural_fail(backend_error.c_str(),line,column);
+    }
+}
+
 TensorValue* neural_device_negate_tensor(
     TensorValue* input,unsigned long long line,unsigned long long column) {
     return static_cast<TensorValue*>(
@@ -5399,18 +5435,10 @@ void* neural_grad_device(
             }else if(node->op==NeuralOp::Sub){
                 left_gradient=static_cast<TensorValue*>(quidra_tensor_clone(g));
                 right_gradient=neural_device_negate_tensor(g,line,column);
-            }else if(node->op==NeuralOp::Mul){
-                left_gradient=neural_device_binary_tensor(g,b,3,line,column);
-                right_gradient=neural_device_binary_tensor(g,a,3,line,column);
             }else{
-                left_gradient=neural_device_binary_tensor(g,b,4,line,column);
-                auto* ga=neural_device_binary_tensor(g,a,3,line,column);
-                auto* bb=neural_device_binary_tensor(b,b,3,line,column);
-                auto* quotient=neural_device_binary_tensor(ga,bb,4,line,column);
-                right_gradient=neural_device_negate_tensor(quotient,line,column);
-                quidra_tensor_drop(ga);
-                quidra_tensor_drop(bb);
-                quidra_tensor_drop(quotient);
+                neural_device_binary_backward(
+                    g,a,b,node->op==NeuralOp::Mul?3:4,
+                    left_gradient,right_gradient,line,column);
             }
             neural_add_device_gradient(
                 gradients,node->parents[0],left_gradient,line,column);

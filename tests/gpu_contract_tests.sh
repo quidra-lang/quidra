@@ -394,4 +394,33 @@ if [[ "$("$QUIDRA" run "$TMP/gpu-autograd-fanin.qui")" != "true" ]]; then
     exit 1
 fi
 
+cat > "$TMP/gpu-autograd-div.qui" <<'QUI'
+class DivModel
+    neural.Parameter<float32> left
+    neural.Parameter<float32> right
+
+DivModel model = DivModel(
+    left = neural.Parameter<float32>(
+        value = tensor.ones<float32>([1], gpu = 0) * float32(2)
+    ),
+    right = neural.Parameter<float32>(
+        value = tensor.ones<float32>([1], gpu = 0) * float32(4)
+    )
+)
+neural<float32> quotient = model.left.track() / model.right.track()
+neural<float32> loss = neural.mean(quotient)
+neural.Gradients gradients = neural.grad(loss)
+neural.update(&model, gradients, rate = 0.1)
+float32 left_value = model.left.raw().cpu()[0].item()
+float32 right_value = model.right.raw().cpu()[0].item()
+print(math.abs(float(left_value) - 1.975) < 0.0001)
+print(math.abs(float(right_value) - 4.0125) < 0.0001)
+QUI
+div_output="$("$QUIDRA" run "$TMP/gpu-autograd-div.qui")"
+if [[ "$div_output" != "$(printf 'true\ntrue')" ]]; then
+    echo "unexpected fake-GPU autograd division result:" >&2
+    printf '%s\n' "$div_output" >&2
+    exit 1
+fi
+
 echo "fake GPU placement contracts: ok"

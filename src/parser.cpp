@@ -129,7 +129,20 @@ bool scan_type_lookahead(const std::vector<Token>& tokens, std::size_t& index,
     };
 
     if (index < tokens.size() && tokens[index].kind == TokenKind::Less) {
-        if (!qualified && root_name == "tensor") {
+        if (!qualified && root_name == "fn") {
+            ++index;
+            if (!scan_type_lookahead(tokens, index, depth + 1, limit)) return false;
+            if (index >= tokens.size() || tokens[index++].kind != TokenKind::Greater) return false;
+            if (index >= tokens.size() || tokens[index++].kind != TokenKind::LParen) return false;
+            if (index < tokens.size() && tokens[index].kind != TokenKind::RParen) {
+                if (!scan_type_lookahead(tokens, index, depth + 1, limit)) return false;
+                while (index < tokens.size() && tokens[index].kind == TokenKind::Comma) {
+                    ++index;
+                    if (!scan_type_lookahead(tokens, index, depth + 1, limit)) return false;
+                }
+            }
+            if (index >= tokens.size() || tokens[index++].kind != TokenKind::RParen) return false;
+        } else if (!qualified && root_name == "tensor") {
             ++index;
             if (!scan_type_lookahead(tokens, index, depth + 1, limit)) return false;
             if (index >= tokens.size() || tokens[index++].kind != TokenKind::Greater) return false;

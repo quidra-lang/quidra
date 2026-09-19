@@ -322,6 +322,11 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
     bool[] __active = []
     int[] __slots = array(8, fill = -1)
     int __size = 0
+    int __empty_slot = -1
+    int __last_index = -1
+    int __last_hash = -1
+    int __version = 0
+    int __last_version = -1
 
     int __hash(K key)
         int[] __encoded = key.string().codepoints()
@@ -331,18 +336,28 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return __result
 
     int __slot_of(K key, int hash)
-        int __slot = hash % len(__slots)
+        int __capacity = len(__slots)
+        int __slot = hash % __capacity
         int __scanned = 0
-        while __scanned < len(__slots)
+        int __first_tombstone = -1
+        while __scanned < __capacity
             int __index = __slots[__slot]
             if __index == -1
+                if __first_tombstone >= 0
+                    __empty_slot = __first_tombstone
+                else
+                    __empty_slot = __slot
                 return -1
+            if __index == -2 and __first_tombstone < 0
+                __first_tombstone = __slot
             if __index >= 0 and __active[__index] and __hashes[__index] == hash and __keys[__index] == key
+                __empty_slot = __slot
                 return __slot
             __slot += 1
-            if __slot == len(__slots)
+            if __slot == __capacity
                 __slot = 0
             __scanned += 1
+        __empty_slot = __first_tombstone
         return -1
 
     int __find(K key, int hash)
@@ -352,10 +367,11 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return __slots[__slot]
 
     void __place(int index)
-        int __slot = __hashes[index] % len(__slots)
+        int __capacity = len(__slots)
+        int __slot = __hashes[index] % __capacity
         while __slots[__slot] >= 0
             __slot += 1
-            if __slot == len(__slots)
+            if __slot == __capacity
                 __slot = 0
         __slots[__slot] = index
 
@@ -382,6 +398,8 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         __hashes = __new_hashes
         __active = __new_active
         __rehash(len(__slots))
+        __version += 1
+        __last_version = -1
         return void
 
     bool has(K key)
@@ -391,18 +409,31 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
     V | none get(K key)
         int __hash_value = __hash(key)
         int __index = __find(key, __hash_value)
+        __last_hash = __hash_value
+        __last_index = __index
+        __last_version = __version
         if __index >= 0
             return __values[__index]
         return none
 
     void set(K key, V value)
         int __hash_value = __hash(key)
+        if __last_version == __version and __last_index >= 0 and __last_hash == __hash_value
+            int __cached = __last_index
+            if __active[__cached] and __hashes[__cached] == __hash_value and __keys[__cached] == key
+                __values[__cached] = value
+                return void
+
         int __index = __find(key, __hash_value)
         if __index >= 0
             __values[__index] = value
+            __last_hash = __hash_value
+            __last_index = __index
+            __last_version = __version
             return void
 
         int __new_index = len(__keys)
+        int __insert_slot = __empty_slot
         __keys = __keys.append(key)
         __values = __values.append(value)
         __hashes = __hashes.append(__hash_value)
@@ -412,7 +443,9 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         if __size > len(__slots) - len(__slots) / 4
             __rehash(len(__slots) * 2)
         else
-            __place(__new_index)
+            __slots[__insert_slot] = __new_index
+        __version += 1
+        __last_version = -1
         return void
 
     bool remove(K key)
@@ -425,6 +458,8 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         __active[__removed_index] = false
         __slots[__slot] = -2
         __size -= 1
+        __version += 1
+        __last_version = -1
         if len(__keys) > 64 and __size * 2 <= len(__keys)
             __compact()
         return true
@@ -534,6 +569,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
     bool[] __active = []
     int[] __slots = array(8, fill = -1)
     int __size = 0
+    int __empty_slot = -1
 
     int __hash(T value)
         int[] __encoded = value.string().codepoints()
@@ -543,18 +579,28 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return __result
 
     int __slot_of(T value, int hash)
-        int __slot = hash % len(__slots)
+        int __capacity = len(__slots)
+        int __slot = hash % __capacity
         int __scanned = 0
-        while __scanned < len(__slots)
+        int __first_tombstone = -1
+        while __scanned < __capacity
             int __index = __slots[__slot]
             if __index == -1
+                if __first_tombstone >= 0
+                    __empty_slot = __first_tombstone
+                else
+                    __empty_slot = __slot
                 return -1
+            if __index == -2 and __first_tombstone < 0
+                __first_tombstone = __slot
             if __index >= 0 and __active[__index] and __hashes[__index] == hash and __values[__index] == value
+                __empty_slot = __slot
                 return __slot
             __slot += 1
-            if __slot == len(__slots)
+            if __slot == __capacity
                 __slot = 0
             __scanned += 1
+        __empty_slot = __first_tombstone
         return -1
 
     int __find(T value, int hash)
@@ -564,10 +610,11 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return __slots[__slot]
 
     void __place(int index)
-        int __slot = __hashes[index] % len(__slots)
+        int __capacity = len(__slots)
+        int __slot = __hashes[index] % __capacity
         while __slots[__slot] >= 0
             __slot += 1
-            if __slot == len(__slots)
+            if __slot == __capacity
                 __slot = 0
         __slots[__slot] = index
 
@@ -603,6 +650,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
             return void
 
         int __new_index = len(__values)
+        int __insert_slot = __empty_slot
         __values = __values.append(value)
         __hashes = __hashes.append(__hash_value)
         __active = __active.append(true)
@@ -611,7 +659,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         if __size > len(__slots) - len(__slots) / 4
             __rehash(len(__slots) * 2)
         else
-            __place(__new_index)
+            __slots[__insert_slot] = __new_index
         return void
 
     bool remove(T value)

@@ -7152,6 +7152,82 @@ extern "C" char* quidra_string_trim(const char* text) {
     return copy_validated_runtime_text(source.substr(first, last - first), count);
 }
 
+
+struct QuidraStringSplitIterator {
+    char* slab{};
+    std::size_t size{};
+    std::size_t next{};
+    std::string separator;
+    bool finished{};
+};
+
+extern "C" void* quidra_string_split_iter_begin(
+    const char* text, const char* separator) {
+    if (!text || !separator) runtime_text_failure("null string split input");
+    ManagedAllocation* source_allocation = nullptr;
+    ManagedAllocation* delimiter_allocation = nullptr;
+    const auto source = validated_string_view(text, source_allocation);
+    const auto delimiter = validated_string_view(
+        separator, delimiter_allocation);
+    if (delimiter.empty())
+        runtime_text_failure("string split separator cannot be empty");
+    if (source.size() == std::numeric_limits<std::size_t>::max())
+        runtime_allocation_failure();
+
+    auto* slab = static_cast<char*>(
+        managed_allocate_impl(source.size() + 1, true));
+    if (!source.empty()) std::memcpy(slab, source.data(), source.size());
+    slab[source.size()] = '\0';
+
+    const auto slab_key = reinterpret_cast<std::uintptr_t>(slab);
+    auto slab_it = managed_allocations.find(slab_key);
+    if (slab_it == managed_allocations.end())
+        runtime_text_failure("split iterator backing storage disappeared");
+    slab_it->second.shared_string_slab = true;
+    slab_it->second.owners = 1;
+
+    auto* iterator = new (std::nothrow) QuidraStringSplitIterator;
+    if (!iterator) {
+        quidra_managed_release(slab, nullptr);
+        runtime_allocation_failure();
+    }
+    iterator->slab = slab;
+    iterator->size = source.size();
+    iterator->separator.assign(delimiter.data(), delimiter.size());
+    return iterator;
+}
+
+extern "C" char* quidra_string_split_iter_next(void* raw) {
+    if (!raw) runtime_text_failure("null string split iterator");
+    auto& iterator = *static_cast<QuidraStringSplitIterator*>(raw);
+    if (iterator.finished) return nullptr;
+
+    const auto start = iterator.next;
+    if (start > iterator.size)
+        runtime_text_failure("invalid string split iterator state");
+
+    const std::string_view remaining(
+        iterator.slab + start, iterator.size - start);
+    const auto relative = remaining.find(iterator.separator);
+    if (relative == std::string_view::npos) {
+        iterator.finished = true;
+        iterator.slab[iterator.size] = '\0';
+        return iterator.slab + start;
+    }
+
+    const auto position = start + relative;
+    iterator.slab[position] = '\0';
+    iterator.next = position + iterator.separator.size();
+    return iterator.slab + start;
+}
+
+extern "C" void quidra_string_split_iter_end(void* raw) {
+    if (!raw) return;
+    auto* iterator = static_cast<QuidraStringSplitIterator*>(raw);
+    quidra_managed_release(iterator->slab, nullptr);
+    delete iterator;
+}
+
 extern "C" void* quidra_string_split(const char* text, const char* separator) {
     if (!text || !separator) runtime_text_failure("null string");
     ManagedAllocation* source_allocation = nullptr;

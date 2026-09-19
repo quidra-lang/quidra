@@ -3,8 +3,13 @@
 #include "quidra/compiler.hpp"
 #include "quidra/diagnostic.hpp"
 #include "quidra/formatter.hpp"
+#include "quidra/language.hpp"
+#include "quidra/lexer.hpp"
+#include "quidra/parser.hpp"
+#include "quidra/types.hpp"
 #include "quidra/version.hpp"
 
+#include <algorithm>
 #include <cctype>
 #include <cstdint>
 #include <filesystem>
@@ -12,11 +17,13 @@
 #include <iostream>
 #include <map>
 #include <optional>
+#include <set>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -392,6 +399,384 @@ std::string diagnostic_text(const Diagnostic& diagnostic,std::string_view source
     return output.str();
 }
 
+
+std::size_t required_index(const Json& value,std::string_view name) {
+    const auto& number=required(value,name,Json::Kind::Number);
+    std::size_t consumed=0;
+    unsigned long long parsed=0;
+    try {
+        parsed=std::stoull(number.text,&consumed);
+    } catch(...) {
+        throw std::runtime_error("invalid LSP integer '"+std::string(name)+"'");
+    }
+    if(consumed!=number.text.size())
+        throw std::runtime_error("invalid LSP integer '"+std::string(name)+"'");
+    return static_cast<std::size_t>(parsed);
+}
+
+LspPosition request_position(const Json& message) {
+    const auto& params=required(message,"params",Json::Kind::Object);
+    const auto& position=required(params,"position",Json::Kind::Object);
+    return LspPosition{required_index(position,"line"),required_index(position,"character")};
+}
+
+std::size_t raw_offset(std::string_view source,LspPosition target) {
+    std::size_t offset=0;
+    std::size_t line=0;
+    while(offset<source.size()&&line<target.line) {
+        if(source[offset++]=='\n') ++line;
+    }
+    if(line!=target.line) return source.size();
+
+    std::size_t character=0;
+    while(offset<source.size()&&source[offset]!='\n'&&character<target.character) {
+        const auto width=utf8_width(static_cast<unsigned char>(source[offset]));
+        const auto available=std::min(width,source.size()-offset);
+        const auto point=utf8_code_point(source,offset,available);
+        const auto units=point>0xffffU?2U:1U;
+        if(character+units>target.character) break;
+        character+=units;
+        offset+=available;
+    }
+    return offset;
+}
+
+bool contains_offset(SourceSpan span,std::size_t offset) {
+    if(span.start.offset==span.end.offset) return offset==span.start.offset;
+    return offset>=span.start.offset&&offset<span.end.offset;
+}
+
+std::string range_json(std::string_view source,SourceSpan span) {
+    const auto start=lsp_position(source,span.start.offset);
+    const auto end=lsp_position(source,span.end.offset);
+    std::ostringstream out;
+    out<<"{\\"start\\":{\\"line\\":"<<start.line<<",\\"character\\":"<<start.character
+       <<"},\\"end\\":{\\"line\\":"<<end.line<<",\\"character\\":"<<end.character<<"}}";
+    return out.str();
+}
+
+std::string source_type_name(const TypeName& type,std::string_view source) {
+    const auto start=std::min(type.span.start.offset,source.size());
+    const auto end=std::min(type.span.end.offset,source.size());
+    if(end>start) {
+        auto text=trim(std::string(source.substr(start,end-start)));
+        if(!text.empty()) return text;
+    }
+    return type.name.empty()?"auto":type.name;
+}
+
+std::string parameter_label(const FunctionParameterType& parameter) {
+    std::string result;
+    if(parameter.is_const) result+="const ";
+    result+=type_name(parameter.type);
+    if(parameter.writable) result+=" &";
+    result+=parameter.name;
+    return result;
+}
+
+std::string signature_label(std::string_view name,const FunctionType& function) {
+    std::string result=type_name(function.result)+" "+std::string(name)+"(";
+    for(std::size_t i=0;i<function.parameters.size();++i) {
+        if(i) result+=", ";
+        result+=parameter_label(function.parameters[i]);
+    }
+    result+=")";
+    return result;
+}
+
+void consider_expression(const Expr& expression,std::size_t offset,const Expr*& best);
+
+void consider_statement(const Stmt& statement,std::size_t offset,const Expr*& best) {
+    if(!contains_offset(statement.span,offset)) return;
+    std::visit([&](const auto& node) {
+        using T=std::decay_t<decltype(node)>;
+        if constexpr(std::is_same_v<T,BindingStmt>) {
+            if(node.value) consider_expression(*node.value,offset,best);
+        } else if constexpr(std::is_same_v<T,AssignStmt>) {
+            consider_expression(*node.target,offset,best);
+            consider_expression(*node.value,offset,best);
+        } else if constexpr(std::is_same_v<T,ReturnStmt>) {
+            if(node.value) consider_expression(*node.value,offset,best);
+        } else if constexpr(std::is_same_v<T,ExprStmt>) {
+            consider_expression(*node.value,offset,best);
+        } else if constexpr(std::is_same_v<T,IfStmt>) {
+            consider_expression(*node.condition,offset,best);
+            for(const auto& child:node.then_body) consider_statement(*child,offset,best);
+            for(const auto& child:node.else_body) consider_statement(*child,offset,best);
+        } else if constexpr(std::is_same_v<T,WhileStmt>) {
+            consider_expression(*node.condition,offset,best);
+            for(const auto& child:node.body) consider_statement(*child,offset,best);
+        } else if constexpr(std::is_same_v<T,ForStmt>) {
+            consider_expression(*node.iterable,offset,best);
+            for(const auto& child:node.body) consider_statement(*child,offset,best);
+        } else if constexpr(std::is_same_v<T,MatchStmt>) {
+            consider_expression(*node.value,offset,best);
+            for(const auto& current:node.cases)
+                for(const auto& child:current.body) consider_statement(*child,offset,best);
+        }
+    },statement.data);
+}
+
+void consider_expression(const Expr& expression,std::size_t offset,const Expr*& best) {
+    if(!contains_offset(expression.span,offset)) return;
+    if(!best||
+       expression.span.end.offset-expression.span.start.offset<
+       best->span.end.offset-best->span.start.offset) {
+        best=&expression;
+    }
+    std::visit([&](const auto& node) {
+        using T=std::decay_t<decltype(node)>;
+        if constexpr(std::is_same_v<T,UnaryExpr>) {
+            consider_expression(*node.operand,offset,best);
+        } else if constexpr(std::is_same_v<T,TryExpr>) {
+            consider_expression(*node.value,offset,best);
+        } else if constexpr(std::is_same_v<T,ArrayExpr>) {
+            for(const auto& element:node.elements) consider_expression(*element,offset,best);
+        } else if constexpr(std::is_same_v<T,IndexExpr>) {
+            consider_expression(*node.base,offset,best);
+            for(const auto& item:node.items) {
+                if(item.index) consider_expression(*item.index,offset,best);
+                if(item.start) consider_expression(*item.start,offset,best);
+                if(item.stop) consider_expression(*item.stop,offset,best);
+                if(item.step) consider_expression(*item.step,offset,best);
+            }
+        } else if constexpr(std::is_same_v<T,MemberExpr>) {
+            consider_expression(*node.base,offset,best);
+        } else if constexpr(std::is_same_v<T,MethodCallExpr>) {
+            consider_expression(*node.receiver,offset,best);
+            for(const auto& arg:node.args) consider_expression(*arg.value,offset,best);
+        } else if constexpr(std::is_same_v<T,StringTemplateExpr>) {
+            for(const auto& part:node.expressions) consider_expression(*part,offset,best);
+        } else if constexpr(std::is_same_v<T,BinaryExpr>) {
+            consider_expression(*node.left,offset,best);
+            consider_expression(*node.right,offset,best);
+        } else if constexpr(std::is_same_v<T,CallExpr>) {
+            for(const auto& arg:node.args) consider_expression(*arg.value,offset,best);
+        }
+    },expression.data);
+}
+
+const Expr* expression_at(const Program& program,std::size_t offset) {
+    const Expr* best=nullptr;
+    for(const auto& declaration:program.classes) {
+        for(const auto& field:declaration.fields)
+            if(field.default_value) consider_expression(*field.default_value,offset,best);
+        for(const auto& method:declaration.methods) {
+            for(const auto& parameter:method.parameters)
+                if(parameter.default_value) consider_expression(*parameter.default_value,offset,best);
+            for(const auto& statement:method.body) consider_statement(*statement,offset,best);
+        }
+    }
+    for(const auto& function:program.functions) {
+        for(const auto& parameter:function.parameters)
+            if(parameter.default_value) consider_expression(*parameter.default_value,offset,best);
+        for(const auto& statement:function.body) consider_statement(*statement,offset,best);
+    }
+    for(const auto& statement:program.statements) consider_statement(*statement,offset,best);
+    return best;
+}
+
+bool body_contains(const std::vector<StmtPtr>& body,std::size_t offset) {
+    if(body.empty()) return false;
+    return offset>=body.front()->span.start.offset&&offset<body.back()->span.end.offset;
+}
+
+std::optional<SourceSpan> identifier_span(
+    const std::vector<Token>& tokens,SourceSpan within,std::string_view name,
+    std::size_t minimum_offset=0) {
+    for(const auto& token:tokens) {
+        if(token.kind!=TokenKind::Identifier||token.text!=name) continue;
+        if(token.span.start.offset<within.start.offset||
+           token.span.end.offset>within.end.offset||
+           token.span.start.offset<minimum_offset) continue;
+        return token.span;
+    }
+    return std::nullopt;
+}
+
+std::optional<SourceSpan> local_definition(
+    const std::vector<StmtPtr>& body,std::string_view name,std::size_t offset,
+    const std::vector<Token>& tokens) {
+    std::optional<SourceSpan> result;
+    for(const auto& statement:body) {
+        if(statement->span.start.offset>offset) break;
+        std::visit([&](const auto& node) {
+            using T=std::decay_t<decltype(node)>;
+            if constexpr(std::is_same_v<T,BindingStmt>) {
+                if(node.name==name) {
+                    const auto found=identifier_span(
+                        tokens,statement->span,name,node.declared_type.span.end.offset);
+                    if(found&&found->start.offset<=offset) result=found;
+                }
+            } else if constexpr(std::is_same_v<T,IfStmt>) {
+                if(body_contains(node.then_body,offset)) {
+                    if(auto nested=local_definition(node.then_body,name,offset,tokens)) result=nested;
+                } else if(body_contains(node.else_body,offset)) {
+                    if(auto nested=local_definition(node.else_body,name,offset,tokens)) result=nested;
+                }
+            } else if constexpr(std::is_same_v<T,WhileStmt>) {
+                if(body_contains(node.body,offset))
+                    if(auto nested=local_definition(node.body,name,offset,tokens)) result=nested;
+            } else if constexpr(std::is_same_v<T,ForStmt>) {
+                if(body_contains(node.body,offset)) {
+                    if(node.name==name) {
+                        if(auto found=identifier_span(tokens,statement->span,name))
+                            result=found;
+                    }
+                    if(auto nested=local_definition(node.body,name,offset,tokens)) result=nested;
+                }
+            } else if constexpr(std::is_same_v<T,MatchStmt>) {
+                for(const auto& current:node.cases) {
+                    if(!body_contains(current.body,offset)) continue;
+                    if(current.binder&&*current.binder==name) {
+                        if(auto found=identifier_span(tokens,current.span,name)) result=found;
+                    }
+                    if(auto nested=local_definition(current.body,name,offset,tokens)) result=nested;
+                    break;
+                }
+            }
+        },statement->data);
+    }
+    return result;
+}
+
+Program root_program(std::string_view source) {
+    return Parser(Lexer(source).scan()).parse();
+}
+
+std::optional<SourceSpan> definition_span(
+    const Program& program,std::string_view source,std::string_view name,std::size_t offset) {
+    const auto tokens=Lexer(source).scan();
+
+    for(const auto& declaration:program.classes) {
+        if(!contains_offset(declaration.span,offset)) continue;
+        for(const auto& method:declaration.methods) {
+            if(!contains_offset(method.span,offset)) continue;
+            for(const auto& parameter:method.parameters) {
+                if(parameter.name==name&&parameter.span.start.offset<=offset) return parameter.span;
+            }
+            if(auto local=local_definition(method.body,name,offset,tokens)) return local;
+            for(const auto& field:declaration.fields) {
+                if(field.name==name) {
+                    if(auto found=identifier_span(tokens,field.span,name)) return found;
+                }
+            }
+        }
+    }
+
+    for(const auto& function:program.functions) {
+        if(!contains_offset(function.span,offset)) continue;
+        for(const auto& parameter:function.parameters) {
+            if(parameter.name==name&&parameter.span.start.offset<=offset) return parameter.span;
+        }
+        if(auto local=local_definition(function.body,name,offset,tokens)) return local;
+    }
+
+    if(auto local=local_definition(program.statements,name,offset,tokens)) return local;
+
+    for(const auto& function:program.functions) {
+        if(function.name==name) {
+            if(auto found=identifier_span(tokens,function.span,name,function.return_type.span.end.offset))
+                return found;
+        }
+    }
+    for(const auto& declaration:program.classes) {
+        if(declaration.name==name) {
+            if(auto found=identifier_span(tokens,declaration.span,name)) return found;
+        }
+    }
+    return std::nullopt;
+}
+
+struct CompletionSymbol {
+    std::string name;
+    int kind{};
+    std::string detail;
+};
+
+void add_local_completions(
+    std::vector<CompletionSymbol>& out,const std::vector<StmtPtr>& body,
+    std::size_t offset,std::string_view source) {
+    for(const auto& statement:body) {
+        if(statement->span.start.offset>offset) break;
+        std::visit([&](const auto& node) {
+            using T=std::decay_t<decltype(node)>;
+            if constexpr(std::is_same_v<T,BindingStmt>) {
+                out.push_back({node.name,6,source_type_name(node.declared_type,source)});
+            } else if constexpr(std::is_same_v<T,IfStmt>) {
+                if(body_contains(node.then_body,offset))
+                    add_local_completions(out,node.then_body,offset,source);
+                else if(body_contains(node.else_body,offset))
+                    add_local_completions(out,node.else_body,offset,source);
+            } else if constexpr(std::is_same_v<T,WhileStmt>) {
+                if(body_contains(node.body,offset))
+                    add_local_completions(out,node.body,offset,source);
+            } else if constexpr(std::is_same_v<T,ForStmt>) {
+                if(body_contains(node.body,offset)) {
+                    out.push_back({node.name,6,"loop binding"});
+                    add_local_completions(out,node.body,offset,source);
+                }
+            } else if constexpr(std::is_same_v<T,MatchStmt>) {
+                for(const auto& current:node.cases) {
+                    if(!body_contains(current.body,offset)) continue;
+                    if(current.binder) out.push_back({*current.binder,6,"match binding"});
+                    add_local_completions(out,current.body,offset,source);
+                    break;
+                }
+            }
+        },statement->data);
+    }
+}
+
+std::vector<CompletionSymbol> completions_at(
+    const Program& program,std::string_view source,std::size_t offset) {
+    std::vector<CompletionSymbol> result;
+    for(const auto& builtin:builtin_callables)
+        result.push_back({std::string(builtin.name),3,"built-in"});
+    for(const auto& function:program.functions)
+        result.push_back({function.name,3,"function"});
+    for(const auto& declaration:program.classes)
+        result.push_back({declaration.name,7,"class"});
+    for(const auto& import:program.imports)
+        result.push_back({import.alias,9,"module"});
+
+    bool inside_callable=false;
+    for(const auto& declaration:program.classes) {
+        if(!contains_offset(declaration.span,offset)) continue;
+        for(const auto& method:declaration.methods) {
+            if(!contains_offset(method.span,offset)) continue;
+            inside_callable=true;
+            for(const auto& field:declaration.fields)
+                result.push_back({field.name,5,source_type_name(field.type,source)});
+            for(const auto& parameter:method.parameters)
+                result.push_back({parameter.name,6,source_type_name(parameter.type,source)});
+            add_local_completions(result,method.body,offset,source);
+        }
+    }
+    if(!inside_callable) {
+        for(const auto& function:program.functions) {
+            if(!contains_offset(function.span,offset)) continue;
+            inside_callable=true;
+            for(const auto& parameter:function.parameters)
+                result.push_back({parameter.name,6,source_type_name(parameter.type,source)});
+            add_local_completions(result,function.body,offset,source);
+            break;
+        }
+    }
+    if(!inside_callable) add_local_completions(result,program.statements,offset,source);
+
+    std::unordered_set<std::string> seen;
+    std::vector<CompletionSymbol> unique;
+    for(auto& item:result) {
+        if(seen.insert(item.name).second) unique.push_back(std::move(item));
+    }
+    std::sort(unique.begin(),unique.end(),[](const auto& left,const auto& right) {
+        return left.name<right.name;
+    });
+    return unique;
+}
+
+
 class Server {
 public:
     int run() {
@@ -420,6 +805,10 @@ public:
                 else if(*method=="textDocument/didClose") close(message);
                 else if(*method=="textDocument/didSave") save(message);
                 else if(*method=="textDocument/formatting") formatting(message,id);
+                else if(*method=="textDocument/hover") hover(message,id);
+                else if(*method=="textDocument/definition") definition(message,id);
+                else if(*method=="textDocument/completion") completion(message,id);
+                else if(*method=="textDocument/signatureHelp") signature_help(message,id);
                 else if(id) fail_response(id,-32601,"method not supported");
             } catch(const std::exception& error) {
                 if(id) fail_response(id,-32603,error.what());
@@ -444,7 +833,10 @@ private:
         respond(id,
             "{\"capabilities\":{\"positionEncoding\":\"utf-16\","
             "\"textDocumentSync\":{\"openClose\":true,\"change\":1},"
-            "\"documentFormattingProvider\":true},"
+            "\"documentFormattingProvider\":true,"
+            "\"hoverProvider\":true,\"definitionProvider\":true,"
+            "\"completionProvider\":{\"triggerCharacters\":[\".\"]},"
+            "\"signatureHelpProvider\":{\"triggerCharacters\":[\"(\",\",\"]}},"
             "\"serverInfo\":{\"name\":\"Quidra\",\"version\":\""+escape(compiler_version)+"\"}}");
     }
 
@@ -524,6 +916,190 @@ private:
         result<<"[{\"range\":{\"start\":{\"line\":0,\"character\":0},\"end\":{\"line\":"
               <<end.line<<",\"character\":"<<end.character<<"}},\"newText\":\""<<escape(formatted)<<"\"}]";
         respond(id,result.str());
+    }
+
+    std::string document_source(std::string_view uri) const {
+        if(const auto found=documents_.find(std::string(uri));found!=documents_.end())
+            return found->second;
+        const auto path=uri_path(uri);
+        if(!path) throw std::runtime_error("semantic request requires a file URI or open document");
+        return read_file(*path);
+    }
+
+    CheckedProgram semantic_check(std::string_view uri,std::string_view source) const {
+        if(const auto path=uri_path(uri))
+            return check_file_source(*path,source,{},workspace_);
+        return check(source);
+    }
+
+    void hover(const Json& message,const Json* id) {
+        const auto& params=required(message,"params",Json::Kind::Object);
+        const auto& document=required(params,"textDocument",Json::Kind::Object);
+        const auto uri=required_string(document,"uri");
+        const auto source=document_source(uri);
+        const auto offset=raw_offset(source,request_position(message));
+        try {
+            const auto checked=semantic_check(uri,source);
+            const auto* expression=expression_at(checked.program,offset);
+            if(!expression) { respond(id,"null"); return; }
+
+            std::string value;
+            if(const auto* call=std::get_if<CallExpr>(&expression->data)) {
+                const auto resolution=checked.call_resolutions.find(expression);
+                if(resolution!=checked.call_resolutions.end()&&
+                   resolution->second.kind==CallKind::Function) {
+                    if(const auto function=checked.functions.find(resolution->second.target);
+                       function!=checked.functions.end()) {
+                        value=signature_label(call->callee,function->second);
+                    }
+                }
+            } else if(const auto* call=std::get_if<MethodCallExpr>(&expression->data)) {
+                if(const auto method=checked.method_calls.find(expression);
+                   method!=checked.method_calls.end()) {
+                    if(const auto function=checked.functions.find(method->second.internal_name);
+                       function!=checked.functions.end()) {
+                        value=signature_label(call->method,function->second);
+                    }
+                }
+            }
+            if(value.empty()) {
+                const auto found=checked.expr_types.find(expression);
+                if(found==checked.expr_types.end()) { respond(id,"null"); return; }
+                value=type_name(found->second);
+            }
+            respond(id,"{\\"contents\\":{\\"kind\\":\\"plaintext\\",\\"value\\":\\""+
+                       escape(value)+"\\"},\\"range\\":"+range_json(source,expression->span)+"}");
+        } catch(const CompileError&) {
+            respond(id,"null");
+        } catch(const CompileErrors&) {
+            respond(id,"null");
+        }
+    }
+
+    void definition(const Json& message,const Json* id) {
+        const auto& params=required(message,"params",Json::Kind::Object);
+        const auto& document=required(params,"textDocument",Json::Kind::Object);
+        const auto uri=required_string(document,"uri");
+        const auto source=document_source(uri);
+        const auto offset=raw_offset(source,request_position(message));
+        try {
+            const auto program=root_program(source);
+            const auto* expression=expression_at(program,offset);
+            if(!expression) { respond(id,"null"); return; }
+
+            std::string name;
+            if(const auto* node=std::get_if<NameExpr>(&expression->data)) name=node->name;
+            else if(const auto* node=std::get_if<CallExpr>(&expression->data)) name=node->callee;
+            else if(const auto* node=std::get_if<MemberExpr>(&expression->data)) name=node->name;
+            else if(const auto* node=std::get_if<MethodCallExpr>(&expression->data)) name=node->method;
+            if(name.empty()) { respond(id,"null"); return; }
+
+            auto span=definition_span(program,source,name,offset);
+            if(!span&&std::holds_alternative<MethodCallExpr>(expression->data)) {
+                for(const auto& declaration:program.classes) {
+                    for(const auto& method:declaration.methods) {
+                        if(method.name!=name) continue;
+                        const auto tokens=Lexer(source).scan();
+                        span=identifier_span(tokens,method.span,name,method.return_type.span.end.offset);
+                        if(span) break;
+                    }
+                    if(span) break;
+                }
+            }
+            if(!span) { respond(id,"null"); return; }
+            respond(id,"{\\"uri\\":\\""+escape(uri)+"\\",\\"range\\":"+
+                       range_json(source,*span)+"}");
+        } catch(const CompileError&) {
+            respond(id,"null");
+        } catch(const CompileErrors&) {
+            respond(id,"null");
+        }
+    }
+
+    void completion(const Json& message,const Json* id) {
+        const auto& params=required(message,"params",Json::Kind::Object);
+        const auto& document=required(params,"textDocument",Json::Kind::Object);
+        const auto uri=required_string(document,"uri");
+        const auto source=document_source(uri);
+        const auto offset=raw_offset(source,request_position(message));
+        try {
+            const auto program=root_program(source);
+            const auto items=completions_at(program,source,offset);
+            std::ostringstream result;
+            result<<"[";
+            for(std::size_t i=0;i<items.size();++i) {
+                if(i) result<<",";
+                result<<"{\\"label\\":\\""<<escape(items[i].name)<<"\\",\\"kind\\":"
+                      <<items[i].kind;
+                if(!items[i].detail.empty())
+                    result<<",\\"detail\\":\\""<<escape(items[i].detail)<<"\\"";
+                result<<"}";
+            }
+            result<<"]";
+            respond(id,result.str());
+        } catch(const CompileError&) {
+            respond(id,"[]");
+        } catch(const CompileErrors&) {
+            respond(id,"[]");
+        }
+    }
+
+    void signature_help(const Json& message,const Json* id) {
+        const auto& params=required(message,"params",Json::Kind::Object);
+        const auto& document=required(params,"textDocument",Json::Kind::Object);
+        const auto uri=required_string(document,"uri");
+        const auto source=document_source(uri);
+        const auto offset=raw_offset(source,request_position(message));
+        try {
+            const auto checked=semantic_check(uri,source);
+            const auto* expression=expression_at(checked.program,offset);
+            if(!expression) { respond(id,"null"); return; }
+
+            const FunctionType* function=nullptr;
+            std::string name;
+            std::size_t active=0;
+            const std::vector<CallArg>* arguments=nullptr;
+            if(const auto* call=std::get_if<CallExpr>(&expression->data)) {
+                name=call->callee;
+                arguments=&call->args;
+                const auto resolution=checked.call_resolutions.find(expression);
+                if(resolution!=checked.call_resolutions.end()&&
+                   resolution->second.kind==CallKind::Function) {
+                    const auto found=checked.functions.find(resolution->second.target);
+                    if(found!=checked.functions.end()) function=&found->second;
+                }
+            } else if(const auto* call=std::get_if<MethodCallExpr>(&expression->data)) {
+                name=call->method;
+                arguments=&call->args;
+                const auto resolution=checked.method_calls.find(expression);
+                if(resolution!=checked.method_calls.end()) {
+                    const auto found=checked.functions.find(resolution->second.internal_name);
+                    if(found!=checked.functions.end()) function=&found->second;
+                }
+            }
+            if(!function||!arguments) { respond(id,"null"); return; }
+            for(std::size_t i=0;i<arguments->size();++i) {
+                if(offset>=(*arguments)[i].span.start.offset) active=i;
+                if(contains_offset((*arguments)[i].span,offset)) { active=i; break; }
+            }
+            if(function->parameters.empty()) active=0;
+            else active=std::min(active,function->parameters.size()-1);
+
+            const auto label=signature_label(name,*function);
+            std::ostringstream result;
+            result<<"{\\"signatures\\":[{\\"label\\":\\""<<escape(label)
+                  <<"\\",\\"parameters\\":[";
+            for(std::size_t i=0;i<function->parameters.size();++i) {
+                if(i) result<<",";
+                result<<"{\\"label\\":\\""<<escape(parameter_label(function->parameters[i]))<<"\\"}";
+            }
+            result<<"]}],\\"activeSignature\\":0,\\"activeParameter\\":"<<active<<"}";
+            respond(id,result.str());
+        } catch(const CompileError&) {
+            respond(id,"null");
+        } catch(const CompileErrors&) {
+            respond(id,"null");
+        }
     }
 };
 

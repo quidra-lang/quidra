@@ -117,6 +117,10 @@ int  add (int a ,  int b)
 int  result=add (1,2)
 string  text = "a  b // c"  // preserve source text and comments
 print (result)
+class  Secret
+    private  int  value=1
+    private  void reset ()
+        value=0
 QUI
 set +e
 "$QUIDRA" fmt "$TMP/format.qui" --check
@@ -130,6 +134,10 @@ int add(int a, int b)
 int result = add(1, 2)
 string text = "a  b // c"  // preserve source text and comments
 print(result)
+class Secret
+    private int value = 1
+    private void reset()
+        value = 0
 QUI
 cmp "$TMP/format.expected" "$TMP/format.qui"
 "$QUIDRA" fmt "$TMP/format.qui" --check

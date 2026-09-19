@@ -5543,7 +5543,7 @@ void neural_device_binary_backward(
         neural_fail("neural binary backward shape mismatch",line,column);
     if(shared_parent&&left!=right)
         neural_fail("shared neural binary parent mismatch",line,column);
-    const auto count=tensor_logical_count(*gd);
+    const auto count=tensor_logical_count(*gd.get());
     auto* left_storage=tensor_storage_create(
         gd->storage->dtype,count,1,gd->storage->device,line,column);
     TensorStorage* right_storage=left_storage;
@@ -5767,7 +5767,7 @@ void* neural_grad_device(
                     if(gd->shape!=xd->shape)
                         neural_fail("neural scalar backward shape mismatch",line,column);
                 }
-                const auto count=tensor_logical_count(*gd);
+                const auto count=tensor_logical_count(*gd.get());
                 auto* storage=tensor_storage_create(
                     node->dtype,count,1,gd->storage->device,line,column);
                 result=tensor_descriptor(
@@ -5788,7 +5788,7 @@ void* neural_grad_device(
             const auto& input=node->parents[0];
             NeuralDeviceDenseInput gd(*g,line,column);
             NeuralDeviceDenseInput xd(*input->device_tensor,line,column);
-            const auto count=tensor_logical_count(*xd);
+            const auto count=tensor_logical_count(*xd.get());
             auto* storage=tensor_storage_create(
                 node->dtype,count,1,xd->storage->device,line,column);
             auto strides=tensor_contiguous_strides(input->shape);

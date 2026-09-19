@@ -420,23 +420,25 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return none
 
     void set(K key, V value)
-        int __hash_value = __hash(key)
-        if __last_version == __version and __last_index >= 0 and __last_hash == __hash_value
+        int __hash_value = -1
+        if __last_version == __version and __last_index >= 0
             int __cached = __last_index
-            if __active[__cached] and __hashes[__cached] == __hash_value and __keys[__cached] == key
+            if __active[__cached] and __hashes[__cached] == __last_hash and __keys[__cached] == key
                 __values[__cached] = value
                 return void
 
         bool __reuse_missing = false
-        if __last_version == __version and __last_index < 0 and __last_hash == __hash_value and len(__last_key) == 1
+        if __last_version == __version and __last_index < 0 and len(__last_key) == 1
             if __last_key[0] == key
                 __reuse_missing = true
+                __hash_value = __last_hash
 
         int __index = -1
         int __insert_slot = -1
         if __reuse_missing
             __insert_slot = __last_slot
         else
+            __hash_value = __hash(key)
             __index = __find(key, __hash_value)
             __insert_slot = __empty_slot
 

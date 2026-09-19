@@ -550,6 +550,42 @@ map_output="$("$QUIDRA" "$TMP/map.qui")"
 map_expected="$(printf '0\nfalse\nnone\n2\n3\napple\nbanana\n3\n1\nfalse\ntrue')"
 [[ "$map_output" == "$map_expected" ]]
 
+cat > "$TMP/map-get-set-cache.qui" <<'QUI'
+map.Map<int, int> values = map.Map<int, int>()
+values.set(1, 10)
+
+auto present = values.get(1)
+match present
+    int value
+        values.set(1, value + 5)
+    none
+        process.exit(1)
+
+auto absent = values.get(2)
+match absent
+    int value
+        process.exit(2)
+    none
+        values.set(2, 20)
+
+print(values.size())
+auto one = values.get(1)
+match one
+    int value
+        print(value)
+    none
+        process.exit(3)
+auto two = values.get(2)
+match two
+    int value
+        print(value)
+    none
+        process.exit(4)
+QUI
+map_cache_output="$("$QUIDRA" "$TMP/map-get-set-cache.qui")"
+map_cache_expected="$(printf '2\n15\n20')"
+[[ "$map_cache_output" == "$map_cache_expected" ]]
+
 cat > "$TMP/map-remove.qui" <<'QUI'
 map.Map<string, int> values = map.Map<string, int>()
 values.set("a", 1)

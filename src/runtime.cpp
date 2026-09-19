@@ -4249,17 +4249,32 @@ extern "C" bool quidra_neural_update_parameter(
     if(gradient->device_tensor){
         auto* tensor=neural_parameter_tensor(parameter);
         if(!tensor) neural_fail("invalid neural Parameter",line,column);
+        if(gradient->dtype!=9&&gradient->dtype!=10)
+            neural_fail("invalid neural gradient dtype",line,column);
+        auto* gradient_tensor=gradient->device_tensor;
+        if(tensor->shape==gradient_tensor->shape&&
+           tensor->offset==0&&gradient_tensor->offset==0&&
+           tensor_is_contiguous_value(*tensor)&&
+           tensor_is_contiguous_value(*gradient_tensor)){
+            tensor_detach_for_write(*tensor,line,column);
+            tensor_require_initialized(*tensor,line,column);
+            tensor_require_initialized(*gradient_tensor,line,column);
+            std::string backend_error;
+            if(!quidra::device::compute_scaled_subtract_in_place(
+                    tensor->storage->gpu_buffer,gradient_tensor->storage->gpu_buffer,
+                    gradient->dtype,tensor_logical_count(*tensor),rate,backend_error))
+                neural_fail(backend_error.c_str(),line,column);
+            return true;
+        }
         void* scaled_raw=nullptr;
         if(gradient->dtype==10){
             float scalar=static_cast<float>(rate);
             scaled_raw=quidra_tensor_binary(
-                gradient->device_tensor,nullptr,&scalar,2,3,line,column);
-        }else if(gradient->dtype==9){
+                gradient_tensor,nullptr,&scalar,2,3,line,column);
+        }else{
             double scalar=rate;
             scaled_raw=quidra_tensor_binary(
-                gradient->device_tensor,nullptr,&scalar,2,3,line,column);
-        }else{
-            neural_fail("invalid neural gradient dtype",line,column);
+                gradient_tensor,nullptr,&scalar,2,3,line,column);
         }
         auto* scaled=static_cast<TensorValue*>(scaled_raw);
         auto* next=static_cast<TensorValue*>(

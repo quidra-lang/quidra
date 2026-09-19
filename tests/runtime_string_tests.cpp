@@ -1,3 +1,4 @@
+#include <cstdint>
 #include <cstring>
 
 extern "C" char* quidra_string_index(const char*, long long, unsigned long long, unsigned long long);
@@ -12,6 +13,9 @@ extern "C" unsigned long long quidra_runtime_text_byte_length(const char*);
 extern "C" long long quidra_string_length(const char*);
 extern "C" bool quidra_string_parse_two_signed(
     const char*, unsigned char, long long*, long long*);
+extern "C" char* quidra_string_build_append_move_unique_direct(
+    char*, const unsigned char*, const unsigned long long*,
+    unsigned long long, const char*, long long*);
 extern "C" void quidra_managed_retain(void*);
 extern "C" void quidra_managed_release(void*, void*);
 
@@ -191,5 +195,28 @@ int main() {
     if (quidra_string_parse_two_signed(
             "-9223372036854775809 1", ' ', &parsed_left, &parsed_right) ||
         parsed_left != 0 || parsed_right != 0) return 1;
+
+    // The compiler's typed string append fast path returns its appended
+    // code-point count through caller-owned storage and can trust proven
+    // one-byte ASCII literal parts without managed-string metadata lookups.
+    char* build_target = quidra_runtime_try_copy_text_bytes("", 0);
+    if (!build_target) return 1;
+    const unsigned char build_kinds[4] = {1, 4, 1, 4};
+    const char build_space[] = " ";
+    const char build_enter[] = "\n";
+    const unsigned long long build_values[4] = {
+        12ULL,
+        static_cast<unsigned long long>(
+            reinterpret_cast<std::uintptr_t>(build_space)),
+        34ULL,
+        static_cast<unsigned long long>(
+            reinterpret_cast<std::uintptr_t>(build_enter)),
+    };
+    long long build_added = -1;
+    char* built = quidra_string_build_append_move_unique_direct(
+        build_target, build_kinds, build_values, 4, "", &build_added);
+    if (!built || std::strcmp(built, "12 34\n") != 0 ||
+        build_added != 6) return 1;
+    quidra_managed_release(built, nullptr);
     return 0;
 }

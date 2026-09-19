@@ -63,7 +63,7 @@ struct StringFromUtf8ArrayDirect { ValueId text; ValueId ok; ValueId error; Valu
 struct StringCodepoints { ValueId out; ValueId text; };
 struct StringJoin { ValueId out; ValueId values; ValueId separator; std::uint32_t line{}; std::uint32_t column{}; };
 struct StringConcat { ValueId out; std::vector<ValueId> values; };
-struct StringBuildPart { ValueId value; Type type; };
+struct StringBuildPart { ValueId value; Type type; bool single_byte_ascii{}; };
 struct StringBuild { ValueId out; std::vector<StringBuildPart> parts; ValueId separator; };
 struct StringBuildAppendMove { ValueId out; ValueId added_length; ValueId text; std::vector<StringBuildPart> parts; ValueId separator; };
 struct StringCanAppendMove { ValueId out; ValueId text; };

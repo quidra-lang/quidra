@@ -7409,11 +7409,12 @@ extern "C" bool quidra_string_can_append_move(void* raw) {
 }
 
 
-extern "C" char* quidra_string_build_append_move_unique(
+extern "C" char* quidra_string_build_append_move_unique_direct(
     char* raw, const unsigned char* kinds,
     const unsigned long long* raw_values,
-    unsigned long long raw_count, const char* separator) {
-    if (!raw || !separator)
+    unsigned long long raw_count, const char* separator,
+    long long* added_length_out) {
+    if (!raw || !separator || !added_length_out)
         runtime_text_failure("null typed string build-append input");
     if (raw_count >
         static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()))
@@ -7432,8 +7433,11 @@ extern "C" char* quidra_string_build_append_move_unique(
 
     ManagedAllocation* separator_allocation = nullptr;
     std::size_t separator_codepoints = 0;
-    const auto delimiter = validated_string_view(
-        separator, separator_allocation, &separator_codepoints);
+    std::string_view delimiter;
+    if (separator[0] != '\0') {
+        delimiter = validated_string_view(
+            separator, separator_allocation, &separator_codepoints);
+    }
 
     auto checked_add = [](std::size_t& target, std::size_t value) {
         if (value > std::numeric_limits<std::size_t>::max() - target)
@@ -7489,6 +7493,19 @@ extern "C" char* quidra_string_build_append_move_unique(
                 lengths[i] = piece.size();
                 checked_add(added, piece.size());
                 checked_add(added_codepoints, codepoints);
+                break;
+            }
+            case 4: {
+                const auto* text = reinterpret_cast<const char*>(
+                    static_cast<std::uintptr_t>(raw_values[i]));
+                if (!text || text[0] == '\0' || text[1] != '\0' ||
+                    static_cast<unsigned char>(text[0]) >= 0x80U) {
+                    runtime_text_failure(
+                        "invalid proven one-byte ASCII string builder value");
+                }
+                lengths[i] = 1;
+                checked_add(added, 1);
+                checked_add(added_codepoints, 1);
                 break;
             }
             case 1: {
@@ -7590,7 +7607,8 @@ extern "C" char* quidra_string_build_append_move_unique(
             offset += delimiter.size();
         }
         switch (kinds[i]) {
-            case 0: {
+            case 0:
+            case 4: {
                 const auto* source = aliases[i]
                     ? result
                     : reinterpret_cast<const char*>(
@@ -7631,8 +7649,18 @@ extern "C" char* quidra_string_build_append_move_unique(
     destination_allocation->string_ascii_known = true;
     destination_allocation->string_ascii =
         (old_codepoints + added_codepoints) == new_length;
-    string_build_append_last_codepoints =
-        static_cast<long long>(added_codepoints);
+    *added_length_out = static_cast<long long>(added_codepoints);
+    return result;
+}
+
+extern "C" char* quidra_string_build_append_move_unique(
+    char* raw, const unsigned char* kinds,
+    const unsigned long long* raw_values,
+    unsigned long long raw_count, const char* separator) {
+    long long added_length = 0;
+    auto* result = quidra_string_build_append_move_unique_direct(
+        raw, kinds, raw_values, raw_count, separator, &added_length);
+    string_build_append_last_codepoints = added_length;
     return result;
 }
 

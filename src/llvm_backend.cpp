@@ -685,6 +685,7 @@ struct FunctionEmitter {
                 if(const auto* build=std::get_if<ir::StringBuildAppendMove>(&i)){
                     plan_scratch(i,"["+std::to_string(build->parts.size())+" x i8]");
                     plan_scratch(i,"["+std::to_string(build->parts.size())+" x i64]",8);
+                    plan_scratch(i,"i64",8);
                 }
                 if(const auto* append=std::get_if<ir::StringAppendMove>(&i))
                     plan_scratch(i,"["+std::to_string(append->suffixes.size())+" x ptr]");
@@ -1219,6 +1220,7 @@ struct FunctionEmitter {
             values[n.out]=Type::simple(TypeKind::String);
             const auto& kinds=scratch(ins,0);
             const auto& raw_values=scratch(ins,1);
+            const auto& added_length_slot=scratch(ins,2);
             for(std::size_t i=0;i<n.parts.size();++i){
                 const auto& part=n.parts[i];
                 unsigned kind=0;
@@ -1267,7 +1269,7 @@ struct FunctionEmitter {
                 unsigned kind=0;
                 std::string bits;
                 if(part.type.kind==TypeKind::String||part.type.kind==TypeKind::Error){
-                    kind=0;
+                    kind=part.single_byte_ascii?4U:0U;
                     bits=temp("string.build.append.ptr");
                     out<<"  "<<bits<<" = ptrtoint ptr "<<value(part.value)<<" to i64\n";
                 }else if(is_integer(part.type)){
@@ -1297,11 +1299,11 @@ struct FunctionEmitter {
                 out<<"  store i64 "<<bits<<", ptr "<<value_slot<<", align 8\n";
             }
             out<<"  "<<value(n.out)
-               <<" = call ptr @quidra_string_build_append_move_unique(ptr "<<value(n.text)
+               <<" = call ptr @quidra_string_build_append_move_unique_direct(ptr "<<value(n.text)
                <<", ptr "<<kinds<<", ptr "<<raw_values<<", i64 "<<n.parts.size()
-               <<", ptr "<<value(n.separator)<<")\n";
+               <<", ptr "<<value(n.separator)<<", ptr "<<added_length_slot<<")\n";
             out<<"  "<<value(n.added_length)
-               <<" = call i64 @quidra_string_build_append_last_length()\n";
+               <<" = load i64, ptr "<<added_length_slot<<", align 8\n";
         }
         if constexpr(std::is_same_v<T,ir::StringCanAppendMove>){
             values[n.out]=Type::simple(TypeKind::Bool);
@@ -4221,6 +4223,7 @@ declare ptr @quidra_string_concat_many(ptr, i64)
 declare ptr @quidra_string_build(ptr, ptr, i64, ptr)
 declare ptr @quidra_string_build_append_move(ptr, ptr, ptr, i64, ptr)
 declare ptr @quidra_string_build_append_move_unique(ptr, ptr, ptr, i64, ptr)
+declare ptr @quidra_string_build_append_move_unique_direct(ptr, ptr, ptr, i64, ptr, ptr)
 declare i64 @quidra_string_build_append_last_length()
 declare ptr @quidra_string_concat2(ptr, ptr)
 declare i1 @quidra_string_equal(ptr, ptr)

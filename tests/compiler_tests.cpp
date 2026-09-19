@@ -386,6 +386,33 @@ for i in range(0, 2)
     written += len(line)
 print(written)
 )", "string.build_append");
+ llvm_contains(R"(string content = ""
+int written = 0
+for i in range(0, 2)
+    string[] fields = [i.string(), " ", i.string(), enter]
+    string line = fields.join("")
+    content = content + line
+    written += len(line)
+print(written)
+)", "call ptr @quidra_string_build_append_move_unique_direct");
+ llvm_contains(R"(string content = ""
+int written = 0
+for i in range(0, 2)
+    string[] fields = [i.string(), " ", i.string(), enter]
+    string line = fields.join("")
+    content = content + line
+    written += len(line)
+print(written)
+)", "store i8 4");
+ llvm_not_contains(R"(string content = ""
+int written = 0
+for i in range(0, 2)
+    string[] fields = [i.string(), " ", i.string(), enter]
+    string line = fields.join("")
+    content = content + line
+    written += len(line)
+print(written)
+)", "call i64 @quidra_string_build_append_last_length");
  llvm_contains(R"(for i in range(0, 2)
     string[] fields = [i.string(), " ", enter]
     string line = fields.join("")

@@ -905,12 +905,25 @@ struct Lowerer {
     }
 
     StringBuildPart lower_string_build_element(const Expr& expression) {
-        if (std::holds_alternative<StringExpr>(expression.data) ||
-            (std::holds_alternative<NameExpr>(expression.data) &&
-             is_builtin_text_constant(
-                 std::get<NameExpr>(expression.data).name))) {
+        if (const auto* literal = std::get_if<StringExpr>(&expression.data)) {
+            const bool single_byte_ascii =
+                literal->value.size() == 1 &&
+                static_cast<unsigned char>(literal->value[0]) != 0 &&
+                static_cast<unsigned char>(literal->value[0]) < 0x80U;
             return StringBuildPart{
-                expr(expression), Type::simple(TypeKind::String)};
+                expr(expression), Type::simple(TypeKind::String),
+                single_byte_ascii};
+        }
+        if (const auto* name = std::get_if<NameExpr>(&expression.data);
+            name && is_builtin_text_constant(name->name)) {
+            const auto literal = builtin_text_constant(name->name);
+            const bool single_byte_ascii =
+                literal.size() == 1 &&
+                static_cast<unsigned char>(literal[0]) != 0 &&
+                static_cast<unsigned char>(literal[0]) < 0x80U;
+            return StringBuildPart{
+                expr(expression), Type::simple(TypeKind::String),
+                single_byte_ascii};
         }
         const auto& method = std::get<MethodCallExpr>(expression.data);
         const auto source_type = type_of(*method.receiver);

@@ -212,8 +212,8 @@ source = (
     "int twice(int value)\n"
     "    return value * 2\n"
     "\n"
-    "int input = 4\n"
-    "int output = twice(input)\n"
+    "int source_value = 4\n"
+    "int output = twice(source_value)\n"
     "print(output)\n"
 )
 messages = [

@@ -516,7 +516,7 @@ The native core supports fixed-width numeric types, no implicit representation-c
 
 ## Standard namespaces and imports
 
-Standard namespaces are always visible; importing them is an error. Current reserved namespaces are `math`, `cli`, `file`, `environment`, `test`, `time`, `random`, `process`, `map`, `set`, `json`, `http`, `tensor`, `stats`, `linear`, `signal`, `image`, and `neural`.
+Standard namespaces are always visible; importing them is an error. Current reserved namespaces are `math`, `cli`, `file`, `environment`, `test`, `time`, `task`, `random`, `process`, `map`, `set`, `json`, `http`, `tensor`, `stats`, `linear`, `signal`, `image`, and `neural`.
 
 A source-file import always uses a quoted path:
 

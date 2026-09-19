@@ -1295,7 +1295,7 @@ struct FunctionEmitter {
                 out<<"  store i64 "<<bits<<", ptr "<<value_slot<<", align 8\n";
             }
             out<<"  "<<value(n.out)
-               <<" = call ptr @quidra_string_build_append_move(ptr "<<value(n.text)
+               <<" = call ptr @quidra_string_build_append_move_unique(ptr "<<value(n.text)
                <<", ptr "<<kinds<<", ptr "<<raw_values<<", i64 "<<n.parts.size()
                <<", ptr "<<value(n.separator)<<")\n";
             out<<"  "<<value(n.added_length)
@@ -4169,6 +4169,7 @@ declare ptr @quidra_string_join(ptr, ptr, i64, i64)
 declare ptr @quidra_string_concat_many(ptr, i64)
 declare ptr @quidra_string_build(ptr, ptr, i64, ptr)
 declare ptr @quidra_string_build_append_move(ptr, ptr, ptr, i64, ptr)
+declare ptr @quidra_string_build_append_move_unique(ptr, ptr, ptr, i64, ptr)
 declare i64 @quidra_string_build_append_last_length()
 declare ptr @quidra_string_concat2(ptr, ptr)
 declare i1 @quidra_string_equal(ptr, ptr)

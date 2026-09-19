@@ -712,7 +712,7 @@ ClassDecl Parser::class_decl() {
         consume_newlines();
     }
     const auto end = consume(TokenKind::Dedent, "Expected end of class body.").span.end;
-    return ClassDecl{name.text, std::move(parent), std::move(fields), std::move(methods),
+    return ClassDecl{name.text, {}, std::move(parent), std::move(fields), std::move(methods),
                      {start, end}, std::move(type_parameters), std::move(parent_type)};
 }
 
@@ -733,7 +733,7 @@ FunctionDecl Parser::function_decl(bool allow_override) {
     }
     consume(TokenKind::RParen,"Expected ')'.");end_statement("function signature");auto body=block_until(false);
     auto end=previous().span.end;
-    return FunctionDecl{name.text, std::move(params), std::move(result), std::move(body),
+    return FunctionDecl{name.text, {}, std::move(params), std::move(result), std::move(body),
                         {start, end}, is_override, std::move(type_parameters), std::nullopt};
 }
 

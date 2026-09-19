@@ -1,0 +1,51 @@
+name: video-contracts
+
+on:
+  push:
+    paths:
+      - ".github/workflows/video.yml"
+      - "CMakeLists.txt"
+      - "include/quidra/language.hpp"
+      - "include/quidra/checker.hpp"
+      - "include/quidra/ir.hpp"
+      - "include/quidra/types.hpp"
+      - "src/frontend.cpp"
+      - "src/checker.cpp"
+      - "src/ir.cpp"
+      - "src/llvm_backend.cpp"
+      - "src/native_build.cpp"
+      - "src/runtime_video.cpp"
+      - "tests/video_tests.sh"
+  pull_request:
+    paths:
+      - ".github/workflows/video.yml"
+      - "CMakeLists.txt"
+      - "include/quidra/language.hpp"
+      - "include/quidra/checker.hpp"
+      - "include/quidra/ir.hpp"
+      - "include/quidra/types.hpp"
+      - "src/frontend.cpp"
+      - "src/checker.cpp"
+      - "src/ir.cpp"
+      - "src/llvm_backend.cpp"
+      - "src/native_build.cpp"
+      - "src/runtime_video.cpp"
+      - "tests/video_tests.sh"
+
+concurrency:
+  group: video-contracts-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native dependencies
+        run: sudo apt-get update && sudo apt-get install -y llvm libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev ffmpeg libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON
+      - name: Build Quidra
+        run: cmake --build build --target quidra --parallel
+      - name: Video contracts
+        run: ctest --test-dir build -R '^quidra_video$' --output-on-failure

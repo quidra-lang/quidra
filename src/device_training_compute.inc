@@ -129,34 +129,37 @@ bool fake_normalize_backward(
     const Buffer* gradient,const Buffer* input,const Buffer* scale,const Buffer* cache,
     std::size_t count,std::size_t features,std::size_t inner,std::size_t samples) {
 #ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
-    for(std::size_t f=0;f<features;++f){
-        T sg{},sgx{},scale_g{},bias_g{};
+    std::vector<T> sum_gradient(features,T{0});
+    std::vector<T> sum_gradient_x(features,T{0});
+    for(std::size_t i=0;i<count;++i){
+        const auto f=(i/inner)%features;
         const T mean=training_load<T>(cache,f);
         const T inverse=training_load<T>(cache,features+f);
-        for(std::size_t i=0;i<count;++i)
-            if((i/inner)%features==f){
-                const T g=training_load<T>(gradient,i);
-                const T xhat=static_cast<T>(
-                    static_cast<T>(training_load<T>(input,i)-mean)*inverse);
-                sg=static_cast<T>(sg+g);
-                sgx=static_cast<T>(sgx+static_cast<T>(g*xhat));
-                scale_g=static_cast<T>(scale_g+static_cast<T>(g*xhat));
-                bias_g=static_cast<T>(bias_g+g);
-            }
-        training_store<T>(scale_gradient,f,scale_g);
-        training_store<T>(bias_gradient,f,bias_g);
-        const T sample_count=static_cast<T>(samples);
+        const T g=training_load<T>(gradient,i);
+        const T xhat=static_cast<T>(
+            static_cast<T>(training_load<T>(input,i)-mean)*inverse);
+        sum_gradient[f]=static_cast<T>(sum_gradient[f]+g);
+        sum_gradient_x[f]=static_cast<T>(
+            sum_gradient_x[f]+static_cast<T>(g*xhat));
+    }
+    for(std::size_t f=0;f<features;++f){
+        training_store<T>(scale_gradient,f,sum_gradient_x[f]);
+        training_store<T>(bias_gradient,f,sum_gradient[f]);
+    }
+    const T sample_count=static_cast<T>(samples);
+    for(std::size_t i=0;i<count;++i){
+        const auto f=(i/inner)%features;
+        const T mean=training_load<T>(cache,f);
+        const T inverse=training_load<T>(cache,features+f);
+        const T g=training_load<T>(gradient,i);
+        const T xhat=static_cast<T>(
+            static_cast<T>(training_load<T>(input,i)-mean)*inverse);
         const T factor=static_cast<T>(
             static_cast<T>(training_load<T>(scale,f)*inverse)/sample_count);
-        for(std::size_t i=0;i<count;++i)
-            if((i/inner)%features==f){
-                const T g=training_load<T>(gradient,i);
-                const T xhat=static_cast<T>(
-                    static_cast<T>(training_load<T>(input,i)-mean)*inverse);
-                training_store<T>(input_gradient,i,static_cast<T>(
-                    factor*static_cast<T>(
-                        static_cast<T>(sample_count*g)-sg-static_cast<T>(xhat*sgx))));
-            }
+        training_store<T>(input_gradient,i,static_cast<T>(
+            factor*static_cast<T>(
+                static_cast<T>(sample_count*g)-sum_gradient[f]-
+                static_cast<T>(xhat*sum_gradient_x[f]))));
     }
     return true;
 #else

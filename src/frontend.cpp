@@ -97,6 +97,8 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
         for (const char* name : {"now", "since", "seconds", "sleep"}) {
             exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
         }
+    } else if (module == "task") {
+        exports.functions.emplace("all", std::string(*standard_function_target(module, "all")));
     } else if (module == "random") {
         exports.classes.emplace("Generator", "$std.random.Generator");
         exports.functions.emplace("generator", std::string(*standard_function_target(module, "generator")));

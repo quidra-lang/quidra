@@ -2108,12 +2108,17 @@ tensor<float32><2, 3> contextual_exact = tensor.ones([2, 3])
  good(R"(auto generated = tensor.zeros<float32>([2, 3])
 int[2] generated_shape = generated.shape()
 )");
- ir_contains(R"(auto generated = tensor.zeros<float32>([2, 3])
-tensor<float32><2, 4> checked_at_runtime = generated
-)", "shape.constraint");
- ir_contains(R"(tensor<float32><2, 3> source = tensor.zeros<float32>([2, 3])
+ bad_code(R"(auto generated = tensor.zeros<float32>([2, 3])
+tensor<float32><2, 4> impossible = generated
+)", "TYPE_MISMATCH");
+ bad_code(R"(tensor<float32><2, 3> source = tensor.zeros<float32>([2, 3])
 auto transposed = source.transpose(0, 1)
-tensor<float32><2, 3> checked_at_runtime = transposed
+tensor<float32><2, 3> impossible = transposed
+)", "TYPE_MISMATCH");
+ ir_contains(R"(tensor<float32> erase_shape(tensor<float32> value)
+    return value
+auto unknown = erase_shape(tensor.zeros<float32>([2, 3]))
+tensor<float32><2, 4> checked_at_runtime = unknown
 )", "shape.constraint");
  bad_code(R"(tensor<float32><2, 3> source = tensor.zeros<float32>([2, 3])
 auto invalid = source.transpose(0, 2)

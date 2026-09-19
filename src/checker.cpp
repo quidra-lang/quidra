@@ -1888,12 +1888,20 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         }
                         auto shape = check_expr(*node->args[0].value, &shape_type);
                         long long rank = -1;
+                        std::vector<long long> known_shape_prefix;
                         if (!poisoned(shape)) {
                             if (const auto* literal =
                                     std::get_if<ArrayExpr>(&node->args[0].value->data)) {
-                                // Array literal arity is its static array length, so rank may
-                                // depend on it. Element values still never refine the result.
+                                // Literal arity is static rank information. Constant extent
+                                // values are flow facts only: keep them out of the public
+                                // source type while retaining them for diagnostics/optimization.
                                 rank = static_cast<long long>(literal->elements.size());
+                                for (const auto& extent_expression : literal->elements) {
+                                    const auto extent = constant_eval::integer(
+                                        *extent_expression, &const_integer_values_);
+                                    if (!extent || *extent < 0) break;
+                                    known_shape_prefix.push_back(*extent);
+                                }
                             } else {
                                 const auto raw = raw_types_.find(node->args[0].value.get());
                                 if (raw != raw_types_.end() &&
@@ -1905,7 +1913,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         }
                         type = poisoned(shape)
                             ? simple(TypeKind::Invalid)
-                            : Type::tensor(*receiver.first, rank);
+                            : Type::tensor(*receiver.first, rank, {}, known_shape_prefix);
                     } else if (node->method == "transpose") {
                         const auto int_type = simple(TypeKind::Int);
                         if (!node->type_arguments.empty() || node->args.size() != 2 ||
@@ -1933,6 +1941,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                             };
                             const auto a0 = constant_axis(0);
                             const auto a1 = constant_axis(1);
+                            bool axes_valid = true;
                             const auto check_axis = [&](const std::optional<long long>& axis,
                                                         const SourceSpan& span) {
                                 if (!axis) return;
@@ -1941,10 +1950,23 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                     error("ARGUMENT_MISMATCH",
                                           "tensor.transpose axis is outside the tensor rank.",
                                           span);
+                                    axes_valid = false;
                                 }
                             };
                             check_axis(a0, node->args[0].span);
                             check_axis(a1, node->args[1].span);
+                            if (axes_valid && a0 && a1 && receiver.length >= 0) {
+                                for (long long output_axis = 0;
+                                     output_axis < receiver.length; ++output_axis) {
+                                    long long source_axis = output_axis;
+                                    if (output_axis == *a0) source_axis = *a1;
+                                    else if (output_axis == *a1) source_axis = *a0;
+                                    const auto extent = tensor_known_extent(
+                                        receiver, static_cast<std::size_t>(source_axis));
+                                    if (!extent) break;
+                                    type.tensor_known_shape_prefix.push_back(*extent);
+                                }
+                            }
                         }
                     } else if (node->method == "contiguous") {
                         if (!node->type_arguments.empty() || !node->args.empty()) {
@@ -4087,12 +4109,19 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     const auto shape_type = Type::array(simple(TypeKind::Int));
                     auto shape = check_expr(*node->args[*shape_index].value, &shape_type);
                     long long rank = -1;
+                    std::vector<long long> known_shape_prefix;
                     if (!poisoned(shape)) {
                         if (const auto* literal =
                                 std::get_if<ArrayExpr>(&node->args[*shape_index].value->data)) {
-                            // Array literal arity is static type information; its element
-                            // values are not return-type information.
+                            // Literal arity determines rank. Constant extent values remain
+                            // internal flow facts and never specialize the source-visible type.
                             rank = static_cast<long long>(literal->elements.size());
+                            for (const auto& extent_expression : literal->elements) {
+                                const auto extent = constant_eval::integer(
+                                    *extent_expression, &const_integer_values_);
+                                if (!extent || *extent < 0) break;
+                                known_shape_prefix.push_back(*extent);
+                            }
                         } else {
                             const auto raw =
                                 raw_types_.find(node->args[*shape_index].value.get());
@@ -4132,7 +4161,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     }
                     type = poisoned(shape) || bad_gpu
                         ? simple(TypeKind::Invalid)
-                        : Type::tensor(element, rank);
+                        : Type::tensor(element, rank, {}, known_shape_prefix);
                     break;
                 }
             }

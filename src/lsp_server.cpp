@@ -972,13 +972,10 @@ std::optional<SourceSpan> resolved_definition_span(
 std::vector<SourceSpan> reference_spans(
     const CheckedProgram& checked,std::string_view source,std::string_view name,SourceSpan target) {
     const auto tokens=Lexer(source).scan();
-    std::vector<SourceSpan> result;
+    std::vector<SourceSpan> result{target};
     for(const auto& token:tokens) {
         if(token.kind!=TokenKind::Identifier||token.text!=name) continue;
-        if(same_span(token.span,target)) {
-            result.push_back(token.span);
-            continue;
-        }
+        if(same_span(token.span,target)) continue;
         const auto resolved=resolved_definition_span(
             checked,name,token.span.start.offset,tokens);
         if(resolved&&same_span(*resolved,target)) result.push_back(token.span);

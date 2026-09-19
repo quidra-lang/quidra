@@ -277,6 +277,115 @@ std::string ptx_last_reduce_source(int dtype, int operation) {
     return out.str();
 }
 
+
+std::string ptx_affine_bias_source(int dtype) {
+    const bool f32 = dtype == 10;
+    const auto bytes = f32 ? 4 : 8;
+    std::ostringstream out;
+    out << ptx_thread_prologue(
+        "  .param .u64 p_out,\n  .param .u64 p_bias,\n"
+        "  .param .u64 p_total,\n  .param .u64 p_out_features\n",
+        f32
+          ? "  .reg .pred %p<2>;\n  .reg .b32 %r<8>;\n  .reg .b64 %rd<20>;\n  .reg .f32 %f<4>;\n"
+          : "  .reg .pred %p<2>;\n  .reg .b32 %r<8>;\n  .reg .b64 %rd<20>;\n  .reg .f64 %fd<4>;\n");
+    out << "  ld.param.u64 %rd1, [p_out];\n"
+           "  ld.param.u64 %rd2, [p_bias];\n"
+           "  ld.param.u64 %rd3, [p_total];\n"
+           "  ld.param.u64 %rd4, [p_out_features];\n"
+           "  setp.ge.u64 %p1, %rd7, %rd3;\n"
+           "  @%p1 bra DONE;\n"
+           "  rem.u64 %rd8, %rd7, %rd4;\n"
+        << "  mul.lo.u64 %rd9, %rd7, " << bytes << ";\n"
+           "  add.u64 %rd10, %rd1, %rd9;\n"
+        << "  mul.lo.u64 %rd11, %rd8, " << bytes << ";\n"
+           "  add.u64 %rd12, %rd2, %rd11;\n";
+    if (f32)
+        out << "  ld.global.f32 %f1, [%rd10];\n"
+               "  ld.global.f32 %f2, [%rd12];\n"
+               "  add.f32 %f3, %f1, %f2;\n"
+               "  st.global.f32 [%rd10], %f3;\n";
+    else
+        out << "  ld.global.f64 %fd1, [%rd10];\n"
+               "  ld.global.f64 %fd2, [%rd12];\n"
+               "  add.f64 %fd3, %fd1, %fd2;\n"
+               "  st.global.f64 [%rd10], %fd3;\n";
+    out << "DONE:\n  ret;\n}\n";
+    return out.str();
+}
+
+bool cublas_affine(Buffer* output, const Buffer* input, const Buffer* weight,
+                   const Buffer* bias, int dtype, std::size_t batches,
+                   std::size_t features_in, std::size_t features_out,
+                   std::string& error) {
+    if (output->backend != Backend::Nvidia || (dtype != 9 && dtype != 10))
+        return false;
+    if (batches > static_cast<std::size_t>(std::numeric_limits<int>::max()) ||
+        features_in > static_cast<std::size_t>(std::numeric_limits<int>::max()) ||
+        features_out > static_cast<std::size_t>(std::numeric_limits<int>::max()))
+        return false;
+
+    auto& api = cublas();
+    if (!api.ready) return false;
+    auto handle = api.handle(output->backend_index, error);
+    if (!handle) {
+        error.clear();
+        return false;
+    }
+    if (api.set_atomics_mode) {
+        constexpr CublasApi::AtomicsMode not_allowed = 0;
+        constexpr CublasApi::AtomicsMode allowed = 1;
+        (void)api.set_atomics_mode(
+            handle,
+            dnn_mode() == DnnMode::Deterministic ? not_allowed : allowed);
+    }
+
+    constexpr CublasApi::Operation op_n = 0;
+    constexpr CublasApi::Operation op_t = 1;
+    const int m = static_cast<int>(features_out);
+    const int n = static_cast<int>(batches);
+    const int k = static_cast<int>(features_in);
+    int status = 0;
+    if (dtype == 10) {
+        const float alpha = 1.0f, beta = 0.0f;
+        status = api.sgemm(
+            handle, op_t, op_n, m, n, k, &alpha,
+            reinterpret_cast<const float*>(
+                static_cast<std::uintptr_t>(weight->cuda_pointer)), k,
+            reinterpret_cast<const float*>(
+                static_cast<std::uintptr_t>(input->cuda_pointer)), k,
+            &beta,
+            reinterpret_cast<float*>(
+                static_cast<std::uintptr_t>(output->cuda_pointer)), m);
+    } else {
+        const double alpha = 1.0, beta = 0.0;
+        status = api.dgemm(
+            handle, op_t, op_n, m, n, k, &alpha,
+            reinterpret_cast<const double*>(
+                static_cast<std::uintptr_t>(weight->cuda_pointer)), k,
+            reinterpret_cast<const double*>(
+                static_cast<std::uintptr_t>(input->cuda_pointer)), k,
+            &beta,
+            reinterpret_cast<double*>(
+                static_cast<std::uintptr_t>(output->cuda_pointer)), m);
+    }
+    if (status != 0) return false;
+
+    const auto total = batches * features_out;
+    auto out_ptr = output->cuda_pointer;
+    auto bias_ptr = bias->cuda_pointer;
+    auto total64 = static_cast<std::uint64_t>(total);
+    auto out64 = static_cast<std::uint64_t>(features_out);
+    void* args[] = {&out_ptr, &bias_ptr, &total64, &out64};
+    const auto ptx = ptx_affine_bias_source(dtype);
+    std::string bias_error;
+    if (!launch_ptx_1d(
+            output, "cublas-affine-bias-" + std::to_string(dtype),
+            ptx, total, args, bias_error)) {
+        return false;
+    }
+    return true;
+}
+
 std::string ptx_affine_source(int dtype) {
     const bool f32 = dtype == 10;
     const auto bytes = f32 ? 4 : 8;
@@ -727,6 +836,10 @@ bool compute_affine(Buffer* output, const Buffer* input, const Buffer* weight,
     }
 #endif
     if((dtype==9||dtype==10)&&output->backend==Backend::Nvidia){
+        std::string accelerated_error;
+        if(cublas_affine(output,input,weight,bias,dtype,batches,features_in,
+                         features_out,accelerated_error))
+            return true;
         auto ptx=ptx_affine_source(dtype);
         auto out_ptr=output->cuda_pointer,in_ptr=input->cuda_pointer,w_ptr=weight->cuda_pointer,b_ptr=bias->cuda_pointer;
         auto total64=static_cast<std::uint64_t>(total),in64=static_cast<std::uint64_t>(features_in),out64=static_cast<std::uint64_t>(features_out);

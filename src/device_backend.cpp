@@ -219,6 +219,81 @@ CudaApi& cuda() {
     return api;
 }
 
+
+struct CublasApi {
+    using Handle = void*;
+    using Status = int;
+    using Operation = int;
+    using AtomicsMode = int;
+
+    DynamicLibrary library;
+    Status (*create)(Handle*){};
+    Status (*destroy)(Handle){};
+    Status (*set_atomics_mode)(Handle, AtomicsMode){};
+    Status (*sgemm)(Handle, Operation, Operation, int, int, int,
+                    const float*, const float*, int, const float*, int,
+                    const float*, float*, int){};
+    Status (*dgemm)(Handle, Operation, Operation, int, int, int,
+                    const double*, const double*, int, const double*, int,
+                    const double*, double*, int){};
+    std::vector<Handle> handles;
+    std::mutex mutex;
+    bool ready{};
+
+    CublasApi() {
+#ifdef _WIN32
+        if (!library.open("cublas64_12.dll") &&
+            !library.open("cublas64_11.dll")) return;
+#else
+        if (!library.open("libcublas.so.12") &&
+            !library.open("libcublas.so.11") &&
+            !library.open("libcublas.so")) return;
+#endif
+        create = load_symbol<decltype(create)>(library, "cublasCreate_v2");
+        destroy = load_symbol<decltype(destroy)>(library, "cublasDestroy_v2");
+        set_atomics_mode =
+            load_symbol<decltype(set_atomics_mode)>(library, "cublasSetAtomicsMode");
+        sgemm = load_symbol<decltype(sgemm)>(library, "cublasSgemm_v2");
+        dgemm = load_symbol<decltype(dgemm)>(library, "cublasDgemm_v2");
+        ready = create && destroy && sgemm && dgemm;
+    }
+
+    ~CublasApi() {
+        if (!destroy) return;
+        for (auto handle : handles) {
+            if (handle) (void)destroy(handle);
+        }
+    }
+
+    Handle handle(int backend_index, std::string& error) {
+        if (!ready) return nullptr;
+        auto& cu = cuda();
+        CudaApi::CUcontext context = nullptr;
+        if (!cu.current(backend_index, context, error)) return nullptr;
+        std::lock_guard lock(mutex);
+        int count = 0;
+        if (cu.device_count(&count) != 0 || backend_index < 0 ||
+            backend_index >= count) {
+            error = "NVIDIA GPU index is unavailable";
+            return nullptr;
+        }
+        if (handles.size() < static_cast<std::size_t>(count))
+            handles.resize(static_cast<std::size_t>(count), nullptr);
+        auto& result = handles[static_cast<std::size_t>(backend_index)];
+        if (!result && create(&result) != 0) {
+            result = nullptr;
+            error = "cuBLAS handle creation failed";
+            return nullptr;
+        }
+        return result;
+    }
+};
+
+CublasApi& cublas() {
+    static CublasApi api;
+    return api;
+}
+
 struct HipApi {
     using Module = void*;
     using Function = void*;

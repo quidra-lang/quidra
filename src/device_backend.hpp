@@ -154,6 +154,9 @@ bool compute_random_mask(
     Buffer* output, Buffer* mask, const Buffer* input, int dtype,
     std::size_t count, std::uint64_t initial_state, std::uint64_t cutoff,
     double scale, std::string& error);
+bool compute_scaled_subtract_in_place(
+    Buffer* parameter, const Buffer* gradient, int dtype, std::size_t count,
+    double scale, std::string& error);
 bool compute_moment_update(
     Buffer* parameter, const Buffer* gradient, Buffer* first, Buffer* second,
     int dtype, std::size_t count, double rate, double beta1, double beta2,

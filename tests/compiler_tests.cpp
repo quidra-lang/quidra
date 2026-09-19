@@ -119,6 +119,17 @@ static void llvm_contains(const std::string& s, const std::string& expected) {
     }
     std::exit(1);
 }
+static void llvm_not_contains(const std::string& s, const std::string& unexpected) {
+    try {
+        const auto c = quidra::compile(s);
+        if (c.llvm.find(unexpected) == std::string::npos) return;
+        std::cerr << "LLVM output unexpectedly contains fragment: " << unexpected << "\n"
+                  << c.llvm << "\n";
+    } catch (const std::exception& e) {
+        std::cerr << "unexpected LLVM generation rejection: " << e.what() << "\n" << s;
+    }
+    std::exit(1);
+}
 static void llvm_file_contains(const std::string& s, const std::string& expected) {
     const auto root = std::filesystem::temp_directory_path() / "quidra-compiler-tests";
     const auto path = root / "llvm_file_contains.qui";
@@ -281,6 +292,15 @@ print(reals[1])
  good("bigreal x = math.sqrt(2.0)\nprint(\"{x:sig=100}\")\n");
  bad_code("map.Map<bigreal, int> values = map.Map<bigreal, int>()\n", "STANDARD_KEY_TYPE");
  bad_code("set.Set<bigreal> values = set.Set<bigreal>()\n", "STANDARD_KEY_TYPE");
+ llvm_not_contains(
+     "map.Map<int, int> values = map.Map<int, int>()\nvalues.set(1, 2)\nauto value = values.get(1)\n",
+     "call ptr @quidra_format_signed");
+ llvm_not_contains(
+     "set.Set<uint64> values = set.Set<uint64>()\nuint64 key = uint64(7)\nvalues.add(key)\nbool present = values.has(key)\n",
+     "call ptr @quidra_format_unsigned");
+ llvm_not_contains(
+     "map.Map<bigint, int> values = map.Map<bigint, int>()\nbigint key = bigint(7)\nvalues.set(key, 2)\nauto value = values.get(key)\n",
+     "call ptr @quidra_bigint_text");
 
  good(R"(uint8 a = 240
 uint8 b = 204

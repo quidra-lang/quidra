@@ -1346,7 +1346,7 @@ void Checker::reset_current_effect_state() {
 
 Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
     if (source.name != "union" && source.name != "tensor" && source.name != "neural" &&
-        !source.arguments.empty()) {
+        source.name != "fn" && !source.arguments.empty()) {
         throw std::logic_error("ConcreteProgram contains unresolved generic type arguments.");
     }
     Type type;

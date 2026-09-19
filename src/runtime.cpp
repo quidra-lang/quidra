@@ -4409,6 +4409,12 @@ extern "C" long long quidra_neural_moment_begin(
     NeuralMomentUpdateContext context;
     context.moments_raw=moments_raw;
     context.parameter_count=static_cast<std::size_t>(parameter_count);
+    context.rate=rate; context.beta1=beta1; context.beta2=beta2; context.epsilon=epsilon;
+    const double next_step=static_cast<double>(step+1);
+    context.correction1=1.0-std::pow(beta1,next_step);
+    context.correction2=1.0-std::pow(beta2,next_step);
+    if(context.correction1<=0.0||context.correction2<=0.0)
+        neural_fail("invalid moment update bias correction",line,column);
     context.records=std::move(records);
     neural_moment_update_contexts.emplace(key,std::move(context));
     return static_cast<long long>(step+1);
@@ -4592,17 +4598,12 @@ extern "C" bool quidra_neural_moment_update_parameter(
         if(record.step==std::numeric_limits<std::uint64_t>::max())
             neural_fail("moment update Parameter step counter overflow",line,column);
         ++record.step;
-        const double rate=neural_object_double_field(optimizer,0);
-        const double beta1=neural_object_double_field(optimizer,8);
-        const double beta2=neural_object_double_field(optimizer,16);
-        const double epsilon=neural_object_double_field(optimizer,24);
-        // Every matched Parameter advances exactly once in this optimizer step.
-        // Reuse the shared step for bias correction instead of recomputing a
-        // parameter-specific exponent source.
-        const double correction1=1.0-std::pow(beta1,static_cast<double>(step));
-        const double correction2=1.0-std::pow(beta2,static_cast<double>(step));
-        if(correction1<=0.0||correction2<=0.0)
-            neural_fail("invalid moment update bias correction",line,column);
+        const double rate=context.rate;
+        const double beta1=context.beta1;
+        const double beta2=context.beta2;
+        const double epsilon=context.epsilon;
+        const double correction1=context.correction1;
+        const double correction2=context.correction2;
 
         if(gradient->device_tensor){
             if(!tensor_is_contiguous_value(*tensor)||tensor->offset!=0){

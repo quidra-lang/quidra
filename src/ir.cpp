@@ -366,7 +366,7 @@ struct Lowerer {
             const auto name = hidden(prefix);
             locals[name] = Type::simple(TypeKind::Int);
             block->instructions.push_back(
-                DeclareLocal{name, Type::simple(TypeKind::Int)});
+                DeclareLocal{name, Type::simple(TypeKind::Int), {}, 0, 0});
             const auto value = extent_value(*expression);
             block->instructions.push_back(
                 StoreLocal{name, value, Type::simple(TypeKind::Int)});
@@ -441,7 +441,7 @@ struct Lowerer {
         const auto index_name = hidden("shape.index");
         locals[index_name] = Type::simple(TypeKind::Int);
         block->instructions.push_back(
-            DeclareLocal{index_name, Type::simple(TypeKind::Int)});
+            DeclareLocal{index_name, Type::simple(TypeKind::Int), {}, 0, 0});
         block->instructions.push_back(
             StoreLocal{index_name, const_int(0), Type::simple(TypeKind::Int)});
 

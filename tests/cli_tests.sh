@@ -1229,9 +1229,9 @@ print(values[2])
 QUI
 "$QUIDRA" llvm "$TMP/readonly-array-proof.qui" > "$TMP/readonly-array-proof.ll"
 readonly_init_check_count="$(grep -c 'call void @quidra_init_check' "$TMP/readonly-array-proof.ll" || true)"
-[[ "$readonly_init_check_count" -eq 1 ]]
-grep -q '@quidra_array_initialization_complete' "$TMP/readonly-array-proof.ll"
-grep -q 'array.init.check' "$TMP/readonly-array-proof.ll"
+[[ "$readonly_init_check_count" -eq 0 ]]
+! grep -q 'call i1 @quidra_array_initialization_complete' "$TMP/readonly-array-proof.ll"
+! grep -q 'array.init.check' "$TMP/readonly-array-proof.ll"
 readonly_array_output=$("$QUIDRA" run "$TMP/readonly-array-proof.qui")
 readonly_array_expected=$(printf '1\n1')
 [[ "$readonly_array_output" == "$readonly_array_expected" ]]

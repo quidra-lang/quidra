@@ -192,6 +192,33 @@ thread_local const char* cached_shared_string_text = nullptr;
 thread_local std::size_t cached_shared_string_length = 0;
 thread_local ManagedAllocation* cached_shared_string_allocation = nullptr;
 
+// Repeated xs = xs.append(value) loops hit the same exact allocation for long
+// stretches. Keep only the allocation-record lookup cached; every move-safety
+// property is still re-read on each operation, so aliases, pins, and
+// initialization state retain their ordinary semantics.
+thread_local void* cached_array_append_base = nullptr;
+thread_local ManagedAllocation* cached_array_append_allocation = nullptr;
+
+ManagedAllocation* exact_array_append_allocation(void* array) {
+    if (array && array == cached_array_append_base &&
+        cached_array_append_allocation) {
+        return cached_array_append_allocation;
+    }
+    if (!array) return nullptr;
+    const auto it =
+        managed_allocations.find(reinterpret_cast<std::uintptr_t>(array));
+    if (it == managed_allocations.end()) return nullptr;
+    cached_array_append_base = array;
+    cached_array_append_allocation = &it->second;
+    return cached_array_append_allocation;
+}
+
+void invalidate_array_append_cache(const ManagedAllocation* allocation) {
+    if (cached_array_append_allocation != allocation) return;
+    cached_array_append_base = nullptr;
+    cached_array_append_allocation = nullptr;
+}
+
 ManagedAllocation* exact_managed_string(const char* text) {
     if (text && text == cached_managed_string_text &&
         cached_managed_string_allocation) {
@@ -959,6 +986,7 @@ extern "C" void quidra_managed_release(void* value, void* drop_function) {
             allocation->base, allocation->drop, allocation->small_pool_class};
         invalidate_managed_string_cache(allocation);
         invalidate_shared_string_cache(allocation);
+        invalidate_array_append_cache(allocation);
         neural_moment_cache_release(allocation->base);
         if (allocation->interior_range_tracked) {
             clear_managed_range_cache(allocation);
@@ -998,6 +1026,7 @@ extern "C" void quidra_managed_unpin(void* address) {
         const ManagedFinalization finalization{
             allocation->base, allocation->drop, allocation->small_pool_class};
         invalidate_managed_string_cache(allocation);
+        invalidate_array_append_cache(allocation);
         neural_moment_cache_release(allocation->base);
         if (allocation->interior_range_tracked) {
             clear_managed_range_cache(allocation);
@@ -1189,16 +1218,15 @@ extern "C" void quidra_task_all(
 }
 
 extern "C" bool quidra_array_can_append_move(void* array) {
-    if (!array) return false;
-    const auto it = managed_allocations.find(reinterpret_cast<std::uintptr_t>(array));
-    if (it == managed_allocations.end()) return false;
-    const auto& allocation = it->second;
-    if (allocation.owners != 1 || allocation.pins != 0 || !allocation.initialization) {
+    auto* allocation = exact_array_append_allocation(array);
+    if (!allocation || allocation->owners != 1 || allocation->pins != 0 ||
+        !allocation->initialization) {
         return false;
     }
-    const auto& tracker = *allocation.initialization;
+    const auto& tracker = *allocation->initialization;
     return tracker.data_offset == 8 && tracker.unit_bytes != 0 &&
-           tracker.fully_initialized && tracker.count <= allocation.array_capacity;
+           tracker.fully_initialized &&
+           tracker.count <= allocation->array_capacity;
 }
 
 extern "C" void* quidra_array_grow_move(void* array, unsigned long long raw_stride) {
@@ -1208,32 +1236,28 @@ extern "C" void* quidra_array_grow_move(void* array, unsigned long long raw_stri
         runtime_text_failure("array append move requires unique initialized storage");
     }
 
-    // The generated fast path normally called can_append_move immediately
-    // before this operation. Keep grow_move independently safe, but validate
-    // against the same allocation record in a single lookup rather than
-    // repeating the managed-allocation hash lookup twice per append.
-    const auto old_key = reinterpret_cast<std::uintptr_t>(array);
-    auto it = managed_allocations.find(old_key);
-    if (it == managed_allocations.end())
-        runtime_text_failure("array append move requires unique initialized storage");
-    auto& allocation = it->second;
-    if (allocation.owners != 1 || allocation.pins != 0 ||
-        !allocation.initialization) {
+    // can_append_move and grow_move are adjacent on the generated fast path.
+    // Reuse their exact-allocation lookup, but independently re-check every
+    // safety property because evaluating the appended value may have changed
+    // ownership or pin state in between.
+    auto* allocation = exact_array_append_allocation(array);
+    if (!allocation || allocation->owners != 1 || allocation->pins != 0 ||
+        !allocation->initialization) {
         runtime_text_failure("array append move requires unique initialized storage");
     }
-    auto& tracker = *allocation.initialization;
-    if (tracker.data_offset != 8 || tracker.unit_bytes == 0 ||
-        !tracker.fully_initialized ||
-        tracker.count > allocation.array_capacity) {
+    auto* tracker = allocation->initialization.get();
+    if (tracker->data_offset != 8 || tracker->unit_bytes == 0 ||
+        !tracker->fully_initialized ||
+        tracker->count > allocation->array_capacity) {
         runtime_text_failure("array append move requires unique initialized storage");
     }
     const auto stride = static_cast<std::size_t>(raw_stride);
-    if (stride != tracker.unit_bytes) runtime_text_failure("array append stride mismatch");
+    if (stride != tracker->unit_bytes) runtime_text_failure("array append stride mismatch");
 
     long long signed_length = 0;
     std::memcpy(&signed_length, array, sizeof(signed_length));
     if (signed_length < 0 ||
-        static_cast<unsigned long long>(signed_length) != tracker.count ||
+        static_cast<unsigned long long>(signed_length) != tracker->count ||
         signed_length == std::numeric_limits<long long>::max()) {
         runtime_text_failure("invalid array length during append");
     }
@@ -1242,10 +1266,10 @@ extern "C" void* quidra_array_grow_move(void* array, unsigned long long raw_stri
     const auto new_count = old_count + 1;
     void* result = array;
 
-    if (allocation.array_capacity < new_count) {
-        std::size_t new_capacity = allocation.array_capacity < 4
+    if (allocation->array_capacity < new_count) {
+        std::size_t new_capacity = allocation->array_capacity < 4
             ? 4
-            : allocation.array_capacity;
+            : allocation->array_capacity;
         while (new_capacity < new_count) {
             if (new_capacity > std::numeric_limits<std::size_t>::max() / 2) {
                 new_capacity = new_count;
@@ -1258,9 +1282,10 @@ extern "C" void* quidra_array_grow_move(void* array, unsigned long long raw_stri
             runtime_allocation_failure();
         }
 
+        const auto old_key = reinterpret_cast<std::uintptr_t>(array);
         const auto new_bytes = static_cast<std::size_t>(8) + new_capacity * stride;
-        const auto old_bytes = allocation.size;
-        clear_managed_range_cache(&allocation);
+        const auto old_bytes = allocation->size;
+        clear_managed_range_cache(allocation);
         result = std::realloc(array, new_bytes);
         if (!result) runtime_allocation_failure();
         if (new_bytes > old_bytes) {
@@ -1272,27 +1297,31 @@ extern "C" void* quidra_array_grow_move(void* array, unsigned long long raw_stri
         managed_ranges.erase(old_key);
         if (new_key != old_key) {
             auto node = managed_allocations.extract(old_key);
+            if (node.empty())
+                runtime_text_failure("array append storage disappeared");
             node.key() = new_key;
             node.mapped().base = result;
             node.mapped().size = new_bytes;
             node.mapped().small_pool_class = 0;
             node.mapped().array_capacity = new_capacity;
-            managed_allocations.insert(std::move(node));
+            const auto inserted = managed_allocations.insert(std::move(node));
+            allocation = &inserted.position->second;
         } else {
-            allocation.base = result;
-            allocation.size = new_bytes;
-            allocation.small_pool_class = 0;
-            allocation.array_capacity = new_capacity;
+            allocation->base = result;
+            allocation->size = new_bytes;
+            allocation->small_pool_class = 0;
+            allocation->array_capacity = new_capacity;
         }
         managed_ranges.emplace(new_key, new_bytes);
-        it = managed_allocations.find(new_key);
+        cached_array_append_base = result;
+        cached_array_append_allocation = allocation;
+        tracker = allocation->initialization.get();
     }
 
-    auto& updated_tracker = *it->second.initialization;
-    updated_tracker.count = new_count;
-    updated_tracker.initialized_count = new_count;
-    updated_tracker.fully_initialized = true;
-    updated_tracker.bits.clear();
+    tracker->count = new_count;
+    tracker->initialized_count = new_count;
+    tracker->fully_initialized = true;
+    tracker->bits.clear();
 
     const auto new_length = static_cast<long long>(new_count);
     std::memcpy(result, &new_length, sizeof(new_length));

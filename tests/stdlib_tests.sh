@@ -586,6 +586,21 @@ map_cache_output="$("$QUIDRA" "$TMP/map-get-set-cache.qui")"
 map_cache_expected="$(printf '2\n15\n20')"
 [[ "$map_cache_output" == "$map_cache_expected" ]]
 
+cat > "$TMP/array-append-cache.qui" <<'QUI'
+int[] values = []
+for i in range(0, 10000)
+    values = values.append(i)
+int[] copied = values
+values = values.append(10000)
+print(len(values))
+print(len(copied))
+print(values[10000])
+print(copied[9999])
+QUI
+array_append_cache_output="$("$QUIDRA" "$TMP/array-append-cache.qui")"
+array_append_cache_expected="$(printf '10001\n10000\n10000\n9999')"
+[[ "$array_append_cache_output" == "$array_append_cache_expected" ]]
+
 cat > "$TMP/map-remove.qui" <<'QUI'
 map.Map<string, int> values = map.Map<string, int>()
 values.set("a", 1)

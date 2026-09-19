@@ -145,7 +145,8 @@ fi
 
 cat > "$TMP/moment-update.qui" <<'QUI'
 class Model
-    neural.Parameter<float32> value
+    neural.Parameter<float32> left
+    neural.Parameter<float32> right
 
 class MomentState
     float rate
@@ -156,7 +157,8 @@ class MomentState
     neural.State<bin> moments
 
 Model model = Model(
-    value = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
+    left = neural.Parameter<float32>(value = tensor.ones<float32>([1])),
+    right = neural.Parameter<float32>(value = tensor.ones<float32>([1]) * 2.0)
 )
 MomentState state = MomentState(
     rate = 0.1,
@@ -166,8 +168,9 @@ MomentState state = MomentState(
     step = neural.State<int>(value = 0),
     moments = neural.State<bin>(value = bin.fill(0, 0))
 )
-neural<float32> tracked = model.value.track()
-neural<float32> loss = neural.mean(tracked * tracked)
+neural<float32> left = model.left.track()
+neural<float32> right = model.right.track()
+neural<float32> loss = neural.mean(left * left) + neural.mean(right * right)
 neural.Gradients gradients = neural.grad(loss)
 neural.moment_update(
     &model,
@@ -180,11 +183,32 @@ neural.moment_update(
     gradients
 )
 print(state.step.value)
-print(math.abs(float(model.value.raw()[0].item()) - 0.9) < 0.000001)
+print(math.abs(float(model.left.raw()[0].item()) - 0.9) < 0.000001)
+print(math.abs(float(model.right.raw()[0].item()) - 1.9) < 0.000001)
+
+neural<float32> left_second = model.left.track()
+neural<float32> right_second = model.right.track()
+neural<float32> loss_second =
+    neural.mean(left_second * left_second) +
+    neural.mean(right_second * right_second)
+neural.Gradients gradients_second = neural.grad(loss_second)
+neural.moment_update(
+    &model,
+    state.rate,
+    state.beta1,
+    state.beta2,
+    state.epsilon,
+    &state.step,
+    &state.moments,
+    gradients_second
+)
+print(state.step.value)
+print(model.left.raw()[0].item() < float32(0.9))
+print(model.right.raw()[0].item() < float32(1.9))
 QUI
 
 moment_output="$("$QUIDRA" "$TMP/moment-update.qui")"
-if [[ "$moment_output" != "$(printf '1\ntrue')" ]]; then
+if [[ "$moment_output" != "$(printf '1\ntrue\ntrue\n2\ntrue\ntrue')" ]]; then
     echo "unexpected neural moment update output: $moment_output" >&2
     exit 1
 fi

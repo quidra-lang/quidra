@@ -2995,6 +2995,15 @@ struct NeuralMomentDeviceCache {
 thread_local std::unordered_map<std::uintptr_t,NeuralMomentDeviceCache>
     neural_moment_device_caches;
 
+struct NeuralMomentUpdateContext {
+    void* moments_raw{};
+    std::size_t parameter_count{};
+    std::vector<NeuralMomentRecord> records;
+};
+
+thread_local std::unordered_map<std::uintptr_t,NeuralMomentUpdateContext>
+    neural_moment_update_contexts;
+
 void neural_moment_cache_release(void* value) {
     if(!value) return;
     neural_moment_device_caches.erase(reinterpret_cast<std::uintptr_t>(value));
@@ -3155,14 +3164,14 @@ void* neural_encode_moments(
     return raw;
 }
 
-void neural_sync_moment_cache_to_host(
-    void* raw,unsigned long long line,unsigned long long column) {
+void neural_sync_moment_cache_records(
+    void* raw,std::vector<NeuralMomentRecord>& records,
+    unsigned long long line,unsigned long long column) {
     if(!raw) return;
     const auto key=reinterpret_cast<std::uintptr_t>(raw);
     const auto found=neural_moment_device_caches.find(key);
     if(found==neural_moment_device_caches.end()) return;
 
-    auto records=neural_decode_moments(raw,line,column);
     auto& cache=found->second;
     if(cache.records.size()>records.size())
         neural_fail("moment device cache does not match encoded state",line,column);
@@ -3202,6 +3211,16 @@ void neural_sync_moment_cache_to_host(
             neural_fail("invalid moment device cache dtype",line,column);
         }
     }
+}
+
+void neural_sync_moment_cache_to_host(
+    void* raw,unsigned long long line,unsigned long long column) {
+    if(!raw) return;
+    const auto key=reinterpret_cast<std::uintptr_t>(raw);
+    if(!neural_moment_device_caches.contains(key)) return;
+
+    auto records=neural_decode_moments(raw,line,column);
+    neural_sync_moment_cache_records(raw,records,line,column);
 
     auto* encoded=neural_encode_moments(records,line,column);
     const auto raw_it=managed_allocations.find(reinterpret_cast<std::uintptr_t>(raw));
@@ -4256,6 +4275,20 @@ extern "C" bool quidra_neural_update_parameter(
     neural_fail("invalid neural gradient dtype",line,column);
 }
 
+NeuralMomentUpdateContext& neural_moment_update_context(
+    void* optimizer,unsigned long long line,unsigned long long column) {
+    if(!optimizer) neural_fail("null moment update optimizer",line,column);
+    const auto key=reinterpret_cast<std::uintptr_t>(optimizer);
+    const auto found=neural_moment_update_contexts.find(key);
+    if(found==neural_moment_update_contexts.end())
+        neural_fail("moment update transaction is not active",line,column);
+    auto* moments_state=neural_object_pointer_field(optimizer,40);
+    if(!moments_state) neural_fail("invalid moment update moments State",line,column);
+    if(neural_object_pointer_field(moments_state,0)!=found->second.moments_raw)
+        neural_fail("moment update moments State changed during update",line,column);
+    return found->second;
+}
+
 extern "C" long long quidra_neural_moment_begin(
     void* optimizer,unsigned long long parameter_count,
     unsigned long long line,unsigned long long column) {
@@ -4274,11 +4307,20 @@ extern "C" long long quidra_neural_moment_begin(
     const auto step=neural_state_u64(step_state);
     if(step>=static_cast<std::uint64_t>(std::numeric_limits<long long>::max()))
         neural_fail("moment update step counter overflow",line,column);
-    const auto records=neural_decode_moments(
-        neural_object_pointer_field(moments_state,0),line,column);
+    auto* moments_raw=neural_object_pointer_field(moments_state,0);
+    auto records=neural_decode_moments(moments_raw,line,column);
     if((step==0&&!records.empty())||
        (step>0&&records.size()!=parameter_count))
         neural_fail("moment update state does not match model Parameter structure",line,column);
+
+    const auto key=reinterpret_cast<std::uintptr_t>(optimizer);
+    if(neural_moment_update_contexts.contains(key))
+        neural_fail("moment update transaction is already active",line,column);
+    NeuralMomentUpdateContext context;
+    context.moments_raw=moments_raw;
+    context.parameter_count=static_cast<std::size_t>(parameter_count);
+    context.records=std::move(records);
+    neural_moment_update_contexts.emplace(key,std::move(context));
     return static_cast<long long>(step+1);
 }
 
@@ -4286,16 +4328,15 @@ extern "C" void quidra_neural_moment_validate_parameter(
     void* parameter,void* gradients_raw,void* optimizer,void* path_raw,
     unsigned long long index,
     unsigned long long line,unsigned long long column) {
-    if(!optimizer) neural_fail("null moment update optimizer",line,column);
     const auto* parameter_path=static_cast<const char*>(path_raw);
     if(!parameter_path||!*parameter_path)
         neural_fail("invalid moment update Parameter path",line,column);
     auto* tensor=neural_parameter_tensor(parameter);
     if(!tensor) neural_fail("invalid neural Parameter",line,column);
-    auto* moments_state=neural_object_pointer_field(optimizer,40);
-    if(!moments_state) neural_fail("invalid moment update moments State",line,column);
-    const auto records=neural_decode_moments(
-        neural_object_pointer_field(moments_state,0),line,column);
+    auto& context=neural_moment_update_context(optimizer,line,column);
+    if(index>=context.parameter_count)
+        neural_fail("moment update Parameter traversal changed",line,column);
+    const auto& records=context.records;
     if(records.empty()) return;
     if(index>=records.size())
         neural_fail("moment update Parameter traversal changed",line,column);
@@ -4316,13 +4357,24 @@ extern "C" void quidra_neural_moment_finish(
     void* optimizer,long long next_step,
     unsigned long long line,unsigned long long column) {
     if(!optimizer||next_step<=0) neural_fail("invalid moment update step",line,column);
+    const auto key=reinterpret_cast<std::uintptr_t>(optimizer);
+    const auto found=neural_moment_update_contexts.find(key);
+    if(found==neural_moment_update_contexts.end())
+        neural_fail("moment update transaction is not active",line,column);
+    if(found->second.records.size()!=found->second.parameter_count)
+        neural_fail("moment update Parameter traversal changed",line,column);
+
     auto* step_state=neural_object_pointer_field(optimizer,32);
     if(!step_state) neural_fail("invalid moment update step State",line,column);
     const auto current=neural_state_u64(step_state);
     const auto expected=static_cast<std::uint64_t>(next_step);
     if(current==std::numeric_limits<std::uint64_t>::max()||current+1!=expected)
         neural_fail("moment update step State changed during update",line,column);
+
+    auto* encoded=neural_encode_moments(found->second.records,line,column);
+    neural_replace_moments(optimizer,encoded);
     neural_set_state_u64(step_state,expected);
+    neural_moment_update_contexts.erase(found);
 }
 
 extern "C" bool quidra_neural_moment_update_parameter(
@@ -4335,9 +4387,11 @@ extern "C" bool quidra_neural_moment_update_parameter(
         neural_fail("invalid moment update Parameter path",line,column);
     auto* tensor=neural_parameter_tensor(parameter);
     if(!tensor) neural_fail("invalid neural Parameter",line,column);
-    auto* moments_state=neural_object_pointer_field(optimizer,40);
-    if(!moments_state) neural_fail("invalid moment update moments State",line,column);
-    auto* moments_raw=neural_object_pointer_field(moments_state,0);
+    auto& context=neural_moment_update_context(optimizer,line,column);
+    if(index>=context.parameter_count)
+        neural_fail("moment update Parameter traversal changed",line,column);
+    auto* moments_raw=context.moments_raw;
+    auto& records=context.records;
     const auto* gradient=neural_gradient_for_parameter(parameter,gradients_raw,line,column);
 
     const auto moment_key=reinterpret_cast<std::uintptr_t>(moments_raw);
@@ -4345,11 +4399,12 @@ extern "C" bool quidra_neural_moment_update_parameter(
     if(cached &&
        (neural_managed_owner_count(moments_raw)>1 ||
         (gradient && !gradient->device_tensor))){
-        neural_sync_moment_cache_to_host(moments_raw,line,column);
+        // Preserve step counters and CPU-side updates already made in this
+        // transaction while materializing authoritative GPU moments.
+        neural_sync_moment_cache_records(moments_raw,records,line,column);
         neural_moment_device_caches.erase(moment_key);
     }
 
-    auto records=neural_decode_moments(moments_raw,line,column);
     if(index>records.size()) neural_fail("moment update Parameter traversal changed",line,column);
     const auto logical_count=tensor_logical_count(*tensor);
     if(index==records.size()){
@@ -4488,8 +4543,6 @@ extern "C" bool quidra_neural_moment_update_parameter(
             neural_apply_parameter_delta(parameter,delta,line,column);
         }
     }
-    auto* encoded=neural_encode_moments(records,line,column);
-    neural_replace_moments(optimizer,encoded);
     return matched;
 }
 

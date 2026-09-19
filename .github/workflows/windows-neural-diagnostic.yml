@@ -8,8 +8,20 @@ on:
 jobs:
   neural:
     runs-on: windows-latest
+    env:
+      VCPKG_BINARY_SOURCES: "clear;files,${{ github.workspace }}/.vcpkg-binary-cache,readwrite"
     steps:
       - uses: actions/checkout@v4
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@v4
+        with:
+          path: .vcpkg-binary-cache
+          key: vcpkg-windows-x64-${{ runner.os }}-${{ hashFiles('.github/workflows/ci.yml') }}
+          restore-keys: |
+            vcpkg-windows-x64-${{ runner.os }}-
+      - name: Prepare vcpkg binary cache
+        shell: pwsh
+        run: New-Item -ItemType Directory -Force -Path .vcpkg-binary-cache | Out-Null
       - name: Install native dependencies
         shell: pwsh
         run: vcpkg install curl:x64-windows libpng:x64-windows libjpeg-turbo:x64-windows tiff:x64-windows libwebp:x64-windows ffmpeg:x64-windows

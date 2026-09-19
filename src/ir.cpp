@@ -111,6 +111,21 @@ struct Lowerer {
         return name->name;
     }
 
+    void invalidate_length_relation(const std::string& name) {
+        scalar_length_of_array.erase(name);
+        array_length_from_scalar.erase(name);
+        for (auto it = scalar_length_of_array.begin();
+             it != scalar_length_of_array.end();) {
+            if (it->second == name) it = scalar_length_of_array.erase(it);
+            else ++it;
+        }
+        for (auto it = array_length_from_scalar.begin();
+             it != array_length_from_scalar.end();) {
+            if (it->second == name) it = array_length_from_scalar.erase(it);
+            else ++it;
+        }
+    }
+
     bool scalar_names_array_length(
         const std::string& scalar, const std::string& array) const {
         const auto scalar_relation = scalar_length_of_array.find(scalar);
@@ -1248,8 +1263,11 @@ struct Lowerer {
             if (is_source_reference(n->name)) {
                 block->instructions.push_back(ReferenceAddress{out,source_reference(n->name)});
             } else {
-                if (may_write && source_local_type(n->name).kind == TypeKind::Array) {
-                    fully_initialized_array_locals.erase(n->name);
+                if (may_write) {
+                    invalidate_length_relation(n->name);
+                    if (source_local_type(n->name).kind == TypeKind::Array) {
+                        fully_initialized_array_locals.erase(n->name);
+                    }
                 }
                 block->instructions.push_back(AddressLocal{out,source_local(n->name)});
             }
@@ -1500,7 +1518,9 @@ struct Lowerer {
                         static_cast<std::uint32_t>(e.span.start.column),
                         initialization_proven,
                         checked.bounds_proven.contains(n->items.front().index.get()) ||
-                            standard_collection_array,
+                            standard_collection_array ||
+                            dynamic_array_bounds_proven(
+                                *n->base, *n->items.front().index),
                         initialization_guard});
                     if(base_owned && requires_lifetime_management(checked.raw_types.at(&e)))
                         out=copy_value(out,checked.raw_types.at(&e));
@@ -3413,9 +3433,36 @@ struct Lowerer {
             block->instructions.push_back(Binary{lt,"<",ii,ee,locals[i_name],Type::simple(TypeKind::Bool)}); block->instructions.push_back(Binary{gt,">",ii,ee,locals[i_name],Type::simple(TypeKind::Bool)});
             block->instructions.push_back(Binary{a,"and",pos,lt,Type::simple(TypeKind::Bool),Type::simple(TypeKind::Bool)}); block->instructions.push_back(Binary{b,"and",neg,gt,Type::simple(TypeKind::Bool),Type::simple(TypeKind::Bool)}); block->instructions.push_back(Binary{c,"or",a,b,Type::simple(TypeKind::Bool),Type::simple(TypeKind::Bool)}); block->instructions.push_back(Branch{c,body_name,done});
             auto& bb=add_block(body_name); block=&bb; auto cur=fresh(); block->instructions.push_back(LoadLocal{cur,i_name,locals[i_name]}); block->instructions.push_back(StoreLocal{iter_name,cur,locals[iter_name]});
+            const Expr* source_start = nullptr;
+            const Expr* source_end = nullptr;
+            const Expr* source_step = nullptr;
+            if (call->args.size() == 1) {
+                source_end = call->args[0].value.get();
+            } else if (call->args.size() >= 2) {
+                source_start = call->args[0].value.get();
+                source_end = call->args[1].value.get();
+                if (call->args.size() == 3)
+                    source_step = call->args[2].value.get();
+            }
+            const auto literal_is = [](const Expr* expression,
+                                       std::uint64_t expected) {
+                if (!expression) return false;
+                const auto* value =
+                    std::get_if<IntegerExpr>(&expression->data);
+                return value && value->fits_u64 &&
+                       value->value == expected;
+            };
+            const bool range_bounds_trackable =
+                source_end &&
+                (!source_start || literal_is(source_start, 0)) &&
+                (!source_step || literal_is(source_step, 1));
+            if (range_bounds_trackable)
+                active_range_bounds.push_back(
+                    ActiveRangeBound{n.name, source_end});
             loop_targets.push_back({step_label,done});
             lower_loop_statement_sequence(n.body);
             loop_targets.pop_back();
+            if (range_bounds_trackable) active_range_bounds.pop_back();
             if(!terminated()) block->instructions.push_back(Jump{step_label});
             auto& sb=add_block(step_label); block=&sb;
             auto x=fresh(), st=fresh(), nx=fresh(); block->instructions.push_back(LoadLocal{x,i_name,locals[i_name]}); block->instructions.push_back(LoadLocal{st,step_name,locals[step_name]}); block->instructions.push_back(Binary{nx,"+",x,st,Type::simple(TypeKind::Int),Type::simple(TypeKind::Int)}); block->instructions.push_back(StoreLocal{i_name,nx,locals[i_name]}); block->instructions.push_back(Jump{cond});
@@ -3951,9 +3998,31 @@ struct Lowerer {
                     emit_array_constraints(v,t,found->second,0,s.span);
                 }
                 block->instructions.push_back(StoreLocal{ir_name,v,t});
+                invalidate_length_relation(n->name);
+                if (t.kind == TypeKind::Int) {
+                    if (const auto source = direct_array_length_source(*n->value))
+                        scalar_length_of_array[n->name] = *source;
+                }
                 if (t.kind == TypeKind::Array) {
                     if (array_full) fully_initialized_array_locals.insert(n->name);
                     else fully_initialized_array_locals.erase(n->name);
+                    if (const auto* array_call =
+                            std::get_if<CallExpr>(&n->value->data)) {
+                        const auto resolution =
+                            checked.call_resolutions.find(n->value.get());
+                        if (resolution != checked.call_resolutions.end() &&
+                            resolution->second.kind == CallKind::Builtin &&
+                            resolution->second.builtin == BuiltinCallable::Array &&
+                            !array_call->args.empty() &&
+                            array_call->args.front().value) {
+                            if (const auto* length_name =
+                                    std::get_if<NameExpr>(
+                                        &array_call->args.front().value->data)) {
+                                array_length_from_scalar[n->name] =
+                                    length_name->name;
+                            }
+                        }
+                    }
                 }
             } else if(t.kind==TypeKind::Array) {
                 const auto captured=array_constraints.find(ir_name);
@@ -3986,6 +4055,7 @@ struct Lowerer {
                 if(const auto* name=std::get_if<NameExpr>(&n->target->data);
                    name && !checked.field_accesses.contains(n->target.get()) &&
                    !is_source_reference(name->name)){
+                    invalidate_length_relation(name->name);
                     auto old=fresh();
                     const auto local_name=source_local(name->name);
                     block->instructions.push_back(LoadLocal{old,local_name,t});
@@ -4237,9 +4307,31 @@ struct Lowerer {
                         emit_array_constraints(v,t,found->second,0,s.span);
                     }
                     block->instructions.push_back(StoreLocal{local_name,v,t});
+                    invalidate_length_relation(name->name);
+                    if (t.kind == TypeKind::Int) {
+                        if (const auto source = direct_array_length_source(*n->value))
+                            scalar_length_of_array[name->name] = *source;
+                    }
                     if (t.kind == TypeKind::Array) {
                         if (assigned_array_full) fully_initialized_array_locals.insert(name->name);
                         else fully_initialized_array_locals.erase(name->name);
+                        if (const auto* array_call =
+                                std::get_if<CallExpr>(&n->value->data)) {
+                            const auto resolution =
+                                checked.call_resolutions.find(n->value.get());
+                            if (resolution != checked.call_resolutions.end() &&
+                                resolution->second.kind == CallKind::Builtin &&
+                                resolution->second.builtin == BuiltinCallable::Array &&
+                                !array_call->args.empty() &&
+                                array_call->args.front().value) {
+                                if (const auto* length_name =
+                                        std::get_if<NameExpr>(
+                                            &array_call->args.front().value->data)) {
+                                    array_length_from_scalar[name->name] =
+                                        length_name->name;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -4285,7 +4377,9 @@ struct Lowerer {
                             static_cast<std::uint32_t>(n->target->span.start.column),
                             initialization_proven,
                             checked.bounds_proven.contains(ix.items.front().index.get()) ||
-                                standard_collection_array,
+                                standard_collection_array ||
+                                dynamic_array_bounds_proven(
+                                    *ix.base, *ix.items.front().index),
                             initialization_guard});
                     }
                 }
@@ -4514,7 +4608,7 @@ struct Lowerer {
     }
 
     void begin_function(Function out) {
-        module.functions.push_back(std::move(out));fn=&module.functions.back();next_value=1;next_label=0;next_hidden=0;locals.clear();local_names.clear();reference_names.clear();references.clear();fully_initialized_array_locals.clear();reference_array_initialization.clear();shaped_constraints.clear();array_constraints.clear();contextual_tensor_shapes.clear();return_shaped_constraints.clear();return_array_constraints.clear();fn->blocks.push_back(Block{"entry",{}});block=&fn->blocks.back();
+        module.functions.push_back(std::move(out));fn=&module.functions.back();next_value=1;next_label=0;next_hidden=0;locals.clear();local_names.clear();reference_names.clear();references.clear();fully_initialized_array_locals.clear();reference_array_initialization.clear();active_range_bounds.clear();scalar_length_of_array.clear();array_length_from_scalar.clear();shaped_constraints.clear();array_constraints.clear();contextual_tensor_shapes.clear();return_shaped_constraints.clear();return_array_constraints.clear();fn->blocks.push_back(Block{"entry",{}});block=&fn->blocks.back();
         for(const auto& p:fn->parameters){locals[p.name]=p.type;local_names[p.name]=p.name;}
         for(const auto& p:fn->parameters){
             if((p.type.kind!=TypeKind::Tensor&&p.type.kind!=TypeKind::Neural)||

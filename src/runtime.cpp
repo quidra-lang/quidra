@@ -5983,7 +5983,12 @@ void* neural_grad_t(
                 neural_fail("gradient dtype mismatch",line,column);
             destination.shape=node->shape;
             auto& values=destination.data.typed<T>();
-            if(values.empty()) values=g;
+            if(values.empty()){
+                // Parameter gradients are complete at this point in reverse
+                // topological traversal. Transfer their buffer to the result
+                // instead of copying the full tensor.
+                values=std::move(found->second);
+            }
             else{
                 if(values.size()!=g.size()) neural_fail("gradient size mismatch",line,column);
                 for(std::size_t i=0;i<g.size();++i)

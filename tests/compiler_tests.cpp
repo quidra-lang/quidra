@@ -385,6 +385,17 @@ for outer in range(0, 1)
         print(part)
         index += 1
 )", "string.split_iter.begin");
+ llvm_contains(R"(string text = "a b"
+string[] parts = text.split(" ")
+for part in parts
+    print(part)
+)", "call ptr @quidra_string_split_iter_begin_move");
+ llvm_not_contains(R"(string text = "a b"
+string[] parts = text.split(" ")
+for part in parts
+    print(part)
+print(text)
+)", "call ptr @quidra_string_split_iter_begin_move");
 
  // Nonnegative modulo invariants prove hot integer arithmetic safe without
  // weakening the default overflow semantics.

@@ -294,6 +294,149 @@ CublasApi& cublas() {
     return api;
 }
 
+
+struct CudnnApi {
+    using Handle = void*;
+    using TensorDescriptor = void*;
+    using FilterDescriptor = void*;
+    using ConvolutionDescriptor = void*;
+    using Status = int;
+
+    struct FwdPerf {
+        int algo{};
+        int status{};
+        float time{};
+        std::size_t memory{};
+        int determinism{};
+        int math_type{};
+        int reserved[3]{};
+    };
+    using BwdDataPerf = FwdPerf;
+    using BwdFilterPerf = FwdPerf;
+
+    DynamicLibrary library;
+    Status (*create)(Handle*){};
+    Status (*destroy)(Handle){};
+    Status (*create_tensor)(TensorDescriptor*){};
+    Status (*destroy_tensor)(TensorDescriptor){};
+    Status (*set_tensor4d)(TensorDescriptor,int,int,int,int,int,int){};
+    Status (*create_filter)(FilterDescriptor*){};
+    Status (*destroy_filter)(FilterDescriptor){};
+    Status (*set_filter4d)(FilterDescriptor,int,int,int,int,int,int){};
+    Status (*create_convolution)(ConvolutionDescriptor*){};
+    Status (*destroy_convolution)(ConvolutionDescriptor){};
+    Status (*set_convolution2d)(ConvolutionDescriptor,int,int,int,int,int,int,int,int){};
+    Status (*set_convolution_math_type)(ConvolutionDescriptor,int){};
+    Status (*get_fwd_algorithms)(Handle,TensorDescriptor,FilterDescriptor,
+                                 ConvolutionDescriptor,TensorDescriptor,
+                                 int,int*,FwdPerf*){};
+    Status (*get_fwd_workspace)(Handle,TensorDescriptor,FilterDescriptor,
+                                ConvolutionDescriptor,TensorDescriptor,int,
+                                std::size_t*){};
+    Status (*convolution_forward)(Handle,const void*,TensorDescriptor,const void*,
+                                  FilterDescriptor,const void*,ConvolutionDescriptor,
+                                  int,void*,std::size_t,const void*,
+                                  TensorDescriptor,void*){};
+    Status (*add_tensor)(Handle,const void*,TensorDescriptor,const void*,
+                         const void*,TensorDescriptor,void*){};
+    Status (*get_bwd_data_algorithms)(Handle,FilterDescriptor,TensorDescriptor,
+                                      ConvolutionDescriptor,TensorDescriptor,
+                                      int,int*,BwdDataPerf*){};
+    Status (*get_bwd_data_workspace)(Handle,FilterDescriptor,TensorDescriptor,
+                                     ConvolutionDescriptor,TensorDescriptor,int,
+                                     std::size_t*){};
+    Status (*convolution_backward_data)(Handle,const void*,FilterDescriptor,const void*,
+                                        TensorDescriptor,const void*,ConvolutionDescriptor,
+                                        int,void*,std::size_t,const void*,
+                                        TensorDescriptor,void*){};
+    Status (*get_bwd_filter_algorithms)(Handle,TensorDescriptor,TensorDescriptor,
+                                        ConvolutionDescriptor,FilterDescriptor,
+                                        int,int*,BwdFilterPerf*){};
+    Status (*get_bwd_filter_workspace)(Handle,TensorDescriptor,TensorDescriptor,
+                                       ConvolutionDescriptor,FilterDescriptor,int,
+                                       std::size_t*){};
+    Status (*convolution_backward_filter)(Handle,const void*,TensorDescriptor,const void*,
+                                          TensorDescriptor,const void*,ConvolutionDescriptor,
+                                          int,void*,std::size_t,const void*,
+                                          FilterDescriptor,void*){};
+    Status (*convolution_backward_bias)(Handle,const void*,TensorDescriptor,const void*,
+                                        const void*,TensorDescriptor,void*){};
+    std::vector<Handle> handles;
+    std::mutex mutex;
+    bool ready{};
+
+    CudnnApi() {
+#ifdef _WIN32
+        if (!library.open("cudnn64_9.dll") &&
+            !library.open("cudnn64_8.dll")) return;
+#else
+        if (!library.open("libcudnn.so.9") &&
+            !library.open("libcudnn.so.8") &&
+            !library.open("libcudnn.so")) return;
+#endif
+        create=load_symbol<decltype(create)>(library,"cudnnCreate");
+        destroy=load_symbol<decltype(destroy)>(library,"cudnnDestroy");
+        create_tensor=load_symbol<decltype(create_tensor)>(library,"cudnnCreateTensorDescriptor");
+        destroy_tensor=load_symbol<decltype(destroy_tensor)>(library,"cudnnDestroyTensorDescriptor");
+        set_tensor4d=load_symbol<decltype(set_tensor4d)>(library,"cudnnSetTensor4dDescriptor");
+        create_filter=load_symbol<decltype(create_filter)>(library,"cudnnCreateFilterDescriptor");
+        destroy_filter=load_symbol<decltype(destroy_filter)>(library,"cudnnDestroyFilterDescriptor");
+        set_filter4d=load_symbol<decltype(set_filter4d)>(library,"cudnnSetFilter4dDescriptor");
+        create_convolution=load_symbol<decltype(create_convolution)>(library,"cudnnCreateConvolutionDescriptor");
+        destroy_convolution=load_symbol<decltype(destroy_convolution)>(library,"cudnnDestroyConvolutionDescriptor");
+        set_convolution2d=load_symbol<decltype(set_convolution2d)>(library,"cudnnSetConvolution2dDescriptor");
+        set_convolution_math_type=load_symbol<decltype(set_convolution_math_type)>(library,"cudnnSetConvolutionMathType");
+        get_fwd_algorithms=load_symbol<decltype(get_fwd_algorithms)>(library,"cudnnGetConvolutionForwardAlgorithm_v7");
+        get_fwd_workspace=load_symbol<decltype(get_fwd_workspace)>(library,"cudnnGetConvolutionForwardWorkspaceSize");
+        convolution_forward=load_symbol<decltype(convolution_forward)>(library,"cudnnConvolutionForward");
+        add_tensor=load_symbol<decltype(add_tensor)>(library,"cudnnAddTensor");
+        get_bwd_data_algorithms=load_symbol<decltype(get_bwd_data_algorithms)>(library,"cudnnGetConvolutionBackwardDataAlgorithm_v7");
+        get_bwd_data_workspace=load_symbol<decltype(get_bwd_data_workspace)>(library,"cudnnGetConvolutionBackwardDataWorkspaceSize");
+        convolution_backward_data=load_symbol<decltype(convolution_backward_data)>(library,"cudnnConvolutionBackwardData");
+        get_bwd_filter_algorithms=load_symbol<decltype(get_bwd_filter_algorithms)>(library,"cudnnGetConvolutionBackwardFilterAlgorithm_v7");
+        get_bwd_filter_workspace=load_symbol<decltype(get_bwd_filter_workspace)>(library,"cudnnGetConvolutionBackwardFilterWorkspaceSize");
+        convolution_backward_filter=load_symbol<decltype(convolution_backward_filter)>(library,"cudnnConvolutionBackwardFilter");
+        convolution_backward_bias=load_symbol<decltype(convolution_backward_bias)>(library,"cudnnConvolutionBackwardBias");
+        ready=create&&destroy&&create_tensor&&destroy_tensor&&set_tensor4d&&
+              create_filter&&destroy_filter&&set_filter4d&&create_convolution&&
+              destroy_convolution&&set_convolution2d&&get_fwd_algorithms&&
+              get_fwd_workspace&&convolution_forward&&add_tensor&&
+              get_bwd_data_algorithms&&get_bwd_data_workspace&&
+              convolution_backward_data&&get_bwd_filter_algorithms&&
+              get_bwd_filter_workspace&&convolution_backward_filter&&
+              convolution_backward_bias;
+    }
+
+    ~CudnnApi() {
+        if(!destroy)return;
+        for(auto handle:handles) if(handle) (void)destroy(handle);
+    }
+
+    Handle handle(int backend_index,std::string& error) {
+        if(!ready)return nullptr;
+        auto& cu=cuda();
+        CudaApi::CUcontext context=nullptr;
+        if(!cu.current(backend_index,context,error))return nullptr;
+        std::lock_guard lock(mutex);
+        int count=0;
+        if(cu.device_count(&count)!=0||backend_index<0||backend_index>=count){
+            error="NVIDIA GPU index is unavailable";return nullptr;
+        }
+        if(handles.size()<static_cast<std::size_t>(count))
+            handles.resize(static_cast<std::size_t>(count),nullptr);
+        auto& result=handles[static_cast<std::size_t>(backend_index)];
+        if(!result&&create(&result)!=0){
+            result=nullptr;error="cuDNN handle creation failed";return nullptr;
+        }
+        return result;
+    }
+};
+
+CudnnApi& cudnn() {
+    static CudnnApi api;
+    return api;
+}
+
 struct HipApi {
     using Module = void*;
     using Function = void*;

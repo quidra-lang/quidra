@@ -739,6 +739,134 @@ std::string ptx_moment_source(int dtype) {
 
 } // namespace
 
+
+bool cudnn_conv2d_backward(
+    Buffer* input_gradient,Buffer* weight_gradient,Buffer* bias_gradient,
+    const Buffer* gradient,const Buffer* input,const Buffer* weight,
+    int dtype,std::size_t batches,std::size_t channels_in,std::size_t height,
+    std::size_t width,std::size_t channels_out,std::size_t kernel_h,
+    std::size_t kernel_w,std::size_t output_h,std::size_t output_w,
+    std::size_t stride,std::size_t padding) {
+    if(input_gradient->backend!=Backend::Nvidia||(dtype!=9&&dtype!=10))return false;
+    const auto fits=[](std::size_t v){
+        return v<=static_cast<std::size_t>(std::numeric_limits<int>::max());
+    };
+    for(auto v:{batches,channels_in,height,width,channels_out,kernel_h,kernel_w,
+                output_h,output_w,stride,padding})if(!fits(v))return false;
+    auto& api=cudnn(); if(!api.ready)return false;
+    std::string ignored; auto handle=api.handle(input_gradient->backend_index,ignored);
+    if(!handle)return false;
+
+    CudnnApi::TensorDescriptor x_desc=nullptr,dy_desc=nullptr,dx_desc=nullptr,db_desc=nullptr;
+    CudnnApi::FilterDescriptor w_desc=nullptr,dw_desc=nullptr;
+    CudnnApi::ConvolutionDescriptor conv_desc=nullptr;
+    const auto cleanup=[&]{
+        if(x_desc)api.destroy_tensor(x_desc); if(dy_desc)api.destroy_tensor(dy_desc);
+        if(dx_desc)api.destroy_tensor(dx_desc); if(db_desc)api.destroy_tensor(db_desc);
+        if(w_desc)api.destroy_filter(w_desc); if(dw_desc)api.destroy_filter(dw_desc);
+        if(conv_desc)api.destroy_convolution(conv_desc);
+    };
+    if(api.create_tensor(&x_desc)!=0||api.create_tensor(&dy_desc)!=0||
+       api.create_tensor(&dx_desc)!=0||api.create_tensor(&db_desc)!=0||
+       api.create_filter(&w_desc)!=0||api.create_filter(&dw_desc)!=0||
+       api.create_convolution(&conv_desc)!=0){cleanup();return false;}
+    constexpr int nchw=0,cross_correlation=1;
+    const int data_type=dtype==10?0:1;
+    if(api.set_tensor4d(x_desc,nchw,data_type,static_cast<int>(batches),
+                        static_cast<int>(channels_in),static_cast<int>(height),
+                        static_cast<int>(width))!=0||
+       api.set_tensor4d(dx_desc,nchw,data_type,static_cast<int>(batches),
+                        static_cast<int>(channels_in),static_cast<int>(height),
+                        static_cast<int>(width))!=0||
+       api.set_tensor4d(dy_desc,nchw,data_type,static_cast<int>(batches),
+                        static_cast<int>(channels_out),static_cast<int>(output_h),
+                        static_cast<int>(output_w))!=0||
+       api.set_tensor4d(db_desc,nchw,data_type,1,static_cast<int>(channels_out),1,1)!=0||
+       api.set_filter4d(w_desc,data_type,nchw,static_cast<int>(channels_out),
+                        static_cast<int>(channels_in),static_cast<int>(kernel_h),
+                        static_cast<int>(kernel_w))!=0||
+       api.set_filter4d(dw_desc,data_type,nchw,static_cast<int>(channels_out),
+                        static_cast<int>(channels_in),static_cast<int>(kernel_h),
+                        static_cast<int>(kernel_w))!=0||
+       api.set_convolution2d(conv_desc,static_cast<int>(padding),static_cast<int>(padding),
+                             static_cast<int>(stride),static_cast<int>(stride),1,1,
+                             cross_correlation,data_type)!=0){cleanup();return false;}
+    if(api.set_convolution_math_type){
+        constexpr int default_math=0,fma_math=3;
+        (void)api.set_convolution_math_type(
+            conv_desc,dnn_mode()==DnnMode::Deterministic?fma_math:default_math);
+    }
+
+    const bool deterministic=dnn_mode()==DnnMode::Deterministic;
+    std::array<CudnnApi::BwdDataPerf,8> data_perf{};
+    int data_returned=0;
+    if(api.get_bwd_data_algorithms(handle,w_desc,dy_desc,conv_desc,dx_desc,
+           static_cast<int>(data_perf.size()),&data_returned,data_perf.data())!=0||
+       data_returned<=0){cleanup();return false;}
+    int data_algo=-1; Buffer* data_ws=nullptr; std::size_t data_ws_bytes=0;
+    for(int i=0;i<data_returned;++i){
+        const auto& p=data_perf[static_cast<std::size_t>(i)];
+        if(p.status!=0||(deterministic&&p.determinism!=1))continue;
+        std::size_t bytes=0;
+        if(api.get_bwd_data_workspace(handle,w_desc,dy_desc,conv_desc,dx_desc,p.algo,&bytes)!=0)continue;
+        std::string alloc_error; Buffer* ws=bytes?allocate(input_gradient->global_index,bytes,alloc_error):nullptr;
+        if(bytes&&!ws)continue;
+        data_algo=p.algo;data_ws=ws;data_ws_bytes=bytes;break;
+    }
+    if(data_algo<0){cleanup();return false;}
+
+    std::array<CudnnApi::BwdFilterPerf,8> filter_perf{};
+    int filter_returned=0;
+    if(api.get_bwd_filter_algorithms(handle,x_desc,dy_desc,conv_desc,dw_desc,
+           static_cast<int>(filter_perf.size()),&filter_returned,filter_perf.data())!=0||
+       filter_returned<=0){if(data_ws)release(data_ws);cleanup();return false;}
+    int filter_algo=-1; Buffer* filter_ws=nullptr; std::size_t filter_ws_bytes=0;
+    for(int i=0;i<filter_returned;++i){
+        const auto& p=filter_perf[static_cast<std::size_t>(i)];
+        if(p.status!=0||(deterministic&&p.determinism!=1))continue;
+        std::size_t bytes=0;
+        if(api.get_bwd_filter_workspace(handle,x_desc,dy_desc,conv_desc,dw_desc,p.algo,&bytes)!=0)continue;
+        std::string alloc_error; Buffer* ws=bytes?allocate(input_gradient->global_index,bytes,alloc_error):nullptr;
+        if(bytes&&!ws)continue;
+        filter_algo=p.algo;filter_ws=ws;filter_ws_bytes=bytes;break;
+    }
+    if(filter_algo<0){if(data_ws)release(data_ws);cleanup();return false;}
+
+    const auto ptr=[](const Buffer* b){
+        return reinterpret_cast<const void*>(static_cast<std::uintptr_t>(b->cuda_pointer));
+    };
+    const auto mut=[](Buffer* b){
+        return reinterpret_cast<void*>(static_cast<std::uintptr_t>(b->cuda_pointer));
+    };
+    void* data_ws_ptr=data_ws?mut(data_ws):nullptr;
+    void* filter_ws_ptr=filter_ws?mut(filter_ws):nullptr;
+    int status=0;
+    if(dtype==10){
+        const float one=1.0f,zero=0.0f;
+        status=api.convolution_backward_data(handle,&one,w_desc,ptr(weight),dy_desc,
+            ptr(gradient),conv_desc,data_algo,data_ws_ptr,data_ws_bytes,&zero,
+            dx_desc,mut(input_gradient));
+        if(status==0)status=api.convolution_backward_filter(handle,&one,x_desc,ptr(input),
+            dy_desc,ptr(gradient),conv_desc,filter_algo,filter_ws_ptr,filter_ws_bytes,
+            &zero,dw_desc,mut(weight_gradient));
+        if(status==0)status=api.convolution_backward_bias(handle,&one,dy_desc,ptr(gradient),
+            &zero,db_desc,mut(bias_gradient));
+    }else{
+        const double one=1.0,zero=0.0;
+        status=api.convolution_backward_data(handle,&one,w_desc,ptr(weight),dy_desc,
+            ptr(gradient),conv_desc,data_algo,data_ws_ptr,data_ws_bytes,&zero,
+            dx_desc,mut(input_gradient));
+        if(status==0)status=api.convolution_backward_filter(handle,&one,x_desc,ptr(input),
+            dy_desc,ptr(gradient),conv_desc,filter_algo,filter_ws_ptr,filter_ws_bytes,
+            &zero,dw_desc,mut(weight_gradient));
+        if(status==0)status=api.convolution_backward_bias(handle,&one,dy_desc,ptr(gradient),
+            &zero,db_desc,mut(bias_gradient));
+    }
+    if(data_ws)release(data_ws); if(filter_ws)release(filter_ws); cleanup();
+    if(status!=0)return false;
+    auto& cu=cuda(); return cu.ctx_synchronize&&cu.ctx_synchronize()==0;
+}
+
 bool compute_conv2d_backward(
     Buffer* input_gradient,Buffer* weight_gradient,Buffer* bias_gradient,
     const Buffer* gradient,const Buffer* input,const Buffer* weight,
@@ -770,6 +898,11 @@ bool compute_conv2d_backward(
 #endif
     const auto launch_counts=std::array<std::size_t,3>{input_count,weight_count,channels_out};
     if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Nvidia){
+        if(cudnn_conv2d_backward(input_gradient,weight_gradient,bias_gradient,
+                                 gradient,input,weight,dtype,batches,channels_in,
+                                 height,width,channels_out,kernel_h,kernel_w,
+                                 output_h,output_w,stride,padding))
+            return true;
         for(int kind=1;kind<=3;++kind){
             Buffer* target=kind==1?input_gradient:kind==2?weight_gradient:bias_gradient;
             auto ptx=ptx_conv2d_backward_source(dtype,kind);

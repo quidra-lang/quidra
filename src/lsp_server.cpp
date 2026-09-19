@@ -743,7 +743,17 @@ std::optional<SourceSpan> definition_span(
     const std::vector<Token>& tokens) {
     for(const auto& declaration:program.classes) {
         if(!contains_offset(declaration.span,offset)) continue;
+        for(const auto& field:declaration.fields) {
+            if(field.name==name&&contains_offset(field.span,offset)) {
+                if(auto found=identifier_span(tokens,field.span,name)) return found;
+            }
+        }
         for(const auto& method:declaration.methods) {
+            if(method.name==name&&contains_offset(method.span,offset)) {
+                if(auto found=identifier_span(
+                       tokens,method.span,name,method.return_type.span.end.offset))
+                    return found;
+            }
             if(!contains_offset(method.span,offset)) continue;
             for(const auto& parameter:method.parameters) {
                 if(parameter.name==name&&parameter.span.start.offset<=offset) return parameter.span;

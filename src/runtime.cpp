@@ -5534,32 +5534,37 @@ TensorValue* neural_device_binary_tensor(
 
 void neural_device_binary_backward(
     TensorValue* gradient,TensorValue* left,TensorValue* right,int operation,
-    TensorValue*& left_gradient,TensorValue*& right_gradient,
+    bool shared_parent,TensorValue*& left_gradient,TensorValue*& right_gradient,
     unsigned long long line,unsigned long long column) {
     NeuralDeviceDenseInput gd(*gradient,line,column);
     NeuralDeviceDenseInput ad(*left,line,column);
     NeuralDeviceDenseInput bd(*right,line,column);
     if(gd->shape!=ad->shape||gd->shape!=bd->shape)
         neural_fail("neural binary backward shape mismatch",line,column);
+    if(shared_parent&&left!=right)
+        neural_fail("shared neural binary parent mismatch",line,column);
     const auto count=tensor_logical_count(*gd);
     auto* left_storage=tensor_storage_create(
         gd->storage->dtype,count,1,gd->storage->device,line,column);
-    auto* right_storage=tensor_storage_create(
-        gd->storage->dtype,count,1,gd->storage->device,line,column);
+    TensorStorage* right_storage=left_storage;
     left_gradient=tensor_descriptor(
         left_storage,left->shape,tensor_contiguous_strides(left->shape),0);
-    right_gradient=tensor_descriptor(
-        right_storage,right->shape,tensor_contiguous_strides(right->shape),0);
+    right_gradient=nullptr;
+    if(!shared_parent){
+        right_storage=tensor_storage_create(
+            gd->storage->dtype,count,1,gd->storage->device,line,column);
+        right_gradient=tensor_descriptor(
+            right_storage,right->shape,tensor_contiguous_strides(right->shape),0);
+    }
 
     std::string backend_error;
     const bool ok=quidra::device::compute_binary_backward(
         left_storage->gpu_buffer,right_storage->gpu_buffer,
         gd->storage->gpu_buffer,ad->storage->gpu_buffer,bd->storage->gpu_buffer,
         gd->storage->dtype,operation,count,backend_error);
-
     if(!ok){
         quidra_tensor_drop(left_gradient);
-        quidra_tensor_drop(right_gradient);
+        if(right_gradient) quidra_tensor_drop(right_gradient);
         left_gradient=nullptr;
         right_gradient=nullptr;
         neural_fail(backend_error.c_str(),line,column);
@@ -5701,27 +5706,44 @@ void* neural_grad_device(
                 neural_fail("invalid GPU neural binary graph",line,column);
             auto* a=node->parents[0]->device_tensor;
             auto* b=node->parents[1]->device_tensor;
+            const int operation=node->op==NeuralOp::Add?1:
+                node->op==NeuralOp::Sub?2:node->op==NeuralOp::Mul?3:4;
+            const bool shared_parent=node->parents[0].get()==node->parents[1].get();
             TensorValue* left_gradient=nullptr;
             TensorValue* right_gradient=nullptr;
-            if(node->op==NeuralOp::Add){
-                // Transfer the completed gradient itself to one parent. Only the
-                // second parent needs a descriptor clone.
+            if(shared_parent){
+                // Produce the sum of both partial derivatives directly. This
+                // turns x+x / x*x style backward from two gradient tensors plus
+                // an accumulation kernel into one gradient tensor and one kernel.
+                neural_device_binary_backward(
+                    g,a,b,operation,true,left_gradient,right_gradient,line,column);
+                neural_add_device_gradient(
+                    gradients,node->parents[0],left_gradient,line,column);
+            }else if(node->op==NeuralOp::Add){
                 right_gradient=static_cast<TensorValue*>(quidra_tensor_clone(g));
                 left_gradient=g;
                 g=nullptr;
+                neural_add_device_gradient(
+                    gradients,node->parents[0],left_gradient,line,column);
+                neural_add_device_gradient(
+                    gradients,node->parents[1],right_gradient,line,column);
             }else if(node->op==NeuralOp::Sub){
                 right_gradient=neural_device_negate_tensor(g,line,column);
                 left_gradient=g;
                 g=nullptr;
+                neural_add_device_gradient(
+                    gradients,node->parents[0],left_gradient,line,column);
+                neural_add_device_gradient(
+                    gradients,node->parents[1],right_gradient,line,column);
             }else{
                 neural_device_binary_backward(
-                    g,a,b,node->op==NeuralOp::Mul?3:4,
+                    g,a,b,operation,false,
                     left_gradient,right_gradient,line,column);
+                neural_add_device_gradient(
+                    gradients,node->parents[0],left_gradient,line,column);
+                neural_add_device_gradient(
+                    gradients,node->parents[1],right_gradient,line,column);
             }
-            neural_add_device_gradient(
-                gradients,node->parents[0],left_gradient,line,column);
-            neural_add_device_gradient(
-                gradients,node->parents[1],right_gradient,line,column);
         }else if(node->op==NeuralOp::ScalarBinary){
             if(node->parents.size()!=1||node->aux.size()!=1||
                node->aux_index.size()!=2)
@@ -6067,36 +6089,59 @@ void* neural_grad_t(
            node->op==NeuralOp::Mul||node->op==NeuralOp::Div){
             const auto& a=node->parents[0]->data.typed<T>();
             const auto& b=node->parents[1]->data.typed<T>();
-            std::vector<T> left_gradient,right_gradient;
-            if(node->op==NeuralOp::Add){
-                // This node's gradient is complete in reverse-topological order.
-                // Reuse its buffer for one parent and copy only for the second.
-                left_gradient=std::move(found->second);
-                right_gradient=left_gradient;
-            }else if(node->op==NeuralOp::Sub){
-                left_gradient=std::move(found->second);
-                right_gradient.resize(left_gradient.size());
-                for(std::size_t i=0;i<left_gradient.size();++i)
-                    right_gradient[i]=static_cast<T>(-left_gradient[i]);
-            }else{
-                left_gradient.resize(g.size());
-                right_gradient.resize(g.size());
-                if(node->op==NeuralOp::Mul){
-                    for(std::size_t i=0;i<g.size();++i){
-                        left_gradient[i]=static_cast<T>(g[i]*b[i]);
-                        right_gradient[i]=static_cast<T>(g[i]*a[i]);
+            const bool shared_parent=node->parents[0].get()==node->parents[1].get();
+            if(shared_parent){
+                std::vector<T> combined=std::move(found->second);
+                for(std::size_t i=0;i<combined.size();++i){
+                    const T gradient=combined[i];
+                    T left_value{},right_value{};
+                    if(node->op==NeuralOp::Add){
+                        left_value=gradient;right_value=gradient;
+                    }else if(node->op==NeuralOp::Sub){
+                        left_value=gradient;right_value=static_cast<T>(-gradient);
+                    }else if(node->op==NeuralOp::Mul){
+                        left_value=static_cast<T>(gradient*b[i]);
+                        right_value=static_cast<T>(gradient*a[i]);
+                    }else{
+                        left_value=static_cast<T>(gradient/b[i]);
+                        const T ga=static_cast<T>(gradient*a[i]);
+                        const T bb=static_cast<T>(b[i]*b[i]);
+                        right_value=static_cast<T>(-static_cast<T>(ga/bb));
                     }
+                    combined[i]=static_cast<T>(left_value+right_value);
+                }
+                neural_add_gradient(
+                    gradients,node->parents[0],std::move(combined));
+            }else{
+                std::vector<T> left_gradient,right_gradient;
+                if(node->op==NeuralOp::Add){
+                    left_gradient=std::move(found->second);
+                    right_gradient=left_gradient;
+                }else if(node->op==NeuralOp::Sub){
+                    left_gradient=std::move(found->second);
+                    right_gradient.resize(left_gradient.size());
+                    for(std::size_t i=0;i<left_gradient.size();++i)
+                        right_gradient[i]=static_cast<T>(-left_gradient[i]);
                 }else{
-                    for(std::size_t i=0;i<g.size();++i){
-                        left_gradient[i]=static_cast<T>(g[i]/b[i]);
-                        right_gradient[i]=static_cast<T>(
-                            -static_cast<T>(g[i]*a[i])/
-                            static_cast<T>(b[i]*b[i]));
+                    left_gradient.resize(g.size());
+                    right_gradient.resize(g.size());
+                    if(node->op==NeuralOp::Mul){
+                        for(std::size_t i=0;i<g.size();++i){
+                            left_gradient[i]=static_cast<T>(g[i]*b[i]);
+                            right_gradient[i]=static_cast<T>(g[i]*a[i]);
+                        }
+                    }else{
+                        for(std::size_t i=0;i<g.size();++i){
+                            left_gradient[i]=static_cast<T>(g[i]/b[i]);
+                            right_gradient[i]=static_cast<T>(
+                                -static_cast<T>(g[i]*a[i])/
+                                static_cast<T>(b[i]*b[i]));
+                        }
                     }
                 }
+                neural_add_gradient(gradients,node->parents[0],std::move(left_gradient));
+                neural_add_gradient(gradients,node->parents[1],std::move(right_gradient));
             }
-            neural_add_gradient(gradients,node->parents[0],std::move(left_gradient));
-            neural_add_gradient(gradients,node->parents[1],std::move(right_gradient));
         }else if(node->op==NeuralOp::ScalarBinary){
             if(node->parents.size()!=1||node->aux.size()!=1||
                node->aux_index.size()!=2)

@@ -27,8 +27,13 @@ bool fake_binary_backward(
             const T bb=static_cast<T>(b*b);
             right_value=static_cast<T>(-static_cast<T>(ga/bb));
         }
-        std::memcpy(left_gradient->test_data.data()+i*sizeof(T),&left_value,sizeof(T));
-        std::memcpy(right_gradient->test_data.data()+i*sizeof(T),&right_value,sizeof(T));
+        if(left_gradient==right_gradient){
+            const T combined=static_cast<T>(left_value+right_value);
+            std::memcpy(left_gradient->test_data.data()+i*sizeof(T),&combined,sizeof(T));
+        }else{
+            std::memcpy(left_gradient->test_data.data()+i*sizeof(T),&left_value,sizeof(T));
+            std::memcpy(right_gradient->test_data.data()+i*sizeof(T),&right_value,sizeof(T));
+        }
     }
     return true;
 #else
@@ -195,7 +200,7 @@ bool fake_affine_backward(
 #endif
 }
 
-std::string ptx_binary_backward_source(int dtype,int operation) {
+std::string ptx_binary_backward_source(int dtype,int operation,bool shared_output) {
     const bool f32=dtype==10;
     const auto width=f32?4U:8U;
     std::ostringstream out;
@@ -241,8 +246,11 @@ std::string ptx_binary_backward_source(int dtype,int operation) {
                   "  div.f32 %f5,%f6,%f7;\n"
                   "  neg.f32 %f5,%f5;\n";
         }
-        out<<"  st.global.f32 [%rd12],%f4;\n"
-              "  st.global.f32 [%rd13],%f5;\n";
+        if(shared_output)
+            out<<"  add.f32 %f8,%f4,%f5;\n  st.global.f32 [%rd12],%f8;\n";
+        else
+            out<<"  st.global.f32 [%rd12],%f4;\n"
+                  "  st.global.f32 [%rd13],%f5;\n";
     }else{
         out<<"  ld.global.f64 %fd1,[%rd9];\n"
               "  ld.global.f64 %fd2,[%rd10];\n"
@@ -261,8 +269,11 @@ std::string ptx_binary_backward_source(int dtype,int operation) {
                   "  div.f64 %fd5,%fd6,%fd7;\n"
                   "  neg.f64 %fd5,%fd5;\n";
         }
-        out<<"  st.global.f64 [%rd12],%fd4;\n"
-              "  st.global.f64 [%rd13],%fd5;\n";
+        if(shared_output)
+            out<<"  add.f64 %fd8,%fd4,%fd5;\n  st.global.f64 [%rd12],%fd8;\n";
+        else
+            out<<"  st.global.f64 [%rd12],%fd4;\n"
+                  "  st.global.f64 [%rd13],%fd5;\n";
     }
     out<<"DONE:\n  ret;\n}\n";
     return out.str();
@@ -610,23 +621,28 @@ std::string ptx_affine_backward_source(int dtype, int target) {
 }
 
 
-std::string hip_binary_backward_source(int dtype,int operation) {
+std::string hip_binary_backward_source(int dtype,int operation,bool shared_output) {
     const auto type=dtype==10?"float":"double";
     std::ostringstream out;
     out<<"extern \"C\" __global__ void q_kernel("<<type<<"* left_gradient,"<<type
        <<"* right_gradient,const "<<type<<"* gradient,const "<<type
        <<"* left,const "<<type<<"* right,unsigned long long count){"
          "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
-         "if(i>=count)return;"<<type<<" g=gradient[i],a=left[i],b=right[i];";
+         "if(i>=count)return;"<<type<<" g=gradient[i],a=left[i],b=right[i],"
+         "left_value,right_value;";
     if(operation==1)
-        out<<"left_gradient[i]=g;right_gradient[i]=g;";
+        out<<"left_value=g;right_value=g;";
     else if(operation==2)
-        out<<"left_gradient[i]=g;right_gradient[i]=-g;";
+        out<<"left_value=g;right_value=-g;";
     else if(operation==3)
-        out<<"left_gradient[i]=g*b;right_gradient[i]=g*a;";
+        out<<"left_value=g*b;right_value=g*a;";
     else
         out<<type<<" ga=g*a,bb=b*b;"
-              "left_gradient[i]=g/b;right_gradient[i]=-(ga/bb);";
+              "left_value=g/b;right_value=-(ga/bb);";
+    if(shared_output)
+        out<<"left_gradient[i]=left_value+right_value;";
+    else
+        out<<"left_gradient[i]=left_value;right_gradient[i]=right_value;";
     out<<"}";
     return out.str();
 }
@@ -705,7 +721,7 @@ std::string hip_affine_backward_source(int dtype,int target) {
 
 #ifdef __APPLE__
 
-std::string msl_binary_backward_source(int operation) {
+std::string msl_binary_backward_source(int operation,bool shared_output) {
     std::ostringstream out;
     out<<"#include <metal_stdlib>\nusing namespace metal;\n"
          "kernel void q_kernel(device float* left_gradient [[buffer(0)]],"
@@ -716,16 +732,20 @@ std::string msl_binary_backward_source(int operation) {
          "constant ulong& count [[buffer(5)]],"
          "uint gid [[thread_position_in_grid]]) {"
          " ulong i=ulong(gid); if(i>=count)return;"
-         " float g=gradient[i],a=left[i],b=right[i];";
+         " float g=gradient[i],a=left[i],b=right[i],left_value,right_value;";
     if(operation==1)
-        out<<" left_gradient[i]=g; right_gradient[i]=g;";
+        out<<" left_value=g; right_value=g;";
     else if(operation==2)
-        out<<" left_gradient[i]=g; right_gradient[i]=-g;";
+        out<<" left_value=g; right_value=-g;";
     else if(operation==3)
-        out<<" left_gradient[i]=g*b; right_gradient[i]=g*a;";
+        out<<" left_value=g*b; right_value=g*a;";
     else
         out<<" float ga=g*a,bb=b*b;"
-             " left_gradient[i]=g/b; right_gradient[i]=-(ga/bb);";
+             " left_value=g/b; right_value=-(ga/bb);";
+    if(shared_output)
+        out<<" left_gradient[i]=left_value+right_value;";
+    else
+        out<<" left_gradient[i]=left_value; right_gradient[i]=right_value;";
     out<<" }\n";
     return out.str();
 }
@@ -839,6 +859,7 @@ bool compute_binary_backward(
         return false;
     }
     const auto bytes=compute_dtype_width(dtype);
+    const bool shared_output=left_gradient==right_gradient;
     if(!compute_same_device(left_gradient,right_gradient,error)||
        !compute_same_device(left_gradient,gradient,error)||
        !compute_same_device(left_gradient,left,error)||
@@ -860,18 +881,19 @@ bool compute_binary_backward(
     }
 #endif
     if((dtype==9||dtype==10)&&left_gradient->backend==Backend::Nvidia){
-        auto ptx=ptx_binary_backward_source(dtype,operation);
+        auto ptx=ptx_binary_backward_source(dtype,operation,shared_output);
         auto lg=left_gradient->cuda_pointer,rg=right_gradient->cuda_pointer,
              g=gradient->cuda_pointer,a=left->cuda_pointer,b=right->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count);
         void* args[]={&lg,&rg,&g,&a,&b,&n};
         return launch_ptx_1d(
             left_gradient,
-            "neural-binary-backward-"+std::to_string(dtype)+"-"+std::to_string(operation),
+            "neural-binary-backward-"+std::to_string(dtype)+"-"+std::to_string(operation)+
+                 (shared_output?"-shared":"-split"),
             ptx,count,args,error);
     }
     if((dtype==9||dtype==10)&&left_gradient->backend==Backend::Amd){
-        auto source=hip_binary_backward_source(dtype,operation);
+        auto source=hip_binary_backward_source(dtype,operation,shared_output);
         auto lg=left_gradient->pointer,rg=right_gradient->pointer,
              g=gradient->pointer,a=left->pointer,b=right->pointer;
         auto n=static_cast<std::uint64_t>(count);
@@ -883,10 +905,11 @@ bool compute_binary_backward(
     }
 #ifdef __APPLE__
     if(dtype==10&&left_gradient->backend==Backend::Metal){
-        auto source=msl_binary_backward_source(operation);
+        auto source=msl_binary_backward_source(operation,shared_output);
         auto pipeline=cached_metal_pipeline(
             [left_gradient->metal_buffer device],
-            "neural-binary-backward-f32-"+std::to_string(operation),source,error);
+            "neural-binary-backward-f32-"+std::to_string(operation)+
+                (shared_output?"-shared":"-split"),source,error);
         if(!pipeline)return false;
         auto n=static_cast<std::uint64_t>(count);
         return dispatch_metal_1d(

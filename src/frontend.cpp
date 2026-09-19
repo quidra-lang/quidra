@@ -2800,6 +2800,7 @@ private:
             out.return_type = materialize_type(source.return_type, substitution, deferred);
             out.span = source.span;
             out.is_override = source.is_override;
+            out.is_private = source.is_private;
             out.type_parameters = source.type_parameters;
             out.external_symbol = source.external_symbol;
 
@@ -2940,6 +2941,7 @@ private:
             copy.type = materialize_type(field.type, class_substitution, {});
             copy.span = field.span;
             copy.is_const = field.is_const;
+            copy.is_private = field.is_private;
             if (field.default_value) {
                 copy.default_value = clone_expr(*field.default_value, class_substitution, {}, concrete_name);
             }

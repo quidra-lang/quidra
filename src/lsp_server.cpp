@@ -939,7 +939,8 @@ std::optional<SourceSpan> semantic_member_definition_span(
         }
     }
 
-    if(std::holds_alternative<MemberExpr>(expression->data)) {
+    if(std::holds_alternative<MemberExpr>(expression->data) ||
+       std::holds_alternative<NameExpr>(expression->data)) {
         const auto field=checked.field_accesses.find(expression);
         if(field==checked.field_accesses.end()) return std::nullopt;
         for(const auto& declaration:checked.program.classes) {

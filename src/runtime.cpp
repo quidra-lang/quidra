@@ -188,6 +188,10 @@ void recycle_managed_memory(void* base, unsigned char pool_class) {
 thread_local const char* cached_managed_string_text = nullptr;
 thread_local ManagedAllocation* cached_managed_string_allocation = nullptr;
 
+thread_local const char* cached_shared_string_text = nullptr;
+thread_local std::size_t cached_shared_string_length = 0;
+thread_local ManagedAllocation* cached_shared_string_allocation = nullptr;
+
 ManagedAllocation* exact_managed_string(const char* text) {
     if (text && text == cached_managed_string_text &&
         cached_managed_string_allocation) {
@@ -206,6 +210,13 @@ void invalidate_managed_string_cache(const ManagedAllocation* allocation) {
     if (cached_managed_string_allocation != allocation) return;
     cached_managed_string_text = nullptr;
     cached_managed_string_allocation = nullptr;
+}
+
+void invalidate_shared_string_cache(const ManagedAllocation* allocation = nullptr) {
+    if (allocation && cached_shared_string_allocation != allocation) return;
+    cached_shared_string_text = nullptr;
+    cached_shared_string_length = 0;
+    cached_shared_string_allocation = nullptr;
 }
 
 void neural_moment_cache_release(void* value);
@@ -512,6 +523,11 @@ struct StringIndexBounds {
 std::string_view cached_string_view(const char* text, ManagedAllocation*& allocation) {
     allocation = nullptr;
     if (!text) runtime_text_failure("null string");
+
+    if (text == cached_shared_string_text && cached_shared_string_allocation) {
+        allocation = cached_shared_string_allocation;
+        return std::string_view(text, cached_shared_string_length);
+    }
 
     ManagedAllocation* found = exact_managed_string(text);
     if (!found) {
@@ -919,6 +935,7 @@ extern "C" void quidra_managed_release(void* value, void* drop_function) {
         const ManagedFinalization finalization{
             allocation->base, allocation->drop, allocation->small_pool_class};
         invalidate_managed_string_cache(allocation);
+        invalidate_shared_string_cache(allocation);
         neural_moment_cache_release(allocation->base);
         if (allocation->interior_range_tracked) {
             clear_managed_range_cache(allocation);
@@ -7222,18 +7239,30 @@ extern "C" char* quidra_string_split_iter_next(void* raw) {
     if (relative == std::string_view::npos) {
         iterator.finished = true;
         iterator.slab[iterator.size] = '\0';
+        cached_shared_string_text = iterator.slab + start;
+        cached_shared_string_length = iterator.size - start;
+        cached_shared_string_allocation =
+            exact_managed_string(iterator.slab);
         return iterator.slab + start;
     }
 
     const auto position = start + relative;
     iterator.slab[position] = '\0';
     iterator.next = position + iterator.separator.size();
+    cached_shared_string_text = iterator.slab + start;
+    cached_shared_string_length = position - start;
+    cached_shared_string_allocation =
+        exact_managed_string(iterator.slab);
     return iterator.slab + start;
 }
 
 extern "C" void quidra_string_split_iter_end(void* raw) {
     if (!raw) return;
     auto* iterator = static_cast<QuidraStringSplitIterator*>(raw);
+    if (cached_shared_string_allocation ==
+        exact_managed_string(iterator->slab)) {
+        invalidate_shared_string_cache(cached_shared_string_allocation);
+    }
     quidra_managed_release(iterator->slab, nullptr);
     delete iterator;
 }

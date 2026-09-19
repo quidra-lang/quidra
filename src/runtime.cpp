@@ -3487,12 +3487,15 @@ std::vector<T> neural_normalize_values_t(
        mean.size()!=layout.features||variance.size()!=layout.features)
         neural_fail("normalization feature dimensions do not match",line,column);
     const T epsilon=static_cast<T>(epsilon_raw);
+    std::vector<T> denominator(layout.features);
+    for(std::size_t feature=0;feature<layout.features;++feature)
+        denominator[feature]=std::sqrt(
+            static_cast<T>(variance[feature]+epsilon));
     std::vector<T> output(input.size());
     for(std::size_t i=0;i<input.size();++i){
         const auto feature=neural_normalize_feature(i,layout);
         output[i]=static_cast<T>(
-            static_cast<T>((input[i]-mean[feature])/
-                           std::sqrt(static_cast<T>(variance[feature]+epsilon)))*
+            static_cast<T>((input[i]-mean[feature])/denominator[feature])*
             scale[feature]+bias[feature]);
     }
     return output;
@@ -3596,9 +3599,10 @@ void* neural_normalize_forward_t(
     if(samples==0) neural_fail("normalization training requires at least one sample per feature",line,column);
 
     std::vector<T> mean(features,T{0}),variance(features,T{0});
-    for(std::size_t i=0;i<input_values.size();++i)
-        mean[neural_normalize_feature(i,layout)]=static_cast<T>(
-            mean[neural_normalize_feature(i,layout)]+input_values[i]);
+    for(std::size_t i=0;i<input_values.size();++i){
+        const auto feature=neural_normalize_feature(i,layout);
+        mean[feature]=static_cast<T>(mean[feature]+input_values[i]);
+    }
     const T sample_count=static_cast<T>(samples);
     for(auto& value:mean) value=static_cast<T>(value/sample_count);
     for(std::size_t i=0;i<input_values.size();++i){
@@ -5928,7 +5932,8 @@ void* neural_grad_t(
             const auto& bias=node->parents[2];
             const auto& input_values=input->data.typed<T>();
             const auto& scale_values=scale->data.typed<T>();
-            const auto layout=neural_normalize_layout(input->shape,input_values.size(),0,0);
+            const auto layout=neural_normalize_layout(
+                input->shape,input_values.size(),0,0);
             const auto features=layout.features;
             const auto samples=layout.samples;
             if(node->aux_index.size()!=1 || node->aux_index[0]!=samples ||
@@ -5936,38 +5941,51 @@ void* neural_grad_t(
                 neural_fail("normalization backward cache layout mismatch",0,0);
             const auto& backward_cache=node->aux.typed<T>();
             std::vector<T> input_gradient(input_values.size(),T{0});
-            std::vector<T> scale_gradient(features,T{0}),bias_gradient(features,T{0});
-            for(std::size_t feature=0;feature<features;++feature){
+            std::vector<T> sum_gradient(features,T{0});
+            std::vector<T> sum_gradient_x(features,T{0});
+
+            // Visit elements in the same global index order as the old
+            // per-feature scans. Each feature therefore observes exactly the
+            // same reduction order, without rescanning the full tensor for
+            // every feature.
+            for(std::size_t i=0;i<input_values.size();++i){
+                const auto feature=neural_normalize_feature(i,layout);
                 const T mean=backward_cache[feature];
                 const T inverse=backward_cache[features+feature];
-                T sum_gradient=T{0},sum_gradient_x=T{0};
-                for(std::size_t i=0;i<input_values.size();++i){
-                    if(neural_normalize_feature(i,layout)!=feature) continue;
-                    const T xhat=static_cast<T>(
-                        static_cast<T>(input_values[i]-mean)*inverse);
-                    sum_gradient=static_cast<T>(sum_gradient+g[i]);
-                    sum_gradient_x=static_cast<T>(
-                        sum_gradient_x+static_cast<T>(g[i]*xhat));
-                    scale_gradient[feature]=static_cast<T>(
-                        scale_gradient[feature]+static_cast<T>(g[i]*xhat));
-                    bias_gradient[feature]=static_cast<T>(bias_gradient[feature]+g[i]);
-                }
-                const T sample_count=static_cast<T>(samples);
-                for(std::size_t i=0;i<input_values.size();++i){
-                    if(neural_normalize_feature(i,layout)!=feature) continue;
-                    const T xhat=static_cast<T>(
-                        static_cast<T>(input_values[i]-mean)*inverse);
-                    input_gradient[i]=static_cast<T>(
-                        static_cast<T>(
-                            static_cast<T>(scale_values[feature]*inverse)/sample_count)*
-                        static_cast<T>(
-                            static_cast<T>(sample_count*g[i])-sum_gradient-
-                            static_cast<T>(xhat*sum_gradient_x)));
-                }
+                const T xhat=static_cast<T>(
+                    static_cast<T>(input_values[i]-mean)*inverse);
+                sum_gradient[feature]=static_cast<T>(
+                    sum_gradient[feature]+g[i]);
+                sum_gradient_x[feature]=static_cast<T>(
+                    sum_gradient_x[feature]+static_cast<T>(g[i]*xhat));
             }
-            neural_add_gradient(gradients,input,std::move(input_gradient));
-            neural_add_gradient(gradients,scale,std::move(scale_gradient));
-            neural_add_gradient(gradients,bias,std::move(bias_gradient));
+
+            // These are the same reductions as sum_gradient_x and
+            // sum_gradient respectively in the previous implementation.
+            std::vector<T> scale_gradient=sum_gradient_x;
+            std::vector<T> bias_gradient=sum_gradient;
+            const T sample_count=static_cast<T>(samples);
+            for(std::size_t i=0;i<input_values.size();++i){
+                const auto feature=neural_normalize_feature(i,layout);
+                const T mean=backward_cache[feature];
+                const T inverse=backward_cache[features+feature];
+                const T xhat=static_cast<T>(
+                    static_cast<T>(input_values[i]-mean)*inverse);
+                input_gradient[i]=static_cast<T>(
+                    static_cast<T>(
+                        static_cast<T>(scale_values[feature]*inverse)/
+                        sample_count)*
+                    static_cast<T>(
+                        static_cast<T>(sample_count*g[i])-
+                        sum_gradient[feature]-
+                        static_cast<T>(xhat*sum_gradient_x[feature])));
+            }
+            neural_add_gradient(
+                gradients,input,std::move(input_gradient));
+            neural_add_gradient(
+                gradients,scale,std::move(scale_gradient));
+            neural_add_gradient(
+                gradients,bias,std::move(bias_gradient));
         }else if(node->op==NeuralOp::Convolution){
             const auto& input=node->parents[0];
             const auto& weight=node->parents[1];

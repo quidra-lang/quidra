@@ -455,8 +455,8 @@ std::string range_json(std::string_view source,SourceSpan span) {
     const auto start=lsp_position(source,span.start.offset);
     const auto end=lsp_position(source,span.end.offset);
     std::ostringstream out;
-    out<<"{\\"start\\":{\\"line\\":"<<start.line<<",\\"character\\":"<<start.character
-       <<"},\\"end\\":{\\"line\\":"<<end.line<<",\\"character\\":"<<end.character<<"}}";
+    out<<"{\"start\":{\"line\":"<<start.line<<",\"character\":"<<start.character
+       <<"},\"end\":{\"line\":"<<end.line<<",\"character\":"<<end.character<<"}}";
     return out.str();
 }
 
@@ -1284,8 +1284,8 @@ private:
                 if(found==checked.expr_types.end()) { respond(id,"null"); return; }
                 value=type_name(found->second);
             }
-            respond(id,"{\\"contents\\":{\\"kind\\":\\"plaintext\\",\\"value\\":\\""+
-                       escape(value)+"\\"},\\"range\\":"+range_json(source,expression->span)+"}");
+            respond(id,"{\"contents\":{\"kind\":\"plaintext\",\"value\":\""+
+                       escape(value)+"\"},\"range\":"+range_json(source,expression->span)+"}");
         } catch(const CompileError&) {
             respond(id,"null");
         } catch(const CompileErrors&) {
@@ -1324,7 +1324,7 @@ private:
                 }
             }
             if(!span) { respond(id,"null"); return; }
-            respond(id,"{\\"uri\\":\\""+escape(uri)+"\\",\\"range\\":"+
+            respond(id,"{\"uri\":\""+escape(uri)+"\",\"range\":"+
                        range_json(source,*span)+"}");
         } catch(const CompileError&) {
             respond(id,"null");
@@ -1346,10 +1346,10 @@ private:
             result<<"[";
             for(std::size_t i=0;i<items.size();++i) {
                 if(i) result<<",";
-                result<<"{\\"label\\":\\""<<escape(items[i].name)<<"\\",\\"kind\\":"
+                result<<"{\"label\":\""<<escape(items[i].name)<<"\",\"kind\":"
                       <<items[i].kind;
                 if(!items[i].detail.empty())
-                    result<<",\\"detail\\":\\""<<escape(items[i].detail)<<"\\"";
+                    result<<",\"detail\":\""<<escape(items[i].detail)<<"\"";
                 result<<"}";
             }
             result<<"]";
@@ -1404,13 +1404,13 @@ private:
 
             const auto label=signature_label(name,*function);
             std::ostringstream result;
-            result<<"{\\"signatures\\":[{\\"label\\":\\""<<escape(label)
-                  <<"\\",\\"parameters\\":[";
+            result<<"{\"signatures\":[{\"label\":\""<<escape(label)
+                  <<"\",\"parameters\":[";
             for(std::size_t i=0;i<function->parameters.size();++i) {
                 if(i) result<<",";
-                result<<"{\\"label\\":\\""<<escape(parameter_label(function->parameters[i]))<<"\\"}";
+                result<<"{\"label\":\""<<escape(parameter_label(function->parameters[i]))<<"\"}";
             }
-            result<<"]}],\\"activeSignature\\":0,\\"activeParameter\\":"<<active<<"}";
+            result<<"]}],\"activeSignature\":0,\"activeParameter\":"<<active<<"}";
             respond(id,result.str());
         } catch(const CompileError&) {
             respond(id,"null");

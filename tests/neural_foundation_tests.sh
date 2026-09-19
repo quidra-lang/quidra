@@ -143,6 +143,30 @@ if [[ "$mask_output" != "$(printf '8\ntrue')" ]]; then
     exit 1
 fi
 
+
+cat > "$TMP/neural-scalar-grad.qui" <<'QUI'
+class ScalarModel
+    neural.Parameter<float32> value
+
+ScalarModel model = ScalarModel(
+    value = neural.Parameter<float32>(
+        value = tensor.ones<float32>([1]) * float32(2)
+    )
+)
+neural<float32> x = model.value.track()
+neural<float32> transformed = (float32(5) - x * float32(3)) / float32(2)
+neural<float32> reciprocal = float32(8) / x
+neural<float32> loss = neural.mean(transformed + reciprocal)
+neural.Gradients gradients = neural.grad(loss)
+neural.update(&model, gradients, rate = 0.1)
+float32 updated = model.value.raw()[0].item()
+print(updated > float32(2.3499) and updated < float32(2.3501))
+QUI
+if [[ "$("$QUIDRA" "$TMP/neural-scalar-grad.qui")" != "true" ]]; then
+    echo "unexpected CPU scalar autograd result" >&2
+    exit 1
+fi
+
 cat > "$TMP/moment-update.qui" <<'QUI'
 class Model
     neural.Parameter<float32> left

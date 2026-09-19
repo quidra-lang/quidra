@@ -38,6 +38,38 @@ bool fake_binary_backward(
 #endif
 }
 
+
+template <typename T>
+bool fake_scalar_backward(
+    Buffer* output, const Buffer* gradient, const Buffer* input,
+    int operation, bool scalar_left, double scalar, std::size_t count) {
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    const T scalar_value=static_cast<T>(scalar);
+    for(std::size_t i=0;i<count;++i){
+        T g{},x{},value{};
+        std::memcpy(&g,gradient->test_data.data()+i*sizeof(T),sizeof(T));
+        if(operation==4&&scalar_left)
+            std::memcpy(&x,input->test_data.data()+i*sizeof(T),sizeof(T));
+        if(operation==1)value=g;
+        else if(operation==2)value=scalar_left?static_cast<T>(-g):g;
+        else if(operation==3)value=static_cast<T>(g*scalar_value);
+        else if(scalar_left){
+            const T gs=static_cast<T>(g*scalar_value);
+            const T xx=static_cast<T>(x*x);
+            value=static_cast<T>(-static_cast<T>(gs/xx));
+        }else{
+            value=static_cast<T>(g/scalar_value);
+        }
+        std::memcpy(output->test_data.data()+i*sizeof(T),&value,sizeof(T));
+    }
+    return true;
+#else
+    (void)output;(void)gradient;(void)input;(void)operation;
+    (void)scalar_left;(void)scalar;(void)count;
+    return false;
+#endif
+}
+
 template <typename T>
 bool fake_abs_backward(Buffer* output, const Buffer* gradient,
                        const Buffer* input, std::size_t count) {
@@ -231,6 +263,65 @@ std::string ptx_binary_backward_source(int dtype,int operation) {
         }
         out<<"  st.global.f64 [%rd12],%fd4;\n"
               "  st.global.f64 [%rd13],%fd5;\n";
+    }
+    out<<"DONE:\n  ret;\n}\n";
+    return out.str();
+}
+
+
+std::string ptx_scalar_backward_source(int dtype,int operation,bool scalar_left) {
+    const bool f32=dtype==10;
+    const auto width=f32?4U:8U;
+    std::ostringstream out;
+    out<<ptx_thread_prologue(
+        f32
+          ? "  .param .u64 p_output,\n  .param .u64 p_gradient,\n  .param .u64 p_input,\n"
+            "  .param .u64 p_count,\n  .param .f32 p_scalar\n"
+          : "  .param .u64 p_output,\n  .param .u64 p_gradient,\n  .param .u64 p_input,\n"
+            "  .param .u64 p_count,\n  .param .f64 p_scalar\n",
+        f32
+          ? "  .reg .pred %p<2>;\n  .reg .b32 %r<12>;\n  .reg .b64 %rd<24>;\n  .reg .f32 %f<10>;\n"
+          : "  .reg .pred %p<2>;\n  .reg .b32 %r<12>;\n  .reg .b64 %rd<24>;\n  .reg .f64 %fd<10>;\n");
+    out<<"  ld.param.u64 %rd1,[p_output];\n"
+          "  ld.param.u64 %rd2,[p_gradient];\n"
+          "  ld.param.u64 %rd3,[p_input];\n"
+          "  ld.param.u64 %rd4,[p_count];\n"
+          "  setp.ge.u64 %p1,%rd7,%rd4;\n"
+          "  @%p1 bra DONE;\n"
+       <<"  mul.lo.u64 %rd8,%rd7,"<<width<<";\n"
+          "  add.u64 %rd9,%rd1,%rd8;\n"
+          "  add.u64 %rd10,%rd2,%rd8;\n"
+          "  add.u64 %rd11,%rd3,%rd8;\n";
+    if(f32){
+        out<<"  ld.param.f32 %f1,[p_scalar];\n"
+              "  ld.global.f32 %f2,[%rd10];\n";
+        if(operation==1) out<<"  mov.f32 %f4,%f2;\n";
+        else if(operation==2)
+            out<<(scalar_left?"  neg.f32 %f4,%f2;\n":"  mov.f32 %f4,%f2;\n");
+        else if(operation==3) out<<"  mul.f32 %f4,%f2,%f1;\n";
+        else if(scalar_left)
+            out<<"  ld.global.f32 %f3,[%rd11];\n"
+                  "  mul.f32 %f5,%f2,%f1;\n"
+                  "  mul.f32 %f6,%f3,%f3;\n"
+                  "  div.f32 %f4,%f5,%f6;\n"
+                  "  neg.f32 %f4,%f4;\n";
+        else out<<"  div.f32 %f4,%f2,%f1;\n";
+        out<<"  st.global.f32 [%rd9],%f4;\n";
+    }else{
+        out<<"  ld.param.f64 %fd1,[p_scalar];\n"
+              "  ld.global.f64 %fd2,[%rd10];\n";
+        if(operation==1) out<<"  mov.f64 %fd4,%fd2;\n";
+        else if(operation==2)
+            out<<(scalar_left?"  neg.f64 %fd4,%fd2;\n":"  mov.f64 %fd4,%fd2;\n");
+        else if(operation==3) out<<"  mul.f64 %fd4,%fd2,%fd1;\n";
+        else if(scalar_left)
+            out<<"  ld.global.f64 %fd3,[%rd11];\n"
+                  "  mul.f64 %fd5,%fd2,%fd1;\n"
+                  "  mul.f64 %fd6,%fd3,%fd3;\n"
+                  "  div.f64 %fd4,%fd5,%fd6;\n"
+                  "  neg.f64 %fd4,%fd4;\n";
+        else out<<"  div.f64 %fd4,%fd2,%fd1;\n";
+        out<<"  st.global.f64 [%rd9],%fd4;\n";
     }
     out<<"DONE:\n  ret;\n}\n";
     return out.str();
@@ -522,6 +613,24 @@ std::string hip_binary_backward_source(int dtype,int operation) {
     return out.str();
 }
 
+
+std::string hip_scalar_backward_source(int dtype,int operation,bool scalar_left) {
+    const auto type=dtype==10?"float":"double";
+    std::ostringstream out;
+    out<<"extern \"C\" __global__ void q_kernel("<<type<<"* output,const "<<type
+       <<"* gradient,const "<<type<<"* input,unsigned long long count,"<<type<<" scalar){"
+         "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+         "if(i>=count)return;"<<type<<" g=gradient[i],value;";
+    if(operation==1) out<<"value=g;";
+    else if(operation==2) out<<(scalar_left?"value=-g;":"value=g;");
+    else if(operation==3) out<<"value=g*scalar;";
+    else if(scalar_left)
+        out<<type<<" x=input[i],gs=g*scalar,xx=x*x;value=-(gs/xx);";
+    else out<<"value=g/scalar;";
+    out<<"output[i]=value;}";
+    return out.str();
+}
+
 std::string hip_abs_backward_source(int dtype) {
     const auto type=dtype==10?"float":"double";
     return "extern \"C\" __global__ void q_kernel("+std::string(type)+
@@ -587,6 +696,26 @@ std::string msl_binary_backward_source(int operation) {
         out<<" float ga=g*a,bb=b*b;"
              " left_gradient[i]=g/b; right_gradient[i]=-(ga/bb);";
     out<<" }\n";
+    return out.str();
+}
+
+
+std::string msl_scalar_backward_source(int operation,bool scalar_left) {
+    std::ostringstream out;
+    out<<"#include <metal_stdlib>\nusing namespace metal;\n"
+         "kernel void q_kernel(device float* output [[buffer(0)]],"
+         "const device float* gradient [[buffer(1)]],"
+         "const device float* input [[buffer(2)]],"
+         "constant ulong& count [[buffer(3)]],"
+         "constant float& scalar [[buffer(4)]],"
+         "uint gid [[thread_position_in_grid]]) {"
+         " ulong i=ulong(gid); if(i>=count)return; float g=gradient[i],value;";
+    if(operation==1) out<<" value=g;";
+    else if(operation==2) out<<(scalar_left?" value=-g;":" value=g;");
+    else if(operation==3) out<<" value=g*scalar;";
+    else if(scalar_left) out<<" float x=input[i],gs=g*scalar,xx=x*x; value=-(gs/xx);";
+    else out<<" value=g/scalar;";
+    out<<" output[i]=value; }\n";
     return out.str();
 }
 
@@ -737,6 +866,99 @@ bool compute_binary_backward(
 #endif
     return real_compute_unavailable(
         left_gradient,"neural binary backward",dtype,error);
+}
+
+
+bool compute_scalar_backward(
+    Buffer* output,const Buffer* gradient,const Buffer* input,
+    int dtype,int operation,bool scalar_left,double scalar,
+    std::size_t count,std::string& error) {
+    if(operation<1||operation>4){
+        error="invalid neural scalar backward operation";
+        return false;
+    }
+    const auto bytes=compute_dtype_width(dtype);
+    if(!compute_same_device(output,gradient,error)||
+       !compute_same_device(output,input,error)||
+       !compute_buffer_range(output,0,count,bytes,error)||
+       !compute_buffer_range(gradient,0,count,bytes,error)||
+       !compute_buffer_range(input,0,count,bytes,error))
+        return false;
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    if(output->backend==Backend::Test){
+        if(dtype==10)return fake_scalar_backward<float>(
+            output,gradient,input,operation,scalar_left,scalar,count);
+        if(dtype==9)return fake_scalar_backward<double>(
+            output,gradient,input,operation,scalar_left,scalar,count);
+        error="neural scalar backward requires a floating dtype";
+        return false;
+    }
+#endif
+    if((dtype==9||dtype==10)&&output->backend==Backend::Nvidia){
+        auto source=ptx_scalar_backward_source(dtype,operation,scalar_left);
+        auto o=output->cuda_pointer,g=gradient->cuda_pointer,in=input->cuda_pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        if(dtype==10){
+            float s=static_cast<float>(scalar);
+            void* args[]={&o,&g,&in,&n,&s};
+            return launch_ptx_1d(
+                output,
+                "neural-scalar-backward-10-"+std::to_string(operation)+"-"+
+                    (scalar_left?"left":"right"),
+                source,count,args,error);
+        }
+        double s=scalar;
+        void* args[]={&o,&g,&in,&n,&s};
+        return launch_ptx_1d(
+            output,
+            "neural-scalar-backward-9-"+std::to_string(operation)+"-"+
+                (scalar_left?"left":"right"),
+            source,count,args,error);
+    }
+    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+        auto source=hip_scalar_backward_source(dtype,operation,scalar_left);
+        auto o=output->pointer,g=gradient->pointer,in=input->pointer;
+        auto n=static_cast<std::uint64_t>(count);
+        if(dtype==10){
+            float s=static_cast<float>(scalar);
+            void* args[]={&o,&g,&in,&n,&s};
+            return launch_hip_1d(
+                output,
+                "neural-scalar-backward-10-"+std::to_string(operation)+"-"+
+                    (scalar_left?"left":"right"),
+                source,count,args,error);
+        }
+        double s=scalar;
+        void* args[]={&o,&g,&in,&n,&s};
+        return launch_hip_1d(
+            output,
+            "neural-scalar-backward-9-"+std::to_string(operation)+"-"+
+                (scalar_left?"left":"right"),
+            source,count,args,error);
+    }
+#ifdef __APPLE__
+    if(dtype==10&&output->backend==Backend::Metal){
+        auto source=msl_scalar_backward_source(operation,scalar_left);
+        auto pipeline=cached_metal_pipeline(
+            [output->metal_buffer device],
+            "neural-scalar-backward-f32-"+std::to_string(operation)+"-"+
+                (scalar_left?"left":"right"),
+            source,error);
+        if(!pipeline)return false;
+        auto n=static_cast<std::uint64_t>(count);
+        float s=static_cast<float>(scalar);
+        return dispatch_metal_1d(
+            output,pipeline,count,[&](id<MTLComputeCommandEncoder> e){
+                [e setBuffer:output->metal_buffer offset:0 atIndex:0];
+                [e setBuffer:gradient->metal_buffer offset:0 atIndex:1];
+                [e setBuffer:input->metal_buffer offset:0 atIndex:2];
+                [e setBytes:&n length:sizeof(n) atIndex:3];
+                [e setBytes:&s length:sizeof(s) atIndex:4];
+            },error);
+    }
+#endif
+    return real_compute_unavailable(
+        output,"neural scalar backward",dtype,error);
 }
 
 bool compute_abs_backward(Buffer* output, const Buffer* gradient,

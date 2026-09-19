@@ -2398,7 +2398,7 @@ TensorStorage* tensor_gpu_materialize_storage(
     unsigned long long column);
 
 enum class NeuralOp {
-    Leaf, Add, Sub, Mul, Div, Affine, Convolution, Normalize, RandomMask,
+    Leaf, Add, Sub, Mul, Div, ScalarBinary, Affine, Convolution, Normalize, RandomMask,
     Absolute, Exponential, Logarithm, Mean, SumLast, MaxLast
 };
 
@@ -5219,42 +5219,71 @@ extern "C" void* quidra_neural_binary(void* left_raw,void* right_raw,int op,
     neural_fail("invalid neural binary dtype",line,column);
 }
 
+
+template <typename T>
+NeuralBuffer neural_binary_scalar_values(
+    const NeuralBuffer& input,double scalar,int op,bool scalar_left,
+    unsigned long long line,unsigned long long column) {
+    const auto& source=input.typed<T>();
+    std::vector<T> values(source.size(),T{0});
+    const T scalar_value=static_cast<T>(scalar);
+    for(std::size_t i=0;i<values.size();++i){
+        const T left=scalar_left?scalar_value:source[i];
+        const T right=scalar_left?source[i]:scalar_value;
+        if(op==1)values[i]=static_cast<T>(left+right);
+        else if(op==2)values[i]=static_cast<T>(left-right);
+        else if(op==3)values[i]=static_cast<T>(left*right);
+        else{
+            if(right==T{0})neural_fail("division by zero",line,column);
+            values[i]=static_cast<T>(left/right);
+        }
+    }
+    return NeuralBuffer(std::move(values));
+}
+
 extern "C" void* quidra_neural_binary_scalar(
     void* raw,double scalar,int op,bool scalar_left,
     unsigned long long line,unsigned long long column) {
     if(!raw) neural_fail("null neural operand",line,column);
+    if(op<1||op>4) neural_fail("invalid neural binary operation",line,column);
     auto input=static_cast<NeuralValue*>(raw)->node;
-    auto constant=std::make_shared<NeuralNode>(input->dtype);
-    constant->shape=input->shape;
+    auto node=std::make_shared<NeuralNode>(input->dtype);
+    node->shape=input->shape;
+    node->parents={input};
+    node->op=NeuralOp::ScalarBinary;
+    node->aux.assign(1,scalar);
+    node->aux_index={
+        static_cast<std::size_t>(op),
+        scalar_left?std::size_t{1}:std::size_t{0}
+    };
     if(input->device_tensor){
-        void* zero_tensor=nullptr;
-        void* constant_tensor=nullptr;
         if(input->dtype==10){
-            const float zero=0.0F;
-            const float value=static_cast<float>(scalar);
-            zero_tensor=quidra_tensor_binary(
-                input->device_tensor,nullptr,const_cast<float*>(&zero),2,3,line,column);
-            constant_tensor=quidra_tensor_binary(
-                zero_tensor,nullptr,const_cast<float*>(&value),2,1,line,column);
+            float value=static_cast<float>(scalar);
+            node->device_tensor=static_cast<TensorValue*>(
+                quidra_tensor_binary(
+                    input->device_tensor,nullptr,&value,scalar_left?1:2,
+                    op,line,column));
         }else if(input->dtype==9){
-            const double zero=0.0;
-            const double value=scalar;
-            zero_tensor=quidra_tensor_binary(
-                input->device_tensor,nullptr,const_cast<double*>(&zero),2,3,line,column);
-            constant_tensor=quidra_tensor_binary(
-                zero_tensor,nullptr,const_cast<double*>(&value),2,1,line,column);
+            double value=scalar;
+            node->device_tensor=static_cast<TensorValue*>(
+                quidra_tensor_binary(
+                    input->device_tensor,nullptr,&value,scalar_left?1:2,
+                    op,line,column));
         }else{
             neural_fail("invalid neural scalar dtype",line,column);
         }
-        quidra_tensor_drop(zero_tensor);
-        constant->device_tensor=static_cast<TensorValue*>(constant_tensor);
-        if(!constant->device_tensor)
-            neural_fail("GPU neural scalar materialization returned null",line,column);
+        if(!node->device_tensor)
+            neural_fail("GPU neural scalar operation returned null",line,column);
+    }else if(input->dtype==10){
+        node->data=neural_binary_scalar_values<float>(
+            input->data,scalar,op,scalar_left,line,column);
+    }else if(input->dtype==9){
+        node->data=neural_binary_scalar_values<double>(
+            input->data,scalar,op,scalar_left,line,column);
     }else{
-        constant->data.assign(input->data.size(),scalar);
+        neural_fail("invalid neural scalar dtype",line,column);
     }
-    NeuralValue a{scalar_left?constant:input},b{scalar_left?input:constant};
-    return quidra_neural_binary(&a,&b,op,line,column);
+    return neural_descriptor(std::move(node));
 }
 
 
@@ -5462,6 +5491,49 @@ void* neural_grad_device(
                 gradients,node->parents[0],left_gradient,line,column);
             neural_add_device_gradient(
                 gradients,node->parents[1],right_gradient,line,column);
+        }else if(node->op==NeuralOp::ScalarBinary){
+            if(node->parents.size()!=1||node->aux.size()!=1||
+               node->aux_index.size()!=2)
+                neural_fail("invalid GPU neural scalar graph",line,column);
+            const auto& input=node->parents[0];
+            const auto operation=static_cast<int>(node->aux_index[0]);
+            const bool scalar_left=node->aux_index[1]!=0;
+            TensorValue* result=nullptr;
+            if(operation==1||(operation==2&&!scalar_left)){
+                result=static_cast<TensorValue*>(quidra_tensor_clone(g));
+            }else if(operation==2){
+                result=neural_device_negate_tensor(g,line,column);
+            }else{
+                auto* gd=neural_device_dense_clone(*g,line,column);
+                TensorValue* xd=nullptr;
+                const TensorValue* input_dense=gd;
+                if(operation==4&&scalar_left){
+                    xd=neural_device_dense_clone(*input->device_tensor,line,column);
+                    input_dense=xd;
+                    if(gd->shape!=xd->shape){
+                        quidra_tensor_drop(gd);quidra_tensor_drop(xd);
+                        neural_fail("neural scalar backward shape mismatch",line,column);
+                    }
+                }
+                const auto count=tensor_logical_count(*gd);
+                auto* storage=tensor_storage_create(
+                    node->dtype,count,1,gd->storage->device,line,column);
+                result=tensor_descriptor(
+                    storage,input->shape,tensor_contiguous_strides(input->shape),0);
+                std::string backend_error;
+                const bool ok=quidra::device::compute_scalar_backward(
+                    storage->gpu_buffer,gd->storage->gpu_buffer,
+                    input_dense->storage->gpu_buffer,node->dtype,operation,
+                    scalar_left,node->aux.scalar_as_double(0),count,backend_error);
+                quidra_tensor_drop(gd);
+                if(xd)quidra_tensor_drop(xd);
+                if(!ok){
+                    quidra_tensor_drop(result);
+                    neural_fail(backend_error.c_str(),line,column);
+                }
+            }
+            neural_add_device_gradient(
+                gradients,input,result,line,column);
         }else if(node->op==NeuralOp::Absolute){
             const auto& input=node->parents[0];
             auto* gd=neural_device_dense_clone(*g,line,column);
@@ -5780,6 +5852,31 @@ void* neural_grad_t(
             }
             neural_add_gradient(gradients,node->parents[0],std::move(left_gradient));
             neural_add_gradient(gradients,node->parents[1],std::move(right_gradient));
+        }else if(node->op==NeuralOp::ScalarBinary){
+            if(node->parents.size()!=1||node->aux.size()!=1||
+               node->aux_index.size()!=2)
+                neural_fail("invalid neural scalar graph",line,column);
+            const auto& input=node->parents[0]->data.typed<T>();
+            const auto operation=static_cast<int>(node->aux_index[0]);
+            const bool scalar_left=node->aux_index[1]!=0;
+            const T scalar_value=static_cast<T>(node->aux.scalar_as_double(0));
+            std::vector<T> input_gradient(g.size());
+            for(std::size_t i=0;i<g.size();++i){
+                if(operation==1)input_gradient[i]=g[i];
+                else if(operation==2)
+                    input_gradient[i]=scalar_left?static_cast<T>(-g[i]):g[i];
+                else if(operation==3)
+                    input_gradient[i]=static_cast<T>(g[i]*scalar_value);
+                else if(scalar_left){
+                    const T gs=static_cast<T>(g[i]*scalar_value);
+                    const T xx=static_cast<T>(input[i]*input[i]);
+                    input_gradient[i]=static_cast<T>(-static_cast<T>(gs/xx));
+                }else{
+                    input_gradient[i]=static_cast<T>(g[i]/scalar_value);
+                }
+            }
+            neural_add_gradient(
+                gradients,node->parents[0],std::move(input_gradient));
         }else if(node->op==NeuralOp::Absolute||
                  node->op==NeuralOp::Exponential||
                  node->op==NeuralOp::Logarithm){

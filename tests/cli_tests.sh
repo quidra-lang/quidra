@@ -498,6 +498,20 @@ source=(
     "Secret item = Secret()\n"
     "item.\n"
 )
+inside_source=(
+    "class Secret\n"
+    "    int visible = 1\n"
+    "    private int hidden = 2\n"
+    "\n"
+    "    void open()\n"
+    "        return\n"
+    "\n"
+    "    private void close()\n"
+    "        return\n"
+    "\n"
+    "    void inspect(Secret other)\n"
+    "        other.\n"
+)
 messages=[
     {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"rootUri":tmp.as_uri()}},
     {"jsonrpc":"2.0","method":"initialized","params":{}},
@@ -507,7 +521,13 @@ messages=[
     {"jsonrpc":"2.0","id":2,"method":"textDocument/completion","params":{
         "textDocument":{"uri":uri},"position":{"line":11,"character":5}
     }},
-    {"jsonrpc":"2.0","id":3,"method":"shutdown","params":None},
+    {"jsonrpc":"2.0","method":"textDocument/didChange","params":{
+        "textDocument":{"uri":uri,"version":2},"contentChanges":[{"text":inside_source}]
+    }},
+    {"jsonrpc":"2.0","id":3,"method":"textDocument/completion","params":{
+        "textDocument":{"uri":uri},"position":{"line":11,"character":14}
+    }},
+    {"jsonrpc":"2.0","id":4,"method":"shutdown","params":None},
     {"jsonrpc":"2.0","method":"exit","params":None},
 ]
 payload=b""
@@ -528,7 +548,10 @@ by_id={x["id"]:x for x in responses if "id" in x}
 labels={item["label"] for item in by_id[2]["result"]}
 assert "visible" in labels and "open" in labels,labels
 assert "hidden" not in labels and "close" not in labels,labels
-assert by_id[3]["result"] is None
+inside_labels={item["label"] for item in by_id[3]["result"]}
+for expected in ("visible","hidden","open","close"):
+    assert expected in inside_labels,(expected,inside_labels)
+assert by_id[4]["result"] is None
 PY
 
 python3 - "$QUIDRA" "$TMP" <<'PY'

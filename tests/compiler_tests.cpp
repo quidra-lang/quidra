@@ -2023,6 +2023,7 @@ class DerivedSecret : MiddleSecret
  bad_code(R"(class BaseSecret
     private int value = 1
 class MiddleSecret : BaseSecret
+    int marker = 0
 class DerivedSecret : MiddleSecret
     int reveal()
         return value

@@ -214,6 +214,14 @@ The enum name is the static type. Variants are always qualified with the enum na
 Enum matching is exhaustive:
 
 ```quidra
+enum Token
+    Number(float)
+    Name(string)
+    Plus
+    End
+
+Token token = Token.End
+
 match token
     Token.Number(value)
         print(value)

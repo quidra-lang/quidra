@@ -995,9 +995,8 @@ std::optional<SourceSpan> semantic_member_definition_span(
     const std::vector<Token>& tokens) {
     if(!expression) return std::nullopt;
 
-    if(std::holds_alternative<MethodCallExpr>(expression->data)) {
-        const auto method=checked.method_calls.find(expression);
-        if(method==checked.method_calls.end()) return std::nullopt;
+    if(const auto method=checked.method_calls.find(expression);
+       method!=checked.method_calls.end()) {
         for(const auto& declaration:checked.program.classes) {
             const auto info=checked.classes.find(declaration.name);
             if(info==checked.classes.end()) continue;

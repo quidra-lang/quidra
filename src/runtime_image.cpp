@@ -302,7 +302,7 @@ Image convert_channels_t(const Image& source, std::size_t target_channels) {
     return output;
 }
 
-Image convert_channels(const Image& source, int target_channels) {
+Image convert_channels(const Image& source, long long target_channels) {
     if (target_channels == 0 || static_cast<std::size_t>(target_channels) == source.channels) {
         return source;
     }
@@ -1040,7 +1040,7 @@ void write_image(const std::string& path, const Image& image, int quality) {
 extern "C" void* quidra_image_read(const char* path,
                                      int expected_dtype,
                                      int target_dtype,
-                                     int target_channels,
+                                     long long target_channels,
                                      long long expected_channels,
                                      long long expected_height,
                                      long long expected_width,

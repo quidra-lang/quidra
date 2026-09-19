@@ -1795,9 +1795,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
             if (poisoned(argument)) {
                 type = simple(TypeKind::Invalid);
             } else if (type_receiver->kind == TypeKind::Bin) {
-                bool static_literal = false;
                 if (const auto* literal = std::get_if<StringExpr>(&node->args[0].value->data)) {
-                    static_literal = true;
                     for (const char ch : literal->value) {
                         if (ch != '0' && ch != '1') {
                             error("BIN_PARSE", "bin.parse accepts only '0' and '1'.",
@@ -1805,9 +1803,7 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         }
                     }
                 }
-                type = static_literal
-                    ? simple(TypeKind::Bin)
-                    : Type::union_of({simple(TypeKind::Bin), simple(TypeKind::Error)});
+                type = Type::union_of({simple(TypeKind::Bin), simple(TypeKind::Error)});
             } else {
                 type = Type::union_of({*type_receiver, simple(TypeKind::Error)});
             }
@@ -1893,37 +1889,16 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         auto shape = check_expr(*node->args[0].value, &shape_type);
                         long long rank = -1;
                         if (!poisoned(shape)) {
-                            if (const auto* literal =
-                                    std::get_if<ArrayExpr>(&node->args[0].value->data)) {
-                                rank = static_cast<long long>(literal->elements.size());
-                            } else {
-                                const auto raw = raw_types_.find(node->args[0].value.get());
-                                if (raw != raw_types_.end() &&
-                                    raw->second.kind == TypeKind::Array &&
-                                    raw->second.length >= 0) {
-                                    rank = raw->second.length;
-                                }
-                            }
-                        }
-                        std::vector<long long> known_shape;
-                        if (!poisoned(shape)) {
-                            if (const auto* literal =
-                                    std::get_if<ArrayExpr>(&node->args[0].value->data)) {
-                                bool known = true;
-                                for (const auto& item : literal->elements) {
-                                    const auto extent = constant_eval::integer(*item);
-                                    if (!extent || *extent < 0) {
-                                        known = false;
-                                        break;
-                                    }
-                                    known_shape.push_back(*extent);
-                                }
-                                if (!known) known_shape.clear();
+                            const auto raw = raw_types_.find(node->args[0].value.get());
+                            if (raw != raw_types_.end() &&
+                                raw->second.kind == TypeKind::Array &&
+                                raw->second.length >= 0) {
+                                rank = raw->second.length;
                             }
                         }
                         type = poisoned(shape)
                             ? simple(TypeKind::Invalid)
-                            : Type::tensor(*receiver.first, rank, {}, std::move(known_shape));
+                            : Type::tensor(*receiver.first, rank);
                     } else if (node->method == "transpose") {
                         const auto int_type = simple(TypeKind::Int);
                         if (!node->type_arguments.empty() || node->args.size() != 2 ||
@@ -1963,27 +1938,6 @@ Type Checker::check_method_call_expr(const Expr& expression,
                             };
                             check_axis(a0, node->args[0].span);
                             check_axis(a1, node->args[1].span);
-                            if (a0 && a1 && *a0 >= 0 && *a1 >= 0 &&
-                                (receiver.length < 0 ||
-                                 (*a0 < receiver.length && *a1 < receiver.length))) {
-                                auto pattern = receiver.tensor_shape_prefix;
-                                auto known = receiver.tensor_known_shape_prefix;
-                                const auto x = static_cast<std::size_t>(*a0);
-                                const auto y = static_cast<std::size_t>(*a1);
-                                if (x < pattern.size() && y < pattern.size()) {
-                                    std::swap(pattern[x], pattern[y]);
-                                } else {
-                                    pattern.clear();
-                                }
-                                if (x < known.size() && y < known.size()) {
-                                    std::swap(known[x], known[y]);
-                                } else {
-                                    known.clear();
-                                }
-                                type = Type::tensor(
-                                    *receiver.first, receiver.length,
-                                    std::move(pattern), std::move(known));
-                            }
                         }
                     } else if (node->method == "contiguous") {
                         if (!node->type_arguments.empty() || !node->args.empty()) {
@@ -3617,6 +3571,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         bad = true;
                     }
 
+                    bool channel_seen = false;
                     std::optional<long long> target_channels;
                     std::optional<Type> target_dtype;
                     for (std::size_t i = 1; i < node->args.size(); ++i) {
@@ -3629,22 +3584,26 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                             continue;
                         }
                         if (*argument.name == "channel") {
-                            if (target_channels) {
+                            if (channel_seen) {
                                 error("DUPLICATE_ARGUMENT",
                                       "image.read channel is specified more than once.",
                                       argument.span);
                                 bad = true;
                                 continue;
                             }
+                            channel_seen = true;
                             const auto channel_type = check_expr(*argument.value, &int_type);
-                            const auto channels = constant_eval::integer(*argument.value);
-                            if (poisoned(channel_type) || !channels ||
-                                (*channels != 1 && *channels != 3 && *channels != 4)) {
+                            const auto channels =
+                                constant_eval::integer(*argument.value, &const_integer_values_);
+                            if (poisoned(channel_type)) {
+                                bad = true;
+                            } else if (channels &&
+                                       *channels != 1 && *channels != 3 && *channels != 4) {
                                 error("ARGUMENT_MISMATCH",
-                                      "image.read channel must be the literal 1, 3, or 4.",
+                                      "image.read channel must evaluate to 1, 3, or 4.",
                                       argument.span);
                                 bad = true;
-                            } else {
+                            } else if (channels) {
                                 target_channels = *channels;
                             }
                             continue;
@@ -3673,7 +3632,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                             continue;
                         }
                         error("ARGUMENT_MISMATCH",
-                              "image.read supports only channel = 1|3|4 and type = numeric_type.",
+                              "image.read supports only channel = int and type = numeric_type.",
                               argument.span);
                         bad = true;
                     }
@@ -3737,19 +3696,13 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                                 known_shape.push_back(extent);
                             }
                         }
-                        if (target_channels) {
-                            if (known_shape.empty()) known_shape.push_back(*target_channels);
-                            else known_shape.front() = *target_channels;
-                        }
                         result_cases.push_back(Type::tensor(
                             element, 3, std::move(shape_contract), std::move(known_shape)));
                     };
 
-                    if (target_dtype) {
-                        append_case(*target_dtype);
-                    } else if (expected_tensor) {
-                        // The expected element type is a source/output constraint, not permission
-                        // to convert the decoded samples.
+                    if (expected_tensor) {
+                        // Expected type context may narrow the accepted result. Conversion option
+                        // values never narrow the static result type of an auto expression.
                         append_case(*expected_tensor->first);
                     } else {
                         append_case(simple(TypeKind::Int8));
@@ -4128,39 +4081,44 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     auto shape = check_expr(*node->args[*shape_index].value, &shape_type);
                     long long rank = -1;
                     if (!poisoned(shape)) {
-                        if (const auto* literal =
-                                std::get_if<ArrayExpr>(&node->args[*shape_index].value->data)) {
-                            rank = static_cast<long long>(literal->elements.size());
-                        } else {
-                            const auto raw =
-                                raw_types_.find(node->args[*shape_index].value.get());
-                            if (raw != raw_types_.end() &&
-                                raw->second.kind == TypeKind::Array &&
-                                raw->second.length >= 0) {
-                                rank = raw->second.length;
-                            }
+                        const auto raw =
+                            raw_types_.find(node->args[*shape_index].value.get());
+                        if (raw != raw_types_.end() &&
+                            raw->second.kind == TypeKind::Array &&
+                            raw->second.length >= 0) {
+                            rank = raw->second.length;
                         }
                     }
-                    std::vector<long long> known_shape;
-                    if (!poisoned(shape)) {
+                    if (!poisoned(shape) && expected &&
+                        expected->kind == TypeKind::Tensor &&
+                        !expected->tensor_shape_prefix.empty()) {
                         if (const auto* literal =
                                 std::get_if<ArrayExpr>(&node->args[*shape_index].value->data)) {
-                            bool known = true;
-                            for (const auto& item : literal->elements) {
-                                const auto extent =
-                                    constant_eval::integer(*item, &const_integer_values_);
-                                if (!extent || *extent < 0) {
-                                    known = false;
-                                    break;
+                            if (literal->elements.size() !=
+                                expected->tensor_shape_prefix.size()) {
+                                error("TYPE_MISMATCH",
+                                      "Tensor shape argument contradicts the expected tensor rank.",
+                                      node->args[*shape_index].span);
+                            } else {
+                                for (std::size_t axis = 0;
+                                     axis < literal->elements.size(); ++axis) {
+                                    const auto required =
+                                        expected->tensor_shape_prefix[axis];
+                                    if (required < 0) continue;
+                                    const auto extent = constant_eval::integer(
+                                        *literal->elements[axis], &const_integer_values_);
+                                    if (extent && *extent != required) {
+                                        error("TYPE_MISMATCH",
+                                              "Tensor shape argument contradicts the expected tensor shape.",
+                                              literal->elements[axis]->span);
+                                    }
                                 }
-                                known_shape.push_back(*extent);
                             }
-                            if (!known) known_shape.clear();
                         }
                     }
                     type = poisoned(shape) || bad_gpu
                         ? simple(TypeKind::Invalid)
-                        : Type::tensor(element, rank, {}, std::move(known_shape));
+                        : Type::tensor(element, rank);
                     break;
                 }
             }

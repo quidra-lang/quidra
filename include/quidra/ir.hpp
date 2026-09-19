@@ -126,7 +126,7 @@ struct ImageRead {
     ValueId path;
     Type result_type;
     std::optional<Type> target_dtype;
-    int target_channels{};
+    std::optional<ValueId> target_channels;
     std::vector<long long> expected_shape_prefix;
 };
 struct ImageWrite { ValueId out; ValueId path; ValueId image; ValueId quality; Type result_type; };

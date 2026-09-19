@@ -2714,7 +2714,7 @@ struct FunctionEmitter {
             out<<"  "<<raw<<" = call ptr @quidra_image_read(ptr "<<value(n.path)
                <<", i32 "<<expected_dtype
                <<", i32 "<<target_dtype
-               <<", i32 "<<n.target_channels
+               <<", i64 "<<(n.target_channels ? value(*n.target_channels) : "0")
                <<", i64 "<<expected_channels
                <<", i64 "<<expected_height
                <<", i64 "<<expected_width
@@ -4296,7 +4296,7 @@ declare ptr @quidra_http_last_error_copy()
 declare ptr @quidra_http_header(ptr, ptr)
 declare ptr @quidra_http_response_clone(ptr)
 declare void @quidra_http_response_drop(ptr)
-declare ptr @quidra_image_read(ptr, i32, i32, i32, i64, i64, i64, ptr)
+declare ptr @quidra_image_read(ptr, i32, i32, i64, i64, i64, i64, ptr)
 declare i1 @quidra_image_write(ptr, ptr, i32, i64)
 declare ptr @quidra_image_last_error_copy()
 declare ptr @quidra_image_tensor_geometry(ptr, i32, i32, i64, i64, i64, i64, i64, i64)

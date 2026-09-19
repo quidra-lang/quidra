@@ -2020,24 +2020,14 @@ private:
                 TypeName result;
                 result.name = "tensor";
                 result.arguments.push_back(clone_type(call->type_arguments.front()));
-                const auto shape = infer_expression_type(*call->args[0].value, current_class);
-                if (shape && shape->name == "int" && shape->dimensions.size() == 1 &&
-                    shape->dimensions.front() >= 0) {
-                    result.tensor_rank = shape->dimensions.front();
-                }
-                if (const auto* literal = std::get_if<ArrayExpr>(&call->args[0].value->data)) {
-                    bool known = true;
-                    for (const auto& item : literal->elements) {
-                        const auto* integer = std::get_if<IntegerExpr>(&item->data);
-                        if (!integer ||
-                            integer->value > static_cast<std::uint64_t>(std::numeric_limits<long long>::max())) {
-                            known = false;
-                            break;
-                        }
-                        result.tensor_known_shape_prefix.push_back(
-                            static_cast<long long>(integer->value));
+                if (!std::holds_alternative<ArrayExpr>(call->args[0].value->data)) {
+                    const auto shape =
+                        infer_expression_type(*call->args[0].value, current_class);
+                    if (shape && shape->name == "int" &&
+                        shape->dimensions.size() == 1 &&
+                        shape->dimensions.front() >= 0) {
+                        result.tensor_rank = shape->dimensions.front();
                     }
-                    if (!known) result.tensor_known_shape_prefix.clear();
                 }
                 result.span = expression.span;
                 return result;
@@ -2163,24 +2153,14 @@ private:
                     result.tensor_shape_prefix.clear();
                     result.tensor_rank.reset();
                     result.tensor_known_shape_prefix.clear();
-                    const auto shape = infer_expression_type(*call->args[0].value, current_class);
-                    if (shape && shape->name == "int" && shape->dimensions.size() == 1 &&
-                        shape->dimensions.front() >= 0) {
-                        result.tensor_rank = shape->dimensions.front();
-                    }
-                    if (const auto* literal = std::get_if<ArrayExpr>(&call->args[0].value->data)) {
-                        bool known = true;
-                        for (const auto& item : literal->elements) {
-                            const auto* integer = std::get_if<IntegerExpr>(&item->data);
-                            if (!integer ||
-                                integer->value > static_cast<std::uint64_t>(std::numeric_limits<long long>::max())) {
-                                known = false;
-                                break;
-                            }
-                            result.tensor_known_shape_prefix.push_back(
-                                static_cast<long long>(integer->value));
+                    if (!std::holds_alternative<ArrayExpr>(call->args[0].value->data)) {
+                        const auto shape =
+                            infer_expression_type(*call->args[0].value, current_class);
+                        if (shape && shape->name == "int" &&
+                            shape->dimensions.size() == 1 &&
+                            shape->dimensions.front() >= 0) {
+                            result.tensor_rank = shape->dimensions.front();
                         }
-                        if (!known) result.tensor_known_shape_prefix.clear();
                     }
                     result.span = expression.span;
                     return result;

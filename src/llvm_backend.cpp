@@ -382,7 +382,6 @@ struct FunctionEmitter {
     std::size_t debug_file{};
     std::vector<DebugVariableRecord>* debug_variable_records{};
     std::unordered_map<std::string,std::size_t> debug_variables;
-    std::uint32_t debug_source_line{1};
     std::optional<std::size_t> pending_debug_location;
     struct DebugSegment {
         std::size_t begin{};
@@ -415,25 +414,29 @@ struct FunctionEmitter {
     std::string arg(const std::string&n)const{return "%arg."+local_id(n);}
     std::string storage(const std::string&n)const{return writable_params.contains(n)?arg(n):local(n);}
     std::optional<std::size_t> debug_variable(
-        const std::string& name,const Type& type,std::uint32_t line,std::size_t argument=0) {
-        if(!debug_subprogram||!next_debug_metadata||!debug_variable_records||debug_file==0)
+        const std::string& storage_name,const std::string& source_name,
+        const Type& type,std::uint32_t line,std::size_t argument=0) {
+        if(source_name.empty()||!debug_subprogram||!next_debug_metadata||
+           !debug_variable_records||debug_file==0)
             return std::nullopt;
-        if(const auto found=debug_variables.find(name);found!=debug_variables.end())
+        if(const auto found=debug_variables.find(storage_name);found!=debug_variables.end())
             return found->second;
         auto basic=debug_basic_type(type);
         if(!basic) return std::nullopt;
         const auto type_id=(*next_debug_metadata)++;
         const auto variable_id=(*next_debug_metadata)++;
         debug_variable_records->push_back(DebugVariableRecord{
-            variable_id,type_id,*debug_subprogram,debug_file,name,std::move(*basic),
+            variable_id,type_id,*debug_subprogram,debug_file,source_name,std::move(*basic),
             std::max<std::uint32_t>(1,line),argument});
-        debug_variables.emplace(name,variable_id);
+        debug_variables.emplace(storage_name,variable_id);
         return variable_id;
     }
     void emit_debug_declare(
-        const std::string& name,const Type& type,std::uint32_t line,std::size_t argument=0) {
-        if(const auto variable=debug_variable(name,type,line,argument)) {
-            out<<"  call void @llvm.dbg.declare(metadata ptr "<<storage(name)
+        const std::string& storage_name,const std::string& source_name,
+        const Type& type,std::uint32_t line,std::size_t argument=0) {
+        if(const auto variable=debug_variable(
+               storage_name,source_name,type,line,argument)) {
+            out<<"  call void @llvm.dbg.declare(metadata ptr "<<storage(storage_name)
                <<", metadata !"<<*variable<<", metadata !DIExpression())\n";
         }
     }
@@ -794,7 +797,6 @@ struct FunctionEmitter {
 
     void emit_instruction(const ir::Instruction& ins){
         if(const auto* location=std::get_if<ir::SourceLocation>(&ins)) {
-            debug_source_line=std::max<std::uint32_t>(1,location->line);
             if(debug_subprogram&&next_debug_metadata&&debug_location_records) {
                 const auto id=(*next_debug_metadata)++;
                 debug_location_records->push_back(DebugLocationRecord{
@@ -847,7 +849,9 @@ struct FunctionEmitter {
             }
         }
         if constexpr(std::is_same_v<T,ir::DeclareLocal>){
-            emit_debug_declare(n.name,n.type,debug_source_line);
+            emit_debug_declare(
+                n.name,n.source_name,n.type,
+                std::max<std::uint32_t>(1,n.source_line));
         }
         if constexpr(std::is_same_v<T,ir::DeclareReference>){}
         if constexpr(std::is_same_v<T,ir::AddressLocal>){out<<"  "<<value(n.out)<<" = getelementptr inbounds i8, ptr "<<storage(n.name)<<", i64 0\n";}
@@ -2979,7 +2983,7 @@ struct FunctionEmitter {
         }
     }
 
-    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type,parameter.is_const);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<")";if(debug_subprogram)out<<" !dbg !"<<*debug_subprogram;out<<" {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}emit_entry_scratch();for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";for(std::size_t pi=0;pi<fn.parameters.size();++pi){const auto&p=fn.parameters[pi];emit_debug_declare(p.name,p.type,fn.source_line,pi+1);}}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never)||(std::holds_alternative<ir::IndirectCall>(last)&&std::get<ir::IndirectCall>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";auto text=out.str();for(auto it=debug_segments.rbegin();it!=debug_segments.rend();++it)attach_debug_location_range(text,it->begin,it->end,it->location);return text;}
+    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type,parameter.is_const);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<")";if(debug_subprogram)out<<" !dbg !"<<*debug_subprogram;out<<" {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}emit_entry_scratch();for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";for(std::size_t pi=0;pi<fn.parameters.size();++pi){const auto&p=fn.parameters[pi];emit_debug_declare(p.name,p.name,p.type,fn.source_line,pi+1);}}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never)||(std::holds_alternative<ir::IndirectCall>(last)&&std::get<ir::IndirectCall>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";auto text=out.str();for(auto it=debug_segments.rbegin();it!=debug_segments.rend();++it)attach_debug_location_range(text,it->begin,it->end,it->location);return text;}
 };
 
 

@@ -22,7 +22,13 @@ struct ArrayAlloc { ValueId out; ValueId length; Type type; bool fully_initializ
 struct ClassMake { ValueId out; Type type; std::vector<std::optional<ValueId>> fields; };
 struct FieldGet { ValueId out; ValueId object; std::size_t index; Type field_type; };
 struct FieldSet { ValueId object; std::size_t index; ValueId value; Type field_type; bool replace_without_release{}; };
-struct DeclareLocal { std::string name; Type type; };
+struct DeclareLocal {
+    std::string name;
+    Type type;
+    std::string source_name;
+    std::uint32_t source_line{};
+    std::uint32_t source_column{};
+};
 struct DeclareReference { std::string name; Type type; bool is_const{}; };
 struct AddressLocal { ValueId out; std::string name; };
 struct AddressField { ValueId out; ValueId object; std::size_t index; };

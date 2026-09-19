@@ -2512,7 +2512,10 @@ struct Lowerer {
                 return;
             }
             const auto ir_name=bind_source_local(n->name,t);
-            block->instructions.push_back(DeclareLocal{ir_name,t});
+            block->instructions.push_back(DeclareLocal{
+                ir_name,t,n->name,
+                static_cast<std::uint32_t>(s.span.start.line),
+                static_cast<std::uint32_t>(s.span.start.column)});
 
             if(t.kind==TypeKind::Tensor || t.kind==TypeKind::Neural){
                 auto captured=capture_extents(

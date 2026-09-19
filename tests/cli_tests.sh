@@ -417,7 +417,13 @@ print(twice(21))
 QUI
 "$QUIDRA" build "$TMP/debug-source.qui" --debug --keep-llvm -o "$TMP/debug-source"
 [[ "$("$TMP/debug-source")" == "42" ]]
-grep -q '^source_filename = "debug-source.qui"
+grep -q '^source_filename = "debug-source.qui"$' "$TMP/debug-source.ll"
+grep -q '!DICompileUnit' "$TMP/debug-source.ll"
+grep -q '!DIFile(filename: "debug-source.qui"' "$TMP/debug-source.ll"
+grep -q '!DISubprogram(name: "twice"' "$TMP/debug-source.ll"
+grep -Eq 'define i64 @n_twice\(.*\) !dbg ![0-9]+ \{' "$TMP/debug-source.ll"
+"$QUIDRA" llvm "$TMP/debug-source.qui" > "$TMP/debug-release.ll"
+! grep -q '!DICompileUnit' "$TMP/debug-release.ll"
 [[ "$($QUIDRA "$ROOT/examples/hello.qui")" == "Hello from Quidra" ]]
 [[ "$($QUIDRA run "$ROOT/examples/functions.qui")" == "120" ]]
 [[ "$($QUIDRA run "$ROOT/examples/logic.qui")" == "positive even integer" ]]

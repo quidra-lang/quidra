@@ -3059,6 +3059,12 @@ struct FunctionEmitter {
                 }
                 if(n.op=="+"||n.op=="-"||n.op=="*"){
                     const auto opname=n.op=="+"?"add":n.op=="-"?"sub":"mul";
+                    if(n.overflow_proven){
+                        const auto nowrap=is_signed_integer(ot)?"nsw":"nuw";
+                        out<<"  "<<value(n.out)<<" = "<<opname<<" "<<nowrap<<" "<<ty<<" "
+                           <<value(n.left)<<", "<<value(n.right)<<"\n";
+                        return;
+                    }
                     const auto sign=is_signed_integer(ot)?"s":"u";
                     const auto pair=temp("arith.pair"),overflow=temp("arith.overflow");
                     out<<"  "<<pair<<" = call { "<<ty<<", i1 } @llvm."<<sign<<opname<<".with.overflow.i"<<width<<"("<<ty<<" "<<value(n.left)<<", "<<ty<<" "<<value(n.right)<<")\n";

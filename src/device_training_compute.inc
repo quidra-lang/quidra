@@ -798,37 +798,74 @@ bool cudnn_conv2d_backward(
     }
 
     const bool deterministic=dnn_mode()==DnnMode::Deterministic;
-    std::array<CudnnApi::BwdDataPerf,8> data_perf{};
-    int data_returned=0;
-    if(api.get_bwd_data_algorithms(handle,w_desc,dy_desc,conv_desc,dx_desc,
-           static_cast<int>(data_perf.size()),&data_returned,data_perf.data())!=0||
-       data_returned<=0){cleanup();return false;}
+    std::ostringstream algorithm_key_stream;
+    algorithm_key_stream<<input_gradient->global_index<<':'<<dtype<<':'
+        <<static_cast<int>(dnn_mode())<<':'<<batches<<':'<<channels_in<<':'
+        <<height<<':'<<width<<':'<<channels_out<<':'<<kernel_h<<':'
+        <<kernel_w<<':'<<output_h<<':'<<output_w<<':'<<stride<<':'<<padding;
+    const auto algorithm_key=algorithm_key_stream.str();
+    static std::mutex data_cache_mutex,filter_cache_mutex;
+    static std::unordered_map<std::string,std::pair<int,std::size_t>> data_cache,filter_cache;
+
+    auto load_cached=[&](auto& mutex,auto& cache,int& algo,std::size_t& bytes,Buffer*& ws){
+        std::lock_guard lock(mutex);
+        if(const auto found=cache.find(algorithm_key);found!=cache.end()){
+            algo=found->second.first;bytes=found->second.second;
+        }
+        if(algo>=0&&bytes){
+            std::string alloc_error;
+            ws=allocate(input_gradient->global_index,bytes,alloc_error);
+            if(!ws){cache.erase(algorithm_key);algo=-1;bytes=0;}
+        }
+    };
+
     int data_algo=-1; Buffer* data_ws=nullptr; std::size_t data_ws_bytes=0;
-    for(int i=0;i<data_returned;++i){
-        const auto& p=data_perf[static_cast<std::size_t>(i)];
-        if(p.status!=0||(deterministic&&p.determinism!=1))continue;
-        std::size_t bytes=0;
-        if(api.get_bwd_data_workspace(handle,w_desc,dy_desc,conv_desc,dx_desc,p.algo,&bytes)!=0)continue;
-        std::string alloc_error; Buffer* ws=bytes?allocate(input_gradient->global_index,bytes,alloc_error):nullptr;
-        if(bytes&&!ws)continue;
-        data_algo=p.algo;data_ws=ws;data_ws_bytes=bytes;break;
+    load_cached(data_cache_mutex,data_cache,data_algo,data_ws_bytes,data_ws);
+    if(data_algo<0){
+        std::array<CudnnApi::BwdDataPerf,8> data_perf{};
+        int data_returned=0;
+        const auto query=api.find_bwd_data_algorithms
+            ?api.find_bwd_data_algorithms:api.get_bwd_data_algorithms;
+        if(query(handle,w_desc,dy_desc,conv_desc,dx_desc,
+                 static_cast<int>(data_perf.size()),&data_returned,data_perf.data())!=0||
+           data_returned<=0){cleanup();return false;}
+        for(int i=0;i<data_returned;++i){
+            const auto& p=data_perf[static_cast<std::size_t>(i)];
+            if(p.status!=0||(deterministic&&p.determinism!=1))continue;
+            std::size_t bytes=0;
+            if(api.get_bwd_data_workspace(handle,w_desc,dy_desc,conv_desc,dx_desc,p.algo,&bytes)!=0)continue;
+            std::string alloc_error;
+            Buffer* ws=bytes?allocate(input_gradient->global_index,bytes,alloc_error):nullptr;
+            if(bytes&&!ws)continue;
+            data_algo=p.algo;data_ws=ws;data_ws_bytes=bytes;
+            {std::lock_guard lock(data_cache_mutex);data_cache[algorithm_key]={data_algo,data_ws_bytes};}
+            break;
+        }
     }
     if(data_algo<0){cleanup();return false;}
 
-    std::array<CudnnApi::BwdFilterPerf,8> filter_perf{};
-    int filter_returned=0;
-    if(api.get_bwd_filter_algorithms(handle,x_desc,dy_desc,conv_desc,dw_desc,
-           static_cast<int>(filter_perf.size()),&filter_returned,filter_perf.data())!=0||
-       filter_returned<=0){if(data_ws)release(data_ws);cleanup();return false;}
     int filter_algo=-1; Buffer* filter_ws=nullptr; std::size_t filter_ws_bytes=0;
-    for(int i=0;i<filter_returned;++i){
-        const auto& p=filter_perf[static_cast<std::size_t>(i)];
-        if(p.status!=0||(deterministic&&p.determinism!=1))continue;
-        std::size_t bytes=0;
-        if(api.get_bwd_filter_workspace(handle,x_desc,dy_desc,conv_desc,dw_desc,p.algo,&bytes)!=0)continue;
-        std::string alloc_error; Buffer* ws=bytes?allocate(input_gradient->global_index,bytes,alloc_error):nullptr;
-        if(bytes&&!ws)continue;
-        filter_algo=p.algo;filter_ws=ws;filter_ws_bytes=bytes;break;
+    load_cached(filter_cache_mutex,filter_cache,filter_algo,filter_ws_bytes,filter_ws);
+    if(filter_algo<0){
+        std::array<CudnnApi::BwdFilterPerf,8> filter_perf{};
+        int filter_returned=0;
+        const auto query=api.find_bwd_filter_algorithms
+            ?api.find_bwd_filter_algorithms:api.get_bwd_filter_algorithms;
+        if(query(handle,x_desc,dy_desc,conv_desc,dw_desc,
+                 static_cast<int>(filter_perf.size()),&filter_returned,filter_perf.data())!=0||
+           filter_returned<=0){if(data_ws)release(data_ws);cleanup();return false;}
+        for(int i=0;i<filter_returned;++i){
+            const auto& p=filter_perf[static_cast<std::size_t>(i)];
+            if(p.status!=0||(deterministic&&p.determinism!=1))continue;
+            std::size_t bytes=0;
+            if(api.get_bwd_filter_workspace(handle,x_desc,dy_desc,conv_desc,dw_desc,p.algo,&bytes)!=0)continue;
+            std::string alloc_error;
+            Buffer* ws=bytes?allocate(input_gradient->global_index,bytes,alloc_error):nullptr;
+            if(bytes&&!ws)continue;
+            filter_algo=p.algo;filter_ws=ws;filter_ws_bytes=bytes;
+            {std::lock_guard lock(filter_cache_mutex);filter_cache[algorithm_key]={filter_algo,filter_ws_bytes};}
+            break;
+        }
     }
     if(filter_algo<0){if(data_ws)release(data_ws);cleanup();return false;}
 
@@ -863,7 +900,11 @@ bool cudnn_conv2d_backward(
             &zero,db_desc,mut(bias_gradient));
     }
     if(data_ws)release(data_ws); if(filter_ws)release(filter_ws); cleanup();
-    if(status!=0)return false;
+    if(status!=0){
+        {std::lock_guard lock(data_cache_mutex);data_cache.erase(algorithm_key);}
+        {std::lock_guard lock(filter_cache_mutex);filter_cache.erase(algorithm_key);}
+        return false;
+    }
     auto& cu=cuda(); return cu.ctx_synchronize&&cu.ctx_synchronize()==0;
 }
 

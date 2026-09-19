@@ -501,29 +501,61 @@ bool cudnn_conv2d_forward(
         (void)api.set_convolution_math_type(conv_desc,math);
     }
 
-    std::array<CudnnApi::FwdPerf,8> perf{};
-    int returned=0;
-    if(api.get_fwd_algorithms(handle,x_desc,w_desc,conv_desc,y_desc,
-                              static_cast<int>(perf.size()),&returned,perf.data())!=0||
-       returned<=0){cleanup();return false;}
-
     const bool deterministic=dnn_mode()==DnnMode::Deterministic;
+    std::ostringstream algorithm_key_stream;
+    algorithm_key_stream<<output->global_index<<':'<<dtype<<':'
+        <<static_cast<int>(dnn_mode())<<':'<<batches<<':'<<channels_in<<':'
+        <<height<<':'<<width<<':'<<channels_out<<':'<<kernel_h<<':'
+        <<kernel_w<<':'<<output_h<<':'<<output_w<<':'<<stride<<':'<<padding;
+    const auto algorithm_key=algorithm_key_stream.str();
+    static std::mutex algorithm_cache_mutex;
+    static std::unordered_map<std::string,std::pair<int,std::size_t>> algorithm_cache;
+
     int chosen=-1;
     Buffer* workspace=nullptr;
     std::size_t workspace_bytes=0;
-    for(int i=0;i<returned;++i){
-        if(perf[static_cast<std::size_t>(i)].status!=0)continue;
-        if(deterministic&&perf[static_cast<std::size_t>(i)].determinism!=1)continue;
-        std::size_t bytes=0;
-        if(api.get_fwd_workspace(handle,x_desc,w_desc,conv_desc,y_desc,
-                                 perf[static_cast<std::size_t>(i)].algo,&bytes)!=0)continue;
+    {
+        std::lock_guard lock(algorithm_cache_mutex);
+        if(const auto found=algorithm_cache.find(algorithm_key);
+           found!=algorithm_cache.end()){
+            chosen=found->second.first;
+            workspace_bytes=found->second.second;
+        }
+    }
+    if(chosen>=0&&workspace_bytes){
         std::string alloc_error;
-        Buffer* candidate=bytes?allocate(output->global_index,bytes,alloc_error):nullptr;
-        if(bytes&&!candidate)continue;
-        chosen=perf[static_cast<std::size_t>(i)].algo;
-        workspace=candidate;
-        workspace_bytes=bytes;
-        break;
+        workspace=allocate(output->global_index,workspace_bytes,alloc_error);
+        if(!workspace){
+            std::lock_guard lock(algorithm_cache_mutex);
+            algorithm_cache.erase(algorithm_key);
+            chosen=-1;workspace_bytes=0;
+        }
+    }
+    if(chosen<0){
+        std::array<CudnnApi::FwdPerf,8> perf{};
+        int returned=0;
+        const auto query=api.find_fwd_algorithms?api.find_fwd_algorithms:api.get_fwd_algorithms;
+        if(query(handle,x_desc,w_desc,conv_desc,y_desc,
+                 static_cast<int>(perf.size()),&returned,perf.data())!=0||
+           returned<=0){cleanup();return false;}
+        for(int i=0;i<returned;++i){
+            if(perf[static_cast<std::size_t>(i)].status!=0)continue;
+            if(deterministic&&perf[static_cast<std::size_t>(i)].determinism!=1)continue;
+            std::size_t bytes=0;
+            if(api.get_fwd_workspace(handle,x_desc,w_desc,conv_desc,y_desc,
+                                     perf[static_cast<std::size_t>(i)].algo,&bytes)!=0)continue;
+            std::string alloc_error;
+            Buffer* candidate=bytes?allocate(output->global_index,bytes,alloc_error):nullptr;
+            if(bytes&&!candidate)continue;
+            chosen=perf[static_cast<std::size_t>(i)].algo;
+            workspace=candidate;
+            workspace_bytes=bytes;
+            {
+                std::lock_guard lock(algorithm_cache_mutex);
+                algorithm_cache[algorithm_key]={chosen,workspace_bytes};
+            }
+            break;
+        }
     }
     if(chosen<0){cleanup();return false;}
 
@@ -554,7 +586,11 @@ bool cudnn_conv2d_forward(
     }
     if(workspace)release(workspace);
     cleanup();
-    if(status!=0)return false;
+    if(status!=0){
+        std::lock_guard lock(algorithm_cache_mutex);
+        algorithm_cache.erase(algorithm_key);
+        return false;
+    }
     auto& cu=cuda();
     return cu.ctx_synchronize&&cu.ctx_synchronize()==0;
 }

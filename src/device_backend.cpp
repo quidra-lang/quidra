@@ -353,6 +353,9 @@ struct CudnnApi {
     Status (*get_fwd_algorithms)(Handle,TensorDescriptor,FilterDescriptor,
                                  ConvolutionDescriptor,TensorDescriptor,
                                  int,int*,FwdPerf*){};
+    Status (*find_fwd_algorithms)(Handle,TensorDescriptor,FilterDescriptor,
+                                  ConvolutionDescriptor,TensorDescriptor,
+                                  int,int*,FwdPerf*){};
     Status (*get_fwd_workspace)(Handle,TensorDescriptor,FilterDescriptor,
                                 ConvolutionDescriptor,TensorDescriptor,int,
                                 std::size_t*){};
@@ -365,6 +368,9 @@ struct CudnnApi {
     Status (*get_bwd_data_algorithms)(Handle,FilterDescriptor,TensorDescriptor,
                                       ConvolutionDescriptor,TensorDescriptor,
                                       int,int*,BwdDataPerf*){};
+    Status (*find_bwd_data_algorithms)(Handle,FilterDescriptor,TensorDescriptor,
+                                       ConvolutionDescriptor,TensorDescriptor,
+                                       int,int*,BwdDataPerf*){};
     Status (*get_bwd_data_workspace)(Handle,FilterDescriptor,TensorDescriptor,
                                      ConvolutionDescriptor,TensorDescriptor,int,
                                      std::size_t*){};
@@ -375,6 +381,9 @@ struct CudnnApi {
     Status (*get_bwd_filter_algorithms)(Handle,TensorDescriptor,TensorDescriptor,
                                         ConvolutionDescriptor,FilterDescriptor,
                                         int,int*,BwdFilterPerf*){};
+    Status (*find_bwd_filter_algorithms)(Handle,TensorDescriptor,TensorDescriptor,
+                                         ConvolutionDescriptor,FilterDescriptor,
+                                         int,int*,BwdFilterPerf*){};
     Status (*get_bwd_filter_workspace)(Handle,TensorDescriptor,TensorDescriptor,
                                        ConvolutionDescriptor,FilterDescriptor,int,
                                        std::size_t*){};
@@ -409,13 +418,16 @@ struct CudnnApi {
         set_convolution2d=load_symbol<decltype(set_convolution2d)>(library,"cudnnSetConvolution2dDescriptor");
         set_convolution_math_type=load_symbol<decltype(set_convolution_math_type)>(library,"cudnnSetConvolutionMathType");
         get_fwd_algorithms=load_symbol<decltype(get_fwd_algorithms)>(library,"cudnnGetConvolutionForwardAlgorithm_v7");
+        find_fwd_algorithms=load_symbol<decltype(find_fwd_algorithms)>(library,"cudnnFindConvolutionForwardAlgorithm");
         get_fwd_workspace=load_symbol<decltype(get_fwd_workspace)>(library,"cudnnGetConvolutionForwardWorkspaceSize");
         convolution_forward=load_symbol<decltype(convolution_forward)>(library,"cudnnConvolutionForward");
         add_tensor=load_symbol<decltype(add_tensor)>(library,"cudnnAddTensor");
         get_bwd_data_algorithms=load_symbol<decltype(get_bwd_data_algorithms)>(library,"cudnnGetConvolutionBackwardDataAlgorithm_v7");
+        find_bwd_data_algorithms=load_symbol<decltype(find_bwd_data_algorithms)>(library,"cudnnFindConvolutionBackwardDataAlgorithm");
         get_bwd_data_workspace=load_symbol<decltype(get_bwd_data_workspace)>(library,"cudnnGetConvolutionBackwardDataWorkspaceSize");
         convolution_backward_data=load_symbol<decltype(convolution_backward_data)>(library,"cudnnConvolutionBackwardData");
         get_bwd_filter_algorithms=load_symbol<decltype(get_bwd_filter_algorithms)>(library,"cudnnGetConvolutionBackwardFilterAlgorithm_v7");
+        find_bwd_filter_algorithms=load_symbol<decltype(find_bwd_filter_algorithms)>(library,"cudnnFindConvolutionBackwardFilterAlgorithm");
         get_bwd_filter_workspace=load_symbol<decltype(get_bwd_filter_workspace)>(library,"cudnnGetConvolutionBackwardFilterWorkspaceSize");
         convolution_backward_filter=load_symbol<decltype(convolution_backward_filter)>(library,"cudnnConvolutionBackwardFilter");
         convolution_backward_bias=load_symbol<decltype(convolution_backward_bias)>(library,"cudnnConvolutionBackwardBias");

@@ -237,7 +237,7 @@ struct Clone { ValueId out; ValueId value; Type type; };
 struct Retain { ValueId out; ValueId value; Type type; };
 struct Release { ValueId value; Type type; };
 struct Unary { ValueId out; std::string op; ValueId operand; Type type; std::uint32_t line{}; std::uint32_t column{}; };
-struct Binary { ValueId out; std::string op; ValueId left; ValueId right; Type operand_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; };
+struct Binary { ValueId out; std::string op; ValueId left; ValueId right; Type operand_type; Type result_type; std::uint32_t line{}; std::uint32_t column{}; bool overflow_proven{}; };
 struct ToString { ValueId out; ValueId value; Type source_type; };
 struct FormatNumber {
     ValueId out;

@@ -446,7 +446,7 @@ A rejected compile-time submission does not become part of the session. EOF exit
 
 ## Tensor
 
-`tensor<T>` is a first-class dense numeric N-dimensional value type. `T` must be numeric and is always static; Quidra does not have a dtype-unknown tensor type. Without a shape pattern, rank and known extents are compiler-inferred flow facts obtained from construction, reshape/index operations, control flow, and APIs such as `image.read`.
+`tensor<T>` is a first-class dense numeric N-dimensional value type. `T` must be numeric and is always static; Quidra does not have a tensor type with an unknown element type. Without a shape pattern, rank and known extents are compiler-inferred flow facts obtained from construction, reshape/index operations, control flow, and APIs such as `image.read`.
 
 An optional second angle group is an **exact-rank shape pattern**:
 
@@ -458,7 +458,7 @@ tensor<float32><3, 224, 224> chw_224
 tensor<float32><_, _, _> any_rank_three
 ```
 
-The number of shape entries is the required rank. Each entry is either an integer expression or `_`. A constant integer expression is folded by the compiler; a runtime integer expression is evaluated once when the binding is created and the resulting nonnegative extent is captured for that binding. `_` requires the axis to exist but leaves its extent unrestricted. Therefore `tensor<float32><3, _, _>` accepts `[3,H,W]` but rejects `[3,H]`, `[3,H,W,D]`, and `[1,H,W]`. Dtype and shape always occupy separate angle groups, tensor dtype is mandatory, and empty slots or trailing commas are invalid.
+The number of shape entries is the required rank. Each entry is either an integer expression or `_`. A constant integer expression is folded by the compiler; a runtime integer expression is evaluated once when the binding is created and the resulting nonnegative extent is captured for that binding. `_` requires the axis to exist but leaves its extent unrestricted. Therefore `tensor<float32><3, _, _>` accepts `[3,H,W]` but rejects `[3,H]`, `[3,H,W,D]`, and `[1,H,W]`. Element type and shape always occupy separate angle groups, the tensor element type is mandatory, and empty slots or trailing commas are invalid.
 
 Known rank or extent conflicts are rejected statically. If a source tensor's relevant rank or extent is not statically known, assignment or parameter passing to a constrained destination performs the corresponding runtime constraint check instead of silently assuming the shape. Declared captured constraints remain fixed for that binding across reassignment, while inferred flow facts may weaken after reassignment or control-flow joins. APIs that produce runtime data may additionally validate an expected pattern through their normal result model; `image.read` is the primary example. Shape constraints and inferred rank/shape facts do not change TensorStorage or the LLVM ABI.
 
@@ -470,7 +470,7 @@ tensor<float32><3, _, _> z = tensor.zeros<float32>([3, 224, 224])
 tensor<float32><1, _, _> o = tensor.ones<float32>([1, 224, 224])
 ```
 
-The direct `tensor<T>(shape)` form creates uninitialized tensor storage. Scalar indexed assignment initializes an element. `tensor.zeros<T>` and `tensor.ones<T>` create fully initialized tensors. When the expected tensor type supplies dtype and every exact extent, `tensor.zeros()` and `tensor.ones()` may use that context to allocate; an unconstrained rank or `_` extent still requires an explicit shape argument. Initialization is tracked independently from shape knowledge and numeric contents; reading an uninitialized element is a deterministic safety failure.
+The direct `tensor<T>(shape)` form creates uninitialized tensor storage. Scalar indexed assignment initializes an element. `tensor.zeros<T>` and `tensor.ones<T>` create fully initialized tensors. When the expected tensor type supplies the element type and every exact extent, `tensor.zeros()` and `tensor.ones()` may use that context to allocate; an unconstrained rank or `_` extent still requires an explicit shape argument. Initialization is tracked independently from shape knowledge and numeric contents; reading an uninitialized element is a deterministic safety failure.
 
 ### Tensor device placement
 
@@ -490,7 +490,7 @@ Quidra never performs an implicit CPU/GPU or GPU/GPU transfer. Tensor-to-tensor 
 
 A requested GPU that does not exist or whose backend is unavailable is a runtime error, for example `error: gpu(0) is not available`. CPU fallback is forbidden. If an operation has no implementation for the tensor's current GPU backend, it fails explicitly with a diagnostic such as `operation is not supported on gpu(0)`; executing the operation over hidden CPU storage is not a valid implementation.
 
-The public placement semantics are independent of OS and vendor. NVIDIA systems use Quidra's NVIDIA backend through the CUDA Driver API rather than a user `nvcc`, `CUDA_HOME`, or `/usr/local/cuda` selection. Apple Silicon uses Metal. AMD uses the HIP runtime and runtime-compiled HIP kernels when a compatible ROCm/HIP runtime is present, without changing Quidra source syntax. Backend kernel availability may still be dtype-specific; an unsupported backend/dtype combination is an explicit runtime error and never permission for CPU fallback. Unified-memory hardware may allow a backend to elide a physical copy, but the explicit logical device transition remains part of the program semantics. `quidra gpu` reports Quidra's zero-based device enumeration and active backend information.
+The public placement semantics are independent of OS and vendor. NVIDIA systems use Quidra's NVIDIA backend through the CUDA Driver API rather than a user `nvcc`, `CUDA_HOME`, or `/usr/local/cuda` selection. Apple Silicon uses Metal. AMD uses the HIP runtime and runtime-compiled HIP kernels when a compatible ROCm/HIP runtime is present, without changing Quidra source syntax. Backend kernel availability may still be element-type-specific; an unsupported backend/element-type combination is an explicit runtime error and never permission for CPU fallback. Unified-memory hardware may allow a backend to elide a physical copy, but the explicit logical device transition remains part of the program semantics. `quidra gpu` reports Quidra's zero-based device enumeration and active backend information.
 
 Tensor storage is row-major, with the last dimension contiguous. Integer indices remove axes, slices retain axes, and omitted trailing dimensions mean full slices. Inferred rank and known shape facts are projected accordingly. Fully indexing a known rank-N tensor with N integer indices yields an internal rank-0 tensor, not a scalar; `.item()` is the explicit scalar extraction operation. On a GPU tensor, `.item()` performs only the required one-element device-to-host read. This scalar extraction is an explicit semantic boundary and is not permission to move or evaluate the surrounding tensor operation on the CPU.
 
@@ -707,7 +707,7 @@ The v0.1 implementation uses libcurl directly in the native runtime. It permits 
 
 ### image
 
-`image.read(path)` decodes to CHW and preserves both source channel count and every sample dtype representable by Quidra and the codec. Its successful tensor alternative has inferred rank 3. Grayscale is `[1,H,W]`, RGB is `[3,H,W]`, and RGBA is `[4,H,W]`. PNG decodes to `uint8` or `uint16`; TIFF supports every built-in numeric tensor dtype; JPEG, BMP, and WebP decode to `uint8`.
+`image.read(path)` decodes to CHW and preserves both source channel count and every sample element type representable by Quidra and the codec. Its successful tensor alternative has inferred rank 3. Grayscale is `[1,H,W]`, RGB is `[3,H,W]`, and RGBA is `[4,H,W]`. PNG decodes to `uint8` or `uint16`; TIFF supports every built-in numeric tensor element type; JPEG, BMP, and WebP decode to `uint8`.
 
 The expected tensor type is an acceptance constraint, never an implicit conversion request. For example:
 
@@ -716,19 +716,19 @@ string path = "input.png"
 tensor<uint16><3, _, _> | error loaded = image.read(path)
 ```
 
-accepts only a rank-3 uint16 image whose decoded CHW channel axis is 3. A dtype, rank, or fixed-extent mismatch returns `error`.
+accepts only a rank-3 uint16 image whose decoded CHW channel axis is 3. An element-type, rank, or fixed-extent mismatch returns `error`.
 
 Conversion is performed only by explicit named arguments:
 
 ```quidra
 string path = "input.png"
-image.read(path, channels = 1)
-image.read(path, channels = 3, dtype = float32)
+image.read(path, channel = 1)
+image.read(path, channel = 3, type = float32)
 ```
 
-`channels` accepts only literal 1, 3, or 4. 1→3 replicates gray; 3/4→1 uses `0.299R + 0.587G + 0.114B` and ignores alpha; 4→3 explicitly discards alpha; 1/3→4 adds opaque alpha (integer maximum or 1.0 for floating point). `dtype = T` explicitly changes numeric representation without normalizing ranges. Integer-to-integer conversion fails if any value is out of range; integer-to-float and float-to-float use the explicit numeric rounding policy; float-to-integer remains forbidden without an explicit rounding operation. A conversion argument that conflicts with the surrounding expected output type is a compile-time error.
+`channel` accepts only literal 1, 3, or 4. 1→3 replicates gray; 3/4→1 uses `0.299R + 0.587G + 0.114B` and ignores alpha; 4→3 explicitly discards alpha; 1/3→4 adds opaque alpha (integer maximum or 1.0 for floating point). `type = T` explicitly changes numeric representation without normalizing ranges. Integer-to-integer conversion fails if any value is out of range; integer-to-float and float-to-float use the explicit numeric rounding policy; float-to-integer remains forbidden without an explicit rounding operation. A conversion argument that conflicts with the surrounding expected output type is a compile-time error.
 
-`image.write(path, image, quality = 95)` accepts a fully initialized CPU CHW numeric tensor and returns `void | error`. Image codecs and filesystem I/O are host operations: a GPU tensor is rejected rather than being copied to CPU implicitly, so callers must write `image.write(path, image.cpu(), ...)` when that transfer is intended. The codec is selected from the filename extension and writing succeeds only when that codec can represent the tensor dtype without conversion: PNG supports `uint8` and `uint16`, TIFF supports every built-in numeric tensor dtype, and JPEG/BMP/WebP require `uint8`. JPEG and WebP quality is 1 through 100. JPEG rejects RGBA input unless the caller explicitly converts channels first.
+`image.write(path, image, quality = 95)` accepts a fully initialized CPU CHW numeric tensor and returns `void | error`. Image codecs and filesystem I/O are host operations: a GPU tensor is rejected rather than being copied to CPU implicitly, so callers must write `image.write(path, image.cpu(), ...)` when that transfer is intended. The codec is selected from the filename extension and writing succeeds only when that codec can represent the tensor element type without conversion: PNG supports `uint8` and `uint16`, TIFF supports every built-in numeric tensor element type, and JPEG/BMP/WebP require `uint8`. JPEG and WebP quality is 1 through 100. JPEG rejects RGBA input unless the caller explicitly converts channels first.
 
 
 Higher-level tensor image processing is provided by the official `vision`
@@ -810,7 +810,7 @@ Already-typed numeric values are never converted implicitly. The one generic num
 
 - for a scalar, it converts that scalar;
 - for a numeric array of any nesting, it preserves every fixed/dynamic array dimension and recursively converts numeric leaves;
-- for a tensor, it preserves rank/shape facts and converts the element dtype.
+- for a tensor, it preserves rank/shape facts and converts the element type.
 
 For example, `float(values)` maps `int[][]` to `float[][]`, while `float32(image)` maps `tensor<uint8><3, _, _>` to `tensor<float32><3, _, _>`. A container cast is a whole-value operation: every source leaf is read, so an uninitialized element fails deterministically, and no partial converted value is observable.
 
@@ -821,7 +821,7 @@ Container syntax is not duplicated at the cast site. Numeric representation conv
 
 ## Neural values and training state
 
-`neural` is shorthand for `neural<float32>`; another floating dtype is written explicitly. Neural uses the same exact-rank integer-expression/`_` shape patterns and binding-time captured extent semantics as tensor. `neural<3, _, _>` is shorthand for `neural<float32><3, _, _>`, while `neural<float><_, 768>` explicitly selects float64 and rank 2. `neural.track(tensor)` creates an immutable value in a dynamic graph while preserving rank/shape facts, `.untrack()` returns ordinary tensor storage with those facts restored, and floating numeric casts remain differentiable graph operations. `neural.grad(loss)` traverses the executed graph and returns an independent `neural.Gradients` value without hidden accumulation.
+`neural` is shorthand for `neural<float32>`; another floating element type is written explicitly. Neural uses the same exact-rank integer-expression/`_` shape patterns and binding-time captured extent semantics as tensor. `neural<3, _, _>` is shorthand for `neural<float32><3, _, _>`, while `neural<float><_, 768>` explicitly selects float64 and rank 2. `neural.track(tensor)` creates an immutable value in a dynamic graph while preserving rank/shape facts, `.untrack()` returns ordinary tensor storage with those facts restored, and floating numeric casts remain differentiable graph operations. `neural.grad(loss)` traverses the executed graph and returns an independent `neural.Gradients` value without hidden accumulation.
 
 Learnable storage is represented by `neural.Parameter<T>` and persistent non-gradient storage by `neural.State<T>`. A model is an ordinary class containing these values. Parameters have opaque persistent identities used to match gradients; user code cannot replace or index-write `Parameter.value`.
 
@@ -831,7 +831,7 @@ High-level deep-learning APIs are provided by the official `dnn` package through
 
 ### Neural state persistence
 
-`neural.save` and `neural.load` use the typed `.quistate` format. The supplied class object graph determines what is serialized. The format records exact nominal roots, structural field paths and types, tensor dtype and shape, version, and checksum. Loading validates the complete payload before mutating existing storage and preserves Parameter identity.
+`neural.save` and `neural.load` use the typed `.quistate` format. The supplied class object graph determines what is serialized. The format records exact nominal roots, structural field paths and types, tensor element type and shape, version, and checksum. Loading validates the complete payload before mutating existing storage and preserves Parameter identity.
 
 ### Package management
 

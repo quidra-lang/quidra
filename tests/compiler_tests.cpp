@@ -407,7 +407,7 @@ for i in range(0, size)
  ir_contains(R"(string[] values = ["a", "b", "c"]
 for value in values
     print(value)
-)", "store.borrow value");
+)", "store.borrow $local.value.");
  // Immutable array elements are borrowed for a non-mutating loop; the backing
  // array keeps their shared storage alive for the whole iteration region.
 

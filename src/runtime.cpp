@@ -525,7 +525,10 @@ std::string_view cached_string_view(const char* text, ManagedAllocation*& alloca
     if (!text) runtime_text_failure("null string");
 
     if (text == cached_shared_string_text && cached_shared_string_allocation) {
-        allocation = cached_shared_string_allocation;
+        // The cached length belongs to this slice, but UTF-8/code-point metadata
+        // in ManagedAllocation belongs to the backing slab as a whole. Keep
+        // allocation null so validated_string_view never reuses one slice's
+        // semantic metadata for another slice from the same slab.
         return std::string_view(text, cached_shared_string_length);
     }
 

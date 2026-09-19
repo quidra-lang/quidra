@@ -3777,6 +3777,22 @@ void* neural_random_mask_apply(
     node->parents={input};
     node->op=NeuralOp::RandomMask;
 
+    // rate == 0 is an identity. Avoid allocating a full output tensor and
+    // mask, and avoid a random-mask kernel launch.
+    if(rate==0.0){
+        if(input->device_tensor){
+            node->device_tensor=static_cast<TensorValue*>(
+                quidra_tensor_clone(input->device_tensor));
+            node->device_aux=static_cast<TensorValue*>(
+                quidra_tensor_clone(input->device_tensor));
+        }else{
+            node->data=input->data;
+            node->aux.assign(input->data.size(),1.0);
+        }
+        neural_set_state_u64(rng_state,state);
+        return neural_descriptor(std::move(node));
+    }
+
     if(input->device_tensor){
         if(input->dtype!=9&&input->dtype!=10)
             neural_fail("invalid random mask dtype",line,column);

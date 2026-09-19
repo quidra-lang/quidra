@@ -879,7 +879,9 @@ StmtPtr Parser::statement() {
     if (at(TokenKind::KwClass) || at(TokenKind::KwEnum) || at(TokenKind::KwOverride))
         error(peek(),"class, enum, and override are only valid at declaration boundaries.");
     if (looks_like_declaration(false)) return binding_stmt();
-    if (at(TokenKind::Ampersand)) return rebind_stmt();
+    if (at(TokenKind::Ampersand) && peek(1).kind == TokenKind::Identifier &&
+        peek(2).kind == TokenKind::Assign && peek(3).kind == TokenKind::Ampersand)
+        return rebind_stmt();
     return expr_or_assign_stmt();
 }
 
@@ -891,7 +893,7 @@ StmtPtr Parser::binding_stmt() {
     auto name=consume(TokenKind::Identifier,"Expected binding name.");
     ExprPtr value; bool reference_initializer=false;
     if(match(TokenKind::Assign)) {
-        reference_initializer=match(TokenKind::Ampersand);
+        reference_initializer=reference && match(TokenKind::Ampersand);
         value=expression();
     }
     auto end=value?value->span.end:name.span.end;
@@ -996,7 +998,7 @@ StmtPtr Parser::expr_or_assign_stmt() {
     auto stmt = std::make_unique<Stmt>(); stmt->span = span; stmt->data = ExprStmt{std::move(left)}; return stmt;
 }
 
-std::vector<CallArg> Parser::call_arguments() {
+std::vector<CallArg> Parser::call_arguments(bool address_values) {
     consume(TokenKind::LParen,"Expected '('.");
     std::vector<CallArg> args;
     if (!at(TokenKind::RParen)) {
@@ -1004,7 +1006,8 @@ std::vector<CallArg> Parser::call_arguments() {
             std::optional<std::string> label;
             bool writable = false;
             SourceSpan arg_span = peek().span;
-            if (at(TokenKind::Ampersand) && peek(1).kind == TokenKind::Identifier &&
+            if (!address_values && at(TokenKind::Ampersand) &&
+                peek(1).kind == TokenKind::Identifier &&
                 peek(2).kind == TokenKind::Assign) {
                 consume(TokenKind::Ampersand, "Expected '&'.");
                 const auto& l = consume(TokenKind::Identifier, "Expected writable argument label.");
@@ -1019,11 +1022,11 @@ std::vector<CallArg> Parser::call_arguments() {
                     consume(TokenKind::Assign, "Expected '=' after argument label.");
                     label = l.text;
                     arg_span = l.span;
-                    if (at(TokenKind::Ampersand)) {
+                    if (!address_values && at(TokenKind::Ampersand)) {
                         error(peek(), "Named writable arguments use '&name = &value', not 'name = &value'.");
                     }
                 }
-                writable = match(TokenKind::Ampersand);
+                writable = !address_values && match(TokenKind::Ampersand);
             }
             auto value = expression();
             if (!label) arg_span = value->span;
@@ -1215,6 +1218,10 @@ ExprPtr Parser::unary() {
         auto value = unary();
         auto e=std::make_unique<Expr>(); e->span=SourceSpan{start,value->span.end}; e->data=TryExpr{std::move(value)}; return e;
     }
+    if (match(TokenKind::Ampersand)) {
+        const auto op=previous(); auto operand=unary(); auto e=std::make_unique<Expr>();
+        e->span=SourceSpan{op.span.start,operand->span.end}; e->data=UnaryExpr{"&",std::move(operand)}; return e;
+    }
     if (match(TokenKind::KwNot) || match(TokenKind::KwBitNot) || match(TokenKind::Minus)) {
         const auto op=previous(); auto operand=unary(); auto e=std::make_unique<Expr>();
         e->span=SourceSpan{op.span.start,operand->span.end}; e->data=UnaryExpr{op.text,std::move(operand)}; return e;
@@ -1264,7 +1271,7 @@ ExprPtr Parser::postfix() {
                 error(peek(), "Only named functions and classes can be called directly.");
             }
             const auto start = e->span.start;
-            auto args = call_arguments();
+            auto args = call_arguments(name->name == "print" || name->name == "write");
             const auto end = previous().span.end;
             auto call = std::make_unique<Expr>();
             call->span = SourceSpan{start, end};

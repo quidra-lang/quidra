@@ -58,7 +58,7 @@ private:
     StmtPtr expr_or_assign_stmt();
     StmtPtr rebind_stmt();
 
-    std::vector<CallArg> call_arguments();
+    std::vector<CallArg> call_arguments(bool address_values = false);
     ExprPtr expression();
     ExprPtr inline_expression();
     ExprPtr string_expression(const Token& token);

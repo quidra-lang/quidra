@@ -144,7 +144,7 @@ writer = 5
 print(view) // 5
 ```
 
-`&x` is a safe abstract storage address, not a numeric pointer. `T &` is a read/write path to that storage; `const T &` is a live read-only path. `const T` is an immutable value binding. A const reference can observe changes performed through another writable path, but it cannot write, rebind, or recover write authority. Quidra does not expose pointer arithmetic, address-to-integer conversion, an explicit `*` dereference operator, or a general object-identity operator.
+`&x` is a safe storage address expression. `T &` is a read/write path to that storage; `const T &` is a live read-only path. `const T` is an immutable value binding. A const reference can observe changes performed through another writable path, but it cannot write, rebind, or recover write authority. `print(&x)` / `write(&x)` may expose the current raw machine address for diagnostics, and `&x == &y` / `&x != &y` compare storage identity. Address expressions are not storable values and Quidra still does not expose pointer arithmetic, address-to-integer conversion, ordering, an explicit `*` dereference operator, or a general object-identity operator. Printed addresses are implementation/runtime observations and are not stable across runs.
 
 This same model applies to bindings, class fields, array elements, and bin bits.
 

@@ -307,6 +307,39 @@ int main() {
 
     {
         auto p = parse(
+            "int x = 1\n"
+            "int &y = &x\n"
+            "print(&x)\n"
+            "bool same = &x == &y\n"
+        );
+        require(p.statements.size() == 4, "address expression statement count");
+        const auto& print_stmt = std::get<ExprStmt>(p.statements[2]->data);
+        const auto& print_call = std::get<CallExpr>(print_stmt.value->data);
+        require(!print_call.args[0].writable, "print address is a value expression");
+        const auto& printed_address = std::get<UnaryExpr>(print_call.args[0].value->data);
+        require(printed_address.op == "&", "print address unary syntax");
+        const auto& same_binding = std::get<BindingStmt>(p.statements[3]->data);
+        const auto& address_equal = std::get<BinaryExpr>(same_binding.value->data);
+        require(address_equal.op == "==" &&
+                std::get<UnaryExpr>(address_equal.left->data).op == "&" &&
+                std::get<UnaryExpr>(address_equal.right->data).op == "&",
+                "address equality syntax");
+    }
+
+    {
+        auto p = parse(
+            "void touch(int &value)\n"
+            "    value = 1\n"
+            "int x = 0\n"
+            "touch(&x)\n"
+        );
+        const auto& call_stmt = std::get<ExprStmt>(p.statements[1]->data);
+        const auto& call = std::get<CallExpr>(call_stmt.value->data);
+        require(call.args[0].writable, "ordinary reference call keeps writable argument syntax");
+    }
+
+    {
+        auto p = parse(
             "int x = 0\n"
             "if x < 0\n"
             "    print(\"negative\")\n"

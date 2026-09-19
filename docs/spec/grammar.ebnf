@@ -83,7 +83,7 @@ bit_and_expr     = shift_expr, { "AND", shift_expr } ;
 shift_expr       = term, { ( "<<" | ">>" ), term } ;
 term             = factor, { ( "+" | "-" ), factor } ;
 factor           = unary, { ( "*" | "/" | "%" ), unary } ;
-unary            = ( "try" | "not" | "NOT" | "-" ), unary | postfix ;
+unary            = ( "try" | "not" | "NOT" | "-" | "&" ), unary | postfix ;
 postfix          = primary, { generic_call | direct_call | index_suffix | member_suffix } ;
 generic_call     = type_arguments, "(", [ arguments ], ")" ;
 direct_call      = "(", [ arguments ], ")" ;
@@ -144,7 +144,9 @@ statement_end    = NEWLINE | EOF ;
    - single inheritance, exact override contracts, safe address targets, exhaustive cases,
      field-level initialization, fixed shapes, argument ordering, value equality, and
      no-shadowing are checked statically.
-   '&' forms safe storage addresses only in explicit address contexts and is not a raw pointer;
+   '&' forms safe storage addresses. print/write may observe the current raw machine
+     address, and ==/!= may compare address identity; addresses are otherwise non-storable
+     and do not support conversion, arithmetic, ordering, or dereference;
    - const removes write authority through that binding/reference path. const value
      bindings require initialization; const references require initialized stable storage
      and cannot be rebound or promoted back to writable references. *)

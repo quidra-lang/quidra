@@ -344,7 +344,22 @@ Array `==` and `!=` compare lengths and then elements recursively. Equality is a
 
 ## Addresses, references, and const authority
 
-Quidra uses `&` consistently for safe storage addresses. For addressable storage `x`, `x` denotes its value and `&x` denotes its storage address. This address is an abstract, safe language-level identity, not an integer memory address. It cannot be printed as a pointer, converted to an integer, or used in pointer arithmetic. Quidra has no `*` dereference operator; using a reference name accesses the referenced storage directly.
+Quidra uses `&` consistently for safe storage addresses. For addressable storage `x`, `x` denotes its value and `&x` denotes its storage address. Address expressions are observation-only values: `print(&x)` and `write(&x)` expose the current raw machine address using the platform pointer representation, while `&x == &y` and `&x != &y` test whether two address expressions designate the same current storage. An address expression cannot be stored, converted to an integer, used in arithmetic or ordering, or dereferenced with `*`. Its printed representation is diagnostic and may change across executions, builds, platforms, or optimization choices. Using a reference name still accesses the referenced storage directly.
+
+For example:
+
+```quidra
+int x = 1
+int &alias = &x
+int other = 1
+
+print(&x)             // current raw address of x storage
+print(&alias)         // the same address
+print(&x == &alias)   // true
+print(&x == &other)   // false
+```
+
+For managed values the address still means the address of the language-level storage being addressed. In particular, `&text` for a `string text` observes the binding/storage slot, not the separate UTF-8 payload pointer used internally or at an FFI borrow boundary.
 
 `T &` is a read/write access path. `const T &` is a live read-only access path to the same storage model. `const T` is an immutable value binding. `const auto value = expression` and `const auto &view = &storage` infer the same underlying type while retaining those const contracts. The meaning of const is path-local: it prevents writes through that binding or reference; it does not freeze the underlying storage against changes made through another writable path.
 
@@ -400,7 +415,7 @@ b = 5
 b = 8
 ```
 
-`b = c` assigns a value through `b`; `&b = &c` changes the address held by `b`. Consequently the example leaves `a == 5` and `c == 8`. Forms such as `b = &c` and `&b = c` are invalid. Taking `&` of an existing reference yields its current target address rather than a pointer-to-reference layer.
+`b = c` assigns a value through `b`; `&b = &c` changes the address held by `b`. Consequently the example leaves `a == 5` and `c == 8`. Forms such as `b = &c` and `&b = c` are invalid. Taking `&` of an existing reference yields its current target address rather than a pointer-to-reference layer, so `print(&b)` observes the same raw address as `print(&c)` after the rebind and `&b == &c` is true.
 
 Reference target identity is flow-sensitive. After an `if` or exhaustive `match`, the checker keeps a concrete target only when every continuing path resolves the reference to the same storage. If different targets remain possible, the runtime reference is still valid, but storage-specific initialization and non-alias proofs are discarded; a write through that reference initializes the reference access path without claiming which concrete root was initialized. Because a loop may execute zero or many times, a reference rebound inside a loop is treated conservatively after the loop. An explicit rebind after the control-flow join restores a precise target.
 
@@ -436,11 +451,11 @@ print(first)      // 1
 print(values[0])  // 4
 ```
 
-The implementation keeps the old backing storage alive as long as such a reference needs it. This is a lifetime guarantee, not a guarantee that a physical machine address is observable or fixed.
+The implementation keeps the old backing storage alive as long as such a reference needs it. `print(&first)` may observe the current machine address of that pinned substorage, but the numeric-looking text is diagnostic only and is not guaranteed to remain the same across separate executions, builds, platforms, or unrelated storage relocations allowed before an address becomes observable.
 
 A reference to a whole binding is different: `Point &alias = &point` addresses the binding's storage slot, so replacing `point` is visible through `alias`.
 
-Quidra intentionally has no Python-style `is` identity operator. Value equality and class equality are separate semantic questions; object allocation identity is not exposed.
+Quidra intentionally has no Python-style `is` identity operator. Ordinary `==` compares values according to the value type, while `&left == &right` explicitly compares storage identity. Object-allocation identity remains distinct and is not exposed.
 
 ## Conditions and iteration
 

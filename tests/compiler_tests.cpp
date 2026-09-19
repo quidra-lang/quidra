@@ -2673,6 +2673,37 @@ tensor<float32> moved = sum.gpu(0)
         value = tensor.zeros<float32>([2, 2, 2])
 )");
 
+ // Storage addresses are observable only through print/write and identity equality.
+ good(R"(int x = 1
+int &alias = &x
+int other = 1
+print(&x)
+print(&alias)
+bool same = &x == &alias
+bool different = &x != &other
+print(same)
+print(different)
+string text = "hello"
+print(&text)
+)");
+ llvm_contains("int x = 1\nprint(&x)\n", "@.fmt.address");
+ llvm_contains(R"(int x = 1
+int &alias = &x
+bool same = &x == &alias
+print(same)
+)", "icmp eq ptr");
+ bad_code("int x = 1\nint y = 2\nbool ordered = &x < &y\n", "TYPE_MISMATCH");
+ bad_code("int x = 1\nint y = 2\nprint(&x + &y)\n", "TYPE_MISMATCH");
+ bad_code("int x = 1\nauto saved = &x\n", "INVALID_TYPE");
+
+ // Existing call-site '&' remains reference-argument syntax outside print/write.
+ good(R"(void touch(int &value)
+    value = 2
+int x = 1
+touch(&x)
+print(x)
+)");
+
  std::string deep = "print(";
  deep.append(5000, '(');
  deep += "1";

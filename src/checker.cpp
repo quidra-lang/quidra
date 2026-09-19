@@ -2623,8 +2623,9 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         error("ARGUMENT_MISMATCH", name + " requires one argument.", expression.span);
                     }
                     auto argument = builtin_arg(0, "value");
-                    if (!poisoned(argument) && !printable(argument)) {
-                        error("TYPE_MISMATCH", name + " requires a scalar.", expression.span);
+                    if (!poisoned(argument) && !printable(argument) &&
+                        argument.kind != TypeKind::Address) {
+                        error("TYPE_MISMATCH", name + " requires a scalar or address.", expression.span);
                     }
                     type = poisoned(argument) ? simple(TypeKind::Invalid) : simple(TypeKind::Void);
                     break;
@@ -5312,6 +5313,10 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
     } else if (const auto* node = std::get_if<IndexExpr>(&expression.data)) {
         type = check_index_expr(expression, *node);
     } else if (const auto* node = std::get_if<UnaryExpr>(&expression.data)) {
+        if (node->op == "&") {
+            (void)check_address_target(*node->operand, false);
+            type = simple(TypeKind::Address);
+        } else {
         std::optional<Type> literal_expected;
         const Type* operand_expected = nullptr;
         bool materialized_signed_minimum = false;
@@ -5389,6 +5394,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
             } else if (is_integer(type) && !is_signed_integer(type)) {
                 error("TYPE_MISMATCH", "Negation requires a signed numeric type.", expression.span);
             }
+        }
         }
     } else if (const auto* node = std::get_if<BinaryExpr>(&expression.data)) {
         const auto left_family = numeric_literal_family(*node->left);
@@ -5536,7 +5542,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
                 }
                 type = left;
             } else if (node->op == "==" || node->op == "!=") {
-                if (!equality_supported(left)) {
+                if (left.kind != TypeKind::Address && !equality_supported(left)) {
                     error("TYPE_MISMATCH", "Equality is not defined for this type.", expression.span);
                 }
                 if (left.kind == TypeKind::Class &&

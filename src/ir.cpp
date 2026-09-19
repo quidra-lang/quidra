@@ -2086,6 +2086,7 @@ struct Lowerer {
             return out;
         }
         if (const auto* n=std::get_if<UnaryExpr>(&e.data)) {
+            if(n->op=="&") return address_of(*n->operand, false);
             if(n->op=="-"){
                 if(const auto* literal=std::get_if<IntegerExpr>(&n->operand->data);
                    literal && is_integer(type_of(e))){

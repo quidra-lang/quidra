@@ -31,7 +31,7 @@ std::string llvm_type(const Type& t) {
         case TypeKind::String: case TypeKind::Bin: case TypeKind::Error:
         case TypeKind::Array: case TypeKind::Tensor: case TypeKind::Neural:
         case TypeKind::Gradients: case TypeKind::Union: case TypeKind::Class:
-        case TypeKind::Function: return "ptr";
+        case TypeKind::Address: case TypeKind::Function: return "ptr";
         case TypeKind::None: case TypeKind::Void: case TypeKind::Never: return "void";
         case TypeKind::Auto: case TypeKind::Range: case TypeKind::Invalid: return "void";
     }
@@ -797,6 +797,11 @@ struct FunctionEmitter {
             out << "  " << text << " = select i1 " << raw_value
                 << ", ptr @.bool.true, ptr @.bool.false\n";
             out << "  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr " << text << ")\n";
+            return;
+        }
+        if (type.kind == TypeKind::Address) {
+            out << "  call i32 (ptr, ...) @printf(ptr @.fmt.address.write, ptr "
+                << raw_value << ")\n";
             return;
         }
         if (type.kind == TypeKind::String) {
@@ -3288,6 +3293,7 @@ struct FunctionEmitter {
             }
         }
         if constexpr(std::is_same_v<T,ir::Binary>){values[n.out]=n.result_type;const auto&ot=n.operand_type;
+            if((n.op=="=="||n.op=="!=")&&ot.kind==TypeKind::Address){out<<"  "<<value(n.out)<<" = icmp "<<(n.op=="=="?"eq":"ne")<<" ptr "<<value(n.left)<<", "<<value(n.right)<<"\n";return;}
             if(n.op=="+"&&ot.kind==TypeKind::String){out<<"  "<<value(n.out)<<" = call ptr @quidra_string_concat2(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n";return;}
             if((n.op=="=="||n.op=="!=")&&(ot.kind==TypeKind::String||ot.kind==TypeKind::Error)){auto equal="%str.equal."+std::to_string(n.out);out<<"  "<<equal<<" = call i1 @quidra_string_equal(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n";if(n.op=="==")out<<"  "<<value(n.out)<<" = xor i1 "<<equal<<", false\n";else out<<"  "<<value(n.out)<<" = xor i1 "<<equal<<", true\n";return;}
             if((n.op=="=="||n.op=="!=")&&(ot.kind==TypeKind::Bin||ot.kind==TypeKind::Array||ot.kind==TypeKind::Class)){auto eq="%deep.eq."+std::to_string(n.out);out<<"  "<<eq<<" = call i1 "<<equality_name(ot)<<"(ptr "<<value(n.left)<<", ptr "<<value(n.right)<<")\n";if(n.op=="==")out<<"  "<<value(n.out)<<" = xor i1 "<<eq<<", false\n";else out<<"  "<<value(n.out)<<" = xor i1 "<<eq<<", true\n";return;}
@@ -3589,6 +3595,8 @@ struct FunctionEmitter {
             }else if(n.type.kind==TypeKind::Bool){
                 auto t=temp("print.bool");out<<"  "<<t<<" = select i1 "<<value(n.value)<<", ptr @.bool.true, ptr @.bool.false\n";
                 if(newline)out<<"  call i32 @puts(ptr "<<t<<")\n";else out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr "<<t<<")\n";
+            }else if(n.type.kind==TypeKind::Address){
+                out<<"  call i32 (ptr, ...) @printf(ptr "<<(newline?"@.fmt.address":"@.fmt.address.write")<<", ptr "<<value(n.value)<<")\n";
             }else if(n.type.kind==TypeKind::Bin){
                 auto text=temp("print.bin");
                 out<<"  "<<text<<" = call ptr @quidra_bin_string(ptr "<<value(n.value)<<")\n";
@@ -5197,6 +5205,8 @@ out<<"@.fmt.uint = private unnamed_addr constant [6 x i8] c\"%llu\\0A\\00\"\n";
 out<<"@.fmt.uint.write = private unnamed_addr constant [5 x i8] c\"%llu\\00\"\n";
 out<<"@.fmt.int.text = private unnamed_addr constant [5 x i8] c\"%lld\\00\"\n";
 out<<"@.fmt.uint.text = private unnamed_addr constant [5 x i8] c\"%llu\\00\"\n";
+out<<"@.fmt.address = private unnamed_addr constant [4 x i8] c\"%p\\0A\\00\"\n";
+out<<"@.fmt.address.write = private unnamed_addr constant [3 x i8] c\"%p\\00\"\n";
 out<<"@.fmt.string.write = private unnamed_addr constant [3 x i8] c\"%s\\00\"\n";
 out<<"@.fmt.repl.string = private unnamed_addr constant [5 x i8] c\"\\22%s\\22\\00\"\n";
 out<<"@.fmt.repl.error = private unnamed_addr constant [12 x i8] c\"error(\\22%s\\22)\\00\"\n";out<<"@.bool.true = private unnamed_addr constant [5 x i8] c\"true\\00\"\n@.bool.false = private unnamed_addr constant [6 x i8] c\"false\\00\"\n";out<<"@.err.bounds = private unnamed_addr constant [81 x i8] c\"Quidra runtime error[INDEX_BOUNDS] at %lld:%lld: index %lld outside length %lld\\0A\\00\"\n";

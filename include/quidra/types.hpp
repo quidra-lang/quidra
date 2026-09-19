@@ -39,6 +39,7 @@ enum class TypeKind {
     Gradients,
     Union,
     Class,
+    Address,
     Function,
     Auto,
     Range,
@@ -163,6 +164,7 @@ inline std::string type_name(const Type& type) {
         case TypeKind::Range: return "range";
         case TypeKind::Invalid: return "<invalid>";
         case TypeKind::Class: return type.class_name;
+        case TypeKind::Address: return "address";
         case TypeKind::Function: {
             std::string result = "fn<" + type_name(*type.first) + ">(";
             for (std::size_t i = 0; i < type.parameters.size(); ++i) {
@@ -248,7 +250,7 @@ inline Type Type::union_of(std::vector<Type> input) {
 inline bool is_storable(const Type& type) {
     return type.kind != TypeKind::Void && type.kind != TypeKind::None &&
            type.kind != TypeKind::Never && type.kind != TypeKind::Auto &&
-           type.kind != TypeKind::Range;
+           type.kind != TypeKind::Range && type.kind != TypeKind::Address;
 }
 
 inline bool is_integer(const Type& type) {

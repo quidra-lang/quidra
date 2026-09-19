@@ -1588,10 +1588,10 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
             if (!field) {
                 error("UNKNOWN_MEMBER", "Class '" + base.class_name + "' has no field '" + node->name + "'.", expression.span);
             }
-            if (field->is_private && current_class_ != base.class_name) {
+            if (field->is_private && current_class_ != field->owner) {
                 error("PRIVATE_MEMBER",
                       "Private field '" + node->name + "' is only accessible inside class '" +
-                          base.class_name + "'.",
+                          field->owner + "'.",
                       expression.span);
             }
             if (const auto receiver_base = current_receiver_path(*node->base)) {
@@ -2111,17 +2111,19 @@ Type Checker::check_method_call_expr(const Expr& expression,
                         error("UNKNOWN_MEMBER", "Class '" + receiver.class_name + "' has no method '" + node->method + "'.", expression.span);
                     }
                 }
-                const auto owner = super_receiver
+                const auto lookup_class = super_receiver
                     ? *classes_.at(current_class_).parent
                     : receiver.class_name;
-                const auto owner_it = classes_.find(owner);
-                if (owner_it != classes_.end() &&
-                    owner_it->second.private_methods.contains(node->method) &&
-                    current_class_ != owner) {
-                    error("PRIVATE_MEMBER",
-                          "Private method '" + node->method + "' is only accessible inside class '" +
-                              owner + "'.",
-                          expression.span);
+                const auto owner_it = classes_.find(lookup_class);
+                if (owner_it != classes_.end()) {
+                    if (const auto private_it = owner_it->second.private_methods.find(node->method);
+                        private_it != owner_it->second.private_methods.end() &&
+                        current_class_ != private_it->second) {
+                        error("PRIVATE_MEMBER",
+                              "Private method '" + node->method + "' is only accessible inside class '" +
+                                  private_it->second + "'.",
+                              expression.span);
+                    }
                 }
                 if (!node->type_arguments.empty()) {
                     throw std::logic_error("ConcreteProgram contains unresolved generic method arguments.");
@@ -6433,7 +6435,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 if (!is_storable(field_type)) {
                     error("INVALID_TYPE", "Class fields require storable explicit types.", field.span);
                 }
-                info.fields.push_back(ClassFieldType{field.name, field_type, info.fields.size(), field.default_value.get(), field.is_const, field.is_private});
+                info.fields.push_back(ClassFieldType{field.name, field_type, info.fields.size(), field.default_value.get(), field.is_const, field.is_private, declaration.name});
             }
 
             std::unordered_set<std::string> own_methods;
@@ -6508,7 +6510,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                                                      public_signature.parameters.end());
                 functions_[internal_name] = std::move(internal_signature);
                 info.methods[method.name] = internal_name;
-                if (method.is_private) info.private_methods.insert(method.name);
+                if (method.is_private) info.private_methods[method.name] = declaration.name;
                 else info.private_methods.erase(method.name);
             }
 

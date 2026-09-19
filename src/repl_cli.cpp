@@ -393,12 +393,12 @@ public:
                 return;
             }
             const auto& last = checked.program.statements.back();
-            const auto* expression = std::get_if<ExprStmt>(&last->data);
-            if (!expression) {
+            const auto* expression_statement = std::get_if<ExprStmt>(&last->data);
+            if (!expression_statement) {
                 std::cerr << "quidra: :type requires an expression\n";
                 return;
             }
-            const auto found = checked.expr_types.find(expression->value.get());
+            const auto found = checked.expr_types.find(expression_statement->value.get());
             if (found == checked.expr_types.end()) {
                 throw std::logic_error("checked REPL expression has no type");
             }

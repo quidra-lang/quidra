@@ -302,6 +302,30 @@ print(reals[1])
      "map.Map<bigint, int> values = map.Map<bigint, int>()\nbigint key = bigint(7)\nvalues.set(key, 2)\nauto value = values.get(key)\n",
      "call ptr @quidra_bigint_text");
 
+ // Hot string/parse patterns keep their source semantics while lowering to
+ // allocation-light native operations.
+ ir_contains(R"(for i in range(0, 2)
+    string[] fields = [i.string(), " ", enter]
+    string line = fields.join("")
+    print(line)
+)", "string.build");
+ llvm_contains(R"(for i in range(0, 2)
+    string[] fields = [i.string(), " ", enter]
+    string line = fields.join("")
+    print(line)
+)", "@quidra_string_build");
+ ir_contains(R"(string text = "a b"
+for i in range(0, len(text))
+    if text[i] == " "
+        print(i)
+)", "string.index_ascii_compare");
+ ir_contains(R"(match int.parse("42")
+    int value
+        print(value)
+    error problem
+        print(problem)
+)", "parse.direct");
+
  // Release lowering keeps the public function ABI but threads recursion depth
  // through an internal implementation instead of touching TLS on every direct
  // self-recursive call. Function values retain the ordinary ABI and guard path.

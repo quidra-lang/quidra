@@ -1278,6 +1278,12 @@ struct Lowerer {
                 block->instructions.push_back(BinAlloc{out,length,fill});
                 return out;
             }
+            if(receiver_name && receiver_name->name=="string" && n->method=="from_utf8"){
+                auto data=expr(*n->args[0].value),out=fresh();
+                block->instructions.push_back(StringFromUtf8{out,data,checked.raw_types.at(&e)});
+                release_temporary(*n->args[0].value,data);
+                return out;
+            }
             if(receiver_name && receiver_name->name=="string" && n->method=="repeat"){
                 auto fill=expr(*n->args[0].value),count=expr(*n->args[1].value),out=fresh();
                 block->instructions.push_back(StringRepeat{out,count,fill});
@@ -3222,6 +3228,7 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,StringTrim>)out<<"%"<<n.out<<" = string.trim %"<<n.text;
     if constexpr(std::is_same_v<T,StringSplit>)out<<"%"<<n.out<<" = string.split %"<<n.text<<", %"<<n.separator;
     if constexpr(std::is_same_v<T,StringUtf8>)out<<"%"<<n.out<<" = string.utf8 %"<<n.text;
+    if constexpr(std::is_same_v<T,StringFromUtf8>)out<<"%"<<n.out<<" = string.from_utf8 %"<<n.bin;
     if constexpr(std::is_same_v<T,StringCodepoints>)out<<"%"<<n.out<<" = string.codepoints %"<<n.text;
     if constexpr(std::is_same_v<T,StringJoin>)out<<"%"<<n.out<<" = string.join %"<<n.values<<", %"<<n.separator;
     if constexpr(std::is_same_v<T,StringConcat>){out<<"%"<<n.out<<" = string.concat";for(const auto value:n.values)out<<" %"<<value;}

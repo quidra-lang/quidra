@@ -1001,6 +1001,28 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::StringTrim>){values[n.out]=Type::simple(TypeKind::String);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_trim(ptr "<<value(n.text)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringSplit>){values[n.out]=Type::array(Type::simple(TypeKind::String));out<<"  "<<value(n.out)<<" = call ptr @quidra_string_split(ptr "<<value(n.text)<<", ptr "<<value(n.separator)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringUtf8>){values[n.out]=Type::simple(TypeKind::Bin);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_utf8(ptr "<<value(n.text)<<")\n";}
+        if constexpr(std::is_same_v<T,ir::StringFromUtf8>){
+            values[n.out]=n.result_type;
+            const auto raw=temp("string.from_utf8.raw");
+            const auto ok=temp("string.from_utf8.ok");
+            const auto result=value(n.out);
+            out<<"  "<<raw<<" = call ptr @quidra_bin_try_utf8(ptr "<<value(n.bin)<<")\n";
+            out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
+            out<<"  "<<ok<<" = icmp ne ptr "<<raw<<", null\n";
+            const auto yes=unique_label("string.from_utf8.value");
+            const auto bad=unique_label("string.from_utf8.error");
+            const auto done=unique_label("string.from_utf8.done");
+            out<<"  br i1 "<<ok<<", label %"<<yes<<", label %"<<bad<<"\n";
+            out<<yes<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::String))<<", ptr "<<result<<"\n";
+            const auto value_payload=temp("string.from_utf8.value.payload");
+            out<<"  "<<value_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+               <<"  store ptr "<<raw<<", ptr "<<value_payload<<"\n  br label %"<<done<<"\n";
+            out<<bad<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
+            const auto error_payload=temp("string.from_utf8.error.payload");
+            out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+               <<"  store ptr @.err.utf8, ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
+            out<<done<<":\n";
+        }
         if constexpr(std::is_same_v<T,ir::StringCodepoints>){values[n.out]=Type::array(Type::simple(TypeKind::Int));out<<"  "<<value(n.out)<<" = call ptr @quidra_string_codepoints(ptr "<<value(n.text)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringJoin>){values[n.out]=Type::simple(TypeKind::String);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_join(ptr "<<value(n.values)<<", ptr "<<value(n.separator)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringConcat>){
@@ -3755,6 +3777,7 @@ declare ptr @quidra_string_slice(ptr, i64, i64)
 declare ptr @quidra_string_trim(ptr)
 declare ptr @quidra_string_split(ptr, ptr)
 declare ptr @quidra_string_utf8(ptr)
+declare ptr @quidra_bin_try_utf8(ptr)
 declare ptr @quidra_string_codepoints(ptr)
 declare ptr @quidra_string_join(ptr, ptr, i64, i64)
 declare ptr @quidra_string_concat_many(ptr, i64)
@@ -4340,6 +4363,7 @@ out<<"@.code.stack = private unnamed_addr constant [17 x i8] c\"CALL_DEPTH_LIMIT
 out<<"@.code.numeric.cast = private unnamed_addr constant [19 x i8] c\"NUMERIC_CAST_RANGE\\00\"\n@.msg.numeric.cast = private unnamed_addr constant [39 x i8] c\"numeric cast outside destination range\\00\"\n";
 out<<"@.code.shape = private unnamed_addr constant [15 x i8] c\"SHAPE_MISMATCH\\00\"\n@.msg.shape = private unnamed_addr constant [25 x i8] c\"captured extent mismatch\\00\"\n";
 out<<"@.err.parse = private unnamed_addr constant [21 x i8] c\"numeric parse failed\\00\"\n";
+out<<"@.err.utf8 = private unnamed_addr constant [19 x i8] c\"invalid UTF-8 text\\00\"\n";
 out<<"@.err.input = private unnamed_addr constant [13 x i8] c\"input failed\\00\"\n";
 out<<"@.err.json.type = private unnamed_addr constant [33 x i8] c\"JSON value has incompatible kind\\00\"\n";
 out<<"@.err.file = private unnamed_addr constant [22 x i8] c\"file operation failed\\00\"\n";

@@ -7259,6 +7259,15 @@ extern "C" long long quidra_bin_byte_length(void* raw) {
     return bits / 8;
 }
 
+extern "C" char* quidra_bin_try_utf8(void* raw) {
+    if (!raw) return nullptr;
+    const auto bits = bin_length(raw);
+    if (bits % 8 != 0) return nullptr;
+    return quidra_runtime_try_copy_text_bytes(
+        static_cast<const char*>(raw) + 8,
+        static_cast<unsigned long long>(bits / 8));
+}
+
 extern "C" void* quidra_bin_from_array(void* raw, int width, int stride) {
     if (!raw || width <= 0 || width > 64 || stride <= 0)
         runtime_text_failure("invalid bin array conversion");

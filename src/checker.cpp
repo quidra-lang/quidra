@@ -1743,6 +1743,21 @@ Type Checker::check_method_call_expr(const Expr& expression,
                 ? simple(TypeKind::Invalid)
                 : simple(TypeKind::Bin);
         } else if (type_receiver && type_receiver->kind == TypeKind::String &&
+                   node->method == "from_utf8") {
+            if (!node->type_arguments.empty() || node->args.size() != 1 ||
+                node->args[0].writable ||
+                (node->args[0].name && *node->args[0].name != "data")) {
+                error("ARGUMENT_MISMATCH",
+                      "string.from_utf8(data) requires one bin value.",
+                      expression.span);
+            }
+            auto bin_type = simple(TypeKind::Bin);
+            auto data = check_expr(*node->args[0].value, &bin_type);
+            expr_types_[node->receiver.get()] = raw_types_[node->receiver.get()] = *type_receiver;
+            type = poisoned(data)
+                ? simple(TypeKind::Invalid)
+                : Type::union_of({simple(TypeKind::String), simple(TypeKind::Error)});
+        } else if (type_receiver && type_receiver->kind == TypeKind::String &&
                    node->method == "repeat") {
             if (!node->type_arguments.empty() || node->args.size() != 2 ||
                 node->args[0].writable || node->args[0].name ||

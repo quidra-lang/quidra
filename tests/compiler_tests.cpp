@@ -331,6 +331,9 @@ print(signed_right)
  llvm_contains("extern int32 c_bin(const bin &data) = \"c_bin\"\nbin value = bin.fill(24, 1)\nint32 result = c_bin(&value)\n", "ffi.bin.length");
  llvm_contains("extern int32 c_bin(const bin &data) = \"c_bin\"\nbin value = bin.fill(24, 1)\nint32 result = c_bin(&value)\n", "call i32 @c_bin(ptr nocapture nonnull readonly");
  llvm_contains("extern int32 c_bin_mut(bin &data) = \"c_bin_mut\"\nbin value = bin.fill(24, 1)\nint32 result = c_bin_mut(&value)\n", "call i32 @c_bin_mut(ptr nocapture nonnull");
+ good("bin data = \"ok\".utf8()\nauto text = string.from_utf8(data)\n");
+ llvm_contains("bin data = \"ok\".utf8()\nauto text = string.from_utf8(data)\n", "@quidra_bin_try_utf8");
+ bad_code("auto text = string.from_utf8(\"not bin\")\n", "TYPE_MISMATCH");
  llvm_file_contains("tensor<float> source = tensor.ones<float>([1])\nneural<float> value = neural.track(source)\nneural<float> next = value + 1.0\n", "@quidra_neural_binary_scalar");
  llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nuint8 scalar = 255\nneural<float32> next = value + float32(scalar)\n", "uitofp i8");
  llvm_file_contains("tensor<float32> source = tensor.ones<float32>([1])\nneural<float32> value = neural.track(source)\nint8 scalar = -1\nneural<float32> next = value + float32(scalar)\n", "sitofp i8");

@@ -134,8 +134,31 @@ print(flag)
 
 string repeated = string.repeat("a", 3)
 print(repeated)
+
+string original = "héllo"
+bin encoded = original.utf8()
+match string.from_utf8(encoded)
+    string decoded
+        print(decoded)
+    error problem
+        print("unexpected valid UTF-8 error")
+
+uint8[] invalid_bytes = [255]
+bin invalid = bin(invalid_bytes)
+match string.from_utf8(invalid)
+    string decoded
+        print("unexpected invalid UTF-8 success")
+    error problem
+        print("invalid")
+
+bin partial = bin.fill(7, 0)
+match string.from_utf8(partial)
+    string decoded
+        print("unexpected partial-byte success")
+    error problem
+        print("partial")
 QUI
-[[ "$("$QUIDRA" "$TMP/bin-string.qui")" == $'5\n11111\n0\n1\n11111111\n-1\ntrue\naaa' ]]
+[[ "$("$QUIDRA" "$TMP/bin-string.qui")" == $'5\n11111\n0\n1\n11111111\n-1\ntrue\naaa\nhéllo\ninvalid\npartial' ]]
 
 python3 - "$TMP/source.bin" <<'PY'
 import sys

@@ -583,7 +583,7 @@ string | none | error line = input()
 
 ## Text, arrays, and conditional chains
 
-Strings are immutable UTF-8 text. `len(text)` counts Unicode code points, `text[index]` returns a one-code-point string, and text supports `contains`, `starts_with`, `ends_with`, `find`, `slice`, `trim`, and `split`. `text.utf8()` explicitly exposes the UTF-8 encoding as `bin`, `text.codepoints()` explicitly exposes Unicode scalar values, and `string[]` uses `join(separator)` for efficient assembly.
+Strings are immutable UTF-8 text. `len(text)` counts Unicode code points, `text[index]` returns a one-code-point string, and text supports `contains`, `starts_with`, `ends_with`, `find`, `slice`, `trim`, and `split`. `text.utf8()` explicitly exposes the UTF-8 encoding as `bin`; `string.from_utf8(data)` explicitly validates byte-aligned binary data and returns `string | error`; `text.codepoints()` explicitly exposes Unicode scalar values; and `string[]` uses `join(separator)` for efficient assembly.
 
 Runtime-sized arrays can be fully initialized or explicitly created with uninitialized elements:
 

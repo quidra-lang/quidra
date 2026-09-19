@@ -211,6 +211,12 @@ jobs:
           print(model.weight.raw()[0].item() == saved)
           neural.save(model, path = "build/windows-neural.quistate")
           '@
+          & build/Release/quidra.exe check build/neural-smoke.qui | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "neural smoke check failed with exit code $LASTEXITCODE" }
+          & build/Release/quidra.exe ir build/neural-smoke.qui | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "neural smoke IR lowering failed with exit code $LASTEXITCODE" }
+          & build/Release/quidra.exe llvm build/neural-smoke.qui | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "neural smoke LLVM emission failed with exit code $LASTEXITCODE" }
           & build/Release/quidra.exe build build/neural-smoke.qui -o build/neural-smoke.exe
           if ($LASTEXITCODE -ne 0) { throw "neural smoke build failed with exit code $LASTEXITCODE" }
           $neural = & build/neural-smoke.exe

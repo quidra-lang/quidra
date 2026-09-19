@@ -1010,6 +1010,7 @@ print(result.error)
 map.Map<string, int> counts = map.Map<string, int>()
 counts.set("apple", 2)
 counts.set("banana", 1)
+counts.remove("banana")
 auto apple = counts.get("apple")
 match apple
     int value
@@ -1023,10 +1024,11 @@ for key in keys
 set.Set<string> tags = set.Set<string>()
 tags.add("compiler")
 tags.add("ai")
+tags.remove("ai")
 print(tags.has("compiler"))
 ```
 
-Keys/elements are currently integer, `bool`, or `string` values. Insertion order is stable. Ordinary assignment copies container state independently, following the same value semantics as arrays and classes.
+Keys/elements are currently integer, `bool`, or `string` values. Insertion order is stable; successful removal preserves the relative order of survivors, and reinsertion appends at the end. Ordinary assignment copies container state independently, following the same value semantics as arrays and classes.
 
 `json` exposes immutable parsed values without collapsing JSON `null` into Quidra `none`:
 

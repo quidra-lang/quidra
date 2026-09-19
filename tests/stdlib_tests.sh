@@ -499,6 +499,40 @@ map_output="$("$QUIDRA" "$TMP/map.qui")"
 map_expected="$(printf '0\nfalse\nnone\n2\n3\napple\nbanana\n3\n1\nfalse\ntrue')"
 [[ "$map_output" == "$map_expected" ]]
 
+cat > "$TMP/map-remove.qui" <<'QUI'
+map.Map<string, int> values = map.Map<string, int>()
+values.set("a", 1)
+values.set("i", 2)
+values.set("q", 3)
+values.set("z", 4)
+print(values.remove("i"))
+print(values.remove("i"))
+print(values.size())
+print(values.has("i"))
+auto q = values.get("q")
+match q
+    int value
+        print(value)
+    none
+        print(int(-1))
+string[] remaining_keys = values.keys()
+int[] remaining_values = values.values()
+for key in remaining_keys
+    print(key)
+for value in remaining_values
+    print(value)
+values.set("i", 5)
+string[] reinserted_keys = values.keys()
+print(reinserted_keys[len(reinserted_keys) - 1])
+map.Map<string, int> copied_values = values
+print(copied_values.remove("q"))
+print(values.has("q"))
+print(copied_values.has("q"))
+QUI
+map_remove_output="$("$QUIDRA" "$TMP/map-remove.qui")"
+map_remove_expected="$(printf 'true\nfalse\n3\nfalse\n3\na\nq\nz\n1\n3\n4\ni\ntrue\ntrue\nfalse')"
+[[ "$map_remove_output" == "$map_remove_expected" ]]
+
 cat > "$TMP/set.qui" <<'QUI'
 set.Set<string> tags = set.Set<string>()
 tags.add("compiler")
@@ -519,6 +553,31 @@ QUI
 set_output="$("$QUIDRA" "$TMP/set.qui")"
 set_expected="$(printf '2\ntrue\nfalse\ncompiler\nai\nfalse\ntrue')"
 [[ "$set_output" == "$set_expected" ]]
+
+cat > "$TMP/set-remove.qui" <<'QUI'
+set.Set<string> values = set.Set<string>()
+values.add("a")
+values.add("i")
+values.add("q")
+values.add("z")
+print(values.remove("i"))
+print(values.remove("i"))
+print(values.size())
+print(values.has("i"))
+string[] remaining = values.values()
+for value in remaining
+    print(value)
+values.add("i")
+string[] reinserted = values.values()
+print(reinserted[len(reinserted) - 1])
+set.Set<string> copied = values
+print(copied.remove("q"))
+print(values.has("q"))
+print(copied.has("q"))
+QUI
+set_remove_output="$("$QUIDRA" "$TMP/set-remove.qui")"
+set_remove_expected="$(printf 'true\nfalse\n3\nfalse\na\nq\nz\ni\ntrue\ntrue\nfalse')"
+[[ "$set_remove_output" == "$set_remove_expected" ]]
 
 cat > "$TMP/hash-collections.qui" <<'QUI'
 map.Map<string, int> many = map.Map<string, int>()
@@ -618,6 +677,42 @@ QUI
 hash_stress_output="$("$QUIDRA" "$TMP/hash-collections-stress.qui")"
 hash_stress_expected="$(printf '5000\n8194\n123456\n0\n4999\nfalse\nfalse\ntrue\n5000\ntrue\nfalse\n0\n4999')"
 [[ "$hash_stress_output" == "$hash_stress_expected" ]]
+
+cat > "$TMP/hash-collection-removal-stress.qui" <<'QUI'
+map.Map<int, int> values = map.Map<int, int>()
+set.Set<int> unique = set.Set<int>()
+for i in range(0, 5000)
+    values.set(i, i * 3)
+    unique.add(i)
+for i in range(0, 3500)
+    if not values.remove(i)
+        print("map remove failed")
+        process.exit(1)
+    if not unique.remove(i)
+        print("set remove failed")
+        process.exit(1)
+print(values.size())
+print(unique.size())
+print(values.has(3499))
+print(values.has(3500))
+print(unique.has(3499))
+print(unique.has(3500))
+int[] keys = values.keys()
+int[] set_values = unique.values()
+print(keys[0])
+print(keys[len(keys) - 1])
+print(set_values[0])
+print(set_values[len(set_values) - 1])
+values.set(100, 7)
+unique.add(100)
+int[] reinserted_keys = values.keys()
+int[] reinserted_values = unique.values()
+print(reinserted_keys[len(reinserted_keys) - 1])
+print(reinserted_values[len(reinserted_values) - 1])
+QUI
+removal_stress_output="$("$QUIDRA" "$TMP/hash-collection-removal-stress.qui")"
+removal_stress_expected="$(printf '1500\n1500\nfalse\ntrue\nfalse\ntrue\n3500\n4999\n3500\n4999\n100\n100')"
+[[ "$removal_stress_output" == "$removal_stress_expected" ]]
 
 # "a", "i", and "q" have the same initial bucket modulo the default capacity 8,
 # so this directly exercises deterministic open-addressing collision handling.

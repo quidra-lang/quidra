@@ -643,7 +643,7 @@ auto value = counts.get("apple")
 string[] keys = counts.keys()
 ```
 
-`set(key, value)` inserts or replaces without changing an existing key's position. `get(key)` returns `V | none`; `has(key)` returns `bool`; `size()` returns `int`; `keys()` and `values()` return value arrays in stable insertion order. Keys are restricted to integer types, `bool`, and `string`; float keys are intentionally excluded because NaN would make equality and hashing ambiguous. The native implementation uses deterministic open addressing for average O(1) `has`, `get`, and `set` lookup while retaining separate insertion-order arrays for `keys()` and `values()`. Hash buckets and capacity are implementation details and are not observable language semantics.
+`set(key, value)` inserts or replaces without changing an existing key's position. `remove(key)` removes the key and returns whether it was present; reinserting a removed key places it at the end of insertion order. `get(key)` returns `V | none`; `has(key)` returns `bool`; `size()` returns `int`; `keys()` and `values()` return value arrays in stable insertion order. Keys are restricted to integer types, `bool`, and `string`; float keys are intentionally excluded because NaN would make equality and hashing ambiguous. The native implementation uses deterministic open addressing for average O(1) `has`, `get`, and `set` lookup while retaining separate insertion-order arrays for `keys()` and `values()`. Hash buckets and capacity are implementation details and are not observable language semantics.
 
 ### set
 
@@ -658,7 +658,7 @@ print(tags.size())
 print(tags.has("ai"))
 ```
 
-`add(value)` preserves the first insertion position, `has(value)` tests membership, `size()` returns the number of unique values, and `values()` returns insertion order. Elements use the same key-domain restriction as `map.Map`. The implementation uses the same deterministic open-addressing index, giving average O(1) membership and insertion while preserving stable insertion order. Map/set internals are compiler-generated and are not source-visible. Assignment follows ordinary independent value semantics rather than sharing mutable container identity.
+`add(value)` preserves the first insertion position. `remove(value)` removes the value and returns whether it was present; adding it again places it at the end of insertion order. `has(value)` tests membership, `size()` returns the number of unique values, and `values()` returns insertion order. Elements use the same key-domain restriction as `map.Map`. The implementation uses the same deterministic open-addressing index, giving average O(1) membership and insertion while preserving stable insertion order. Map/set internals are compiler-generated and are not source-visible. Assignment follows ordinary independent value semantics rather than sharing mutable container identity.
 
 
 ### json

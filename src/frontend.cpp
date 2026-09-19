@@ -319,7 +319,9 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
     K[] __keys = []
     V[] __values = []
     int[] __hashes = []
+    bool[] __active = []
     int[] __slots = array(8, fill = -1)
+    int __size = 0
 
     int __hash(K key)
         int[] __encoded = key.string().codepoints()
@@ -328,18 +330,24 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
             __result = (__result * 131 + __unit) % 2147483647
         return __result
 
-    int __find(K key, int hash)
+    int __slot_of(K key, int hash)
         int __slot = hash % len(__slots)
         while true
             int __index = __slots[__slot]
             if __index == -1
                 return -1
-            if __hashes[__index] == hash and __keys[__index] == key
-                return __index
+            if __active[__index] and __hashes[__index] == hash and __keys[__index] == key
+                return __slot
             __slot += 1
             if __slot == len(__slots)
                 __slot = 0
         return -1
+
+    int __find(K key, int hash)
+        int __slot = __slot_of(key, hash)
+        if __slot < 0
+            return -1
+        return __slots[__slot]
 
     void __place(int index)
         int __slot = __hashes[index] % len(__slots)
@@ -352,7 +360,27 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
     void __rehash(int capacity)
         __slots = array(capacity, fill = -1)
         for __index in range(len(__keys))
-            __place(__index)
+            if __active[__index]
+                __place(__index)
+        return void
+
+    void __compact()
+        K[] __new_keys = []
+        V[] __new_values = []
+        int[] __new_hashes = []
+        bool[] __new_active = []
+        for __index in range(len(__keys))
+            if __active[__index]
+                __new_keys = __new_keys.append(__keys[__index])
+                __new_values = __new_values.append(__values[__index])
+                __new_hashes = __new_hashes.append(__hashes[__index])
+                __new_active = __new_active.append(true)
+        __keys = __new_keys
+        __values = __new_values
+        __hashes = __new_hashes
+        __active = __new_active
+        __rehash(len(__slots))
+        return void
 
     bool has(K key)
         int __hash_value = __hash(key)
@@ -376,21 +404,67 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         __keys = __keys.append(key)
         __values = __values.append(value)
         __hashes = __hashes.append(__hash_value)
+        __active = __active.append(true)
+        __size += 1
 
-        if len(__keys) > len(__slots) - len(__slots) / 4
+        if __size > len(__slots) - len(__slots) / 4
             __rehash(len(__slots) * 2)
         else
             __place(__new_index)
         return void
 
+    bool remove(K key)
+        int __hash_value = __hash(key)
+        int __hole = __slot_of(key, __hash_value)
+        if __hole < 0
+            return false
+
+        int __removed_index = __slots[__hole]
+        __active[__removed_index] = false
+        __size -= 1
+
+        int __capacity = len(__slots)
+        int __probe = __hole
+        while true
+            __probe += 1
+            if __probe == __capacity
+                __probe = 0
+            int __index = __slots[__probe]
+            if __index == -1
+                __slots[__hole] = -1
+                if len(__keys) > 64 and __size * 2 < len(__keys)
+                    __compact()
+                return true
+
+            int __ideal = __hashes[__index] % __capacity
+            bool __settled = false
+            if __hole <= __probe
+                __settled = __hole < __ideal and __ideal <= __probe
+            else
+                __settled = __hole < __ideal or __ideal <= __probe
+            if __settled
+                continue
+
+            __slots[__hole] = __index
+            __hole = __probe
+        return true
+
     int size()
-        return len(__keys)
+        return __size
 
     K[] keys()
-        return __keys
+        K[] __result = []
+        for __index in range(len(__keys))
+            if __active[__index]
+                __result = __result.append(__keys[__index])
+        return __result
 
     V[] values()
-        return __values
+        V[] __result = []
+        for __index in range(len(__values))
+            if __active[__index]
+                __result = __result.append(__values[__index])
+        return __result
 )QUI";
         Parser parser(Lexer(std::string(source)).scan(), 20);
         auto program = parser.parse();
@@ -481,7 +555,9 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         constexpr std::string_view source = R"QUI(class Set<T>
     T[] __values = []
     int[] __hashes = []
+    bool[] __active = []
     int[] __slots = array(8, fill = -1)
+    int __size = 0
 
     int __hash(T value)
         int[] __encoded = value.string().codepoints()
@@ -490,18 +566,24 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
             __result = (__result * 131 + __unit) % 2147483647
         return __result
 
-    int __find(T value, int hash)
+    int __slot_of(T value, int hash)
         int __slot = hash % len(__slots)
         while true
             int __index = __slots[__slot]
             if __index == -1
                 return -1
-            if __hashes[__index] == hash and __values[__index] == value
-                return __index
+            if __active[__index] and __hashes[__index] == hash and __values[__index] == value
+                return __slot
             __slot += 1
             if __slot == len(__slots)
                 __slot = 0
         return -1
+
+    int __find(T value, int hash)
+        int __slot = __slot_of(value, hash)
+        if __slot < 0
+            return -1
+        return __slots[__slot]
 
     void __place(int index)
         int __slot = __hashes[index] % len(__slots)
@@ -514,7 +596,24 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
     void __rehash(int capacity)
         __slots = array(capacity, fill = -1)
         for __index in range(len(__values))
-            __place(__index)
+            if __active[__index]
+                __place(__index)
+        return void
+
+    void __compact()
+        T[] __new_values = []
+        int[] __new_hashes = []
+        bool[] __new_active = []
+        for __index in range(len(__values))
+            if __active[__index]
+                __new_values = __new_values.append(__values[__index])
+                __new_hashes = __new_hashes.append(__hashes[__index])
+                __new_active = __new_active.append(true)
+        __values = __new_values
+        __hashes = __new_hashes
+        __active = __new_active
+        __rehash(len(__slots))
+        return void
 
     bool has(T value)
         int __hash_value = __hash(value)
@@ -528,18 +627,60 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         int __new_index = len(__values)
         __values = __values.append(value)
         __hashes = __hashes.append(__hash_value)
+        __active = __active.append(true)
+        __size += 1
 
-        if len(__values) > len(__slots) - len(__slots) / 4
+        if __size > len(__slots) - len(__slots) / 4
             __rehash(len(__slots) * 2)
         else
             __place(__new_index)
         return void
 
+    bool remove(T value)
+        int __hash_value = __hash(value)
+        int __hole = __slot_of(value, __hash_value)
+        if __hole < 0
+            return false
+
+        int __removed_index = __slots[__hole]
+        __active[__removed_index] = false
+        __size -= 1
+
+        int __capacity = len(__slots)
+        int __probe = __hole
+        while true
+            __probe += 1
+            if __probe == __capacity
+                __probe = 0
+            int __index = __slots[__probe]
+            if __index == -1
+                __slots[__hole] = -1
+                if len(__values) > 64 and __size * 2 < len(__values)
+                    __compact()
+                return true
+
+            int __ideal = __hashes[__index] % __capacity
+            bool __settled = false
+            if __hole <= __probe
+                __settled = __hole < __ideal and __ideal <= __probe
+            else
+                __settled = __hole < __ideal or __ideal <= __probe
+            if __settled
+                continue
+
+            __slots[__hole] = __index
+            __hole = __probe
+        return true
+
     int size()
-        return len(__values)
+        return __size
 
     T[] values()
-        return __values
+        T[] __result = []
+        for __index in range(len(__values))
+            if __active[__index]
+                __result = __result.append(__values[__index])
+        return __result
 )QUI";
         Parser parser(Lexer(std::string(source)).scan(), 20);
         auto program = parser.parse();

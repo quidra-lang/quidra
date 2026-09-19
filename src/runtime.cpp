@@ -6951,28 +6951,33 @@ extern "C" void* quidra_string_split(const char* text, const char* separator) {
     const auto delimiter = validated_string_view(separator, delimiter_allocation);
     if (delimiter.empty()) runtime_text_failure("string split separator cannot be empty");
 
-    std::vector<std::string_view> pieces;
-    std::size_t start = 0;
-    while (true) {
+    std::size_t piece_count = 1;
+    for (std::size_t start = 0;;) {
         const auto pos = source.find(delimiter, start);
-        if (pos == std::string_view::npos) {
-            pieces.emplace_back(source.substr(start));
-            break;
-        }
-        pieces.emplace_back(source.substr(start, pos - start));
+        if (pos == std::string_view::npos) break;
+        if (piece_count == std::numeric_limits<std::size_t>::max())
+            runtime_allocation_failure();
+        ++piece_count;
         start = pos + delimiter.size();
     }
 
-    if (pieces.size() > (std::numeric_limits<std::size_t>::max() - 8) / sizeof(char*)) {
+    if (piece_count > (std::numeric_limits<std::size_t>::max() - 8) / sizeof(char*)) {
         runtime_allocation_failure();
     }
-    const auto bytes = 8 + pieces.size() * sizeof(char*);
+    const auto bytes = 8 + piece_count * sizeof(char*);
     auto* result = static_cast<unsigned char*>(managed_allocate(bytes));
-    const auto count = static_cast<long long>(pieces.size());
+    const auto count = static_cast<long long>(piece_count);
     std::memcpy(result, &count, sizeof(count));
-    for (std::size_t i = 0; i < pieces.size(); ++i) {
-        auto* item = copy_validated_runtime_text(pieces[i]);
+
+    std::size_t start = 0;
+    for (std::size_t i = 0; i < piece_count; ++i) {
+        const auto pos = source.find(delimiter, start);
+        const auto end = pos == std::string_view::npos ? source.size() : pos;
+        auto* item = copy_validated_runtime_text(
+            source.substr(start, end - start));
         std::memcpy(result + 8 + i * sizeof(char*), &item, sizeof(item));
+        start = pos == std::string_view::npos
+            ? source.size() : pos + delimiter.size();
     }
     return result;
 }
@@ -7019,8 +7024,19 @@ extern "C" char* quidra_string_append_move_many(
         validated_string_view(raw, receiver, &old_codepoints);
     const auto old_length = original.size();
 
-    std::vector<std::size_t> lengths(count);
-    std::vector<unsigned char> aliases(count, 0);
+    constexpr std::size_t small_append_count = 16;
+    std::array<std::size_t, small_append_count> small_lengths{};
+    std::array<unsigned char, small_append_count> small_aliases{};
+    std::vector<std::size_t> large_lengths;
+    std::vector<unsigned char> large_aliases;
+    if (count > small_append_count) {
+        large_lengths.resize(count);
+        large_aliases.assign(count, 0);
+    }
+    auto* lengths = count <= small_append_count
+        ? small_lengths.data() : large_lengths.data();
+    auto* aliases = count <= small_append_count
+        ? small_aliases.data() : large_aliases.data();
     std::size_t added = 0;
     std::size_t added_codepoints = 0;
     for (std::size_t i = 0; i < count; ++i) {
@@ -7123,8 +7139,12 @@ extern "C" char* quidra_string_concat_many(const char* const* values,
     const auto count = static_cast<std::size_t>(raw_count);
     if (count != 0 && !values) runtime_text_failure("null string concat values");
 
-    std::vector<std::string_view> pieces;
-    pieces.reserve(count);
+    constexpr std::size_t small_concat_count = 16;
+    std::array<std::string_view, small_concat_count> small_pieces{};
+    std::vector<std::string_view> large_pieces;
+    if (count > small_concat_count) large_pieces.resize(count);
+    auto* pieces = count <= small_concat_count
+        ? small_pieces.data() : large_pieces.data();
     std::size_t total = 0;
     std::size_t total_codepoints = 0;
     for (std::size_t i = 0; i < count; ++i) {
@@ -7142,13 +7162,14 @@ extern "C" char* quidra_string_concat_many(const char* const* values,
             runtime_allocation_failure();
         }
         total_codepoints += codepoints;
-        pieces.push_back(piece);
+        pieces[i] = piece;
     }
 
     auto* result =
         static_cast<char*>(managed_allocate_string(total + 1));
     std::size_t offset = 0;
-    for (const auto piece : pieces) {
+    for (std::size_t i = 0; i < count; ++i) {
+        const auto piece = pieces[i];
         if (!piece.empty()) std::memcpy(result + offset, piece.data(), piece.size());
         offset += piece.size();
     }
@@ -7346,6 +7367,12 @@ extern "C" void* quidra_bin_from_array(void* raw, int width, int stride) {
     const auto total_bits = static_cast<long long>(count * static_cast<unsigned long long>(width));
     auto* result = quidra_bin_alloc(total_bits, 0);
     const auto* data = static_cast<const unsigned char*>(raw) + 8;
+    if (width == 8 && stride == 1) {
+        if (count != 0)
+            std::memcpy(static_cast<unsigned char*>(result) + 8, data,
+                        static_cast<std::size_t>(count));
+        return result;
+    }
     for (unsigned long long i = 0; i < count; ++i) {
         unsigned long long value = 0;
         if (width == 1) {
@@ -7382,6 +7409,14 @@ extern "C" void* quidra_bin_to_array(void* raw, int width, int stride) {
         managed_allocate(8 + count_size * static_cast<std::size_t>(stride)));
     std::memcpy(result, &count, sizeof(count));
     auto* data = result + 8;
+    if (width == 8 && stride == 1) {
+        if (count_size != 0)
+            std::memcpy(data, static_cast<const unsigned char*>(raw) + 8,
+                        count_size);
+        quidra_init_create(result, static_cast<unsigned long long>(count_size),
+                           1, 8, 1);
+        return result;
+    }
     for (long long i = 0; i < count; ++i) {
         unsigned long long value = 0;
         for (int bit = 0; bit < width; ++bit)
@@ -7497,8 +7532,12 @@ extern "C" char* quidra_string_join(void* raw, const char* separator,
         total_codepoints = (count - 1) * delimiter_codepoints;
     }
 
-    std::vector<std::string_view> pieces;
-    pieces.reserve(count);
+    constexpr std::size_t small_join_count = 16;
+    std::array<std::string_view, small_join_count> small_pieces{};
+    std::vector<std::string_view> large_pieces;
+    if (count > small_join_count) large_pieces.resize(count);
+    auto* pieces = count <= small_join_count
+        ? small_pieces.data() : large_pieces.data();
     for (std::size_t i = 0; i < count; ++i) {
         char* item = nullptr;
         std::memcpy(&item,
@@ -7518,7 +7557,7 @@ extern "C" char* quidra_string_join(void* raw, const char* separator,
             runtime_allocation_failure();
         }
         total_codepoints += item_codepoints;
-        pieces.push_back(piece);
+        pieces[i] = piece;
     }
     if (total == std::numeric_limits<std::size_t>::max()) {
         runtime_allocation_failure();
@@ -7526,7 +7565,7 @@ extern "C" char* quidra_string_join(void* raw, const char* separator,
 
     auto* result = static_cast<char*>(managed_allocate_string(total + 1));
     std::size_t offset = 0;
-    for (std::size_t i = 0; i < pieces.size(); ++i) {
+    for (std::size_t i = 0; i < count; ++i) {
         if (i != 0 && !delimiter.empty()) {
             std::memcpy(result + offset, delimiter.data(), delimiter.size());
             offset += delimiter.size();

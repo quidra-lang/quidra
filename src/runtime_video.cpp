@@ -25,6 +25,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/error.h>
+#include <libavutil/imgutils.h>
 #include <libavutil/pixdesc.h>
 #include <libavutil/pixfmt.h>
 #include <libavutil/rational.h>
@@ -379,11 +380,31 @@ void* frame_tensor(
         throw std::overflow_error("video row size exceeds decoder limits");
     }
 
-    std::vector<std::uint8_t> interleaved(bytes);
-    std::uint8_t* destination[4]{
-        interleaved.data(), nullptr, nullptr, nullptr};
-    int destination_linesize[4]{
-        static_cast<int>(row_bytes), 0, 0, 0};
+    // libswscale's optimized writers may require line-end padding beyond the
+    // visible packed row. Let FFmpeg allocate an aligned destination image
+    // instead of pointing it at a tightly-sized std::vector.
+    std::uint8_t* destination[4]{nullptr, nullptr, nullptr, nullptr};
+    int destination_linesize[4]{0, 0, 0, 0};
+    const int allocated = av_image_alloc(
+        destination, destination_linesize,
+        frame.width, frame.height, output_format, 64);
+    if (allocated < 0) {
+        throw std::runtime_error(
+            "cannot allocate video pixel-conversion buffer: " +
+            ffmpeg_message(allocated));
+    }
+    struct ImageBufferGuard {
+        std::uint8_t** data{};
+        ~ImageBufferGuard() {
+            if (data && data[0]) av_freep(&data[0]);
+        }
+    } image_buffer{destination};
+
+    if (destination_linesize[0] < 0 ||
+        static_cast<std::size_t>(destination_linesize[0]) < row_bytes) {
+        throw std::runtime_error("video pixel-conversion stride is invalid");
+    }
+
     const int scaled = sws_scale(
         reader.session->scaler,
         frame.data, frame.linesize, 0, frame.height,
@@ -394,17 +415,19 @@ void* frame_tensor(
 
     std::vector<std::uint8_t> chw(bytes);
     for (std::size_t y = 0; y < height; ++y) {
+        const auto* row =
+            destination[0] + y * static_cast<std::size_t>(destination_linesize[0]);
         for (std::size_t x = 0; x < width; ++x) {
             for (std::size_t channel = 0;
                  channel < static_cast<std::size_t>(channels); ++channel) {
                 const auto source =
-                    ((y * width + x) * static_cast<std::size_t>(channels) + channel) *
+                    (x * static_cast<std::size_t>(channels) + channel) *
                     sample_bytes;
                 const auto destination_offset =
                     ((channel * height + y) * width + x) * sample_bytes;
                 std::memcpy(
                     chw.data() + destination_offset,
-                    interleaved.data() + source, sample_bytes);
+                    row + source, sample_bytes);
             }
         }
     }

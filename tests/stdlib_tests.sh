@@ -167,6 +167,7 @@ match string.from_utf8(partial)
         print("partial")
 QUI
 [[ "$("$QUIDRA" "$TMP/bin-string.qui")" == 
+
 python3 - "$TMP/source.bin" <<'PY'
 import sys
 open(sys.argv[1], "wb").write(bytes([0, 255, 65, 10, 128]))

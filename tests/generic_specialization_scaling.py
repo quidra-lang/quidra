@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Measure Quidra generic monomorphization scaling without CI timing gates.
+"""Measure generic monomorphization scaling for compiler regression testing.
 
-The benchmark compiles matched program pairs. Both programs define the same N
-classes and the same generic function. The baseline reads class fields directly;
-the specialized program routes the same values through one concrete generic
-instantiation per class. Subtracting the matched baseline helps separate ordinary
-source/class growth from specialization work.
+This is permanent Quidra test infrastructure, not part of the historical
+cross-language benchmark suite. It compiles matched program pairs: both define
+the same N classes and generic function; the baseline reads fields directly,
+while the specialized program routes the same values through one concrete
+generic instantiation per class. Subtracting the matched baseline separates
+ordinary source/class growth from specialization work.
 
 Example:
-    python3 benchmark/generic_specialization_scaling.py ./build/quidra
-    python3 benchmark/generic_specialization_scaling.py ./build/quidra --sizes 4,8,16 --repeats 1
+    python3 tests/generic_specialization_scaling.py ./build/quidra
+    python3 tests/generic_specialization_scaling.py ./build/quidra --sizes 4,8,16 --repeats 1
 """
 
 from __future__ import annotations

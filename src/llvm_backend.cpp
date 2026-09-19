@@ -2566,6 +2566,10 @@ struct FunctionEmitter {
             out<<"  "<<value(n.out)<<" = call ptr @quidra_process_run(ptr "<<value(n.program)
                <<", ptr "<<value(n.args)<<")\n";
         }
+        if constexpr(std::is_same_v<T,ir::ProcessShell>){
+            values[n.out]=Type::class_type("$std.process.Result");
+            out<<"  "<<value(n.out)<<" = call ptr @quidra_process_shell(ptr "<<value(n.command)<<")\n";
+        }
         if constexpr(std::is_same_v<T,ir::JsonParse>){
             values[n.out]=n.result_type;
             const auto raw=temp("json.parse.raw"),ok=temp("json.parse.ok"),result=value(n.out);
@@ -4651,6 +4655,7 @@ declare i64 @quidra_random_int(ptr, i64, i64)
 declare double @quidra_random_float(ptr)
 declare i1 @quidra_random_bool(ptr)
 declare ptr @quidra_process_run(ptr, ptr)
+declare ptr @quidra_process_shell(ptr)
 declare ptr @quidra_json_parse_raw(ptr)
 declare void @quidra_json_drop(ptr)
 declare ptr @quidra_json_last_error_copy()

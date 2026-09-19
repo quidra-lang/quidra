@@ -232,6 +232,7 @@ struct RandomInt { ValueId out; ValueId generator; ValueId start; ValueId end; s
 struct RandomFloat { ValueId out; ValueId generator; };
 struct RandomBool { ValueId out; ValueId generator; };
 struct ProcessRun { ValueId out; ValueId program; ValueId args; };
+struct ProcessShell { ValueId out; ValueId command; };
 struct JsonParse { ValueId out; ValueId text; Type result_type; };
 struct JsonKind { ValueId out; ValueId value; };
 struct JsonSize { ValueId out; ValueId value; Type result_type; };
@@ -360,7 +361,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  FileRead, FileReadBin, FileWrite, FileWriteBin, FileExists, FileIsDirectory, FileRemove, FileCopy, FileMove, FileMkdir, FileList,
                                  EnvironmentGet, EnvironmentHas, TestAssert,
                                  TimeNow, TimeSince, TimeSeconds, TimeSleep, TaskAll,
-                                 RandomGenerator, RandomInt, RandomFloat, RandomBool, ProcessRun,
+                                 RandomGenerator, RandomInt, RandomFloat, RandomBool, ProcessRun, ProcessShell,
                                  JsonParse, JsonKind, JsonSize, JsonGet, JsonAt, JsonText,
                                  JsonInteger, JsonNumber, JsonBigInt, JsonBigReal, JsonBoolean, JsonEncode, JsonEqual,
                                  HttpGet, HttpHeader,

@@ -3190,6 +3190,22 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     }
                     break;
                 }
+                case BuiltinCallable::ProcessShell: {
+                    if (node->args.size() != 1) {
+                        error("ARGUMENT_MISMATCH", "process.shell requires one command string.", expression.span);
+                    }
+                    auto string_type = simple(TypeKind::String);
+                    auto command = builtin_arg(0, "command", &string_type);
+                    type = poisoned(command)
+                        ? simple(TypeKind::Invalid)
+                        : Type::class_type("$std.process.Result");
+                    if (!poisoned(command)) {
+                        class_expr_initialized_paths_[&expression] = {
+                            "status", "output", "error", "started"
+                        };
+                    }
+                    break;
+                }
                 case BuiltinCallable::JsonParse: {
                     if (node->args.size() != 1) {
                         error("ARGUMENT_MISMATCH", "json.parse requires one string.", expression.span);

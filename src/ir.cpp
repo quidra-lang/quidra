@@ -3444,6 +3444,12 @@ struct Lowerer {
                     release_arg(1,args);
                     return out;
                 }
+                case BuiltinCallable::ProcessShell: {
+                    auto command=expr(*n.args[0].value),out=fresh();
+                    block->instructions.push_back(ProcessShell{out,command});
+                    release_arg(0,command);
+                    return out;
+                }
                 case BuiltinCallable::JsonParse: {
                     auto text=expr(*n.args[0].value),out=fresh();
                     block->instructions.push_back(JsonParse{out,text,checked.raw_types.at(&e)});
@@ -6048,6 +6054,7 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,RandomFloat>)out<<"%"<<n.out<<" = random.float";
     if constexpr(std::is_same_v<T,RandomBool>)out<<"%"<<n.out<<" = random.bool";
     if constexpr(std::is_same_v<T,ProcessRun>)out<<"%"<<n.out<<" = process.run %"<<n.program<<", %"<<n.args;
+    if constexpr(std::is_same_v<T,ProcessShell>)out<<"%"<<n.out<<" = process.shell %"<<n.command;
     if constexpr(std::is_same_v<T,JsonParse>)out<<"%"<<n.out<<" = json.parse %"<<n.text;
     if constexpr(std::is_same_v<T,JsonKind>)out<<"%"<<n.out<<" = json.kind";
     if constexpr(std::is_same_v<T,JsonSize>)out<<"%"<<n.out<<" = json.size";

@@ -724,7 +724,7 @@ bool b = rng.bool()
 
 ### process
 
-`process` launches an executable directly with an explicit string-array argument vector:
+`process.run` launches an executable directly with an explicit string-array argument vector:
 
 ```quidra
 process.Result result = process.run("git", ["status", "--short"])
@@ -734,7 +734,7 @@ print(result.output)
 print(result.error)
 ```
 
-No shell is inserted between the program and its arguments. `Result.started` is false when the executable could not be launched; in that case `status` is -1 and `error` describes the launch failure. If the process starts, `status` is its exit code, or `128 + signal` when it terminates by signal. `output` and `error` capture stdout and stderr independently. They are text fields, so captured streams must be valid UTF-8 and contain no embedded NUL; arbitrary binary child output is not silently coerced into a `string` and causes a deterministic runtime text failure. This separates launch failure from an ordinary nonzero child exit without treating child exit codes as Quidra runtime failures. `process.Result` is compiler-provided and cannot be directly constructed. `process.exit(status)` terminates the current Quidra program with the supplied `int` status. It is deliberately namespaced so adding process functionality does not consume another bare user identifier.
+No shell is inserted between the program and its arguments. `process.shell(command)` is the explicit alternative when shell syntax such as pipelines, redirections, or shell expansion is required. It invokes `/bin/sh -c` on POSIX systems and `cmd.exe /S /C` on Windows, returning the same `process.Result`. The command is interpreted by that shell, so untrusted values should be passed as structured arguments to `process.run` rather than concatenated into a shell command. Quidra string interpolation is processed first; literal braces in a shell command are therefore written as `{{` and `}}`. `Result.started` is false when the executable or shell could not be launched; in that case `status` is -1 and `error` describes the launch failure. If the process starts, `status` is its exit code, or `128 + signal` when it terminates by signal on POSIX systems. `output` and `error` capture stdout and stderr independently. They are text fields, so captured streams must be valid UTF-8 and contain no embedded NUL; arbitrary binary child output is not silently coerced into a `string` and causes a deterministic runtime text failure. This separates launch failure from an ordinary nonzero child exit without treating child exit codes as Quidra runtime failures. `process.Result` is compiler-provided and cannot be directly constructed. `process.exit(status)` terminates the current Quidra program with the supplied `int` status. It is deliberately namespaced so adding process functionality does not consume another bare user identifier.
 
 ### map
 

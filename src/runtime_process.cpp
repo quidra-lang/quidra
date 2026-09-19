@@ -327,3 +327,29 @@ extern "C" void* quidra_process_run(const char* program, void* args_array) {
 #endif
 }
 
+
+extern "C" void* quidra_process_shell(const char* command) {
+    if (!command) {
+        return make_process_result(-1, "", "invalid shell invocation", false);
+    }
+
+#ifdef _WIN32
+    const char* program = "cmd.exe";
+    std::vector<std::string> arguments{"/S", "/C", command};
+#else
+    const char* program = "/bin/sh";
+    std::vector<std::string> arguments{"-c", command};
+#endif
+
+    const long long count = static_cast<long long>(arguments.size());
+    std::vector<unsigned char> encoded(
+        8 + arguments.size() * sizeof(char*));
+    std::memcpy(encoded.data(), &count, sizeof(count));
+    for (std::size_t i = 0; i < arguments.size(); ++i) {
+        char* value = arguments[i].data();
+        std::memcpy(
+            encoded.data() + 8 + i * sizeof(char*),
+            &value, sizeof(value));
+    }
+    return quidra_process_run(program, encoded.data());
+}

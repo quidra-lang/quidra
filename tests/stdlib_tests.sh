@@ -562,6 +562,20 @@ process_output="$("$QUIDRA" "$TMP/process.qui")"
 process_expected="$(printf 'true\n3\nout\nerr\nfalse\n-1\ntrue')"
 [[ "$process_output" == "$process_expected" ]]
 
+cat > "$TMP/process-shell.qui" <<'QUI'
+process.Result result = process.shell("printf shell-out; printf shell-err >&2; exit 7")
+print(result.started)
+print(result.status)
+print(result.output)
+print(result.error)
+
+process.Result braces = process.shell("printf '{{}}'")
+print(braces.output)
+QUI
+process_shell_output="$("$QUIDRA" "$TMP/process-shell.qui")"
+process_shell_expected="$(printf 'true\n7\nshell-out\nshell-err\n{}')"
+[[ "$process_shell_output" == "$process_shell_expected" ]]
+
 cat > "$TMP/process-invalid-text.qui" <<'QUI'
 process.Result result = process.run("/bin/sh", ["-c", "printf '\377'"])
 print(result.output)

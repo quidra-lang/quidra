@@ -1046,7 +1046,7 @@ bool bit = rng.bool()
 
 The same seed produces the same sequence. Generator assignment follows ordinary Quidra value semantics, so a copied generator receives independent state. `Generator.int(start, end)` uses the half-open range `[start, end)`.
 
-`process` executes programs without implicit shell parsing:
+`process.run` executes programs without implicit shell parsing:
 
 ```quidra
 process.Result result = process.run("git", ["status", "--short"])
@@ -1056,7 +1056,7 @@ print(result.output)
 print(result.error)
 ```
 
-`process.run(program, args)` keeps the executable and argument array separate. `started` distinguishes launch failure from a program that started and returned a nonzero status. Standard output and standard error are captured separately. `process.exit(status)` terminates the current Quidra program with the given integer status; process termination is namespaced rather than consuming the global name `exit`.
+`process.run(program, args)` keeps the executable and argument array separate. When shell syntax is intentionally required, `process.shell(command)` runs the command through the platform shell (`/bin/sh -c` on POSIX systems and `cmd.exe /S /C` on Windows) and returns the same `process.Result`. Because the command is interpreted by a shell, untrusted text should remain structured arguments to `process.run` instead of being concatenated into a shell command. Quidra string interpolation still applies before the shell sees the command, so literal braces use `{{` and `}}`. `started` distinguishes launch failure from a program that started and returned a nonzero status. Standard output and standard error are captured separately. `process.exit(status)` terminates the current Quidra program with the given integer status; process termination is namespaced rather than consuming the global name `exit`.
 
 `map` and `set` are deterministic value containers:
 

@@ -112,6 +112,7 @@ enum class BuiltinCallable {
     RandomFloat,
     RandomBool,
     ProcessRun,
+    ProcessShell,
     JsonParse,
     JsonKind,
     JsonSize,
@@ -199,7 +200,7 @@ inline constexpr std::array<BuiltinCallableInfo, 11> builtin_callables{{
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 102> intrinsic_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 103> intrinsic_callables{{
     {"$std.math.sin", BuiltinCallable::MathSin},
     {"$std.math.cos", BuiltinCallable::MathCos},
     {"$std.math.tan", BuiltinCallable::MathTan},
@@ -240,6 +241,7 @@ inline constexpr std::array<BuiltinCallableInfo, 102> intrinsic_callables{{
     {"$std.random.float", BuiltinCallable::RandomFloat},
     {"$std.random.bool", BuiltinCallable::RandomBool},
     {"$std.process.run", BuiltinCallable::ProcessRun},
+    {"$std.process.shell", BuiltinCallable::ProcessShell},
     {"$std.process.exit", BuiltinCallable::Exit},
     {"$std.json.parse", BuiltinCallable::JsonParse},
     {"$std.json.kind", BuiltinCallable::JsonKind},
@@ -366,6 +368,7 @@ inline constexpr std::optional<std::string_view> standard_function_target(
     }
     if (module == "process") {
         if (member == "run") return "$std.process.run";
+        if (member == "shell") return "$std.process.shell";
         if (member == "exit") return "$std.process.exit";
         return std::nullopt;
     }

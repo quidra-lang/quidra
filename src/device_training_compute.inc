@@ -753,7 +753,8 @@ bool cudnn_conv2d_backward(
     };
     for(auto v:{batches,channels_in,height,width,channels_out,kernel_h,kernel_w,
                 output_h,output_w,stride,padding})if(!fits(v))return false;
-    auto& api=cudnn(); if(!api.ready)return false;
+    auto& api=cudnn();
+    if(!api.ready)return false;
     std::string ignored; auto handle=api.handle(input_gradient->backend_index,ignored);
     if(!handle)return false;
 
@@ -761,9 +762,12 @@ bool cudnn_conv2d_backward(
     CudnnApi::FilterDescriptor w_desc=nullptr,dw_desc=nullptr;
     CudnnApi::ConvolutionDescriptor conv_desc=nullptr;
     const auto cleanup=[&]{
-        if(x_desc)api.destroy_tensor(x_desc); if(dy_desc)api.destroy_tensor(dy_desc);
-        if(dx_desc)api.destroy_tensor(dx_desc); if(db_desc)api.destroy_tensor(db_desc);
-        if(w_desc)api.destroy_filter(w_desc); if(dw_desc)api.destroy_filter(dw_desc);
+        if(x_desc)api.destroy_tensor(x_desc);
+        if(dy_desc)api.destroy_tensor(dy_desc);
+        if(dx_desc)api.destroy_tensor(dx_desc);
+        if(db_desc)api.destroy_tensor(db_desc);
+        if(w_desc)api.destroy_filter(w_desc);
+        if(dw_desc)api.destroy_filter(dw_desc);
         if(conv_desc)api.destroy_convolution(conv_desc);
     };
     if(api.create_tensor(&x_desc)!=0||api.create_tensor(&dy_desc)!=0||
@@ -853,7 +857,11 @@ bool cudnn_conv2d_backward(
             ?api.find_bwd_filter_algorithms:api.get_bwd_filter_algorithms;
         if(query(handle,x_desc,dy_desc,conv_desc,dw_desc,
                  static_cast<int>(filter_perf.size()),&filter_returned,filter_perf.data())!=0||
-           filter_returned<=0){if(data_ws)release(data_ws);cleanup();return false;}
+           filter_returned<=0){
+            if(data_ws)release(data_ws);
+            cleanup();
+            return false;
+        }
         for(int i=0;i<filter_returned;++i){
             const auto& p=filter_perf[static_cast<std::size_t>(i)];
             if(p.status!=0||(deterministic&&p.determinism!=1))continue;
@@ -867,7 +875,11 @@ bool cudnn_conv2d_backward(
             break;
         }
     }
-    if(filter_algo<0){if(data_ws)release(data_ws);cleanup();return false;}
+    if(filter_algo<0){
+        if(data_ws)release(data_ws);
+        cleanup();
+        return false;
+    }
 
     const auto ptr=[](const Buffer* b){
         return reinterpret_cast<const void*>(static_cast<std::uintptr_t>(b->cuda_pointer));
@@ -899,7 +911,9 @@ bool cudnn_conv2d_backward(
         if(status==0)status=api.convolution_backward_bias(handle,&one,dy_desc,ptr(gradient),
             &zero,db_desc,mut(bias_gradient));
     }
-    if(data_ws)release(data_ws); if(filter_ws)release(filter_ws); cleanup();
+    if(data_ws)release(data_ws);
+    if(filter_ws)release(filter_ws);
+    cleanup();
     if(status!=0){
         {std::lock_guard lock(data_cache_mutex);data_cache.erase(algorithm_key);}
         {std::lock_guard lock(filter_cache_mutex);filter_cache.erase(algorithm_key);}

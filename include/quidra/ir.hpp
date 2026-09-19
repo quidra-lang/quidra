@@ -44,6 +44,7 @@ struct ArrayCanAppendMove { ValueId out; ValueId array; };
 struct ArrayGrowMove { ValueId out; ValueId array; Type array_type; };
 struct ArraySorted { ValueId out; ValueId array; Type array_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct StringIndex { ValueId out; ValueId text; ValueId index; std::uint32_t line{}; std::uint32_t column{}; };
+struct StringIndexAsciiCompare { ValueId out; ValueId text; ValueId index; unsigned char byte{}; bool negate{}; std::uint32_t line{}; std::uint32_t column{}; };
 struct StringLength { ValueId out; ValueId text; };
 struct StringContains { ValueId out; ValueId text; ValueId needle; };
 struct StringStartsWith { ValueId out; ValueId text; ValueId prefix; };
@@ -269,7 +270,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  LoadAddress, StoreAddress, BindReference, ReferenceAddress, LoadReference, StoreReference,
                                  ArrayLength, ArrayCanAppendMove, ArrayGrowMove, ArraySorted,
                                  ArrayInitializationComplete,
-                                 StringIndex, StringLength, StringContains, StringStartsWith,
+                                 StringIndex, StringIndexAsciiCompare, StringLength, StringContains, StringStartsWith,
                                  StringEndsWith, StringFind, StringSlice, StringTrim, StringSplit,
                                  StringUtf8, StringFromUtf8, StringCodepoints, StringJoin, StringConcat,
                                  StringCanAppendMove, StringAppendMove, StringRepeat,

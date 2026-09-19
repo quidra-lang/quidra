@@ -13,6 +13,7 @@
 #include <mutex>
 #include <sstream>
 #include <type_traits>
+#include <thread>
 #include <unordered_map>
 #include <utility>
 
@@ -468,6 +469,48 @@ struct CudnnApi {
 
 CudnnApi& cudnn() {
     static CudnnApi api;
+    return api;
+}
+
+
+struct NcclApi {
+    struct UniqueId { char internal[128]; };
+    using Comm = void*;
+    using Result = int;
+
+    DynamicLibrary library;
+    Result (*get_unique_id)(UniqueId*){};
+    Result (*comm_init_rank)(Comm*, int, UniqueId, int){};
+    Result (*all_reduce)(const void*, void*, std::size_t, int, int, Comm, void*){};
+    Result (*comm_destroy)(Comm){};
+    const char* (*get_error_string)(Result){};
+    bool ready{};
+
+    NcclApi() {
+#ifdef _WIN32
+        return;
+#else
+        constexpr std::array names{"libnccl.so.2", "libnccl.so"};
+        if (!open_dnn_nvidia_library(library, names)) return;
+        get_unique_id=load_symbol<decltype(get_unique_id)>(library,"ncclGetUniqueId");
+        comm_init_rank=load_symbol<decltype(comm_init_rank)>(library,"ncclCommInitRank");
+        all_reduce=load_symbol<decltype(all_reduce)>(library,"ncclAllReduce");
+        comm_destroy=load_symbol<decltype(comm_destroy)>(library,"ncclCommDestroy");
+        get_error_string=load_symbol<decltype(get_error_string)>(library,"ncclGetErrorString");
+        ready=get_unique_id&&comm_init_rank&&all_reduce&&comm_destroy;
+#endif
+    }
+
+    std::string message(Result result) const {
+        if(get_error_string){
+            if(const char* text=get_error_string(result)) return text;
+        }
+        return "NCCL error " + std::to_string(result);
+    }
+};
+
+NcclApi& nccl() {
+    static NcclApi api;
     return api;
 }
 
@@ -1244,6 +1287,143 @@ bool launch(Module* module, const char* kernel,
 
     error = "kernel module backend is not launchable";
     return false;
+}
+
+
+bool compute_all_reduce_sum(
+    const std::vector<Buffer*>& buffers, int dtype, std::size_t count,
+    std::string& error) {
+    if (buffers.empty()) {
+        error = "NCCL all-reduce requires at least one GPU tensor";
+        return false;
+    }
+    if (dtype != 9 && dtype != 10) {
+        error = "NCCL all-reduce requires float32 or float tensors";
+        return false;
+    }
+    const auto width = dtype == 10 ? sizeof(float) : sizeof(double);
+    for (auto* buffer : buffers) {
+        if (!buffer || !compute_buffer_range(buffer, 0, count, width, error)) {
+            if (error.empty()) error = "invalid NCCL all-reduce buffer";
+            return false;
+        }
+    }
+    if (buffers.size() == 1) return true;
+
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    bool all_test = true;
+    for (auto* buffer : buffers) all_test &= buffer->backend == Backend::Test;
+    if (all_test) {
+        if (dtype == 10) {
+            std::vector<float> sum(count, 0.0F);
+            for (auto* buffer : buffers) {
+                for (std::size_t i = 0; i < count; ++i) {
+                    float value{};
+                    std::memcpy(&value, buffer->test_data.data() + i * sizeof(float),
+                                sizeof(float));
+                    sum[i] += value;
+                }
+            }
+            for (auto* buffer : buffers)
+                std::memcpy(buffer->test_data.data(), sum.data(), count * sizeof(float));
+        } else {
+            std::vector<double> sum(count, 0.0);
+            for (auto* buffer : buffers) {
+                for (std::size_t i = 0; i < count; ++i) {
+                    double value{};
+                    std::memcpy(&value, buffer->test_data.data() + i * sizeof(double),
+                                sizeof(double));
+                    sum[i] += value;
+                }
+            }
+            for (auto* buffer : buffers)
+                std::memcpy(buffer->test_data.data(), sum.data(), count * sizeof(double));
+        }
+        return true;
+    }
+#endif
+
+    std::unordered_map<int, bool> seen_devices;
+    for (auto* buffer : buffers) {
+        if (buffer->backend != Backend::Nvidia) {
+            error = "NCCL all-reduce requires NVIDIA gpu(n) tensors";
+            return false;
+        }
+        if (!seen_devices.emplace(buffer->global_index, true).second) {
+            error = "NCCL all-reduce requires one tensor per distinct gpu(n)";
+            return false;
+        }
+    }
+
+    auto& api = nccl();
+    if (!api.ready) {
+        error = "NCCL is unavailable; configure the DNN NVIDIA library path";
+        return false;
+    }
+    if (buffers.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
+        error = "NCCL all-reduce rank count is too large";
+        return false;
+    }
+
+    NcclApi::UniqueId unique{};
+    const auto unique_status = api.get_unique_id(&unique);
+    if (unique_status != 0) {
+        error = "NCCL unique-id creation failed: " + api.message(unique_status);
+        return false;
+    }
+
+    const auto ranks = static_cast<int>(buffers.size());
+    std::vector<NcclApi::Comm> comms(buffers.size(), nullptr);
+    std::vector<std::string> rank_errors(buffers.size());
+    std::vector<std::thread> threads;
+    try {
+        threads.reserve(buffers.size());
+        for (std::size_t rank = 0; rank < buffers.size(); ++rank) {
+            threads.emplace_back([&, rank] {
+                auto* buffer = buffers[rank];
+                auto& cu = cuda();
+                CudaApi::CUcontext context = nullptr;
+                std::string context_error;
+                if (!cu.current(buffer->backend_index, context, context_error)) {
+                    rank_errors[rank] = context_error;
+                    return;
+                }
+                auto status = api.comm_init_rank(
+                    &comms[rank], ranks, unique, static_cast<int>(rank));
+                if (status != 0) {
+                    rank_errors[rank] =
+                        "NCCL communicator initialization failed: " + api.message(status);
+                    return;
+                }
+                void* pointer = reinterpret_cast<void*>(
+                    static_cast<std::uintptr_t>(buffer->cuda_pointer));
+                constexpr int nccl_sum = 0;
+                const int nccl_dtype = dtype == 10 ? 7 : 8;
+                status = api.all_reduce(
+                    pointer, pointer, count, nccl_dtype, nccl_sum, comms[rank], nullptr);
+                if (status == 0 && cu.ctx_synchronize)
+                    status = cu.ctx_synchronize();
+                if (status != 0)
+                    rank_errors[rank] =
+                        "NCCL all-reduce failed: " + api.message(status);
+            });
+        }
+    } catch (const std::exception& exception) {
+        for (auto& thread : threads) if (thread.joinable()) thread.join();
+        for (auto comm : comms) if (comm) (void)api.comm_destroy(comm);
+        error = std::string("cannot start NCCL rank: ") + exception.what();
+        return false;
+    }
+
+    for (auto& thread : threads) thread.join();
+    for (auto comm : comms) if (comm) (void)api.comm_destroy(comm);
+    for (const auto& rank_error : rank_errors) {
+        if (!rank_error.empty()) {
+            error = rank_error;
+            return false;
+        }
+    }
+    return true;
 }
 
 #include "device_integer_compute.inc"

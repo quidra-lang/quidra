@@ -194,6 +194,21 @@ int main() {
     require(rounded > 0.099F && rounded < 0.101F,
             "float narrowing should allow deterministic precision loss");
 
+    auto reduce0 = buffer(gpu0, 4 * sizeof(float), error);
+    auto reduce1 = buffer(gpu1, 4 * sizeof(float), error);
+    require(reduce0 && reduce1, error);
+    upload<float>(reduce0.get(), {1.0F, 2.0F, 3.0F, 4.0F}, error);
+    upload<float>(reduce1.get(), {10.0F, 20.0F, 30.0F, 40.0F}, error);
+    require(
+        quidra::device::compute_all_reduce_sum(
+            {reduce0.get(), reduce1.get()}, 10, 4, error),
+        error);
+    const std::vector<float> reduce_expected{11.0F, 22.0F, 33.0F, 44.0F};
+    require(download<float>(reduce0.get(), 4, error) == reduce_expected,
+            "all-reduce sum mismatch on first device");
+    require(download<float>(reduce1.get(), 4, error) == reduce_expected,
+            "all-reduce sum mismatch on second device");
+
     auto other_device = buffer(gpu1, 4 * sizeof(float), error);
     require(static_cast<bool>(other_device), error);
     upload<float>(other_device.get(), {1.0F, 1.0F, 1.0F, 1.0F}, error);

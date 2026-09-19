@@ -156,6 +156,10 @@ bool compute_moment_update(
     double epsilon, double correction1, double correction2,
     std::string& error);
 
+bool compute_all_reduce_sum(
+    const std::vector<Buffer*>& buffers, int dtype, std::size_t count,
+    std::string& error);
+
 bool compute_image_geometry(
     Buffer* output, const Buffer* input, int dtype,
     std::size_t channels, std::size_t input_height, std::size_t input_width,

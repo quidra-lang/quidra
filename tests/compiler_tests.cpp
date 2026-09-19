@@ -302,6 +302,30 @@ print(reals[1])
      "map.Map<bigint, int> values = map.Map<bigint, int>()\nbigint key = bigint(7)\nvalues.set(key, 2)\nauto value = values.get(key)\n",
      "call ptr @quidra_bigint_text");
 
+ // Release lowering keeps the public function ABI but threads recursion depth
+ // through an internal implementation instead of touching TLS on every direct
+ // self-recursive call. Function values retain the ordinary ABI and guard path.
+ llvm_contains(R"(int fib(int n)
+    if n < 2
+        return n
+    return fib(n - 1) + fib(n - 2)
+print(fib(10))
+)", "define i64 @n_fib.depth(i64 %arg.n, i64 %quidra.depth)");
+ llvm_contains(R"(int fib(int n)
+    if n < 2
+        return n
+    return fib(n - 1) + fib(n - 2)
+print(fib(10))
+)", "call i64 @n_fib.depth(");
+ llvm_not_contains(R"(int fib(int n)
+    if n < 2
+        return n
+    return fib(n - 1) + fib(n - 2)
+fn<int>(int) callback = fib
+print(callback(10))
+)", "@n_fib.depth");
+ // depth-parameter self recursion
+
  good(R"(uint8 a = 240
 uint8 b = 204
 uint8 both = a AND b

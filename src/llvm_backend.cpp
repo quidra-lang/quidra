@@ -349,6 +349,67 @@ std::unordered_set<std::string> recursive_functions(const ir::Module& module) {
     return result;
 }
 
+std::unordered_set<std::string> self_depth_recursive_functions(
+    const ir::Module& module,
+    const std::unordered_set<std::string>& recursive,
+    const std::unordered_set<std::string>& address_taken) {
+    std::unordered_map<std::string,std::vector<std::string>> graph;
+    for(const auto& function:module.functions) {
+        auto& edges=graph[function.name];
+        for(const auto& block:function.blocks)
+            for(const auto& instruction:block.instructions)
+                if(const auto* call=std::get_if<ir::Call>(&instruction))
+                    edges.push_back(call->callee);
+    }
+
+    const auto reaches=[&](const std::string& start,const std::string& target) {
+        std::unordered_set<std::string> visited;
+        std::function<bool(const std::string&)> visit =
+            [&](const std::string& current) {
+                const auto found=graph.find(current);
+                if(found==graph.end()) return false;
+                for(const auto& next:found->second) {
+                    if(next==target) return true;
+                    if(visited.insert(next).second&&visit(next)) return true;
+                }
+                return false;
+            };
+        visited.insert(start);
+        return visit(start);
+    };
+
+    std::unordered_set<std::string> result;
+    for(const auto& function:module.functions) {
+        if(!recursive.contains(function.name)||
+           address_taken.contains(function.name))
+            continue;
+
+        bool direct_self=false;
+        bool indirect_call=false;
+        for(const auto& block:function.blocks) {
+            for(const auto& instruction:block.instructions) {
+                if(const auto* call=std::get_if<ir::Call>(&instruction);
+                   call&&call->callee==function.name)
+                    direct_self=true;
+                if(std::holds_alternative<ir::IndirectCall>(instruction))
+                    indirect_call=true;
+            }
+        }
+        if(!direct_self||indirect_call) continue;
+
+        bool shares_recursive_depth=false;
+        for(const auto& other:recursive) {
+            if(other==function.name) continue;
+            if(reaches(function.name,other)||reaches(other,function.name)) {
+                shares_recursive_depth=true;
+                break;
+            }
+        }
+        if(!shares_recursive_depth) result.insert(function.name);
+    }
+    return result;
+}
+
 struct FunctionEmitter {
     const ir::Function& fn;
     const std::unordered_map<std::string,FunctionType>& signatures;
@@ -375,6 +436,7 @@ struct FunctionEmitter {
     std::unordered_map<const ir::Instruction*,std::vector<std::size_t>> instruction_scratch_slots;
     std::string active_repl_array_index_scratch;
     bool guard_stack_depth{};
+    bool self_depth_guard{};
     const std::unordered_set<std::string>& recursive_callees;
     std::optional<std::size_t> debug_subprogram;
     std::size_t* next_debug_metadata{};
@@ -394,7 +456,7 @@ struct FunctionEmitter {
     FunctionEmitter(const ir::Function& f,const std::unordered_map<std::string,FunctionType>&s,
                     const std::unordered_map<std::string,std::string>&externals,
                     StringPool&p,const std::unordered_map<std::string,ir::ClassLayout>&l,
-                    const ArrayLayoutPolicy&a,bool guard,
+                    const ArrayLayoutPolicy&a,bool guard,bool self_depth,
                     const std::unordered_set<std::string>& recursive,
                     std::optional<std::size_t> debug_id=std::nullopt,
                     std::size_t* next_debug_id=nullptr,
@@ -402,12 +464,56 @@ struct FunctionEmitter {
                     std::size_t debug_file_id=0,
                     std::vector<DebugVariableRecord>* debug_variables_out=nullptr)
         :fn(f),signatures(s),external_symbols(externals),pool(p),layouts(l),array_layout(a),
-         guard_stack_depth(guard),recursive_callees(recursive),debug_subprogram(debug_id),
+         guard_stack_depth(guard),self_depth_guard(self_depth),
+         recursive_callees(recursive),debug_subprogram(debug_id),
          next_debug_metadata(next_debug_id),debug_location_records(debug_records),
          debug_file(debug_file_id),debug_variable_records(debug_variables_out){}
     std::string call_symbol(const std::string& name) const {
         const auto found=external_symbols.find(name);
         return found==external_symbols.end()?mangle(name):found->second;
+    }
+    std::string definition_symbol() const {
+        if(fn.entrypoint) return "main";
+        auto symbol=mangle(fn.name);
+        if(self_depth_guard) symbol+=".depth";
+        return symbol;
+    }
+    std::string direct_call_symbol(const std::string& name) const {
+        if(self_depth_guard&&name==fn.name) return mangle(name)+".depth";
+        return call_symbol(name);
+    }
+    void emit_self_depth_wrapper() {
+        if(!self_depth_guard) return;
+        const auto public_symbol=mangle(fn.name);
+        const auto implementation_symbol=public_symbol+".depth";
+        out<<"define "<<llvm_type(fn.result)<<" @"<<public_symbol<<"(";
+        for(std::size_t i=0;i<fn.parameters.size();++i) {
+            if(i) out<<", ";
+            const auto& parameter=fn.parameters[i];
+            out<<(parameter.writable?"ptr":llvm_type(parameter.type))
+               <<" "<<arg(parameter.name);
+        }
+        out<<") alwaysinline {\nentry:\n  ";
+        const bool has_result=
+            fn.result.kind!=TypeKind::Void&&fn.result.kind!=TypeKind::Never;
+        if(has_result) out<<"%depth.entry.result = ";
+        out<<"call "<<llvm_type(fn.result)<<" @"<<implementation_symbol<<"(";
+        for(std::size_t i=0;i<fn.parameters.size();++i) {
+            if(i) out<<", ";
+            const auto& parameter=fn.parameters[i];
+            out<<(parameter.writable?"ptr":llvm_type(parameter.type))
+               <<" "<<arg(parameter.name);
+        }
+        if(!fn.parameters.empty()) out<<", ";
+        out<<"i64 1)\n";
+        if(fn.result.kind==TypeKind::Never) {
+            out<<"  unreachable\n";
+        } else if(fn.result.kind==TypeKind::Void) {
+            out<<"  ret void\n";
+        } else {
+            out<<"  ret "<<llvm_type(fn.result)<<" %depth.entry.result\n";
+        }
+        out<<"}\n\n";
     }
     std::string value(ir::ValueId id)const{return "%v"+std::to_string(id);}
     std::string local(const std::string&n)const{return "%local."+local_id(n);}
@@ -2889,7 +2995,22 @@ struct FunctionEmitter {
                 }
                 call_values.push_back(std::move(argument));
             }
-            if(recursive_callees.contains(n.callee)){
+            std::optional<std::string> self_depth_argument;
+            if(self_depth_guard&&n.callee==fn.name) {
+                const auto next=temp("call.depth.next");
+                const auto too_deep=temp("call.depth.too.deep");
+                const auto fail=unique_label("call.depth.fail");
+                const auto ok=unique_label("call.depth.ok");
+                out<<"  "<<next<<" = add i64 %quidra.depth, 1\n"
+                   <<"  "<<too_deep<<" = icmp ugt i64 "<<next<<", 4096\n"
+                   <<"  br i1 "<<too_deep<<", label %"<<fail<<", label %"<<ok<<"\n"
+                   <<fail<<":\n"
+                   <<"  call void @quidra_fail_at(ptr @.code.stack, ptr @.msg.stack, i64 "
+                   <<n.line<<", i64 "<<n.column<<")\n"
+                   <<"  unreachable\n"
+                   <<ok<<":\n";
+                self_depth_argument=next;
+            } else if(recursive_callees.contains(n.callee)) {
                 out<<"  store i64 "<<n.line<<", ptr @.quidra.source.line\n"
                    <<"  store i64 "<<n.column<<", ptr @.quidra.source.column\n";
             }
@@ -2898,7 +3019,7 @@ struct FunctionEmitter {
                 out<<value(n.out)<<" = ";
             out<<"call ";
             if(external) out<<c_abi_return_attribute(n.result);
-            out<<llvm_type(n.result)<<" @"<<call_symbol(n.callee)<<"(";
+            out<<llvm_type(n.result)<<" @"<<direct_call_symbol(n.callee)<<"(";
             for(std::size_t i=0;i<n.args.size();++i){
                 if(i) out<<", ";
                 const auto& parameter=sig.parameters[i];
@@ -2914,6 +3035,10 @@ struct FunctionEmitter {
                     if(external) out<<c_abi_parameter_attribute(parameter.type);
                     out<<" "<<call_values[i];
                 }
+            }
+            if(self_depth_argument) {
+                if(!n.args.empty()) out<<", ";
+                out<<"i64 "<<*self_depth_argument;
             }
             out<<")\n";
             if(n.result.kind==TypeKind::Never) out<<"  unreachable\n";
@@ -3031,7 +3156,7 @@ struct FunctionEmitter {
         }
     }
 
-    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type,parameter.is_const);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<")";if(debug_subprogram)out<<" !dbg !"<<*debug_subprogram;out<<" {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}emit_entry_scratch();for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";for(std::size_t pi=0;pi<fn.parameters.size();++pi){const auto&p=fn.parameters[pi];emit_debug_declare(p.name,p.name,p.type,fn.source_line,pi+1);}}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never)||(std::holds_alternative<ir::IndirectCall>(last)&&std::get<ir::IndirectCall>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";auto text=out.str();for(auto it=debug_segments.rbegin();it!=debug_segments.rend();++it)attach_debug_location_range(text,it->begin,it->end,it->location);return text;}
+    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type,parameter.is_const);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<definition_symbol()<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}if(self_depth_guard){if(!fn.parameters.empty())out<<", ";out<<"i64 %quidra.depth";}out<<")";if(debug_subprogram)out<<" !dbg !"<<*debug_subprogram;out<<" {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}emit_entry_scratch();for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";for(std::size_t pi=0;pi<fn.parameters.size();++pi){const auto&p=fn.parameters[pi];emit_debug_declare(p.name,p.name,p.type,fn.source_line,pi+1);}}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never)||(std::holds_alternative<ir::IndirectCall>(last)&&std::get<ir::IndirectCall>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";emit_self_depth_wrapper();auto text=out.str();for(auto it=debug_segments.rbegin();it!=debug_segments.rend();++it)attach_debug_location_range(text,it->begin,it->end,it->location);return text;}
 };
 
 
@@ -4310,6 +4435,9 @@ std::string emit_llvm(const ir::Module& module, bool debug_info) {
             for (const auto& instruction : block.instructions)
                 if (const auto* ref = std::get_if<ir::FunctionRef>(&instruction))
                     address_taken.insert(ref->function);
+    const auto self_depth_recursive =
+        debug_info ? std::unordered_set<std::string>{}
+                   : self_depth_recursive_functions(module,recursive,address_taken);
 
     std::string primary_source;
     if(debug_info) {
@@ -4349,9 +4477,11 @@ std::string emit_llvm(const ir::Module& module, bool debug_info) {
         const auto& f=module.functions[i];
         const auto debug_file=
             debug_subprograms[i]?debug_files.at(f.source_file):0;
+        const bool self_depth=self_depth_recursive.contains(f.name);
         auto emitted=FunctionEmitter{
             f, sigs, external_symbols, pool, layouts, array_layout,
-            recursive.contains(f.name) || address_taken.contains(f.name), recursive, debug_subprograms[i],
+            (recursive.contains(f.name) || address_taken.contains(f.name)) && !self_depth,
+            self_depth, recursive, debug_subprograms[i],
             debug_info?&next_debug_metadata:nullptr,
             debug_info?&debug_statement_locations:nullptr,
             debug_file,

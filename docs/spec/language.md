@@ -511,7 +511,7 @@ Explicit numeric casts use the destination scalar type as the operation: `float(
 
 ## Implementation scope
 
-The native core supports fixed-width numeric types, no implicit representation-changing numeric conversion, and practical explicit casts, numeric parsing and scalar text conversion, packed mutable bin, initialized/uninitialized arrays, first-class dense tensors, tensor statistics and vector/matrix multiplication, PNG/JPEG/BMP/TIFF/WebP image I/O through `image`, console I/O, automatic standard namespaces, explicit package/local-module resolution, monomorphized generics with unambiguous function/method inference, user-defined classes, single inheritance, and the mechanisms described here. Concurrency, WASM, self-hosting, broader signal-processing APIs, and broader package distribution remain development areas.
+The native core supports fixed-width numeric types, no implicit representation-changing numeric conversion, and practical explicit casts, numeric parsing and scalar text conversion, packed mutable bin, initialized/uninitialized arrays, first-class dense tensors, tensor statistics and vector/matrix multiplication, PNG/JPEG/BMP/TIFF/WebP image I/O through `image`, console I/O, automatic standard namespaces, explicit package/local-module resolution, monomorphized generics with unambiguous function/method inference, user-defined classes, single inheritance, capture-free typed function values, and a minimal structured-concurrency primitive (`task.all`) for capture-free `fn<void>()` operations. Richer concurrency (typed task results, cancellation, and explicit value transfer), WASM, self-hosting, broader signal-processing APIs, and broader package distribution remain development areas.
 
 
 ## Standard namespaces and imports
@@ -755,6 +755,33 @@ print(apply(operation, 21))
 A function declaration becomes a value only when an explicit `fn<...>(...)` context supplies the complete signature. `auto operation = twice` is rejected rather than inferring an implicit function type. Conversion requires an exact result/parameter match and currently represents only by-value parameters; a function with a reference parameter cannot be converted to an `fn` value. `extern` C declarations are not function values, and methods are not implicitly converted into bound closures. Function-value calls use positional by-value arguments only.
 
 The value contains only the statically known code target: it captures no local, receiver, top-level, or hidden environment. Ordinary assignment/pass/return therefore does not create a closure allocation or hidden lifetime. Function identity is not part of source semantics, so `==` and `!=` are not defined for function values. Calling an uninitialized function binding is a definite-initialization error. A function value stored behind an explicit reference still follows the ordinary reference read-before-use rules.
+
+### Structured concurrency
+
+`task.all(operations)` is the current deliberately small concurrency surface.
+It accepts `fn<void>()[]`, starts each capture-free operation, waits for every
+started operation, and returns only after all have joined. The operation lifetime
+is therefore lexically bounded by the call: there are no detached tasks.
+
+```quidra
+void first()
+    print("first")
+
+void second()
+    print("second")
+
+task.all([first, second])
+```
+
+The completion order of independent operations is intentionally unspecified.
+Because function values have no captures and `task.all` accepts no arguments,
+managed Quidra values cannot currently cross the thread boundary through this
+API. Managed ownership therefore remains thread-local rather than becoming
+implicitly synchronized. Shared mutable state, implicit thread sharing, detached
+task lifetime, hidden cancellation, and implicit value transfer are not part of
+this subset. Typed task results, cancellation, and explicit cross-task value
+transfer require a separate ownership/error contract and are intentionally not
+specified yet.
 
 Class values preserve field-level definite initialization while they remain class-typed. Converting a class value into a union closes that hidden initialization state: the class must be fully definitely initialized first. Therefore a class alternative selected by exhaustive `match` is known to be fully initialized, including when the union crossed a function boundary.
 

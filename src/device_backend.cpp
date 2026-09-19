@@ -291,6 +291,10 @@ struct CublasApi {
                     const double*, double*, int){};
     std::vector<Handle> handles;
     std::vector<std::shared_ptr<std::mutex>> operation_mutexes;
+    // Reusable per-device cuDNN scratch. A device's operation mutex serializes
+    // access, so steady-state convolution does not need per-call allocation.
+    std::vector<CudaApi::CUdeviceptr> workspaces;
+    std::vector<std::size_t> workspace_sizes;
     std::mutex mutex;
     bool ready{};
 
@@ -440,6 +444,9 @@ struct CudnnApi {
     bool ready{};
 
     CudnnApi() {
+        // Construct CUDA before this singleton so CUDA remains alive while the
+        // cuDNN destructor drains/free its process-lifetime device scratch.
+        (void)cuda();
 #ifdef _WIN32
         constexpr std::array names{"cudnn64_9.dll", "cudnn64_8.dll"};
 #else
@@ -484,8 +491,19 @@ struct CudnnApi {
     }
 
     ~CudnnApi() {
-        if(!destroy)return;
-        for(auto handle:handles) if(handle) (void)destroy(handle);
+        auto& cu=cuda();
+        for(std::size_t i=0;i<handles.size();++i){
+            const bool has_workspace=i<workspaces.size()&&workspaces[i]!=0;
+            if(handles[i]||has_workspace){
+                std::string ignored;
+                CudaApi::CUcontext context=nullptr;
+                if(cu.current(static_cast<int>(i),context,ignored)){
+                    if(cu.ctx_synchronize)(void)cu.ctx_synchronize();
+                    if(has_workspace&&cu.mem_free)(void)cu.mem_free(workspaces[i]);
+                }
+            }
+            if(handles[i]&&destroy)(void)destroy(handles[i]);
+        }
     }
 
     Handle handle(int backend_index,std::string& error) {
@@ -502,6 +520,10 @@ struct CudnnApi {
             handles.resize(static_cast<std::size_t>(count),nullptr);
         if(operation_mutexes.size()<static_cast<std::size_t>(count))
             operation_mutexes.resize(static_cast<std::size_t>(count));
+        if(workspaces.size()<static_cast<std::size_t>(count)){
+            workspaces.resize(static_cast<std::size_t>(count),0);
+            workspace_sizes.resize(static_cast<std::size_t>(count),0);
+        }
         auto& operation=operation_mutexes[static_cast<std::size_t>(backend_index)];
         if(!operation)operation=std::make_shared<std::mutex>();
         auto& result=handles[static_cast<std::size_t>(backend_index)];
@@ -514,6 +536,42 @@ struct CudnnApi {
     std::shared_ptr<std::mutex> operation_mutex(int backend_index) {
         std::lock_guard lock(mutex);
         return operation_mutexes.at(static_cast<std::size_t>(backend_index));
+    }
+
+    CudaApi::CUdeviceptr workspace(
+        int backend_index,std::size_t bytes,std::string& error) {
+        if(bytes==0)return 0;
+        if(backend_index<0||
+           static_cast<std::size_t>(backend_index)>=workspaces.size()){
+            error="invalid cuDNN workspace device";
+            return 0;
+        }
+        auto& cu=cuda();
+        CudaApi::CUcontext context=nullptr;
+        if(!cu.current(backend_index,context,error))return 0;
+        const auto index=static_cast<std::size_t>(backend_index);
+        if(workspaces[index]&&workspace_sizes[index]>=bytes)
+            return workspaces[index];
+
+        CudaApi::CUdeviceptr replacement=0;
+        if(!cu.mem_alloc||cu.mem_alloc(&replacement,bytes)!=0||replacement==0){
+            error="cuDNN workspace allocation failed";
+            return 0;
+        }
+
+        // Growing is rare. Synchronize only at this lifetime boundary before
+        // freeing scratch that an earlier asynchronous convolution may still use.
+        if(workspaces[index]){
+            if(!cu.ctx_synchronize||cu.ctx_synchronize()!=0){
+                if(cu.mem_free)(void)cu.mem_free(replacement);
+                error="failed to synchronize before growing cuDNN workspace";
+                return 0;
+            }
+            if(cu.mem_free)(void)cu.mem_free(workspaces[index]);
+        }
+        workspaces[index]=replacement;
+        workspace_sizes[index]=bytes;
+        return replacement;
     }
 };
 

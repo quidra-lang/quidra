@@ -108,6 +108,34 @@ static void ir_contains(const std::string& s, const std::string& expected) {
     }
     std::exit(1);
 }
+static void ir_function_not_contains(
+    const std::string& s, const std::string& function_marker,
+    const std::string& unexpected) {
+    try {
+        const auto c = quidra::compile(s);
+        const auto dumped = quidra::ir::dump(c.ir);
+        const auto marker = dumped.find(function_marker);
+        if (marker == std::string::npos) {
+            std::cerr << "typed IR output missing function marker: " << function_marker << "\n"
+                      << dumped << "\n";
+            std::exit(1);
+        }
+        const auto begin = dumped.rfind("function ", marker);
+        const auto end = dumped.find("\nend\n", marker);
+        if (begin == std::string::npos || end == std::string::npos) {
+            std::cerr << "cannot isolate typed IR function for marker: " << function_marker << "\n"
+                      << dumped << "\n";
+            std::exit(1);
+        }
+        const auto body = dumped.substr(begin, end + 5 - begin);
+        if (body.find(unexpected) == std::string::npos) return;
+        std::cerr << "typed IR function unexpectedly contains fragment: " << unexpected << "\n"
+                  << body << "\n";
+    } catch (const std::exception& e) {
+        std::cerr << "unexpected typed IR generation rejection: " << e.what() << "\n" << s;
+    }
+    std::exit(1);
+}
 static void llvm_contains(const std::string& s, const std::string& expected) {
     try {
         const auto c = quidra::compile(s);
@@ -337,8 +365,14 @@ print(reals[1])
      "set.Set<int> values = set.Set<int>()\nvalues.add(1)\nbool present = values.has(1)\n",
      "___slot_of(", "srem i64");
  // Map/Set scalar fields have compiler-owned initializers. Array-copy paths
- // inside these methods may still need element initialization checks, so do not
- // treat every init-check in the whole method as a scalar-field regression.
+ // inside these methods may still need element initialization checks, so scope
+ // this regression to the typed-IR address path used by scalar compound updates.
+ ir_function_not_contains(
+     "map.Map<int, int> values = map.Map<int, int>()\nvalues.set(1, 2)\n",
+     ".set(", "address.load");
+ ir_function_not_contains(
+     "map.Map<int, int> values = map.Map<int, int>()\nvalues.set(1, 2)\n",
+     ".set(", "address.store");
 
  // Compiler-owned +1 induction variables are bounded by their loop
  // conditions, so they do not need a checked-overflow branch on every iteration.

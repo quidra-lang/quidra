@@ -144,3 +144,134 @@ jobs:
           name: current-native-${{ github.sha }}
           path: ${{ runner.temp }}/current-native.json
           if-no-files-found: warn
+
+  repl-latency:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native dependencies
+        run: brew install curl libpng jpeg-turbo libtiff webp
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON -DCMAKE_PREFIX_PATH="$(brew --prefix curl);$(brew --prefix libpng);$(brew --prefix jpeg-turbo);$(brew --prefix libtiff);$(brew --prefix webp)"
+      - name: Build Quidra
+        run: cmake --build build --parallel
+      - name: Measure persistent REPL latency
+        env:
+          QUIDRA_BIN: ${{ github.workspace }}/build/quidra
+        run: |
+          python3 - <<'PY'
+          import json, os, select, statistics, subprocess, time
+          quidra = os.environ["QUIDRA_BIN"]
+
+          def startup_once():
+              started = time.perf_counter()
+              completed = subprocess.run(
+                  [quidra, "repl"], input=b":quit\n",
+                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+              if completed.returncode != 0:
+                  raise SystemExit(f"REPL startup failed with {completed.returncode}")
+              return time.perf_counter() - started
+
+          def read_prompt(process, timeout=120):
+              data = bytearray()
+              deadline = time.monotonic() + timeout
+              fd = process.stdout.fileno()
+              while b">>> " not in data:
+                  remaining = deadline - time.monotonic()
+                  if remaining <= 0:
+                      process.kill()
+                      raise SystemExit("timed out waiting for REPL prompt")
+                  ready, _, _ = select.select([fd], [], [], remaining)
+                  if not ready:
+                      process.kill()
+                      raise SystemExit("timed out waiting for REPL output")
+                  chunk = os.read(fd, 4096)
+                  if not chunk:
+                      raise SystemExit(f"REPL exited before prompt with {process.poll()}")
+                  data.extend(chunk)
+
+          def session_once():
+              process = subprocess.Popen(
+                  [quidra, "repl"], stdin=subprocess.PIPE,
+                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+              read_prompt(process)
+              declarations = []
+              for index in range(20):
+                  source = (
+                      f"int repl_perf_{index}(int value)\n"
+                      f"    return value + {index}\n\n").encode()
+                  started = time.perf_counter()
+                  process.stdin.write(source); process.stdin.flush()
+                  read_prompt(process)
+                  declarations.append(time.perf_counter() - started)
+
+              expressions = []
+              for value in range(5):
+                  started = time.perf_counter()
+                  process.stdin.write(f"repl_perf_19({value})\n".encode())
+                  process.stdin.flush()
+                  read_prompt(process)
+                  expressions.append(time.perf_counter() - started)
+
+              process.stdin.write(b":quit\n"); process.stdin.flush()
+              if process.wait(timeout=30) != 0:
+                  raise SystemExit("REPL session exited nonzero")
+              return declarations, expressions
+
+          startup = [startup_once() for _ in range(5)]
+          declaration_samples = []
+          expression_samples = []
+          for _ in range(3):
+              declarations, expressions = session_once()
+              declaration_samples.extend(declarations[10:])
+              expression_samples.extend(expressions)
+
+          result = {
+              "kind": "persistent-repl-latency",
+              "startup_seconds": startup,
+              "startup_median_seconds": statistics.median(startup),
+              "declaration_seconds": declaration_samples,
+              "declaration_median_seconds": statistics.median(declaration_samples),
+              "expression_seconds": expression_samples,
+              "expression_median_seconds": statistics.median(expression_samples),
+              "sessions": 3,
+              "declarations_per_session": 20,
+              "measured_declarations_per_session": 10,
+              "expressions_per_session": 5,
+          }
+          path = os.path.join(os.environ["RUNNER_TEMP"], "repl-latency.json")
+          with open(path, "w") as handle:
+              json.dump(result, handle, indent=2)
+          print(json.dumps(result, indent=2))
+          PY
+      - name: Summarize REPL latency
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, os
+          path = os.path.join(os.environ["RUNNER_TEMP"], "repl-latency.json")
+          if not os.path.exists(path):
+              print("repl-latency.json was not produced")
+              raise SystemExit(0)
+          data = json.load(open(path))
+          text = "\n".join([
+              "## Persistent REPL latency",
+              "",
+              f"- startup median: {data['startup_median_seconds']:.4f} s",
+              f"- declaration-only submission median: {data['declaration_median_seconds']:.4f} s",
+              f"- executable expression submission median: {data['expression_median_seconds']:.4f} s",
+              "",
+              "Executable-expression latency is measured inside one persistent accumulated-source REPL process, not via compile+link+execute."
+          ]) + "\n"
+          print(text)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as handle:
+              handle.write(text)
+          PY
+      - name: Preserve REPL measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repl-latency-${{ github.sha }}
+          path: ${{ runner.temp }}/repl-latency.json
+          if-no-files-found: warn

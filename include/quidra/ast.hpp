@@ -138,6 +138,8 @@ struct FunctionDecl {
     bool is_private{};
     std::vector<std::string> type_parameters;
     std::optional<std::string> external_symbol;
+    // Empty string means unconstrained. Entries align with type_parameters.
+    std::vector<std::string> type_constraints;
 };
 
 struct FieldDecl {
@@ -158,6 +160,8 @@ struct ClassDecl {
     SourceSpan span{};
     std::vector<std::string> type_parameters;
     std::optional<TypeName> parent_type;
+    // Empty string means unconstrained. Entries align with type_parameters.
+    std::vector<std::string> type_constraints;
 };
 
 struct ImportDecl {

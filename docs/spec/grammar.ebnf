@@ -27,7 +27,9 @@ field            = [ "const" ], type, identifier, [ "=", expression ], statement
 
 function         = type, identifier, [ type_parameters ],
                    "(", [ parameters ], ")", suite ;
-type_parameters  = "<", identifier, { ",", identifier }, ">" ;
+type_parameters  = "<", type_parameter, { ",", type_parameter }, ">" ;
+type_parameter   = identifier, [ ":", generic_constraint ] ;
+generic_constraint = "numeric" | "integer" | "floating" | "ordered" | "equatable" ;
 parameters       = parameter, { ",", parameter }, [ "," ] ;
 parameter        = [ "const" ], type, [ "&" ], identifier, [ "=", expression ] ;
 

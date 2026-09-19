@@ -178,7 +178,21 @@ Generic type arguments may themselves be arrays, unions, or instantiated generic
 
 Quidra implements generics by monomorphization. Each used concrete type-argument tuple produces one internal concrete class, function, or method before ordinary static checking and IR lowering. Repeated uses of the same tuple reuse the same instance. Generic declarations that are never instantiated do not emit native code.
 
-Generic function and method calls infer type arguments only when every generic parameter is uniquely determined from the call arguments. If inference is incomplete, explicit type arguments are required. Generic classes remain explicit. Supplying type arguments to a non-generic target is an error. There is no separate constraints syntax; the fully substituted body is checked normally, so an operation must be valid for every concrete instantiation actually used.
+Generic function and method calls infer type arguments only when every generic parameter is uniquely determined from the call arguments. If inference is incomplete, explicit type arguments are required. Generic classes remain explicit. Supplying type arguments to a non-generic target is an error.
+
+A generic parameter may carry one minimal built-in compile-time constraint:
+
+```quidra
+T maximum<T: ordered>(T a, T b)
+    if a > b
+        return a
+    return b
+
+tensor<T> normalize<T: floating>(tensor<T> value)
+    return value
+```
+
+The built-in constraints are `numeric`, `integer`, `floating`, `ordered`, and `equatable`. They add no runtime representation, vtable, dynamic dispatch, or implicit conversion. `integer` accepts the fixed-width integer families and `bigint`; `floating` accepts `float32` and `float`; `numeric` accepts integer, floating, and `bigreal`; `ordered` is the numeric set with relational ordering; and `equatable` accepts values with ordinary structural/scalar equality. Constraint failure is diagnosed before a concrete generic body is emitted. User-defined traits/interfaces are intentionally not part of this constraint system.
 
 ## Classes
 

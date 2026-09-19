@@ -2130,6 +2130,29 @@ print(result)
     return value
 print(identity<int, int>(1))
 )", "GENERIC_ARITY");
+ good(R"(T maximum<T: ordered>(T a, T b)
+    if a > b
+        return a
+    return b
+print(maximum<int>(3, 7))
+)");
+ good(R"(T square<T: numeric>(T value)
+    return value * value
+print(square<float32>(float32(3.0)))
+)");
+ good(R"(class Box<T: equatable>
+    T value
+Box<string> box = Box<string>(value = "ok")
+print(box.value)
+)");
+ bad_code(R"(T square<T: numeric>(T value)
+    return value
+print(square<string>("no"))
+)", "GENERIC_CONSTRAINT");
+ bad_code(R"(T bad<T: mystery>(T value)
+    return value
+print(bad<int>(1))
+)", "GENERIC_CONSTRAINT");
  bad_code(R"(int plain(int value)
     return value
 print(plain<int>(1))

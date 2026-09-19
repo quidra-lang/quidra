@@ -304,10 +304,18 @@ bool Parser::looks_like_declaration(bool function) const {
 
     if (function && i < tokens_.size() && tokens_[i].kind == TokenKind::Less) {
         ++i;
-        if (i >= tokens_.size() || tokens_[i++].kind != TokenKind::Identifier) return false;
+        const auto scan_parameter = [&]() {
+            if (i >= tokens_.size() || tokens_[i++].kind != TokenKind::Identifier) return false;
+            if (i < tokens_.size() && tokens_[i].kind == TokenKind::Colon) {
+                ++i;
+                if (i >= tokens_.size() || tokens_[i++].kind != TokenKind::Identifier) return false;
+            }
+            return true;
+        };
+        if (!scan_parameter()) return false;
         while (i < tokens_.size() && tokens_[i].kind == TokenKind::Comma) {
             ++i;
-            if (i >= tokens_.size() || tokens_[i++].kind != TokenKind::Identifier) return false;
+            if (!scan_parameter()) return false;
         }
         if (i >= tokens_.size() || tokens_[i++].kind != TokenKind::Greater) return false;
     }
@@ -557,14 +565,23 @@ std::vector<TypeName> Parser::type_argument_list() {
     return arguments;
 }
 
-std::vector<std::string> Parser::type_parameter_list() {
+std::vector<std::string> Parser::type_parameter_list(std::vector<std::string>* constraints) {
     if (!match(TokenKind::Less)) return {};
     std::vector<std::string> parameters;
+    std::vector<std::string> parsed_constraints;
     if (at(TokenKind::Greater)) error(peek(), "Generic type parameter list cannot be empty.");
     do {
-        parameters.push_back(consume(TokenKind::Identifier, "Expected generic type parameter name.").text);
+        parameters.push_back(
+            consume(TokenKind::Identifier, "Expected generic type parameter name.").text);
+        std::string constraint;
+        if (match(TokenKind::Colon)) {
+            constraint =
+                consume(TokenKind::Identifier, "Expected generic constraint name after ':'.").text;
+        }
+        parsed_constraints.push_back(std::move(constraint));
     } while (match(TokenKind::Comma));
     consume(TokenKind::Greater, "Expected '>' after generic type parameters.");
+    if (constraints) *constraints = std::move(parsed_constraints);
     return parameters;
 }
 
@@ -698,7 +715,8 @@ void Parser::cli_decl(Program& program) {
 ClassDecl Parser::class_decl() {
     const auto start = consume(TokenKind::KwClass, "Expected class.").span.start;
     const auto name = consume(TokenKind::Identifier, "Expected class name.");
-    auto type_parameters = type_parameter_list();
+    std::vector<std::string> type_constraints;
+    auto type_parameters = type_parameter_list(&type_constraints);
 
     std::optional<std::string> parent;
     std::optional<TypeName> parent_type;
@@ -742,8 +760,11 @@ ClassDecl Parser::class_decl() {
         consume_newlines();
     }
     const auto end = consume(TokenKind::Dedent, "Expected end of class body.").span.end;
-    return ClassDecl{name.text, {}, std::move(parent), std::move(fields), std::move(methods),
-                     {start, end}, std::move(type_parameters), std::move(parent_type)};
+    auto declaration =
+        ClassDecl{name.text, {}, std::move(parent), std::move(fields), std::move(methods),
+                  {start, end}, std::move(type_parameters), std::move(parent_type)};
+    declaration.type_constraints = std::move(type_constraints);
+    return declaration;
 }
 
 FunctionDecl Parser::function_decl(bool allow_override) {
@@ -752,7 +773,8 @@ FunctionDecl Parser::function_decl(bool allow_override) {
     if(is_override && !allow_override) error(previous(),"override is only valid on a class method.");
     auto result=type_name();auto start=declaration_start;
     auto name=consume(TokenKind::Identifier,"Expected function name.");
-    auto type_parameters=type_parameter_list();
+    std::vector<std::string> type_constraints;
+    auto type_parameters=type_parameter_list(&type_constraints);
     consume(TokenKind::LParen,"Expected '('."); std::vector<Parameter> params;
     while(!at(TokenKind::RParen)) {
         const bool is_const=match(TokenKind::KwConst);
@@ -763,8 +785,11 @@ FunctionDecl Parser::function_decl(bool allow_override) {
     }
     consume(TokenKind::RParen,"Expected ')'.");end_statement("function signature");auto body=block_until(false);
     auto end=previous().span.end;
-    return FunctionDecl{name.text, {}, std::move(params), std::move(result), std::move(body),
-                        {start, end}, is_override, false, std::move(type_parameters), std::nullopt};
+    auto declaration =
+        FunctionDecl{name.text, {}, std::move(params), std::move(result), std::move(body),
+                     {start, end}, is_override, false, std::move(type_parameters), std::nullopt};
+    declaration.type_constraints = std::move(type_constraints);
+    return declaration;
 }
 
 

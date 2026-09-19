@@ -1751,12 +1751,70 @@ public:
     }
 
 private:
+    static bool known_generic_constraint(std::string_view constraint) {
+        return constraint.empty() || constraint == "numeric" || constraint == "integer" ||
+               constraint == "floating" || constraint == "ordered" ||
+               constraint == "equatable";
+    }
+
+    static bool scalar_integer_constraint_type(std::string_view name) {
+        return name == "int" || name == "int64" || name == "int8" ||
+               name == "int16" || name == "int32" || name == "uint8" ||
+               name == "uint16" || name == "uint32" || name == "uint64" ||
+               name == "bigint";
+    }
+
+    static bool scalar_floating_constraint_type(std::string_view name) {
+        return name == "float" || name == "float64" || name == "float32";
+    }
+
+    static bool scalar_numeric_constraint_type(std::string_view name) {
+        return scalar_integer_constraint_type(name) ||
+               scalar_floating_constraint_type(name) || name == "bigreal";
+    }
+
+    static bool satisfies_generic_constraint(
+        TypeName type, std::string_view constraint) {
+        if (constraint.empty()) return true;
+        if (!type.dimensions.empty()) {
+            if (constraint != "equatable") return false;
+            type.dimensions.clear();
+            type.dimension_expressions.clear();
+            type.array_depth = 0;
+            return satisfies_generic_constraint(std::move(type), "equatable");
+        }
+        if (!type.arguments.empty() || !type.function_parameters.empty() ||
+            type.name == "tensor" || type.name == "neural" || type.name == "fn") {
+            return false;
+        }
+        if (constraint == "integer") return scalar_integer_constraint_type(type.name);
+        if (constraint == "floating") return scalar_floating_constraint_type(type.name);
+        if (constraint == "numeric" || constraint == "ordered")
+            return scalar_numeric_constraint_type(type.name);
+        if (constraint == "equatable") {
+            if (scalar_numeric_constraint_type(type.name) || type.name == "bool" ||
+                type.name == "string" || type.name == "bin") {
+                return true;
+            }
+            // User classes have structural equality when their fields are
+            // equatable; the ordinary checker remains the authority for the
+            // recursive field requirement.
+            return !is_language_type_name(type.name);
+        }
+        return false;
+    }
+
     void validate_type_parameters(
         const std::vector<std::string>& parameters,
+        const std::vector<std::string>& constraints,
         const std::unordered_set<std::string>& additionally_reserved,
         SourceSpan span) const {
+        if (!constraints.empty() && constraints.size() != parameters.size()) {
+            throw std::logic_error("Generic constraint metadata is misaligned.");
+        }
         std::unordered_set<std::string> seen;
-        for (const auto& parameter : parameters) {
+        for (std::size_t i = 0; i < parameters.size(); ++i) {
+            const auto& parameter = parameters[i];
             if (!seen.insert(parameter).second) {
                 frontend_error("DUPLICATE_NAME",
                                "Duplicate generic type parameter '" + parameter + "'.",
@@ -1768,6 +1826,36 @@ private:
                                "Generic type parameter name '" + parameter + "' is reserved or already visible.",
                                span);
             }
+            const auto constraint =
+                constraints.empty() ? std::string_view{} : std::string_view(constraints[i]);
+            if (!known_generic_constraint(constraint)) {
+                frontend_error(
+                    "GENERIC_CONSTRAINT",
+                    "Unknown generic constraint '" + std::string(constraint) +
+                        "' on type parameter '" + parameter + "'.",
+                    span);
+            }
+        }
+    }
+
+    void validate_generic_arguments(
+        const std::vector<std::string>& parameters,
+        const std::vector<std::string>& constraints,
+        const std::vector<TypeName>& arguments,
+        std::string_view target_kind,
+        std::string_view target_name,
+        SourceSpan span) const {
+        if (constraints.empty()) return;
+        for (std::size_t i = 0; i < arguments.size() && i < parameters.size(); ++i) {
+            if (constraints[i].empty()) continue;
+            if (satisfies_generic_constraint(arguments[i], constraints[i])) continue;
+            frontend_error(
+                "GENERIC_CONSTRAINT",
+                "Type '" + canonical_type(arguments[i]) +
+                    "' does not satisfy generic constraint '" + constraints[i] +
+                    "' for '" + parameters[i] + "' in " +
+                    std::string(target_kind) + " '" + std::string(target_name) + "'.",
+                arguments[i].span.start.offset ? arguments[i].span : span);
         }
     }
 
@@ -1801,7 +1889,9 @@ private:
         }
 
         for (const auto& class_decl : source_.classes) {
-            validate_type_parameters(class_decl.type_parameters, declaration_names, class_decl.span);
+            validate_type_parameters(
+                class_decl.type_parameters, class_decl.type_constraints,
+                declaration_names, class_decl.span);
             const std::unordered_set<std::string> class_parameters{
                 class_decl.type_parameters.begin(), class_decl.type_parameters.end()};
             const bool standard_generated =
@@ -1831,12 +1921,16 @@ private:
                                    "Duplicate class member '" + method.name + "'.",
                                    method.span);
                 }
-                validate_type_parameters(method.type_parameters, class_parameters, method.span);
+                validate_type_parameters(
+                    method.type_parameters, method.type_constraints,
+                    class_parameters, method.span);
             }
         }
 
         for (const auto& function : source_.functions) {
-            validate_type_parameters(function.type_parameters, declaration_names, function.span);
+            validate_type_parameters(
+                function.type_parameters, function.type_constraints,
+                declaration_names, function.span);
         }
     }
 
@@ -2780,6 +2874,7 @@ private:
             out.is_private = source.is_private;
             out.type_parameters = source.type_parameters;
             out.external_symbol = source.external_symbol;
+            out.type_constraints = source.type_constraints;
 
             for (const auto& parameter : source.parameters) {
                 Parameter copy;
@@ -2827,6 +2922,9 @@ private:
                                " type argument(s), got " + std::to_string(arguments.size()) + ".",
                            templ->second->span);
         }
+        validate_generic_arguments(
+            templ->second->type_parameters, templ->second->type_constraints,
+            arguments, "class", name, templ->second->span);
 
         const bool neural_float_class = name == "$std.neural.Parameter";
         if (neural_float_class && !arguments.empty()) {
@@ -2977,6 +3075,9 @@ private:
                                " type argument(s), got " + std::to_string(arguments.size()) + ".",
                            templ->second->span);
         }
+        validate_generic_arguments(
+            templ->second->type_parameters, templ->second->type_constraints,
+            arguments, "function", name, templ->second->span);
 
         const auto key = instance_key(name, arguments);
         if (const auto existing = function_instances_.find(key); existing != function_instances_.end()) {
@@ -2996,6 +3097,7 @@ private:
         auto concrete = clone_function(*templ->second, substitution, {}, "");
         concrete.name = concrete_name;
         concrete.type_parameters.clear();
+        concrete.type_constraints.clear();
         output_.functions.push_back(std::move(concrete));
         return concrete_name;
     }
@@ -3055,6 +3157,9 @@ private:
                                " type argument(s), got " + std::to_string(arguments.size()) + ".",
                            templ.span);
         }
+        validate_generic_arguments(
+            templ.type_parameters, templ.type_constraints, arguments,
+            "method", method, templ.span);
 
         const auto key = instance_key(method, arguments);
         auto& done = instantiated_methods_[class_name];
@@ -3071,6 +3176,7 @@ private:
         auto concrete = clone_function(templ, substitution, {}, class_name);
         concrete.name = concrete_method_name;
         concrete.type_parameters.clear();
+        concrete.type_constraints.clear();
         output_.classes[class_index_.at(class_name)].methods.push_back(std::move(concrete));
     }
 };

@@ -32,6 +32,22 @@ static void reject(const std::string& source) {
 }
 
 int main() {
+    {
+        auto generic = parse(
+            "T maximum<T: ordered>(T a, T b)\n"
+            "    return a\n"
+            "class Box<T: equatable>\n"
+            "    T value\n"
+        );
+        require(generic.functions.size() == 1 &&
+                generic.functions[0].type_parameters == std::vector<std::string>({"T"}) &&
+                generic.functions[0].type_constraints == std::vector<std::string>({"ordered"}),
+                "generic function constraint AST");
+        require(generic.classes.size() == 1 &&
+                generic.classes[0].type_constraints == std::vector<std::string>({"equatable"}),
+                "generic class constraint AST");
+        reject("T bad<T:>(T value)\n    return value\n");
+    }
     reject("tensor<float32, 3> invalid\n");
     reject("tensor<3, _, _> invalid\n");
     reject("tensor<float32><3, , _> invalid\n");

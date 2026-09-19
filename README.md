@@ -284,7 +284,7 @@ Parent | Child value
 
 Overrides are explicit and signature-checked. `super.method(...)` is statically resolved.
 
-Generics follow the same preference for explicit structure: generic classes keep explicit type arguments, while generic functions and methods infer them only when every generic parameter is uniquely determined by the call arguments. Concrete instances are monomorphized before ordinary checking and native lowering.
+Generics follow the same preference for explicit structure: generic classes keep explicit type arguments, while generic functions and methods infer them only when every generic parameter is uniquely determined by the call arguments. A parameter may use one small built-in compile-time constraint such as `T: numeric`, `T: integer`, `T: floating`, `T: ordered`, or `T: equatable`; this is not a runtime trait/interface system. Concrete instances are monomorphized before ordinary checking and native lowering.
 
 Functions can also cross a call boundary as explicit capture-free values. `fn<int>(int) operation = twice` states the complete signature; `auto operation = twice` is intentionally rejected. The value is only the code target: there is no hidden closure environment, bound receiver, or implicit lifetime. Signature mismatches, reference-parameter functions, and `extern` functions are rejected before lowering.
 

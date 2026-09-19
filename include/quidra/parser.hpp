@@ -39,7 +39,7 @@ private:
     ExprPtr type_integer_term();
     ExprPtr type_integer_factor();
     std::vector<TypeName> type_argument_list();
-    std::vector<std::string> type_parameter_list();
+    std::vector<std::string> type_parameter_list(std::vector<std::string>* constraints = nullptr);
     ImportDecl import_decl();
     void cli_decl(Program& program);
     ClassDecl class_decl();

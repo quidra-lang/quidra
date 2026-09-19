@@ -23,6 +23,50 @@ char* copy_validated_text(const std::string& value) {
         value.data(), static_cast<unsigned long long>(value.size()));
 }
 
+char* read_text_direct(const char* path) {
+    std::error_code size_error;
+    const auto file_bytes = std::filesystem::file_size(path, size_error);
+    if (size_error ||
+        file_bytes >
+            static_cast<std::uintmax_t>(
+                std::numeric_limits<std::streamsize>::max()) ||
+        file_bytes >
+            static_cast<std::uintmax_t>(
+                std::numeric_limits<unsigned long long>::max())) {
+        return nullptr;
+    }
+
+    std::ifstream in(path, std::ios::binary);
+    if (!in) return nullptr;
+
+    const auto size = static_cast<unsigned long long>(file_bytes);
+    auto* result = quidra_runtime_allocate_text_buffer(size);
+    if (!result) return nullptr;
+
+    if (size != 0) {
+        in.read(result, static_cast<std::streamsize>(size));
+        if (in.gcount() != static_cast<std::streamsize>(size)) {
+            quidra_managed_release(result, nullptr);
+            return nullptr;
+        }
+    }
+
+    // file_size() is only a hint: if the file grew after the query, use the
+    // general streaming path instead of silently truncating it.
+    char extra = 0;
+    in.read(&extra, 1);
+    if (in.gcount() != 0 || (!in.eof() && in.fail())) {
+        quidra_managed_release(result, nullptr);
+        return nullptr;
+    }
+
+    if (!quidra_runtime_commit_text_buffer(result, size)) {
+        quidra_managed_release(result, nullptr);
+        return nullptr;
+    }
+    return result;
+}
+
 bool read_all_bytes(const char* path, std::string& data) {
     std::ifstream in(path, std::ios::binary);
     if (!in) return false;
@@ -53,6 +97,7 @@ bool read_all_bytes(const char* path, std::string& data) {
 
 extern "C" char* quidra_file_read_raw(const char* path) {
     if (!path) return nullptr;
+    if (auto* direct = read_text_direct(path)) return direct;
     std::string data;
     if (!read_all_bytes(path, data)) return nullptr;
     return quidra_runtime_try_copy_text_bytes(

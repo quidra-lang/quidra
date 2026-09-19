@@ -9,6 +9,7 @@ on:
       - "include/**"
       - "CMakeLists.txt"
       - "tests/performance_regressions.py"
+      - "benchmark/**"
 
 concurrency:
   group: native-performance-${{ github.ref }}

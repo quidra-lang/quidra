@@ -370,9 +370,10 @@ for part in text.split(" ")
     print(part)
 )", "string.split_iter.begin");
  ir_contains(R"(string text = "a b"
-string[] parts = text.split(" ")
-for part in parts
-    print(part)
+for outer in range(0, 1)
+    string[] parts = text.split(" ")
+    for part in parts
+        print(part)
 )", "string.split_iter.begin");
 
  // Proven dynamic-array loop bounds remove runtime slot checks only when the

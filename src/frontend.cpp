@@ -453,18 +453,14 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return __size
 
     K[] keys()
-        K[] __result = []
-        for __index in range(len(__keys))
-            if __active[__index]
-                __result = __result.append(__keys[__index])
-        return __result
+        if __size != len(__keys)
+            __compact()
+        return __keys
 
     V[] values()
-        V[] __result = []
-        for __index in range(len(__values))
-            if __active[__index]
-                __result = __result.append(__values[__index])
-        return __result
+        if __size != len(__values)
+            __compact()
+        return __values
 )QUI";
         Parser parser(Lexer(std::string(source)).scan(), 20);
         auto program = parser.parse();
@@ -676,11 +672,9 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return __size
 
     T[] values()
-        T[] __result = []
-        for __index in range(len(__values))
-            if __active[__index]
-                __result = __result.append(__values[__index])
-        return __result
+        if __size != len(__values)
+            __compact()
+        return __values
 )QUI";
         Parser parser(Lexer(std::string(source)).scan(), 20);
         auto program = parser.parse();

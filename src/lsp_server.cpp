@@ -956,6 +956,7 @@ std::optional<SourceSpan> semantic_member_definition_span(
 std::optional<SourceSpan> resolved_definition_span(
     const CheckedProgram& checked,std::string_view source,std::string_view name,
     std::size_t offset,const std::vector<Token>& tokens) {
+    (void)source;
     const auto* expression=expression_at(checked.program,offset);
     if(auto semantic=semantic_member_definition_span(
            checked,expression,name,tokens))

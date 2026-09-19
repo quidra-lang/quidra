@@ -678,6 +678,10 @@ struct FunctionEmitter {
                 if(const auto* exact=std::get_if<ir::ConstantExact>(&i)) pool.intern(exact->spelling);
                 if(const auto* concat=std::get_if<ir::StringConcat>(&i))
                     plan_scratch(i,"["+std::to_string(concat->values.size())+" x ptr]");
+                if(const auto* build=std::get_if<ir::StringBuild>(&i)){
+                    plan_scratch(i,"["+std::to_string(build->parts.size())+" x i8]");
+                    plan_scratch(i,"["+std::to_string(build->parts.size())+" x i64]",8);
+                }
                 if(const auto* append=std::get_if<ir::StringAppendMove>(&i))
                     plan_scratch(i,"["+std::to_string(append->suffixes.size())+" x ptr]");
                 if(std::holds_alternative<ir::NeuralMomentUpdate>(i))
@@ -1164,6 +1168,48 @@ struct FunctionEmitter {
                 out<<"  store ptr "<<value(n.values[i])<<", ptr "<<slot<<"\n";
             }
             out<<"  "<<value(n.out)<<" = call ptr @quidra_string_concat_many(ptr "<<items<<", i64 "<<n.values.size()<<")\n";
+        }
+        if constexpr(std::is_same_v<T,ir::StringBuild>){
+            values[n.out]=Type::simple(TypeKind::String);
+            const auto& kinds=scratch(ins,0);
+            const auto& raw_values=scratch(ins,1);
+            for(std::size_t i=0;i<n.parts.size();++i){
+                const auto& part=n.parts[i];
+                unsigned kind=0;
+                std::string bits;
+                if(part.type.kind==TypeKind::String||part.type.kind==TypeKind::Error){
+                    kind=0;
+                    bits=temp("string.build.ptr");
+                    out<<"  "<<bits<<" = ptrtoint ptr "<<value(part.value)<<" to i64\n";
+                }else if(is_integer(part.type)){
+                    kind=is_signed_integer(part.type)?1U:2U;
+                    bits=value(part.value);
+                    if(integer_width(part.type)<64){
+                        const auto widened=temp("string.build.int");
+                        out<<"  "<<widened<<" = "
+                           <<(is_signed_integer(part.type)?"sext":"zext")<<" "
+                           <<llvm_type(part.type)<<" "<<bits<<" to i64\n";
+                        bits=widened;
+                    }
+                }else if(part.type.kind==TypeKind::Bool){
+                    kind=3;
+                    bits=temp("string.build.bool");
+                    out<<"  "<<bits<<" = zext i1 "<<value(part.value)<<" to i64\n";
+                }else{
+                    throw std::logic_error("unsupported typed string builder part");
+                }
+                const auto kind_slot=temp("string.build.kind");
+                const auto value_slot=temp("string.build.value");
+                out<<"  "<<kind_slot<<" = getelementptr inbounds ["<<n.parts.size()
+                   <<" x i8], ptr "<<kinds<<", i64 0, i64 "<<i<<"\n";
+                out<<"  store i8 "<<kind<<", ptr "<<kind_slot<<"\n";
+                out<<"  "<<value_slot<<" = getelementptr inbounds ["<<n.parts.size()
+                   <<" x i64], ptr "<<raw_values<<", i64 0, i64 "<<i<<"\n";
+                out<<"  store i64 "<<bits<<", ptr "<<value_slot<<", align 8\n";
+            }
+            out<<"  "<<value(n.out)<<" = call ptr @quidra_string_build(ptr "<<kinds
+               <<", ptr "<<raw_values<<", i64 "<<n.parts.size()<<", ptr "
+               <<value(n.separator)<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::StringCanAppendMove>){
             values[n.out]=Type::simple(TypeKind::Bool);
@@ -4020,6 +4066,7 @@ declare ptr @quidra_bin_try_utf8(ptr)
 declare ptr @quidra_string_codepoints(ptr)
 declare ptr @quidra_string_join(ptr, ptr, i64, i64)
 declare ptr @quidra_string_concat_many(ptr, i64)
+declare ptr @quidra_string_build(ptr, ptr, i64, ptr)
 declare ptr @quidra_string_concat2(ptr, ptr)
 declare i1 @quidra_string_equal(ptr, ptr)
 declare ptr @quidra_integer_text_signed(i64)

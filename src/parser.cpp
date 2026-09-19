@@ -760,11 +760,9 @@ ClassDecl Parser::class_decl() {
         consume_newlines();
     }
     const auto end = consume(TokenKind::Dedent, "Expected end of class body.").span.end;
-    auto declaration =
-        ClassDecl{name.text, {}, std::move(parent), std::move(fields), std::move(methods),
-                  {start, end}, std::move(type_parameters), std::move(parent_type)};
-    declaration.type_constraints = std::move(type_constraints);
-    return declaration;
+    return ClassDecl{name.text, {}, std::move(parent), std::move(fields), std::move(methods),
+                     {start, end}, std::move(type_parameters), std::move(parent_type),
+                     std::move(type_constraints)};
 }
 
 FunctionDecl Parser::function_decl(bool allow_override) {
@@ -785,11 +783,9 @@ FunctionDecl Parser::function_decl(bool allow_override) {
     }
     consume(TokenKind::RParen,"Expected ')'.");end_statement("function signature");auto body=block_until(false);
     auto end=previous().span.end;
-    auto declaration =
-        FunctionDecl{name.text, {}, std::move(params), std::move(result), std::move(body),
-                     {start, end}, is_override, false, std::move(type_parameters), std::nullopt};
-    declaration.type_constraints = std::move(type_constraints);
-    return declaration;
+    return FunctionDecl{name.text, {}, std::move(params), std::move(result), std::move(body),
+                        {start, end}, is_override, false, std::move(type_parameters), std::nullopt,
+                        std::move(type_constraints)};
 }
 
 

@@ -334,17 +334,24 @@ std::unordered_set<std::string> recursive_functions(const ir::Module& module) {
     for (const auto& function : module.functions) {
         const auto& start = function.name;
         std::unordered_set<std::string> visited;
-        std::function<bool(const std::string&)> reaches_start =
-            [&](const std::string& current) {
-                const auto it = graph.find(current);
-                if (it == graph.end()) return false;
-                for (const auto& next : it->second) {
-                    if (next == start) return true;
-                    if (visited.insert(next).second && reaches_start(next)) return true;
+        std::vector<std::string> pending;
+        visited.insert(start);
+        pending.push_back(start);
+        bool reaches_start = false;
+        while(!pending.empty() && !reaches_start) {
+            auto current = std::move(pending.back());
+            pending.pop_back();
+            const auto it = graph.find(current);
+            if(it == graph.end()) continue;
+            for(const auto& next : it->second) {
+                if(next == start) {
+                    reaches_start = true;
+                    break;
                 }
-                return false;
-            };
-        if (reaches_start(start)) result.insert(start);
+                if(visited.insert(next).second) pending.push_back(next);
+            }
+        }
+        if(reaches_start) result.insert(start);
     }
     return result;
 }

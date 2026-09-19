@@ -6273,8 +6273,8 @@ void* neural_grad_t(
                         sample_count)*
                     static_cast<T>(
                         static_cast<T>(sample_count*input_gradient[i])-
-                        sum_gradient[feature]-
-                        static_cast<T>(xhat*sum_gradient_x[feature])));
+                        bias_gradient[feature]-
+                        static_cast<T>(xhat*scale_gradient[feature])));
             }
             neural_add_gradient(
                 gradients,input,std::move(input_gradient));

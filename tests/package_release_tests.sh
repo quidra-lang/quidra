@@ -123,15 +123,16 @@ echo "package release tests: ok"
 
 HOME="$HOME_DIR" "$QUIDRA" package-info sample_pkg --json > "$TMP/package-info.json"
 python3 - "$TMP/package-info.json" <<'PY'
-import json,sys
-info=json.load(open(sys.argv[1]))
+import json
+import sys
+info = json.load(open(sys.argv[1]))
 assert info["name"] == "sample_pkg"
 assert info["version"] == "0.1.0"
 assert info["description"] == "Sample package for release tests"
 assert info["license"] == "MIT"
 assert info["homepage"] == "https://example.invalid/sample_pkg"
 assert info["requirements"]["quidra"]
-assert info["path"].endswith("/.quidra/packages/sample_pkg") or info["path"].endswith("\\.quidra\\packages\\sample_pkg")
+assert info["path"].replace("\\", "/").endswith("/.quidra/packages/sample_pkg")
 PY
 
 set +e

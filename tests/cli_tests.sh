@@ -1362,13 +1362,25 @@ python3 - "$TMP/stack-guard.ll" <<'PY'
 import re,sys
 text=open(sys.argv[1]).read()
 def body(symbol):
-    match=re.search(r"define [^{]+ @"+re.escape(symbol)+r"\([^)]*\) \{(.*?)\n\}", text, re.S)
+    match=re.search(
+        r"define [^{]+ @"+re.escape(symbol)+r"\([^)]*\)(?: [^{]+)? \{(.*?)\n\}",
+        text,
+        re.S,
+    )
     assert match, symbol
     return match.group(1)
 assert "@quidra_stack_enter()" not in body("n_plus_one")
 assert "@quidra_stack_leave()" not in body("n_plus_one")
-assert "@quidra_stack_enter()" in body("n_recurse")
-assert "@quidra_stack_leave()" in body("n_recurse")
+wrapper=body("n_recurse")
+depth=body("n_recurse.depth")
+assert "@quidra_stack_enter()" not in wrapper
+assert "@quidra_stack_leave()" not in wrapper
+assert "call i64 @n_recurse.depth(" in wrapper
+assert "@quidra_stack_enter()" not in depth
+assert "@quidra_stack_leave()" not in depth
+assert "%quidra.depth" in text
+assert "icmp ugt i64" in depth
+assert "@quidra_fail_at" in depth
 PY
 
 cat > "$TMP/llvm-import-lib.qui" <<'QUI'

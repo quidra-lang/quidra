@@ -2727,6 +2727,93 @@ struct Lowerer {
     }
 
 
+    // Numeric parse followed immediately by match does not need the
+    // heap-backed T | error container on the successful path. Parse into scalar
+    // storage, branch on success, and expose the same static error value only
+    // on the failure branch.
+    bool lower_numeric_parse_match(const MatchStmt& match) {
+        const auto* call = std::get_if<MethodCallExpr>(&match.value->data);
+        if (!call || call->method != "parse" || call->args.size() != 1)
+            return false;
+        const auto* receiver = std::get_if<NameExpr>(&call->receiver->data);
+        if (!receiver) return false;
+        const auto target = builtin_scalar_type(receiver->name);
+        if (!target || !(is_integer(*target) ||
+                         target->kind == TypeKind::Float32 ||
+                         target->kind == TypeKind::Float))
+            return false;
+
+        const auto result_type = type_of(*match.value);
+        if (result_type.kind != TypeKind::Union || match.cases.size() != 2)
+            return false;
+
+        const MatchCase* value_case = nullptr;
+        const MatchCase* error_case = nullptr;
+        for (const auto& current : match.cases) {
+            const auto current_type = checked.case_types.at(&current);
+            if (current_type == *target) value_case = &current;
+            else if (current_type.kind == TypeKind::Error) error_case = &current;
+            else return false;
+        }
+        if (!value_case || !error_case) return false;
+
+        auto text = expr(*call->args[0].value);
+        auto parsed = fresh();
+        auto ok = fresh();
+        auto error_value = fresh();
+        block->instructions.push_back(ParseNumberDirect{
+            parsed, ok, error_value, text, *target});
+        release_temporary(*call->args[0].value, text);
+
+        const auto value_label = label("parse.match.value");
+        const auto error_label = label("parse.match.error");
+        const auto done = label("parse.match.end");
+        block->instructions.push_back(Branch{ok, value_label, error_label});
+
+        auto before = locals;
+        auto before_names = local_names;
+        const auto before_full = fully_initialized_array_locals;
+        std::optional<std::unordered_set<std::string>> joined_full;
+
+        auto lower_case = [&](const MatchCase& current,
+                              const std::string& case_label,
+                              ValueId payload) {
+            block = &add_block(case_label);
+            locals = before;
+            local_names = before_names;
+            fully_initialized_array_locals = before_full;
+            const auto current_type = checked.case_types.at(&current);
+            if (current.binder) {
+                const auto binder_name =
+                    bind_source_local(*current.binder, current_type);
+                block->instructions.push_back(StoreLocal{
+                    binder_name, payload, current_type, false});
+            }
+            for (const auto& statement : current.body) {
+                stmt(*statement);
+                if (terminated()) break;
+            }
+            if (!terminated()) {
+                if (joined_full)
+                    *joined_full = intersect_full_arrays(
+                        *joined_full, fully_initialized_array_locals);
+                else
+                    joined_full = fully_initialized_array_locals;
+                block->instructions.push_back(Jump{done});
+            }
+        };
+
+        lower_case(*value_case, value_label, parsed);
+        lower_case(*error_case, error_label, error_value);
+
+        block = &add_block(done);
+        locals = before;
+        local_names = before_names;
+        if (joined_full) fully_initialized_array_locals = std::move(*joined_full);
+        else fully_initialized_array_locals.clear();
+        return true;
+    }
+
     // A successful standard Map<K,V>.get() normally returns V | none through
     // the general heap-backed union ABI. In a match the union is immediately
     // unpacked, so for direct scalar K/V types call the compiler-owned hash/find
@@ -3451,6 +3538,7 @@ struct Lowerer {
             return;
         }
         const auto& n=std::get<MatchStmt>(s.data);
+        if (lower_numeric_parse_match(n)) return;
         if (lower_standard_map_get_match(n)) return;
         const bool container_owned=expression_owns_result(*n.value);
         auto container=expr(*n.value);
@@ -3748,6 +3836,7 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
         out<<"], %"<<n.value<<" : "<<type_name(n.element_type);
     }
     if constexpr(std::is_same_v<T,ParseNumber>)out<<"%"<<n.out<<" = parse %"<<n.text<<" as "<<type_name(n.target_type);
+    if constexpr(std::is_same_v<T,ParseNumberDirect>)out<<"%"<<n.value_out<<", %"<<n.ok_out<<", %"<<n.error_out<<" = parse.direct %"<<n.text<<" as "<<type_name(n.target_type);
     if constexpr(std::is_same_v<T,NumericAbs>)out<<"%"<<n.out<<" = abs %"<<n.value;
     if constexpr(std::is_same_v<T,Sqrt>)out<<"%"<<n.out<<" = sqrt %"<<n.value;
     if constexpr(std::is_same_v<T,MathUnary>)out<<"%"<<n.out<<" = math.unary %"<<n.value;

@@ -409,7 +409,7 @@ int run_program(
 int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options) {
 #ifdef _WIN32
     std::vector<std::wstring> arguments{
-        options.debug ? L"-O0" : L"-O3",
+        (options.debug || !options.optimize) ? L"-O0" : L"-O3",
         L"-fms-runtime-lib=dll",
         L"-Xlinker",
         L"/NODEFAULTLIB:libcmt",
@@ -435,7 +435,7 @@ int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options)
     if (options.debug) {
         arguments.emplace_back(L"-g");
         arguments.emplace_back(L"-fno-omit-frame-pointer");
-    } else {
+    } else if (options.optimize) {
         arguments.emplace_back(L"-Xlinker");
         arguments.emplace_back(L"/OPT:REF");
     }
@@ -462,7 +462,7 @@ int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options)
     return windows_process(fs::path(clang_driver()), arguments);
 #else
     std::vector<std::string> arguments{
-        options.debug ? "-O0" : "-O3",
+        (options.debug || !options.optimize) ? "-O0" : "-O3",
         "-Wno-override-module",
         "-x",
         "ir",
@@ -493,7 +493,7 @@ int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options)
     if (options.debug) {
         arguments.emplace_back("-g");
         arguments.emplace_back("-fno-omit-frame-pointer");
-    } else {
+    } else if (options.optimize) {
 #ifdef __APPLE__
         arguments.emplace_back("-Wl,-dead_strip");
 #else

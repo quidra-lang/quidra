@@ -13,6 +13,7 @@ std::filesystem::path runtime_library();
 
 struct LinkOptions {
     bool debug{};
+    bool optimize{true};
     std::vector<std::filesystem::path> inputs;
 };
 

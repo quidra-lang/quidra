@@ -187,7 +187,7 @@ int build_native(const fs::path& source, const fs::path& output, bool keep_llvm 
     write_file(ll, result.llvm);
 
     const auto rc = quidra::native::link_llvm(
-        ll, output, quidra::native::LinkOptions{debug, link_inputs});
+        ll, output, quidra::native::LinkOptions{debug, true, link_inputs});
     if (!keep_llvm) {
         std::error_code ec;
         fs::remove(ll, ec);

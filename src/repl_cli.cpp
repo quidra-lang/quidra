@@ -115,7 +115,9 @@ struct NativeResult {
 
 int compile_native(const Compilation& compilation, const ReplFiles& files) {
     write_file(files.llvm(), compilation.llvm);
-    return native::link_llvm(files.llvm(), files.executable());
+    return native::link_llvm(
+        files.llvm(), files.executable(),
+        native::LinkOptions{false, false, {}});
 }
 
 NativeResult run_native(const ReplFiles& files) {

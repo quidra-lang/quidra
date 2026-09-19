@@ -299,6 +299,7 @@ static void string_input_ignores_package_lock() {
 }
 
 int main(){
+ std::cerr << "stage: begin" << std::endl;
  good(R"(bigint huge = 12345678901234567890123456789012345678901234567890
 bigint one = 1
 bigint sum = huge + one
@@ -2212,6 +2213,7 @@ int still_returns()
  bad_code(R"(void read_bin_readonly(const file.Handle &handle)
     auto data = handle.read_bin()
 )", "WRITE_CAPABILITY");
+ std::cerr << "stage: enum-match" << std::endl;
  good(R"(enum Token
     Number(float)
     Name(string)
@@ -2673,6 +2675,7 @@ tensor<float32> moved = sum.gpu(0)
         value = tensor.zeros<float32>([2, 2, 2])
 )");
 
+ std::cerr << "stage: address-tests" << std::endl;
  // Storage addresses are observable only through print/write and identity equality.
  good(R"(int x = 1
 int &alias = &x

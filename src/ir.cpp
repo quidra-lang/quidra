@@ -2858,10 +2858,10 @@ struct Lowerer {
                     int target_channels=0;
                     for(std::size_t i=1;i<n.args.size();++i){
                         if(!n.args[i].name) continue;
-                        if(*n.args[i].name=="channels"){
+                        if(*n.args[i].name=="channel"){
                             if(const auto* value=std::get_if<IntegerExpr>(&n.args[i].value->data))
                                 target_channels=static_cast<int>(value->value);
-                        }else if(*n.args[i].name=="dtype"){
+                        }else if(*n.args[i].name=="type"){
                             if(const auto* name=std::get_if<NameExpr>(&n.args[i].value->data))
                                 target_dtype=builtin_scalar_type(name->name);
                         }
@@ -5084,8 +5084,8 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,LinearDot>)out<<"%"<<n.out<<" = linear.dot %"<<n.left<<", %"<<n.right<<" : "<<type_name(n.element_type);
     if constexpr(std::is_same_v<T,ImageRead>){
         out<<"%"<<n.out<<" = image.read %"<<n.path;
-        if(n.target_channels) out<<", channels="<<n.target_channels;
-        if(n.target_dtype) out<<", dtype="<<type_name(*n.target_dtype);
+        if(n.target_channels) out<<", channel="<<n.target_channels;
+        if(n.target_dtype) out<<", type="<<type_name(*n.target_dtype);
         out<<" : "<<type_name(n.result_type);
     }
     if constexpr(std::is_same_v<T,ImageWrite>)out<<"%"<<n.out<<" = image.write %"<<n.path<<", %"<<n.image<<", quality %"<<n.quality<<" : "<<type_name(n.result_type);

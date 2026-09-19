@@ -366,6 +366,26 @@ for i in range(0, 1)
     print(left + right)
 )", "string.parse_two_signed");
 
+ // Proven dynamic-array loop bounds remove runtime slot checks only when the
+ // array length relation is statically preserved.
+ llvm_not_contains(R"(int[] data = array(8, fill = 0)
+int size = len(data)
+int total = 0
+for i in range(0, size)
+    total += data[i]
+for i in range(0, size - 1)
+    total += data[i + 1]
+for i in range(0, size)
+    total += data[size - 1 - i]
+print(total)
+)", "call ptr @quidra_array_slot(ptr");
+ llvm_contains(R"(int[] data = array(8, fill = 0)
+int size = len(data)
+size = 4
+print(data[size])
+)", "call ptr @quidra_array_slot(ptr");
+ // dynamic array loop bounds lower to proven slots.
+
  // Release lowering keeps the public function ABI but threads recursion depth
  // through an internal implementation instead of touching TLS on every direct
  // self-recursive call. Function values retain the ordinary ABI and guard path.

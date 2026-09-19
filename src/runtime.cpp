@@ -7293,6 +7293,7 @@ extern "C" char* quidra_string_append_move_many(
         } else {
             allocation.base = result;
             allocation.size = new_bytes;
+            allocation.small_pool_class = 0;
         }
         it = managed_allocations.find(new_key);
         capacity = new_capacity;

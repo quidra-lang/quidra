@@ -339,7 +339,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     int __slot_of(K key, int hash)
         int __capacity = len(__slots)
-        int __slot = hash % __capacity
+        int __slot = hash AND (__capacity - 1)
         int __scanned = 0
         int __first_tombstone = -1
         while __scanned < __capacity
@@ -355,9 +355,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
             if __index >= 0 and __active[__index] and __hashes[__index] == hash and __keys[__index] == key
                 __empty_slot = __slot
                 return __slot
-            __slot += 1
-            if __slot == __capacity
-                __slot = 0
+            __slot = (__slot + 1) AND (__capacity - 1)
             __scanned += 1
         __empty_slot = __first_tombstone
         return -1
@@ -370,11 +368,9 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     void __place(int index)
         int __capacity = len(__slots)
-        int __slot = __hashes[index] % __capacity
+        int __slot = __hashes[index] AND (__capacity - 1)
         while __slots[__slot] >= 0
-            __slot += 1
-            if __slot == __capacity
-                __slot = 0
+            __slot = (__slot + 1) AND (__capacity - 1)
         __slots[__slot] = index
 
     void __rehash(int capacity)
@@ -598,7 +594,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     int __slot_of(T value, int hash)
         int __capacity = len(__slots)
-        int __slot = hash % __capacity
+        int __slot = hash AND (__capacity - 1)
         int __scanned = 0
         int __first_tombstone = -1
         while __scanned < __capacity
@@ -614,9 +610,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
             if __index >= 0 and __active[__index] and __hashes[__index] == hash and __values[__index] == value
                 __empty_slot = __slot
                 return __slot
-            __slot += 1
-            if __slot == __capacity
-                __slot = 0
+            __slot = (__slot + 1) AND (__capacity - 1)
             __scanned += 1
         __empty_slot = __first_tombstone
         return -1
@@ -629,11 +623,9 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     void __place(int index)
         int __capacity = len(__slots)
-        int __slot = __hashes[index] % __capacity
+        int __slot = __hashes[index] AND (__capacity - 1)
         while __slots[__slot] >= 0
-            __slot += 1
-            if __slot == __capacity
-                __slot = 0
+            __slot = (__slot + 1) AND (__capacity - 1)
         __slots[__slot] = index
 
     void __rehash(int capacity)

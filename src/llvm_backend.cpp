@@ -1096,6 +1096,15 @@ struct FunctionEmitter {
                <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
         }
         if constexpr(std::is_same_v<T,ir::StringIndex>){values[n.out]=Type::simple(TypeKind::String);out<<"  "<<value(n.out)<<" = call ptr @quidra_string_index(ptr "<<value(n.text)<<", i64 "<<value(n.index)<<", i64 "<<n.line<<", i64 "<<n.column<<")\n";}
+        if constexpr(std::is_same_v<T,ir::StringIndexAsciiCompare>){
+            values[n.out]=Type::simple(TypeKind::Bool);
+            const auto compared=temp("string.index.ascii");
+            out<<"  "<<compared<<" = call i1 @quidra_string_index_equal_ascii(ptr "<<value(n.text)
+               <<", i64 "<<value(n.index)<<", i8 "<<static_cast<unsigned>(n.byte)
+               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n";
+            if(n.negate) out<<"  "<<value(n.out)<<" = xor i1 "<<compared<<", true\n";
+            else out<<"  "<<value(n.out)<<" = xor i1 "<<compared<<", false\n";
+        }
         if constexpr(std::is_same_v<T,ir::StringLength>){values[n.out]=Type::simple(TypeKind::Int);out<<"  "<<value(n.out)<<" = call i64 @quidra_string_length(ptr "<<value(n.text)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringContains>){values[n.out]=Type::simple(TypeKind::Bool);out<<"  "<<value(n.out)<<" = call i1 @quidra_string_contains(ptr "<<value(n.text)<<", ptr "<<value(n.needle)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringStartsWith>){values[n.out]=Type::simple(TypeKind::Bool);out<<"  "<<value(n.out)<<" = call i1 @quidra_string_starts_with(ptr "<<value(n.text)<<", ptr "<<value(n.prefix)<<")\n";}
@@ -3934,6 +3943,7 @@ declare float @quidra_bigreal_to_float32(ptr, i64, i64)
 declare double @quidra_bigint_to_float64(ptr, i64, i64)
 declare float @quidra_bigint_to_float32(ptr, i64, i64)
 declare ptr @quidra_string_index(ptr, i64, i64, i64)
+declare i1 @quidra_string_index_equal_ascii(ptr, i64, i8, i64, i64)
 declare i64 @quidra_string_length(ptr)
 declare i1 @quidra_string_contains(ptr, ptr)
 declare i1 @quidra_string_starts_with(ptr, ptr)

@@ -2735,7 +2735,10 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                             any_poison |= poisoned(check_expr(*item, &operation_type));
                         }
                         operations = any_poison ? simple(TypeKind::Invalid) : operations_type;
-                        if (!any_poison) expr_types_[argument.value.get()] = operations_type;
+                        if (!any_poison) {
+                            expr_types_[argument.value.get()] = operations_type;
+                            raw_types_[argument.value.get()] = operations_type;
+                        }
                     } else {
                         operations = check_expr(*argument.value, &operations_type);
                     }

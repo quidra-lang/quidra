@@ -1130,7 +1130,10 @@ match opened
         tensor<uint8><3, _, _> | none | error next = reader.read()
         match next
             tensor<uint8><3, _, _> frame
-                print(frame.shape())
+                int[] shape = frame.shape()
+                print(shape[0])
+                print(shape[1])
+                print(shape[2])
             none
                 print("eof")
             error problem

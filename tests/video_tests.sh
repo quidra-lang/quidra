@@ -35,15 +35,14 @@ match opened
                 print(problem)
         print(reader.position())
 
-        void | error sought = reader.seek(0)
+        auto sought = reader.seek(0)
         match sought
             void
                 print(reader.position())
             error problem
                 print(problem)
 
-        tensor<float32><1, 6, 8> | none | error gray =
-            reader.read(channel = 1, type = float32)
+        tensor<float32><1, 6, 8> | none | error gray = reader.read(channel = 1, type = float32)
         match gray
             tensor<float32><1, 6, 8> pixels
                 int[] shape = pixels.shape()

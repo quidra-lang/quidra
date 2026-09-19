@@ -2030,13 +2030,17 @@ match opened
     video.Reader reader
         int width = reader.width()
         int height = reader.height()
-        float fps = reader.fps()
-        auto next = reader.read()
+        float | none fps = reader.fps()
+        tensor<uint8><3, _, _> | none | error next = reader.read()
         match next
             tensor<uint8><3, _, _> frame
                 print(width)
                 print(height)
-                print(fps)
+                match fps
+                    float value
+                        print(value)
+                    none
+                        print("fps-unavailable")
             none
                 print("eof")
             error problem
@@ -2059,13 +2063,18 @@ match opened
     video.Reader reader
         print(reader.width())
         print(reader.height())
-        test.check(reader.fps() > 0.0)
-        print(true)
+        float | none fps = reader.fps()
+        match fps
+            float value
+                test.check(value > 0.0)
+                print(true)
+            none
+                print(false)
         video.Reader stream = reader
         int frames = 0
         bool reading = true
         while reading
-            auto next = stream.read()
+            tensor<uint8><3, _, _> | none | error next = stream.read()
             match next
                 tensor<uint8><3, _, _> frame
                     frames += 1
@@ -2075,17 +2084,17 @@ match opened
                     print(problem)
                     reading = false
         print(frames)
-        auto after = reader.read()
+        tensor<uint8><3, _, _> | none | error after = reader.read()
         match after
             tensor<uint8><3, _, _> frame
-                print("unexpected-frame")
+                print("independent")
             none
-                print("shared")
+                print("unexpected-eof")
             error problem
                 print(problem)
     error problem
         print(problem)
 QUI
     video_output="$("$QUIDRA" "$TMP/video-runtime.qui")"
-    [[ "$video_output" == "$(printf '4\n2\ntrue\n2\nshared')" ]]
+    [[ "$video_output" == "$(printf '4\n2\ntrue\n2\nindependent')" ]]
 fi

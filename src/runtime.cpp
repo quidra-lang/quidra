@@ -93,6 +93,7 @@ struct ManagedAllocation {
     void* base{};
     std::size_t size{};
     std::uint64_t identity{};
+    unsigned char small_pool_class{};
     std::size_t owners{1};
     std::size_t pins{};
     std::size_t array_capacity{};
@@ -124,11 +125,65 @@ struct ManagedAllocation {
 struct ManagedFinalization {
     void* base{};
     ManagedDrop drop{};
+    unsigned char small_pool_class{};
 };
 
 using ManagedAllocations = std::unordered_map<std::uintptr_t, ManagedAllocation>;
 thread_local ManagedAllocations managed_allocations;
 thread_local std::uint64_t next_managed_identity = 1;
+
+constexpr std::array<std::size_t, 5> small_managed_pool_sizes{
+    16, 32, 64, 128, 256
+};
+
+struct SmallManagedPool {
+    std::array<std::vector<void*>, small_managed_pool_sizes.size()> free_lists;
+    ~SmallManagedPool() {
+        for (auto& list : free_lists)
+            for (void* value : list) std::free(value);
+    }
+};
+
+thread_local SmallManagedPool small_managed_pool;
+
+unsigned char small_managed_pool_class(std::size_t bytes) {
+    for (std::size_t i = 0; i < small_managed_pool_sizes.size(); ++i)
+        if (bytes <= small_managed_pool_sizes[i])
+            return static_cast<unsigned char>(i + 1);
+    return 0;
+}
+
+void* acquire_managed_memory(std::size_t requested, unsigned char pool_class,
+                             std::size_t& actual_bytes) {
+    if (pool_class != 0) {
+        const auto index = static_cast<std::size_t>(pool_class - 1);
+        actual_bytes = small_managed_pool_sizes[index];
+        auto& list = small_managed_pool.free_lists[index];
+        if (!list.empty()) {
+            void* value = list.back();
+            list.pop_back();
+            return value;
+        }
+        void* value = std::malloc(actual_bytes);
+        if (!value) runtime_allocation_failure();
+        return value;
+    }
+    actual_bytes = requested;
+    void* value = std::malloc(actual_bytes);
+    if (!value) runtime_allocation_failure();
+    return value;
+}
+
+void recycle_managed_memory(void* base, unsigned char pool_class) {
+    if (!base) return;
+    if (pool_class == 0) {
+        std::free(base);
+        return;
+    }
+    small_managed_pool.free_lists[
+        static_cast<std::size_t>(pool_class - 1)].push_back(base);
+}
+
 thread_local const char* cached_managed_string_text = nullptr;
 thread_local ManagedAllocation* cached_managed_string_allocation = nullptr;
 
@@ -181,7 +236,8 @@ void clear_managed_range_cache(const ManagedAllocation* allocation = nullptr) {
 void finalize_managed(ManagedFinalization finalization) {
     if (!finalization.base) return;
     if (finalization.drop) finalization.drop(finalization.base);
-    std::free(finalization.base);
+    recycle_managed_memory(
+        finalization.base, finalization.small_pool_class);
 }
 
 ManagedAllocation* managed_containing(const void* address) {
@@ -211,17 +267,19 @@ ManagedAllocation* managed_containing(const void* address) {
 
 void* managed_allocate_impl(std::size_t bytes, bool track_interior_range) {
     if (bytes == 0) bytes = 1;
-    auto* memory = std::malloc(bytes);
-    if (!memory) runtime_allocation_failure();
+    const auto pool_class = small_managed_pool_class(bytes);
+    std::size_t actual_bytes = 0;
+    auto* memory = acquire_managed_memory(bytes, pool_class, actual_bytes);
     const auto key = reinterpret_cast<std::uintptr_t>(memory);
     if (next_managed_identity == std::numeric_limits<std::uint64_t>::max()) {
-        std::free(memory);
+        recycle_managed_memory(memory, pool_class);
         runtime_allocation_failure();
     }
     ManagedAllocation allocation;
     allocation.base = memory;
-    allocation.size = bytes;
+    allocation.size = actual_bytes;
     allocation.identity = next_managed_identity++;
+    allocation.small_pool_class = pool_class;
     allocation.interior_range_tracked = track_interior_range;
     managed_allocations.emplace(key, std::move(allocation));
 
@@ -232,7 +290,7 @@ void* managed_allocate_impl(std::size_t bytes, bool track_interior_range) {
     // Strings never expose interior references: indexing and slicing return new
     // values. Keep them out of the ordered range index entirely; exact ownership
     // still lives in managed_allocations.
-    if (track_interior_range) managed_ranges.emplace(key, bytes);
+    if (track_interior_range) managed_ranges.emplace(key, actual_bytes);
     return memory;
 }
 
@@ -819,7 +877,8 @@ extern "C" void quidra_managed_release(void* value, void* drop_function) {
     --allocation->owners;
     if (allocation->owners == 0 && allocation->pins == 0) {
         const auto key = reinterpret_cast<std::uintptr_t>(allocation->base);
-        const ManagedFinalization finalization{allocation->base, allocation->drop};
+        const ManagedFinalization finalization{
+            allocation->base, allocation->drop, allocation->small_pool_class};
         invalidate_managed_string_cache(allocation);
         neural_moment_cache_release(allocation->base);
         if (allocation->interior_range_tracked) {
@@ -857,7 +916,8 @@ extern "C" void quidra_managed_unpin(void* address) {
     --allocation->pins;
     if (allocation->owners == 0 && allocation->pins == 0) {
         const auto key = reinterpret_cast<std::uintptr_t>(allocation->base);
-        const ManagedFinalization finalization{allocation->base, allocation->drop};
+        const ManagedFinalization finalization{
+            allocation->base, allocation->drop, allocation->small_pool_class};
         invalidate_managed_string_cache(allocation);
         neural_moment_cache_release(allocation->base);
         if (allocation->interior_range_tracked) {

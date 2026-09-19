@@ -935,7 +935,7 @@ std::vector<SourceSpan> reference_spans(
     for(const auto& token:tokens) {
         if(token.kind!=TokenKind::Identifier||token.text!=name) continue;
         const auto resolved=resolved_definition_span(
-            program,source,name,token.span.start.offset,tokens);
+            program,name,token.span.start.offset,tokens);
         if(resolved&&same_span(*resolved,target)) result.push_back(token.span);
     }
     return result;

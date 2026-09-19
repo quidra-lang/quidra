@@ -3599,7 +3599,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     }
                     if (node->args.empty() || node->args.size() > 3) {
                         error("ARGUMENT_MISMATCH",
-                              "image.read requires path and optional channels/dtype conversions.",
+                              "image.read requires path and optional channel/type conversions.",
                               expression.span);
                         type = simple(TypeKind::Invalid);
                         break;
@@ -3628,10 +3628,10 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                             bad = true;
                             continue;
                         }
-                        if (*argument.name == "channels") {
+                        if (*argument.name == "channel") {
                             if (target_channels) {
                                 error("DUPLICATE_ARGUMENT",
-                                      "image.read channels is specified more than once.",
+                                      "image.read channel is specified more than once.",
                                       argument.span);
                                 bad = true;
                                 continue;
@@ -3641,7 +3641,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                             if (poisoned(channel_type) || !channels ||
                                 (*channels != 1 && *channels != 3 && *channels != 4)) {
                                 error("ARGUMENT_MISMATCH",
-                                      "image.read channels must be the literal 1, 3, or 4.",
+                                      "image.read channel must be the literal 1, 3, or 4.",
                                       argument.span);
                                 bad = true;
                             } else {
@@ -3649,10 +3649,10 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                             }
                             continue;
                         }
-                        if (*argument.name == "dtype") {
+                        if (*argument.name == "type") {
                             if (target_dtype) {
                                 error("DUPLICATE_ARGUMENT",
-                                      "image.read dtype is specified more than once.",
+                                      "image.read type is specified more than once.",
                                       argument.span);
                                 bad = true;
                                 continue;
@@ -3662,7 +3662,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                                                     : std::optional<Type>{};
                             if (!dtype || !is_tensor_numeric(*dtype)) {
                                 error("ARGUMENT_MISMATCH",
-                                      "image.read dtype must name a numeric built-in type.",
+                                      "image.read type must name a numeric built-in type.",
                                       argument.span);
                                 bad = true;
                             } else {
@@ -3673,7 +3673,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                             continue;
                         }
                         error("ARGUMENT_MISMATCH",
-                              "image.read supports only channels = 1|3|4 and dtype = numeric_type.",
+                              "image.read supports only channel = 1|3|4 and type = numeric_type.",
                               argument.span);
                         bad = true;
                     }
@@ -3710,7 +3710,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if (target_dtype && expected_tensor &&
                         *expected_tensor->first != *target_dtype) {
                         error("TYPE_MISMATCH",
-                              "image.read dtype conversion conflicts with the expected tensor dtype.",
+                              "image.read type conversion conflicts with the expected tensor element type.",
                               expression.span);
                         type = simple(TypeKind::Invalid);
                         break;
@@ -3748,7 +3748,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if (target_dtype) {
                         append_case(*target_dtype);
                     } else if (expected_tensor) {
-                        // The expected dtype is a source/output constraint, not permission
+                        // The expected element type is a source/output constraint, not permission
                         // to convert the decoded samples.
                         append_case(*expected_tensor->first);
                     } else {

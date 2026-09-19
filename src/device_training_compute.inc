@@ -491,20 +491,21 @@ std::string hip_normalize_backward_source(int dtype,int kind) {
     const char* t=dtype==10?"float":"double";
     std::ostringstream o;
     o<<"#include <hip/hip_runtime.h>\nextern \"C\" __global__ void q_kernel("
-      <<t<<"* out,const "<<t<<"* grad,const "<<t<<"* input,const "<<t<<"* scale,const "<<t<<"* cache,"
+      <<t<<"* out,"<<t<<"* scale_gradient,"<<t<<"* bias_gradient,"
+      "const "<<t<<"* grad,const "<<t<<"* input,const "<<t<<"* scale,const "<<t<<"* cache,"
       "unsigned long long count,unsigned long long features,unsigned long long inner,unsigned long long samples){"
       "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;";
     if(kind==1){
-        o<<"if(i>=count)return;unsigned long long f=(i/inner)%features;"<<t<<" mean=cache[f],inv=cache[features+f];"
-          <<t<<" sg=0,sgx=0;for(unsigned long long j=0;j<count;++j)if((j/inner)%features==f){"
-          <<t<<" xhat=(input[j]-mean)*inv;sg+=grad[j];sgx+=grad[j]*xhat;}"
-          <<t<<" xhat=(input[i]-mean)*inv;out[i]=(scale[f]*inv/("<<t<<")samples)*(("<<t<<")samples*grad[i]-sg-xhat*sgx);";
+        o<<"if(i>=count)return;unsigned long long f=(i/inner)%features;"
+          <<t<<" mean=cache[f],inv=cache[features+f],xhat=(input[i]-mean)*inv;"
+          <<t<<" sg=bias_gradient[f],sgx=scale_gradient[f],sample_count=("<<t<<")samples;"
+          "out[i]=(scale[f]*inv/sample_count)*(sample_count*grad[i]-sg-xhat*sgx);";
     }else{
-        o<<"if(i>=features)return;unsigned long long f=i;"<<t<<" sum=0,mean=cache[f],inv=cache[features+f];"
-          "for(unsigned long long j=0;j<count;++j)if((j/inner)%features==f){";
-        if(kind==2)o<<t<<" xhat=(input[j]-mean)*inv;sum+=grad[j]*xhat;";
-        else o<<"sum+=grad[j];";
-        o<<"}out[f]=sum;";
+        o<<"if(i>=features)return;unsigned long long f=i;"
+          <<t<<" mean=cache[f],inv=cache[features+f],sg=0,sgx=0;"
+          "for(unsigned long long j=0;j<count;++j)if((j/inner)%features==f){"
+          <<t<<" g=grad[j],xhat=(input[j]-mean)*inv;sg+=g;sgx+=g*xhat;}"
+          "scale_gradient[f]=sgx;bias_gradient[f]=sg;";
     }
     o<<"}\n";
     return o.str();
@@ -535,21 +536,20 @@ std::string msl_normalize_apply_source() {
 std::string msl_normalize_backward_source(int kind) {
     std::ostringstream o;
     o<<"#include <metal_stdlib>\nusing namespace metal;\nkernel void q_kernel("
-      "device float* out [[buffer(0)]],const device float* grad [[buffer(1)]],"
-      "const device float* input [[buffer(2)]],const device float* scale [[buffer(3)]],"
-      "const device float* cache [[buffer(4)]],constant ulong& count [[buffer(5)]],"
-      "constant ulong& features [[buffer(6)]],constant ulong& inner [[buffer(7)]],"
-      "constant ulong& samples [[buffer(8)]],uint gid [[thread_position_in_grid]]){ulong i=ulong(gid);";
+      "device float* out [[buffer(0)]],device float* scale_gradient [[buffer(1)]],"
+      "device float* bias_gradient [[buffer(2)]],const device float* grad [[buffer(3)]],"
+      "const device float* input [[buffer(4)]],const device float* scale [[buffer(5)]],"
+      "const device float* cache [[buffer(6)]],constant ulong& count [[buffer(7)]],"
+      "constant ulong& features [[buffer(8)]],constant ulong& inner [[buffer(9)]],"
+      "constant ulong& samples [[buffer(10)]],uint gid [[thread_position_in_grid]]){ulong i=ulong(gid);";
     if(kind==1){
-        o<<"if(i>=count)return;ulong f=(i/inner)%features;float mean=cache[f],inv=cache[features+f],sg=0.0f,sgx=0.0f;"
-          "for(ulong j=0;j<count;++j)if((j/inner)%features==f){float xhat=(input[j]-mean)*inv;sg+=grad[j];sgx+=grad[j]*xhat;}"
-          "float xhat=(input[i]-mean)*inv;out[i]=(scale[f]*inv/float(samples))*(float(samples)*grad[i]-sg-xhat*sgx);";
+        o<<"if(i>=count)return;ulong f=(i/inner)%features;float mean=cache[f],inv=cache[features+f];"
+          "float xhat=(input[i]-mean)*inv,sg=bias_gradient[f],sgx=scale_gradient[f],sample_count=float(samples);"
+          "out[i]=(scale[f]*inv/sample_count)*(sample_count*grad[i]-sg-xhat*sgx);";
     }else{
-        o<<"if(i>=features)return;ulong f=i;float sum=0.0f,mean=cache[f],inv=cache[features+f];"
-          "for(ulong j=0;j<count;++j)if((j/inner)%features==f){";
-        if(kind==2)o<<"float xhat=(input[j]-mean)*inv;sum+=grad[j]*xhat;";
-        else o<<"sum+=grad[j];";
-        o<<"}out[f]=sum;";
+        o<<"if(i>=features)return;ulong f=i;float mean=cache[f],inv=cache[features+f],sg=0.0f,sgx=0.0f;"
+          "for(ulong j=0;j<count;++j)if((j/inner)%features==f){float g=grad[j],xhat=(input[j]-mean)*inv;"
+          "sg+=g;sgx+=g*xhat;}scale_gradient[f]=sgx;bias_gradient[f]=sg;";
     }
     o<<"}\n";return o.str();
 }
@@ -636,54 +636,63 @@ std::string ptx_normalize_apply_source(int dtype) {
 std::string ptx_normalize_backward_source(int dtype,int kind) {
     const bool f32=dtype==10;const auto bytes=f32?4:8;
     std::ostringstream o;
-    o<<".version 6.0\n.target sm_30\n.address_size 64\n.visible .entry q_kernel("
-      ".param .u64 p_out,.param .u64 p_grad,.param .u64 p_input,.param .u64 p_scale,.param .u64 p_cache,"
-      ".param .u64 p_count,.param .u64 p_features,.param .u64 p_inner,.param .u64 p_samples){"
-      ".reg .pred %p<8>; .reg .b32 %r<12>; .reg .b64 %rd<64>;"
-      <<(f32?".reg .f32 %f<16>;":".reg .f64 %fd<16>;")
-      <<"ld.param.u64 %rd1,[p_out];ld.param.u64 %rd2,[p_grad];ld.param.u64 %rd3,[p_input];"
-        "ld.param.u64 %rd4,[p_scale];ld.param.u64 %rd5,[p_cache];ld.param.u64 %rd6,[p_count];"
-        "ld.param.u64 %rd8,[p_features];ld.param.u64 %rd9,[p_inner];ld.param.u64 %rd10,[p_samples];"
-        "mov.u32 %r1,%ctaid.x;mov.u32 %r2,%ntid.x;mov.u32 %r3,%tid.x;mad.lo.s32 %r4,%r1,%r2,%r3;cvt.u64.u32 %rd7,%r4;";
+    o<<ptx_thread_prologue(
+      " .param .u64 p_out,\n .param .u64 p_scale_gradient,\n .param .u64 p_bias_gradient,\n"
+      " .param .u64 p_grad,\n .param .u64 p_input,\n .param .u64 p_scale,\n .param .u64 p_cache,\n"
+      " .param .u64 p_count,\n .param .u64 p_features,\n .param .u64 p_inner,\n .param .u64 p_samples\n",
+      f32?" .reg .pred %p<4>;\n .reg .b32 %r<8>;\n .reg .b64 %rd<48>;\n .reg .f32 %f<16>;\n":
+          " .reg .pred %p<4>;\n .reg .b32 %r<8>;\n .reg .b64 %rd<48>;\n .reg .f64 %fd<16>;\n");
+    o<<"ld.param.u64 %rd1,[p_out];ld.param.u64 %rd2,[p_scale_gradient];"
+      "ld.param.u64 %rd3,[p_bias_gradient];ld.param.u64 %rd4,[p_grad];"
+      "ld.param.u64 %rd5,[p_input];ld.param.u64 %rd6,[p_scale];"
+      "ld.param.u64 %rd8,[p_cache];ld.param.u64 %rd9,[p_count];"
+      "ld.param.u64 %rd10,[p_features];ld.param.u64 %rd11,[p_inner];"
+      "ld.param.u64 %rd12,[p_samples];";
     if(kind==1){
-      o<<"setp.ge.u64 %p1,%rd7,%rd6;@%p1 bra DONE;div.u64 %rd11,%rd7,%rd9;rem.u64 %rd12,%rd11,%rd8;";
+        o<<"setp.ge.u64 %p1,%rd7,%rd9;@%p1 bra DONE;"
+          "div.u64 %rd13,%rd7,%rd11;rem.u64 %rd14,%rd13,%rd10;"
+          <<"mul.lo.u64 %rd15,%rd14,"<<bytes<<";add.u64 %rd16,%rd8,%rd15;"
+          "add.u64 %rd17,%rd14,%rd10;"
+          <<"mul.lo.u64 %rd17,%rd17,"<<bytes<<";add.u64 %rd18,%rd8,%rd17;"
+          <<"mul.lo.u64 %rd19,%rd7,"<<bytes<<";add.u64 %rd20,%rd4,%rd19;"
+          "add.u64 %rd21,%rd5,%rd19;add.u64 %rd22,%rd1,%rd19;"
+          "add.u64 %rd23,%rd6,%rd15;add.u64 %rd24,%rd2,%rd15;add.u64 %rd25,%rd3,%rd15;";
+        if(f32){
+            o<<"ld.global.f32 %f1,[%rd16];ld.global.f32 %f2,[%rd18];"
+              "ld.global.f32 %f3,[%rd20];ld.global.f32 %f4,[%rd21];"
+              "ld.global.f32 %f5,[%rd23];ld.global.f32 %f6,[%rd24];ld.global.f32 %f7,[%rd25];"
+              "cvt.rn.f32.u64 %f8,%rd12;sub.f32 %f9,%f4,%f1;mul.f32 %f9,%f9,%f2;"
+              "mul.f32 %f10,%f8,%f3;sub.f32 %f10,%f10,%f7;mul.f32 %f11,%f9,%f6;"
+              "sub.f32 %f10,%f10,%f11;mul.f32 %f12,%f5,%f2;div.f32 %f12,%f12,%f8;"
+              "mul.f32 %f10,%f10,%f12;st.global.f32 [%rd22],%f10;";
+        }else{
+            o<<"ld.global.f64 %fd1,[%rd16];ld.global.f64 %fd2,[%rd18];"
+              "ld.global.f64 %fd3,[%rd20];ld.global.f64 %fd4,[%rd21];"
+              "ld.global.f64 %fd5,[%rd23];ld.global.f64 %fd6,[%rd24];ld.global.f64 %fd7,[%rd25];"
+              "cvt.rn.f64.u64 %fd8,%rd12;sub.f64 %fd9,%fd4,%fd1;mul.f64 %fd9,%fd9,%fd2;"
+              "mul.f64 %fd10,%fd8,%fd3;sub.f64 %fd10,%fd10,%fd7;mul.f64 %fd11,%fd9,%fd6;"
+              "sub.f64 %fd10,%fd10,%fd11;mul.f64 %fd12,%fd5,%fd2;div.f64 %fd12,%fd12,%fd8;"
+              "mul.f64 %fd10,%fd10,%fd12;st.global.f64 [%rd22],%fd10;";
+        }
     }else{
-      o<<"setp.ge.u64 %p1,%rd7,%rd8;@%p1 bra DONE;mov.u64 %rd12,%rd7;";
-    }
-    o<<"mul.lo.u64 %rd13,%rd12,"<<bytes<<";add.u64 %rd14,%rd5,%rd13;"
-      "add.u64 %rd15,%rd12,%rd8;mul.lo.u64 %rd15,%rd15,"<<bytes<<";add.u64 %rd16,%rd5,%rd15;";
-    if(f32)o<<"ld.global.f32 %f1,[%rd14];ld.global.f32 %f2,[%rd16];mov.f32 %f3,0f00000000;mov.f32 %f4,0f00000000;";
-    else o<<"ld.global.f64 %fd1,[%rd14];ld.global.f64 %fd2,[%rd16];mov.f64 %fd3,0d0000000000000000;mov.f64 %fd4,0d0000000000000000;";
-    o<<"mov.u64 %rd20,0;LOOP:setp.ge.u64 %p2,%rd20,%rd6;@%p2 bra REDUCE;div.u64 %rd21,%rd20,%rd9;rem.u64 %rd22,%rd21,%rd8;"
-      "setp.ne.u64 %p3,%rd22,%rd12;@%p3 bra NEXT;mul.lo.u64 %rd23,%rd20,"<<bytes<<";"
-      "add.u64 %rd24,%rd2,%rd23;add.u64 %rd25,%rd3,%rd23;";
-    if(f32)o<<"ld.global.f32 %f5,[%rd24];ld.global.f32 %f6,[%rd25];sub.f32 %f6,%f6,%f1;mul.f32 %f6,%f6,%f2;";
-    else o<<"ld.global.f64 %fd5,[%rd24];ld.global.f64 %fd6,[%rd25];sub.f64 %fd6,%fd6,%fd1;mul.f64 %fd6,%fd6,%fd2;";
-    if(kind==3){
-      if(f32)o<<"add.f32 %f3,%f3,%f5;";
-      else o<<"add.f64 %fd3,%fd3,%fd5;";
-    }else{
-      if(f32)o<<"mul.f32 %f7,%f5,%f6;add.f32 %f3,%f3,%f7;";
-      else o<<"mul.f64 %fd7,%fd5,%fd6;add.f64 %fd3,%fd3,%fd7;";
-      if(kind==1){
-        if(f32)o<<"add.f32 %f4,%f4,%f5;";
-        else o<<"add.f64 %fd4,%fd4,%fd5;";
-      }
-    }
-    o<<"NEXT:add.u64 %rd20,%rd20,1;bra LOOP;REDUCE:";
-    if(kind==1){
-      o<<"mul.lo.u64 %rd30,%rd7,"<<bytes<<";add.u64 %rd31,%rd2,%rd30;add.u64 %rd32,%rd3,%rd30;add.u64 %rd33,%rd1,%rd30;"
-        "add.u64 %rd34,%rd4,%rd13;";
-      if(f32)o<<"ld.global.f32 %f5,[%rd31];ld.global.f32 %f6,[%rd32];ld.global.f32 %f8,[%rd34];sub.f32 %f6,%f6,%f1;mul.f32 %f6,%f6,%f2;"
-        "cvt.rn.f32.u64 %f9,%rd10;mul.f32 %f10,%f9,%f5;sub.f32 %f10,%f10,%f4;mul.f32 %f6,%f6,%f3;sub.f32 %f10,%f10,%f6;"
-        "mul.f32 %f8,%f8,%f2;div.f32 %f8,%f8,%f9;mul.f32 %f10,%f10,%f8;st.global.f32 [%rd33],%f10;";
-      else o<<"ld.global.f64 %fd5,[%rd31];ld.global.f64 %fd6,[%rd32];ld.global.f64 %fd8,[%rd34];sub.f64 %fd6,%fd6,%fd1;mul.f64 %fd6,%fd6,%fd2;"
-        "cvt.rn.f64.u64 %fd9,%rd10;mul.f64 %fd10,%fd9,%fd5;sub.f64 %fd10,%fd10,%fd4;mul.f64 %fd6,%fd6,%fd3;sub.f64 %fd10,%fd10,%fd6;"
-        "mul.f64 %fd8,%fd8,%fd2;div.f64 %fd8,%fd8,%fd9;mul.f64 %fd10,%fd10,%fd8;st.global.f64 [%rd33],%fd10;";
-    }else{
-      o<<"mul.lo.u64 %rd30,%rd7,"<<bytes<<";add.u64 %rd31,%rd1,%rd30;";
-      if(f32)o<<"st.global.f32 [%rd31],%f3;";
-      else o<<"st.global.f64 [%rd31],%fd3;";
+        o<<"setp.ge.u64 %p1,%rd7,%rd10;@%p1 bra DONE;"
+          <<"mul.lo.u64 %rd15,%rd7,"<<bytes<<";add.u64 %rd16,%rd8,%rd15;"
+          "add.u64 %rd17,%rd7,%rd10;"
+          <<"mul.lo.u64 %rd17,%rd17,"<<bytes<<";add.u64 %rd18,%rd8,%rd17;";
+        if(f32)o<<"ld.global.f32 %f1,[%rd16];ld.global.f32 %f2,[%rd18];mov.f32 %f3,0f00000000;mov.f32 %f4,0f00000000;";
+        else o<<"ld.global.f64 %fd1,[%rd16];ld.global.f64 %fd2,[%rd18];mov.f64 %fd3,0d0000000000000000;mov.f64 %fd4,0d0000000000000000;";
+        o<<"mov.u64 %rd20,0;LOOP:setp.ge.u64 %p2,%rd20,%rd9;@%p2 bra STORE;"
+          "div.u64 %rd21,%rd20,%rd11;rem.u64 %rd22,%rd21,%rd10;"
+          "setp.ne.u64 %p3,%rd22,%rd7;@%p3 bra NEXT;"
+          <<"mul.lo.u64 %rd23,%rd20,"<<bytes<<";add.u64 %rd24,%rd4,%rd23;add.u64 %rd25,%rd5,%rd23;";
+        if(f32)o<<"ld.global.f32 %f5,[%rd24];ld.global.f32 %f6,[%rd25];sub.f32 %f6,%f6,%f1;mul.f32 %f6,%f6,%f2;"
+                  "mul.f32 %f7,%f5,%f6;add.f32 %f3,%f3,%f7;add.f32 %f4,%f4,%f5;";
+        else o<<"ld.global.f64 %fd5,[%rd24];ld.global.f64 %fd6,[%rd25];sub.f64 %fd6,%fd6,%fd1;mul.f64 %fd6,%fd6,%fd2;"
+                "mul.f64 %fd7,%fd5,%fd6;add.f64 %fd3,%fd3,%fd7;add.f64 %fd4,%fd4,%fd5;";
+        o<<"NEXT:add.u64 %rd20,%rd20,1;bra LOOP;STORE:"
+          "add.u64 %rd30,%rd2,%rd15;add.u64 %rd31,%rd3,%rd15;";
+        if(f32)o<<"st.global.f32 [%rd30],%f3;st.global.f32 [%rd31],%f4;";
+        else o<<"st.global.f64 [%rd30],%fd3;st.global.f64 [%rd31],%fd4;";
     }
     o<<"DONE:ret;}\n";return o.str();
 }
@@ -1189,46 +1198,70 @@ bool compute_normalize_backward(
         error="neural.normalize backward requires a floating dtype";return false;
     }
 #endif
-    const auto counts=std::array<std::size_t,3>{count,features,features};
     if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Nvidia){
-        for(int kind=1;kind<=3;++kind){
-            Buffer* target=kind==1?input_gradient:kind==2?scale_gradient:bias_gradient;
-            auto ptx=ptx_normalize_backward_source(dtype,kind);
-            auto out=target->cuda_pointer,g=gradient->cuda_pointer,in=input->cuda_pointer,sc=scale->cuda_pointer,ca=cache->cuda_pointer;
-            auto n=static_cast<std::uint64_t>(count),f=static_cast<std::uint64_t>(features),inn=static_cast<std::uint64_t>(inner),s=static_cast<std::uint64_t>(samples);
-            void* args[]={&out,&g,&in,&sc,&ca,&n,&f,&inn,&s};
-            if(!launch_ptx_1d(target,"normalize-backward-"+std::to_string(dtype)+"-"+std::to_string(kind),ptx,counts[kind-1],args,error))return false;
-        }
-        return true;
+        auto out=input_gradient->cuda_pointer,sg=scale_gradient->cuda_pointer,bg=bias_gradient->cuda_pointer,
+             g=gradient->cuda_pointer,in=input->cuda_pointer,sc=scale->cuda_pointer,ca=cache->cuda_pointer;
+        auto n=static_cast<std::uint64_t>(count),f=static_cast<std::uint64_t>(features),
+             inn=static_cast<std::uint64_t>(inner),s=static_cast<std::uint64_t>(samples);
+        void* args[]={&out,&sg,&bg,&g,&in,&sc,&ca,&n,&f,&inn,&s};
+        auto reductions=ptx_normalize_backward_source(dtype,2);
+        if(!launch_ptx_1d(scale_gradient,"normalize-backward-reductions-"+std::to_string(dtype),
+                          reductions,features,args,error))return false;
+        auto input_source=ptx_normalize_backward_source(dtype,1);
+        return launch_ptx_1d(input_gradient,"normalize-backward-input-"+std::to_string(dtype),
+                             input_source,count,args,error);
     }
     if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Amd){
-        for(int kind=1;kind<=3;++kind){
-            Buffer* target=kind==1?input_gradient:kind==2?scale_gradient:bias_gradient;
-            auto source=hip_normalize_backward_source(dtype,kind);
-            auto out=target->pointer,g=gradient->pointer,in=input->pointer,sc=scale->pointer,ca=cache->pointer;
-            auto n=static_cast<std::uint64_t>(count),f=static_cast<std::uint64_t>(features),inn=static_cast<std::uint64_t>(inner),s=static_cast<std::uint64_t>(samples);
-            void* args[]={&out,&g,&in,&sc,&ca,&n,&f,&inn,&s};
-            if(!launch_hip_1d(target,"normalize-backward-"+std::to_string(dtype)+"-"+std::to_string(kind),source,counts[kind-1],args,error))return false;
-        }
-        return true;
+        auto out=input_gradient->pointer,sg=scale_gradient->pointer,bg=bias_gradient->pointer,
+             g=gradient->pointer,in=input->pointer,sc=scale->pointer,ca=cache->pointer;
+        auto n=static_cast<std::uint64_t>(count),f=static_cast<std::uint64_t>(features),
+             inn=static_cast<std::uint64_t>(inner),s=static_cast<std::uint64_t>(samples);
+        void* args[]={&out,&sg,&bg,&g,&in,&sc,&ca,&n,&f,&inn,&s};
+        auto reductions=hip_normalize_backward_source(dtype,2);
+        if(!launch_hip_1d(scale_gradient,"normalize-backward-reductions-"+std::to_string(dtype),
+                          reductions,features,args,error))return false;
+        auto input_source=hip_normalize_backward_source(dtype,1);
+        return launch_hip_1d(input_gradient,"normalize-backward-input-"+std::to_string(dtype),
+                             input_source,count,args,error);
     }
 #ifdef __APPLE__
     if(dtype==10&&input_gradient->backend==Backend::Metal){
-        for(int kind=1;kind<=3;++kind){
-            Buffer* target=kind==1?input_gradient:kind==2?scale_gradient:bias_gradient;
-            auto source=msl_normalize_backward_source(kind);
-            auto pipeline=cached_metal_pipeline([target->metal_buffer device],
-                "normalize-backward-f32-"+std::to_string(kind),source,error);
-            if(!pipeline)return false;
-            auto n=static_cast<std::uint64_t>(count),f=static_cast<std::uint64_t>(features),inn=static_cast<std::uint64_t>(inner),s=static_cast<std::uint64_t>(samples);
-            if(!dispatch_metal_1d(target,pipeline,counts[kind-1],[&](id<MTLComputeCommandEncoder> enc){
-                [enc setBuffer:target->metal_buffer offset:0 atIndex:0];[enc setBuffer:gradient->metal_buffer offset:0 atIndex:1];
-                [enc setBuffer:input->metal_buffer offset:0 atIndex:2];[enc setBuffer:scale->metal_buffer offset:0 atIndex:3];
-                [enc setBuffer:cache->metal_buffer offset:0 atIndex:4];[enc setBytes:&n length:8 atIndex:5];
-                [enc setBytes:&f length:8 atIndex:6];[enc setBytes:&inn length:8 atIndex:7];[enc setBytes:&s length:8 atIndex:8];
+        auto n=static_cast<std::uint64_t>(count),f=static_cast<std::uint64_t>(features),
+             inn=static_cast<std::uint64_t>(inner),s=static_cast<std::uint64_t>(samples);
+        auto reductions=msl_normalize_backward_source(2);
+        auto reductions_pipeline=cached_metal_pipeline(
+            [scale_gradient->metal_buffer device],"normalize-backward-reductions-f32",
+            reductions,error);
+        if(!reductions_pipeline)return false;
+        if(!dispatch_metal_1d(scale_gradient,reductions_pipeline,features,
+            [&](id<MTLComputeCommandEncoder> enc){
+                [enc setBuffer:input_gradient->metal_buffer offset:0 atIndex:0];
+                [enc setBuffer:scale_gradient->metal_buffer offset:0 atIndex:1];
+                [enc setBuffer:bias_gradient->metal_buffer offset:0 atIndex:2];
+                [enc setBuffer:gradient->metal_buffer offset:0 atIndex:3];
+                [enc setBuffer:input->metal_buffer offset:0 atIndex:4];
+                [enc setBuffer:scale->metal_buffer offset:0 atIndex:5];
+                [enc setBuffer:cache->metal_buffer offset:0 atIndex:6];
+                [enc setBytes:&n length:8 atIndex:7];[enc setBytes:&f length:8 atIndex:8];
+                [enc setBytes:&inn length:8 atIndex:9];[enc setBytes:&s length:8 atIndex:10];
             },error))return false;
-        }
-        return true;
+        auto input_source=msl_normalize_backward_source(1);
+        auto input_pipeline=cached_metal_pipeline(
+            [input_gradient->metal_buffer device],"normalize-backward-input-f32",
+            input_source,error);
+        if(!input_pipeline)return false;
+        return dispatch_metal_1d(input_gradient,input_pipeline,count,
+            [&](id<MTLComputeCommandEncoder> enc){
+                [enc setBuffer:input_gradient->metal_buffer offset:0 atIndex:0];
+                [enc setBuffer:scale_gradient->metal_buffer offset:0 atIndex:1];
+                [enc setBuffer:bias_gradient->metal_buffer offset:0 atIndex:2];
+                [enc setBuffer:gradient->metal_buffer offset:0 atIndex:3];
+                [enc setBuffer:input->metal_buffer offset:0 atIndex:4];
+                [enc setBuffer:scale->metal_buffer offset:0 atIndex:5];
+                [enc setBuffer:cache->metal_buffer offset:0 atIndex:6];
+                [enc setBytes:&n length:8 atIndex:7];[enc setBytes:&f length:8 atIndex:8];
+                [enc setBytes:&inn length:8 atIndex:9];[enc setBytes:&s length:8 atIndex:10];
+            },error);
     }
 #endif
     return real_compute_unavailable(input_gradient,"neural.normalize backward",dtype,error);

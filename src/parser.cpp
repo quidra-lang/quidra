@@ -716,12 +716,17 @@ ClassDecl Parser::class_decl() {
     while (!at(TokenKind::Dedent) && !at(TokenKind::Eof)) {
         if (at(TokenKind::KwClass)) error(peek(), "Nested classes are prohibited.");
         if (at(TokenKind::KwImport)) error(peek(), "import is only valid at top level.");
+        const bool is_private = match(TokenKind::KwPrivate);
         if (at(TokenKind::KwOverride)) {
-            methods.push_back(function_decl(true));
+            auto method = function_decl(true);
+            method.is_private = is_private;
+            methods.push_back(std::move(method));
         } else if (looks_like_declaration(true)) {
-            methods.push_back(function_decl(true));
+            auto method = function_decl(true);
+            method.is_private = is_private;
+            methods.push_back(std::move(method));
         } else if (looks_like_declaration(false)) {
-            const auto field_start = peek().span.start;
+            const auto field_start = is_private ? previous().span.start : peek().span.start;
             const bool is_const = match(TokenKind::KwConst);
             auto type = type_name();
             const auto field = consume(TokenKind::Identifier, "Expected field name.");
@@ -730,7 +735,7 @@ ClassDecl Parser::class_decl() {
             const auto field_end = default_value ? default_value->span.end : field.span.end;
             auto span = SourceSpan{field_start, field_end};
             end_statement("class field");
-            fields.push_back(FieldDecl{field.text, std::move(type), span, std::move(default_value), is_const});
+            fields.push_back(FieldDecl{field.text, std::move(type), span, std::move(default_value), is_const, is_private});
         } else {
             error(peek(), "Expected a field or method declaration in class body.");
         }
@@ -759,7 +764,7 @@ FunctionDecl Parser::function_decl(bool allow_override) {
     consume(TokenKind::RParen,"Expected ')'.");end_statement("function signature");auto body=block_until(false);
     auto end=previous().span.end;
     return FunctionDecl{name.text, {}, std::move(params), std::move(result), std::move(body),
-                        {start, end}, is_override, std::move(type_parameters), std::nullopt};
+                        {start, end}, is_override, false, std::move(type_parameters), std::nullopt};
 }
 
 

@@ -4,6 +4,9 @@ extern "C" char* quidra_string_index(const char*, long long, unsigned long long,
 extern "C" bool quidra_string_index_equal_ascii(const char*, long long, unsigned char, unsigned long long, unsigned long long);
 extern "C" char* quidra_runtime_try_copy_text_bytes(const char*, unsigned long long);
 extern "C" void* quidra_string_split(const char*, const char*);
+extern "C" void* quidra_string_split_iter_begin(const char*, const char*);
+extern "C" char* quidra_string_split_iter_next(void*);
+extern "C" void quidra_string_split_iter_end(void*);
 extern "C" void quidra_managed_retain(void*);
 extern "C" void quidra_managed_release(void*, void*);
 
@@ -67,5 +70,25 @@ int main() {
     quidra_managed_release(split_raw, nullptr);
     if (std::strcmp(pieces[1], "beta") != 0) return 1;
     quidra_managed_release(pieces[1], nullptr);
+
+    void* split_iter = quidra_string_split_iter_begin("a::b::", "::");
+    char* iter_a = quidra_string_split_iter_next(split_iter);
+    char* iter_b = quidra_string_split_iter_next(split_iter);
+    char* iter_empty = quidra_string_split_iter_next(split_iter);
+    if (!iter_a || !iter_b || !iter_empty ||
+        std::strcmp(iter_a, "a") != 0 ||
+        std::strcmp(iter_b, "b") != 0 ||
+        std::strcmp(iter_empty, "") != 0 ||
+        quidra_string_split_iter_next(split_iter) != nullptr) return 1;
+    quidra_managed_retain(iter_b);
+    quidra_string_split_iter_end(split_iter);
+    if (std::strcmp(iter_b, "b") != 0) return 1;
+    quidra_managed_release(iter_b, nullptr);
+
+    void* empty_iter = quidra_string_split_iter_begin("", ",");
+    char* only_empty = quidra_string_split_iter_next(empty_iter);
+    if (!only_empty || std::strcmp(only_empty, "") != 0 ||
+        quidra_string_split_iter_next(empty_iter) != nullptr) return 1;
+    quidra_string_split_iter_end(empty_iter);
     return 0;
 }

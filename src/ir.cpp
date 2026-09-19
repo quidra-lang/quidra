@@ -2944,6 +2944,166 @@ struct Lowerer {
         return true;
     }
 
+    bool lower_string_build_append_quad(
+        const Stmt& array_statement, const Stmt& line_statement,
+        const Stmt& append_statement, const Stmt& length_statement,
+        bool fields_used_later, bool line_used_later) {
+        if (fields_used_later || line_used_later) return false;
+        const auto* array_binding =
+            std::get_if<BindingStmt>(&array_statement.data);
+        const auto* line_binding =
+            std::get_if<BindingStmt>(&line_statement.data);
+        const auto* append =
+            std::get_if<AssignStmt>(&append_statement.data);
+        const auto* length_update =
+            std::get_if<AssignStmt>(&length_statement.data);
+        if (!array_binding || !line_binding || !append || !length_update ||
+            array_binding->reference || line_binding->reference ||
+            !array_binding->value || !line_binding->value ||
+            !append->compound_op.empty() || length_update->compound_op != "+")
+            return false;
+
+        const auto array_type = checked.binding_types.at(&array_statement);
+        const auto line_type = checked.binding_types.at(&line_statement);
+        if (array_type.kind != TypeKind::Array || !array_type.first ||
+            array_type.first->kind != TypeKind::String ||
+            line_type.kind != TypeKind::String)
+            return false;
+
+        const auto* array =
+            std::get_if<ArrayExpr>(&array_binding->value->data);
+        const auto* join =
+            std::get_if<MethodCallExpr>(&line_binding->value->data);
+        if (!array || array->elements.empty() || !join ||
+            join->method != "join" || join->args.size() != 1 ||
+            join->args.front().writable || !join->args.front().value)
+            return false;
+        const auto* join_receiver =
+            std::get_if<NameExpr>(&join->receiver->data);
+        const auto* separator =
+            std::get_if<StringExpr>(&join->args.front().value->data);
+        if (!join_receiver ||
+            join_receiver->name != array_binding->name ||
+            !separator || !separator->value.empty())
+            return false;
+
+        const auto* target_name =
+            std::get_if<NameExpr>(&append->target->data);
+        const auto* concat =
+            std::get_if<BinaryExpr>(&append->value->data);
+        if (!target_name || checked.field_accesses.contains(append->target.get()) ||
+            is_source_reference(target_name->name) ||
+            type_of(*append->target).kind != TypeKind::String ||
+            !concat || concat->op != "+")
+            return false;
+        const auto* concat_left =
+            std::get_if<NameExpr>(&concat->left->data);
+        const auto* concat_right =
+            std::get_if<NameExpr>(&concat->right->data);
+        if (!concat_left || concat_left->name != target_name->name ||
+            !concat_right || concat_right->name != line_binding->name)
+            return false;
+
+        const auto* length_target =
+            std::get_if<NameExpr>(&length_update->target->data);
+        const auto* length_call =
+            std::get_if<CallExpr>(&length_update->value->data);
+        if (!length_target ||
+            checked.field_accesses.contains(length_update->target.get()) ||
+            is_source_reference(length_target->name) ||
+            type_of(*length_update->target).kind != TypeKind::Int ||
+            !length_call || length_call->callee != "len" ||
+            length_call->args.size() != 1 ||
+            !length_call->args.front().value)
+            return false;
+        const auto length_resolution =
+            checked.call_resolutions.find(length_update->value.get());
+        if (length_resolution == checked.call_resolutions.end() ||
+            length_resolution->second.kind != CallKind::Builtin ||
+            length_resolution->second.builtin != BuiltinCallable::Len)
+            return false;
+        const auto* measured =
+            std::get_if<NameExpr>(&length_call->args.front().value->data);
+        if (!measured || measured->name != line_binding->name)
+            return false;
+
+        for (const auto& element : array->elements) {
+            if (!string_build_element_supported(*element) ||
+                expression_mentions_name(*element, target_name->name))
+                return false;
+        }
+
+        const auto fields_local =
+            bind_source_local(array_binding->name, array_type);
+        const auto line_local =
+            bind_source_local(line_binding->name, line_type);
+        block->instructions.push_back(SourceLocation{
+            static_cast<std::uint32_t>(array_statement.span.start.line),
+            static_cast<std::uint32_t>(array_statement.span.start.column)});
+        block->instructions.push_back(DeclareLocal{
+            fields_local, array_type, array_binding->name,
+            static_cast<std::uint32_t>(array_statement.span.start.line),
+            static_cast<std::uint32_t>(array_statement.span.start.column)});
+        block->instructions.push_back(DeclareLocal{
+            line_local, line_type, line_binding->name,
+            static_cast<std::uint32_t>(line_statement.span.start.line),
+            static_cast<std::uint32_t>(line_statement.span.start.column)});
+
+        const auto content_local = source_local(target_name->name);
+        auto content = fresh();
+        block->instructions.push_back(
+            LoadLocal{content, content_local, Type::simple(TypeKind::String)});
+        auto can_move = fresh();
+        block->instructions.push_back(StringCanAppendMove{can_move, content});
+
+        const auto fast = label("string.build.append.fast");
+        const auto fallback = label("string.build.append.fallback");
+        const auto done = label("string.build.append.end");
+        block->instructions.push_back(Branch{can_move, fast, fallback});
+
+        block = &add_block(fast);
+        std::vector<StringBuildPart> parts;
+        parts.reserve(array->elements.size());
+        for (const auto& element : array->elements)
+            parts.push_back(lower_string_build_element(*element));
+        auto separator_value = expr(*join->args.front().value);
+        auto moved = fresh();
+        auto added_length = fresh();
+        block->instructions.push_back(StringBuildAppendMove{
+            moved, added_length, content, std::move(parts), separator_value});
+        release_temporary(*join->args.front().value, separator_value);
+        block->instructions.push_back(StoreLocal{
+            content_local, moved, Type::simple(TypeKind::String), false, true});
+
+        const auto length_local = source_local(length_target->name);
+        auto old_length = fresh();
+        block->instructions.push_back(
+            LoadLocal{old_length, length_local, Type::simple(TypeKind::Int)});
+        auto new_length = fresh();
+        block->instructions.push_back(Binary{
+            new_length, "+", old_length, added_length,
+            Type::simple(TypeKind::Int), Type::simple(TypeKind::Int),
+            static_cast<std::uint32_t>(length_statement.span.start.line),
+            static_cast<std::uint32_t>(length_statement.span.start.column)});
+        block->instructions.push_back(StoreLocal{
+            length_local, new_length, Type::simple(TypeKind::Int)});
+        block->instructions.push_back(Jump{done});
+
+        block = &add_block(fallback);
+        auto fields_value = destination_value(*array_binding->value, array_type);
+        block->instructions.push_back(
+            StoreLocal{fields_local, fields_value, array_type});
+        auto line_value = destination_value(*line_binding->value, line_type);
+        block->instructions.push_back(
+            StoreLocal{line_local, line_value, line_type});
+        stmt(append_statement);
+        if (!terminated()) stmt(length_statement);
+        if (!terminated()) block->instructions.push_back(Jump{done});
+
+        block = &add_block(done);
+        return true;
+    }
+
     bool lower_string_array_join_pair(
         const Stmt& array_statement, const Stmt& join_statement,
         bool used_later) {
@@ -3009,6 +3169,37 @@ struct Lowerer {
     void lower_loop_statement_sequence(
         const std::vector<StmtPtr>& statements) {
         for (std::size_t i = 0; i < statements.size(); ++i) {
+            if (i + 3 < statements.size()) {
+                const auto* fields_binding =
+                    std::get_if<BindingStmt>(&statements[i]->data);
+                const auto* line_binding =
+                    std::get_if<BindingStmt>(&statements[i + 1]->data);
+                bool fields_used_later = false;
+                bool line_used_later = false;
+                if (fields_binding) {
+                    for (std::size_t j = i + 2;
+                         j < statements.size() && !fields_used_later; ++j) {
+                        fields_used_later = statement_mentions_name(
+                            *statements[j], fields_binding->name);
+                    }
+                }
+                if (line_binding) {
+                    for (std::size_t j = i + 4;
+                         j < statements.size() && !line_used_later; ++j) {
+                        line_used_later = statement_mentions_name(
+                            *statements[j], line_binding->name);
+                    }
+                }
+                if (fields_binding && line_binding &&
+                    lower_string_build_append_quad(
+                        *statements[i], *statements[i + 1],
+                        *statements[i + 2], *statements[i + 3],
+                        fields_used_later, line_used_later)) {
+                    i += 3;
+                    if (terminated()) break;
+                    continue;
+                }
+            }
             if (i + 2 < statements.size()) {
                 const auto* split_binding =
                     std::get_if<BindingStmt>(&statements[i]->data);
@@ -4193,6 +4384,7 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,StringJoin>)out<<"%"<<n.out<<" = string.join %"<<n.values<<", %"<<n.separator;
     if constexpr(std::is_same_v<T,StringConcat>){out<<"%"<<n.out<<" = string.concat";for(const auto value:n.values)out<<" %"<<value;}
     if constexpr(std::is_same_v<T,StringBuild>){out<<"%"<<n.out<<" = string.build";for(const auto& part:n.parts)out<<" %"<<part.value<<":"<<type_name(part.type);out<<" sep %"<<n.separator;}
+    if constexpr(std::is_same_v<T,StringBuildAppendMove>){out<<"%"<<n.out<<", %"<<n.added_length<<" = string.build_append %"<<n.text;for(const auto& part:n.parts)out<<" %"<<part.value<<":"<<type_name(part.type);out<<" sep %"<<n.separator;}
     if constexpr(std::is_same_v<T,StringCanAppendMove>)out<<"%"<<n.out<<" = string.can_append_move %"<<n.text;
     if constexpr(std::is_same_v<T,StringAppendMove>){out<<"%"<<n.out<<" = string.append_move %"<<n.text;for(const auto value:n.suffixes)out<<" %"<<value;}
     if constexpr(std::is_same_v<T,BinAlloc>)out<<"%"<<n.out<<" = bin.alloc %"<<n.length<<", %"<<n.fill;

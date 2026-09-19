@@ -1975,6 +1975,43 @@ class DerivedSecret : BaseSecret
 Secret secret = Secret()
 secret.hidden()
 )", "PRIVATE_MEMBER");
+ bad_code(R"(class Secret
+    private int value = 1
+Secret secret = Secret()
+secret.value = 2
+)", "PRIVATE_MEMBER");
+ bad_code(R"(class Secret
+    private int value = 1
+Secret secret = Secret()
+int &alias = &secret.value
+)", "PRIVATE_MEMBER");
+ bad_code(R"(class BaseSecret
+    private int value = 1
+class DerivedSecret : BaseSecret
+    void replace()
+        value = 2
+)", "PRIVATE_MEMBER");
+ good_code(R"(class Secret
+    private int value = 1
+
+    void copy_from(Secret other)
+        value = other.value
+)");
+ bad_code(R"(class BaseSecret
+    private void hidden()
+        return
+class DerivedSecret : BaseSecret
+    override void hidden()
+        return
+)", "SHADOWING");
+ bad_code(R"(class BaseSecret
+    private void hidden()
+        return
+class MiddleSecret : BaseSecret
+class DerivedSecret : MiddleSecret
+    void hidden()
+        return
+)", "SHADOWING");
  bad_code("class A\n    int x\nclass A\n    int y\n", "DUPLICATE_NAME");
  bad_code(R"(T identity<T>(T value)
     return value

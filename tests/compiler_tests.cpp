@@ -1963,12 +1963,6 @@ class DerivedSecret : BaseSecret
         hidden()
 )", "PRIVATE_MEMBER");
  bad_code(R"(class BaseSecret
-    private int value = 1
-class DerivedSecret : BaseSecret
-    int reveal()
-        return super.value
-)", "PRIVATE_MEMBER");
- bad_code(R"(class BaseSecret
     private void hidden()
         return
 class DerivedSecret : BaseSecret

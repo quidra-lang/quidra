@@ -194,6 +194,63 @@ bool fake_random_mask(
 }
 
 template <typename T>
+bool fake_scaled_subtract_in_place(
+    Buffer* parameter,const Buffer* gradient,std::size_t count,double scale_raw) {
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    const T scale=static_cast<T>(scale_raw);
+    for(std::size_t i=0;i<count;++i)
+        training_store<T>(parameter,i,static_cast<T>(
+            training_load<T>(parameter,i)-
+            static_cast<T>(scale*training_load<T>(gradient,i))));
+    return true;
+#else
+    (void)parameter;(void)gradient;(void)count;(void)scale_raw;
+    return false;
+#endif
+}
+
+std::string hip_scaled_subtract_source(int dtype) {
+    const char* t=dtype==10?"float":"double";
+    std::ostringstream o;
+    o<<"#include <hip/hip_runtime.h>\nextern \"C\" __global__ void q_kernel("
+      <<t<<"* parameter,const "<<t<<"* gradient,unsigned long long count,double scale_raw){"
+      "unsigned long long i=(unsigned long long)blockIdx.x*blockDim.x+threadIdx.x;"
+      "if(i>=count)return;"<<t<<" scale=("<<t<<")scale_raw;"
+      "parameter[i]=parameter[i]-scale*gradient[i];}\n";
+    return o.str();
+}
+#ifdef __APPLE__
+std::string msl_scaled_subtract_source() {
+    return "#include <metal_stdlib>\nusing namespace metal;\n"
+      "kernel void q_kernel(device float* parameter [[buffer(0)]],"
+      "const device float* gradient [[buffer(1)]],constant ulong& count [[buffer(2)]],"
+      "constant float& scale [[buffer(3)]],uint gid [[thread_position_in_grid]]){"
+      "ulong i=ulong(gid);if(i>=count)return;parameter[i]=parameter[i]-scale*gradient[i];}\n";
+}
+#endif
+std::string ptx_scaled_subtract_source(int dtype) {
+    const bool f32=dtype==10;const auto bytes=f32?4:8;
+    std::ostringstream o;
+    o<<ptx_thread_prologue(
+      " .param .u64 p_parameter,\n .param .u64 p_gradient,\n"
+      " .param .u64 p_count,\n .param .f64 p_scale\n",
+      f32?" .reg .pred %p<2>;\n .reg .b32 %r<8>;\n .reg .b64 %rd<20>;\n .reg .f32 %f<6>;\n .reg .f64 %fd<2>;\n":
+          " .reg .pred %p<2>;\n .reg .b32 %r<8>;\n .reg .b64 %rd<20>;\n .reg .f64 %fd<6>;\n");
+    o<<"ld.param.u64 %rd1,[p_parameter];ld.param.u64 %rd2,[p_gradient];"
+      "ld.param.u64 %rd3,[p_count];setp.ge.u64 %p1,%rd7,%rd3;@%p1 bra DONE;"
+      "mul.lo.u64 %rd8,%rd7,"<<bytes<<";add.u64 %rd9,%rd1,%rd8;add.u64 %rd10,%rd2,%rd8;";
+    if(f32)
+      o<<"ld.global.f32 %f1,[%rd9];ld.global.f32 %f2,[%rd10];"
+        "ld.param.f64 %fd1,[p_scale];cvt.rn.f32.f64 %f3,%fd1;"
+        "mul.f32 %f4,%f3,%f2;sub.f32 %f1,%f1,%f4;st.global.f32 [%rd9],%f1;";
+    else
+      o<<"ld.global.f64 %fd1,[%rd9];ld.global.f64 %fd2,[%rd10];"
+        "ld.param.f64 %fd3,[p_scale];mul.f64 %fd4,%fd3,%fd2;"
+        "sub.f64 %fd1,%fd1,%fd4;st.global.f64 [%rd9],%fd1;";
+    o<<"DONE:ret;}\n";return o.str();
+}
+
+template <typename T>
 bool fake_moment_update(
     Buffer* parameter,const Buffer* gradient,Buffer* first,Buffer* second,
     std::size_t count,double rate_raw,double beta1_raw,double beta2_raw,
@@ -1219,6 +1276,58 @@ bool compute_random_mask(
     }
 #endif
     return real_compute_unavailable(output,"neural.random_mask",dtype,error);
+}
+
+bool compute_scaled_subtract_in_place(
+    Buffer* parameter,const Buffer* gradient,int dtype,std::size_t count,
+    double scale,std::string& error) {
+    const auto bytes=compute_dtype_width(dtype);
+    if(!compute_same_device(parameter,gradient,error)||
+       !compute_buffer_range(parameter,0,count,bytes,error)||
+       !compute_buffer_range(gradient,0,count,bytes,error))return false;
+#ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
+    if(parameter->backend==Backend::Test){
+        if(dtype==10)return fake_scaled_subtract_in_place<float>(
+            parameter,gradient,count,scale);
+        if(dtype==9)return fake_scaled_subtract_in_place<double>(
+            parameter,gradient,count,scale);
+        error="scaled subtract requires a floating dtype";return false;
+    }
+#endif
+    if((dtype==9||dtype==10)&&parameter->backend==Backend::Nvidia){
+        auto ptx=ptx_scaled_subtract_source(dtype);
+        auto pa=parameter->cuda_pointer,g=gradient->cuda_pointer;
+        auto n=static_cast<std::uint64_t>(count);double s=scale;
+        void* args[]={&pa,&g,&n,&s};
+        return launch_ptx_1d(
+            parameter,"scaled-subtract-"+std::to_string(dtype),ptx,count,args,error);
+    }
+    if((dtype==9||dtype==10)&&parameter->backend==Backend::Amd){
+        auto source=hip_scaled_subtract_source(dtype);
+        auto pa=parameter->pointer,g=gradient->pointer;
+        auto n=static_cast<std::uint64_t>(count);double s=scale;
+        void* args[]={&pa,&g,&n,&s};
+        return launch_hip_1d(
+            parameter,"scaled-subtract-"+std::to_string(dtype),source,count,args,error);
+    }
+#ifdef __APPLE__
+    if(dtype==10&&parameter->backend==Backend::Metal){
+        auto source=msl_scaled_subtract_source();
+        auto pipeline=cached_metal_pipeline(
+            [parameter->metal_buffer device],"scaled-subtract-f32",source,error);
+        if(!pipeline)return false;
+        auto n=static_cast<std::uint64_t>(count);
+        float s=static_cast<float>(scale);
+        return dispatch_metal_1d(
+            parameter,pipeline,count,[&](id<MTLComputeCommandEncoder> enc){
+                [enc setBuffer:parameter->metal_buffer offset:0 atIndex:0];
+                [enc setBuffer:gradient->metal_buffer offset:0 atIndex:1];
+                [enc setBytes:&n length:sizeof(n) atIndex:2];
+                [enc setBytes:&s length:sizeof(s) atIndex:3];
+            },error);
+    }
+#endif
+    return real_compute_unavailable(parameter,"scaled subtract",dtype,error);
 }
 
 bool compute_moment_update(

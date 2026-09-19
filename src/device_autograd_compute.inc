@@ -650,6 +650,89 @@ bool compute_max_last_backward(Buffer* output, const Buffer* gradient,
     return real_compute_unavailable(output,"neural.max_last backward",dtype,error);
 }
 
+
+bool cublas_affine_backward(
+    Buffer* input_gradient, Buffer* weight_gradient, Buffer* bias_gradient,
+    const Buffer* gradient, const Buffer* input, const Buffer* weight,
+    int dtype, std::size_t batches, std::size_t features_in,
+    std::size_t features_out) {
+    if(input_gradient->backend!=Backend::Nvidia||(dtype!=9&&dtype!=10))return false;
+    if(batches>static_cast<std::size_t>(std::numeric_limits<int>::max())||
+       features_in>static_cast<std::size_t>(std::numeric_limits<int>::max())||
+       features_out>static_cast<std::size_t>(std::numeric_limits<int>::max()))
+        return false;
+    auto& api=cublas();
+    if(!api.ready)return false;
+    std::string ignored;
+    auto handle=api.handle(input_gradient->backend_index,ignored);
+    if(!handle)return false;
+    if(api.set_atomics_mode){
+        constexpr CublasApi::AtomicsMode not_allowed=0,allowed=1;
+        (void)api.set_atomics_mode(
+            handle,dnn_mode()==DnnMode::Deterministic?not_allowed:allowed);
+    }
+    constexpr CublasApi::Operation op_n=0,op_t=1;
+    const int b=static_cast<int>(batches);
+    const int k=static_cast<int>(features_in);
+    const int o=static_cast<int>(features_out);
+    int status=0;
+    if(dtype==10){
+        const float alpha=1.0f,beta=0.0f;
+        status=api.sgemm(
+            handle,op_n,op_n,k,b,o,&alpha,
+            reinterpret_cast<const float*>(
+                static_cast<std::uintptr_t>(weight->cuda_pointer)),k,
+            reinterpret_cast<const float*>(
+                static_cast<std::uintptr_t>(gradient->cuda_pointer)),o,
+            &beta,
+            reinterpret_cast<float*>(
+                static_cast<std::uintptr_t>(input_gradient->cuda_pointer)),k);
+        if(status==0)status=api.sgemm(
+            handle,op_n,op_t,k,o,b,&alpha,
+            reinterpret_cast<const float*>(
+                static_cast<std::uintptr_t>(input->cuda_pointer)),k,
+            reinterpret_cast<const float*>(
+                static_cast<std::uintptr_t>(gradient->cuda_pointer)),o,
+            &beta,
+            reinterpret_cast<float*>(
+                static_cast<std::uintptr_t>(weight_gradient->cuda_pointer)),k);
+    }else{
+        const double alpha=1.0,beta=0.0;
+        status=api.dgemm(
+            handle,op_n,op_n,k,b,o,&alpha,
+            reinterpret_cast<const double*>(
+                static_cast<std::uintptr_t>(weight->cuda_pointer)),k,
+            reinterpret_cast<const double*>(
+                static_cast<std::uintptr_t>(gradient->cuda_pointer)),o,
+            &beta,
+            reinterpret_cast<double*>(
+                static_cast<std::uintptr_t>(input_gradient->cuda_pointer)),k);
+        if(status==0)status=api.dgemm(
+            handle,op_n,op_t,k,o,b,&alpha,
+            reinterpret_cast<const double*>(
+                static_cast<std::uintptr_t>(input->cuda_pointer)),k,
+            reinterpret_cast<const double*>(
+                static_cast<std::uintptr_t>(gradient->cuda_pointer)),o,
+            &beta,
+            reinterpret_cast<double*>(
+                static_cast<std::uintptr_t>(weight_gradient->cuda_pointer)),k);
+    }
+    if(status!=0)return false;
+
+    auto ptx=ptx_affine_backward_source(dtype,3);
+    auto out_ptr=bias_gradient->cuda_pointer,g_ptr=gradient->cuda_pointer,
+         in_ptr=input->cuda_pointer,w_ptr=weight->cuda_pointer;
+    auto count64=static_cast<std::uint64_t>(features_out),
+         batches64=static_cast<std::uint64_t>(batches),
+         in64=static_cast<std::uint64_t>(features_in),
+         out64=static_cast<std::uint64_t>(features_out);
+    void* args[]={&out_ptr,&g_ptr,&in_ptr,&w_ptr,&count64,&batches64,&in64,&out64};
+    std::string reduction_error;
+    return launch_ptx_1d(
+        bias_gradient,"cublas-affine-backward-bias-"+std::to_string(dtype),
+        ptx,features_out,args,reduction_error);
+}
+
 bool compute_affine_backward(
     Buffer* input_gradient, Buffer* weight_gradient, Buffer* bias_gradient,
     const Buffer* gradient, const Buffer* input, const Buffer* weight,
@@ -682,6 +765,10 @@ bool compute_affine_backward(
     }
 #endif
     if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Nvidia){
+        if(cublas_affine_backward(input_gradient,weight_gradient,bias_gradient,
+                                  gradient,input,weight,dtype,batches,features_in,
+                                  features_out))
+            return true;
         auto launch_target=[&](Buffer* target,int kind,std::size_t count)->bool{
             auto ptx=ptx_affine_backward_source(dtype,kind);
             auto out_ptr=target->cuda_pointer,g_ptr=gradient->cuda_pointer,

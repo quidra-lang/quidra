@@ -515,7 +515,7 @@ class Counter
         increment_raw()
 ```
 
-Private fields cannot be read, written, or addressed outside their declaring class. They may still be supplied during named construction so factory functions can initialize hidden state. Private methods cannot be called outside their declaring class, including from derived classes.
+Private fields cannot be read, written, or addressed outside their declaring class. They may still be supplied during named construction so factory functions can initialize hidden state. Private methods cannot be called outside their declaring class, including from derived classes. An inherited private member name remains occupied and cannot be redeclared or overridden; `private override` is reserved for overriding a non-private inherited method and making the derived replacement class-local.
 
 Construction is named by field. Fields may remain uninitialized when no value/default is supplied, and the checker tracks that state field by field.
 

@@ -428,7 +428,8 @@ grep -q 'const string &' "$TMP/ffi-mutable-string.err"
 
 cat > "$TMP/debug-source.qui" <<'QUI'
 int twice(int value)
-    return value * 2
+    int doubled = value * 2
+    return doubled
 
 print(twice(21))
 QUI
@@ -439,10 +440,16 @@ grep -q '!DICompileUnit' "$TMP/debug-source.ll"
 grep -q '!DIFile(filename: "debug-source.qui"' "$TMP/debug-source.ll"
 grep -q '!DISubprogram(name: "twice"' "$TMP/debug-source.ll"
 grep -q '!DILocation(line: 2,' "$TMP/debug-source.ll"
-grep -q '!DILocation(line: 4,' "$TMP/debug-source.ll"
+grep -q '!DILocation(line: 5,' "$TMP/debug-source.ll"
+grep -q '!DILocalVariable(name: "value", arg: 1,' "$TMP/debug-source.ll"
+grep -q '!DILocalVariable(name: "doubled",' "$TMP/debug-source.ll"
+grep -q '@llvm.dbg.declare(metadata ptr %local.value' "$TMP/debug-source.ll"
+grep -q '@llvm.dbg.declare(metadata ptr %local.doubled' "$TMP/debug-source.ll"
 grep -Eq 'define i64 @n_twice\(.*\) !dbg ![0-9]+ \{' "$TMP/debug-source.ll"
 "$QUIDRA" llvm "$TMP/debug-source.qui" > "$TMP/debug-release.ll"
 ! grep -q '!DICompileUnit' "$TMP/debug-release.ll"
+! grep -q '!DILocalVariable' "$TMP/debug-release.ll"
+! grep -q '@llvm.dbg.declare' "$TMP/debug-release.ll"
 [[ "$($QUIDRA "$ROOT/examples/hello.qui")" == "Hello from Quidra" ]]
 [[ "$($QUIDRA run "$ROOT/examples/functions.qui")" == "120" ]]
 [[ "$($QUIDRA run "$ROOT/examples/logic.qui")" == "positive even integer" ]]

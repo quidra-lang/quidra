@@ -102,6 +102,40 @@ struct DebugLocationRecord {
     std::uint32_t column{};
 };
 
+struct DebugBasicType {
+    std::string name;
+    std::size_t bits{};
+    const char* encoding{};
+};
+
+struct DebugVariableRecord {
+    std::size_t id{};
+    std::size_t type_id{};
+    std::size_t scope{};
+    std::size_t file{};
+    std::string name;
+    DebugBasicType type;
+    std::uint32_t line{};
+    std::size_t argument{};
+};
+
+std::optional<DebugBasicType> debug_basic_type(const Type& type) {
+    switch(type.kind) {
+        case TypeKind::Int: return DebugBasicType{"int",64,"DW_ATE_signed"};
+        case TypeKind::Int8: return DebugBasicType{"int8",8,"DW_ATE_signed"};
+        case TypeKind::Int16: return DebugBasicType{"int16",16,"DW_ATE_signed"};
+        case TypeKind::Int32: return DebugBasicType{"int32",32,"DW_ATE_signed"};
+        case TypeKind::UInt8: return DebugBasicType{"uint8",8,"DW_ATE_unsigned"};
+        case TypeKind::UInt16: return DebugBasicType{"uint16",16,"DW_ATE_unsigned"};
+        case TypeKind::UInt32: return DebugBasicType{"uint32",32,"DW_ATE_unsigned"};
+        case TypeKind::UInt64: return DebugBasicType{"uint64",64,"DW_ATE_unsigned"};
+        case TypeKind::Float: return DebugBasicType{"float",64,"DW_ATE_float"};
+        case TypeKind::Float32: return DebugBasicType{"float32",32,"DW_ATE_float"};
+        case TypeKind::Bool: return DebugBasicType{"bool",1,"DW_ATE_boolean"};
+        default: return std::nullopt;
+    }
+}
+
 bool attach_debug_location_range(
     std::string& text,std::size_t begin,std::size_t end,std::size_t location) {
     auto position=begin;
@@ -345,6 +379,10 @@ struct FunctionEmitter {
     std::optional<std::size_t> debug_subprogram;
     std::size_t* next_debug_metadata{};
     std::vector<DebugLocationRecord>* debug_location_records{};
+    std::size_t debug_file{};
+    std::vector<DebugVariableRecord>* debug_variable_records{};
+    std::unordered_map<std::string,std::size_t> debug_variables;
+    std::uint32_t debug_source_line{1};
     std::optional<std::size_t> pending_debug_location;
     struct DebugSegment {
         std::size_t begin{};
@@ -361,10 +399,13 @@ struct FunctionEmitter {
                     const std::unordered_set<std::string>& recursive,
                     std::optional<std::size_t> debug_id=std::nullopt,
                     std::size_t* next_debug_id=nullptr,
-                    std::vector<DebugLocationRecord>* debug_records=nullptr)
+                    std::vector<DebugLocationRecord>* debug_records=nullptr,
+                    std::size_t debug_file_id=0,
+                    std::vector<DebugVariableRecord>* debug_variables_out=nullptr)
         :fn(f),signatures(s),external_symbols(externals),pool(p),layouts(l),array_layout(a),
          guard_stack_depth(guard),recursive_callees(recursive),debug_subprogram(debug_id),
-         next_debug_metadata(next_debug_id),debug_location_records(debug_records){}
+         next_debug_metadata(next_debug_id),debug_location_records(debug_records),
+         debug_file(debug_file_id),debug_variable_records(debug_variables_out){}
     std::string call_symbol(const std::string& name) const {
         const auto found=external_symbols.find(name);
         return found==external_symbols.end()?mangle(name):found->second;
@@ -373,6 +414,29 @@ struct FunctionEmitter {
     std::string local(const std::string&n)const{return "%local."+local_id(n);}
     std::string arg(const std::string&n)const{return "%arg."+local_id(n);}
     std::string storage(const std::string&n)const{return writable_params.contains(n)?arg(n):local(n);}
+    std::optional<std::size_t> debug_variable(
+        const std::string& name,const Type& type,std::uint32_t line,std::size_t argument=0) {
+        if(!debug_subprogram||!next_debug_metadata||!debug_variable_records||debug_file==0)
+            return std::nullopt;
+        if(const auto found=debug_variables.find(name);found!=debug_variables.end())
+            return found->second;
+        auto basic=debug_basic_type(type);
+        if(!basic) return std::nullopt;
+        const auto type_id=(*next_debug_metadata)++;
+        const auto variable_id=(*next_debug_metadata)++;
+        debug_variable_records->push_back(DebugVariableRecord{
+            variable_id,type_id,*debug_subprogram,debug_file,name,std::move(*basic),
+            std::max<std::uint32_t>(1,line),argument});
+        debug_variables.emplace(name,variable_id);
+        return variable_id;
+    }
+    void emit_debug_declare(
+        const std::string& name,const Type& type,std::uint32_t line,std::size_t argument=0) {
+        if(const auto variable=debug_variable(name,type,line,argument)) {
+            out<<"  call void @llvm.dbg.declare(metadata ptr "<<storage(name)
+               <<", metadata !"<<*variable<<", metadata !DIExpression())\n";
+        }
+    }
     void plan_scratch(const ir::Instruction& instruction,std::string type,std::size_t alignment=0){
         const auto index=frame_scratch_slots.size();
         frame_scratch_slots.push_back(
@@ -730,6 +794,7 @@ struct FunctionEmitter {
 
     void emit_instruction(const ir::Instruction& ins){
         if(const auto* location=std::get_if<ir::SourceLocation>(&ins)) {
+            debug_source_line=std::max<std::uint32_t>(1,location->line);
             if(debug_subprogram&&next_debug_metadata&&debug_location_records) {
                 const auto id=(*next_debug_metadata)++;
                 debug_location_records->push_back(DebugLocationRecord{
@@ -781,7 +846,9 @@ struct FunctionEmitter {
                 }
             }
         }
-        if constexpr(std::is_same_v<T,ir::DeclareLocal>){}
+        if constexpr(std::is_same_v<T,ir::DeclareLocal>){
+            emit_debug_declare(n.name,n.type,debug_source_line);
+        }
         if constexpr(std::is_same_v<T,ir::DeclareReference>){}
         if constexpr(std::is_same_v<T,ir::AddressLocal>){out<<"  "<<value(n.out)<<" = getelementptr inbounds i8, ptr "<<storage(n.name)<<", i64 0\n";}
         if constexpr(std::is_same_v<T,ir::AddressField>){
@@ -2912,7 +2979,7 @@ struct FunctionEmitter {
         }
     }
 
-    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type,parameter.is_const);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<")";if(debug_subprogram)out<<" !dbg !"<<*debug_subprogram;out<<" {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}emit_entry_scratch();for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never)||(std::holds_alternative<ir::IndirectCall>(last)&&std::get<ir::IndirectCall>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";auto text=out.str();for(auto it=debug_segments.rbegin();it!=debug_segments.rend();++it)attach_debug_location_range(text,it->begin,it->end,it->location);return text;}
+    std::string emit(){if(fn.external_symbol){out<<"declare "<<c_abi_return_attribute(fn.result)<<llvm_type(fn.result)<<" @"<<*fn.external_symbol<<"(";bool first=true;for(const auto& parameter:fn.parameters){if(!first)out<<", ";first=false;out<<llvm_type(parameter.type)<<c_abi_parameter_attribute(parameter.type,parameter.is_const);if(parameter.type.kind==TypeKind::String||parameter.type.kind==TypeKind::Bin)out<<", i64";}out<<")\n\n";return out.str();}scan();out<<"define "<<llvm_type(fn.result)<<" @"<<(fn.entrypoint?"main":mangle(fn.name))<<"(";if(fn.entrypoint){out<<"i32 %quidra.argc, ptr %quidra.argv";}else{for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto& parameter=fn.parameters[i];if(parameter.writable){out<<"ptr nocapture nonnull";if(parameter.is_const)out<<" readonly";}else out<<llvm_type(parameter.type);out<<" "<<arg(parameter.name);}}out<<")";if(debug_subprogram)out<<" !dbg !"<<*debug_subprogram;out<<" {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}emit_entry_scratch();for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";for(std::size_t pi=0;pi<fn.parameters.size();++pi){const auto&p=fn.parameters[pi];emit_debug_declare(p.name,p.type,fn.source_line,pi+1);}}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never)||(std::holds_alternative<ir::IndirectCall>(last)&&std::get<ir::IndirectCall>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";auto text=out.str();for(auto it=debug_segments.rbegin();it!=debug_segments.rend();++it)attach_debug_location_range(text,it->begin,it->end,it->location);return text;}
 };
 
 
@@ -4212,6 +4279,7 @@ std::string emit_llvm(const ir::Module& module, bool debug_info) {
     std::vector<std::optional<std::size_t>> debug_subprograms(module.functions.size());
     std::vector<std::optional<std::size_t>> debug_locations(module.functions.size());
     std::vector<DebugLocationRecord> debug_statement_locations;
+    std::vector<DebugVariableRecord> debug_variables;
     if(debug_info&&!primary_source.empty()) {
         for(std::size_t i=0;i<module.functions.size();++i) {
             const auto& f=module.functions[i];
@@ -4225,11 +4293,15 @@ std::string emit_llvm(const ir::Module& module, bool debug_info) {
     std::vector<std::string> funcs;
     for (std::size_t i=0;i<module.functions.size();++i) {
         const auto& f=module.functions[i];
+        const auto debug_file=
+            debug_subprograms[i]?debug_files.at(f.source_file):0;
         auto emitted=FunctionEmitter{
             f, sigs, external_symbols, pool, layouts, array_layout,
             recursive.contains(f.name) || address_taken.contains(f.name), recursive, debug_subprograms[i],
             debug_info?&next_debug_metadata:nullptr,
-            debug_info?&debug_statement_locations:nullptr}.emit();
+            debug_info?&debug_statement_locations:nullptr,
+            debug_file,
+            debug_info?&debug_variables:nullptr}.emit();
         if(debug_locations[i]) emitted=attach_debug_location(std::move(emitted),*debug_locations[i]);
         funcs.push_back(std::move(emitted));
     }
@@ -4243,6 +4315,8 @@ std::string emit_llvm(const ir::Module& module, bool debug_info) {
         out<<"source_filename = \""<<escape_metadata(path.filename().string())<<"\"\n";
     }
     out << runtime_helpers();
+    if(!debug_variables.empty())
+        out << "declare void @llvm.dbg.declare(metadata, metadata, metadata)\n";
     out << "@.quidra.repl.replaying = internal global i1 false\n";
     out << "@.fmt.int = private unnamed_addr constant [6 x i8] c\"%lld\\0A\\00\"\n";
 out<<"@.fmt.int.write = private unnamed_addr constant [5 x i8] c\"%lld\\00\"\n";
@@ -4330,6 +4404,19 @@ if(debug_info&&!primary_source.empty()) {
            <<" = !DILocation(line: "<<location.line
            <<", column: "<<location.column
            <<", scope: !"<<location.scope<<")\n";
+    }
+    for(const auto& variable:debug_variables) {
+        out<<"!"<<variable.type_id
+           <<" = !DIBasicType(name: \""<<escape_metadata(variable.type.name)
+           <<"\", size: "<<variable.type.bits
+           <<", encoding: "<<variable.type.encoding<<")\n";
+        out<<"!"<<variable.id
+           <<" = !DILocalVariable(name: \""<<escape_metadata(variable.name)<<"\"";
+        if(variable.argument) out<<", arg: "<<variable.argument;
+        out<<", scope: !"<<variable.scope
+           <<", file: !"<<variable.file
+           <<", line: "<<variable.line
+           <<", type: !"<<variable.type_id<<")\n";
     }
 }
 return out.str();

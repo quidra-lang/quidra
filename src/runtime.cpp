@@ -7905,6 +7905,16 @@ extern "C" long long quidra_bin_byte_length(void* raw) {
     return bits / 8;
 }
 
+extern "C" char* quidra_u8_array_try_utf8(void* raw) {
+    if (!raw) return nullptr;
+    long long signed_count = 0;
+    std::memcpy(&signed_count, raw, sizeof(signed_count));
+    if (signed_count < 0) return nullptr;
+    const auto count = static_cast<unsigned long long>(signed_count);
+    return quidra_runtime_try_copy_text_bytes(
+        static_cast<const char*>(raw) + 8, count);
+}
+
 extern "C" char* quidra_bin_try_utf8(void* raw) {
     if (!raw) return nullptr;
     const auto bits = bin_length(raw);

@@ -141,8 +141,8 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
         exports.classes.emplace("Parameter", "$std.neural.Parameter");
         exports.classes.emplace("State", "$std.neural.State");
         for (const char* name : {"track", "affine", "convolve2d", "absolute", "exponential",
-                                 "logarithm", "mean", "sum_last", "max_last", "update", "normalize",
-                                 "normalize_inference", "random_mask", "moment_update", "grad", "save", "load"}) {
+                                 "logarithm", "mean", "sum_last", "max_last", "update", "all_reduce_sum",
+                                 "normalize", "normalize_inference", "random_mask", "moment_update", "grad", "save", "load"}) {
             exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
         }
     }

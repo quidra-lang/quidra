@@ -337,6 +337,21 @@ print(invalid[0].item())
 QUI
 expect_runtime_error "$TMP/integer-cast-range.qui" "tensor cast is unsupported or a value is outside the target range"
 
+cat > "$TMP/neural-all-reduce-sum.qui" <<'QUI'
+tensor<float32> first = tensor.ones<float32>([2], gpu = 0)
+tensor<float32> second = tensor.ones<float32>([2], gpu = 1) * float32(2)
+tensor<float32>[] values = [first, second]
+neural.all_reduce_sum(&values)
+print(values[0].cpu()[0].item())
+print(values[1].cpu()[1].item())
+QUI
+all_reduce_output="$("$QUIDRA" run "$TMP/neural-all-reduce-sum.qui")"
+if [[ "$all_reduce_output" != "$(printf '3.0\n3.0')" ]]; then
+    echo "unexpected fake-GPU neural.all_reduce_sum output:" >&2
+    printf '%s\n' "$all_reduce_output" >&2
+    exit 1
+fi
+
 cat > "$TMP/image-write-no-fallback.qui" <<'QUI'
 tensor<uint8> value = tensor.ones<uint8>([1, 1, 1], gpu = 0)
 auto written = image.write("should-not-exist.png", value)

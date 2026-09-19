@@ -13,7 +13,7 @@ on:
 
 concurrency:
   group: native-performance-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   micro:
@@ -53,15 +53,19 @@ jobs:
           data=json.load(open(path))
           rows=[]
           by={}
+          display_name={
+              "quidra_interpreter": "quidra_compile_execute",
+          }
           for r in data["results"]:
+              cfg=display_name.get(r["config"],r["config"])
               if r.get("status")!="ok":
-                  rows.append((r["config"],r["workload"],r.get("status"),None,None,None,None,None))
+                  rows.append((cfg,r["workload"],r.get("status"),None,None,None,None,None))
                   continue
               t=r["timing"]
               rep=t["representative"]
-              row=(r["config"],r["workload"],"ok",rep["wall_seconds"],rep["peak_rss_bytes"],r["build"]["wall_seconds"],r.get("artifact_size_bytes"),t["first_run_wall_seconds"])
+              row=(cfg,r["workload"],"ok",rep["wall_seconds"],rep["peak_rss_bytes"],r["build"]["wall_seconds"],r.get("artifact_size_bytes"),t["first_run_wall_seconds"])
               rows.append(row)
-              by.setdefault(r["config"],[]).append(rep["wall_seconds"])
+              by.setdefault(cfg,[]).append(rep["wall_seconds"])
           header="| config | workload | status | wall s | peak RSS MiB | compile s | artifact KiB | first run s |\n|---|---|---:|---:|---:|---:|---:|---:|"
           lines=[header]
           for cfg,wl,status,wall,rss,comp,size,first in rows:
@@ -69,6 +73,7 @@ jobs:
                   lines.append(f"| {cfg} | {wl} | {status} | - | - | - | - | - |")
               else:
                   lines.append(f"| {cfg} | {wl} | {status} | {wall:.4f} | {rss/1048576:.1f} | {comp:.4f} | {size/1024:.1f} | {first:.4f} |")
+          lines.append("\n> Historical config `quidra_interpreter` invokes `quidra run`; the summary labels it `quidra_compile_execute` because it includes compile+link+execute and is not an interpreter/REPL measurement.")
           lines.append("\n## Mean wall time across 11 workloads")
           for cfg,vals in by.items():
               lines.append(f"- {cfg}: {statistics.mean(vals):.4f} s")

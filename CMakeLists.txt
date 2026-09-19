@@ -161,6 +161,10 @@ elseif(MSVC)
   target_compile_options(quidra_core PRIVATE /W4 /wd4456)
   target_compile_options(quidra_runtime PRIVATE /W4 /Gy /Gw)
   target_compile_options(quidra PRIVATE /W4)
+  # Windows reserves only 1 MiB of stack for executables by default. Compiler
+  # lowering legitimately walks nested typed AST/IR structures that fit in the
+  # larger defaults on Linux/macOS; reserve the same practical headroom here.
+  target_link_options(quidra PRIVATE /STACK:8388608)
 endif()
 
 install(TARGETS quidra RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

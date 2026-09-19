@@ -44,6 +44,24 @@ struct Lowerer {
         classify_borrowed_parameters();
     }
 
+    bool trusted_standard_collection_array(const Expr& expression) const {
+        const bool standard_collection =
+            current_class.rfind("__quidra_gc__std_map_Map_", 0) == 0 ||
+            current_class.rfind("__quidra_gc__std_set_Set_", 0) == 0;
+        if (!standard_collection) return false;
+        const auto access = checked.field_accesses.find(&expression);
+        if (access == checked.field_accesses.end()) return false;
+        const auto owner = checked.classes.find(access->second.owner);
+        if (owner == checked.classes.end()) return false;
+        for (const auto& field : owner->second.fields) {
+            if (field.index != access->second.index) continue;
+            return field.name == "__keys" || field.name == "__values" ||
+                   field.name == "__hashes" || field.name == "__active" ||
+                   field.name == "__slots";
+        }
+        return false;
+    }
+
     void cache_reference_array_initialization(
         const FunctionType& signature,
         const std::vector<StmtPtr>& body) {
@@ -1177,9 +1195,13 @@ struct Lowerer {
         if (const auto* n=std::get_if<IndexExpr>(&e.data)) {
             const bool base_owned=expression_owns_result(*n->base);
             const auto base_type=type_of(*n->base);
+            const bool trusted_collection_array =
+                base_type.kind == TypeKind::Array &&
+                trusted_standard_collection_array(*n->base);
             const bool initialization_proven =
                 base_type.kind == TypeKind::Array &&
-                array_expression_fully_initialized(*n->base);
+                (trusted_collection_array ||
+                 array_expression_fully_initialized(*n->base));
             auto a=expr(*n->base), out=fresh();
             if(base_type.kind==TypeKind::Tensor){
                 std::vector<TensorIndexPart> items;
@@ -1228,7 +1250,8 @@ struct Lowerer {
                         static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column),
                         initialization_proven,
-                        checked.bounds_proven.contains(n->items.front().index.get()),
+                        trusted_collection_array ||
+                            checked.bounds_proven.contains(n->items.front().index.get()),
                         initialization_guard});
                     if(base_owned && requires_lifetime_management(checked.raw_types.at(&e)))
                         out=copy_value(out,checked.raw_types.at(&e));
@@ -3040,9 +3063,13 @@ struct Lowerer {
             else {
                 const auto& ix=std::get<IndexExpr>(n->target->data);
                 const auto base_type=type_of(*ix.base);
+                const bool trusted_collection_array =
+                    base_type.kind==TypeKind::Array &&
+                    trusted_standard_collection_array(*ix.base);
                 const bool initialization_proven =
                     base_type.kind==TypeKind::Array &&
-                    array_expression_fully_initialized(*ix.base);
+                    (trusted_collection_array ||
+                     array_expression_fully_initialized(*ix.base));
                 auto a=expr(*ix.base);
                 if(base_type.kind==TypeKind::Tensor){
                     std::vector<ValueId> indices;
@@ -3068,7 +3095,8 @@ struct Lowerer {
                             a,i,v,t,static_cast<std::uint32_t>(n->target->span.start.line),
                             static_cast<std::uint32_t>(n->target->span.start.column),
                             initialization_proven,
-                            checked.bounds_proven.contains(ix.items.front().index.get()),
+                            trusted_collection_array ||
+                                checked.bounds_proven.contains(ix.items.front().index.get()),
                             initialization_guard});
                     }
                 }

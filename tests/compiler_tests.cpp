@@ -337,6 +337,14 @@ for i in range(0, len(text))
     if text[i] == " "
         print(i)
 )", "string.index_ascii_compare");
+ ir_contains(R"(string source = "ab"
+uint8[] data = uint8[](source.utf8())
+match string.from_utf8(bin(data))
+    string decoded
+        print(decoded)
+    error problem
+        print(problem)
+)", "string.from_utf8_array_direct");
  ir_contains(R"(match int.parse("42")
     int value
         print(value)

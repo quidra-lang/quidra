@@ -1302,9 +1302,14 @@ bool compute_all_reduce_sum(
         return false;
     }
     const auto width = dtype == 10 ? sizeof(float) : sizeof(double);
+    if (count != 0 && width > std::numeric_limits<std::size_t>::max() / count) {
+        error = "NCCL all-reduce byte size overflow";
+        return false;
+    }
+    const auto bytes = count * width;
     for (auto* buffer : buffers) {
-        if (!buffer || !compute_buffer_range(buffer, 0, count, width, error)) {
-            if (error.empty()) error = "invalid NCCL all-reduce buffer";
+        if (!buffer || !range_ok(*buffer, 0, bytes)) {
+            error = "invalid NCCL all-reduce buffer range";
             return false;
         }
     }

@@ -739,9 +739,8 @@ Program root_program(std::string_view source) {
 }
 
 std::optional<SourceSpan> definition_span(
-    const Program& program,std::string_view source,std::string_view name,std::size_t offset) {
-    const auto tokens=Lexer(source).scan();
-
+    const Program& program,std::string_view source,std::string_view name,std::size_t offset,
+    const std::vector<Token>& tokens) {
     for(const auto& declaration:program.classes) {
         if(!contains_offset(declaration.span,offset)) continue;
         for(const auto& method:declaration.methods) {
@@ -780,6 +779,12 @@ std::optional<SourceSpan> definition_span(
         }
     }
     return std::nullopt;
+}
+
+std::optional<SourceSpan> definition_span(
+    const Program& program,std::string_view source,std::string_view name,std::size_t offset) {
+    const auto tokens=Lexer(source).scan();
+    return definition_span(program,source,name,offset,tokens);
 }
 
 struct CompletionSymbol {
@@ -876,15 +881,16 @@ bool same_span(SourceSpan left,SourceSpan right) {
 }
 
 std::optional<Token> identifier_token_at(std::string_view source,std::size_t offset) {
-    for(const auto& token:Lexer(source).scan()) {
+    for(const auto& token:tokens) {
         if(token.kind==TokenKind::Identifier&&contains_offset(token.span,offset)) return token;
     }
     return std::nullopt;
 }
 
 std::optional<SourceSpan> resolved_definition_span(
-    const Program& program,std::string_view source,std::string_view name,std::size_t offset) {
-    if(auto found=definition_span(program,source,name,offset)) return found;
+    const Program& program,std::string_view source,std::string_view name,std::size_t offset,
+    const std::vector<Token>& tokens) {
+    if(auto found=definition_span(program,source,name,offset,tokens)) return found;
 
     const auto* expression=expression_at(program,offset);
     if(!expression) return std::nullopt;
@@ -892,7 +898,6 @@ std::optional<SourceSpan> resolved_definition_span(
     const bool member_access=std::holds_alternative<MemberExpr>(expression->data);
     if(!method&&!member_access) return std::nullopt;
 
-    const auto tokens=Lexer(source).scan();
     std::optional<SourceSpan> candidate;
     std::size_t matches=0;
     for(const auto& declaration:program.classes) {
@@ -915,6 +920,12 @@ std::optional<SourceSpan> resolved_definition_span(
         }
     }
     return matches==1?candidate:std::nullopt;
+}
+
+std::optional<SourceSpan> resolved_definition_span(
+    const Program& program,std::string_view source,std::string_view name,std::size_t offset) {
+    const auto tokens=Lexer(source).scan();
+    return resolved_definition_span(program,source,name,offset,tokens);
 }
 
 std::vector<SourceSpan> reference_spans(
@@ -977,8 +988,8 @@ bool is_operator_token(TokenKind kind) {
 }
 
 int declaration_semantic_type(
-    const Program& program,std::string_view source,const Token& token) {
-    const auto tokens=Lexer(source).scan();
+    const Program& program,std::string_view source,const Token& token,
+    const std::vector<Token>& tokens) {
     for(const auto& import:program.imports)
         if(import.alias==token.text&&contains_offset(import.span,token.span.start.offset)) return 0;
     for(const auto& declaration:program.classes) {
@@ -1012,7 +1023,8 @@ int declaration_semantic_type(
 }
 
 int identifier_semantic_type(
-    const Program& program,std::string_view source,const Token& token) {
+    const Program& program,std::string_view source,const Token& token,
+    const std::vector<Token>& tokens) {
     if(builtin_scalar_type(token.text)||
        token.text=="auto"||token.text=="void"||token.text=="none"||
        token.text=="error"||token.text=="never") return 1;
@@ -1027,7 +1039,7 @@ int identifier_semantic_type(
     }
 
     const auto target=resolved_definition_span(
-        program,source,token.text,token.span.start.offset);
+        program,source,token.text,token.span.start.offset,tokens);
     if(!target) {
         for(const auto& import:program.imports) if(import.alias==token.text) return 0;
         for(const auto& declaration:program.classes) if(declaration.name==token.text) return 2;
@@ -1036,17 +1048,18 @@ int identifier_semantic_type(
     }
 
     Token definition_token=token;
-    for(const auto& candidate:Lexer(source).scan()) {
+    for(const auto& candidate:tokens) {
         if(candidate.kind==TokenKind::Identifier&&candidate.text==token.text&&
            contains_offset(*target,candidate.span.start.offset)) {
             definition_token=candidate;
             break;
         }
     }
-    return declaration_semantic_type(program,source,definition_token);
+    return declaration_semantic_type(program,source,definition_token,tokens);
 }
 
 std::string semantic_tokens_json(const Program& program,std::string_view source) {
+    const auto tokens=Lexer(source).scan();
     std::vector<unsigned long long> data;
     std::size_t previous_line=0;
     std::size_t previous_start=0;
@@ -1058,7 +1071,7 @@ std::string semantic_tokens_json(const Program& program,std::string_view source)
         else if(token.kind==TokenKind::Integer||token.kind==TokenKind::Float) type=10;
         else if(is_operator_token(token.kind)) type=11;
         else if(token.kind==TokenKind::Identifier)
-            type=identifier_semantic_type(program,source,token);
+            type=identifier_semantic_type(program,source,token,tokens);
         if(!type) continue;
 
         const auto start=lsp_position(source,token.span.start.offset);

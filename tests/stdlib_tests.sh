@@ -118,24 +118,13 @@ cat > "$TMP/file-handle.qui" <<QUI
 auto opened = file.open("$TMP/source.txt")
 match opened
     file.Handle handle
-        file.Handle alias = handle
-
-        auto first = handle.read()
-        match first
+        auto content = handle.read()
+        match content
             string value
                 print(value)
             error problem
-                print(problem)
-
-        auto second = alias.read()
-        match second
-            string value
-                print(value == "")
-            error problem
-                print(problem)
-
-        alias.close()
-
+                print("read-error")
+        handle.close()
         auto closed = handle.read()
         match closed
             string value
@@ -143,7 +132,7 @@ match opened
             error problem
                 print("closed")
     error problem
-        print(problem)
+        print("open-error")
 QUI
 [[ "$("$QUIDRA" "$TMP/file-handle.qui")" == 
 bin allocated = bin.fill(5, 1)
@@ -235,9 +224,9 @@ match opened
                 uint8[] bytes = uint8[](value)
                 print(bytes[1])
             error problem
-                print(problem)
+                print("read-error")
     error problem
-        print(problem)
+        print("open-error")
 QUI
 [[ "$("$QUIDRA" "$TMP/file-handle-bin.qui")" == 
 auto raw = file.read_bin("$TMP/source.bin")
@@ -2145,7 +2134,42 @@ QUI
     video_output="$("$QUIDRA" "$TMP/video-runtime.qui")"
     [[ "$video_output" == "$(printf '4\n2\ntrue\n2\nindependent')" ]]
 fi
-hello\ntrue\nclosed' ]]
+hello\nclosed' ]]
+
+cat > "$TMP/file-handle-copy.qui" <<QUI
+auto opened = file.open("$TMP/source.txt")
+match opened
+    file.Handle first
+        file.Handle second = first
+        first.close()
+        auto content = second.read()
+        match content
+            string value
+                print(value)
+            error problem
+                print("copy-error")
+    error problem
+        print("open-error")
+QUI
+[[ "$("$QUIDRA" "$TMP/file-handle-copy.qui")" == "hello" ]]
+
+cat > "$TMP/file-handle-auto-close.qui" <<QUI
+void | error open_and_return(string path)
+    file.Handle handle = try file.open(path)
+    return
+
+int i = 0
+while i < 256
+    auto result = open_and_return("$TMP/source.txt")
+    match result
+        void
+            void
+        error problem
+            print("open-error")
+    i += 1
+print("released")
+QUI
+[[ "$("$QUIDRA" "$TMP/file-handle-auto-close.qui")" == "released" ]]
 
 cat > "$TMP/bin-string.qui" <<'QUI'
 bin allocated = bin.fill(5, 1)
@@ -6039,7 +6063,42 @@ QUI
     video_output="$("$QUIDRA" "$TMP/video-runtime.qui")"
     [[ "$video_output" == "$(printf '4\n2\ntrue\n2\nindependent')" ]]
 fi
-hello\ntrue\nclosed' ]]
+hello\nclosed' ]]
+
+cat > "$TMP/file-handle-copy.qui" <<QUI
+auto opened = file.open("$TMP/source.txt")
+match opened
+    file.Handle first
+        file.Handle second = first
+        first.close()
+        auto content = second.read()
+        match content
+            string value
+                print(value)
+            error problem
+                print("copy-error")
+    error problem
+        print("open-error")
+QUI
+[[ "$("$QUIDRA" "$TMP/file-handle-copy.qui")" == "hello" ]]
+
+cat > "$TMP/file-handle-auto-close.qui" <<QUI
+void | error open_and_return(string path)
+    file.Handle handle = try file.open(path)
+    return
+
+int i = 0
+while i < 256
+    auto result = open_and_return("$TMP/source.txt")
+    match result
+        void
+            void
+        error problem
+            print("open-error")
+    i += 1
+print("released")
+QUI
+[[ "$("$QUIDRA" "$TMP/file-handle-auto-close.qui")" == "released" ]]
 
 cat > "$TMP/bin-string.qui" <<'QUI'
 bin allocated = bin.fill(5, 1)

@@ -651,9 +651,9 @@ string | error read_open_file(string path)
     return text
 ```
 
-`file.Handle.read() -> string | error` and `read_bin() -> bin | error` consume the remaining bytes from the handle's current position. `close() -> void` is an optional early release and is idempotent. If `close()` is not called, the native file is closed deterministically when the last live handle to that resource leaves its lifetime; no `defer` or manual cleanup is required.
+`file.Handle.read() -> string | error` and `read_bin() -> bin | error` consume the remaining bytes from the handle's current position. `close() -> void` is an optional early release and is idempotent. If `close()` is not called, that owned handle closes its native file deterministically when the handle leaves its lifetime, including ordinary return and `error` propagation; no `defer` or manual cleanup is required.
 
-A `file.Handle` is an opaque external-resource capability rather than ordinary pure data. Copying or passing a handle preserves the same underlying file identity: copies share the current stream position and closed state. Therefore closing one copy closes that resource for every copy. This aliasing is deliberate and source-visible through the `file.Handle` type; it does not apply to ordinary classes, arrays, strings, tensors, or other value-semantic data.
+`file.Handle` follows Quidra value semantics. Copying a live handle creates an independent native reader positioned at the same byte offset. Reading or closing one copy does not change another copy. A closed handle copies as closed. `file.open` is currently read-only; whole-file writes remain explicit `file.write` / `file.write_bin` operations.
 
 ### environment
 

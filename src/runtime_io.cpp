@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -99,17 +101,21 @@ bool read_all_bytes(const char* path, std::string& data) {
 }
 
 struct FileState {
+    std::string path;
     std::ifstream stream;
+    std::uint64_t position{};
     bool closed{};
 
-    explicit FileState(const char* path) : stream(path, std::ios::binary) {}
+    explicit FileState(std::string source)
+        : path(std::move(source)), stream(path, std::ios::binary) {}
+
     ~FileState() {
         if (stream.is_open()) stream.close();
     }
 };
 
 struct FileHandle {
-    std::shared_ptr<FileState> state;
+    std::unique_ptr<FileState> state;
 };
 
 FileHandle* file_handle_from_value(void* value) {
@@ -146,7 +152,7 @@ void* make_bin_value(const std::string& data) {
 extern "C" void* quidra_file_open_raw(const char* path) {
     if (!path || !*path) return nullptr;
     try {
-        auto state = std::make_shared<FileState>(path);
+        auto state = std::make_unique<FileState>(std::string(path));
         if (!state->stream) return nullptr;
         auto* handle = new FileHandle{std::move(state)};
         return make_file_handle(handle);
@@ -161,11 +167,25 @@ extern "C" char* quidra_file_handle_read_raw(void* value) {
         !handle->state->stream.is_open()) {
         return nullptr;
     }
+    const auto start = handle->state->position;
     std::string data;
-    if (!read_stream_bytes(handle->state->stream, data) || !valid_text(data)) {
+    if (!read_stream_bytes(handle->state->stream, data) || !valid_text(data) ||
+        data.size() > std::numeric_limits<std::uint64_t>::max() - start) {
+        handle->state->stream.clear();
+        handle->state->stream.seekg(
+            static_cast<std::streamoff>(start), std::ios::beg);
         return nullptr;
     }
-    return copy_validated_text(data);
+    auto* result = copy_validated_text(data);
+    if (!result) {
+        handle->state->stream.clear();
+        handle->state->stream.seekg(
+            static_cast<std::streamoff>(start), std::ios::beg);
+        return nullptr;
+    }
+    handle->state->position =
+        start + static_cast<std::uint64_t>(data.size());
+    return result;
 }
 
 extern "C" void* quidra_file_handle_read_bin_raw(void* value) {
@@ -174,9 +194,25 @@ extern "C" void* quidra_file_handle_read_bin_raw(void* value) {
         !handle->state->stream.is_open()) {
         return nullptr;
     }
+    const auto start = handle->state->position;
     std::string data;
-    if (!read_stream_bytes(handle->state->stream, data)) return nullptr;
-    return make_bin_value(data);
+    if (!read_stream_bytes(handle->state->stream, data) ||
+        data.size() > std::numeric_limits<std::uint64_t>::max() - start) {
+        handle->state->stream.clear();
+        handle->state->stream.seekg(
+            static_cast<std::streamoff>(start), std::ios::beg);
+        return nullptr;
+    }
+    auto* result = make_bin_value(data);
+    if (!result) {
+        handle->state->stream.clear();
+        handle->state->stream.seekg(
+            static_cast<std::streamoff>(start), std::ios::beg);
+        return nullptr;
+    }
+    handle->state->position =
+        start + static_cast<std::uint64_t>(data.size());
+    return result;
 }
 
 extern "C" void quidra_file_handle_close(void* value) {
@@ -190,7 +226,28 @@ extern "C" void* quidra_file_handle_clone(void* value) {
     try {
         auto* handle = file_handle_from_value(value);
         if (!handle || !handle->state) return nullptr;
-        auto* copy = new FileHandle{handle->state};
+
+        auto state =
+            std::make_unique<FileState>(handle->state->path);
+        if (!state->stream) return nullptr;
+        state->position = handle->state->position;
+        state->closed = handle->state->closed;
+
+        if (state->closed) {
+            state->stream.close();
+        } else {
+            if (state->position >
+                static_cast<std::uint64_t>(
+                    std::numeric_limits<std::streamoff>::max())) {
+                return nullptr;
+            }
+            state->stream.seekg(
+                static_cast<std::streamoff>(state->position),
+                std::ios::beg);
+            if (!state->stream) return nullptr;
+        }
+
+        auto* copy = new FileHandle{std::move(state)};
         return make_file_handle(copy);
     } catch (...) {
         std::fprintf(stderr, "Quidra runtime error: allocation failed\n");

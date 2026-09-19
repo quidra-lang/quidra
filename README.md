@@ -809,7 +809,7 @@ The current implementation includes:
 - dense tensors with views, copy-on-write, strict broadcasting, explicit numeric casting, reductions, transpose views, and vector/matrix multiplication,
 - PNG/JPEG/BMP/TIFF/WebP image I/O through `image`,
 - streaming video decode through `video.Reader` with tensor-native RGB frames,
-- deterministic `file.Handle` resources with automatic lifetime-bound close and optional explicit early `close()`,
+- deterministic `file.Handle` resources with automatic lifetime-bound close, value-semantic copies, and optional explicit early `close()`,
 - typed Quidra IR followed by direct LLVM IR/native lowering,
 - Linux, macOS, and Windows native execution/packaging,
 - structured diagnostics, source inspection, and revision/hash-validated node-level patching.

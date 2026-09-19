@@ -469,7 +469,7 @@ std::string parameter_label(const FunctionParameterType& parameter) {
     std::string result;
     if(parameter.is_const) result+="const ";
     result+=type_name(parameter.type);
-    if(parameter.writable) result+=" &";
+    result+=parameter.writable?" &":" ";
     result+=parameter.name;
     return result;
 }

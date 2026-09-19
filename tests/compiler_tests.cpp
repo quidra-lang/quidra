@@ -372,8 +372,10 @@ for part in text.split(" ")
  ir_contains(R"(string text = "a b"
 for outer in range(0, 1)
     string[] parts = text.split(" ")
+    int index = 0
     for part in parts
         print(part)
+        index += 1
 )", "string.split_iter.begin");
 
  // Proven dynamic-array loop bounds remove runtime slot checks only when the
@@ -1590,7 +1592,7 @@ auto f = square
  llvm_contains(
      "int[2] xs = [1, 2]\nprint(xs[1])\n",
      "call ptr @quidra_fixed_array_slot_proven");
- llvm_not_contains(R"(int sum_values(const int[] &values, int n)
+ llvm_contains(R"(int sum_values(const int[] &values, int n)
     int total = 0
     for i in range(0, n)
         total += values[i]

@@ -1575,7 +1575,7 @@ auto f = square
 
 int[] values = array(8, fill = 1)
 print(sum_values(&values, len(values)))
-)", "@quidra_array_initialization_complete");
+)", "call i1 @quidra_array_initialization_complete");
  bad_code("int | none x = 1\nmatch x\n    int\n        print(x)\n", "MATCH_EXHAUSTIVE");
  bad_code("auto values = []\n", "AMBIGUOUS_TYPE");
  bad_code("int f(int x)\n    return x\nprint(f())\n", "ARGUMENT_MISMATCH");

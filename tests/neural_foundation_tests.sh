@@ -344,6 +344,35 @@ print(backward.pixels.raw()[0, 0, 1, 1].item())
 print(backward.weight.raw()[0, 0, 2, 2].item())
 print(backward.bias.raw()[0].item())
 
+class PointBackward
+    neural.Parameter<float32> pixels
+    neural.Parameter<float32> weight
+    neural.Parameter<float32> bias
+
+PointBackward point_backward = PointBackward(
+    pixels = neural.Parameter<float32>(
+        value = tensor.ones<float32>([1, 2, 2, 2])
+    ),
+    weight = neural.Parameter<float32>(
+        value = tensor.ones<float32>([1, 2, 1, 1])
+    ),
+    bias = neural.Parameter<float32>(
+        value = tensor.zeros<float32>([1])
+    )
+)
+neural<float32> point_tracked = neural.convolve2d(
+    point_backward.pixels.track(),
+    point_backward.weight,
+    point_backward.bias,
+    1,
+    0
+)
+neural.Gradients point_grads = neural.grad(neural.mean(point_tracked))
+neural.update(&point_backward, point_grads, rate = 1.0)
+print(point_backward.pixels.raw()[0, 1, 1, 1].item())
+print(point_backward.weight.raw()[0, 1, 0, 0].item())
+print(point_backward.bias.raw()[0].item())
+
 class Conv64
     neural.Parameter<float> weight
     neural.Parameter<float> bias
@@ -364,7 +393,7 @@ print(wide_out[0, 0, 0, 0].item())
 QUI
 
 coverage_output="$("$QUIDRA" "$TMP/convolve-coverage.qui")"
-coverage_expected="$(printf '2\n3\n3\n5\n3.0\n2\n3\n3.0\n3\n5\n19.0\n5\n7\n9.0\n19.0\n3\n4\n9.0\n19.0\n2\n4\n26.0\n0.0\n0.0\n-1.0\n10.0')"
+coverage_expected="$(printf '2\n3\n3\n5\n3.0\n2\n3\n3.0\n3\n5\n19.0\n5\n7\n9.0\n19.0\n3\n4\n9.0\n19.0\n2\n4\n26.0\n0.0\n0.0\n-1.0\n0.75\n0.0\n-1.0\n10.0')"
 if [[ "$coverage_output" != "$coverage_expected" ]]; then
     echo "unexpected convolution coverage output:" >&2
     printf '%s\n' "$coverage_output" >&2

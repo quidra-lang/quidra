@@ -1177,6 +1177,27 @@ id<MTLComputePipelineState> cached_metal_pipeline(
     }
 }
 
+id<MTLCommandQueue> cached_metal_command_queue(
+    id<MTLDevice> device, std::string& error) {
+    static std::mutex cache_mutex;
+    static std::unordered_map<std::uintptr_t, id<MTLCommandQueue>> cache;
+    const auto key=
+        reinterpret_cast<std::uintptr_t>((__bridge void*)device);
+    std::lock_guard lock(cache_mutex);
+    if(const auto found=cache.find(key);found!=cache.end())
+        return found->second;
+    id<MTLCommandQueue> queue=[device newCommandQueue];
+    if(!queue){
+        error="Metal command queue creation failed";
+        return nil;
+    }
+    // newCommandQueue returns an owned object. Keep one process-lifetime queue
+    // per Metal device, just like the cached pipeline objects above, so every
+    // tensor kernel does not pay queue creation/destruction overhead.
+    cache.emplace(key,queue);
+    return queue;
+}
+
 bool dispatch_metal_1d(Buffer* output, id<MTLComputePipelineState> pipeline,
                        std::size_t count,
                        const std::function<void(id<MTLComputeCommandEncoder>)>& bind,
@@ -1184,15 +1205,11 @@ bool dispatch_metal_1d(Buffer* output, id<MTLComputePipelineState> pipeline,
     if (count == 0) return true;
     @autoreleasepool {
         id<MTLDevice> device = [output->metal_buffer device];
-        id<MTLCommandQueue> queue = [device newCommandQueue];
-        if (!queue) {
-            error = "Metal command queue creation failed";
-            return false;
-        }
+        id<MTLCommandQueue> queue = cached_metal_command_queue(device,error);
+        if (!queue) return false;
         id<MTLCommandBuffer> command = [queue commandBuffer];
         id<MTLComputeCommandEncoder> encoder = [command computeCommandEncoder];
         if (!command || !encoder) {
-            [queue release];
             error = "Metal compute command creation failed";
             return false;
         }
@@ -1214,10 +1231,8 @@ bool dispatch_metal_1d(Buffer* output, id<MTLComputePipelineState> pipeline,
                 error += ": ";
                 error += [[ns_error localizedDescription] UTF8String];
             }
-            [queue release];
             return false;
         }
-        [queue release];
         return true;
     }
 }

@@ -5742,6 +5742,62 @@ void* neural_grad_t(
             std::vector<T> input_gradient(input_values.size(),T{0});
             std::vector<T> weight_gradient(weight_values.size(),T{0});
             std::vector<T> bias_gradient(bias->data.size(),T{0});
+
+            // Pointwise convolution is common in CNN bottlenecks. Preserve the
+            // exact batch->output-channel->spatial->input-channel accumulation
+            // order while removing kernel loops, bounds checks, and repeated
+            // four-dimensional index reconstruction from the backward pass.
+            if(kernel_h==1&&kernel_w==1&&padding==0){
+                const auto input_plane=
+                    static_cast<std::size_t>(height)*static_cast<std::size_t>(width);
+                const auto output_plane=
+                    static_cast<std::size_t>(out_h)*static_cast<std::size_t>(out_w);
+                for(long long batch_index=0;batch_index<n;++batch_index){
+                    const auto* input_batch=input_values.data()+
+                        static_cast<std::size_t>(batch_index*in_c)*input_plane;
+                    auto* input_gradient_batch=input_gradient.data()+
+                        static_cast<std::size_t>(batch_index*in_c)*input_plane;
+                    const auto* gradient_batch=g.data()+
+                        static_cast<std::size_t>(batch_index*out_c)*output_plane;
+                    for(long long output_channel=0;output_channel<out_c;++output_channel){
+                        const auto* weight_out=weight_values.data()+
+                            static_cast<std::size_t>(output_channel*in_c);
+                        auto* weight_gradient_out=weight_gradient.data()+
+                            static_cast<std::size_t>(output_channel*in_c);
+                        const auto* gradient_out=gradient_batch+
+                            static_cast<std::size_t>(output_channel)*output_plane;
+                        T bias_total=bias_gradient[
+                            static_cast<std::size_t>(output_channel)];
+                        for(long long oy=0;oy<out_h;++oy){
+                            const auto iy=oy*stride;
+                            for(long long ox=0;ox<out_w;++ox){
+                                const auto ix=ox*stride;
+                                const auto gradient=gradient_out[
+                                    static_cast<std::size_t>(oy*out_w+ox)];
+                                bias_total=static_cast<T>(bias_total+gradient);
+                                const auto spatial=
+                                    static_cast<std::size_t>(iy*width+ix);
+                                for(long long input_channel=0;
+                                    input_channel<in_c;++input_channel){
+                                    const auto input_offset=
+                                        static_cast<std::size_t>(input_channel)*
+                                            input_plane+spatial;
+                                    const auto channel=
+                                        static_cast<std::size_t>(input_channel);
+                                    input_gradient_batch[input_offset]=static_cast<T>(
+                                        input_gradient_batch[input_offset]+static_cast<T>(
+                                            gradient*weight_out[channel]));
+                                    weight_gradient_out[channel]=static_cast<T>(
+                                        weight_gradient_out[channel]+static_cast<T>(
+                                            gradient*input_batch[input_offset]));
+                                }
+                            }
+                        }
+                        bias_gradient[static_cast<std::size_t>(output_channel)]=
+                            bias_total;
+                    }
+                }
+            }else{
             const auto input_index=[&](long long batch,long long channel,long long y,long long x){
                 return static_cast<std::size_t>(((batch*in_c+channel)*height+y)*width+x);
             };
@@ -5783,6 +5839,7 @@ void* neural_grad_t(
                                                 gradient*input_values[input_offset]));
                                     }
                         }
+            }
             neural_add_gradient(gradients,input,std::move(input_gradient));
             neural_add_gradient(gradients,weight,std::move(weight_gradient));
             neural_add_gradient(gradients,bias,std::move(bias_gradient));

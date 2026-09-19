@@ -61,6 +61,7 @@ struct StringJoin { ValueId out; ValueId values; ValueId separator; std::uint32_
 struct StringConcat { ValueId out; std::vector<ValueId> values; };
 struct StringBuildPart { ValueId value; Type type; };
 struct StringBuild { ValueId out; std::vector<StringBuildPart> parts; ValueId separator; };
+struct StringBuildAppendMove { ValueId out; ValueId added_length; ValueId text; std::vector<StringBuildPart> parts; ValueId separator; };
 struct StringCanAppendMove { ValueId out; ValueId text; };
 struct StringAppendMove { ValueId out; ValueId text; std::vector<ValueId> suffixes; };
 struct StringRepeat { ValueId out; ValueId count; ValueId fill; };
@@ -283,7 +284,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  StringIndex, StringIndexAsciiCompare, StringLength, StringContains, StringStartsWith,
                                  StringEndsWith, StringFind, StringSlice, StringTrim, StringSplit,
                                  StringParseTwoSigned, StringUtf8, StringFromUtf8, StringCodepoints, StringJoin, StringConcat, StringBuild,
-                                 StringCanAppendMove, StringAppendMove, StringRepeat,
+                                 StringBuildAppendMove, StringCanAppendMove, StringAppendMove, StringRepeat,
                                  BinAlloc, BinLength, BinGet, BinSet, BinSlice,
                                  ParseBin, BinConvert,
                                  NumericConvert, ArrayNumericCast, TensorCreate, TensorTransfer, TensorReshape, TensorTranspose, TensorContiguous,

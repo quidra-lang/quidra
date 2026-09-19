@@ -243,6 +243,11 @@ struct JsonEncode { ValueId out; ValueId value; };
 struct JsonEqual { ValueId out; ValueId left; ValueId right; };
 struct HttpGet { ValueId out; ValueId url; Type result_type; };
 struct HttpHeader { ValueId out; ValueId response; ValueId name; Type result_type; };
+struct VideoOpen { ValueId out; ValueId path; Type result_type; };
+struct VideoRead { ValueId out; ValueId reader; Type result_type; };
+struct VideoWidth { ValueId out; ValueId reader; };
+struct VideoHeight { ValueId out; ValueId reader; };
+struct VideoFps { ValueId out; ValueId reader; };
 struct NumericMinMax { ValueId out; ValueId left; ValueId right; Type type; bool maximum{}; };
 struct ArrayInitializationComplete { ValueId out; ValueId array; };
 struct ArrayGet { ValueId out; ValueId array; ValueId index; Type element_type; std::uint32_t line{}; std::uint32_t column{}; bool initialization_proven{}; bool bounds_proven{}; std::optional<ValueId> initialization_guard{}; std::optional<ValueId> bounds_guard{}; };
@@ -341,6 +346,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  JsonParse, JsonKind, JsonSize, JsonGet, JsonAt, JsonText,
                                  JsonInteger, JsonNumber, JsonBigInt, JsonBigReal, JsonBoolean, JsonEncode, JsonEqual,
                                  HttpGet, HttpHeader,
+                                 VideoOpen, VideoRead, VideoWidth, VideoHeight, VideoFps,
                                  NumericMinMax, ArrayGet, ArraySet, Clone, Retain, Release,
                                  Unary, Binary, ToString, FormatNumber, LoadLocal, StoreLocal,
                                  FunctionRef, IndirectCall, Call, VariantMake, VariantTag, VariantPayload,

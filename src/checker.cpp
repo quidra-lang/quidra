@@ -388,7 +388,8 @@ bool Checker::equality_supported(const Type& type) const {
             }
             if (current.kind == TypeKind::Class) {
                 if (current.class_name == "$std.json.Value" ||
-                    current.class_name == "$std.http.Response") return false;
+                    current.class_name == "$std.http.Response" ||
+                    current.class_name == "$std.video.Reader") return false;
                 // Array elements do not yet carry per-element class initialization metadata.
                 // Reject arrays containing classes rather than reading conceptual uninitialized fields.
                 if (inside_array) return false;
@@ -3006,6 +3007,57 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     auto name_value = builtin_arg(0, "name", &string_type);
                     type = poisoned(name_value) ? simple(TypeKind::Invalid)
                         : Type::union_of({string_type, simple(TypeKind::None)});
+                    break;
+                }
+                case BuiltinCallable::VideoOpen: {
+                    if (node->args.size() != 1) {
+                        error("ARGUMENT_MISMATCH", "video.open requires one path string.", expression.span);
+                    }
+                    auto string_type = simple(TypeKind::String);
+                    auto path = builtin_arg(0, "path", &string_type);
+                    type = poisoned(path) ? simple(TypeKind::Invalid)
+                        : Type::union_of({
+                            Type::class_type("$std.video.Reader"), simple(TypeKind::Error)});
+                    if (!poisoned(path)) {
+                        class_expr_initialized_paths_[&expression] = {"$handle"};
+                    }
+                    break;
+                }
+                case BuiltinCallable::VideoRead: {
+                    if (current_class_ != "$std.video.Reader") {
+                        error("INVALID_CONTEXT", "video read requires a Reader receiver.", expression.span);
+                    }
+                    if (!node->args.empty()) {
+                        error("ARGUMENT_MISMATCH", "Reader.read takes no arguments.", expression.span);
+                    }
+                    current_receiver_effect_.required.insert("$handle");
+                    type = Type::union_of({
+                        Type::tensor(simple(TypeKind::UInt8), 3, {3, -1, -1}, {3}),
+                        simple(TypeKind::None),
+                        simple(TypeKind::Error)});
+                    break;
+                }
+                case BuiltinCallable::VideoWidth:
+                case BuiltinCallable::VideoHeight: {
+                    if (current_class_ != "$std.video.Reader") {
+                        error("INVALID_CONTEXT", "video metadata requires a Reader receiver.", expression.span);
+                    }
+                    if (!node->args.empty()) {
+                        error("ARGUMENT_MISMATCH", name + " takes no arguments.", expression.span);
+                    }
+                    current_receiver_effect_.required.insert("$handle");
+                    type = simple(TypeKind::Int);
+                    break;
+                }
+                case BuiltinCallable::VideoFps: {
+                    if (current_class_ != "$std.video.Reader") {
+                        error("INVALID_CONTEXT", "video metadata requires a Reader receiver.", expression.span);
+                    }
+                    if (!node->args.empty()) {
+                        error("ARGUMENT_MISMATCH", "Reader.fps takes no arguments.", expression.span);
+                    }
+                    current_receiver_effect_.required.insert("$handle");
+                    type = simple(TypeKind::Float);
                     break;
                 }
                 case BuiltinCallable::NeuralTrack:

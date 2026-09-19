@@ -126,6 +126,11 @@ enum class BuiltinCallable {
     JsonEqual,
     HttpGet,
     HttpHeader,
+    VideoOpen,
+    VideoRead,
+    VideoWidth,
+    VideoHeight,
+    VideoFps,
     TensorCreate,
     TensorZeros,
     TensorOnes,
@@ -193,7 +198,7 @@ inline constexpr std::array<BuiltinCallableInfo, 11> builtin_callables{{
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 96> intrinsic_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 101> intrinsic_callables{{
     {"$std.math.sin", BuiltinCallable::MathSin},
     {"$std.math.cos", BuiltinCallable::MathCos},
     {"$std.math.tan", BuiltinCallable::MathTan},
@@ -249,6 +254,11 @@ inline constexpr std::array<BuiltinCallableInfo, 96> intrinsic_callables{{
     {"$std.json.equal", BuiltinCallable::JsonEqual},
     {"$std.http.get", BuiltinCallable::HttpGet},
     {"$std.http.header", BuiltinCallable::HttpHeader},
+    {"$std.video.open", BuiltinCallable::VideoOpen},
+    {"$std.video.read", BuiltinCallable::VideoRead},
+    {"$std.video.width", BuiltinCallable::VideoWidth},
+    {"$std.video.height", BuiltinCallable::VideoHeight},
+    {"$std.video.fps", BuiltinCallable::VideoFps},
     {"$std.tensor.zeros", BuiltinCallable::TensorZeros},
     {"$std.tensor.ones", BuiltinCallable::TensorOnes},
     {"$std.stats.sum", BuiltinCallable::StatsSum},
@@ -302,9 +312,9 @@ inline constexpr std::optional<BuiltinCallable> builtin_callable(std::string_vie
     return std::nullopt;
 }
 
-inline constexpr std::array<std::string_view, 19> standard_modules{{
+inline constexpr std::array<std::string_view, 20> standard_modules{{
     "math", "cli", "file", "environment", "test", "time", "task", "random", "process",
-    "map", "set", "json", "http", "stats", "linear", "signal", "image", "tensor",
+    "map", "set", "json", "http", "stats", "linear", "signal", "image", "video", "tensor",
     "neural"
 }};
 
@@ -363,6 +373,10 @@ inline constexpr std::optional<std::string_view> standard_function_target(
     }
     if (module == "http") {
         if (member == "get") return "$std.http.get";
+        return std::nullopt;
+    }
+    if (module == "video") {
+        if (member == "open") return "$std.video.open";
         return std::nullopt;
     }
     if (module == "tensor") {

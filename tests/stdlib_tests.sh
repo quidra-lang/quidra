@@ -2022,3 +2022,70 @@ bin_array_length_rc=$?
 set -e
 [[ "$bin_array_length_rc" -eq 101 ]]
 grep -q 'bin length is not divisible by destination element width' "$TMP/bin-array-length-fail.err"
+
+
+cat > "$TMP/video-api.qui" <<'QUI'
+auto opened = video.open("sample.mp4")
+match opened
+    video.Reader reader
+        int width = reader.width()
+        int height = reader.height()
+        float fps = reader.fps()
+        auto next = reader.read()
+        match next
+            tensor<uint8><3, _, _> frame
+                print(width)
+                print(height)
+                print(fps)
+            none
+                print("eof")
+            error problem
+                print(problem)
+    error problem
+        print(problem)
+QUI
+"$QUIDRA" check "$TMP/video-api.qui"
+"$QUIDRA" llvm "$TMP/video-api.qui" > "$TMP/video-api.ll"
+grep -q '@quidra_video_open_raw' "$TMP/video-api.ll"
+grep -q '@quidra_video_read' "$TMP/video-api.ll"
+
+if command -v ffmpeg >/dev/null 2>&1; then
+    ffmpeg -v error -f lavfi -i "color=c=red:s=4x2:r=2:d=1" \
+        -frames:v 2 -c:v rawvideo -pix_fmt yuv420p -y "$TMP/video-sample.nut"
+
+    cat > "$TMP/video-runtime.qui" <<QUI
+auto opened = video.open("$TMP/video-sample.nut")
+match opened
+    video.Reader reader
+        print(reader.width())
+        print(reader.height())
+        test.check(reader.fps() > 0.0)
+        print(true)
+        video.Reader stream = reader
+        int frames = 0
+        bool reading = true
+        while reading
+            auto next = stream.read()
+            match next
+                tensor<uint8><3, _, _> frame
+                    frames += 1
+                none
+                    reading = false
+                error problem
+                    print(problem)
+                    reading = false
+        print(frames)
+        auto after = reader.read()
+        match after
+            tensor<uint8><3, _, _> frame
+                print("unexpected-frame")
+            none
+                print("shared")
+            error problem
+                print(problem)
+    error problem
+        print(problem)
+QUI
+    video_output="$("$QUIDRA" "$TMP/video-runtime.qui")"
+    [[ "$video_output" == "$(printf '4\n2\ntrue\n2\nshared')" ]]
+fi

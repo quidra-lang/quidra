@@ -636,6 +636,9 @@ struct FunctionEmitter {
         if (type.kind == TypeKind::Class && type.class_name == "$std.http.Response") {
             return "@quidra_http_response_drop";
         }
+        if (type.kind == TypeKind::Class && type.class_name == "$std.video.Reader") {
+            return "@quidra_video_reader_drop";
+        }
         return has_drop_helper(type) ? drop_name(type) : "null";
     }
 
@@ -2894,6 +2897,61 @@ struct FunctionEmitter {
                <<"  br label %"<<done<<"\n";
             out<<done<<":\n";
         }
+        if constexpr(std::is_same_v<T,ir::VideoOpen>){
+            values[n.out]=n.result_type;
+            const auto raw=temp("video.open.raw"),ok=temp("video.open.ok"),result=value(n.out);
+            out<<"  "<<raw<<" = call ptr @quidra_video_open_raw(ptr "<<value(n.path)<<")\n";
+            out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
+            out<<"  "<<ok<<" = icmp ne ptr "<<raw<<", null\n";
+            const auto yes=unique_label("video.open.ok"),bad=unique_label("video.open.error"),done=unique_label("video.open.done");
+            out<<"  br i1 "<<ok<<", label %"<<yes<<", label %"<<bad<<"\n";
+            out<<yes<<":\n  store i64 "<<case_index(n.result_type,Type::class_type("$std.video.Reader"))<<", ptr "<<result<<"\n";
+            const auto good_payload=temp("video.open.reader");
+            out<<"  "<<good_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+               <<"  store ptr "<<raw<<", ptr "<<good_payload<<"\n  br label %"<<done<<"\n";
+            out<<bad<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
+            const auto message=temp("video.open.message"),error_payload=temp("video.open.error.payload");
+            out<<"  "<<message<<" = call ptr @quidra_video_last_error_copy()\n";
+            out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+               <<"  store ptr "<<message<<", ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
+            out<<done<<":\n";
+        }
+        if constexpr(std::is_same_v<T,ir::VideoRead>){
+            values[n.out]=n.result_type;
+            const auto frame_type=Type::tensor(Type::simple(TypeKind::UInt8),3,{3,-1,-1},{3});
+            const auto slot=temp("video.read.slot"),status=temp("video.read.status"),result=value(n.out);
+            out<<"  "<<slot<<" = alloca ptr\n";
+            out<<"  store ptr null, ptr "<<slot<<"\n";
+            out<<"  "<<status<<" = call i32 @quidra_video_read(ptr "<<value(n.reader)<<", ptr "<<slot<<")\n";
+            out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
+            const auto yes=unique_label("video.read.frame"),eof=unique_label("video.read.eof"),bad=unique_label("video.read.error"),done=unique_label("video.read.done");
+            out<<"  switch i32 "<<status<<", label %"<<bad<<" [ i32 1, label %"<<yes<<" i32 0, label %"<<eof<<" ]\n";
+            out<<yes<<":\n  store i64 "<<case_index(n.result_type,frame_type)<<", ptr "<<result<<"\n";
+            const auto frame=temp("video.read.frame.value"),frame_payload=temp("video.read.frame.payload");
+            out<<"  "<<frame<<" = load ptr, ptr "<<slot<<"\n";
+            out<<"  "<<frame_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+               <<"  store ptr "<<frame<<", ptr "<<frame_payload<<"\n  br label %"<<done<<"\n";
+            out<<eof<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::None))<<", ptr "<<result<<"\n"
+               <<"  br label %"<<done<<"\n";
+            out<<bad<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
+            const auto message=temp("video.read.message"),error_payload=temp("video.read.error.payload");
+            out<<"  "<<message<<" = call ptr @quidra_video_last_error_copy()\n";
+            out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+               <<"  store ptr "<<message<<", ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
+            out<<done<<":\n";
+        }
+        if constexpr(std::is_same_v<T,ir::VideoWidth>){
+            values[n.out]=Type::simple(TypeKind::Int);
+            out<<"  "<<value(n.out)<<" = call i64 @quidra_video_width(ptr "<<value(n.reader)<<")\n";
+        }
+        if constexpr(std::is_same_v<T,ir::VideoHeight>){
+            values[n.out]=Type::simple(TypeKind::Int);
+            out<<"  "<<value(n.out)<<" = call i64 @quidra_video_height(ptr "<<value(n.reader)<<")\n";
+        }
+        if constexpr(std::is_same_v<T,ir::VideoFps>){
+            values[n.out]=Type::simple(TypeKind::Float);
+            out<<"  "<<value(n.out)<<" = call double @quidra_video_fps(ptr "<<value(n.reader)<<")\n";
+        }
         if constexpr(std::is_same_v<T,ir::NumericMinMax>){
             values[n.out]=n.type;
             const auto ty=llvm_type(n.type),cmp=temp("num.cmp");
@@ -3855,7 +3913,8 @@ void collect_drop_type(const Type& type, std::map<std::string,Type>& types,
         type.kind == TypeKind::String || type.kind == TypeKind::Error ||
         (type.kind == TypeKind::Class &&
          (type.class_name == "$std.json.Value" ||
-          type.class_name == "$std.http.Response"))) return;
+          type.class_name == "$std.http.Response" ||
+           type.class_name == "$std.video.Reader"))) return;
     if (type.kind == TypeKind::Class && !layouts.contains(type.class_name)) return;
     const auto id = type_id(type);
     if (types.contains(id)) return;
@@ -3904,6 +3963,9 @@ std::string drop_callback_for(const Type& type,
     }
     if (type.kind == TypeKind::Class && type.class_name == "$std.http.Response") {
         return "@quidra_http_response_drop";
+    }
+    if (type.kind == TypeKind::Class && type.class_name == "$std.video.Reader") {
+        return "@quidra_video_reader_drop";
     }
     if (type.kind == TypeKind::Bin || type.kind == TypeKind::Array ||
         type.kind == TypeKind::Tensor || type.kind == TypeKind::Neural ||
@@ -4443,6 +4505,13 @@ declare ptr @quidra_http_last_error_copy()
 declare ptr @quidra_http_header(ptr, ptr)
 declare ptr @quidra_http_response_clone(ptr)
 declare void @quidra_http_response_drop(ptr)
+declare ptr @quidra_video_open_raw(ptr)
+declare i32 @quidra_video_read(ptr, ptr)
+declare i64 @quidra_video_width(ptr)
+declare i64 @quidra_video_height(ptr)
+declare double @quidra_video_fps(ptr)
+declare ptr @quidra_video_last_error_copy()
+declare void @quidra_video_reader_drop(ptr)
 declare ptr @quidra_image_read(ptr, i32, i32, i64, i64, i64, i64, ptr)
 declare i1 @quidra_image_write(ptr, ptr, i32, i64)
 declare ptr @quidra_image_last_error_copy()

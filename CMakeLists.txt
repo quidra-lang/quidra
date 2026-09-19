@@ -85,6 +85,16 @@ if(NOT WEBP_INCLUDE_DIR OR NOT WEBP_LIBRARY)
   message(FATAL_ERROR "libwebp headers and library are required.")
 endif()
 
+find_path(FFMPEG_INCLUDE_DIR NAMES libavformat/avformat.h)
+find_library(AVFORMAT_LIBRARY NAMES avformat)
+find_library(AVCODEC_LIBRARY NAMES avcodec)
+find_library(AVUTIL_LIBRARY NAMES avutil)
+find_library(SWSCALE_LIBRARY NAMES swscale)
+if(NOT FFMPEG_INCLUDE_DIR OR NOT AVFORMAT_LIBRARY OR NOT AVCODEC_LIBRARY OR
+   NOT AVUTIL_LIBRARY OR NOT SWSCALE_LIBRARY)
+  message(FATAL_ERROR "FFmpeg libavformat/libavcodec/libavutil/libswscale development files are required.")
+endif()
+
 add_library(quidra_runtime STATIC
     src/runtime.cpp
     src/runtime_exact.cpp
@@ -94,10 +104,13 @@ add_library(quidra_runtime STATIC
     src/runtime_json.cpp
     src/runtime_http.cpp
     src/runtime_image.cpp
+    src/runtime_video.cpp
     src/device_backend.cpp
 )
-target_include_directories(quidra_runtime PRIVATE ${CURL_INCLUDE_DIRS} ${WEBP_INCLUDE_DIR})
-target_link_libraries(quidra_runtime PRIVATE PNG::PNG JPEG::JPEG TIFF::TIFF ${WEBP_LIBRARY})
+target_include_directories(quidra_runtime PRIVATE ${CURL_INCLUDE_DIRS} ${WEBP_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIR})
+target_link_libraries(quidra_runtime PRIVATE
+    PNG::PNG JPEG::JPEG TIFF::TIFF ${WEBP_LIBRARY}
+    ${AVFORMAT_LIBRARY} ${AVCODEC_LIBRARY} ${AVUTIL_LIBRARY} ${SWSCALE_LIBRARY})
 if(CMAKE_DL_LIBS)
   target_link_libraries(quidra_runtime PRIVATE ${CMAKE_DL_LIBS})
 endif()
@@ -308,7 +321,7 @@ elseif(APPLE)
 else()
   set(CPACK_DEBIAN_PACKAGE_SECTION "devel")
   set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
-  set(CPACK_DEBIAN_PACKAGE_DEPENDS "clang-15, libcurl4-openssl-dev, libpng-dev, libjpeg-dev, libtiff-dev, libwebp-dev")
+  set(CPACK_DEBIAN_PACKAGE_DEPENDS "clang-15, libcurl4-openssl-dev, libpng-dev, libjpeg-dev, libtiff-dev, libwebp-dev, libavformat-dev, libavcodec-dev, libavutil-dev, libswscale-dev")
   set(CPACK_DEBIAN_FILE_NAME DEB-DEFAULT)
   set(CPACK_ARCHIVE_FILE_NAME "quidra-${PROJECT_VERSION}-linux-${CMAKE_SYSTEM_PROCESSOR}")
   set(CPACK_GENERATOR "DEB;TGZ")

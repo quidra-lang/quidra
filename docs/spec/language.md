@@ -739,6 +739,21 @@ Higher-level tensor image processing is provided by the official `vision`
 source package through `import vision`. It is resolved by the ordinary package
 system and has no compiler-specific name handling.
 
+### video
+
+`video.open(path)` returns `video.Reader | error` and opens one video stream for incremental decoding. The runtime does not decode or buffer the complete video up front.
+
+`video.Reader` exposes:
+
+- `width() -> int`
+- `height() -> int`
+- `fps() -> float`
+- `read() -> tensor<uint8><3, _, _> | none | error`
+
+Each successful `read()` yields one CPU RGB frame in CHW layout with shape `[3,H,W]`. Clean end-of-stream is `none`; container, codec, or frame-conversion failure is `error`. No implicit GPU transfer or dtype conversion occurs. The first selected video stream is decoded and audio is ignored.
+
+Reader lifetime is automatic. Copying a Reader shares the same opaque stream cursor, so reads through either copy advance the same decoder; Quidra does not silently duplicate external decoder state. The native implementation uses FFmpeg libavformat/libavcodec/libavutil/libswscale behind the standard API. FFmpeg types and handles are not source-visible, and generated programs link those libraries only when the generated LLVM reaches the `video` runtime.
+
 `signal` is reserved as a standard namespace so its future qualified API cannot be captured by a user bare declaration, but language version 0.1 does not define public signal-processing callables.
 
 ## Function values and union payload initialization

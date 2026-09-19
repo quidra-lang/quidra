@@ -794,6 +794,7 @@ The current implementation includes:
 - local modules, installed-package resolution, explicit generics, and monomorphization,
 - dense tensors with views, copy-on-write, strict broadcasting, explicit numeric casting, reductions, transpose views, and vector/matrix multiplication,
 - PNG/JPEG/BMP/TIFF/WebP image I/O through `image`,
+- streaming video decode through `video.Reader` with tensor-native RGB frames,
 - typed Quidra IR followed by direct LLVM IR/native lowering,
 - Linux, macOS, and Windows native execution/packaging,
 - structured diagnostics, source inspection, and revision/hash-validated node-level patching.
@@ -809,10 +810,11 @@ Requirements:
 - Clang 15+ for native code generation (Quidra emits LLVM IR and invokes Clang; the current distribution intentionally does not bundle a backend toolchain)
 - libcurl development files (for the `http` standard module and native linking)
 - libpng, libjpeg, libtiff, and libwebp development files (for `image`)
+- FFmpeg libavformat/libavcodec/libavutil/libswscale development files (for `video`)
 - Python 3 for documentation verification
 - Bash for the full Unix test suite
 
-The runtime archive is built with these native dependencies, while generated programs link HTTP or image libraries only when their generated LLVM IR actually calls those runtimes.
+The runtime archive is built with these native dependencies, while generated programs link HTTP, image, or video libraries only when their generated LLVM IR actually calls those runtimes.
 
 Linux and macOS:
 
@@ -823,7 +825,7 @@ ctest --test-dir build --output-on-failure
 ./build/quidra run examples/hello.qui
 ```
 
-Windows (PowerShell, with CMake-visible libcurl/libpng/libjpeg/libtiff/libwebp installations; the project CI uses vcpkg):
+Windows (PowerShell, with CMake-visible libcurl/libpng/libjpeg/libtiff/libwebp/FFmpeg installations; the project CI uses vcpkg):
 
 ```powershell
 cmake -S . -B build -A x64
@@ -949,7 +951,7 @@ import shared = "@/shared.qui"
 import plot = plotting
 ```
 
-The reserved standard namespaces are `math`, `cli`, `file`, `environment`, `test`, `time`, `random`, `process`, `map`, `set`, `json`, `http`, `tensor`, `stats`, `linear`, `signal`, `image`, and `neural`. Only referenced standard implementations are linked into a program. Boolean logic is spelled `and`, `or`, and `not`.
+The reserved standard namespaces are `math`, `cli`, `file`, `environment`, `test`, `time`, `random`, `process`, `map`, `set`, `json`, `http`, `tensor`, `stats`, `linear`, `signal`, `image`, `video`, and `neural`. Only referenced standard implementations are linked into a program. Boolean logic is spelled `and`, `or`, and `not`.
 
 `math` provides `pi`, `e`, `sin`, `cos`, `tan`, `log`, `exp`, `pow`, and namespaced access to `abs`, `sqrt`, `min`, and `max`.
 
@@ -1114,6 +1116,31 @@ match loaded
     error problem
         print(problem)
 ```
+
+Decoded images use CHW layout and have compiler-known rank 3: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample type and channel count by default.
+
+Video decoding is streaming and tensor-native:
+
+```quidra
+auto opened = video.open("clip.mp4")
+match opened
+    video.Reader reader
+        print(reader.width())
+        print(reader.height())
+        print(reader.fps())
+        auto next = reader.read()
+        match next
+            tensor<uint8><3, _, _> frame
+                print(frame.shape())
+            none
+                print("eof")
+            error problem
+                print(problem)
+    error problem
+        print(problem)
+```
+
+`video.open(path)` returns `video.Reader | error`. `Reader.read()` returns one CPU RGB CHW frame as `tensor<uint8><3, _, _>`, `none` at clean end-of-stream, or `error` on decode failure. `width()`, `height()`, and `fps()` expose stream metadata. Reader copies share one stream cursor; copying a handle does not duplicate or restart the decoder. Audio streams are ignored by this initial API.
 
 Decoded images use CHW layout and have compiler-known rank 3: grayscale `[1,H,W]`, RGB `[3,H,W]`, and RGBA `[4,H,W]`. `image.read` preserves every source sample type and channel count by default. An expected type such as `tensor<uint8><3, _, _> | error` is an acceptance constraint: it accepts only rank-3 uint8 RGB and does not convert a mismatch. Use `channel = value` (which must evaluate to 1, 3, or 4) to request channel conversion and `type = float32` (or another numeric built-in type) to request element-type conversion. These option values can drive diagnostics and conversion behavior but do not narrow an `auto` result type; write the expected union type explicitly when the result type must be fixed. Type conversion never normalizes sample ranges. RGB-to-gray uses the fixed `0.299R + 0.587G + 0.114B` rule. `image.write` writes only when the target codec can represent the tensor element type exactly; alpha is removed only when an explicit channel conversion requests that result.
 

@@ -380,6 +380,10 @@ bool llvm_uses_image(const fs::path& llvm) {
     return llvm_calls_symbol_prefix(llvm, "@quidra_image_");
 }
 
+bool llvm_uses_video(const fs::path& llvm) {
+    return llvm_calls_symbol_prefix(llvm, "@quidra_video_");
+}
+
 int system_status(int status) {
     if (status == -1) return -1;
 #ifdef _WIN32
@@ -459,6 +463,21 @@ int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options)
         arguments.emplace_back(L"-ltiff");
         arguments.emplace_back(L"-lwebp");
     }
+    if (llvm_uses_video(llvm)) {
+        if (const auto configured = environment_value("QUIDRA_VIDEO_LIBRARY_PATH");
+            configured && !configured->empty()) {
+            arguments.emplace_back(L"-L" + utf8_to_wide(*configured));
+        } else if (const auto vcpkg = environment_value("VCPKG_INSTALLATION_ROOT");
+                   vcpkg && !vcpkg->empty()) {
+            const auto library_dir =
+                fs::path(*vcpkg) / "installed" / "x64-windows" / "lib";
+            arguments.emplace_back(L"-L" + library_dir.native());
+        }
+        arguments.emplace_back(L"-lavformat");
+        arguments.emplace_back(L"-lavcodec");
+        arguments.emplace_back(L"-lavutil");
+        arguments.emplace_back(L"-lswscale");
+    }
     return windows_process(fs::path(clang_driver()), arguments);
 #else
     std::vector<std::string> arguments{
@@ -532,6 +551,26 @@ int link_llvm(const fs::path& llvm, const fs::path& output, LinkOptions options)
         arguments.emplace_back("-ljpeg");
         arguments.emplace_back("-ltiff");
         arguments.emplace_back("-lwebp");
+    }
+    if (llvm_uses_video(llvm)) {
+        if (const char* configured = std::getenv("QUIDRA_VIDEO_LIBRARY_PATH");
+            configured && *configured) {
+            arguments.emplace_back(std::string("-L") + configured);
+        } else {
+#ifdef __APPLE__
+            for (const auto& directory : {
+                     fs::path("/opt/homebrew/opt/ffmpeg/lib"),
+                     fs::path("/usr/local/opt/ffmpeg/lib")}) {
+                if (fs::is_directory(directory)) {
+                    arguments.emplace_back("-L" + directory.string());
+                }
+            }
+#endif
+        }
+        arguments.emplace_back("-lavformat");
+        arguments.emplace_back("-lavcodec");
+        arguments.emplace_back("-lavutil");
+        arguments.emplace_back("-lswscale");
     }
     return posix_process(fs::path(clang_driver()), arguments);
 #endif

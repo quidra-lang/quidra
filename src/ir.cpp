@@ -3386,6 +3386,32 @@ struct Lowerer {
                     release_arg(0,name);
                     return out;
                 }
+                case BuiltinCallable::VideoOpen: {
+                    auto path=expr(*n.args[0].value),out=fresh();
+                    block->instructions.push_back(VideoOpen{out,path,checked.raw_types.at(&e)});
+                    release_arg(0,path);
+                    return out;
+                }
+                case BuiltinCallable::VideoRead: {
+                    auto reader=receiver_value(),out=fresh();
+                    block->instructions.push_back(VideoRead{out,reader,checked.raw_types.at(&e)});
+                    return out;
+                }
+                case BuiltinCallable::VideoWidth: {
+                    auto reader=receiver_value(),out=fresh();
+                    block->instructions.push_back(VideoWidth{out,reader});
+                    return out;
+                }
+                case BuiltinCallable::VideoHeight: {
+                    auto reader=receiver_value(),out=fresh();
+                    block->instructions.push_back(VideoHeight{out,reader});
+                    return out;
+                }
+                case BuiltinCallable::VideoFps: {
+                    auto reader=receiver_value(),out=fresh();
+                    block->instructions.push_back(VideoFps{out,reader});
+                    return out;
+                }
             }
         }
 
@@ -5817,6 +5843,11 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,JsonEqual>)out<<"%"<<n.out<<" = json.equal";
     if constexpr(std::is_same_v<T,HttpGet>)out<<"%"<<n.out<<" = http.get %"<<n.url;
     if constexpr(std::is_same_v<T,HttpHeader>)out<<"%"<<n.out<<" = http.header %"<<n.name;
+    if constexpr(std::is_same_v<T,VideoOpen>)out<<"%"<<n.out<<" = video.open %"<<n.path;
+    if constexpr(std::is_same_v<T,VideoRead>)out<<"%"<<n.out<<" = video.read";
+    if constexpr(std::is_same_v<T,VideoWidth>)out<<"%"<<n.out<<" = video.width";
+    if constexpr(std::is_same_v<T,VideoHeight>)out<<"%"<<n.out<<" = video.height";
+    if constexpr(std::is_same_v<T,VideoFps>)out<<"%"<<n.out<<" = video.fps";
     if constexpr(std::is_same_v<T,NumericMinMax>)out<<"%"<<n.out<<" = "<<(n.maximum?"max ":"min ")<<"%"<<n.left<<", %"<<n.right;
     if constexpr(std::is_same_v<T,ArrayInitializationComplete>)out<<"%"<<n.out<<" = array.initialization.complete %"<<n.array;
     if constexpr(std::is_same_v<T,ArrayGet>)out<<"%"<<n.out<<" = array.get %"<<n.array<<", %"<<n.index<<(n.bounds_guard?" bounds-guard %"+std::to_string(*n.bounds_guard):"");

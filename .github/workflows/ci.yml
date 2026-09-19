@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install native dependencies
-        run: sudo apt-get update && sudo apt-get install -y llvm libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev
+        run: sudo apt-get update && sudo apt-get install -y llvm libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev ffmpeg libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_STANDARD=${{ matrix.standard }} -DQUIDRA_WARNINGS_AS_ERRORS=ON
       - name: Build
@@ -58,7 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install native dependencies
-        run: sudo apt-get update && sudo apt-get install -y llvm libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev
+        run: sudo apt-get update && sudo apt-get install -y llvm libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev ffmpeg libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
       - name: Configure test-only fake GPU backend
         run: cmake -S . -B build-gpu-contracts -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON -DQUIDRA_ENABLE_TEST_GPU_BACKEND=ON
       - name: Build
@@ -73,7 +73,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install native dependencies
-        run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev
+        run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev ffmpeg libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
       - name: Configure ASan/UBSan
         run: >-
           cmake -S . -B build-san -DCMAKE_BUILD_TYPE=Debug
@@ -94,9 +94,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install native dependencies
-        run: brew install curl libpng jpeg-turbo libtiff webp
+        run: brew install curl libpng jpeg-turbo libtiff webp ffmpeg
       - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON -DCMAKE_PREFIX_PATH="$(brew --prefix curl);$(brew --prefix libpng);$(brew --prefix jpeg-turbo);$(brew --prefix libtiff);$(brew --prefix webp)"
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON -DCMAKE_PREFIX_PATH="$(brew --prefix curl);$(brew --prefix libpng);$(brew --prefix jpeg-turbo);$(brew --prefix libtiff);$(brew --prefix webp);$(brew --prefix ffmpeg)"
       - name: Build
         run: cmake --build build --parallel
       - name: Tests
@@ -118,7 +118,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install native dependencies
         shell: pwsh
-        run: vcpkg install curl:x64-windows libpng:x64-windows libjpeg-turbo:x64-windows tiff:x64-windows libwebp:x64-windows
+        run: vcpkg install curl:x64-windows libpng:x64-windows libjpeg-turbo:x64-windows tiff:x64-windows libwebp:x64-windows ffmpeg:x64-windows
       - name: Configure
         shell: pwsh
         run: >

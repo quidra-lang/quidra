@@ -545,7 +545,9 @@ enum class ValueStoragePolicy {
 inline ValueStoragePolicy value_storage_policy(const Type& type) {
     if (type.kind == TypeKind::BigInt || type.kind == TypeKind::BigReal ||
         type.kind == TypeKind::String || type.kind == TypeKind::Error ||
-        (type.kind == TypeKind::Class && type.class_name == "$std.json.Value")) {
+        (type.kind == TypeKind::Class &&
+         (type.class_name == "$std.json.Value" ||
+          type.class_name == "$std.video.Reader"))) {
         return ValueStoragePolicy::ImmutableShared;
     }
     if (type.kind == TypeKind::Array || type.kind == TypeKind::Tensor ||

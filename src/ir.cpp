@@ -3469,6 +3469,7 @@ struct Lowerer {
     void lower_loop_statement_sequence(
         const std::vector<StmtPtr>& statements) {
         for (std::size_t i = 0; i < statements.size(); ++i) {
+            bool split_sequence_lowered = false;
             if (const auto* split_sequence_binding =
                     std::get_if<BindingStmt>(&statements[i]->data);
                 split_sequence_binding && !split_sequence_binding->reference) {
@@ -3491,9 +3492,9 @@ struct Lowerer {
                                 *statements[i], *statements[k],
                                 split_used_later, prelude)) {
                             i = k;
-                            if (terminated()) break;
-                            goto next_loop_statement;
+                            split_sequence_lowered = true;
                         }
+                        break;
                         break;
                     }
 
@@ -3508,6 +3509,10 @@ struct Lowerer {
                         break;
                     prelude.push_back(statements[k].get());
                 }
+            }
+            if (split_sequence_lowered) {
+                if (terminated()) break;
+                continue;
             }
             if (i + 1 < statements.size()) {
                 const auto* split_sequence_binding =
@@ -3601,8 +3606,6 @@ struct Lowerer {
             }
             stmt(*statements[i]);
             if (terminated()) break;
-next_loop_statement:
-            ;
         }
     }
 

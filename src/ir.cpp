@@ -3448,7 +3448,100 @@ struct Lowerer {
         }
     }
 
+
+    bool statement_may_return(const Stmt& statement) const {
+        const auto& data = statement.data;
+        if (std::holds_alternative<ReturnStmt>(data)) return true;
+        if (const auto* node = std::get_if<IfStmt>(&data)) {
+            return block_may_return(node->then_body) ||
+                   block_may_return(node->else_body);
+        }
+        if (const auto* node = std::get_if<WhileStmt>(&data))
+            return block_may_return(node->body);
+        if (const auto* node = std::get_if<ForStmt>(&data))
+            return block_may_return(node->body);
+        if (const auto* node = std::get_if<MatchStmt>(&data)) {
+            for (const auto& current : node->cases)
+                if (block_may_return(current.body)) return true;
+        }
+        return false;
+    }
+
+    bool block_may_return(const std::vector<StmtPtr>& statements) const {
+        for (const auto& statement : statements)
+            if (statement_may_return(*statement)) return true;
+        return false;
+    }
+
+    bool lower_string_split_for(const ForStmt& n) {
+        if (n.writable || block_may_return(n.body) ||
+            block_mutates_parameter(n.body, n.name))
+            return false;
+
+        const auto* split =
+            std::get_if<MethodCallExpr>(&n.iterable->data);
+        if (!split || split->method != "split" ||
+            split->args.size() != 1 || !split->args.front().value)
+            return false;
+
+        const auto receiver_type = type_of(*split->receiver);
+        const auto iterable_type = type_of(*n.iterable);
+        if (receiver_type.kind != TypeKind::String ||
+            iterable_type.kind != TypeKind::Array ||
+            !iterable_type.first ||
+            iterable_type.first->kind != TypeKind::String)
+            return false;
+
+        auto text = expr(*split->receiver);
+        auto separator = expr(*split->args.front().value);
+        auto cursor = fresh();
+        block->instructions.push_back(
+            StringSplitIterBegin{cursor, text, separator});
+        release_temporary(*split->receiver, text);
+        release_temporary(*split->args.front().value, separator);
+
+        const auto item = Type::simple(TypeKind::String);
+        const auto iter_name = bind_source_local(n.name, item);
+        const auto cond = label("split.for.cond");
+        const auto body_name = label("split.for.body");
+        const auto exhausted = label("split.for.exhausted");
+        const auto break_cleanup = label("split.for.break");
+        const auto done = label("split.for.end");
+        block->instructions.push_back(Jump{cond});
+
+        block = &add_block(cond);
+        auto element = fresh();
+        auto has_value = fresh();
+        block->instructions.push_back(
+            StringSplitIterNext{element, has_value, cursor});
+        block->instructions.push_back(
+            Branch{has_value, body_name, exhausted});
+
+        block = &add_block(body_name);
+        // The cursor owns the shared slab for the loop lifetime. Keep the loop
+        // element borrowed; ordinary assignments from it still retain when a
+        // value escapes the iteration.
+        block->instructions.push_back(
+            StoreLocal{iter_name, element, item, true});
+        loop_targets.push_back({cond, break_cleanup});
+        lower_loop_statement_sequence(n.body);
+        loop_targets.pop_back();
+        if (!terminated()) block->instructions.push_back(Jump{cond});
+
+        block = &add_block(exhausted);
+        block->instructions.push_back(StringSplitIterEnd{cursor});
+        block->instructions.push_back(Jump{done});
+
+        block = &add_block(break_cleanup);
+        block->instructions.push_back(StringSplitIterEnd{cursor});
+        block->instructions.push_back(Jump{done});
+
+        block = &add_block(done);
+        return true;
+    }
+
     void lower_for(const ForStmt& n) {
+        if (lower_string_split_for(n)) return;
         const auto* range_call=std::get_if<CallExpr>(&n.iterable->data);
         const auto range_resolution=checked.call_resolutions.find(n.iterable.get());
         if(range_call && range_resolution!=checked.call_resolutions.end() &&
@@ -4791,6 +4884,9 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,StringSlice>)out<<"%"<<n.out<<" = string.slice %"<<n.text<<", %"<<n.start<<", %"<<n.end;
     if constexpr(std::is_same_v<T,StringTrim>)out<<"%"<<n.out<<" = string.trim %"<<n.text;
     if constexpr(std::is_same_v<T,StringSplit>)out<<"%"<<n.out<<" = string.split %"<<n.text<<", %"<<n.separator;
+    if constexpr(std::is_same_v<T,StringSplitIterBegin>)out<<"%"<<n.out<<" = string.split_iter.begin %"<<n.text<<", %"<<n.separator;
+    if constexpr(std::is_same_v<T,StringSplitIterNext>)out<<"%"<<n.text<<", %"<<n.has_value<<" = string.split_iter.next %"<<n.cursor;
+    if constexpr(std::is_same_v<T,StringSplitIterEnd>)out<<"string.split_iter.end %"<<n.cursor;
     if constexpr(std::is_same_v<T,StringParseTwoSigned>)out<<"%"<<n.left<<", %"<<n.right<<", %"<<n.ok<<" = string.parse_two_signed %"<<n.text<<", "<<static_cast<unsigned>(n.separator);
     if constexpr(std::is_same_v<T,StringUtf8>)out<<"%"<<n.out<<" = string.utf8 %"<<n.text;
     if constexpr(std::is_same_v<T,StringFromUtf8>)out<<"%"<<n.out<<" = string.from_utf8 %"<<n.bin;

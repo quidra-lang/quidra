@@ -204,6 +204,10 @@ struct CliArgument { ValueId out; ValueId name; ValueId index; Type type; };
 struct CliOption { ValueId out; ValueId name; ValueId default_value; Type type; };
 struct CliFlag { ValueId out; ValueId name; };
 struct CliFinish {};
+struct FileOpen { ValueId out; ValueId path; Type result_type; };
+struct FileHandleRead { ValueId out; ValueId handle; Type result_type; };
+struct FileHandleReadBin { ValueId out; ValueId handle; Type result_type; };
+struct FileHandleClose { ValueId handle; };
 struct FileRead { ValueId out; ValueId path; Type result_type; };
 struct FileReadBin { ValueId out; ValueId path; Type result_type; };
 struct FileWrite { ValueId out; ValueId path; ValueId text; Type result_type; };
@@ -343,6 +347,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  NeuralSave, NeuralLoad,
                                  StatsMean, StatsReduce, LinearMatmul, LinearDot, ImageRead, ImageWrite, ImageTensorOp, TensorBinary, TensorIndex, TensorSet, ParseNumber, ParseNumberDirect, NumericAbs, Sqrt, MathUnary, MathRoundInt, MathPow,
                                  CliArgument, CliOption, CliFlag, CliFinish,
+                                 FileOpen, FileHandleRead, FileHandleReadBin, FileHandleClose,
                                  FileRead, FileReadBin, FileWrite, FileWriteBin, FileExists, FileIsDirectory, FileRemove, FileCopy, FileMove, FileMkdir, FileList,
                                  EnvironmentGet, EnvironmentHas, TestAssert,
                                  TimeNow, TimeSince, TimeSeconds, TimeSleep, TaskAll,

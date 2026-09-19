@@ -985,6 +985,12 @@ struct Lowerer {
             if (storage_root_is(*node->receiver, name)) {
                 const auto receiver_type = type_of(*node->receiver);
                 if (receiver_type.kind == TypeKind::Class &&
+                    receiver_type.class_name == "$std.file.Handle" &&
+                    (node->method == "read" || node->method == "read_bin" ||
+                     node->method == "close")) {
+                    return true;
+                }
+                if (receiver_type.kind == TypeKind::Class &&
                     receiver_type.class_name == "$std.video.Reader" &&
                     (node->method == "read" || node->method == "seek")) {
                     return true;
@@ -2288,6 +2294,29 @@ struct Lowerer {
             }
             const auto receiver_type=type_of(*n->receiver);
             if(receiver_type.kind==TypeKind::Class &&
+               receiver_type.class_name=="$std.file.Handle"){
+                auto handle=expr(*n->receiver);
+                const bool owned=expression_owns_result(*n->receiver);
+                const auto finish=[&](ValueId result){
+                    if(owned) block->instructions.push_back(Release{handle,receiver_type});
+                    return result;
+                };
+                if(n->method=="read"){
+                    auto out=fresh();
+                    block->instructions.push_back(FileHandleRead{out,handle,checked.raw_types.at(&e)});
+                    return finish(out);
+                }
+                if(n->method=="read_bin"){
+                    auto out=fresh();
+                    block->instructions.push_back(FileHandleReadBin{out,handle,checked.raw_types.at(&e)});
+                    return finish(out);
+                }
+                if(n->method=="close"){
+                    block->instructions.push_back(FileHandleClose{handle});
+                    return finish(0);
+                }
+            }
+            if(receiver_type.kind==TypeKind::Class &&
                receiver_type.class_name=="$std.video.Reader"){
                 auto reader=expr(*n->receiver);
                 const bool owned=expression_owns_result(*n->receiver);
@@ -3151,6 +3180,12 @@ struct Lowerer {
                 case BuiltinCallable::CliFinish:
                     block->instructions.push_back(CliFinish{});
                     return 0;
+                case BuiltinCallable::FileOpen: {
+                    auto path=expr(*n.args[0].value),out=fresh();
+                    block->instructions.push_back(FileOpen{out,path,checked.raw_types.at(&e)});
+                    release_arg(0,path);
+                    return out;
+                }
                 case BuiltinCallable::FileRead: {
                     auto path=expr(*n.args[0].value),out=fresh();
                     block->instructions.push_back(FileRead{out,path,checked.raw_types.at(&e)});
@@ -5883,6 +5918,10 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,CliOption>)out<<"%"<<n.out<<" = cli.option %"<<n.name;
     if constexpr(std::is_same_v<T,CliFlag>)out<<"%"<<n.out<<" = cli.flag %"<<n.name;
     if constexpr(std::is_same_v<T,CliFinish>)out<<"cli.finish";
+    if constexpr(std::is_same_v<T,FileOpen>)out<<"%"<<n.out<<" = file.open %"<<n.path;
+    if constexpr(std::is_same_v<T,FileHandleRead>)out<<"%"<<n.out<<" = file.handle.read %"<<n.handle;
+    if constexpr(std::is_same_v<T,FileHandleReadBin>)out<<"%"<<n.out<<" = file.handle.read_bin %"<<n.handle;
+    if constexpr(std::is_same_v<T,FileHandleClose>)out<<"file.handle.close %"<<n.handle;
     if constexpr(std::is_same_v<T,FileRead>)out<<"%"<<n.out<<" = file.read %"<<n.path;
     if constexpr(std::is_same_v<T,FileReadBin>)out<<"%"<<n.out<<" = file.read_bin %"<<n.path;
     if constexpr(std::is_same_v<T,FileWrite>)out<<"%"<<n.out<<" = file.write %"<<n.path<<", %"<<n.text;

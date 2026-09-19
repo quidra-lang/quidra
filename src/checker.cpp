@@ -389,6 +389,7 @@ bool Checker::equality_supported(const Type& type) const {
             if (current.kind == TypeKind::Class) {
                 if (current.class_name == "$std.json.Value" ||
                     current.class_name == "$std.http.Response" ||
+                    current.class_name == "$std.file.Handle" ||
                     current.class_name == "$std.video.Reader") return false;
                 // Array elements do not yet carry per-element class initialization metadata.
                 // Reject arrays containing classes rather than reading conceptual uninitialized fields.
@@ -1897,6 +1898,45 @@ Type Checker::check_method_call_expr(const Expr& expression,
             if (poisoned(receiver)) {
                 type = receiver;
             } else if (!super_receiver && receiver.kind == TypeKind::Class &&
+                       receiver.class_name == "$std.file.Handle") {
+                if (!node->type_arguments.empty()) {
+                    error("GENERIC_TARGET",
+                          "file.Handle methods do not take type arguments.",
+                          expression.span);
+                }
+                if (!node->args.empty()) {
+                    error("ARGUMENT_MISMATCH",
+                          "file.Handle methods take no arguments.",
+                          expression.span);
+                }
+                if (const_access_path(*node->receiver)) {
+                    error("WRITE_CAPABILITY",
+                          "file.Handle operations cannot mutate through a const access path.",
+                          expression.span);
+                }
+                if (const auto path = current_receiver_path(*node->receiver)) {
+                    current_receiver_effect_.writes.insert(*path);
+                }
+                if (const auto path =
+                        current_reference_parameter_path(*node->receiver)) {
+                    current_reference_effects_[path->first].writes.insert(path->second);
+                }
+
+                if (node->method == "read") {
+                    type = Type::union_of({
+                        simple(TypeKind::String), simple(TypeKind::Error)});
+                } else if (node->method == "read_bin") {
+                    type = Type::union_of({
+                        simple(TypeKind::Bin), simple(TypeKind::Error)});
+                } else if (node->method == "close") {
+                    type = simple(TypeKind::Void);
+                } else {
+                    error("UNKNOWN_METHOD",
+                          "file.Handle has no method '" + node->method + "'.",
+                          expression.span);
+                    type = simple(TypeKind::Invalid);
+                }
+            } else if (!super_receiver && receiver.kind == TypeKind::Class &&
                        receiver.class_name == "$std.video.Reader") {
                 if (!node->type_arguments.empty()) {
                     error("GENERIC_TARGET",
@@ -2819,6 +2859,23 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         error("ARGUMENT_MISMATCH", "internal cli finalization takes no arguments.", expression.span);
                     }
                     type = simple(TypeKind::Void);
+                    break;
+                }
+                case BuiltinCallable::FileOpen: {
+                    if (node->args.size() != 1) {
+                        error("ARGUMENT_MISMATCH",
+                              "file.open requires one path string.",
+                              expression.span);
+                    }
+                    auto string_type = simple(TypeKind::String);
+                    auto path = builtin_arg(0, "path", &string_type);
+                    type = poisoned(path) ? simple(TypeKind::Invalid)
+                        : Type::union_of({
+                            Type::class_type("$std.file.Handle"),
+                            simple(TypeKind::Error)});
+                    if (!poisoned(path)) {
+                        class_expr_initialized_paths_[&expression] = {"$handle"};
+                    }
                     break;
                 }
                 case BuiltinCallable::FileRead: {

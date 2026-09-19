@@ -86,6 +86,7 @@ enum class BuiltinCallable {
     CliOption,
     CliFlag,
     CliFinish,
+    FileOpen,
     FileRead,
     FileReadBin,
     FileWrite,
@@ -198,7 +199,7 @@ inline constexpr std::array<BuiltinCallableInfo, 11> builtin_callables{{
     {"tensor", BuiltinCallable::TensorCreate},
 }};
 
-inline constexpr std::array<BuiltinCallableInfo, 101> intrinsic_callables{{
+inline constexpr std::array<BuiltinCallableInfo, 102> intrinsic_callables{{
     {"$std.math.sin", BuiltinCallable::MathSin},
     {"$std.math.cos", BuiltinCallable::MathCos},
     {"$std.math.tan", BuiltinCallable::MathTan},
@@ -213,6 +214,7 @@ inline constexpr std::array<BuiltinCallableInfo, 101> intrinsic_callables{{
     {"$std.cli.option", BuiltinCallable::CliOption},
     {"$std.cli.flag", BuiltinCallable::CliFlag},
     {"$std.cli.finish", BuiltinCallable::CliFinish},
+    {"$std.file.open", BuiltinCallable::FileOpen},
     {"$std.file.read", BuiltinCallable::FileRead},
     {"$std.file.read_bin", BuiltinCallable::FileReadBin},
     {"$std.file.write", BuiltinCallable::FileWrite},
@@ -435,6 +437,7 @@ inline constexpr std::optional<std::string_view> standard_function_target(
         return std::nullopt;
     }
     if (module == "file") {
+        if (member == "open") return "$std.file.open";
         if (member == "read") return "$std.file.read";
         if (member == "read_bin") return "$std.file.read_bin";
         if (member == "write") return "$std.file.write";

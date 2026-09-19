@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <string>
 #include <system_error>
 #include <vector>
@@ -67,18 +68,7 @@ char* read_text_direct(const char* path) {
     return result;
 }
 
-bool read_all_bytes(const char* path, std::string& data) {
-    std::ifstream in(path, std::ios::binary);
-    if (!in) return false;
-
-    std::error_code size_error;
-    const auto file_bytes = std::filesystem::file_size(path, size_error);
-    if (!size_error &&
-        file_bytes <= static_cast<std::uintmax_t>(
-            std::numeric_limits<std::size_t>::max())) {
-        data.reserve(static_cast<std::size_t>(file_bytes));
-    }
-
+bool read_stream_bytes(std::istream& in, std::string& data) {
     std::array<char, 64 * 1024> buffer{};
     while (true) {
         in.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
@@ -93,6 +83,127 @@ bool read_all_bytes(const char* path, std::string& data) {
         if (!in) return false;
     }
 }
+
+bool read_all_bytes(const char* path, std::string& data) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) return false;
+
+    std::error_code size_error;
+    const auto file_bytes = std::filesystem::file_size(path, size_error);
+    if (!size_error &&
+        file_bytes <= static_cast<std::uintmax_t>(
+            std::numeric_limits<std::size_t>::max())) {
+        data.reserve(static_cast<std::size_t>(file_bytes));
+    }
+    return read_stream_bytes(in, data);
+}
+
+struct FileState {
+    std::ifstream stream;
+    bool closed{};
+
+    explicit FileState(const char* path) : stream(path, std::ios::binary) {}
+    ~FileState() {
+        if (stream.is_open()) stream.close();
+    }
+};
+
+struct FileHandle {
+    std::shared_ptr<FileState> state;
+};
+
+FileHandle* file_handle_from_value(void* value) {
+    if (!value) return nullptr;
+    std::uintptr_t bits{};
+    std::memcpy(&bits, value, sizeof(bits));
+    return reinterpret_cast<FileHandle*>(bits);
+}
+
+void* make_file_handle(FileHandle* handle) {
+    auto* value = quidra_managed_alloc(sizeof(std::uintptr_t));
+    const auto bits = reinterpret_cast<std::uintptr_t>(handle);
+    std::memcpy(value, &bits, sizeof(bits));
+    return value;
+}
+
+void* make_bin_value(const std::string& data) {
+    if (data.size() >
+            static_cast<std::size_t>(
+                std::numeric_limits<long long>::max() / 8) ||
+        data.size() > std::numeric_limits<std::size_t>::max() - 8) {
+        return nullptr;
+    }
+    auto* result = static_cast<unsigned char*>(
+        quidra_managed_alloc(
+            static_cast<unsigned long long>(8 + data.size())));
+    const auto bit_count = static_cast<long long>(data.size() * 8);
+    std::memcpy(result, &bit_count, sizeof(bit_count));
+    if (!data.empty()) std::memcpy(result + 8, data.data(), data.size());
+    return result;
+}
+}
+
+extern "C" void* quidra_file_open_raw(const char* path) {
+    if (!path || !*path) return nullptr;
+    try {
+        auto state = std::make_shared<FileState>(path);
+        if (!state->stream) return nullptr;
+        auto* handle = new FileHandle{std::move(state)};
+        return make_file_handle(handle);
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+extern "C" char* quidra_file_handle_read_raw(void* value) {
+    auto* handle = file_handle_from_value(value);
+    if (!handle || !handle->state || handle->state->closed ||
+        !handle->state->stream.is_open()) {
+        return nullptr;
+    }
+    std::string data;
+    if (!read_stream_bytes(handle->state->stream, data) || !valid_text(data)) {
+        return nullptr;
+    }
+    return copy_validated_text(data);
+}
+
+extern "C" void* quidra_file_handle_read_bin_raw(void* value) {
+    auto* handle = file_handle_from_value(value);
+    if (!handle || !handle->state || handle->state->closed ||
+        !handle->state->stream.is_open()) {
+        return nullptr;
+    }
+    std::string data;
+    if (!read_stream_bytes(handle->state->stream, data)) return nullptr;
+    return make_bin_value(data);
+}
+
+extern "C" void quidra_file_handle_close(void* value) {
+    auto* handle = file_handle_from_value(value);
+    if (!handle || !handle->state || handle->state->closed) return;
+    if (handle->state->stream.is_open()) handle->state->stream.close();
+    handle->state->closed = true;
+}
+
+extern "C" void* quidra_file_handle_clone(void* value) {
+    try {
+        auto* handle = file_handle_from_value(value);
+        if (!handle || !handle->state) return nullptr;
+        auto* copy = new FileHandle{handle->state};
+        return make_file_handle(copy);
+    } catch (...) {
+        std::fprintf(stderr, "Quidra runtime error: allocation failed\n");
+        std::exit(101);
+    }
+}
+
+extern "C" void quidra_file_handle_drop(void* value) {
+    if (!value) return;
+    auto* handle = file_handle_from_value(value);
+    std::uintptr_t zero{};
+    std::memcpy(value, &zero, sizeof(zero));
+    delete handle;
 }
 
 extern "C" char* quidra_file_read_raw(const char* path) {
@@ -108,14 +219,7 @@ extern "C" void* quidra_file_read_bin_raw(const char* path) {
     if (!path) return nullptr;
     std::string data;
     if (!read_all_bytes(path, data)) return nullptr;
-    if (data.size() > static_cast<std::size_t>(std::numeric_limits<long long>::max() / 8) ||
-        data.size() > std::numeric_limits<std::size_t>::max() - 8) return nullptr;
-    auto* result=static_cast<unsigned char*>(
-        quidra_managed_alloc(static_cast<unsigned long long>(8+data.size())));
-    const auto bit_count=static_cast<long long>(data.size() * 8);
-    std::memcpy(result,&bit_count,sizeof(bit_count));
-    if(!data.empty()) std::memcpy(result+8,data.data(),data.size());
-    return result;
+    return make_bin_value(data);
 }
 
 extern "C" bool quidra_file_write_raw(const char* path,const char* text) {

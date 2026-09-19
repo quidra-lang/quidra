@@ -81,7 +81,8 @@ Exports standard_exports(const std::string& module, SourceSpan span) {
             exports.values.emplace(name, std::string(*standard_value_target(module, name)));
         }
     } else if (module == "file") {
-        for (const char* name : {"read", "write", "read_bin", "write_bin", "exists", "is_directory", "remove", "copy", "move", "mkdir", "list"}) {
+        exports.classes.emplace("Handle", "$std.file.Handle");
+        for (const char* name : {"open", "read", "write", "read_bin", "write_bin", "exists", "is_directory", "remove", "copy", "move", "mkdir", "list"}) {
             exports.functions.emplace(name, std::string(*standard_function_target(module, name)));
         }
     } else if (module == "environment") {
@@ -236,7 +237,13 @@ FieldDecl standard_field(std::string name, std::string type) {
 
 std::vector<ClassDecl> standard_declarations(const std::string& module) {
     std::vector<ClassDecl> declarations;
-    if (module == "time") {
+    if (module == "file") {
+        ClassDecl handle;
+        handle.name = "$std.file.Handle";
+        handle.span = standard_span();
+        handle.fields.push_back(standard_field("$handle", "uint64"));
+        declarations.push_back(std::move(handle));
+    } else if (module == "time") {
         ClassDecl instant;
         instant.name = "$std.time.Instant";
         instant.span = standard_span();

@@ -636,6 +636,9 @@ struct FunctionEmitter {
         if (type.kind == TypeKind::Class && type.class_name == "$std.http.Response") {
             return "@quidra_http_response_drop";
         }
+        if (type.kind == TypeKind::Class && type.class_name == "$std.file.Handle") {
+            return "@quidra_file_handle_drop";
+        }
         if (type.kind == TypeKind::Class && type.class_name == "$std.video.Reader") {
             return "@quidra_video_reader_drop";
         }
@@ -2317,6 +2320,51 @@ struct FunctionEmitter {
         if constexpr(std::is_same_v<T,ir::CliFinish>){
             out<<"  call void @quidra_cli_finish()\n";
         }
+        if constexpr(std::is_same_v<T,ir::FileOpen>){
+            values[n.out]=n.result_type;
+            const auto raw=temp("file.open.raw"),ok=temp("file.open.ok"),result=value(n.out);
+            out<<"  "<<raw<<" = call ptr @quidra_file_open_raw(ptr "<<value(n.path)<<")\n";
+            out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
+            out<<"  "<<ok<<" = icmp ne ptr "<<raw<<", null\n";
+            const auto yes=unique_label("file.open.ok"),bad=unique_label("file.open.error"),done=unique_label("file.open.done");
+            out<<"  br i1 "<<ok<<", label %"<<yes<<", label %"<<bad<<"\n";
+            out<<yes<<":\n  store i64 "<<case_index(n.result_type,Type::class_type("$std.file.Handle"))<<", ptr "<<result<<"\n";
+            const auto payload=temp("file.open.handle");
+            out<<"  "<<payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+               <<"  store ptr "<<raw<<", ptr "<<payload<<"\n  br label %"<<done<<"\n";
+            out<<bad<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
+            const auto error_payload=temp("file.open.error.payload");
+            out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+               <<"  store ptr @.err.file, ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
+            out<<done<<":\n";
+        }
+        if constexpr(std::is_same_v<T,ir::FileHandleRead>){
+            const auto raw=temp("file.handle.read.raw");
+            out<<"  "<<raw<<" = call ptr @quidra_file_handle_read_raw(ptr "<<value(n.handle)<<")\n";
+            emit_string_error_result(n.out,n.result_type,raw,"file.handle.read");
+        }
+        if constexpr(std::is_same_v<T,ir::FileHandleReadBin>){
+            values[n.out]=n.result_type;
+            const auto raw=temp("file.handle.read_bin.raw"),present=temp("file.handle.read_bin.present");
+            const auto result=value(n.out);
+            out<<"  "<<raw<<" = call ptr @quidra_file_handle_read_bin_raw(ptr "<<value(n.handle)<<")\n";
+            out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
+            out<<"  "<<present<<" = icmp ne ptr "<<raw<<", null\n";
+            const auto ok=unique_label("file.handle.read_bin.ok"),bad=unique_label("file.handle.read_bin.error"),done=unique_label("file.handle.read_bin.done");
+            out<<"  br i1 "<<present<<", label %"<<ok<<", label %"<<bad<<"\n";
+            out<<ok<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Bin))<<", ptr "<<result<<"\n";
+            const auto payload=temp("file.handle.read_bin.payload");
+            out<<"  "<<payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+               <<"  store ptr "<<raw<<", ptr "<<payload<<"\n  br label %"<<done<<"\n";
+            out<<bad<<":\n  store i64 "<<case_index(n.result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
+            const auto error_payload=temp("file.handle.read_bin.error.payload");
+            out<<"  "<<error_payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n"
+               <<"  store ptr @.err.file, ptr "<<error_payload<<"\n  br label %"<<done<<"\n";
+            out<<done<<":\n";
+        }
+        if constexpr(std::is_same_v<T,ir::FileHandleClose>){
+            out<<"  call void @quidra_file_handle_close(ptr "<<value(n.handle)<<")\n";
+        }
         if constexpr(std::is_same_v<T,ir::FileRead>){
             const auto raw=temp("file.read.raw");
             out<<"  "<<raw<<" = call ptr @quidra_file_read_raw(ptr "<<value(n.path)<<")\n";
@@ -3895,6 +3943,13 @@ std::string emit_clone_helper(const Type&t,const std::unordered_map<std::string,
      <<"  ret ptr %dst\n}\n\n";
     return o.str();
  }
+ if(t.kind==TypeKind::Class && t.class_name=="$std.file.Handle"){
+    std::ostringstream o;
+    o<<"define ptr "<<clone_name(t)<<"(ptr %src) {\nentry:\n"
+     <<"  %dst = call ptr @quidra_file_handle_clone(ptr %src)\n"
+     <<"  ret ptr %dst\n}\n\n";
+    return o.str();
+ }
  if(t.kind==TypeKind::Class && t.class_name=="$std.video.Reader"){
     std::ostringstream o;
     o<<"define ptr "<<clone_name(t)<<"(ptr %src) {\nentry:\n"
@@ -4014,7 +4069,8 @@ void collect_drop_type(const Type& type, std::map<std::string,Type>& types,
         (type.kind == TypeKind::Class &&
          (type.class_name == "$std.json.Value" ||
           type.class_name == "$std.http.Response" ||
-           type.class_name == "$std.video.Reader"))) return;
+          type.class_name == "$std.file.Handle" ||
+          type.class_name == "$std.video.Reader"))) return;
     if (type.kind == TypeKind::Class && !layouts.contains(type.class_name)) return;
     const auto id = type_id(type);
     if (types.contains(id)) return;
@@ -4063,6 +4119,9 @@ std::string drop_callback_for(const Type& type,
     }
     if (type.kind == TypeKind::Class && type.class_name == "$std.http.Response") {
         return "@quidra_http_response_drop";
+    }
+    if (type.kind == TypeKind::Class && type.class_name == "$std.file.Handle") {
+        return "@quidra_file_handle_drop";
     }
     if (type.kind == TypeKind::Class && type.class_name == "$std.video.Reader") {
         return "@quidra_video_reader_drop";
@@ -4560,6 +4619,12 @@ declare double @quidra_cli_parse_float(ptr)
 declare ptr @quidra_cli_parse_bigint(ptr)
 declare ptr @quidra_cli_parse_bigreal(ptr)
 declare i1 @quidra_cli_parse_bool(ptr)
+declare ptr @quidra_file_open_raw(ptr)
+declare ptr @quidra_file_handle_read_raw(ptr)
+declare ptr @quidra_file_handle_read_bin_raw(ptr)
+declare void @quidra_file_handle_close(ptr)
+declare ptr @quidra_file_handle_clone(ptr)
+declare void @quidra_file_handle_drop(ptr)
 declare ptr @quidra_file_read_raw(ptr)
 declare ptr @quidra_file_read_bin_raw(ptr)
 declare i1 @quidra_file_write_raw(ptr, ptr)

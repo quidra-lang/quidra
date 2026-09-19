@@ -214,6 +214,20 @@ Config config = Config(endpoint = "server")
 
 An explicit field initializer overrides that field's declared default. Omitted defaults are evaluated afresh for each construction in flattened field declaration order, after explicit construction expressions have been evaluated in source order. This gives mutable defaults independent storage for each instance. An omitted field without a default remains uninitialized rather than becoming zero, false, empty, or none.
 
+Members are public by default. A field or method may be prefixed with `private`:
+
+```quidra
+class Counter
+    private int value = 0
+
+    private void increment_raw()
+        value = value + 1
+```
+
+A private field may be read, written, or addressed only from a method declared by that field's declaring class. The same declaring class may access the private field on another instance of itself; a derived class may not access an inherited private field directly. Named construction is intentionally different from member access: a private field may still be supplied by name, such as `Counter(value = 1)`, so factory functions can create values with hidden internal state.
+
+A private method may be called only from a method declared by that method's declaring class, including through another instance of that same class. Derived classes cannot call an inherited private method directly or through `super`. An inherited private member name remains occupied in the class member namespace, so a derived class cannot redeclare or override it. `private override` is valid only when the inherited target itself is non-private; it makes the derived replacement private to the derived class. The modifier order is `private override`, not `override private`.
+
 Field-default expressions are checked outside an instance receiver context: they cannot read sibling fields or caller-local bindings. Inherited fields retain their defaults. Duplicate, unknown, positional, or writable field initializers are compile-time errors. Reading an uninitialized field is a compile-time error. Assigning a field initializes it. Initialization is tracked per field and through nested class fields.
 
 Methods use the same function syntax and access fields directly. Quidra has no source-level `self` or `this`; an implicit receiver supplies member access. A method may call another visible method directly or through an explicit object expression. The checker infers which receiver fields a method must read before writing and which fields are definitely initialized on normal return.
@@ -265,7 +279,7 @@ Inside a subclass method, `super.method(...)` invokes the implementation visible
 
 A child class inherits its parent's fields and methods but remains a distinct static type. Inheritance is member reuse and override, not implicit subtyping: `Base value = derived` and `Base &value = &derived` are invalid. Use an explicit union such as `Base | Derived` when a value may contain either type. Method selection is static; there is no dynamic dispatch, `virtual`, or object slicing.
 
-Inherited fields precede the child's own fields in layout. Redeclaring an inherited field is forbidden. Replacing an inherited method requires `override` and an exactly matching result type, parameter names, parameter types, and reference authority. For by-value parameters, `const` is a callee-local binding restriction and does not change the public method signature; for reference parameters, `T &` versus `const T &` is caller-visible authority and must match. `override` without an inherited target is an error. Multiple inheritance and inheritance cycles are invalid.
+Inherited fields precede the child's own fields in layout. Redeclaring an inherited field is forbidden. Replacing an inherited non-private method requires `override` and an exactly matching result type, parameter names, parameter types, and reference authority. An inherited private method is class-local and cannot be an override target; its name still cannot be reused in a derived class. For by-value parameters, `const` is a callee-local binding restriction and does not change the public method signature; for reference parameters, `T &` versus `const T &` is caller-visible authority and must match. `override` without an inherited target is an error. Multiple inheritance and inheritance cycles are invalid.
 
 Reserved identifiers are absolute in user code. A field or method cannot reuse a reserved language name, bare built-in name, type name, or standard namespace name; qualification does not create an exception, so user-defined `object.math`, `object.tensor`, or `object.array()` are invalid when those identifiers are reserved. Standard-library implementation declarations are language-owned and are the only internal exception. Non-reserved member names still cannot collide with inherited or sibling members, and parameters or local bindings cannot shadow fields or methods visible in the current class.
 

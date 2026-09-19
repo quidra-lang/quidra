@@ -591,15 +591,20 @@ bool cudnn_conv2d_forward(
         if(status==0)
             status=api.add_tensor(handle,&one,b_desc,b_ptr,&one,y_desc,y_ptr);
     }
+    // cuDNN work is asynchronous on the current/default stream. The temporary
+    // workspace and descriptors cannot be destroyed until that work has completed,
+    // so this remains a synchronization boundary for now. Native kernels do not
+    // have this per-operation lifetime constraint and stay asynchronous.
+    auto& cu=cuda();
+    const bool synchronized=status==0&&cu.ctx_synchronize&&cu.ctx_synchronize()==0;
     if(workspace)release(workspace);
     cleanup();
-    if(status!=0){
+    if(!synchronized){
         std::lock_guard lock(algorithm_cache_mutex);
         algorithm_cache.erase(algorithm_key);
         return false;
     }
-    auto& cu=cuda();
-    return cu.ctx_synchronize&&cu.ctx_synchronize()==0;
+    return true;
 }
 
 std::string ptx_conv2d_source(int dtype) {

@@ -380,9 +380,10 @@ Model model = Model(
         value = tensor.ones<float32>([1], gpu = 0)
     )
 )
-neural<float32> tracked = model.value.track()
-neural<float32> first = tracked * tracked
-neural<float32> second = tracked * tracked
+neural<float32> first_track = model.value.track()
+neural<float32> second_track = model.value.track()
+neural<float32> first = first_track * first_track
+neural<float32> second = second_track * second_track
 neural<float32> loss = neural.mean(first + second)
 neural.Gradients gradients = neural.grad(loss)
 neural.update(&model, gradients, rate = 0.1)

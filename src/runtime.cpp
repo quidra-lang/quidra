@@ -5380,6 +5380,9 @@ void neural_store_device_parameter_gradient(
             quidra_tensor_clone(gradient));
         return;
     }
+    if(neural_accumulate_device_gradient_in_place(
+            destination.device_tensor,gradient,line,column))
+        return;
     auto* combined=neural_device_binary_tensor(
         destination.device_tensor,gradient,1,line,column);
     quidra_tensor_drop(destination.device_tensor);

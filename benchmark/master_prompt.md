@@ -250,6 +250,49 @@ A failed comparability gate is an infrastructure failure. It is never converted 
 
 `N/A`, `Not Executed`, `PARTIAL`, and `WITHDRAWN` are distinct states and must never be treated as interchangeable.
 
+## 4.2 Pre-flight execution manifest and resumable run ledger
+
+The benchmark is large enough that a run must be resumable without mixing evidence or silently skipping work.
+
+Before the first measurement or scored model request, create a machine-readable execution manifest and run ledger inside the active run directory. The ledger must enumerate every required unit of work, including:
+
+- every language × workload measurement;
+- every Standard rubric / adversarial case;
+- every Semantic Compression probe and semantic-site matrix validation;
+- every Intrinsic language × condition × seed / transformation set;
+- every Practical language × task × required independent trial;
+- every validator self-test;
+- every comparability / leakage audit; and
+- every final aggregation and report-consistency check.
+
+For each unit, record at least:
+
+- stable work-unit ID;
+- input / fixture hashes;
+- relevant toolchain or model identity;
+- benchmark prompt/configuration hash;
+- status: `PENDING`, `RUNNING`, `COMPLETE`, `INVALID`, or `BLOCKED`;
+- evidence paths; and
+- validation result.
+
+A work unit may become `COMPLETE` only after its raw evidence is written and its required validator passes. Write results atomically where practical. A process interruption must leave the unit resumable as `PENDING` or `RUNNING`, never falsely complete.
+
+On resume:
+
+1. re-read the immutable run `prompt.md`, execution manifest, and ledger;
+2. verify the evaluated Quidra SHA, toolchain identities, model identity, prompt/configuration hashes, fixtures, and scoring rules still match;
+3. reuse only `COMPLETE` work units whose hashes and validation evidence still match;
+4. rerun incomplete, invalid, or mismatched work units; and
+5. never import measurements or scored LLM generations from a different run identity.
+
+If the exact primary LLM model/version changes, do not mix old and new LLM trials in one primary score. Start a new run or restart the affected LLM evaluation under one fixed model identity.
+
+Before expensive scoring begins, complete **all infrastructure pre-flight work first**: build/reference validation, golden-output agreement, validator pass/fail self-tests, Semantic Compression matrix/comparability gates, Intrinsic transformation round trips, and Reference Pack leakage audits. Do not spend scored LLM trials on infrastructure that has not passed pre-flight.
+
+Provider/network/rate-limit failures are infrastructure events, not model failures. Preserve them separately, leave the affected work unit incomplete, and resume it under the same fixed configuration rather than scoring the transport failure as an incorrect generation.
+
+The ledger is execution state, not a score source. Final scores must still be recomputed from validated raw evidence after all required work units for that evaluation are complete.
+
 ---
 
 # 5. Universal Score Direction
@@ -2162,6 +2205,8 @@ At completion, preserve at least the following inside the run directory.
 - runtime versions
 - immutable LLM run configuration
 - exact LLM model/version identifier and provider/client metadata
+- execution manifest and resumable run ledger
+- final report-consistency audit output
 - normalization formulas and fixed weights
 - Quidra HEAD SHA
 - SVM reference SHA
@@ -2291,6 +2336,9 @@ The benchmark is complete only when all applicable items below are satisfied:
 61. Each primary evaluation was assigned exactly one status from `COMPLETE`, `PARTIAL`, `WITHDRAWN`, or `NOT EXECUTED`.
 62. No primary Overall Score or Ranking was published unless that primary evaluation was `COMPLETE`.
 63. `Not Executed` applicable evidence was never converted to `N/A` or removed by weight renormalization.
+64. The execution manifest enumerated all required work before scored execution, and every published result traces only to validated `COMPLETE` work units.
+65. Any resumed work verified the evaluated SHA, prompt/configuration hashes, toolchain/model identities, and fixture hashes before reusing completed work units.
+66. The final report-consistency audit passed and the machine-readable and human-readable primary statuses, scores, rankings, and evaluated version agree.
 
 If a technically impossible or unavailable item prevents completion, do not invent a result.
 
@@ -2300,7 +2348,23 @@ Record it explicitly as N/A or Not Executed with the exact reason.
 
 # 34. Final Report
 
-After completion, keep the chat response concise.
+Before generating the final report, run a machine-readable **report consistency audit** against the run ledger and primary-evaluation statuses.
+
+The audit must fail report publication if any of the following is true:
+
+- a non-`COMPLETE` primary evaluation has a numeric Overall Score;
+- a non-`COMPLETE` primary evaluation has a Ranking;
+- a `COMPLETE` evaluation is missing any required work unit or validation evidence;
+- a `Not Executed` applicable metric was treated as `N/A`;
+- a Semantic Compression score exists without a passing matrix/comparability gate;
+- an Intrinsic score includes a Reference Pack without a passing leakage audit;
+- a Practical score uses fewer than the required independent trials;
+- report tables, JSON, Markdown summaries, and commit-summary values disagree; or
+- the report labels a different Quidra version/SHA than `version.txt`.
+
+Generate human-readable tables from the same validated machine-readable result objects used by the consistency audit. Do not independently hand-copy primary scores or rankings into separate report files.
+
+After the consistency audit passes, keep the chat response concise.
 
 Report at least, in this order:
 

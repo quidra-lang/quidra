@@ -1945,9 +1945,22 @@ print(combine(1, first = 2))
 Secret secret = Secret()
 print(secret.value)
 )", "PRIVATE_MEMBER");
- bad_code(R"(class Secret
+ good_code(R"(class Secret
     private int value
 Secret secret = Secret(value = 1)
+)");
+ bad_code(R"(class BaseSecret
+    private int value = 1
+class DerivedSecret : BaseSecret
+    int reveal()
+        return value
+)", "PRIVATE_MEMBER");
+ bad_code(R"(class BaseSecret
+    private void hidden()
+        return
+class DerivedSecret : BaseSecret
+    void reveal()
+        hidden()
 )", "PRIVATE_MEMBER");
  bad_code(R"(class Secret
     private void hidden()

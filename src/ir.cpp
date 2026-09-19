@@ -4761,6 +4761,35 @@ struct Lowerer {
         if(const auto* n=std::get_if<AssignStmt>(&s.data)){
             const auto t=type_of(*n->target);
             if(!n->compound_op.empty()){
+                // Compiler-owned Map/Set fields are all initialized by their
+                // generated class construction. Scalar compound updates inside
+                // those methods therefore do not need to take a tracked field
+                // address merely to preserve definite-initialization checks.
+                // Keep the ordinary checked Binary lowering, so overflow and
+                // every other public arithmetic semantic remain unchanged.
+                const bool standard_collection_class =
+                    current_class.rfind("__quidra_gc__std_map_Map_",0)==0 ||
+                    current_class.rfind("__quidra_gc__std_set_Set_",0)==0;
+                if(standard_collection_class && t.kind==TypeKind::Int){
+                    if(const auto* field_name=std::get_if<NameExpr>(&n->target->data);
+                       field_name && checked.field_accesses.contains(n->target.get())){
+                        const auto& field=checked.field_accesses.at(n->target.get());
+                        auto object=receiver_value();
+                        auto old=fresh();
+                        block->instructions.push_back(
+                            FieldGet{old,object,field.index,t});
+                        auto rhs=expr(*n->value);
+                        auto result=fresh();
+                        block->instructions.push_back(Binary{
+                            result,n->compound_op,old,rhs,t,t,
+                            static_cast<std::uint32_t>(s.span.start.line),
+                            static_cast<std::uint32_t>(s.span.start.column)});
+                        release_temporary(*n->value,rhs);
+                        block->instructions.push_back(
+                            FieldSet{object,field.index,result,t});
+                        return;
+                    }
+                }
                 if(const auto* name=std::get_if<NameExpr>(&n->target->data);
                    name && !checked.field_accesses.contains(n->target.get()) &&
                    !is_source_reference(name->name)){

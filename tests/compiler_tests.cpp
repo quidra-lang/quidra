@@ -336,6 +336,14 @@ print(reals[1])
  llvm_function_not_contains(
      "set.Set<int> values = set.Set<int>()\nvalues.add(1)\nbool present = values.has(1)\n",
      "___slot_of(", "srem i64");
+ // Map/Set scalar fields have compiler-owned initializers. Their compound
+ // updates should not re-enter dynamic definite-initialization tracking.
+ llvm_function_not_contains(
+     "map.Map<int, int> values = map.Map<int, int>()\nvalues.set(1, 2)\n",
+     "_set(ptr %arg._receiver", "@quidra_init_check");
+ llvm_function_not_contains(
+     "map.Map<int, int> values = map.Map<int, int>()\nvalues.set(1, 2)\n",
+     "_set(ptr %arg._receiver", "@quidra_init_mark_range");
 
  // Hot string/parse patterns keep their source semantics while lowering to
  // allocation-light native operations.

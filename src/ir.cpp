@@ -4162,7 +4162,142 @@ struct Lowerer {
         return true;
     }
 
+
+    bool lower_string_ascii_count_for(const ForStmt& n) {
+        if (n.writable || n.body.size() != 1) return false;
+
+        const auto* range = std::get_if<CallExpr>(&n.iterable->data);
+        const auto range_resolution =
+            checked.call_resolutions.find(n.iterable.get());
+        if (!range || range_resolution == checked.call_resolutions.end() ||
+            range_resolution->second.kind != CallKind::Builtin ||
+            range_resolution->second.builtin != BuiltinCallable::Range)
+            return false;
+        for (const auto& argument : range->args)
+            if (argument.name || argument.writable || !argument.value)
+                return false;
+
+        const auto literal_is = [](const Expr* expression,
+                                   std::uint64_t expected) {
+            if (!expression) return false;
+            const auto* value =
+                std::get_if<IntegerExpr>(&expression->data);
+            return value && value->fits_u64 && value->value == expected;
+        };
+
+        const Expr* end = nullptr;
+        if (range->args.size() == 1) {
+            end = range->args[0].value.get();
+        } else if (range->args.size() == 2) {
+            if (!literal_is(range->args[0].value.get(), 0)) return false;
+            end = range->args[1].value.get();
+        } else if (range->args.size() == 3) {
+            if (!literal_is(range->args[0].value.get(), 0) ||
+                !literal_is(range->args[2].value.get(), 1))
+                return false;
+            end = range->args[1].value.get();
+        } else {
+            return false;
+        }
+        if (!end || type_of(*end).kind != TypeKind::Int) return false;
+
+        const auto* branch = std::get_if<IfStmt>(&n.body.front()->data);
+        if (!branch || !branch->else_body.empty() ||
+            branch->then_body.size() != 1)
+            return false;
+
+        const auto* comparison =
+            std::get_if<BinaryExpr>(&branch->condition->data);
+        if (!comparison ||
+            (comparison->op != "==" && comparison->op != "!="))
+            return false;
+
+        const IndexExpr* indexed = nullptr;
+        const StringExpr* literal = nullptr;
+        const Expr* indexed_expression = nullptr;
+        if (const auto* left =
+                std::get_if<IndexExpr>(&comparison->left->data);
+            left &&
+            std::holds_alternative<StringExpr>(comparison->right->data)) {
+            indexed = left;
+            literal = &std::get<StringExpr>(comparison->right->data);
+            indexed_expression = comparison->left.get();
+        } else if (const auto* right =
+                       std::get_if<IndexExpr>(&comparison->right->data);
+                   right &&
+                   std::holds_alternative<StringExpr>(
+                       comparison->left->data)) {
+            indexed = right;
+            literal = &std::get<StringExpr>(comparison->left->data);
+            indexed_expression = comparison->right.get();
+        }
+        if (!indexed || !literal || indexed->items.size() != 1 ||
+            indexed->items.front().slice ||
+            !indexed->items.front().index ||
+            type_of(*indexed->base).kind != TypeKind::String ||
+            literal->value.size() != 1)
+            return false;
+
+        const auto byte =
+            static_cast<unsigned char>(literal->value.front());
+        if (byte == 0 || byte >= 0x80U) return false;
+
+        const auto* text_name =
+            std::get_if<NameExpr>(&indexed->base->data);
+        const auto* index_name =
+            std::get_if<NameExpr>(
+                &indexed->items.front().index->data);
+        if (!text_name || !index_name ||
+            index_name->name != n.name ||
+            checked.field_accesses.contains(indexed->base.get()) ||
+            is_source_reference(text_name->name))
+            return false;
+
+        const auto* assignment =
+            std::get_if<AssignStmt>(&branch->then_body.front()->data);
+        if (!assignment || assignment->compound_op != "+" ||
+            type_of(*assignment->target).kind != TypeKind::Int)
+            return false;
+        const auto* target =
+            std::get_if<NameExpr>(&assignment->target->data);
+        const auto* increment =
+            std::get_if<IntegerExpr>(&assignment->value->data);
+        if (!target || target->name == n.name ||
+            checked.field_accesses.contains(assignment->target.get()) ||
+            is_source_reference(target->name) ||
+            !increment || !increment->fits_u64 ||
+            increment->value != 1)
+            return false;
+
+        // range() evaluates its bound once before entering the loop. Preserve
+        // that ordering; loading an immutable string local and initialized int
+        // local has no observable side effect.
+        auto count = expr(*end);
+        auto text = expr(*indexed->base);
+        const auto target_name = source_local(target->name);
+        auto initial = fresh();
+        block->instructions.push_back(
+            LoadLocal{initial, target_name, Type::simple(TypeKind::Int)});
+        invalidate_length_relation(target->name);
+
+        auto out = fresh();
+        block->instructions.push_back(StringAsciiCountPrefix{
+            out, text, count, initial, byte, comparison->op == "!=",
+            static_cast<std::uint32_t>(
+                indexed_expression->span.start.line),
+            static_cast<std::uint32_t>(
+                indexed_expression->span.start.column),
+            static_cast<std::uint32_t>(
+                branch->then_body.front()->span.start.line),
+            static_cast<std::uint32_t>(
+                branch->then_body.front()->span.start.column)});
+        block->instructions.push_back(
+            StoreLocal{target_name, out, Type::simple(TypeKind::Int)});
+        return true;
+    }
+
     void lower_for(const ForStmt& n) {
+        if (lower_string_ascii_count_for(n)) return;
         if (lower_string_split_for(n)) return;
         const auto* range_call=std::get_if<CallExpr>(&n.iterable->data);
         const auto range_resolution=checked.call_resolutions.find(n.iterable.get());
@@ -5535,6 +5670,7 @@ std::string instr_text(const Instruction& i){ std::ostringstream out; std::visit
     if constexpr(std::is_same_v<T,ArraySorted>)out<<"%"<<n.out<<" = array.sorted %"<<n.array<<" : "<<type_name(n.array_type);
     if constexpr(std::is_same_v<T,StringIndex>)out<<"%"<<n.out<<" = string.index %"<<n.text<<", %"<<n.index;
     if constexpr(std::is_same_v<T,StringIndexAsciiCompare>)out<<"%"<<n.out<<" = string.index_ascii_compare %"<<n.text<<", %"<<n.index<<", "<<static_cast<unsigned>(n.byte)<<(n.negate?" !=":" ==");
+    if constexpr(std::is_same_v<T,StringAsciiCountPrefix>)out<<"%"<<n.out<<" = string.ascii_count_prefix %"<<n.text<<", %"<<n.count<<", %"<<n.initial<<", "<<static_cast<unsigned>(n.byte)<<(n.negate?" !=":" ==");
     if constexpr(std::is_same_v<T,StringLength>)out<<"%"<<n.out<<" = string.length %"<<n.text;
     if constexpr(std::is_same_v<T,StringEmpty>)out<<"%"<<n.out<<" = string."<<(n.negate?"nonempty ":"empty ")<<"%"<<n.text;
     if constexpr(std::is_same_v<T,StringContains>)out<<"%"<<n.out<<" = string.contains %"<<n.text<<", %"<<n.needle;

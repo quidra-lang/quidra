@@ -3,6 +3,10 @@
 
 extern "C" char* quidra_string_index(const char*, long long, unsigned long long, unsigned long long);
 extern "C" bool quidra_string_index_equal_ascii(const char*, long long, unsigned char, unsigned long long, unsigned long long);
+extern "C" long long quidra_string_count_ascii_prefix(
+    const char*, long long, unsigned char, bool, long long,
+    unsigned long long, unsigned long long,
+    unsigned long long, unsigned long long);
 extern "C" char* quidra_runtime_try_copy_text_bytes(const char*, unsigned long long);
 extern "C" void* quidra_string_split(const char*, const char*);
 extern "C" void* quidra_string_split_iter_begin(const char*, const char*);
@@ -41,6 +45,15 @@ int main() {
     if (quidra_string_index_equal_ascii(managed_ascii, 5, 'x', 1, 1)) return 1;
     char* managed_space = quidra_string_index(managed_ascii, 5, 1, 1);
     if (std::strcmp(managed_space, " ") != 0) return 1;
+    if (quidra_string_count_ascii_prefix(
+            managed_ascii, 10, 'a', false, 4, 1, 1, 1, 1) != 7)
+        return 1;
+    if (quidra_string_count_ascii_prefix(
+            managed_ascii, 10, ' ', true, 0, 1, 1, 1, 1) != 9)
+        return 1;
+    if (quidra_string_count_ascii_prefix(
+            managed_ascii, 0, 'x', false, 5, 1, 1, 1, 1) != 5)
+        return 1;
     quidra_managed_release(managed_space, nullptr);
     quidra_managed_release(managed_ascii, nullptr);
 
@@ -50,6 +63,9 @@ int main() {
     if (quidra_string_index_equal_ascii(managed_unicode, 0, 'x', 1, 1)) return 1;
     char* managed_x = quidra_string_index(managed_unicode, 1, 1, 1);
     if (std::strcmp(managed_x, "x") != 0) return 1;
+    if (quidra_string_count_ascii_prefix(
+            managed_unicode, 2, 'x', false, 0, 1, 1, 1, 1) != 1)
+        return 1;
     quidra_managed_release(managed_x, nullptr);
     quidra_managed_release(managed_unicode, nullptr);
 

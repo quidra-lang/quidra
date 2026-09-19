@@ -1123,6 +1123,17 @@ struct FunctionEmitter {
             if(n.negate) out<<"  "<<value(n.out)<<" = xor i1 "<<compared<<", true\n";
             else out<<"  "<<value(n.out)<<" = xor i1 "<<compared<<", false\n";
         }
+        if constexpr(std::is_same_v<T,ir::StringAsciiCountPrefix>){
+            values[n.out]=Type::simple(TypeKind::Int);
+            out<<"  "<<value(n.out)
+               <<" = call i64 @quidra_string_count_ascii_prefix(ptr "<<value(n.text)
+               <<", i64 "<<value(n.count)
+               <<", i8 "<<static_cast<unsigned>(n.byte)
+               <<", i1 "<<(n.negate?"true":"false")
+               <<", i64 "<<value(n.initial)
+               <<", i64 "<<n.index_line<<", i64 "<<n.index_column
+               <<", i64 "<<n.overflow_line<<", i64 "<<n.overflow_column<<")\n";
+        }
         if constexpr(std::is_same_v<T,ir::StringLength>){values[n.out]=Type::simple(TypeKind::Int);out<<"  "<<value(n.out)<<" = call i64 @quidra_string_length(ptr "<<value(n.text)<<")\n";}
         if constexpr(std::is_same_v<T,ir::StringEmpty>){
             values[n.out]=Type::simple(TypeKind::Bool);
@@ -4215,6 +4226,7 @@ declare double @quidra_bigint_to_float64(ptr, i64, i64)
 declare float @quidra_bigint_to_float32(ptr, i64, i64)
 declare ptr @quidra_string_index(ptr, i64, i64, i64)
 declare i1 @quidra_string_index_equal_ascii(ptr, i64, i8, i64, i64)
+declare i64 @quidra_string_count_ascii_prefix(ptr, i64, i8, i1, i64, i64, i64, i64, i64)
 declare i64 @quidra_string_length(ptr)
 declare i1 @quidra_string_contains(ptr, ptr)
 declare i1 @quidra_string_starts_with(ptr, ptr)

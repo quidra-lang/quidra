@@ -45,6 +45,18 @@ struct ArrayGrowMove { ValueId out; ValueId array; Type array_type; };
 struct ArraySorted { ValueId out; ValueId array; Type array_type; std::uint32_t line{}; std::uint32_t column{}; };
 struct StringIndex { ValueId out; ValueId text; ValueId index; std::uint32_t line{}; std::uint32_t column{}; };
 struct StringIndexAsciiCompare { ValueId out; ValueId text; ValueId index; unsigned char byte{}; bool negate{}; std::uint32_t line{}; std::uint32_t column{}; };
+struct StringAsciiCountPrefix {
+    ValueId out;
+    ValueId text;
+    ValueId count;
+    ValueId initial;
+    unsigned char byte{};
+    bool negate{};
+    std::uint32_t index_line{};
+    std::uint32_t index_column{};
+    std::uint32_t overflow_line{};
+    std::uint32_t overflow_column{};
+};
 struct StringLength { ValueId out; ValueId text; };
 struct StringEmpty { ValueId out; ValueId text; bool negate{}; };
 struct StringContains { ValueId out; ValueId text; ValueId needle; };
@@ -305,7 +317,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  LoadAddress, StoreAddress, BindReference, ReferenceAddress, LoadReference, StoreReference,
                                  ArrayLength, ArrayCanAppendMove, ArrayGrowMove, ArraySorted,
                                  ArrayInitializationComplete,
-                                 StringIndex, StringIndexAsciiCompare, StringLength, StringEmpty, StringContains, StringStartsWith,
+                                 StringIndex, StringIndexAsciiCompare, StringAsciiCountPrefix, StringLength, StringEmpty, StringContains, StringStartsWith,
                                  StringEndsWith, StringFind, StringSlice, StringTrim, StringSplit,
                                  StringSplitIterBegin, StringSplitIterNext, StringSplitIterEnd,
                                  StringParseTwoSigned, StringUtf8, StringFromUtf8, StringFromUtf8ArrayDirect, StringCodepoints, StringJoin, StringConcat, StringBuild,

@@ -7069,6 +7069,87 @@ extern "C" bool quidra_string_index_equal_ascii(
            static_cast<unsigned char>(text[bounds.start]) == expected;
 }
 
+
+extern "C" long long quidra_string_count_ascii_prefix(
+    const char* text, long long count, unsigned char expected, bool negate,
+    long long initial, unsigned long long index_line,
+    unsigned long long index_column, unsigned long long overflow_line,
+    unsigned long long overflow_column) {
+    if (!text) runtime_text_failure("null string");
+    if (count <= 0) return initial;
+
+    auto overflow = [&]() -> void {
+        std::fprintf(
+            stderr,
+            "Quidra runtime error[INTEGER_OVERFLOW] at %llu:%llu: integer overflow\n",
+            overflow_line, overflow_column);
+        std::exit(101);
+    };
+    auto bounds = [&](long long index, std::size_t length) -> void {
+        std::fprintf(
+            stderr,
+            "Quidra runtime error[INDEX_BOUNDS] at %llu:%llu: string index %lld outside length %zu\n",
+            index_line, index_column, index, length);
+        std::exit(101);
+    };
+    auto add_one = [&](long long& value) {
+        if (value == std::numeric_limits<long long>::max()) overflow();
+        ++value;
+    };
+    const auto selected = [&](bool equal) {
+        return negate ? !equal : equal;
+    };
+
+    if (auto* allocation = exact_managed_string(text);
+        allocation && allocation->string_ascii_known &&
+        allocation->string_ascii) {
+        const auto length = allocation->string_byte_length;
+        const auto raw_count = static_cast<unsigned long long>(count);
+        const bool count_fits_size =
+            raw_count <= static_cast<unsigned long long>(
+                std::numeric_limits<std::size_t>::max());
+        const bool fully_in_bounds =
+            count_fits_size &&
+            static_cast<std::size_t>(raw_count) <= length;
+
+        if (fully_in_bounds) {
+            const auto requested = static_cast<std::size_t>(raw_count);
+            std::size_t equal_count = 0;
+            for (std::size_t i = 0; i < requested; ++i)
+                equal_count +=
+                    static_cast<unsigned char>(text[i]) == expected ? 1U : 0U;
+            const auto matches =
+                negate ? requested - equal_count : equal_count;
+            const auto delta = static_cast<long long>(matches);
+            if (initial > std::numeric_limits<long long>::max() - delta)
+                overflow();
+            return initial + delta;
+        }
+
+        // If a later index is out of bounds, preserve source error ordering:
+        // an earlier counter overflow must still win.
+        auto value = initial;
+        for (std::size_t i = 0; i < length; ++i) {
+            const bool equal =
+                static_cast<unsigned char>(text[i]) == expected;
+            if (selected(equal)) add_one(value);
+        }
+        bounds(static_cast<long long>(length), length);
+    }
+
+    ManagedAllocation* allocation = nullptr;
+    const auto source = validated_string_view(text, allocation);
+    std::size_t byte_index = 0;
+    long long value = initial;
+    for (long long position = 0; position < count; ++position) {
+        if (byte_index >= source.size())
+            bounds(position, static_cast<std::size_t>(position));
+        const auto codepoint = utf8_next(source, byte_index);
+        if (selected(codepoint == expected)) add_one(value);
+    }
+    return value;
+}
+
 extern "C" long long quidra_string_length(const char* text) {
     ManagedAllocation* allocation = nullptr;
     std::size_t length = 0;

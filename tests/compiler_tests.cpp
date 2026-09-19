@@ -469,6 +469,20 @@ for i in range(0, len(text))
     if text[i] == " "
         print(i)
 )", "string.index_ascii_compare");
+ ir_contains(R"(string text = "a b a"
+int spaces = 0
+for i in range(0, len(text))
+    if text[i] == " "
+        spaces += 1
+print(spaces)
+)", "string.ascii_count_prefix");
+ llvm_contains(R"(string text = "a b a"
+int spaces = 0
+for i in range(0, len(text))
+    if text[i] == " "
+        spaces += 1
+print(spaces)
+)", "call i64 @quidra_string_count_ascii_prefix");
  ir_contains(R"(string source = "ab"
 uint8[] data = uint8[](source.utf8())
 match string.from_utf8(bin(data))

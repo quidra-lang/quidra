@@ -7208,7 +7208,17 @@ extern "C" char* quidra_string_split_iter_next(void* raw) {
 
     const std::string_view remaining(
         iterator.slab + start, iterator.size - start);
-    const auto relative = remaining.find(iterator.separator);
+    std::size_t relative = std::string_view::npos;
+    if (iterator.separator.size() == 1) {
+        const auto* found = static_cast<const char*>(
+            std::memchr(remaining.data(),
+                        static_cast<unsigned char>(iterator.separator[0]),
+                        remaining.size()));
+        if (found)
+            relative = static_cast<std::size_t>(found - remaining.data());
+    } else {
+        relative = remaining.find(iterator.separator);
+    }
     if (relative == std::string_view::npos) {
         iterator.finished = true;
         iterator.slab[iterator.size] = '\0';

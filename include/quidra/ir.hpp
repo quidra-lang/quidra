@@ -56,6 +56,7 @@ struct StringSplit { ValueId out; ValueId text; ValueId separator; };
 struct StringParseTwoSigned { ValueId left; ValueId right; ValueId ok; ValueId text; unsigned char separator{}; };
 struct StringUtf8 { ValueId out; ValueId text; };
 struct StringFromUtf8 { ValueId out; ValueId bin; Type result_type; };
+struct StringFromUtf8ArrayDirect { ValueId text; ValueId ok; ValueId error; ValueId array; };
 struct StringCodepoints { ValueId out; ValueId text; };
 struct StringJoin { ValueId out; ValueId values; ValueId separator; std::uint32_t line{}; std::uint32_t column{}; };
 struct StringConcat { ValueId out; std::vector<ValueId> values; };
@@ -283,7 +284,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  ArrayInitializationComplete,
                                  StringIndex, StringIndexAsciiCompare, StringLength, StringContains, StringStartsWith,
                                  StringEndsWith, StringFind, StringSlice, StringTrim, StringSplit,
-                                 StringParseTwoSigned, StringUtf8, StringFromUtf8, StringCodepoints, StringJoin, StringConcat, StringBuild,
+                                 StringParseTwoSigned, StringUtf8, StringFromUtf8, StringFromUtf8ArrayDirect, StringCodepoints, StringJoin, StringConcat, StringBuild,
                                  StringBuildAppendMove, StringCanAppendMove, StringAppendMove, StringRepeat,
                                  BinAlloc, BinLength, BinGet, BinSet, BinSlice,
                                  ParseBin, BinConvert,

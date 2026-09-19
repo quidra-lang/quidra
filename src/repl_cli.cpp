@@ -380,12 +380,23 @@ public:
         write_file(files_.source(), candidate);
 
         try {
-            auto compiled = compile_repl_file(files_.source(), {}, working_directory_);
-            if (!compiled.expression_type) {
+            auto checked = check_file_source(
+                files_.source(), candidate, {}, working_directory_);
+            if (checked.program.statements.empty()) {
                 std::cerr << "quidra: :type requires an expression\n";
                 return;
             }
-            std::cout << type_name(*compiled.expression_type) << "\n";
+            const auto& last = checked.program.statements.back();
+            const auto* expression = std::get_if<ExprStmt>(&last->data);
+            if (!expression) {
+                std::cerr << "quidra: :type requires an expression\n";
+                return;
+            }
+            const auto found = checked.expr_types.find(expression->value.get());
+            if (found == checked.expr_types.end()) {
+                throw std::logic_error("checked REPL expression has no type");
+            }
+            std::cout << type_name(found->second) << "\n";
         } catch (const CompileErrors& error) {
             print_diagnostics(error);
         } catch (const CompileError& error) {

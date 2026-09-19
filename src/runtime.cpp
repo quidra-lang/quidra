@@ -145,6 +145,7 @@ struct SmallManagedPool {
 };
 
 thread_local SmallManagedPool small_managed_pool;
+thread_local long long string_build_append_last_codepoints = 0;
 
 unsigned char small_managed_pool_class(std::size_t bytes) {
     for (std::size_t i = 0; i < small_managed_pool_sizes.size(); ++i)
@@ -7175,6 +7176,236 @@ extern "C" bool quidra_string_can_append_move(void* raw) {
            !allocation.shared_string_slab &&
            !allocation.initialization && allocation.drop == nullptr &&
            allocation.size != 0;
+}
+
+
+extern "C" char* quidra_string_build_append_move(
+    char* raw, const unsigned char* kinds,
+    const unsigned long long* raw_values,
+    unsigned long long raw_count, const char* separator) {
+    if (!raw || !separator)
+        runtime_text_failure("null typed string build-append input");
+    if (!quidra_string_can_append_move(raw))
+        runtime_text_failure("string build-append requires unique storage");
+    if (raw_count >
+        static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()))
+        runtime_allocation_failure();
+    const auto count = static_cast<std::size_t>(raw_count);
+    if (count != 0 && (!kinds || !raw_values))
+        runtime_text_failure("null typed string build-append parts");
+    if (separator == raw)
+        runtime_text_failure("string build-append separator aliases destination");
+
+    ManagedAllocation* receiver = nullptr;
+    std::size_t old_codepoints = 0;
+    const auto original =
+        validated_string_view(raw, receiver, &old_codepoints);
+    const auto old_length = original.size();
+
+    ManagedAllocation* separator_allocation = nullptr;
+    std::size_t separator_codepoints = 0;
+    const auto delimiter = validated_string_view(
+        separator, separator_allocation, &separator_codepoints);
+
+    auto checked_add = [](std::size_t& target, std::size_t value) {
+        if (value > std::numeric_limits<std::size_t>::max() - target)
+            runtime_allocation_failure();
+        target += value;
+    };
+
+    constexpr std::size_t small_part_count = 16;
+    std::array<std::size_t, small_part_count> small_lengths{};
+    std::array<unsigned char, small_part_count> small_aliases{};
+    std::vector<std::size_t> large_lengths;
+    std::vector<unsigned char> large_aliases;
+    if (count > small_part_count) {
+        large_lengths.resize(count);
+        large_aliases.assign(count, 0);
+    }
+    auto* lengths = count <= small_part_count
+        ? small_lengths.data() : large_lengths.data();
+    auto* aliases = count <= small_part_count
+        ? small_aliases.data() : large_aliases.data();
+
+    std::size_t added = 0;
+    std::size_t added_codepoints = 0;
+    if (count > 1 && !delimiter.empty()) {
+        if (count - 1 >
+            std::numeric_limits<std::size_t>::max() / delimiter.size())
+            runtime_allocation_failure();
+        added = (count - 1) * delimiter.size();
+        if (separator_codepoints != 0 &&
+            count - 1 >
+                std::numeric_limits<std::size_t>::max() / separator_codepoints)
+            runtime_allocation_failure();
+        added_codepoints = (count - 1) * separator_codepoints;
+    }
+
+    std::array<char, 32> numeric{};
+    for (std::size_t i = 0; i < count; ++i) {
+        aliases[i] = 0;
+        switch (kinds[i]) {
+            case 0: {
+                const auto* text = reinterpret_cast<const char*>(
+                    static_cast<std::uintptr_t>(raw_values[i]));
+                if (!text) runtime_text_failure("null string builder value");
+                aliases[i] = text == raw ? 1 : 0;
+                ManagedAllocation* allocation = nullptr;
+                std::size_t codepoints = 0;
+                const auto piece =
+                    validated_string_view(text, allocation, &codepoints);
+                lengths[i] = piece.size();
+                checked_add(added, piece.size());
+                checked_add(added_codepoints, codepoints);
+                break;
+            }
+            case 1: {
+                const auto value = std::bit_cast<long long>(raw_values[i]);
+                const auto converted = std::to_chars(
+                    numeric.data(), numeric.data() + numeric.size(), value, 10);
+                if (converted.ec != std::errc{})
+                    runtime_text_failure("integer formatting failed");
+                lengths[i] = static_cast<std::size_t>(
+                    converted.ptr - numeric.data());
+                checked_add(added, lengths[i]);
+                checked_add(added_codepoints, lengths[i]);
+                break;
+            }
+            case 2: {
+                const auto converted = std::to_chars(
+                    numeric.data(), numeric.data() + numeric.size(),
+                    raw_values[i], 10);
+                if (converted.ec != std::errc{})
+                    runtime_text_failure("integer formatting failed");
+                lengths[i] = static_cast<std::size_t>(
+                    converted.ptr - numeric.data());
+                checked_add(added, lengths[i]);
+                checked_add(added_codepoints, lengths[i]);
+                break;
+            }
+            case 3: {
+                lengths[i] = raw_values[i] ? 4U : 5U;
+                checked_add(added, lengths[i]);
+                checked_add(added_codepoints, lengths[i]);
+                break;
+            }
+            default:
+                runtime_text_failure("invalid typed string build-append part");
+        }
+    }
+
+    if (added > std::numeric_limits<std::size_t>::max() - old_length)
+        runtime_allocation_failure();
+    const auto new_length = old_length + added;
+
+    const auto old_key = reinterpret_cast<std::uintptr_t>(raw);
+    auto it = managed_allocations.find(old_key);
+    if (it == managed_allocations.end())
+        runtime_text_failure("string build-append storage disappeared");
+    auto& allocation = it->second;
+    if (allocation.size == 0 || allocation.size - 1 < old_length)
+        runtime_text_failure("invalid managed string build-append capacity");
+
+    std::size_t capacity = allocation.size - 1;
+    char* result = raw;
+    if (capacity < new_length) {
+        std::size_t new_capacity = capacity < 16 ? 16 : capacity;
+        while (new_capacity < new_length) {
+            if (new_capacity > std::numeric_limits<std::size_t>::max() / 2) {
+                new_capacity = new_length;
+                break;
+            }
+            new_capacity *= 2;
+        }
+        if (new_capacity == std::numeric_limits<std::size_t>::max())
+            runtime_allocation_failure();
+        const auto new_bytes = new_capacity + 1;
+        const auto old_bytes = allocation.size;
+        invalidate_managed_string_cache(&allocation);
+        result = static_cast<char*>(std::realloc(raw, new_bytes));
+        if (!result) runtime_allocation_failure();
+        if (new_bytes > old_bytes)
+            std::memset(result + old_bytes, 0, new_bytes - old_bytes);
+
+        const auto new_key = reinterpret_cast<std::uintptr_t>(result);
+        if (new_key != old_key) {
+            auto node = managed_allocations.extract(old_key);
+            node.key() = new_key;
+            node.mapped().base = result;
+            node.mapped().size = new_bytes;
+            node.mapped().small_pool_class = 0;
+            managed_allocations.insert(std::move(node));
+        } else {
+            allocation.base = result;
+            allocation.size = new_bytes;
+            allocation.small_pool_class = 0;
+        }
+        it = managed_allocations.find(new_key);
+    }
+
+    std::size_t offset = old_length;
+    for (std::size_t i = 0; i < count; ++i) {
+        if (i != 0 && !delimiter.empty()) {
+            std::memcpy(result + offset, delimiter.data(), delimiter.size());
+            offset += delimiter.size();
+        }
+        switch (kinds[i]) {
+            case 0: {
+                const auto* source = aliases[i]
+                    ? result
+                    : reinterpret_cast<const char*>(
+                          static_cast<std::uintptr_t>(raw_values[i]));
+                if (lengths[i] != 0) {
+                    std::memcpy(result + offset, source, lengths[i]);
+                    offset += lengths[i];
+                }
+                break;
+            }
+            case 1: {
+                const auto value = std::bit_cast<long long>(raw_values[i]);
+                const auto converted = std::to_chars(
+                    result + offset, result + new_length, value, 10);
+                if (converted.ec != std::errc{})
+                    runtime_text_failure("integer formatting failed");
+                offset = static_cast<std::size_t>(converted.ptr - result);
+                break;
+            }
+            case 2: {
+                const auto converted = std::to_chars(
+                    result + offset, result + new_length, raw_values[i], 10);
+                if (converted.ec != std::errc{})
+                    runtime_text_failure("integer formatting failed");
+                offset = static_cast<std::size_t>(converted.ptr - result);
+                break;
+            }
+            case 3: {
+                const char* value = raw_values[i] ? "true" : "false";
+                std::memcpy(result + offset, value, lengths[i]);
+                offset += lengths[i];
+                break;
+            }
+            default:
+                runtime_text_failure("invalid typed string build-append part");
+        }
+    }
+
+    result[new_length] = '\0';
+    it->second.string_byte_length_known = true;
+    it->second.string_byte_length = new_length;
+    it->second.string_codepoint_length_known = true;
+    it->second.string_codepoint_length =
+        old_codepoints + added_codepoints;
+    it->second.string_utf8_validated = true;
+    it->second.string_ascii_known = true;
+    it->second.string_ascii =
+        (old_codepoints + added_codepoints) == new_length;
+    string_build_append_last_codepoints =
+        static_cast<long long>(added_codepoints);
+    return result;
+}
+
+extern "C" long long quidra_string_build_append_last_length() {
+    return string_build_append_last_codepoints;
 }
 
 extern "C" char* quidra_string_concat_many(const char* const* values,

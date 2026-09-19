@@ -1430,7 +1430,9 @@ Type Checker::resolve_type(const TypeName& source, bool auto_ok) {
     } else if (source.name == "none") {
         type = simple(TypeKind::None);
     } else if (source.name == "never") {
-        type = simple(TypeKind::Never);
+        error("INVALID_TYPE",
+              "'never' is compiler-internal control-flow state, not a source type.",
+              source.span);
     } else if (source.name == "error") {
         type = simple(TypeKind::Error);
     } else if (source.name == "auto") {
@@ -5587,9 +5589,32 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
 
     raw_types_[&expression] = type;
     if (expected && type.kind != TypeKind::Never && type.kind != TypeKind::Invalid) {
+        if (!assignable(type, *expected) &&
+            type.kind == TypeKind::Union && type.union_name.empty()) {
+            const auto error_type = simple(TypeKind::Error);
+            if (case_index(type, error_type) >= 0) {
+                std::vector<Type> non_error;
+                non_error.reserve(type.cases.size());
+                for (const auto& current : type.cases) {
+                    if (current.kind != TypeKind::Error) non_error.push_back(current);
+                }
+                if (!non_error.empty()) {
+                    const auto residual = Type::union_of(std::move(non_error));
+                    if (assignable(residual, *expected)) {
+                        fail_fast_expressions_.insert(&expression);
+                        type = residual;
+                        if (type.kind == TypeKind::Class) {
+                            class_expr_initialized_paths_[&expression] =
+                                complete_class_paths(type);
+                        }
+                    }
+                }
+            }
+        }
         if (!assignable(type, *expected)) {
             error("TYPE_MISMATCH",
-                  "Expected " + type_name(*expected) + " but received " + type_name(type) + ".",
+                  "Expected " + type_name(*expected) + " but received " +
+                      type_name(raw_types_.at(&expression)) + ".",
                   expression.span);
         }
         if (expected->kind == TypeKind::Union && type.kind == TypeKind::Class &&
@@ -6739,11 +6764,26 @@ void Checker::check_block(const std::vector<StmtPtr>& body) {
     }
 }
 
+bool Checker::expr_has_no_normal_return(const Expr& expression) const {
+    if (const auto found = expr_types_.find(&expression);
+        found != expr_types_.end() && found->second.kind == TypeKind::Never) {
+        return true;
+    }
+    const auto resolution = call_resolutions_.find(&expression);
+    if (resolution != call_resolutions_.end() &&
+        resolution->second.kind == CallKind::Function) {
+        const auto function = functions_.find(resolution->second.target);
+        if (function != functions_.end() && function->second.no_normal_return) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool Checker::stmt_always_terminates(const Stmt& statement) const {
     if (std::holds_alternative<ReturnStmt>(statement.data)) return true;
     if (const auto* node = std::get_if<ExprStmt>(&statement.data)) {
-        return expr_types_.contains(node->value.get()) &&
-               expr_types_.at(node->value.get()).kind == TypeKind::Never;
+        return expr_has_no_normal_return(*node->value);
     }
     if (const auto* node = std::get_if<IfStmt>(&statement.data)) {
         return !node->else_body.empty() && block_always_terminates(node->then_body) &&
@@ -6751,14 +6791,37 @@ bool Checker::stmt_always_terminates(const Stmt& statement) const {
     }
     if (const auto* node = std::get_if<MatchStmt>(&statement.data)) {
         return std::all_of(node->cases.begin(), node->cases.end(),
-                           [&](const auto& match_case) { return block_always_terminates(match_case.body); });
+                           [&](const auto& match_case) {
+                               return block_always_terminates(match_case.body);
+                           });
     }
+    // Loops are not assumed to be infinite. Only proven non-continuing
+    // operations and exhaustive terminating branches establish this fact.
     return false;
 }
 
 bool Checker::block_always_terminates(const std::vector<StmtPtr>& body) const {
     for (const auto& statement : body) {
         if (stmt_always_terminates(*statement)) return true;
+    }
+    return false;
+}
+
+bool Checker::block_contains_return(const std::vector<StmtPtr>& body) const {
+    for (const auto& statement : body) {
+        if (std::holds_alternative<ReturnStmt>(statement->data)) return true;
+        if (const auto* branch = std::get_if<IfStmt>(&statement->data)) {
+            if (block_contains_return(branch->then_body) ||
+                block_contains_return(branch->else_body)) return true;
+        } else if (const auto* loop = std::get_if<WhileStmt>(&statement->data)) {
+            if (block_contains_return(loop->body)) return true;
+        } else if (const auto* loop = std::get_if<ForStmt>(&statement->data)) {
+            if (block_contains_return(loop->body)) return true;
+        } else if (const auto* match = std::get_if<MatchStmt>(&statement->data)) {
+            for (const auto& match_case : match->cases) {
+                if (block_contains_return(match_case.body)) return true;
+            }
+        }
     }
     return false;
 }
@@ -6800,6 +6863,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     case_types_.clear();
     case_tags_.clear();
     enum_constructions_.clear();
+    fail_fast_expressions_.clear();
     initialized_.clear();
     const_bindings_.clear();
     const_integer_values_.clear();
@@ -7260,6 +7324,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
         signature.receiver_effect.writes.clear();
         signature.receiver_effect.invalidates.clear();
         signature.reference_effects.clear();
+        signature.no_normal_return = false;
         signature.return_initialized_fields =
             signature.result.kind == TypeKind::Class
                 ? complete_class_paths(signature.result)
@@ -7267,7 +7332,8 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     }
 
     const auto summaries_equal = [](const FunctionType& left, const FunctionType& right) {
-        return left.receiver_effect.required == right.receiver_effect.required &&
+        return left.no_normal_return == right.no_normal_return &&
+               left.receiver_effect.required == right.receiver_effect.required &&
                left.receiver_effect.initializes == right.receiver_effect.initializes &&
                left.receiver_effect.writes == right.receiver_effect.writes &&
                left.receiver_effect.invalidates == right.receiver_effect.invalidates &&
@@ -7321,6 +7387,9 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 current_class_.clear();
                 in_function_ = true;
                 check_block(function.body);
+                signature.no_normal_return =
+                    !block_contains_return(function.body) &&
+                    block_always_terminates(function.body);
                 finalize_reference_effects(signature, !block_always_terminates(function.body));
                 signature.return_initialized_fields =
                     signature.result.kind == TypeKind::Class && current_return_summary_seen_
@@ -7371,6 +7440,9 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                     current_class_ = class_decl.name;
                     in_function_ = true;
                     check_block(method.body);
+                    signature.no_normal_return =
+                        !block_contains_return(method.body) &&
+                        block_always_terminates(method.body);
                     finalize_receiver_effects(signature, !block_always_terminates(method.body));
                     finalize_reference_effects(signature, !block_always_terminates(method.body));
                     signature.return_initialized_fields =
@@ -7541,7 +7613,8 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     return CheckedProgram{std::move(program), functions_, classes_, expr_types_, raw_types_,
                           field_accesses_, method_calls_, call_resolutions_, function_references_,
                           binding_types_, case_types_, case_tags_, enum_constructions_,
-                          bounds_proven_, class_expr_initialized_paths_};
+                          bounds_proven_, fail_fast_expressions_,
+                          class_expr_initialized_paths_};
 }
 
 } // namespace quidra

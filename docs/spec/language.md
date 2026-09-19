@@ -8,11 +8,11 @@ Blocks use four spaces per indentation level; tabs are invalid as indentation. A
 
 ## Types
 
-Numeric built-ins are `int8`, `int16`, `int32`, `int`/`int64`, `uint8`, `uint16`, `uint32`, `uint64`, `float32`, `float`/`float64`, `bigint`, and `bigreal`. `int` and `int64` are the same signed 64-bit type; `float` and `float64` are the same IEEE-754 binary64 type; `float32` is IEEE-754 binary32. `bigint` is an exact arbitrary-precision integer. `bigreal` represents exact rationals and symbolic exact real expressions such as `math.pi` and `math.sqrt(2.0)`. Numeric literals have no default type: integer-family literals may materialize as fixed integers or `bigint`, while real-family literals may materialize as IEEE floats or `bigreal`. A `bigint` context admits decimal integer literals beyond `uint64`; fixed-width contexts retain their normal range limits. `bool`, `string`, `bin`, and `error` hold booleans, immutable text, packed raw binary data, and error information. There is no `char`: text uses `string`, a one-byte numeric value uses `uint8`, and arbitrary raw bit sequences use `bin`. `void` denotes normal completion without data, and `never` denotes no normal continuation. `auto` requests inference for a binding with an initializer.
+Numeric built-ins are `int8`, `int16`, `int32`, `int`/`int64`, `uint8`, `uint16`, `uint32`, `uint64`, `float32`, `float`/`float64`, `bigint`, and `bigreal`. `int` and `int64` are the same signed 64-bit type; `float` and `float64` are the same IEEE-754 binary64 type; `float32` is IEEE-754 binary32. `bigint` is an exact arbitrary-precision integer. `bigreal` represents exact rationals and symbolic exact real expressions such as `math.pi` and `math.sqrt(2.0)`. Numeric literals have no default type: integer-family literals may materialize as fixed integers or `bigint`, while real-family literals may materialize as IEEE floats or `bigreal`. A `bigint` context admits decimal integer literals beyond `uint64`; fixed-width contexts retain their normal range limits. `bool`, `string`, `bin`, and `error` hold booleans, immutable text, packed raw binary data, and error information. There is no `char`: text uses `string`, a one-byte numeric value uses `uint8`, and arbitrary raw bit sequences use `bin`. `void` denotes normal completion without data. Process termination is control flow rather than a source-visible value type. `auto` requests inference for a binding with an initializer.
 
 `T | U` is an untagged surface description of a runtime tagged union: exactly one alternative is active. Union types flatten nested alternatives, remove duplicates, and have deterministic canonical representation independent of spelling order. A union with one distinct member is that member. Values and smaller unions can flow to compatible larger unions without wrapper calls; the runtime discriminator is adjusted to the destination type.
 
-`none` is the absence alternative of a union. `string | none` can hold text or normal absence; `string | none | error` additionally admits failure. Standalone `none` declarations, function returns typed solely `none`, and `auto x = none` are invalid. `void` is allowed as a function result and as an alternative in a union. `never` is not stored.
+`none` is the absence alternative of a union. `string | none` can hold text or normal absence; `string | none | error` additionally admits failure. Standalone `none` declarations, function returns typed solely `none`, and `auto x = none` are invalid. `void` is allowed as a function result and as an alternative in a union. Non-continuing control flow is compiler-internal and is neither storable nor source-spellable.
 
 ## Arrays and shapes
 
@@ -478,7 +478,29 @@ match doubled(true)
         print(problem)
 ```
 
-`try` requires an expression whose union includes `error`, inside a function that can return that error. On error it returns the same error from the current function. Otherwise its type is the input union with `error` removed, collapsing a one-member residual type. Normal absence is not propagated by `try`.
+A fallible union is preserved when no narrower destination is requested. In
+particular, `auto result = operation()` retains the full `T | error` static
+type.
+
+When a value whose unnamed union contains `error` is consumed where the
+expected type accepts every non-`error` alternative but excludes `error`,
+Quidra inserts fail-fast handling at that consumption site. Success supplies the
+non-error value; an actual `error` is reported and terminates the program at
+that site. This rule removes only the distinguished `error` alternative:
+ordinary unions are never implicitly narrowed, so `int | float` cannot flow
+to `float` without explicit handling.
+
+`try` requires an expression whose union includes `error`, inside a function
+that can return that error. On error it returns the same error from the current
+function. Otherwise its type is the input union with `error` removed,
+collapsing a one-member residual type. Normal absence is not propagated by
+`try`.
+
+Process termination itself is not a source type. `process.exit(status)` and
+other compiler-known non-continuing operations are tracked as control-flow
+facts. The compiler may propagate that fact through a user function when it can
+prove the function has no normal return. A loop is not assumed to be infinite
+merely from its syntax.
 
 A `match` evaluates its subject once. Each case selects one actual alternative using `T`, `T name`, or `none`. A binding is local to its case. Matching a named variable automatically narrows that name within each branch. This refinement cannot permit writes or aliases that corrupt the union representation or invalidate the checked branch type.
 
@@ -510,7 +532,7 @@ Float text uses the shortest decimal representation that round-trips to the same
 
 When attached to a terminal, `quidra` starts an interactive session. `quidra repl` starts the same session explicitly. Accepted top-level declarations and statements accumulate in session order and are rechecked with the normal language rules for each submission.
 
-A standalone expression is an interactive submission result. Its checked value is displayed automatically unless its type is `void` or `never`. This is a REPL presentation rule, not an implicit source-level call to `print`; the expression retains the same parsing, typing, arithmetic, reference, class, generic, equality, and error semantics as the same expression in a source file.
+A standalone expression is an interactive submission result. Its checked value is displayed automatically unless its type is `void`; a process-terminating expression never reaches display. This is a REPL presentation rule, not an implicit source-level call to `print`; the expression retains the same parsing, typing, arithmetic, reference, class, generic, equality, and error semantics as the same expression in a source file.
 
 The accumulated-source implementation compiles the root source from an in-memory overlay while retaining a stable virtual source path for relative imports, package-lock checks, and diagnostics; it does not write and re-read the growing root source on every submission. It still rechecks and recompiles the accumulated program. The already accepted prefix is marked explicitly in typed IR, and console output from that replay prefix is suppressed. External or nondeterministic operations are not silently replayed: before native execution of a candidate that may reach such an operation, the session arms a conservative safety barrier. A later submission is rejected with `REPL_REPLAY_UNSAFE` until `:reset`; the barrier remains armed if native execution fails because an external effect may already have occurred. `:reset` clears all accepted REPL state.
 
@@ -659,7 +681,7 @@ string | error read_open_file(string path)
     return text
 ```
 
-`file.Handle.read() -> string | error` and `read_bin() -> bin | error` consume the remaining bytes from the handle's current position. `close() -> void` is an optional early release and is idempotent. If `close()` is not called, that owned handle closes its native file deterministically when the handle leaves its lifetime, including ordinary return and `error` propagation; no `defer` or manual cleanup is required.
+`file.Handle.read() -> string | error` and `read_bin() -> bin | error` consume the remaining bytes from the handle's current position. `close() -> void` is an optional early release and is idempotent. If `close()` is not called, that owned handle closes its native file deterministically when the handle leaves its lifetime, including ordinary return and `error` propagation; no `defer` or manual cleanup is required, and release timing does not depend on GC.
 
 `file.Handle` follows Quidra value semantics. Copying a live handle creates an independent native reader positioned at the same byte offset. Reading or closing one copy does not change another copy. A closed handle copies as closed. `file.open` is currently read-only; whole-file writes remain explicit `file.write` / `file.write_bin` operations.
 

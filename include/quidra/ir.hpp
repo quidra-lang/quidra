@@ -305,7 +305,15 @@ struct StoreLocal {
 struct CallArgument { ValueId value; std::optional<ValueId> writable_address; };
 struct FunctionRef { ValueId out; std::string function; Type type; };
 struct IndirectCall { ValueId out; ValueId callee; std::vector<ValueId> args; std::vector<Type> parameter_types; Type result; std::uint32_t line{}; std::uint32_t column{}; };
-struct Call { ValueId out; std::string callee; std::vector<CallArgument> args; Type result; std::uint32_t line{}; std::uint32_t column{}; };
+struct Call {
+    ValueId out;
+    std::string callee;
+    std::vector<CallArgument> args;
+    Type result;
+    std::uint32_t line{};
+    std::uint32_t column{};
+    bool no_normal_return{};
+};
 struct VariantMake { ValueId out; int tag; ValueId payload; Type container_type; Type payload_type; };
 struct VariantTag { ValueId out; ValueId container; };
 struct VariantPayload { ValueId out; ValueId container; Type payload_type; };
@@ -319,6 +327,7 @@ struct ReplDisplay {
 struct ReplReplayMode { bool active{}; };
 struct Input { ValueId out; Type result_type; };
 struct Exit { ValueId status; };
+struct FailError { ValueId error; std::uint32_t line{}; std::uint32_t column{}; };
 struct RangeCheckStep { ValueId step; std::uint32_t line{}; std::uint32_t column{}; };
 struct Return { ValueId value; Type type; };
 struct ReturnVoid {};
@@ -360,7 +369,7 @@ using Instruction = std::variant<SourceLocation, ConstantInt, ConstantFloat, Con
                                  NumericMinMax, ArrayGet, ArraySet, Clone, Retain, Release,
                                  Unary, Binary, ToString, FormatNumber, LoadLocal, StoreLocal,
                                  FunctionRef, IndirectCall, Call, VariantMake, VariantTag, VariantPayload,
-                                 Print, Write, ReplDisplay, ReplReplayMode, Input, Exit, RangeCheckStep, Return, ReturnVoid, Jump, Branch>;
+                                 Print, Write, ReplDisplay, ReplReplayMode, Input, Exit, FailError, RangeCheckStep, Return, ReturnVoid, Jump, Branch>;
 
 struct Block { std::string label; std::vector<Instruction> instructions; };
 struct Parameter {

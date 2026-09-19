@@ -1219,8 +1219,9 @@ struct Lowerer {
     bool terminated() const {
         if (!block || block->instructions.empty()) return false;
         const auto& i=block->instructions.back();
-        if (std::holds_alternative<Return>(i)||std::holds_alternative<ReturnVoid>(i)||std::holds_alternative<Exit>(i)||std::holds_alternative<Jump>(i)||std::holds_alternative<Branch>(i)) return true;
-        if (const auto* c=std::get_if<Call>(&i)) return c->result.kind==TypeKind::Never;
+        if (std::holds_alternative<Return>(i)||std::holds_alternative<ReturnVoid>(i)||std::holds_alternative<Exit>(i)||std::holds_alternative<FailError>(i)||std::holds_alternative<Jump>(i)||std::holds_alternative<Branch>(i)) return true;
+        if (const auto* c=std::get_if<Call>(&i))
+            return c->result.kind==TypeKind::Never || c->no_normal_return;
         return false;
     }
     Block& add_block(std::string name) { fn->blocks.push_back(Block{std::move(name),{}}); return fn->blocks.back(); }
@@ -1569,10 +1570,107 @@ struct Lowerer {
         return from.kind == TypeKind::Array && to.kind == TypeKind::Array && from != to;
     }
 
+    ValueId consume_fail_fast(ValueId container, const Type& source,
+                              const Type& target, bool owned, SourceSpan span) {
+        const auto error_type = Type::simple(TypeKind::Error);
+        const int error_tag_index = case_index(source, error_type);
+        if (source.kind != TypeKind::Union || !source.union_name.empty() ||
+            error_tag_index < 0) {
+            throw std::logic_error("fail-fast consumption requires an unnamed error union");
+        }
+
+        auto tag = fresh();
+        block->instructions.push_back(VariantTag{tag, container});
+        auto error_tag = const_int(error_tag_index);
+        auto is_error = fresh();
+        block->instructions.push_back(Binary{
+            is_error, "==", tag, error_tag,
+            Type::simple(TypeKind::Int), Type::simple(TypeKind::Bool)});
+
+        const auto failed = label("fail_fast.error");
+        const auto dispatch = label("fail_fast.value");
+        block->instructions.push_back(Branch{is_error, failed, dispatch});
+
+        block = &add_block(failed);
+        auto problem = fresh();
+        block->instructions.push_back(
+            VariantPayload{problem, container, error_type});
+        block->instructions.push_back(FailError{
+            problem,
+            static_cast<std::uint32_t>(span.start.line),
+            static_cast<std::uint32_t>(span.start.column)});
+
+        std::vector<Type> remaining;
+        remaining.reserve(source.cases.size() - 1);
+        for (const auto& current : source.cases) {
+            if (current.kind != TypeKind::Error) remaining.push_back(current);
+        }
+        if (remaining.empty()) {
+            throw std::logic_error("fail-fast union has no success alternative");
+        }
+
+        block = &add_block(dispatch);
+        const bool has_value =
+            target.kind != TypeKind::Void && target.kind != TypeKind::None;
+
+        if (remaining.size() == 1) {
+            auto payload = fresh();
+            block->instructions.push_back(
+                VariantPayload{payload, container, remaining.front()});
+            auto result = convert(payload, remaining.front(), target, true);
+            if (owned) block->instructions.push_back(Release{container, source});
+            return has_value ? result : 0;
+        }
+
+        const auto done = label("fail_fast.done");
+        std::string result_name;
+        if (has_value) {
+            result_name = hidden("fail_fast.result");
+            locals[result_name] = target;
+        }
+
+        const auto lower_case = [&](const Type& current) {
+            auto payload = fresh();
+            block->instructions.push_back(
+                VariantPayload{payload, container, current});
+            auto result = convert(payload, current, target, true);
+            if (has_value) {
+                block->instructions.push_back(
+                    StoreLocal{result_name, result, target, true});
+            }
+            if (owned) block->instructions.push_back(Release{container, source});
+            block->instructions.push_back(Jump{done});
+        };
+
+        for (std::size_t i = 0; i + 1 < remaining.size(); ++i) {
+            const auto yes = label("fail_fast.case");
+            const auto next = label("fail_fast.next");
+            auto current_tag = const_int(case_index(source, remaining[i]));
+            auto matches = fresh();
+            block->instructions.push_back(Binary{
+                matches, "==", tag, current_tag,
+                Type::simple(TypeKind::Int), Type::simple(TypeKind::Bool)});
+            block->instructions.push_back(Branch{matches, yes, next});
+            block = &add_block(yes);
+            lower_case(remaining[i]);
+            block = &add_block(next);
+        }
+        lower_case(remaining.back());
+
+        block = &add_block(done);
+        if (!has_value) return 0;
+        auto out = fresh();
+        block->instructions.push_back(LoadLocal{out, result_name, target});
+        return out;
+    }
+
     ValueId destination_value(const Expr& expression, const Type& target) {
         auto value = raw_expr(expression);
         const auto source = checked.raw_types.at(&expression);
         const bool owned = expression_owns_result(expression);
+        if (checked.fail_fast_expressions.contains(&expression)) {
+            return consume_fail_fast(value, source, target, owned, expression.span);
+        }
         if (owned && source.kind == TypeKind::Union && source != target) {
             auto converted = convert(value, source, target, true);
             block->instructions.push_back(Release{value, source});
@@ -2609,9 +2707,11 @@ struct Lowerer {
             auto receiver=super_receiver?receiver_value():expr(*n->receiver);
             lowered.args[0]=CallArgument{receiver,std::nullopt};
             const auto out=(sig.result.kind==TypeKind::Void||sig.result.kind==TypeKind::Never)?0:fresh();
-            block->instructions.push_back(Call{out,internal,std::move(lowered.args),sig.result,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
-            if(sig.result.kind!=TypeKind::Never) release_borrowed_temporaries(lowered);
-            if(sig.result.kind!=TypeKind::Never&&!super_receiver) release_temporary(*n->receiver,receiver);
+            block->instructions.push_back(Call{out,internal,std::move(lowered.args),sig.result,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column),sig.no_normal_return});
+            if(sig.result.kind!=TypeKind::Never && !sig.no_normal_return)
+                release_borrowed_temporaries(lowered);
+            if(sig.result.kind!=TypeKind::Never && !sig.no_normal_return && !super_receiver)
+                release_temporary(*n->receiver,receiver);
             return out;
         }
 
@@ -2654,8 +2754,9 @@ struct Lowerer {
             auto lowered=lower_call_arguments(n.args,sig,1,resolution.target);
             lowered.args[0]=CallArgument{receiver_value(),std::nullopt};
             const auto out=(sig.result.kind==TypeKind::Void||sig.result.kind==TypeKind::Never)?0:fresh();
-            block->instructions.push_back(Call{out,resolution.target,std::move(lowered.args),sig.result,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
-            if(sig.result.kind!=TypeKind::Never) release_borrowed_temporaries(lowered);
+            block->instructions.push_back(Call{out,resolution.target,std::move(lowered.args),sig.result,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column),sig.no_normal_return});
+            if(sig.result.kind!=TypeKind::Never && !sig.no_normal_return)
+                release_borrowed_temporaries(lowered);
             return out;
         }
 
@@ -3535,8 +3636,9 @@ struct Lowerer {
         const auto& sig=checked.functions.at(resolution.target);
         auto lowered=lower_call_arguments(n.args,sig,0,resolution.target);
         const auto out=(sig.result.kind==TypeKind::Void||sig.result.kind==TypeKind::Never)?0:fresh();
-        block->instructions.push_back(Call{out,resolution.target,std::move(lowered.args),sig.result,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column)});
-        if(sig.result.kind!=TypeKind::Never) release_borrowed_temporaries(lowered);
+        block->instructions.push_back(Call{out,resolution.target,std::move(lowered.args),sig.result,static_cast<std::uint32_t>(e.span.start.line),static_cast<std::uint32_t>(e.span.start.column),sig.no_normal_return});
+        if(sig.result.kind!=TypeKind::Never && !sig.no_normal_return)
+            release_borrowed_temporaries(lowered);
         return out;
     }
 
@@ -6015,6 +6117,7 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,ReplReplayMode>)out<<"repl.replay "<<(n.active?"on":"off");
     if constexpr(std::is_same_v<T,Input>)out<<"%"<<n.out<<" = input";
     if constexpr(std::is_same_v<T,Exit>)out<<"exit %"<<n.status;
+    if constexpr(std::is_same_v<T,FailError>)out<<"fail.error %"<<n.error;
     if constexpr(std::is_same_v<T,RangeCheckStep>)out<<"range.check_step %"<<n.step;
     if constexpr(std::is_same_v<T,Return>)out<<"return %"<<n.value;
     if constexpr(std::is_same_v<T,ReturnVoid>)out<<"return";

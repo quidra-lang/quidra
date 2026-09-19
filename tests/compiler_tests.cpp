@@ -2142,8 +2142,75 @@ print(identity<int, int>(1))
     bin data = try handle.read_bin()
     return void
 )");
+ good(R"(int | error fallible_value(bool ok)
+    if ok
+        return 7
+    return error("bad")
+int value = fallible_value(true)
+print(value)
+)");
+ good(R"(int | error fallible_value(bool ok)
+    if ok
+        return 7
+    return error("bad")
+auto result = fallible_value(true)
+match result
+    int value
+        print(value)
+    error problem
+        print(problem)
+)");
+ ir_contains(R"(int | error fallible_value(bool ok)
+    if ok
+        return 7
+    return error("bad")
+int value = fallible_value(true)
+print(value)
+)", "fail.error");
+ llvm_contains(R"(int | error fallible_value(bool ok)
+    if ok
+        return 7
+    return error("bad")
+int value = fallible_value(true)
+print(value)
+)", "UNHANDLED_ERROR");
+ bad_code(R"(int | float value = 5
+float narrowed = value
+)", "TYPE_MISMATCH");
+ bad("never stop()\n    process.exit(1)\n");
+ good(R"(void stop()
+    process.exit(1)
+int no_return()
+    stop()
+)");
+ bad_code(R"(void maybe_stop(bool stop_now)
+    if stop_now
+        process.exit(1)
+int still_returns()
+    maybe_stop(true)
+)", "MISSING_RETURN");
+ bad_code(R"(int loop_only()
+    while true
+        print("loop")
+)", "MISSING_RETURN");
+ llvm_contains(R"(void | error read_open_file(string path)
+    file.Handle handle = try file.open(path)
+    string text = try handle.read()
+    return void
+)", "ptr @quidra_file_handle_drop)");
+ llvm_contains(R"(void | error copy_handle(string path)
+    file.Handle first = try file.open(path)
+    file.Handle second = first
+    return void
+)", "call ptr @quidra_file_handle_clone");
  bad_code(R"(void close_readonly(const file.Handle &handle)
     handle.close()
+)", "WRITE_CAPABILITY");
+ bad_code(R"(void read_readonly(const file.Handle &handle)
+    auto text = handle.read()
+)", "WRITE_CAPABILITY");
+ bad_code(R"(void read_bin_readonly(const file.Handle &handle)
+    auto data = handle.read_bin()
 )", "WRITE_CAPABILITY");
  good(R"(enum Token
     Number(float)

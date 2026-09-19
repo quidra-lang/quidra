@@ -46,6 +46,8 @@ struct FunctionType {
     std::vector<FunctionParameterType> parameters;
     Type result{Type::simple(TypeKind::Void)};
     bool external{};
+    // Compiler-internal control-flow summary. This is not a source-visible type.
+    bool no_normal_return{};
     StorageEffect receiver_effect;
     std::unordered_map<std::string, StorageEffect> reference_effects;
     std::unordered_set<std::string> return_initialized_fields;
@@ -100,6 +102,7 @@ struct CheckedProgram {
     std::unordered_map<const MatchCase*, int> case_tags;
     std::unordered_map<const Expr*, EnumConstructionInfo> enum_constructions;
     std::unordered_set<const Expr*> bounds_proven;
+    std::unordered_set<const Expr*> fail_fast_expressions;
     std::unordered_map<const Expr*, std::unordered_set<std::string>> class_expr_initialized_paths;
 };
 
@@ -128,6 +131,7 @@ private:
     std::unordered_map<const MatchCase*, int> case_tags_;
     std::unordered_map<const Expr*, EnumConstructionInfo> enum_constructions_;
     std::unordered_set<const Expr*> bounds_proven_;
+    std::unordered_set<const Expr*> fail_fast_expressions_;
     std::unordered_set<std::string> initialized_, narrowed_, borrowed_, const_bindings_;
     std::unordered_map<std::string, long long> const_integer_values_;
     std::unordered_map<std::string, std::unordered_set<std::string>> class_initialized_paths_;
@@ -224,8 +228,10 @@ private:
     void check_match_stmt(const Stmt& stmt, const MatchStmt& node);
     void check_block(const std::vector<StmtPtr>& body);
     void record(const CompileError& error);
+    bool expr_has_no_normal_return(const Expr& expression) const;
     bool stmt_always_terminates(const Stmt& stmt) const;
     bool block_always_terminates(const std::vector<StmtPtr>& body) const;
+    bool block_contains_return(const std::vector<StmtPtr>& body) const;
     const ClassFieldType* find_field(const std::string& class_name, const std::string& field) const;
     const std::string* find_method(const std::string& class_name, const std::string& method) const;
     bool member_name_visible(const std::string& name) const;

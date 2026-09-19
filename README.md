@@ -223,14 +223,14 @@ The general rule is:
 
 > **A required result type is a constraint, not permission to convert. Representation or semantic conversion happens only when the source explicitly requests it.**
 
-### 5. Absence, failure, completion, and impossibility are different
+### 5. Absence, failure, completion, and termination are different
 
 Quidra keeps several concepts separate:
 
 - `void` — successful completion with no data,
 - `none` — normal absence,
 - `error` — a failed operation represented as data,
-- `never` — no normal continuation.
+- process termination — control flow, not a source-visible value type.
 
 ```quidra
 int | none | error lookup(int id)
@@ -241,9 +241,26 @@ int | none | error lookup(int id)
     return id
 ```
 
-These meanings are not collapsed into null, exceptions, sentinel integers, or implicit process termination.
+A fallible result stays explicit when its union is preserved:
 
-`try` propagates `error` while preserving other alternatives:
+```quidra
+auto result = lookup(1) // int | none | error
+```
+
+When an expected type accepts every non-`error` alternative but excludes
+`error`, that consumption site is fail-fast. An actual `error` is reported
+there and the program terminates; ordinary union alternatives are never
+implicitly discarded.
+
+```quidra
+int | error load_count()
+    return 7
+
+int count = load_count() // error would fail-fast here
+```
+
+`try` has a different meaning: it propagates `error` from the current
+function while preserving the other alternatives.
 
 ```quidra
 int | none | error doubled(int id)
@@ -255,6 +272,11 @@ int | none | error doubled(int id)
         none
             return none
 ```
+
+`process.exit(status)` is a compiler-known non-continuing operation. The
+compiler can propagate that control-flow fact through user functions when it
+can prove they do not return normally. There is no source `never` type, and a
+loop is not assumed to be infinite merely from its syntax.
 
 A `match` must cover every alternative exactly once.
 
@@ -809,7 +831,7 @@ The current implementation includes:
 - dense tensors with views, copy-on-write, strict broadcasting, explicit numeric casting, reductions, transpose views, and vector/matrix multiplication,
 - PNG/JPEG/BMP/TIFF/WebP image I/O through `image`,
 - streaming video decode through `video.Reader` with tensor-native RGB frames,
-- deterministic `file.Handle` resources with automatic lifetime-bound close, value-semantic copies, and optional explicit early `close()`,
+- deterministic `file.Handle` resources with automatic lifetime-bound close independent of GC timing, value-semantic copies, and optional explicit early `close()`,
 - typed Quidra IR followed by direct LLVM IR/native lowering,
 - Linux, macOS, and Windows native execution/packaging,
 - structured diagnostics, source inspection, and revision/hash-validated node-level patching.

@@ -154,6 +154,41 @@ match opened
 QUI
 [[ "$("$QUIDRA" "$TMP/file-handle-copy.qui")" == "hello" ]]
 
+cat > "$TMP/file-handle-closed-copy.qui" <<QUI
+auto opened = file.open("$TMP/source.txt")
+match opened
+    file.Handle first
+        first.close()
+        auto removed = file.remove("$TMP/source.txt")
+        match removed
+            void
+                file.Handle second = first
+                auto content = second.read()
+                match content
+                    string value
+                        print("unexpected")
+                    error problem
+                        print("closed-copy")
+            error problem
+                print("remove-error")
+    error problem
+        print("open-error")
+QUI
+[[ "$("$QUIDRA" "$TMP/file-handle-closed-copy.qui")" == "closed-copy" ]]
+printf 'hello' > "$TMP/source.txt"
+
+cat > "$TMP/file-handle-fail-fast.qui" <<QUI
+file.Handle handle = file.open("$TMP/does-not-exist.txt")
+print("unreachable")
+QUI
+set +e
+"$QUIDRA" "$TMP/file-handle-fail-fast.qui" >"$TMP/file-handle-fail-fast.out" 2>&1
+file_handle_fail_fast_rc=$?
+set -e
+[[ "$file_handle_fail_fast_rc" -eq 101 ]]
+grep -q 'UNHANDLED_ERROR' "$TMP/file-handle-fail-fast.out"
+grep -q 'file operation failed' "$TMP/file-handle-fail-fast.out"
+
 cat > "$TMP/file-handle-auto-close.qui" <<QUI
 void | error open_and_return(string path)
     file.Handle handle = try file.open(path)

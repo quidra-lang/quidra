@@ -106,8 +106,10 @@ struct FileState {
     std::uint64_t position{};
     bool closed{};
 
-    explicit FileState(std::string source)
-        : path(std::move(source)), stream(path, std::ios::binary) {}
+    explicit FileState(std::string source, bool open_stream = true)
+        : path(std::move(source)) {
+        if (open_stream) stream.open(path, std::ios::binary);
+    }
 
     ~FileState() {
         if (stream.is_open()) stream.close();
@@ -225,26 +227,38 @@ extern "C" void quidra_file_handle_close(void* value) {
 extern "C" void* quidra_file_handle_clone(void* value) {
     try {
         auto* handle = file_handle_from_value(value);
-        if (!handle || !handle->state) return nullptr;
+        if (!handle || !handle->state) {
+            std::fprintf(stderr, "Quidra runtime error: invalid file handle copy\n");
+            std::exit(101);
+        }
 
-        auto state =
-            std::make_unique<FileState>(handle->state->path);
-        if (!state->stream) return nullptr;
+        const bool closed = handle->state->closed;
+        auto state = std::make_unique<FileState>(
+            handle->state->path, !closed);
         state->position = handle->state->position;
-        state->closed = handle->state->closed;
+        state->closed = closed;
 
-        if (state->closed) {
-            state->stream.close();
-        } else {
+        // Closed handles are copied as closed values without touching the
+        // filesystem. Live handles reopen independently and resume from the
+        // same byte position, preserving ordinary value semantics.
+        if (!closed) {
+            if (!state->stream) {
+                std::fprintf(stderr, "Quidra runtime error: file handle copy could not reopen source\n");
+                std::exit(101);
+            }
             if (state->position >
                 static_cast<std::uint64_t>(
                     std::numeric_limits<std::streamoff>::max())) {
-                return nullptr;
+                std::fprintf(stderr, "Quidra runtime error: file handle position is not representable\n");
+                std::exit(101);
             }
             state->stream.seekg(
                 static_cast<std::streamoff>(state->position),
                 std::ios::beg);
-            if (!state->stream) return nullptr;
+            if (!state->stream) {
+                std::fprintf(stderr, "Quidra runtime error: file handle copy could not restore position\n");
+                std::exit(101);
+            }
         }
 
         auto* copy = new FileHandle{std::move(state)};

@@ -3544,7 +3544,8 @@ struct FunctionEmitter {
                 out<<"i64 "<<*self_depth_argument;
             }
             out<<")\n";
-            if(n.result.kind==TypeKind::Never) out<<"  unreachable\n";
+            if(n.result.kind==TypeKind::Never || n.no_normal_return)
+                out<<"  unreachable\n";
         }
         if constexpr(std::is_same_v<T,ir::VariantMake>){values[n.out]=n.container_type;out<<"  "<<value(n.out)<<" = call ptr @quidra_alloc(i64 16)\n  store i64 "<<n.tag<<", ptr "<<value(n.out)<<"\n";if(n.payload_type.kind!=TypeKind::Void&&n.payload_type.kind!=TypeKind::None){auto p="%variant.payload.ptr."+std::to_string(n.out);out<<"  "<<p<<" = getelementptr inbounds i8, ptr "<<value(n.out)<<", i64 8\n  store "<<llvm_type(n.payload_type)<<" "<<value(n.payload)<<", ptr "<<p<<"\n";}}
         if constexpr(std::is_same_v<T,ir::VariantTag>){values[n.out]=Type::simple(TypeKind::Int);out<<"  "<<value(n.out)<<" = load i64, ptr "<<value(n.container)<<"\n";}
@@ -3645,6 +3646,10 @@ struct FunctionEmitter {
             out<<done_label<<":\n";
         }
         if constexpr(std::is_same_v<T,ir::Exit>){auto s="%exit.status."+std::to_string(n.status);out<<"  "<<s<<" = trunc i64 "<<value(n.status)<<" to i32\n";cleanup_owned_values();out<<"  call void @exit(i32 "<<s<<")\n  unreachable\n";}
+        if constexpr(std::is_same_v<T,ir::FailError>){
+            out<<"  call void @quidra_fail_at(ptr @.code.unhandled.error, ptr "<<value(n.error)
+               <<", i64 "<<n.line<<", i64 "<<n.column<<")\n  unreachable\n";
+        }
         if constexpr(std::is_same_v<T,ir::RangeCheckStep>){auto z="%range.zero."+std::to_string(n.step),bad="range.bad."+std::to_string(n.step),ok="range.ok."+std::to_string(n.step);out<<"  "<<z<<" = icmp eq i64 "<<value(n.step)<<", 0\n  br i1 "<<z<<", label %"<<bad<<", label %"<<ok<<"\n"<<bad<<":\n  call void @quidra_fail_at(ptr @.code.range.step, ptr @.msg.range.step, i64 "<<n.line<<", i64 "<<n.column<<")\n  unreachable\n"<<ok<<":\n";}
         if constexpr(std::is_same_v<T,ir::Return>){cleanup_owned_values();if(guard_stack_depth)out<<"  call void @quidra_stack_leave()\n";if(n.type.kind==TypeKind::Void)out<<"  ret void\n";else out<<"  ret "<<llvm_type(n.type)<<" "<<value(n.value)<<"\n";}
         if constexpr(std::is_same_v<T,ir::ReturnVoid>){cleanup_owned_values();if(guard_stack_depth)out<<"  call void @quidra_stack_leave()\n";out<<"  ret void\n";}
@@ -3665,7 +3670,7 @@ const bool standard_collection_method =
     fn.name.rfind("$method.__quidra_gc__std_set_Set_",0)==0;
 if(standard_collection_method) out<<" alwaysinline";
 if(debug_subprogram) out<<" !dbg !"<<*debug_subprogram;
-out<<" {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}emit_entry_scratch();for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";for(std::size_t pi=0;pi<fn.parameters.size();++pi){const auto&p=fn.parameters[pi];emit_debug_declare(p.name,p.name,p.type,fn.source_line,pi+1);}}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&std::get<ir::Call>(last).result.kind==TypeKind::Never)||(std::holds_alternative<ir::IndirectCall>(last)&&std::get<ir::IndirectCall>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";emit_self_depth_wrapper();auto text=out.str();for(auto it=debug_segments.rbegin();it!=debug_segments.rend();++it)attach_debug_location_range(text,it->begin,it->end,it->location);return text;}
+out<<" {\n";for(std::size_t bi=0;bi<fn.blocks.size();++bi){const auto&b=fn.blocks[bi];out<<b.label<<":\n";if(bi==0){if(fn.entrypoint)out<<"  call void @quidra_runtime_set_args(i32 %quidra.argc, ptr %quidra.argv)\n";if(guard_stack_depth)out<<"  call void @quidra_stack_enter()\n";for(const auto&[name,type]:locals)if(!writable_params.contains(name)){out<<"  "<<local(name)<<" = alloca "<<llvm_type(type)<<"\n";if(requires_lifetime_management(type))out<<"  store ptr null, ptr "<<local(name)<<"\n";}for(const auto&[name,type]:references){out<<"  "<<local(name)<<" = alloca ptr\n  store ptr null, ptr "<<local(name)<<"\n";}emit_entry_scratch();for(const auto&p:fn.parameters)if(!p.writable)out<<"  store "<<llvm_type(p.type)<<" "<<arg(p.name)<<", ptr "<<local(p.name)<<"\n";for(std::size_t pi=0;pi<fn.parameters.size();++pi){const auto&p=fn.parameters[pi];emit_debug_declare(p.name,p.name,p.type,fn.source_line,pi+1);}}for(const auto&i:b.instructions)emit_instruction(i);bool term=false;if(!b.instructions.empty()){const auto&last=b.instructions.back();term=std::holds_alternative<ir::Return>(last)||std::holds_alternative<ir::ReturnVoid>(last)||std::holds_alternative<ir::Exit>(last)||std::holds_alternative<ir::FailError>(last)||std::holds_alternative<ir::Jump>(last)||std::holds_alternative<ir::Branch>(last)||(std::holds_alternative<ir::Call>(last)&&(std::get<ir::Call>(last).result.kind==TypeKind::Never||std::get<ir::Call>(last).no_normal_return))||(std::holds_alternative<ir::IndirectCall>(last)&&std::get<ir::IndirectCall>(last).result.kind==TypeKind::Never);}if(!term)out<<"  unreachable\n";}out<<"}\n\n";emit_self_depth_wrapper();auto text=out.str();for(auto it=debug_segments.rbegin();it!=debug_segments.rend();++it)attach_debug_location_range(text,it->begin,it->end,it->location);return text;}
 };
 
 
@@ -5196,6 +5201,7 @@ out<<"@.code.divzero = private unnamed_addr constant [17 x i8] c\"DIVISION_BY_ZE
 out<<"@.code.shift = private unnamed_addr constant [12 x i8] c\"SHIFT_COUNT\\00\"\n@.msg.shift = private unnamed_addr constant [34 x i8] c\"shift count outside integer width\\00\"\n";
 out<<"@.code.range.step = private unnamed_addr constant [16 x i8] c\"RANGE_STEP_ZERO\\00\"\n@.msg.range.step = private unnamed_addr constant [19 x i8] c\"range step is zero\\00\"\n";
 out<<"@.code.stack = private unnamed_addr constant [17 x i8] c\"CALL_DEPTH_LIMIT\\00\"\n@.msg.stack = private unnamed_addr constant [17 x i8] c\"call depth limit\\00\"\n";
+out<<"@.code.unhandled.error = private unnamed_addr constant [16 x i8] c\"UNHANDLED_ERROR\\00\"\n";
 out<<"@.code.numeric.cast = private unnamed_addr constant [19 x i8] c\"NUMERIC_CAST_RANGE\\00\"\n@.msg.numeric.cast = private unnamed_addr constant [39 x i8] c\"numeric cast outside destination range\\00\"\n";
 out<<"@.code.shape = private unnamed_addr constant [15 x i8] c\"SHAPE_MISMATCH\\00\"\n@.msg.shape = private unnamed_addr constant [25 x i8] c\"captured extent mismatch\\00\"\n";
 out<<"@.err.parse = private unnamed_addr constant [21 x i8] c\"numeric parse failed\\00\"\n";

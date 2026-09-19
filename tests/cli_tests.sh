@@ -286,7 +286,7 @@ assert definition["uri"] == uri
 assert definition["range"]["start"] == {"line":4,"character":4}, definition
 
 labels = {item["label"] for item in by_id[4]["result"]}
-for expected in ("input","output","twice","print"):
+for expected in ("source_value","output","twice","print"):
     assert expected in labels, (expected, labels)
 
 signature = by_id[5]["result"]

@@ -6739,6 +6739,25 @@ extern "C" char* quidra_string_index(const char* text, long long index,
         std::exit(101);
     }
 
+    if (bounds.end == bounds.start + 1) {
+        const auto byte = static_cast<unsigned char>(text[bounds.start]);
+        if (byte != 0 && byte < 0x80) {
+            // Compiler string literals already use immutable unmanaged storage.
+            // Reuse the same ownership convention for ASCII index results so
+            // character-by-character scans do not allocate one managed string
+            // per code point.
+            static const auto ascii_singletons = [] {
+                std::array<std::array<char, 2>, 128> values{};
+                for (std::size_t i = 1; i < values.size(); ++i) {
+                    values[i][0] = static_cast<char>(i);
+                    values[i][1] = '\0';
+                }
+                return values;
+            }();
+            return const_cast<char*>(ascii_singletons[byte].data());
+        }
+    }
+
     return copy_validated_runtime_text(
         std::string_view(text + bounds.start, bounds.end - bounds.start), 1);
 }

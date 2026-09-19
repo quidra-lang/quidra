@@ -192,6 +192,10 @@ if(BUILD_TESTING)
   target_link_libraries(quidra_package_manifest_tests PRIVATE quidra_core)
   add_test(NAME quidra_package_manifest_tests COMMAND quidra_package_manifest_tests)
 
+  add_executable(quidra_runtime_string_tests tests/runtime_string_tests.cpp)
+  target_link_libraries(quidra_runtime_string_tests PRIVATE quidra_runtime)
+  add_test(NAME quidra_runtime_string_tests COMMAND quidra_runtime_string_tests)
+
   if(UNIX)
     add_test(NAME quidra_cli COMMAND bash ${CMAKE_SOURCE_DIR}/tests/cli_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_package_names COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_name_tests.sh $<TARGET_FILE:quidra>)
@@ -241,6 +245,7 @@ if(BUILD_TESTING)
     quidra_parser_tests
     quidra_type_policy_tests
     quidra_package_manifest_tests
+    quidra_runtime_string_tests
     quidra_documentation_examples
     quidra_manifest_registry
     quidra_generic_specialization_benchmark_smoke

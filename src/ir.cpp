@@ -40,6 +40,7 @@ struct Lowerer {
     struct ActiveRangeBound {
         std::string index_name;
         const Expr* end{};
+        const std::vector<StmtPtr>* body{};
     };
     std::vector<ActiveRangeBound> active_range_bounds;
     std::unordered_map<std::string, std::string> scalar_length_of_array;
@@ -166,6 +167,42 @@ struct Lowerer {
         return std::nullopt;
     }
 
+    bool range_bound_stable(
+        const ActiveRangeBound& range, const std::string& array) const {
+        if (!range.body) return false;
+
+        const std::unordered_set<std::string> array_name{array};
+        if (block_may_replace_array_reference(*range.body, array_name))
+            return false;
+
+        const auto scalar_is_stable = [&](const std::string& name) {
+            const std::unordered_set<std::string> scalar_name{name};
+            return !block_may_replace_array_reference(
+                *range.body, scalar_name);
+        };
+
+        if (range.end) {
+            const Expr* relation = range.end;
+            if (const auto* binary =
+                    std::get_if<BinaryExpr>(&relation->data);
+                binary && binary->op == "-") {
+                relation = binary->left.get();
+            }
+            if (const auto* name =
+                    std::get_if<NameExpr>(&relation->data);
+                name && !scalar_is_stable(name->name)) {
+                return false;
+            }
+        }
+
+        if (const auto related = array_length_from_scalar.find(array);
+            related != array_length_from_scalar.end() &&
+            !scalar_is_stable(related->second)) {
+            return false;
+        }
+        return true;
+    }
+
     bool dynamic_array_bounds_proven(
         const Expr& base, const Expr& index) const {
         const auto* base_name = std::get_if<NameExpr>(&base.data);
@@ -175,7 +212,9 @@ struct Lowerer {
 
         for (auto range = active_range_bounds.rbegin();
              range != active_range_bounds.rend(); ++range) {
-            if (!range->end) continue;
+            if (!range->end ||
+                !range_bound_stable(*range, base_name->name))
+                continue;
             const auto distance =
                 range_end_distance_from_array_length(
                     *range->end, base_name->name);
@@ -3459,7 +3498,7 @@ struct Lowerer {
                 (!source_step || literal_is(source_step, 1));
             if (range_bounds_trackable)
                 active_range_bounds.push_back(
-                    ActiveRangeBound{n.name, source_end});
+                    ActiveRangeBound{n.name, source_end, &n.body});
             loop_targets.push_back({step_label,done});
             lower_loop_statement_sequence(n.body);
             loop_targets.pop_back();

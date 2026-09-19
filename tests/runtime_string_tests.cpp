@@ -161,10 +161,25 @@ int main() {
     if (!quidra_string_parse_two_signed(
             "12 -34", ' ', &parsed_left, &parsed_right) ||
         parsed_left != 12 || parsed_right != -34) return 1;
+    if (!quidra_string_parse_two_signed(
+            "9223372036854775807 -9223372036854775808 tail", ' ',
+            &parsed_left, &parsed_right) ||
+        parsed_left != 9223372036854775807LL ||
+        parsed_right != (-9223372036854775807LL - 1)) return 1;
     parsed_left = 7;
     parsed_right = 9;
     if (quidra_string_parse_two_signed(
             "12 nope", ' ', &parsed_left, &parsed_right) ||
+        parsed_left != 0 || parsed_right != 0) return 1;
+    parsed_left = 7;
+    parsed_right = 9;
+    if (quidra_string_parse_two_signed(
+            "9223372036854775808 1", ' ', &parsed_left, &parsed_right) ||
+        parsed_left != 0 || parsed_right != 0) return 1;
+    parsed_left = 7;
+    parsed_right = 9;
+    if (quidra_string_parse_two_signed(
+            "+12 1", ' ', &parsed_left, &parsed_right) ||
         parsed_left != 0 || parsed_right != 0) return 1;
     return 0;
 }

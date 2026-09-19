@@ -8518,34 +8518,67 @@ extern "C" bool quidra_string_parse_two_signed(
 
     ManagedAllocation* allocation = nullptr;
     const auto source = cached_string_view(text, allocation);
-    const auto delimiter = static_cast<char>(separator);
-    const auto first = source.find(delimiter);
-    if (first == std::string_view::npos) return false;
-    const auto second = source.find(delimiter, first + 1);
+    const auto* begin = source.data();
+    const auto* end = begin + source.size();
 
-    const auto left_text = source.substr(0, first);
-    const auto right_end =
-        second == std::string_view::npos ? source.size() : second;
-    const auto right_text =
-        source.substr(first + 1, right_end - (first + 1));
+    // This helper backs the compiler's split(single-byte separator) + parse-two
+    // fusion. Scan the original slice directly instead of constructing
+    // substrings or re-entering generic string search machinery.
+    const auto* first = static_cast<const char*>(
+        std::memchr(begin, separator, source.size()));
+    if (!first) return false;
 
-    auto parse_canonical = [](std::string_view value, long long& out) {
-        if (value.empty()) return false;
-        long long parsed_value = 0;
-        const auto parsed = std::from_chars(
-            value.data(), value.data() + value.size(), parsed_value, 10);
-        if (parsed.ec != std::errc{} ||
-            parsed.ptr != value.data() + value.size()) {
-            return false;
+    const auto* right_begin = first + 1;
+    const auto* second = static_cast<const char*>(
+        std::memchr(right_begin, separator,
+                    static_cast<std::size_t>(end - right_begin)));
+    const auto* right_end = second ? second : end;
+
+    // Fast-path only the canonical decimal spelling. Any spelling accepted by
+    // int.parse but intentionally omitted here (for example leading '+') simply
+    // returns false and the compiler-generated fallback preserves the public
+    // parse/error semantics exactly.
+    const auto parse_canonical = [](const char* value_begin,
+                                    const char* value_end,
+                                    long long& out) {
+        if (value_begin == value_end) return false;
+
+        bool negative = false;
+        if (*value_begin == '-') {
+            negative = true;
+            ++value_begin;
+            if (value_begin == value_end) return false;
         }
-        out = parsed_value;
+
+        const auto positive_limit =
+            static_cast<std::uint64_t>(std::numeric_limits<long long>::max());
+        const auto limit = negative ? positive_limit + 1U : positive_limit;
+        std::uint64_t magnitude = 0;
+        for (const char* cursor = value_begin; cursor != value_end; ++cursor) {
+            const auto digit =
+                static_cast<unsigned>(static_cast<unsigned char>(*cursor)) -
+                static_cast<unsigned>(static_cast<unsigned char>('0'));
+            if (digit > 9U) return false;
+            if (magnitude > (limit - digit) / 10U) return false;
+            magnitude = magnitude * 10U + digit;
+        }
+
+        if (negative) {
+            if (magnitude == positive_limit + 1U) {
+                out = std::numeric_limits<long long>::min();
+            } else {
+                out = -static_cast<long long>(magnitude);
+            }
+        } else {
+            out = static_cast<long long>(magnitude);
+        }
         return true;
     };
 
     long long left = 0;
     long long right = 0;
-    if (!parse_canonical(left_text, left) ||
-        !parse_canonical(right_text, right)) {
+    if (!parse_canonical(begin, first, left) ||
+        !parse_canonical(right_begin, right_end, right)) {
         return false;
     }
 

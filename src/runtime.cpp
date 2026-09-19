@@ -1182,15 +1182,31 @@ extern "C" bool quidra_array_can_append_move(void* array) {
 }
 
 extern "C" void* quidra_array_grow_move(void* array, unsigned long long raw_stride) {
-    if (!quidra_array_can_append_move(array) || raw_stride == 0 ||
-        raw_stride > static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max())) {
+    if (!array || raw_stride == 0 ||
+        raw_stride > static_cast<unsigned long long>(
+            std::numeric_limits<std::size_t>::max())) {
         runtime_text_failure("array append move requires unique initialized storage");
     }
 
+    // The generated fast path normally called can_append_move immediately
+    // before this operation. Keep grow_move independently safe, but validate
+    // against the same allocation record in a single lookup rather than
+    // repeating the managed-allocation hash lookup twice per append.
     const auto old_key = reinterpret_cast<std::uintptr_t>(array);
     auto it = managed_allocations.find(old_key);
+    if (it == managed_allocations.end())
+        runtime_text_failure("array append move requires unique initialized storage");
     auto& allocation = it->second;
+    if (allocation.owners != 1 || allocation.pins != 0 ||
+        !allocation.initialization) {
+        runtime_text_failure("array append move requires unique initialized storage");
+    }
     auto& tracker = *allocation.initialization;
+    if (tracker.data_offset != 8 || tracker.unit_bytes == 0 ||
+        !tracker.fully_initialized ||
+        tracker.count > allocation.array_capacity) {
+        runtime_text_failure("array append move requires unique initialized storage");
+    }
     const auto stride = static_cast<std::size_t>(raw_stride);
     if (stride != tracker.unit_bytes) runtime_text_failure("array append stride mismatch");
 
@@ -1245,7 +1261,6 @@ extern "C" void* quidra_array_grow_move(void* array, unsigned long long raw_stri
         } else {
             allocation.base = result;
             allocation.size = new_bytes;
-            allocation.small_pool_class = 0;
             allocation.small_pool_class = 0;
             allocation.array_capacity = new_capacity;
         }

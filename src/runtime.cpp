@@ -4509,8 +4509,11 @@ extern "C" bool quidra_neural_moment_update_parameter(
         const double beta1=neural_object_double_field(optimizer,8);
         const double beta2=neural_object_double_field(optimizer,16);
         const double epsilon=neural_object_double_field(optimizer,24);
-        const double correction1=1.0-std::pow(beta1,static_cast<double>(record.step));
-        const double correction2=1.0-std::pow(beta2,static_cast<double>(record.step));
+        // Every matched Parameter advances exactly once in this optimizer step.
+        // Reuse the shared step for bias correction instead of recomputing a
+        // parameter-specific exponent source.
+        const double correction1=1.0-std::pow(beta1,static_cast<double>(step));
+        const double correction2=1.0-std::pow(beta2,static_cast<double>(step));
         if(correction1<=0.0||correction2<=0.0)
             neural_fail("invalid moment update bias correction",line,column);
 

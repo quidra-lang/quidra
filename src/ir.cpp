@@ -2690,6 +2690,292 @@ struct Lowerer {
             block->instructions.push_back(Release{array,array_type});
     }
 
+
+    // A successful standard Map<K,V>.get() normally returns V | none through
+    // the general heap-backed union ABI. In a match the union is immediately
+    // unpacked, so for direct scalar K/V types we can probe the compiler-owned
+    // table in the caller and branch straight to the cases. This preserves the
+    // public Map and match semantics, updates the same get->set probe cache, and
+    // removes one managed allocation from every lookup.
+    bool lower_standard_map_get_match(const MatchStmt& match) {
+        const auto* call = std::get_if<MethodCallExpr>(&match.value->data);
+        if (!call || call->method != "get" || call->args.size() != 1) return false;
+        const auto* receiver_name = std::get_if<NameExpr>(&call->receiver->data);
+        if (!receiver_name || is_source_reference(receiver_name->name) ||
+            checked.field_accesses.contains(call->receiver.get())) return false;
+
+        const auto map_type = type_of(*call->receiver);
+        if (map_type.kind != TypeKind::Class ||
+            map_type.class_name.rfind("__quidra_gc__std_map_Map_", 0) != 0)
+            return false;
+        const auto class_it = checked.classes.find(map_type.class_name);
+        if (class_it == checked.classes.end()) return false;
+        const auto& class_info = class_it->second;
+
+        const ClassFieldType* keys_field = nullptr;
+        const ClassFieldType* values_field = nullptr;
+        const ClassFieldType* hashes_field = nullptr;
+        const ClassFieldType* active_field = nullptr;
+        const ClassFieldType* slots_field = nullptr;
+        const ClassFieldType* version_field = nullptr;
+        const ClassFieldType* last_index_field = nullptr;
+        const ClassFieldType* last_hash_field = nullptr;
+        const ClassFieldType* last_version_field = nullptr;
+        for (const auto& field : class_info.fields) {
+            if (field.name == "__keys") keys_field = &field;
+            else if (field.name == "__values") values_field = &field;
+            else if (field.name == "__hashes") hashes_field = &field;
+            else if (field.name == "__active") active_field = &field;
+            else if (field.name == "__slots") slots_field = &field;
+            else if (field.name == "__version") version_field = &field;
+            else if (field.name == "__last_index") last_index_field = &field;
+            else if (field.name == "__last_hash") last_hash_field = &field;
+            else if (field.name == "__last_version") last_version_field = &field;
+        }
+        if (!keys_field || !values_field || !hashes_field || !active_field ||
+            !slots_field || !version_field || !last_index_field ||
+            !last_hash_field || !last_version_field ||
+            keys_field->type.kind != TypeKind::Array ||
+            values_field->type.kind != TypeKind::Array ||
+            !keys_field->type.first || !values_field->type.first)
+            return false;
+
+        const auto key_type = *keys_field->type.first;
+        const auto value_type = *values_field->type.first;
+        // Pointer payloads need the general union ownership path. Scalar map
+        // payloads can be borrowed directly from the map storage.
+        if (requires_lifetime_management(key_type) ||
+            requires_lifetime_management(value_type)) return false;
+
+        const auto union_type = type_of(*match.value);
+        if (union_type.kind != TypeKind::Union || match.cases.size() != 2)
+            return false;
+        const MatchCase* value_case = nullptr;
+        const MatchCase* none_case = nullptr;
+        for (const auto& current : match.cases) {
+            const auto current_type = checked.case_types.at(&current);
+            if (current_type == value_type) value_case = &current;
+            else if (current_type.kind == TypeKind::None) none_case = &current;
+            else return false;
+        }
+        if (!value_case || !none_case) return false;
+
+        const auto hash_method = class_info.methods.find("__hash");
+        if (hash_method == class_info.methods.end() ||
+            !checked.functions.contains(hash_method->second)) return false;
+
+        const auto int_type = Type::simple(TypeKind::Int);
+        const auto bool_type = Type::simple(TypeKind::Bool);
+        const auto line =
+            static_cast<std::uint32_t>(match.value->span.start.line);
+        const auto column =
+            static_cast<std::uint32_t>(match.value->span.start.column);
+
+        auto object = expr(*call->receiver);
+        auto key = expr(*call->args[0].value);
+        auto hash = fresh();
+        block->instructions.push_back(Call{
+            hash, hash_method->second,
+            std::vector<CallArgument>{
+                CallArgument{object, std::nullopt},
+                CallArgument{key, std::nullopt}},
+            int_type, line, column});
+
+        auto load_field = [&](const ClassFieldType& field) {
+            auto out = fresh();
+            block->instructions.push_back(
+                FieldGet{out, object, field.index, field.type});
+            return out;
+        };
+        const auto keys = load_field(*keys_field);
+        const auto values = load_field(*values_field);
+        const auto hashes = load_field(*hashes_field);
+        const auto active = load_field(*active_field);
+        const auto slots = load_field(*slots_field);
+
+        auto capacity = fresh();
+        block->instructions.push_back(ArrayLength{capacity, slots});
+        auto initial_slot = fresh();
+        block->instructions.push_back(Binary{
+            initial_slot, "%", hash, capacity, int_type, int_type, line, column});
+
+        const auto slot_name = hidden("map.match.slot");
+        const auto scanned_name = hidden("map.match.scanned");
+        locals[slot_name] = int_type;
+        locals[scanned_name] = int_type;
+        block->instructions.push_back(StoreLocal{
+            slot_name, initial_slot, int_type, true});
+        auto zero = const_int(0);
+        block->instructions.push_back(StoreLocal{
+            scanned_name, zero, int_type, true});
+
+        const auto cond = label("map.match.cond");
+        const auto probe = label("map.match.probe");
+        const auto candidate = label("map.match.candidate");
+        const auto hash_check = label("map.match.hash");
+        const auto key_check = label("map.match.key");
+        const auto advance = label("map.match.advance");
+        const auto found = label("map.match.found");
+        const auto missing = label("map.match.missing");
+        const auto value_case_label = label("map.match.value");
+        const auto none_case_label = label("map.match.none");
+        const auto done = label("map.match.end");
+
+        block->instructions.push_back(Jump{cond});
+
+        block = &add_block(cond);
+        auto scanned = fresh();
+        block->instructions.push_back(
+            LoadLocal{scanned, scanned_name, int_type});
+        auto more = fresh();
+        block->instructions.push_back(Binary{
+            more, "<", scanned, capacity, int_type, bool_type, line, column});
+        block->instructions.push_back(Branch{more, probe, missing});
+
+        block = &add_block(probe);
+        auto slot = fresh();
+        block->instructions.push_back(LoadLocal{slot, slot_name, int_type});
+        auto index = fresh();
+        block->instructions.push_back(ArrayGet{
+            index, slots, slot, int_type, line, column, true, true});
+        auto minus_one = const_int(-1);
+        auto empty = fresh();
+        block->instructions.push_back(Binary{
+            empty, "==", index, minus_one, int_type, bool_type, line, column});
+        block->instructions.push_back(Branch{empty, missing, candidate});
+
+        block = &add_block(candidate);
+        auto nonnegative = fresh();
+        block->instructions.push_back(Binary{
+            nonnegative, ">=", index, zero, int_type, bool_type, line, column});
+        const auto active_check = label("map.match.active");
+        block->instructions.push_back(Branch{
+            nonnegative, active_check, advance});
+
+        block = &add_block(active_check);
+        auto active_value = fresh();
+        block->instructions.push_back(ArrayGet{
+            active_value, active, index, bool_type, line, column, true, true});
+        block->instructions.push_back(Branch{
+            active_value, hash_check, advance});
+
+        block = &add_block(hash_check);
+        auto stored_hash = fresh();
+        block->instructions.push_back(ArrayGet{
+            stored_hash, hashes, index, int_type, line, column, true, true});
+        auto same_hash = fresh();
+        block->instructions.push_back(Binary{
+            same_hash, "==", stored_hash, hash,
+            int_type, bool_type, line, column});
+        block->instructions.push_back(Branch{
+            same_hash, key_check, advance});
+
+        block = &add_block(key_check);
+        auto stored_key = fresh();
+        block->instructions.push_back(ArrayGet{
+            stored_key, keys, index, key_type, line, column, true, true});
+        auto same_key = fresh();
+        block->instructions.push_back(Binary{
+            same_key, "==", stored_key, key,
+            key_type, bool_type, line, column});
+        block->instructions.push_back(Branch{same_key, found, advance});
+
+        block = &add_block(advance);
+        auto current_slot = fresh();
+        block->instructions.push_back(
+            LoadLocal{current_slot, slot_name, int_type});
+        auto one = const_int(1);
+        auto incremented_slot = fresh();
+        block->instructions.push_back(Binary{
+            incremented_slot, "+", current_slot, one,
+            int_type, int_type, line, column});
+        auto wrapped_slot = fresh();
+        block->instructions.push_back(Binary{
+            wrapped_slot, "%", incremented_slot, capacity,
+            int_type, int_type, line, column});
+        block->instructions.push_back(StoreLocal{
+            slot_name, wrapped_slot, int_type, true});
+        auto current_scanned = fresh();
+        block->instructions.push_back(
+            LoadLocal{current_scanned, scanned_name, int_type});
+        auto next_scanned = fresh();
+        block->instructions.push_back(Binary{
+            next_scanned, "+", current_scanned, one,
+            int_type, int_type, line, column});
+        block->instructions.push_back(StoreLocal{
+            scanned_name, next_scanned, int_type, true});
+        block->instructions.push_back(Jump{cond});
+
+        auto update_cache = [&](ValueId cached_index) {
+            block->instructions.push_back(FieldSet{
+                object, last_hash_field->index, hash, int_type});
+            block->instructions.push_back(FieldSet{
+                object, last_index_field->index, cached_index, int_type});
+            auto version = fresh();
+            block->instructions.push_back(FieldGet{
+                version, object, version_field->index, int_type});
+            block->instructions.push_back(FieldSet{
+                object, last_version_field->index, version, int_type});
+        };
+
+        block = &add_block(found);
+        update_cache(index);
+        auto payload = fresh();
+        block->instructions.push_back(ArrayGet{
+            payload, values, index, value_type, line, column, true, true});
+        block->instructions.push_back(Jump{value_case_label});
+
+        block = &add_block(missing);
+        auto no_index = const_int(-1);
+        update_cache(no_index);
+        block->instructions.push_back(Jump{none_case_label});
+
+        auto before = locals;
+        auto before_names = local_names;
+        const auto before_full = fully_initialized_array_locals;
+        std::optional<std::unordered_set<std::string>> joined_full;
+
+        auto lower_case = [&](const MatchCase& current,
+                              const std::string& case_label,
+                              std::optional<ValueId> case_payload) {
+            block = &add_block(case_label);
+            locals = before;
+            local_names = before_names;
+            fully_initialized_array_locals = before_full;
+            const auto current_type = checked.case_types.at(&current);
+            if (current.binder && case_payload &&
+                current_type.kind != TypeKind::Void &&
+                current_type.kind != TypeKind::None) {
+                const auto binder_name =
+                    bind_source_local(*current.binder, current_type);
+                block->instructions.push_back(StoreLocal{
+                    binder_name, *case_payload, current_type, true});
+            }
+            for (const auto& statement : current.body) {
+                stmt(*statement);
+                if (terminated()) break;
+            }
+            if (!terminated()) {
+                if (joined_full)
+                    *joined_full = intersect_full_arrays(
+                        *joined_full, fully_initialized_array_locals);
+                else
+                    joined_full = fully_initialized_array_locals;
+                block->instructions.push_back(Jump{done});
+            }
+        };
+
+        lower_case(*value_case, value_case_label, payload);
+        lower_case(*none_case, none_case_label, std::nullopt);
+
+        block = &add_block(done);
+        locals = before;
+        local_names = before_names;
+        if (joined_full) fully_initialized_array_locals = std::move(*joined_full);
+        else fully_initialized_array_locals.clear();
+        return true;
+    }
+
     void stmt(const Stmt& s) {
         block->instructions.push_back(SourceLocation{
             static_cast<std::uint32_t>(s.span.start.line),
@@ -3204,6 +3490,7 @@ struct Lowerer {
             return;
         }
         const auto& n=std::get<MatchStmt>(s.data);
+        if (lower_standard_map_get_match(n)) return;
         const bool container_owned=expression_owns_result(*n.value);
         auto container=expr(*n.value);
         if(container_owned){

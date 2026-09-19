@@ -70,6 +70,26 @@ std::string c_abi_parameter_attribute(const Type& type) {
 
 std::string escape_bytes(const std::string& s){std::ostringstream out;for(char raw:s){auto c=static_cast<unsigned char>(raw);if(c>=32&&c<=126&&c!='"'&&c!='\\')out<<static_cast<char>(c);else out<<'\\'<<std::uppercase<<std::hex<<std::setw(2)<<std::setfill('0')<<static_cast<int>(c)<<std::dec;}out<<"\\00";return out.str();}
 std::string escape_metadata(std::string_view s){std::ostringstream out;for(char raw:s){auto c=static_cast<unsigned char>(raw);if(c>=32&&c<=126&&c!='"'&&c!='\\')out<<static_cast<char>(c);else out<<'\\'<<std::uppercase<<std::hex<<std::setw(2)<<std::setfill('0')<<static_cast<int>(c)<<std::dec;}return out.str();}
+std::string attach_debug_location(std::string text,std::size_t location) {
+    auto position=text.find('\n');
+    if(position==std::string::npos) return text;
+    position+=1;
+    bool saw_label=false;
+    while(position<text.size()) {
+        const auto end=text.find('\n',position);
+        if(end==std::string::npos) break;
+        const std::string_view line(text.data()+position,end-position);
+        if(!saw_label) {
+            if(!line.empty()&&line.back()==':') saw_label=true;
+        } else if(line.size()>=2&&line[0]==' '&&line[1]==' '&&
+                  line.find_first_not_of(' ')!=std::string_view::npos) {
+            text.insert(end,", !dbg !"+std::to_string(location));
+            break;
+        }
+        position=end+1;
+    }
+    return text;
+}
 std::string mangle(std::string name){std::string out="n_";for(char c:name)out+=(std::isalnum(static_cast<unsigned char>(c))||c=='_')?c:'_';return out;}
 std::string local_id(std::string name){std::string out;for(char c:name)out+=(std::isalnum(static_cast<unsigned char>(c))||c=='_')?c:'_';return out;}
 std::string type_id(const Type& t){return local_id(type_name(t));}
@@ -4092,20 +4112,25 @@ std::string emit_llvm(const ir::Module& module, bool debug_info) {
     }
 
     std::vector<std::optional<std::size_t>> debug_subprograms(module.functions.size());
+    std::vector<std::optional<std::size_t>> debug_locations(module.functions.size());
     if(debug_info&&!primary_source.empty()) {
         for(std::size_t i=0;i<module.functions.size();++i) {
             const auto& f=module.functions[i];
-            if(!f.external_symbol&&!f.source_file.empty())
+            if(!f.external_symbol&&!f.source_file.empty()) {
                 debug_subprograms[i]=next_debug_metadata++;
+                debug_locations[i]=next_debug_metadata++;
+            }
         }
     }
 
     std::vector<std::string> funcs;
     for (std::size_t i=0;i<module.functions.size();++i) {
         const auto& f=module.functions[i];
-        funcs.push_back(FunctionEmitter{
+        auto emitted=FunctionEmitter{
             f, sigs, external_symbols, pool, layouts, array_layout,
-            recursive.contains(f.name), recursive, debug_subprograms[i]}.emit());
+            recursive.contains(f.name), recursive, debug_subprograms[i]}.emit();
+        if(debug_locations[i]) emitted=attach_debug_location(std::move(emitted),*debug_locations[i]);
+        funcs.push_back(std::move(emitted));
     }
     const auto array_cast_pairs = collect_array_cast_pairs(module);
     std::map<std::string, Type> clone_types;
@@ -4192,6 +4217,12 @@ if(debug_info&&!primary_source.empty()) {
            <<", line: "<<std::max<std::uint32_t>(1,f.source_line)
            <<", type: !5, scopeLine: "<<std::max<std::uint32_t>(1,f.source_line)
            <<", spFlags: DISPFlagDefinition, unit: !0)\n";
+        if(debug_locations[i]) {
+            out<<"!"<<*debug_locations[i]
+               <<" = !DILocation(line: "<<std::max<std::uint32_t>(1,f.source_line)
+               <<", column: "<<std::max<std::uint32_t>(1,f.source_column)
+               <<", scope: !"<<*debug_subprograms[i]<<")\n";
+        }
     }
 }
 return out.str();

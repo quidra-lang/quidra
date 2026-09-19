@@ -222,6 +222,127 @@ struct Lowerer {
         return false;
     }
 
+    bool expression_mentions_name(
+        const Expr& expression, const std::string& name) const {
+        if (const auto* node = std::get_if<NameExpr>(&expression.data))
+            return node->name == name;
+        if (const auto* node = std::get_if<StringTemplateExpr>(&expression.data)) {
+            for (const auto& item : node->expressions)
+                if (expression_mentions_name(*item, name)) return true;
+            return false;
+        }
+        if (const auto* node = std::get_if<ArrayExpr>(&expression.data)) {
+            for (const auto& item : node->elements)
+                if (expression_mentions_name(*item, name)) return true;
+            return false;
+        }
+        if (const auto* node = std::get_if<IndexExpr>(&expression.data)) {
+            if (expression_mentions_name(*node->base, name)) return true;
+            for (const auto& item : node->items) {
+                if ((item.index && expression_mentions_name(*item.index, name)) ||
+                    (item.start && expression_mentions_name(*item.start, name)) ||
+                    (item.stop && expression_mentions_name(*item.stop, name)) ||
+                    (item.step && expression_mentions_name(*item.step, name)))
+                    return true;
+            }
+            return false;
+        }
+        if (const auto* node = std::get_if<MemberExpr>(&expression.data))
+            return expression_mentions_name(*node->base, name);
+        if (const auto* node = std::get_if<UnaryExpr>(&expression.data))
+            return expression_mentions_name(*node->operand, name);
+        if (const auto* node = std::get_if<BinaryExpr>(&expression.data))
+            return expression_mentions_name(*node->left, name) ||
+                   expression_mentions_name(*node->right, name);
+        if (const auto* node = std::get_if<TryExpr>(&expression.data))
+            return expression_mentions_name(*node->value, name);
+        if (const auto* node = std::get_if<CallExpr>(&expression.data)) {
+            for (const auto& argument : node->args)
+                if (expression_mentions_name(*argument.value, name)) return true;
+            return false;
+        }
+        if (const auto* node = std::get_if<MethodCallExpr>(&expression.data)) {
+            if (expression_mentions_name(*node->receiver, name)) return true;
+            for (const auto& argument : node->args)
+                if (expression_mentions_name(*argument.value, name)) return true;
+            return false;
+        }
+        return false;
+    }
+
+    bool statement_mentions_name(
+        const Stmt& statement, const std::string& name) const {
+        const auto& data = statement.data;
+        if (const auto* node = std::get_if<BindingStmt>(&data))
+            return node->name == name ||
+                   (node->value && expression_mentions_name(*node->value, name));
+        if (const auto* node = std::get_if<AssignStmt>(&data))
+            return expression_mentions_name(*node->target, name) ||
+                   expression_mentions_name(*node->value, name);
+        if (const auto* node = std::get_if<RebindStmt>(&data))
+            return node->name == name ||
+                   expression_mentions_name(*node->target, name);
+        if (const auto* node = std::get_if<ReturnStmt>(&data))
+            return node->value && expression_mentions_name(*node->value, name);
+        if (const auto* node = std::get_if<ExprStmt>(&data))
+            return expression_mentions_name(*node->value, name);
+        if (const auto* node = std::get_if<IfStmt>(&data)) {
+            if (expression_mentions_name(*node->condition, name)) return true;
+            for (const auto& item : node->then_body)
+                if (statement_mentions_name(*item, name)) return true;
+            for (const auto& item : node->else_body)
+                if (statement_mentions_name(*item, name)) return true;
+            return false;
+        }
+        if (const auto* node = std::get_if<WhileStmt>(&data)) {
+            if (expression_mentions_name(*node->condition, name)) return true;
+            for (const auto& item : node->body)
+                if (statement_mentions_name(*item, name)) return true;
+            return false;
+        }
+        if (const auto* node = std::get_if<ForStmt>(&data)) {
+            if (node->name == name ||
+                expression_mentions_name(*node->iterable, name)) return true;
+            for (const auto& item : node->body)
+                if (statement_mentions_name(*item, name)) return true;
+            return false;
+        }
+        if (const auto* node = std::get_if<MatchStmt>(&data)) {
+            if (expression_mentions_name(*node->value, name)) return true;
+            for (const auto& current : node->cases) {
+                if (current.binder && *current.binder == name) return true;
+                for (const auto& item : current.body)
+                    if (statement_mentions_name(*item, name)) return true;
+            }
+        }
+        return false;
+    }
+
+    bool string_build_element_supported(const Expr& expression) const {
+        if (std::holds_alternative<StringExpr>(expression.data)) return true;
+        if (const auto* name = std::get_if<NameExpr>(&expression.data))
+            return is_builtin_text_constant(name->name);
+        const auto* method = std::get_if<MethodCallExpr>(&expression.data);
+        if (!method || method->method != "string" || !method->args.empty() ||
+            checked.method_calls.contains(&expression))
+            return false;
+        const auto source = type_of(*method->receiver);
+        return is_integer(source) || source.kind == TypeKind::Bool;
+    }
+
+    StringBuildPart lower_string_build_element(const Expr& expression) {
+        if (std::holds_alternative<StringExpr>(expression.data) ||
+            (std::holds_alternative<NameExpr>(expression.data) &&
+             is_builtin_text_constant(
+                 std::get<NameExpr>(expression.data).name))) {
+            return StringBuildPart{
+                expr(expression), Type::simple(TypeKind::String)};
+        }
+        const auto& method = std::get<MethodCallExpr>(expression.data);
+        const auto source_type = type_of(*method.receiver);
+        return StringBuildPart{expr(*method.receiver), source_type};
+    }
+
     static std::unordered_set<std::string> intersect_full_arrays(
         const std::unordered_set<std::string>& left,
         const std::unordered_set<std::string>& right) {

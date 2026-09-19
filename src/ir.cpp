@@ -59,11 +59,11 @@ struct Lowerer {
         }
         for (const auto& parameter : signature.parameters) {
             if (!array_references.contains(parameter.name)) continue;
-            const auto effect = signature.reference_effects.find(parameter.name);
-            if (effect == signature.reference_effects.end() ||
-                !effect->second.required.contains("")) {
-                continue;
-            }
+            // A reference parameter is always bound at function entry even when
+            // some of the array's elements are not initialized. Cache only the
+            // runtime "all elements initialized" bit; false keeps the ordinary
+            // per-element check/mark path, while true remains valid as long as
+            // the binding itself cannot be replaced or escaped.
             const auto array = fresh();
             block->instructions.push_back(LoadLocal{array, parameter.name, parameter.type});
             const auto complete = fresh();

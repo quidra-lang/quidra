@@ -11,6 +11,8 @@ historical source encoded a capability gap that no longer exists:
 - MB03: native `XOR` replaces the historical arithmetic XOR synthesis.
 - MB08: `uint8[]` working bytes plus explicit `string.from_utf8(bin)` replace
   the historical per-byte glyph-array + `join` text reconstruction.
+- MB10: current linear sole-owner string append replaces the historical
+  million-element `string[]` staging workaround.
 - MB11: public `map.Map.remove` replaces the historical custom fallback map.
 
 The other eight Quidra sources are byte-for-byte inherited from the frozen

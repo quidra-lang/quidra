@@ -155,7 +155,7 @@ def main() -> int:
         json.dump({
             "kind": "current-equivalent-diagnostic",
             "frozen_suite": "2026-09-17-7677581(latest)",
-            "overlays": ["mb03", "mb08", "mb11"],
+            "overlays": ["mb03", "mb08", "mb10", "mb11"],
             "repeats": args.repeats,
             "warmups": args.warmups,
             "results": results,

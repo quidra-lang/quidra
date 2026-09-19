@@ -293,6 +293,64 @@ Provider/network/rate-limit failures are infrastructure events, not model failur
 
 The ledger is execution state, not a score source. Final scores must still be recomputed from validated raw evidence after all required work units for that evaluation are complete.
 
+## 4.3 Hard environment-readiness barrier
+
+A benchmark must not begin scored execution merely because the repository builds. Before the first scored measurement or scored LLM request, complete one **all-or-nothing environment-readiness pre-flight** for the entire run and preserve its machine-readable result as `preflight/readiness.json`.
+
+The readiness pre-flight must cover **all 10 fixed languages and every shared measurement dependency** that the run will need. At minimum, verify:
+
+- the exact compiler/interpreter/runtime command for every language exists and reports its version;
+- a minimal source file for every language can be compiled or checked as applicable, executed, and validated against an exact expected output;
+- the Quidra native compiler and interpreter / REPL both build, start, execute a minimal valid program, and produce the expected output;
+- every required reference repository / frozen source snapshot is locally available at the recorded SHA;
+- every golden-output generator and validator needed by SVM, GMM, LightGrad, microbenchmarks, Semantic Compression, Intrinsic, Practical, and Standard evaluations can run;
+- the wall-clock timer, CPU-time measurement mechanism, peak-RSS measurement mechanism, source-token counter, file-size measurement, and any other required measurement utility are available and pass a known-answer smoke test;
+- required filesystem operations work in the active scratch copy: create, atomic replace/rename, hash, and cleanup;
+- enough writable disk space exists for the planned run plus temporary build products; record free space before scored execution;
+- the selected LLM provider/client is reachable through the exact interface that will be used for scoring, the exact model/version can be selected, and one **unscored** minimal request succeeds;
+- provider decoding controls, context limits, token accounting, retry behavior, and timeout behavior are recorded before scored LLM work;
+- every required benchmark script imports/parses successfully and its CLI help or dry-run path can execute without starting scored work; and
+- the execution manifest contains no unresolved placeholder paths, missing fixture hashes, unknown toolchain identities, or duplicate work-unit IDs.
+
+If a required toolchain or measurement dependency is missing but can be installed or prepared without modifying the Quidra implementation, perform that setup **during readiness**, then rerun the readiness checks from the beginning and freeze the resulting toolchain identities. Do not start scored execution while setup is still changing.
+
+The readiness barrier passes only when every required readiness check is `PASS`. A warning may be recorded only for information that cannot affect correctness, comparability, execution, or evidence preservation.
+
+If any required readiness check remains failed:
+
+1. do not start any scored work;
+2. repair the environment or benchmark infrastructure;
+3. rerun the complete readiness pre-flight; and
+4. begin scored execution only after a clean all-`PASS` readiness result is preserved.
+
+This barrier exists specifically to prevent discovering a missing compiler, broken validator, unavailable measurement utility, stale fixture, or unreachable LLM provider halfway through a run.
+
+## 4.4 Deterministic process / timeout / recovery policy
+
+Before scored execution, write one run-wide process policy and reference it from every executable work unit. Unless a workload explicitly freezes a stricter predeclared value, use these defaults:
+
+- **compile/build/check timeout:** 900 seconds per invocation;
+- **single workload execution timeout:** 300 seconds per invocation;
+- **validator/scoring-script timeout:** 300 seconds per invocation;
+- **LLM transport timeout:** use the provider/client timeout frozen in the immutable LLM configuration;
+- **infrastructure retry count:** at most 2 retries after the original attempt, with the same inputs and configuration;
+- **language/program failures:** never retry merely to improve the score; retry only when evidence identifies an infrastructure/transport failure rather than a deterministic program result.
+
+A timeout limit may be increased for a legitimately longer benchmark only **before any language is measured for that workload**. The new limit must be recorded in the manifest and applied identically to every language for that workload.
+
+For an infrastructure failure, timeout caused by the harness/provider, interrupted process, runner reset, or temporary resource error:
+
+1. preserve the failed-attempt log as infrastructure evidence;
+2. terminate the entire process tree for that work unit;
+3. remove only that work unit's disposable temporary/build directory;
+4. verify that its final evidence paths were not marked `COMPLETE`;
+5. retry from the start of that work unit under identical frozen inputs/configuration; and
+6. if retries are exhausted, leave the unit `BLOCKED` or `INVALID`; never manufacture a measurement.
+
+Every executable work unit must use its own uniquely named temporary directory. Final evidence must be written atomically where practical. A work unit is never `COMPLETE` merely because its main process exited zero; its expected outputs, raw measurement cardinality, hashes, and validator results must all pass.
+
+After any resume, crash, or retry, check for orphaned benchmark processes before continuing. Do not allow surviving processes from an earlier attempt to contaminate timing, memory, files, ports, caches, or outputs of later work.
+
 ---
 
 # 5. Universal Score Direction
@@ -1381,13 +1439,33 @@ Account fairly for runtime characteristics such as:
 
 Do not compare an un-warmed JIT workload against a steady-state native workload without clearly separating those measurements.
 
-Perform multiple runs.
+### Mandatory repeated-measurement protocol
+
+For every primary timing or resource-measurement cell, unless a workload section explicitly freezes a larger count **before any language is measured for that workload**:
+
+1. execute **3 unscored warm-up runs**;
+2. execute **10 scored measurement runs**;
+3. validate expected output on every warm-up and measured run;
+4. preserve all 10 raw scored measurements in execution order;
+5. use the **median** of the 10 scored runs as the representative raw value; and
+6. preserve dispersion at minimum as min, max, median, and MAD or IQR.
+
+For JIT / VM runtimes, the first 3 warm-ups are mandatory but need not be assumed sufficient. If runtime-specific normal practice requires additional warm-up to reach steady state, predeclare one deterministic warm-up rule for that runtime before measuring any workload, cap it at 10 total warm-up runs, preserve the warm-up measurements separately, and apply that rule consistently to all applicable workloads for that runtime. Startup/cold-start measurements remain separate and must not be replaced by steady-state values.
+
+A measured run affected by a verified harness/runner/transport failure is **invalid evidence**, not an outlier to silently discard. Preserve the failed attempt, apply the run-wide recovery policy in Section 4.4, and restart the entire affected measurement cell from its warm-ups so the final cell still contains exactly 10 valid scored runs under one uninterrupted frozen configuration.
+
+Do not trim, winsorize, cherry-pick, or discard a slow but valid scored run. Statistical outlier status alone is never a reason to remove valid evidence.
+
+Before the first timing cell, perform one unscored timing-harness self-test and one peak-memory self-test with known finite programs. Confirm that the harness returns the expected number of samples, preserves units, distinguishes nonzero runtime from startup/measurement overhead where applicable, and reports failed commands as failures rather than as numeric zeros.
 
 Preserve:
 
-- individual measurements
-- representative statistic
-- variability / dispersion
+- all warm-up measurements;
+- all 10 individual scored measurements;
+- representative median;
+- variability / dispersion;
+- timeout/retry evidence, if any; and
+- exact command lines and environment variables used.
 
 Do not rely only on a single timing measurement.
 
@@ -2339,6 +2417,10 @@ The benchmark is complete only when all applicable items below are satisfied:
 64. The execution manifest enumerated all required work before scored execution, and every published result traces only to validated `COMPLETE` work units.
 65. Any resumed work verified the evaluated SHA, prompt/configuration hashes, toolchain/model identities, and fixture hashes before reusing completed work units.
 66. The final report-consistency audit passed and the machine-readable and human-readable primary statuses, scores, rankings, and evaluated version agree.
+67. The hard environment-readiness barrier in Section 4.3 passed for all 10 languages, Quidra native/interpreter modes, reference inputs, validators, measurement utilities, filesystem operations, and the selected LLM interface before the first scored work unit began.
+68. The frozen process/timeout/recovery policy in Section 4.4 was preserved, and every retried executable work unit retained its failed-attempt infrastructure evidence without mixing it into language scores.
+69. Every required primary timing/resource cell contained exactly 10 valid scored runs under the frozen configuration, plus the required warm-ups, unless a workload explicitly froze a larger count before measurement began.
+70. Timing/resource aggregation used the preserved raw samples and median rule; no valid slow sample was silently discarded as an outlier, and every invalid infrastructure sample caused a full-cell restart rather than selective replacement.
 
 If a technically impossible or unavailable item prevents completion, do not invent a result.
 

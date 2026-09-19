@@ -7532,15 +7532,19 @@ extern "C" char* quidra_string_build_append_move_unique(
         runtime_allocation_failure();
     const auto new_length = old_length + added;
 
-    const auto old_key = reinterpret_cast<std::uintptr_t>(raw);
-    auto it = managed_allocations.find(old_key);
-    if (it == managed_allocations.end())
-        runtime_text_failure("string build-append storage disappeared");
-    auto& allocation = it->second;
-    if (allocation.size == 0 || allocation.size - 1 < old_length)
+    // validated_string_view already resolved the exact managed receiver.
+    // Re-looking it up in managed_allocations on every append is pure overhead
+    // in hot builders such as MB10. Keep the resolved metadata pointer and only
+    // touch the hash table when a rare realloc actually changes the base key.
+    auto* destination_allocation = receiver;
+    if (!destination_allocation || destination_allocation->base != raw)
+        runtime_text_failure("string build-append storage is not uniquely managed");
+    if (destination_allocation->size == 0 ||
+        destination_allocation->size - 1 < old_length)
         runtime_text_failure("invalid managed string build-append capacity");
 
-    std::size_t capacity = allocation.size - 1;
+    const auto old_key = reinterpret_cast<std::uintptr_t>(raw);
+    std::size_t capacity = destination_allocation->size - 1;
     char* result = raw;
     if (capacity < new_length) {
         std::size_t new_capacity = capacity < 16 ? 16 : capacity;
@@ -7554,8 +7558,8 @@ extern "C" char* quidra_string_build_append_move_unique(
         if (new_capacity == std::numeric_limits<std::size_t>::max())
             runtime_allocation_failure();
         const auto new_bytes = new_capacity + 1;
-        const auto old_bytes = allocation.size;
-        invalidate_managed_string_cache(&allocation);
+        const auto old_bytes = destination_allocation->size;
+        invalidate_managed_string_cache(destination_allocation);
         result = static_cast<char*>(std::realloc(raw, new_bytes));
         if (!result) runtime_allocation_failure();
         if (new_bytes > old_bytes)
@@ -7564,17 +7568,19 @@ extern "C" char* quidra_string_build_append_move_unique(
         const auto new_key = reinterpret_cast<std::uintptr_t>(result);
         if (new_key != old_key) {
             auto node = managed_allocations.extract(old_key);
+            if (node.empty())
+                runtime_text_failure("string build-append storage disappeared");
             node.key() = new_key;
             node.mapped().base = result;
             node.mapped().size = new_bytes;
             node.mapped().small_pool_class = 0;
-            managed_allocations.insert(std::move(node));
+            const auto inserted = managed_allocations.insert(std::move(node));
+            destination_allocation = &inserted.position->second;
         } else {
-            allocation.base = result;
-            allocation.size = new_bytes;
-            allocation.small_pool_class = 0;
+            destination_allocation->base = result;
+            destination_allocation->size = new_bytes;
+            destination_allocation->small_pool_class = 0;
         }
-        it = managed_allocations.find(new_key);
     }
 
     std::size_t offset = old_length;
@@ -7616,14 +7622,14 @@ extern "C" char* quidra_string_build_append_move_unique(
     }
 
     result[new_length] = '\0';
-    it->second.string_byte_length_known = true;
-    it->second.string_byte_length = new_length;
-    it->second.string_codepoint_length_known = true;
-    it->second.string_codepoint_length =
+    destination_allocation->string_byte_length_known = true;
+    destination_allocation->string_byte_length = new_length;
+    destination_allocation->string_codepoint_length_known = true;
+    destination_allocation->string_codepoint_length =
         old_codepoints + added_codepoints;
-    it->second.string_utf8_validated = true;
-    it->second.string_ascii_known = true;
-    it->second.string_ascii =
+    destination_allocation->string_utf8_validated = true;
+    destination_allocation->string_ascii_known = true;
+    destination_allocation->string_ascii =
         (old_codepoints + added_codepoints) == new_length;
     string_build_append_last_codepoints =
         static_cast<long long>(added_codepoints);

@@ -781,12 +781,6 @@ std::optional<SourceSpan> definition_span(
     return std::nullopt;
 }
 
-std::optional<SourceSpan> definition_span(
-    const Program& program,std::string_view source,std::string_view name,std::size_t offset) {
-    const auto tokens=Lexer(source).scan();
-    return definition_span(program,name,offset,tokens);
-}
-
 struct CompletionSymbol {
     std::string name;
     int kind{};

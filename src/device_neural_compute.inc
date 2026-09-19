@@ -518,7 +518,7 @@ bool cudnn_conv2d_forward(
     static std::unordered_map<std::string,std::pair<int,std::size_t>> algorithm_cache;
 
     int chosen=-1;
-    Buffer* workspace=nullptr;
+    CudaApi::CUdeviceptr workspace=0;
     std::size_t workspace_bytes=0;
     {
         std::lock_guard lock(algorithm_cache_mutex);
@@ -529,8 +529,8 @@ bool cudnn_conv2d_forward(
         }
     }
     if(chosen>=0&&workspace_bytes){
-        std::string alloc_error;
-        workspace=allocate(output->global_index,workspace_bytes,alloc_error);
+        std::string workspace_error;
+        workspace=api.workspace(output->backend_index,workspace_bytes,workspace_error);
         if(!workspace){
             std::lock_guard lock(algorithm_cache_mutex);
             algorithm_cache.erase(algorithm_key);
@@ -551,8 +551,9 @@ bool cudnn_conv2d_forward(
             std::size_t bytes=0;
             if(api.get_fwd_workspace(handle,x_desc,w_desc,conv_desc,y_desc,
                                      perf[static_cast<std::size_t>(i)].algo,&bytes)!=0)continue;
-            std::string alloc_error;
-            Buffer* candidate=bytes?allocate(output->global_index,bytes,alloc_error):nullptr;
+            std::string workspace_error;
+            const auto candidate=bytes
+                ?api.workspace(output->backend_index,bytes,workspace_error):0;
             if(bytes&&!candidate)continue;
             chosen=perf[static_cast<std::size_t>(i)].algo;
             workspace=candidate;
@@ -567,7 +568,7 @@ bool cudnn_conv2d_forward(
     if(chosen<0){cleanup();return false;}
 
     const auto ws_ptr=workspace
-        ?reinterpret_cast<void*>(static_cast<std::uintptr_t>(workspace->cuda_pointer))
+        ?reinterpret_cast<void*>(static_cast<std::uintptr_t>(workspace))
         :nullptr;
     const auto x_ptr=reinterpret_cast<const void*>(
         static_cast<std::uintptr_t>(input->cuda_pointer));
@@ -591,15 +592,11 @@ bool cudnn_conv2d_forward(
         if(status==0)
             status=api.add_tensor(handle,&one,b_desc,b_ptr,&one,y_desc,y_ptr);
     }
-    // cuDNN work is asynchronous on the current/default stream. The temporary
-    // workspace and descriptors cannot be destroyed until that work has completed,
-    // so this remains a synchronization boundary for now. Native kernels do not
-    // have this per-operation lifetime constraint and stay asynchronous.
-    auto& cu=cuda();
-    const bool synchronized=status==0&&cu.ctx_synchronize&&cu.ctx_synchronize()==0;
-    if(workspace)release(workspace);
+    // The descriptor objects are host-side call metadata. The device workspace
+    // itself is retained by CudnnApi, so queued default-stream work can remain
+    // asynchronous after this call returns.
     cleanup();
-    if(!synchronized){
+    if(status!=0){
         std::lock_guard lock(algorithm_cache_mutex);
         algorithm_cache.erase(algorithm_key);
         return false;

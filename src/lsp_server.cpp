@@ -843,13 +843,27 @@ std::vector<CompletionSymbol> member_completions_at(
     const auto info=checked.classes.find(*receiver_class);
     if(info==checked.classes.end()) return {};
 
+    std::string current_class;
+    for(const auto& declaration:checked.program.classes) {
+        if(!contains_offset(declaration.span,receiver_end)) continue;
+        for(const auto& method:declaration.methods) {
+            if(contains_offset(method.span,receiver_end)) {
+                current_class=declaration.name;
+                break;
+            }
+        }
+        if(!current_class.empty()) break;
+    }
+
     std::vector<CompletionSymbol> result;
     for(const auto& field:info->second.fields) {
-        if(field.is_private) continue;
+        if(field.is_private&&current_class!=field.owner) continue;
         result.push_back({field.name,5,type_name(field.type)});
     }
     for(const auto& [name,internal]:info->second.methods) {
-        if(info->second.private_methods.contains(name)) continue;
+        if(const auto private_method=info->second.private_methods.find(name);
+           private_method!=info->second.private_methods.end()&&
+           current_class!=private_method->second) continue;
         const auto function=checked.functions.find(internal);
         result.push_back({name,2,function==checked.functions.end()?"method":type_name(function->second.result)});
     }
@@ -1426,13 +1440,15 @@ private:
         const auto source=document_source(uri);
         const auto offset=raw_offset(source,request_position(message));
         try {
-            const auto program=root_program(source);
-            auto items=completions_at(program,source,offset);
+            std::vector<CompletionSymbol> items;
             if(offset>0&&source[offset-1]=='.') {
                 std::string probe(source);
                 probe.insert(offset,"string()");
                 const auto checked=semantic_check(uri,probe);
                 items=member_completions_at(checked,offset-1);
+            } else {
+                const auto program=root_program(source);
+                items=completions_at(program,source,offset);
             }
             std::ostringstream result;
             result<<"[";

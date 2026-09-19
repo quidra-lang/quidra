@@ -1941,7 +1941,6 @@ Type Checker::check_method_call_expr(const Expr& expression,
                             };
                             const auto a0 = constant_axis(0);
                             const auto a1 = constant_axis(1);
-                            bool axes_valid = true;
                             const auto check_axis = [&](const std::optional<long long>& axis,
                                                         const SourceSpan& span) {
                                 if (!axis) return;
@@ -1950,12 +1949,11 @@ Type Checker::check_method_call_expr(const Expr& expression,
                                     error("ARGUMENT_MISMATCH",
                                           "tensor.transpose axis is outside the tensor rank.",
                                           span);
-                                    axes_valid = false;
                                 }
                             };
                             check_axis(a0, node->args[0].span);
                             check_axis(a1, node->args[1].span);
-                            if (axes_valid && a0 && a1 && receiver.length >= 0) {
+                            if (a0 && a1 && receiver.length >= 0) {
                                 for (long long output_axis = 0;
                                      output_axis < receiver.length; ++output_axis) {
                                     long long source_axis = output_axis;

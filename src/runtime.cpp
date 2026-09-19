@@ -7334,14 +7334,12 @@ extern "C" bool quidra_string_can_append_move(void* raw) {
 }
 
 
-extern "C" char* quidra_string_build_append_move(
+extern "C" char* quidra_string_build_append_move_unique(
     char* raw, const unsigned char* kinds,
     const unsigned long long* raw_values,
     unsigned long long raw_count, const char* separator) {
     if (!raw || !separator)
         runtime_text_failure("null typed string build-append input");
-    if (!quidra_string_can_append_move(raw))
-        runtime_text_failure("string build-append requires unique storage");
     if (raw_count >
         static_cast<unsigned long long>(std::numeric_limits<std::size_t>::max()))
         runtime_allocation_failure();
@@ -7555,6 +7553,16 @@ extern "C" char* quidra_string_build_append_move(
     string_build_append_last_codepoints =
         static_cast<long long>(added_codepoints);
     return result;
+}
+
+extern "C" char* quidra_string_build_append_move(
+    char* raw, const unsigned char* kinds,
+    const unsigned long long* raw_values,
+    unsigned long long raw_count, const char* separator) {
+    if (!quidra_string_can_append_move(raw))
+        runtime_text_failure("string build-append requires unique storage");
+    return quidra_string_build_append_move_unique(
+        raw, kinds, raw_values, raw_count, separator);
 }
 
 extern "C" long long quidra_string_build_append_last_length() {

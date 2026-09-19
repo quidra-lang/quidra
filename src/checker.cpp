@@ -2731,7 +2731,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if (const auto* literal =
                             std::get_if<ArrayExpr>(&argument.value->data)) {
                         bool any_poison = false;
-                        for (const auto& item : literal->items) {
+                        for (const auto& item : literal->elements) {
                             any_poison |= poisoned(check_expr(*item, &operation_type));
                         }
                         operations = any_poison ? simple(TypeKind::Invalid) : operations_type;

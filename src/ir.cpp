@@ -31,6 +31,8 @@ struct Lowerer {
     std::unordered_map<std::string, std::unordered_set<std::size_t>> borrowed_parameters;
     std::unordered_set<std::string> fully_initialized_array_locals;
     std::unordered_map<std::string, ValueId> reference_array_initialization;
+    std::unordered_map<std::string, std::unordered_map<std::string, ValueId>>
+        reference_array_bounds;
     std::unordered_map<std::string, std::vector<std::optional<std::string>>> shaped_constraints;
     std::unordered_map<std::string, std::vector<std::optional<std::string>>> array_constraints;
     std::unordered_map<const Expr*, std::vector<std::optional<std::string>>> contextual_tensor_shapes;
@@ -400,6 +402,72 @@ struct Lowerer {
         const auto cached = reference_array_initialization.find(name->name);
         if (cached == reference_array_initialization.end()) return std::nullopt;
         return cached->second;
+    }
+
+    void cache_reference_array_bounds(
+        const FunctionType& signature,
+        const std::vector<StmtPtr>& body) {
+        std::vector<std::string> stable_bounds;
+        for (const auto& parameter : signature.parameters) {
+            if (parameter.writable || parameter.type.kind != TypeKind::Int)
+                continue;
+            const std::unordered_set<std::string> name{parameter.name};
+            if (!block_may_replace_array_reference(body, name))
+                stable_bounds.push_back(parameter.name);
+        }
+        if (stable_bounds.empty()) return;
+
+        for (const auto& parameter : signature.parameters) {
+            if (!parameter.writable || !parameter.is_const ||
+                parameter.type.kind != TypeKind::Array)
+                continue;
+            const std::unordered_set<std::string> array_name{parameter.name};
+            if (block_may_replace_array_reference(body, array_name))
+                continue;
+
+            auto array = fresh();
+            block->instructions.push_back(
+                LoadLocal{array, parameter.name, parameter.type});
+            auto length = fresh();
+            block->instructions.push_back(ArrayLength{length, array});
+
+            for (const auto& bound_name : stable_bounds) {
+                auto bound = fresh();
+                block->instructions.push_back(LoadLocal{
+                    bound, bound_name, Type::simple(TypeKind::Int)});
+                auto safe = fresh();
+                block->instructions.push_back(Binary{
+                    safe, "<=", bound, length,
+                    Type::simple(TypeKind::Int),
+                    Type::simple(TypeKind::Bool)});
+                reference_array_bounds[parameter.name][bound_name] = safe;
+            }
+        }
+    }
+
+    std::optional<ValueId> reference_array_bounds_guard(
+        const Expr& base, const Expr& index) const {
+        const auto* base_name = std::get_if<NameExpr>(&base.data);
+        const auto* index_name = std::get_if<NameExpr>(&index.data);
+        if (!base_name || !index_name ||
+            checked.field_accesses.contains(&base) ||
+            is_source_reference(base_name->name))
+            return std::nullopt;
+
+        const auto array = reference_array_bounds.find(base_name->name);
+        if (array == reference_array_bounds.end()) return std::nullopt;
+
+        for (auto range = active_range_bounds.rbegin();
+             range != active_range_bounds.rend(); ++range) {
+            if (range->index_name != index_name->name || !range->end)
+                continue;
+            const auto* bound =
+                std::get_if<NameExpr>(&range->end->data);
+            if (!bound) continue;
+            const auto guard = array->second.find(bound->name);
+            if (guard != array->second.end()) return guard->second;
+        }
+        return std::nullopt;
     }
 
     std::optional<std::string> direct_array_length_source(
@@ -1859,16 +1927,22 @@ struct Lowerer {
                     const auto initialization_guard = initialization_proven
                         ? std::optional<ValueId>{}
                         : reference_array_initialization_guard(*n->base);
+                    const bool bounds_proven =
+                        checked.bounds_proven.contains(
+                            n->items.front().index.get()) ||
+                        standard_collection_array ||
+                        dynamic_array_bounds_proven(
+                            *n->base, *n->items.front().index);
+                    const auto bounds_guard = bounds_proven
+                        ? std::optional<ValueId>{}
+                        : reference_array_bounds_guard(
+                            *n->base, *n->items.front().index);
                     block->instructions.push_back(ArrayGet{
                         out,a,i,checked.raw_types.at(&e),
                         static_cast<std::uint32_t>(e.span.start.line),
                         static_cast<std::uint32_t>(e.span.start.column),
-                        initialization_proven,
-                        checked.bounds_proven.contains(n->items.front().index.get()) ||
-                            standard_collection_array ||
-                            dynamic_array_bounds_proven(
-                                *n->base, *n->items.front().index),
-                        initialization_guard});
+                        initialization_proven, bounds_proven,
+                        initialization_guard, bounds_guard});
                     if(base_owned && requires_lifetime_management(checked.raw_types.at(&e)))
                         out=copy_value(out,checked.raw_types.at(&e));
                 }
@@ -4980,15 +5054,21 @@ struct Lowerer {
                         const auto initialization_guard = initialization_proven
                             ? std::optional<ValueId>{}
                             : reference_array_initialization_guard(*ix.base);
+                        const bool bounds_proven =
+                            checked.bounds_proven.contains(
+                                ix.items.front().index.get()) ||
+                            standard_collection_array ||
+                            dynamic_array_bounds_proven(
+                                *ix.base, *ix.items.front().index);
+                        const auto bounds_guard = bounds_proven
+                            ? std::optional<ValueId>{}
+                            : reference_array_bounds_guard(
+                                *ix.base, *ix.items.front().index);
                         block->instructions.push_back(ArraySet{
                             a,i,v,t,static_cast<std::uint32_t>(n->target->span.start.line),
                             static_cast<std::uint32_t>(n->target->span.start.column),
-                            initialization_proven,
-                            checked.bounds_proven.contains(ix.items.front().index.get()) ||
-                                standard_collection_array ||
-                                dynamic_array_bounds_proven(
-                                    *ix.base, *ix.items.front().index),
-                            initialization_guard});
+                            initialization_proven, bounds_proven,
+                            initialization_guard, bounds_guard});
                     }
                 }
             }
@@ -5216,7 +5296,7 @@ struct Lowerer {
     }
 
     void begin_function(Function out) {
-        module.functions.push_back(std::move(out));fn=&module.functions.back();next_value=1;next_label=0;next_hidden=0;locals.clear();local_names.clear();reference_names.clear();references.clear();fully_initialized_array_locals.clear();reference_array_initialization.clear();active_range_bounds.clear();scalar_length_of_array.clear();array_length_from_scalar.clear();proven_nonnegative_integer_ranges.clear();shaped_constraints.clear();array_constraints.clear();contextual_tensor_shapes.clear();return_shaped_constraints.clear();return_array_constraints.clear();fn->blocks.push_back(Block{"entry",{}});block=&fn->blocks.back();
+        module.functions.push_back(std::move(out));fn=&module.functions.back();next_value=1;next_label=0;next_hidden=0;locals.clear();local_names.clear();reference_names.clear();references.clear();fully_initialized_array_locals.clear();reference_array_initialization.clear();reference_array_bounds.clear();active_range_bounds.clear();scalar_length_of_array.clear();array_length_from_scalar.clear();proven_nonnegative_integer_ranges.clear();shaped_constraints.clear();array_constraints.clear();contextual_tensor_shapes.clear();return_shaped_constraints.clear();return_array_constraints.clear();fn->blocks.push_back(Block{"entry",{}});block=&fn->blocks.back();
         for(const auto& p:fn->parameters){locals[p.name]=p.type;local_names[p.name]=p.name;}
         for(const auto& p:fn->parameters){
             if((p.type.kind!=TypeKind::Tensor&&p.type.kind!=TypeKind::Neural)||
@@ -5246,6 +5326,7 @@ struct Lowerer {
         current_class.clear();begin_function(std::move(out));
         prepare_integer_range_facts(source.body);
         cache_reference_array_initialization(sig, source.body);
+        cache_reference_array_bounds(sig, source.body);
         capture_signature_constraints(source,0);
         lower_loop_statement_sequence(source.body);
         if(!terminated()&&fn->result.kind==TypeKind::Void)block->instructions.push_back(ReturnVoid{});
@@ -5264,6 +5345,7 @@ struct Lowerer {
         current_class=class_name;begin_function(std::move(out));
         prepare_integer_range_facts(source.body);
         cache_reference_array_initialization(sig, source.body);
+        cache_reference_array_bounds(sig, source.body);
         capture_signature_constraints(source,1);
         lower_loop_statement_sequence(source.body);
         if(!terminated()&&fn->result.kind==TypeKind::Void)block->instructions.push_back(ReturnVoid{});
@@ -5472,8 +5554,8 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,HttpHeader>)out<<"%"<<n.out<<" = http.header %"<<n.name;
     if constexpr(std::is_same_v<T,NumericMinMax>)out<<"%"<<n.out<<" = "<<(n.maximum?"max ":"min ")<<"%"<<n.left<<", %"<<n.right;
     if constexpr(std::is_same_v<T,ArrayInitializationComplete>)out<<"%"<<n.out<<" = array.initialization.complete %"<<n.array;
-    if constexpr(std::is_same_v<T,ArrayGet>)out<<"%"<<n.out<<" = array.get %"<<n.array<<", %"<<n.index;
-    if constexpr(std::is_same_v<T,ArraySet>)out<<"array.set %"<<n.array<<", %"<<n.index<<", %"<<n.value;
+    if constexpr(std::is_same_v<T,ArrayGet>)out<<"%"<<n.out<<" = array.get %"<<n.array<<", %"<<n.index<<(n.bounds_guard?" bounds-guard %"+std::to_string(*n.bounds_guard):"");
+    if constexpr(std::is_same_v<T,ArraySet>)out<<"array.set %"<<n.array<<", %"<<n.index<<", %"<<n.value<<(n.bounds_guard?" bounds-guard %"+std::to_string(*n.bounds_guard):"");
     if constexpr(std::is_same_v<T,Clone>)out<<"%"<<n.out<<" = clone %"<<n.value<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,Retain>)out<<"%"<<n.out<<" = retain %"<<n.value<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,Release>)out<<"release %"<<n.value<<" : "<<type_name(n.type);

@@ -1627,18 +1627,20 @@ std::optional<std::vector<StmtPtr>> standard_collection_hash_body(
                << "        return 1\n"
                << "    return 0\n";
     } else if (
-        type.name == "int" || type.name == "int8" || type.name == "int16" ||
-        type.name == "int32" || type.name == "uint8" || type.name == "uint16" ||
-        type.name == "uint32") {
+        type.name == "int" || type.name == "int8" ||
+        type.name == "int16" || type.name == "int32") {
         source << "int __hash(" << type.name << " " << parameter << ")\n"
                << "    int __value = int(" << parameter << ")\n"
-               << "    int __result = __value % 2147483647\n"
-               << "    if __result < 0\n"
-               << "        __result += 2147483647\n"
-               << "    return __result\n";
+               << "    return __value AND 9223372036854775807\n";
+    } else if (
+        type.name == "uint8" || type.name == "uint16" ||
+        type.name == "uint32") {
+        source << "int __hash(" << type.name << " " << parameter << ")\n"
+               << "    return int(" << parameter << ")\n";
     } else if (type.name == "uint64") {
         source << "int __hash(uint64 " << parameter << ")\n"
-               << "    uint64 __result = " << parameter << " % uint64(2147483647)\n"
+               << "    uint64 __result = " << parameter
+               << " AND uint64(9223372036854775807)\n"
                << "    return int(__result)\n";
     } else if (type.name == "bigint") {
         source << "int __hash(bigint " << parameter << ")\n"

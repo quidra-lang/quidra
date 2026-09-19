@@ -1227,7 +1227,6 @@ struct FunctionEmitter {
             values[n.out]=Type::simple(TypeKind::String);
             const auto& kinds=scratch(ins,0);
             const auto& raw_values=scratch(ins,1);
-            const auto& added_length_slot=scratch(ins,2);
             for(std::size_t i=0;i<n.parts.size();++i){
                 const auto& part=n.parts[i];
                 unsigned kind=0;
@@ -1271,6 +1270,7 @@ struct FunctionEmitter {
             values[n.added_length]=Type::simple(TypeKind::Int);
             const auto& kinds=scratch(ins,0);
             const auto& raw_values=scratch(ins,1);
+            const auto& added_length_slot=scratch(ins,2);
             for(std::size_t i=0;i<n.parts.size();++i){
                 const auto& part=n.parts[i];
                 unsigned kind=0;

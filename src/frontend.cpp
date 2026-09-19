@@ -352,8 +352,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
                 return -1
             if __index == -2 and __first_tombstone < 0
                 __first_tombstone = __slot
-            if __index >= 0 and __active[__index] and __hashes[__index] == hash and __keys[__index] == key
-                __empty_slot = __slot
+            if __index >= 0 and __hashes[__index] == hash and __keys[__index] == key
                 return __slot
             __slot = (__slot + 1) AND (__capacity - 1)
             __scanned += 1
@@ -423,7 +422,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         int __hash_value = -1
         if __last_version == __version and __last_index >= 0
             int __cached = __last_index
-            if __active[__cached] and __hashes[__cached] == __last_hash and __keys[__cached] == key
+            if __keys[__cached] == key
                 __values[__cached] = value
                 return void
 
@@ -609,8 +608,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
                 return -1
             if __index == -2 and __first_tombstone < 0
                 __first_tombstone = __slot
-            if __index >= 0 and __active[__index] and __hashes[__index] == hash and __values[__index] == value
-                __empty_slot = __slot
+            if __index >= 0 and __hashes[__index] == hash and __values[__index] == value
                 return __slot
             __slot = (__slot + 1) AND (__capacity - 1)
             __scanned += 1

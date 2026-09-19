@@ -392,6 +392,12 @@ for i in range(0, size)
 )", "call ptr @quidra_array_slot(ptr");
  // dynamic array loop bounds lower to proven slots only while the length relation
  // is loop invariant; replacing the array inside the loop keeps the checked path.
+ llvm_not_contains(R"(string[] values = ["a", "b", "c"]
+for value in values
+    print(value)
+)", "call void @quidra_managed_retain(ptr");
+ // Immutable array elements are borrowed for a non-mutating loop; the backing
+ // array keeps their shared storage alive for the whole iteration region.
 
  // Release lowering keeps the public function ABI but threads recursion depth
  // through an internal implementation instead of touching TLS on every direct

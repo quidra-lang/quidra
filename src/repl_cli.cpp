@@ -328,7 +328,6 @@ public:
         std::string candidate = accepted_source_;
         candidate += submission;
         if (candidate.empty() || candidate.back() != '\n') candidate += '\n';
-        write_file(files_.source(), candidate);
 
         try {
             if (declaration_only) {
@@ -340,8 +339,8 @@ public:
                 return true;
             }
 
-            auto compiled = compile_repl_file(
-                files_.source(), {}, working_directory_, replay_prefix_bytes);
+            auto compiled = compile_repl_file_source(
+                files_.source(), candidate, {}, working_directory_, replay_prefix_bytes);
             const bool candidate_replay_barrier =
                 module_requires_replay_barrier(compiled.compilation.ir);
             if (compile_native(compiled.compilation, files_) != 0) return false;
@@ -383,7 +382,6 @@ public:
         std::string candidate = accepted_source_;
         candidate += expression;
         if (candidate.empty() || candidate.back() != '\n') candidate += '\n';
-        write_file(files_.source(), candidate);
 
         try {
             auto checked = check_file_source(

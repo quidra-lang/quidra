@@ -122,4 +122,16 @@ ReplCompilation compile_repl_file(
     return finish_repl_compile(std::move(program), options, replay_prefix_bytes);
 }
 
+ReplCompilation compile_repl_file_source(
+    const std::filesystem::path& source_path,
+    std::string_view source,
+    CompileOptions options,
+    const std::filesystem::path& command_working_directory,
+    std::size_t replay_prefix_bytes) {
+    if (options.max_errors == 0) options.max_errors = 1;
+    auto program = load_program_with_root_source(
+        source_path, source, command_working_directory, options.max_errors);
+    return finish_repl_compile(std::move(program), options, replay_prefix_bytes);
+}
+
 } // namespace quidra

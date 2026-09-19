@@ -202,7 +202,7 @@
   "repl_declaration_incremental": true,
   "repl_command": "quidra",
   "repl_explicit_command": "quidra repl",
-  "repl_model": "accumulated accepted source; declaration-only submissions are validated and accepted without LLVM/native execution; executable submissions still compile accumulated source and reconstruct runtime state, with replay barriers for external/nondeterministic effects",
+  "repl_model": "accumulated accepted source; declaration-only submissions are validated and accepted without LLVM/native execution; executable submissions compile accumulated root source from an in-memory file-aware overlay and reconstruct runtime state without a root-source disk round trip, with replay barriers for external/nondeterministic effects",
   "repl_expression_display": "typed IR display operation; void and never are not displayed; previously emitted stdout is baseline-filtered on later submissions",
   "repl_state_persistence": "bindings, declarations, functions, classes, generics, and file-aware imports are reconstructed from accepted source on each successful submission rather than stored in a persistent JIT heap",
   "function_value_model": "function declarations remain callable names and convert to capture-free first-class values only under an explicit fn<R>(P...) context with an exact by-value signature; no closure environment, hidden allocation, bound receiver, implicit identity, or extern-function conversion is introduced",

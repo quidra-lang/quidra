@@ -48,4 +48,11 @@ ReplCompilation compile_repl_file(
     const std::filesystem::path& command_working_directory = std::filesystem::current_path(),
     std::size_t replay_prefix_bytes = 0);
 
+ReplCompilation compile_repl_file_source(
+    const std::filesystem::path& source_path,
+    std::string_view source,
+    CompileOptions options = {},
+    const std::filesystem::path& command_working_directory = std::filesystem::current_path(),
+    std::size_t replay_prefix_bytes = 0);
+
 } // namespace quidra

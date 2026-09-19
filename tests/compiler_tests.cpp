@@ -65,13 +65,14 @@ static void repl_ir_contains(
     const auto path = root / "repl_ir_contains.qui";
     try {
         std::filesystem::create_directories(root);
-        {
-            std::ofstream out(path, std::ios::binary);
-            if (!out) throw std::runtime_error("cannot create temporary Quidra REPL source");
-            out << source;
+        std::error_code ignored;
+        std::filesystem::remove(path, ignored);
+        auto c = quidra::compile_repl_file_source(
+            path, source, {}, root, replay_prefix_bytes);
+        if (std::filesystem::exists(path)) {
+            std::cerr << "REPL root-source overlay unexpectedly created a source file\n";
+            std::exit(1);
         }
-        auto c = quidra::compile_repl_file(path, {}, root, replay_prefix_bytes);
-        std::filesystem::remove(path);
         const auto dumped = quidra::ir::dump(c.compilation.ir);
         if (dumped.find(expected) != std::string::npos) return;
         std::cerr << "REPL typed IR output missing expected fragment: " << expected << "\n"

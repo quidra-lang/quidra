@@ -610,6 +610,27 @@ set_remove_output="$("$QUIDRA" "$TMP/set-remove.qui")"
 set_remove_expected="$(printf 'true\nfalse\n3\nfalse\na\nq\nz\ni\ntrue\ntrue\nfalse')"
 [[ "$set_remove_output" == "$set_remove_expected" ]]
 
+cat > "$TMP/hash-collection-tombstones.qui" <<'QUI'
+map.Map<int, int> values = map.Map<int, int>()
+set.Set<int> unique = set.Set<int>()
+for i in range(0, 32)
+    values.set(i, i)
+    unique.add(i)
+    if not values.remove(i)
+        process.exit(1)
+    if not unique.remove(i)
+        process.exit(1)
+values.set(1000, 7)
+unique.add(1000)
+print(values.size())
+print(unique.size())
+print(values.has(1000))
+print(unique.has(1000))
+QUI
+tombstone_output="$("$QUIDRA" "$TMP/hash-collection-tombstones.qui")"
+tombstone_expected="$(printf '1\n1\ntrue\ntrue')"
+[[ "$tombstone_output" == "$tombstone_expected" ]]
+
 cat > "$TMP/hash-collections.qui" <<'QUI'
 map.Map<string, int> many = map.Map<string, int>()
 for i in range(0, 100)

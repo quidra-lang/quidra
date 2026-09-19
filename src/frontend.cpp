@@ -332,15 +332,17 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     int __slot_of(K key, int hash)
         int __slot = hash % len(__slots)
-        while true
+        int __scanned = 0
+        while __scanned < len(__slots)
             int __index = __slots[__slot]
             if __index == -1
                 return -1
-            if __active[__index] and __hashes[__index] == hash and __keys[__index] == key
+            if __index >= 0 and __active[__index] and __hashes[__index] == hash and __keys[__index] == key
                 return __slot
             __slot += 1
             if __slot == len(__slots)
                 __slot = 0
+            __scanned += 1
         return -1
 
     int __find(K key, int hash)
@@ -351,7 +353,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     void __place(int index)
         int __slot = __hashes[index] % len(__slots)
-        while __slots[__slot] != -1
+        while __slots[__slot] >= 0
             __slot += 1
             if __slot == len(__slots)
                 __slot = 0
@@ -415,38 +417,16 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     bool remove(K key)
         int __hash_value = __hash(key)
-        int __hole = __slot_of(key, __hash_value)
-        if __hole < 0
+        int __slot = __slot_of(key, __hash_value)
+        if __slot < 0
             return false
 
-        int __removed_index = __slots[__hole]
+        int __removed_index = __slots[__slot]
         __active[__removed_index] = false
+        __slots[__slot] = -2
         __size -= 1
-
-        int __capacity = len(__slots)
-        int __probe = __hole
-        while true
-            __probe += 1
-            if __probe == __capacity
-                __probe = 0
-            int __index = __slots[__probe]
-            if __index == -1
-                __slots[__hole] = -1
-                if len(__keys) > 64 and __size * 2 < len(__keys)
-                    __compact()
-                return true
-
-            int __ideal = __hashes[__index] % __capacity
-            bool __settled = false
-            if __hole <= __probe
-                __settled = __hole < __ideal and __ideal <= __probe
-            else
-                __settled = __hole < __ideal or __ideal <= __probe
-            if __settled
-                continue
-
-            __slots[__hole] = __index
-            __hole = __probe
+        if len(__keys) > 64 and __size * 2 <= len(__keys)
+            __compact()
         return true
 
     int size()
@@ -564,15 +544,17 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     int __slot_of(T value, int hash)
         int __slot = hash % len(__slots)
-        while true
+        int __scanned = 0
+        while __scanned < len(__slots)
             int __index = __slots[__slot]
             if __index == -1
                 return -1
-            if __active[__index] and __hashes[__index] == hash and __values[__index] == value
+            if __index >= 0 and __active[__index] and __hashes[__index] == hash and __values[__index] == value
                 return __slot
             __slot += 1
             if __slot == len(__slots)
                 __slot = 0
+            __scanned += 1
         return -1
 
     int __find(T value, int hash)
@@ -583,7 +565,7 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     void __place(int index)
         int __slot = __hashes[index] % len(__slots)
-        while __slots[__slot] != -1
+        while __slots[__slot] >= 0
             __slot += 1
             if __slot == len(__slots)
                 __slot = 0
@@ -634,38 +616,16 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
 
     bool remove(T value)
         int __hash_value = __hash(value)
-        int __hole = __slot_of(value, __hash_value)
-        if __hole < 0
+        int __slot = __slot_of(value, __hash_value)
+        if __slot < 0
             return false
 
-        int __removed_index = __slots[__hole]
+        int __removed_index = __slots[__slot]
         __active[__removed_index] = false
+        __slots[__slot] = -2
         __size -= 1
-
-        int __capacity = len(__slots)
-        int __probe = __hole
-        while true
-            __probe += 1
-            if __probe == __capacity
-                __probe = 0
-            int __index = __slots[__probe]
-            if __index == -1
-                __slots[__hole] = -1
-                if len(__values) > 64 and __size * 2 < len(__values)
-                    __compact()
-                return true
-
-            int __ideal = __hashes[__index] % __capacity
-            bool __settled = false
-            if __hole <= __probe
-                __settled = __hole < __ideal and __ideal <= __probe
-            else
-                __settled = __hole < __ideal or __ideal <= __probe
-            if __settled
-                continue
-
-            __slots[__hole] = __index
-            __hole = __probe
+        if len(__values) > 64 and __size * 2 <= len(__values)
+            __compact()
         return true
 
     int size()

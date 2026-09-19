@@ -975,6 +975,10 @@ std::vector<SourceSpan> reference_spans(
     std::vector<SourceSpan> result;
     for(const auto& token:tokens) {
         if(token.kind!=TokenKind::Identifier||token.text!=name) continue;
+        if(same_span(token.span,target)) {
+            result.push_back(token.span);
+            continue;
+        }
         const auto resolved=resolved_definition_span(
             checked,name,token.span.start.offset,tokens);
         if(resolved&&same_span(*resolved,target)) result.push_back(token.span);

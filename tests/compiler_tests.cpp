@@ -130,6 +130,33 @@ static void llvm_not_contains(const std::string& s, const std::string& unexpecte
     }
     std::exit(1);
 }
+static void llvm_function_not_contains(
+    const std::string& s, const std::string& function_marker,
+    const std::string& unexpected) {
+    try {
+        const auto c = quidra::compile(s);
+        const auto marker = c.llvm.find(function_marker);
+        if (marker == std::string::npos) {
+            std::cerr << "LLVM output missing function marker: " << function_marker << "\n"
+                      << c.llvm << "\n";
+            std::exit(1);
+        }
+        const auto begin = c.llvm.rfind("define ", marker);
+        const auto end = c.llvm.find("\n}", marker);
+        if (begin == std::string::npos || end == std::string::npos) {
+            std::cerr << "cannot isolate LLVM function for marker: " << function_marker << "\n"
+                      << c.llvm << "\n";
+            std::exit(1);
+        }
+        const auto body = c.llvm.substr(begin, end + 2 - begin);
+        if (body.find(unexpected) == std::string::npos) return;
+        std::cerr << "LLVM function unexpectedly contains fragment: " << unexpected << "\n"
+                  << body << "\n";
+    } catch (const std::exception& e) {
+        std::cerr << "unexpected LLVM generation rejection: " << e.what() << "\n" << s;
+    }
+    std::exit(1);
+}
 static void llvm_file_contains(const std::string& s, const std::string& expected) {
     const auto root = std::filesystem::temp_directory_path() / "quidra-compiler-tests";
     const auto path = root / "llvm_file_contains.qui";
@@ -303,12 +330,12 @@ print(reals[1])
      "call ptr @quidra_bigint_text");
  // Standard map/set slot capacities are compiler-owned powers of two, so hot
  // probing uses masking rather than signed remainder and branchy wraparound.
- llvm_not_contains(
+ llvm_function_not_contains(
      "map.Map<int, int> values = map.Map<int, int>()\nvalues.set(1, 2)\nauto value = values.get(1)\n",
-     "srem i64");
- llvm_not_contains(
+     "___slot_of(", "srem i64");
+ llvm_function_not_contains(
      "set.Set<int> values = set.Set<int>()\nvalues.add(1)\nbool present = values.has(1)\n",
-     "srem i64");
+     "___slot_of(", "srem i64");
 
  // Hot string/parse patterns keep their source semantics while lowering to
  // allocation-light native operations.

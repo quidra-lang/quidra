@@ -708,6 +708,11 @@ struct FunctionEmitter {
                     else if(parse->target_type.kind==TypeKind::Float32) plan_scratch(i,"float");
                     else if(parse->target_type.kind==TypeKind::Float) plan_scratch(i,"double");
                 }
+                if(const auto* parse=std::get_if<ir::ParseNumberDirect>(&i)){
+                    if(is_integer(parse->target_type)) plan_scratch(i,"i64");
+                    else if(parse->target_type.kind==TypeKind::Float32) plan_scratch(i,"float");
+                    else if(parse->target_type.kind==TypeKind::Float) plan_scratch(i,"double");
+                }
                 if(std::holds_alternative<ir::ImageRead>(i)) plan_scratch(i,"i32");
                 if(std::holds_alternative<ir::ReplDisplay>(i)) plan_scratch(i,"i64");
                 if(std::holds_alternative<ir::Input>(i)) plan_scratch(i,"ptr");
@@ -1934,6 +1939,64 @@ struct FunctionEmitter {
             }
             out<<"  br label %"<<done_label<<"\n";
             out<<done_label<<":\n";
+        }
+        if constexpr(std::is_same_v<T,ir::ParseNumberDirect>){
+            values[n.value_out]=n.target_type;
+            values[n.ok_out]=Type::simple(TypeKind::Bool);
+            values[n.error_out]=Type::simple(TypeKind::Error);
+            const auto& slot=scratch(ins);
+            std::string parse_ok;
+            std::string parsed;
+            if(is_integer(n.target_type)){
+                out<<"  store i64 0, ptr "<<slot<<"\n";
+                parse_ok=temp("parse.direct.ok");
+                parsed=temp("parse.direct.integer");
+                out<<"  "<<parse_ok<<" = call i1 @"<<(is_signed_integer(n.target_type)?"quidra_parse_signed":"quidra_parse_unsigned")
+                   <<"(ptr "<<value(n.text)<<", ptr "<<slot<<")\n";
+                out<<"  "<<parsed<<" = load i64, ptr "<<slot<<"\n";
+                std::string valid=parse_ok;
+                const auto width=integer_width(n.target_type);
+                if(width<64){
+                    if(is_signed_integer(n.target_type)){
+                        const long long min_value=-(1LL<<(width-1));
+                        const long long max_value=(1LL<<(width-1))-1;
+                        const auto low=temp("parse.direct.low");
+                        const auto high=temp("parse.direct.high");
+                        const auto inside=temp("parse.direct.inside");
+                        const auto range_ok=temp("parse.direct.range.ok");
+                        out<<"  "<<low<<" = icmp sge i64 "<<parsed<<", "<<min_value<<"\n";
+                        out<<"  "<<high<<" = icmp sle i64 "<<parsed<<", "<<max_value<<"\n";
+                        out<<"  "<<inside<<" = and i1 "<<low<<", "<<high<<"\n";
+                        out<<"  "<<range_ok<<" = and i1 "<<parse_ok<<", "<<inside<<"\n";
+                        valid=range_ok;
+                    }else{
+                        const unsigned long long max_value=(1ULL<<width)-1ULL;
+                        const auto inside=temp("parse.direct.inside");
+                        const auto range_ok=temp("parse.direct.range.ok");
+                        out<<"  "<<inside<<" = icmp ule i64 "<<parsed<<", "<<max_value<<"\n";
+                        out<<"  "<<range_ok<<" = and i1 "<<parse_ok<<", "<<inside<<"\n";
+                        valid=range_ok;
+                    }
+                    out<<"  "<<value(n.value_out)<<" = trunc i64 "<<parsed<<" to "<<llvm_type(n.target_type)<<"\n";
+                }else{
+                    out<<"  "<<value(n.value_out)<<" = add i64 "<<parsed<<", 0\n";
+                }
+                out<<"  "<<value(n.ok_out)<<" = xor i1 "<<valid<<", false\n";
+            }else if(n.target_type.kind==TypeKind::Float32){
+                out<<"  store float 0.000000e+00, ptr "<<slot<<"\n";
+                parse_ok=temp("parse.direct.ok");
+                out<<"  "<<parse_ok<<" = call i1 @quidra_parse_float32(ptr "<<value(n.text)<<", ptr "<<slot<<")\n";
+                out<<"  "<<value(n.value_out)<<" = load float, ptr "<<slot<<"\n";
+                out<<"  "<<value(n.ok_out)<<" = xor i1 "<<parse_ok<<", false\n";
+            }else{
+                out<<"  store double 0.000000e+00, ptr "<<slot<<"\n";
+                parse_ok=temp("parse.direct.ok");
+                out<<"  "<<parse_ok<<" = call i1 @quidra_parse_float64(ptr "<<value(n.text)<<", ptr "<<slot<<")\n";
+                out<<"  "<<value(n.value_out)<<" = load double, ptr "<<slot<<"\n";
+                out<<"  "<<value(n.ok_out)<<" = xor i1 "<<parse_ok<<", false\n";
+            }
+            out<<"  "<<value(n.error_out)
+               <<" = getelementptr inbounds [21 x i8], ptr @.err.parse, i64 0, i64 0\n";
         }
         if constexpr(std::is_same_v<T,ir::NumericAbs>){
             values[n.out]=n.type;

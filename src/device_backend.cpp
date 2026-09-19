@@ -1,6 +1,7 @@
 #include "device_backend.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <array>
 #include <cstdint>
 #include <cstdlib>
@@ -425,6 +426,8 @@ std::vector<Info> enumerate_devices() {
     return result;
 }
 
+std::atomic<int> dnn_mode_value{static_cast<int>(DnnMode::Fast)};
+
 bool range_ok(const BufferImpl& buffer, std::size_t offset, std::size_t bytes) {
     return offset <= buffer.bytes && bytes <= buffer.bytes - offset;
 }
@@ -443,6 +446,15 @@ const Info* find(int index) {
     const auto& all = devices();
     if (index < 0 || static_cast<std::size_t>(index) >= all.size()) return nullptr;
     return &all[static_cast<std::size_t>(index)];
+}
+
+void set_dnn_mode(DnnMode mode) {
+    dnn_mode_value.store(static_cast<int>(mode), std::memory_order_relaxed);
+}
+
+DnnMode dnn_mode() {
+    return static_cast<DnnMode>(
+        dnn_mode_value.load(std::memory_order_relaxed));
 }
 
 std::string backend_name(Backend backend) {

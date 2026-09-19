@@ -48,6 +48,14 @@
 extern "C" void* quidra_bigint_parse(const char*);
 extern "C" void* quidra_bigreal_parse(const char*);
 
+extern "C" void dnn_quidra_fast() {
+    quidra::device::set_dnn_mode(quidra::device::DnnMode::Fast);
+}
+
+extern "C" void dnn_quidra_deterministic() {
+    quidra::device::set_dnn_mode(quidra::device::DnnMode::Deterministic);
+}
+
 namespace {
 int runtime_argc = 0;
 char** runtime_argv = nullptr;

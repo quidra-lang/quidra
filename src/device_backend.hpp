@@ -7,6 +7,8 @@
 
 namespace quidra::device {
 
+enum class DnnMode { Fast, Deterministic };
+
 enum class Backend {
     Nvidia,
     Amd,
@@ -37,6 +39,9 @@ struct LaunchDimensions {
 const std::vector<Info>& devices();
 const Info* find(int index);
 std::string backend_name(Backend backend);
+
+void set_dnn_mode(DnnMode mode);
+DnnMode dnn_mode();
 
 Buffer* allocate(int index, std::size_t bytes, std::string& error);
 void release(Buffer* buffer);

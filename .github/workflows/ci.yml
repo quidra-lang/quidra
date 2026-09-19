@@ -211,7 +211,11 @@ jobs:
           print(model.weight.raw()[0].item() == saved)
           neural.save(model, path = "build/windows-neural.quistate")
           '@
-          $neural = & build/Release/quidra.exe run build/neural-smoke.qui
-          if (($neural -join "`n").Trim() -ne "true`ntrue") { throw "neural smoke failed: $neural" }
+          & build/Release/quidra.exe build build/neural-smoke.qui -o build/neural-smoke.exe
+          if ($LASTEXITCODE -ne 0) { throw "neural smoke build failed with exit code $LASTEXITCODE" }
+          $neural = & build/neural-smoke.exe
+          $neuralExit = $LASTEXITCODE
+          if ($neuralExit -ne 0) { throw "neural smoke executable failed with exit code $neuralExit" }
+          if (($neural -join "`n").Trim() -ne "true`ntrue") { throw "neural smoke output mismatch: $neural" }
       - name: Package smoke
         run: cpack --config build/CPackConfig.cmake -C Release -G ZIP -B dist

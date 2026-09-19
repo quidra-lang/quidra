@@ -309,6 +309,24 @@ print(reals[1])
     string line = fields.join("")
     print(line)
 )", "string.build");
+ llvm_contains(R"(string content = ""
+int written = 0
+for i in range(0, 2)
+    string[] fields = [i.string(), " ", i.string(), enter]
+    string line = fields.join("")
+    content = content + line
+    written += len(line)
+print(written)
+)", "@quidra_string_build_append_move");
+ ir_contains(R"(string content = ""
+int written = 0
+for i in range(0, 2)
+    string[] fields = [i.string(), " ", i.string(), enter]
+    string line = fields.join("")
+    content = content + line
+    written += len(line)
+print(written)
+)", "string.build_append");
  llvm_contains(R"(for i in range(0, 2)
     string[] fields = [i.string(), " ", enter]
     string line = fields.join("")

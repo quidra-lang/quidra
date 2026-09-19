@@ -380,16 +380,18 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return void
 
     void __compact()
-        K[] __new_keys = []
-        V[] __new_values = []
-        int[] __new_hashes = []
-        bool[] __new_active = []
+        K[] __new_keys = array(__size)
+        V[] __new_values = array(__size)
+        int[] __new_hashes = array(__size)
+        bool[] __new_active = array(__size)
+        int __write = 0
         for __index in range(len(__keys))
             if __active[__index]
-                __new_keys = __new_keys.append(__keys[__index])
-                __new_values = __new_values.append(__values[__index])
-                __new_hashes = __new_hashes.append(__hashes[__index])
-                __new_active = __new_active.append(true)
+                __new_keys[__write] = __keys[__index]
+                __new_values[__write] = __values[__index]
+                __new_hashes[__write] = __hashes[__index]
+                __new_active[__write] = true
+                __write += 1
         __keys = __new_keys
         __values = __new_values
         __hashes = __new_hashes
@@ -636,14 +638,16 @@ std::vector<ClassDecl> standard_declarations(const std::string& module) {
         return void
 
     void __compact()
-        T[] __new_values = []
-        int[] __new_hashes = []
-        bool[] __new_active = []
+        T[] __new_values = array(__size)
+        int[] __new_hashes = array(__size)
+        bool[] __new_active = array(__size)
+        int __write = 0
         for __index in range(len(__values))
             if __active[__index]
-                __new_values = __new_values.append(__values[__index])
-                __new_hashes = __new_hashes.append(__hashes[__index])
-                __new_active = __new_active.append(true)
+                __new_values[__write] = __values[__index]
+                __new_hashes[__write] = __hashes[__index]
+                __new_active[__write] = true
+                __write += 1
         __values = __new_values
         __hashes = __new_hashes
         __active = __new_active

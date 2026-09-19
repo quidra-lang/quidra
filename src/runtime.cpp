@@ -3777,18 +3777,13 @@ void* neural_random_mask_apply(
     node->parents={input};
     node->op=NeuralOp::RandomMask;
 
-    // rate == 0 is an identity. Avoid allocating a full output tensor and
-    // mask, and avoid a random-mask kernel launch.
+    // rate == 0 is an identity. Avoid allocation and kernel work.
     if(rate==0.0){
-        if(input->device_tensor){
+        if(input->device_tensor)
             node->device_tensor=static_cast<TensorValue*>(
                 quidra_tensor_clone(input->device_tensor));
-            node->device_aux=static_cast<TensorValue*>(
-                quidra_tensor_clone(input->device_tensor));
-        }else{
+        else
             node->data=input->data;
-            node->aux.assign(input->data.size(),1.0);
-        }
         neural_set_state_u64(rng_state,state);
         return neural_descriptor(std::move(node));
     }
@@ -5858,12 +5853,16 @@ void* neural_grad_device(
             neural_add_device_gradient(gradients,scale,scale_result,line,column);
             neural_add_device_gradient(gradients,bias,bias_result,line,column);
         }else if(node->op==NeuralOp::RandomMask){
-            if(!node->device_aux)
-                neural_fail("random mask backward mask is missing on GPU",line,column);
-            auto* result=neural_device_binary_tensor(
-                g,node->device_aux,3,line,column);
-            neural_add_device_gradient(
-                gradients,node->parents[0],result,line,column);
+            if(!node->device_aux){
+                auto* result=static_cast<TensorValue*>(quidra_tensor_clone(g));
+                neural_add_device_gradient(
+                    gradients,node->parents[0],result,line,column);
+            }else{
+                auto* result=neural_device_binary_tensor(
+                    g,node->device_aux,3,line,column);
+                neural_add_device_gradient(
+                    gradients,node->parents[0],result,line,column);
+            }
         }
 
         // Every child has already contributed in reverse-topological order.
@@ -6011,13 +6010,19 @@ void* neural_grad_t(
             }
             neural_add_gradient(gradients,node->parents[0],std::move(input_gradient));
         }else if(node->op==NeuralOp::RandomMask){
-            if(node->aux.size()!=g.size())
-                neural_fail("random mask backward mask size mismatch",0,0);
-            const auto& mask=node->aux.typed<T>();
-            std::vector<T> input_gradient(g.size());
-            for(std::size_t i=0;i<g.size();++i)
-                input_gradient[i]=static_cast<T>(g[i]*mask[i]);
-            neural_add_gradient(gradients,node->parents[0],std::move(input_gradient));
+            if(node->aux.empty()){
+                neural_add_gradient(
+                    gradients,node->parents[0],std::vector<T>(g));
+            }else{
+                if(node->aux.size()!=g.size())
+                    neural_fail("random mask backward mask size mismatch",0,0);
+                const auto& mask=node->aux.typed<T>();
+                std::vector<T> input_gradient(g.size());
+                for(std::size_t i=0;i<g.size();++i)
+                    input_gradient[i]=static_cast<T>(g[i]*mask[i]);
+                neural_add_gradient(
+                    gradients,node->parents[0],std::move(input_gradient));
+            }
         }else if(node->op==NeuralOp::Normalize){
             const auto& input=node->parents[0];
             const auto& scale=node->parents[1];

@@ -7380,6 +7380,23 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 }
             }
 
+            // Summary analysis only needs function/method effects, but checking those
+            // bodies can populate expression/match metadata that belongs to the final
+            // diagnostic pass. Discard that provisional metadata each iteration so
+            // stale AST-pointer entries cannot mask missing final-pass annotations.
+            expr_types_.clear();
+            raw_types_.clear();
+            field_accesses_.clear();
+            method_calls_.clear();
+            call_resolutions_.clear();
+            function_references_.clear();
+            binding_types_.clear();
+            case_types_.clear();
+            case_tags_.clear();
+            enum_constructions_.clear();
+            bounds_proven_.clear();
+            class_expr_initialized_paths_.clear();
+
             summaries_converged = true;
             for (const auto& [name, signature] : functions_) {
                 const auto previous = before_summaries.find(name);

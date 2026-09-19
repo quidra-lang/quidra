@@ -10,6 +10,10 @@ on:
       - "CMakeLists.txt"
       - "tests/performance_regressions.py"
 
+concurrency:
+  group: native-performance-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   micro:
     runs-on: macos-latest

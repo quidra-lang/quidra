@@ -3370,9 +3370,113 @@ struct Lowerer {
         return true;
     }
 
+    bool lower_bound_string_split_for_pair(
+        const Stmt& binding_statement, const Stmt& for_statement,
+        bool used_later) {
+        if (used_later) return false;
+        const auto* binding =
+            std::get_if<BindingStmt>(&binding_statement.data);
+        const auto* loop = std::get_if<ForStmt>(&for_statement.data);
+        if (!binding || !loop || binding->reference || !binding->value ||
+            loop->writable || block_may_return(loop->body) ||
+            block_mutates_parameter(loop->body, loop->name))
+            return false;
+
+        const auto binding_type =
+            checked.binding_types.at(&binding_statement);
+        if (binding_type.kind != TypeKind::Array ||
+            !binding_type.first ||
+            binding_type.first->kind != TypeKind::String)
+            return false;
+
+        const auto* iterable_name =
+            std::get_if<NameExpr>(&loop->iterable->data);
+        if (!iterable_name || iterable_name->name != binding->name)
+            return false;
+
+        for (const auto& statement : loop->body)
+            if (statement_mentions_name(*statement, binding->name))
+                return false;
+
+        const auto* split =
+            std::get_if<MethodCallExpr>(&binding->value->data);
+        if (!split || split->method != "split" ||
+            split->args.size() != 1 || !split->args.front().value ||
+            type_of(*split->receiver).kind != TypeKind::String)
+            return false;
+
+        block->instructions.push_back(SourceLocation{
+            static_cast<std::uint32_t>(binding_statement.span.start.line),
+            static_cast<std::uint32_t>(binding_statement.span.start.column)});
+
+        auto text = expr(*split->receiver);
+        auto separator = expr(*split->args.front().value);
+        auto cursor = fresh();
+        block->instructions.push_back(
+            StringSplitIterBegin{cursor, text, separator});
+        release_temporary(*split->receiver, text);
+        release_temporary(*split->args.front().value, separator);
+
+        const auto item = Type::simple(TypeKind::String);
+        const auto iter_name = bind_source_local(loop->name, item);
+        const auto cond = label("split.binding.for.cond");
+        const auto body_name = label("split.binding.for.body");
+        const auto exhausted = label("split.binding.for.exhausted");
+        const auto break_cleanup = label("split.binding.for.break");
+        const auto done = label("split.binding.for.end");
+        block->instructions.push_back(Jump{cond});
+
+        block = &add_block(cond);
+        auto element = fresh();
+        auto has_value = fresh();
+        block->instructions.push_back(
+            StringSplitIterNext{element, has_value, cursor});
+        block->instructions.push_back(
+            Branch{has_value, body_name, exhausted});
+
+        block = &add_block(body_name);
+        block->instructions.push_back(
+            StoreLocal{iter_name, element, item, true});
+        loop_targets.push_back({cond, break_cleanup});
+        lower_loop_statement_sequence(loop->body);
+        loop_targets.pop_back();
+        if (!terminated()) block->instructions.push_back(Jump{cond});
+
+        block = &add_block(exhausted);
+        block->instructions.push_back(StringSplitIterEnd{cursor});
+        block->instructions.push_back(Jump{done});
+
+        block = &add_block(break_cleanup);
+        block->instructions.push_back(StringSplitIterEnd{cursor});
+        block->instructions.push_back(Jump{done});
+
+        block = &add_block(done);
+        return true;
+    }
+
     void lower_loop_statement_sequence(
         const std::vector<StmtPtr>& statements) {
         for (std::size_t i = 0; i < statements.size(); ++i) {
+            if (i + 1 < statements.size()) {
+                const auto* split_sequence_binding =
+                    std::get_if<BindingStmt>(&statements[i]->data);
+                bool split_used_later = false;
+                if (split_sequence_binding) {
+                    for (std::size_t j = i + 2;
+                         j < statements.size() && !split_used_later; ++j) {
+                        split_used_later = statement_mentions_name(
+                            *statements[j], split_sequence_binding->name);
+                    }
+                }
+                if (split_sequence_binding &&
+                    lower_bound_string_split_for_pair(
+                        *statements[i], *statements[i + 1],
+                        split_used_later)) {
+                    ++i;
+                    if (terminated()) break;
+                    continue;
+                }
+            }
             if (i + 3 < statements.size()) {
                 const auto* fields_binding =
                     std::get_if<BindingStmt>(&statements[i]->data);

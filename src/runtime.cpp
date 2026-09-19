@@ -5486,17 +5486,44 @@ extern "C" void* quidra_neural_binary_scalar(
 }
 
 
-TensorValue* neural_device_dense_clone(
-    const TensorValue& value,unsigned long long line,unsigned long long column) {
-    if(tensor_on_cpu(*value.storage))
-        neural_fail("internal neural GPU path received a CPU tensor",line,column);
-    if(tensor_is_contiguous_value(value)&&value.offset==0)
-        return static_cast<TensorValue*>(
-            quidra_tensor_clone(const_cast<TensorValue*>(&value)));
-    auto* storage=tensor_gpu_materialize_storage(value,line,column);
-    auto strides=tensor_contiguous_strides(value.shape);
-    return tensor_descriptor(storage,value.shape,std::move(strides),0);
-}
+class NeuralDeviceDenseInput {
+public:
+    NeuralDeviceDenseInput()=default;
+    NeuralDeviceDenseInput(
+        const TensorValue& value,unsigned long long line,unsigned long long column) {
+        reset(value,line,column);
+    }
+    NeuralDeviceDenseInput(const NeuralDeviceDenseInput&)=delete;
+    NeuralDeviceDenseInput& operator=(const NeuralDeviceDenseInput&)=delete;
+    ~NeuralDeviceDenseInput() {
+        if(owned_) quidra_tensor_drop(owned_);
+    }
+
+    void reset(
+        const TensorValue& value,unsigned long long line,unsigned long long column) {
+        if(owned_) {
+            quidra_tensor_drop(owned_);
+            owned_=nullptr;
+        }
+        if(tensor_on_cpu(*value.storage))
+            neural_fail("internal neural GPU path received a CPU tensor",line,column);
+        if(tensor_is_contiguous_value(value)&&value.offset==0){
+            value_=&value;
+            return;
+        }
+        auto* storage=tensor_gpu_materialize_storage(value,line,column);
+        owned_=tensor_descriptor(
+            storage,value.shape,tensor_contiguous_strides(value.shape),0);
+        value_=owned_;
+    }
+
+    const TensorValue* get() const { return value_; }
+    const TensorValue* operator->() const { return value_; }
+
+private:
+    const TensorValue* value_{};
+    TensorValue* owned_{};
+};
 
 TensorValue* neural_device_binary_tensor(
     TensorValue* left,TensorValue* right,int operation,
@@ -5509,13 +5536,11 @@ void neural_device_binary_backward(
     TensorValue* gradient,TensorValue* left,TensorValue* right,int operation,
     TensorValue*& left_gradient,TensorValue*& right_gradient,
     unsigned long long line,unsigned long long column) {
-    auto* gd=neural_device_dense_clone(*gradient,line,column);
-    auto* ad=neural_device_dense_clone(*left,line,column);
-    auto* bd=neural_device_dense_clone(*right,line,column);
-    if(gd->shape!=ad->shape||gd->shape!=bd->shape){
-        quidra_tensor_drop(gd);quidra_tensor_drop(ad);quidra_tensor_drop(bd);
+    NeuralDeviceDenseInput gd(*gradient,line,column);
+    NeuralDeviceDenseInput ad(*left,line,column);
+    NeuralDeviceDenseInput bd(*right,line,column);
+    if(gd->shape!=ad->shape||gd->shape!=bd->shape)
         neural_fail("neural binary backward shape mismatch",line,column);
-    }
     const auto count=tensor_logical_count(*gd);
     auto* left_storage=tensor_storage_create(
         gd->storage->dtype,count,1,gd->storage->device,line,column);
@@ -5531,7 +5556,7 @@ void neural_device_binary_backward(
         left_storage->gpu_buffer,right_storage->gpu_buffer,
         gd->storage->gpu_buffer,ad->storage->gpu_buffer,bd->storage->gpu_buffer,
         gd->storage->dtype,operation,count,backend_error);
-    quidra_tensor_drop(gd);quidra_tensor_drop(ad);quidra_tensor_drop(bd);
+
     if(!ok){
         quidra_tensor_drop(left_gradient);
         quidra_tensor_drop(right_gradient);
@@ -5706,16 +5731,14 @@ void* neural_grad_device(
             }else if(operation==2){
                 result=neural_device_negate_tensor(g,line,column);
             }else{
-                auto* gd=neural_device_dense_clone(*g,line,column);
-                TensorValue* xd=nullptr;
-                const TensorValue* input_dense=gd;
+                NeuralDeviceDenseInput gd(*g,line,column);
+                NeuralDeviceDenseInput xd;
+                const TensorValue* input_dense=gd.get();
                 if(operation==4&&scalar_left){
-                    xd=neural_device_dense_clone(*input->device_tensor,line,column);
-                    input_dense=xd;
-                    if(gd->shape!=xd->shape){
-                        quidra_tensor_drop(gd);quidra_tensor_drop(xd);
+                    xd.reset(*input->device_tensor,line,column);
+                    input_dense=xd.get();
+                    if(gd->shape!=xd->shape)
                         neural_fail("neural scalar backward shape mismatch",line,column);
-                    }
                 }
                 const auto count=tensor_logical_count(*gd);
                 auto* storage=tensor_storage_create(
@@ -5727,8 +5750,6 @@ void* neural_grad_device(
                     storage->gpu_buffer,gd->storage->gpu_buffer,
                     input_dense->storage->gpu_buffer,node->dtype,operation,
                     scalar_left,node->aux.scalar_as_double(0),count,backend_error);
-                quidra_tensor_drop(gd);
-                if(xd)quidra_tensor_drop(xd);
                 if(!ok){
                     quidra_tensor_drop(result);
                     neural_fail(backend_error.c_str(),line,column);
@@ -5738,8 +5759,8 @@ void* neural_grad_device(
                 gradients,input,result,line,column);
         }else if(node->op==NeuralOp::Absolute){
             const auto& input=node->parents[0];
-            auto* gd=neural_device_dense_clone(*g,line,column);
-            auto* xd=neural_device_dense_clone(*input->device_tensor,line,column);
+            NeuralDeviceDenseInput gd(*g,line,column);
+            NeuralDeviceDenseInput xd(*input->device_tensor,line,column);
             const auto count=tensor_logical_count(*xd);
             auto* storage=tensor_storage_create(
                 node->dtype,count,1,xd->storage->device,line,column);
@@ -5749,7 +5770,6 @@ void* neural_grad_device(
             const bool ok=quidra::device::compute_abs_backward(
                 storage->gpu_buffer,gd->storage->gpu_buffer,xd->storage->gpu_buffer,
                 node->dtype,count,backend_error);
-            quidra_tensor_drop(gd);quidra_tensor_drop(xd);
             if(!ok){
                 quidra_tensor_drop(result);
                 neural_fail(backend_error.c_str(),line,column);
@@ -5769,7 +5789,7 @@ void* neural_grad_device(
         }else if(node->op==NeuralOp::Mean){
             const auto& input=node->parents[0];
             const auto count=neural_node_count(*input);
-            auto* gd=neural_device_dense_clone(*g,line,column);
+            NeuralDeviceDenseInput gd(*g,line,column);
             auto* storage=tensor_storage_create(
                 node->dtype,count,1,input->device_tensor->storage->device,line,column);
             auto strides=tensor_contiguous_strides(input->shape);
@@ -5777,7 +5797,6 @@ void* neural_grad_device(
             std::string backend_error;
             const bool ok=quidra::device::compute_mean_backward(
                 storage->gpu_buffer,gd->storage->gpu_buffer,node->dtype,count,backend_error);
-            quidra_tensor_drop(gd);
             if(!ok){
                 quidra_tensor_drop(result);
                 neural_fail(backend_error.c_str(),line,column);
@@ -5788,7 +5807,7 @@ void* neural_grad_device(
             const auto& input=node->parents[0];
             const auto count=neural_node_count(*input);
             const auto width=static_cast<std::size_t>(input->shape.back());
-            auto* gd=neural_device_dense_clone(*g,line,column);
+            NeuralDeviceDenseInput gd(*g,line,column);
             auto* storage=tensor_storage_create(
                 node->dtype,count,1,input->device_tensor->storage->device,line,column);
             auto strides=tensor_contiguous_strides(input->shape);
@@ -5797,7 +5816,6 @@ void* neural_grad_device(
             const bool ok=quidra::device::compute_last_reduce_broadcast(
                 storage->gpu_buffer,gd->storage->gpu_buffer,node->dtype,
                 count,width,1,backend_error);
-            quidra_tensor_drop(gd);
             if(!ok){
                 quidra_tensor_drop(result);
                 neural_fail(backend_error.c_str(),line,column);
@@ -5808,8 +5826,8 @@ void* neural_grad_device(
             const auto& input=node->parents[0];
             const auto count=neural_node_count(*input);
             const auto width=static_cast<std::size_t>(input->shape.back());
-            auto* gd=neural_device_dense_clone(*g,line,column);
-            auto* xd=neural_device_dense_clone(*input->device_tensor,line,column);
+            NeuralDeviceDenseInput gd(*g,line,column);
+            NeuralDeviceDenseInput xd(*input->device_tensor,line,column);
             auto* storage=tensor_storage_create(
                 node->dtype,count,1,input->device_tensor->storage->device,line,column);
             auto strides=tensor_contiguous_strides(input->shape);
@@ -5818,7 +5836,6 @@ void* neural_grad_device(
             const bool ok=quidra::device::compute_max_last_backward(
                 storage->gpu_buffer,gd->storage->gpu_buffer,xd->storage->gpu_buffer,
                 node->dtype,count,width,backend_error);
-            quidra_tensor_drop(gd);quidra_tensor_drop(xd);
             if(!ok){
                 quidra_tensor_drop(result);
                 neural_fail(backend_error.c_str(),line,column);
@@ -5834,9 +5851,9 @@ void* neural_grad_device(
             const auto features_in=static_cast<std::size_t>(weight->shape[1]);
             const auto features_out=static_cast<std::size_t>(weight->shape[0]);
             const auto batches=features_in==0?0:neural_node_count(*input)/features_in;
-            auto* gd=neural_device_dense_clone(*g,line,column);
-            auto* id=neural_device_dense_clone(*input->device_tensor,line,column);
-            auto* wd=neural_device_dense_clone(*weight->device_tensor,line,column);
+            NeuralDeviceDenseInput gd(*g,line,column);
+            NeuralDeviceDenseInput id(*input->device_tensor,line,column);
+            NeuralDeviceDenseInput wd(*weight->device_tensor,line,column);
             auto* input_storage=tensor_storage_create(
                 node->dtype,neural_node_count(*input),1,
                 input->device_tensor->storage->device,line,column);
@@ -5860,7 +5877,6 @@ void* neural_grad_device(
                 input_storage->gpu_buffer,weight_storage->gpu_buffer,bias_storage->gpu_buffer,
                 gd->storage->gpu_buffer,id->storage->gpu_buffer,wd->storage->gpu_buffer,
                 node->dtype,batches,features_in,features_out,backend_error);
-            quidra_tensor_drop(gd);quidra_tensor_drop(id);quidra_tensor_drop(wd);
             if(!ok){
                 quidra_tensor_drop(input_result);
                 quidra_tensor_drop(weight_result);
@@ -5883,9 +5899,9 @@ void* neural_grad_device(
                 neural_fail("invalid GPU convolution graph storage",line,column);
             if(input->shape.size()!=4||weight->shape.size()!=4||node->shape.size()!=4)
                 neural_fail("invalid GPU convolution graph shape",line,column);
-            auto* gd=neural_device_dense_clone(*g,line,column);
-            auto* id=neural_device_dense_clone(*input->device_tensor,line,column);
-            auto* wd=neural_device_dense_clone(*weight->device_tensor,line,column);
+            NeuralDeviceDenseInput gd(*g,line,column);
+            NeuralDeviceDenseInput id(*input->device_tensor,line,column);
+            NeuralDeviceDenseInput wd(*weight->device_tensor,line,column);
             const auto input_count=tensor_logical_count(*input->device_tensor);
             const auto weight_count=tensor_logical_count(*weight->device_tensor);
             const auto bias_count=tensor_logical_count(*bias->device_tensor);
@@ -5916,7 +5932,6 @@ void* neural_grad_device(
                 static_cast<std::size_t>(node->shape[2]),
                 static_cast<std::size_t>(node->shape[3]),
                 node->aux_index[0],node->aux_index[1],backend_error);
-            quidra_tensor_drop(gd);quidra_tensor_drop(id);quidra_tensor_drop(wd);
             if(!ok){
                 quidra_tensor_drop(input_result);
                 quidra_tensor_drop(weight_result);
@@ -5938,10 +5953,10 @@ void* neural_grad_device(
             const auto layout=neural_normalize_layout(input->shape,count,line,column);
             if(node->aux_index.size()!=1||node->aux_index[0]!=layout.samples)
                 neural_fail("normalization backward cache layout mismatch",line,column);
-            auto* gd=neural_device_dense_clone(*g,line,column);
-            auto* id=neural_device_dense_clone(*input->device_tensor,line,column);
-            auto* sd=neural_device_dense_clone(*scale->device_tensor,line,column);
-            auto* cd=neural_device_dense_clone(*node->device_aux,line,column);
+            NeuralDeviceDenseInput gd(*g,line,column);
+            NeuralDeviceDenseInput id(*input->device_tensor,line,column);
+            NeuralDeviceDenseInput sd(*scale->device_tensor,line,column);
+            NeuralDeviceDenseInput cd(*node->device_aux,line,column);
             auto* input_storage=tensor_storage_create(
                 node->dtype,count,1,input->device_tensor->storage->device,line,column);
             auto* scale_storage=tensor_storage_create(
@@ -5960,8 +5975,6 @@ void* neural_grad_device(
                 gd->storage->gpu_buffer,id->storage->gpu_buffer,sd->storage->gpu_buffer,
                 cd->storage->gpu_buffer,node->dtype,count,layout.features,layout.inner,
                 layout.samples,backend_error);
-            quidra_tensor_drop(gd);quidra_tensor_drop(id);
-            quidra_tensor_drop(sd);quidra_tensor_drop(cd);
             if(!ok){
                 quidra_tensor_drop(input_result);
                 quidra_tensor_drop(scale_result);

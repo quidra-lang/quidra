@@ -846,7 +846,7 @@ void rename_expr(
         return;
     }
     if (auto* node = std::get_if<MemberExpr>(&expression.data)) {
-        if (const auto* base = std::get_if<NameExpr>(&node->base->data)) {
+        if (auto* base = std::get_if<NameExpr>(&node->base->data)) {
             if (const auto import = imports.find(base->name); import != imports.end()) {
                 if (const auto value = import->second.exports.values.find(node->name);
                     value != import->second.exports.values.end()) {

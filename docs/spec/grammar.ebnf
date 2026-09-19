@@ -22,7 +22,7 @@ cli_source       = "argument", "(", ")"
 class_decl       = "class", identifier, [ type_parameters ],
                    [ ":", type ], NEWLINE, INDENT,
                    class_member, { class_member | NEWLINE }, DEDENT ;
-class_member     = field | [ "override" ], function ;
+class_member     = [ "private" ], ( field | [ "override" ], function ) ;
 field            = [ "const" ], type, identifier, [ "=", expression ], statement_end ;
 
 function         = type, identifier, [ type_parameters ],
@@ -132,6 +132,9 @@ statement_end    = NEWLINE | EOF ;
      methods do not implicitly become function values;
    - super is only valid as super.method(...) or super.method<T>(...) in a subclass method;
    - class construction is named; fields may have defaults or remain uninitialized;
+   - class members are public by default. private is a class-member-only prefix; private
+     fields remain valid named-construction inputs, while private access is restricted
+     to methods declared by the owning class. For methods, private precedes override;
    - single inheritance, exact override contracts, safe address targets, exhaustive cases,
      field-level initialization, fixed shapes, argument ordering, value equality, and
      no-shadowing are checked statically.

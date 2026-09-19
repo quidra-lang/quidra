@@ -2104,6 +2104,17 @@ class DerivedPrivateOther : BasePrivateOther
     int read(BasePrivateOther other)
         return other.value
 )", "PRIVATE_MEMBER");
+ good_code(R"(class PrivateInit
+    private int value
+    int read()
+        return value
+PrivateInit item = PrivateInit(value = 9)
+print(item.read())
+)");
+ bad_code(R"(class PrivateInit
+    private int value
+PrivateInit item = PrivateInit(other = 9)
+)", "UNKNOWN_ARGUMENT");
  bad_code("class A\n    int x\nclass A\n    int y\n", "DUPLICATE_NAME");
  bad_code(R"(T identity<T>(T value)
     return value

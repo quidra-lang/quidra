@@ -888,7 +888,7 @@ std::optional<Token> identifier_token_at(std::string_view source,std::size_t off
 }
 
 std::optional<SourceSpan> resolved_definition_span(
-    const Program& program,std::string_view source,std::string_view name,std::size_t offset,
+    const Program& program,std::string_view name,std::size_t offset,
     const std::vector<Token>& tokens) {
     if(auto found=definition_span(program,name,offset,tokens)) return found;
 
@@ -925,7 +925,7 @@ std::optional<SourceSpan> resolved_definition_span(
 std::optional<SourceSpan> resolved_definition_span(
     const Program& program,std::string_view source,std::string_view name,std::size_t offset) {
     const auto tokens=Lexer(source).scan();
-    return resolved_definition_span(program,source,name,offset,tokens);
+    return resolved_definition_span(program,name,offset,tokens);
 }
 
 std::vector<SourceSpan> reference_spans(
@@ -1041,7 +1041,7 @@ int identifier_semantic_type(
     }
 
     const auto target=resolved_definition_span(
-        program,source,token.text,token.span.start.offset,tokens);
+        program,token.text,token.span.start.offset,tokens);
     if(!target) {
         for(const auto& import:program.imports) if(import.alias==token.text) return 0;
         for(const auto& declaration:program.classes) if(declaration.name==token.text) return 2;

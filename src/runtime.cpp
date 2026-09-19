@@ -7989,6 +7989,53 @@ extern "C" int quidra_input_read(char** out) {
     return 1;
 }
 
+extern "C" const long long* quidra_string_parse_two_signed(
+    const char* text, unsigned char separator) {
+    thread_local std::array<long long, 3> result{};
+    result[0] = 0;
+    result[1] = 0;
+    result[2] = 0;
+    if (!text || separator == 0) return result.data();
+
+    ManagedAllocation* allocation = nullptr;
+    const auto source = cached_string_view(text, allocation);
+    const auto delimiter = static_cast<char>(separator);
+    const auto first = source.find(delimiter);
+    if (first == std::string_view::npos) return result.data();
+    const auto second = source.find(delimiter, first + 1);
+
+    const auto left_text = source.substr(0, first);
+    const auto right_end =
+        second == std::string_view::npos ? source.size() : second;
+    const auto right_text =
+        source.substr(first + 1, right_end - (first + 1));
+
+    auto parse_canonical = [](std::string_view value, long long& out) {
+        if (value.empty()) return false;
+        long long parsed_value = 0;
+        const auto parsed = std::from_chars(
+            value.data(), value.data() + value.size(), parsed_value, 10);
+        if (parsed.ec != std::errc{} ||
+            parsed.ptr != value.data() + value.size()) {
+            return false;
+        }
+        out = parsed_value;
+        return true;
+    };
+
+    long long left = 0;
+    long long right = 0;
+    if (!parse_canonical(left_text, left) ||
+        !parse_canonical(right_text, right)) {
+        return result.data();
+    }
+
+    result[0] = 1;
+    result[1] = left;
+    result[2] = right;
+    return result.data();
+}
+
 extern "C" bool quidra_parse_signed(const char* text, long long* out) {
     if (!text || !out || !*text) return false;
 

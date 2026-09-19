@@ -1025,7 +1025,7 @@ int declaration_semantic_type(
 }
 
 int identifier_semantic_type(
-    const Program& program,std::string_view source,const Token& token,
+    const Program& program,const Token& token,
     const std::vector<Token>& tokens) {
     if(builtin_scalar_type(token.text)||
        token.text=="auto"||token.text=="void"||token.text=="none"||
@@ -1073,7 +1073,7 @@ std::string semantic_tokens_json(const Program& program,std::string_view source)
         else if(token.kind==TokenKind::Integer||token.kind==TokenKind::Float) type=10;
         else if(is_operator_token(token.kind)) type=11;
         else if(token.kind==TokenKind::Identifier)
-            type=identifier_semantic_type(program,source,token,tokens);
+            type=identifier_semantic_type(program,token,tokens);
         if(!type) continue;
 
         const auto start=lsp_position(source,token.span.start.offset);

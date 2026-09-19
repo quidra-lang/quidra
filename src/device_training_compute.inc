@@ -859,28 +859,25 @@ bool cudnn_conv2d_backward(
     std::lock_guard operation_lock(*operation_mutex);
     const auto mode=dnn_mode();
 
-    CudnnApi::TensorDescriptor x_desc=nullptr,dy_desc=nullptr,dx_desc=nullptr,db_desc=nullptr;
-    CudnnApi::FilterDescriptor w_desc=nullptr,dw_desc=nullptr;
+    // x/dx and w/dw have identical layouts. cuDNN descriptors describe
+    // layout only, so share them instead of allocating duplicate descriptors
+    // for the two gradient destinations on every backward call.
+    CudnnApi::TensorDescriptor x_desc=nullptr,dy_desc=nullptr,db_desc=nullptr;
+    CudnnApi::FilterDescriptor w_desc=nullptr;
     CudnnApi::ConvolutionDescriptor conv_desc=nullptr;
     const auto cleanup=[&]{
         if(x_desc)api.destroy_tensor(x_desc);
         if(dy_desc)api.destroy_tensor(dy_desc);
-        if(dx_desc)api.destroy_tensor(dx_desc);
         if(db_desc)api.destroy_tensor(db_desc);
         if(w_desc)api.destroy_filter(w_desc);
-        if(dw_desc)api.destroy_filter(dw_desc);
         if(conv_desc)api.destroy_convolution(conv_desc);
     };
     if(api.create_tensor(&x_desc)!=0||api.create_tensor(&dy_desc)!=0||
-       api.create_tensor(&dx_desc)!=0||api.create_tensor(&db_desc)!=0||
-       api.create_filter(&w_desc)!=0||api.create_filter(&dw_desc)!=0||
+       api.create_tensor(&db_desc)!=0||api.create_filter(&w_desc)!=0||
        api.create_convolution(&conv_desc)!=0){cleanup();return false;}
     constexpr int nchw=0,cross_correlation=1;
     const int data_type=dtype==10?0:1;
     if(api.set_tensor4d(x_desc,nchw,data_type,static_cast<int>(batches),
-                        static_cast<int>(channels_in),static_cast<int>(height),
-                        static_cast<int>(width))!=0||
-       api.set_tensor4d(dx_desc,nchw,data_type,static_cast<int>(batches),
                         static_cast<int>(channels_in),static_cast<int>(height),
                         static_cast<int>(width))!=0||
        api.set_tensor4d(dy_desc,nchw,data_type,static_cast<int>(batches),
@@ -888,9 +885,6 @@ bool cudnn_conv2d_backward(
                         static_cast<int>(output_w))!=0||
        api.set_tensor4d(db_desc,nchw,data_type,1,static_cast<int>(channels_out),1,1)!=0||
        api.set_filter4d(w_desc,data_type,nchw,static_cast<int>(channels_out),
-                        static_cast<int>(channels_in),static_cast<int>(kernel_h),
-                        static_cast<int>(kernel_w))!=0||
-       api.set_filter4d(dw_desc,data_type,nchw,static_cast<int>(channels_out),
                         static_cast<int>(channels_in),static_cast<int>(kernel_h),
                         static_cast<int>(kernel_w))!=0||
        api.set_convolution2d(conv_desc,static_cast<int>(padding),static_cast<int>(padding),
@@ -926,14 +920,14 @@ bool cudnn_conv2d_backward(
         int data_returned=0;
         const auto query=(!deterministic&&api.find_bwd_data_algorithms)
             ?api.find_bwd_data_algorithms:api.get_bwd_data_algorithms;
-        if(query(handle,w_desc,dy_desc,conv_desc,dx_desc,
+        if(query(handle,w_desc,dy_desc,conv_desc,x_desc,
                  static_cast<int>(data_perf.size()),&data_returned,data_perf.data())!=0||
            data_returned<=0){cleanup();return false;}
         for(int i=0;i<data_returned;++i){
             const auto& p=data_perf[static_cast<std::size_t>(i)];
             if(p.status!=0||(deterministic&&p.determinism!=1))continue;
             std::size_t bytes=0;
-            if(api.get_bwd_data_workspace(handle,w_desc,dy_desc,conv_desc,dx_desc,p.algo,&bytes)!=0)continue;
+            if(api.get_bwd_data_workspace(handle,w_desc,dy_desc,conv_desc,x_desc,p.algo,&bytes)!=0)continue;
             std::string workspace_error;
             const auto ws=bytes
                 ?api.workspace(input_gradient->backend_index,bytes,workspace_error):0;
@@ -952,7 +946,7 @@ bool cudnn_conv2d_backward(
         int filter_returned=0;
         const auto query=(!deterministic&&api.find_bwd_filter_algorithms)
             ?api.find_bwd_filter_algorithms:api.get_bwd_filter_algorithms;
-        if(query(handle,x_desc,dy_desc,conv_desc,dw_desc,
+        if(query(handle,x_desc,dy_desc,conv_desc,w_desc,
                  static_cast<int>(filter_perf.size()),&filter_returned,filter_perf.data())!=0||
            filter_returned<=0){
             cleanup();
@@ -962,7 +956,7 @@ bool cudnn_conv2d_backward(
             const auto& p=filter_perf[static_cast<std::size_t>(i)];
             if(p.status!=0||(deterministic&&p.determinism!=1))continue;
             std::size_t bytes=0;
-            if(api.get_bwd_filter_workspace(handle,x_desc,dy_desc,conv_desc,dw_desc,p.algo,&bytes)!=0)continue;
+            if(api.get_bwd_filter_workspace(handle,x_desc,dy_desc,conv_desc,w_desc,p.algo,&bytes)!=0)continue;
             std::string workspace_error;
             const auto ws=bytes
                 ?api.workspace(input_gradient->backend_index,bytes,workspace_error):0;
@@ -1003,20 +997,20 @@ bool cudnn_conv2d_backward(
         const float one=1.0f,zero=0.0f;
         status=api.convolution_backward_data(handle,&one,w_desc,ptr(weight),dy_desc,
             ptr(gradient),conv_desc,data_algo,shared_ws_ptr,data_ws_bytes,&zero,
-            dx_desc,mut(input_gradient));
+            x_desc,mut(input_gradient));
         if(status==0)status=api.convolution_backward_filter(handle,&one,x_desc,ptr(input),
             dy_desc,ptr(gradient),conv_desc,filter_algo,shared_ws_ptr,filter_ws_bytes,
-            &zero,dw_desc,mut(weight_gradient));
+            &zero,w_desc,mut(weight_gradient));
         if(status==0)status=api.convolution_backward_bias(handle,&one,dy_desc,ptr(gradient),
             &zero,db_desc,mut(bias_gradient));
     }else{
         const double one=1.0,zero=0.0;
         status=api.convolution_backward_data(handle,&one,w_desc,ptr(weight),dy_desc,
             ptr(gradient),conv_desc,data_algo,shared_ws_ptr,data_ws_bytes,&zero,
-            dx_desc,mut(input_gradient));
+            x_desc,mut(input_gradient));
         if(status==0)status=api.convolution_backward_filter(handle,&one,x_desc,ptr(input),
             dy_desc,ptr(gradient),conv_desc,filter_algo,shared_ws_ptr,filter_ws_bytes,
-            &zero,dw_desc,mut(weight_gradient));
+            &zero,w_desc,mut(weight_gradient));
         if(status==0)status=api.convolution_backward_bias(handle,&one,dy_desc,ptr(gradient),
             &zero,db_desc,mut(bias_gradient));
     }

@@ -113,6 +113,17 @@ Network is disabled unless a Task Packet explicitly allows it, and the scored sa
 
 Timing warm-ups, repetitions, cache policy and recovery are frozen before measurement and applied symmetrically.
 
+Decoding parameters are frozen the same way. `primary.json` holds the sampling
+temperature every scored request uses, and both worker paths read it from there;
+`preflight` rejects a missing or out-of-range value. Leaving it to a provider
+default would let a change in sampling behaviour reach every scored trial without
+appearing in any diff of the benchmark's parameters. The gateway records the
+temperature of each brokered request, so a finished run carries evidence of how
+it was decoded rather than an assumption. Deterministic decoding is what the LLM
+Proficiency and LLM Learnability specifications assume: both require duplicate
+outputs across independent trials to be preserved and reported rather than
+disguised with ad-hoc prompt noise.
+
 ## 12. Privacy and retention
 
 Privacy scanning is required before dispatch, before finalization, and once more over the exact retained set before import. Keep machine-readable final results, exact prompts/hashes, run identity, required raw measurements/audits, leaf outputs, frozen manifest/ledger/plans and runner command results. Drop caches/intermediates, the evaluated source snapshot, template copy, temporary home/files, micro build products and personal/host-specific data.

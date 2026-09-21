@@ -750,6 +750,7 @@ class GatewayHandler(socketserver.StreamRequestHandler):
                 "task_id": validated["task_id"],
                 "provider": state.provider.describe().get("id"),
                 "network_allowed": validated["network_allowed"],
+                "temperature": validated["temperature"],
                 "elapsed_seconds": round(elapsed, 3),
                 "response_sha256": sha256_text(content),
                 "usage": usage,

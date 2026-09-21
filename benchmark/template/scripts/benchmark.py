@@ -1583,6 +1583,10 @@ def cmd_preflight(args: argparse.Namespace) -> int:
                 problems.append("primary_config_gateway_protocol_mismatch")
             if worker_iso.get("sandbox_provider_credentials") != "forbidden":
                 problems.append("primary_config_sandbox_provider_credentials_mismatch")
+            try:
+                sampling_config(root)
+            except BenchmarkError as exc:
+                problems.append(f"primary_config_sampling_invalid:{exc}")
         except Exception as exc:
             problems.append(f"primary_config_invalid:{exc}")
     if config.exists() and run:
@@ -3056,6 +3060,25 @@ def extract_markdown_sections(content: str, selectors: list[str]) -> str:
 
 
 
+def sampling_config(root: Path) -> dict[str, Any]:
+    """Frozen decoding parameters for scored inference.
+
+    These belong in the frozen configuration, not in a client default: a silent
+    provider default once changed every scored trial's sampling behaviour without
+    appearing in any diff of the benchmark's parameters.
+    """
+    cfg = json_load(root / "template" / "config" / "primary.json")
+    sampling = cfg.get("sampling")
+    if not isinstance(sampling, dict):
+        raise BenchmarkError("primary config is missing the frozen sampling section")
+    temperature = sampling.get("temperature")
+    if not isinstance(temperature, (int, float)) or isinstance(temperature, bool):
+        raise BenchmarkError("frozen sampling temperature must be a number")
+    if not 0.0 <= float(temperature) <= 2.0:
+        raise BenchmarkError(f"frozen sampling temperature is out of range: {temperature}")
+    return {"temperature": float(temperature)}
+
+
 def worker_isolation_config(root: Path) -> dict[str, Any]:
     cfg = json_load(root / "template" / "config" / "primary.json")
     worker = cfg.get("worker_isolation", {})
@@ -3264,6 +3287,7 @@ def cmd_task_infer(args: argparse.Namespace) -> int:
     ).decode("utf-8")
 
     config = gateway_config(root)
+    sampling = sampling_config(root)
     client_module = gateway_client_module()
     socket_path = args.socket or str(gateway_socket_path(root, config))
     client = client_module.InferenceGatewayClient(socket_path, timeout=float(args.timeout))
@@ -3290,6 +3314,7 @@ def cmd_task_infer(args: argparse.Namespace) -> int:
             ],
             task_id=args.id,
             max_output_tokens=int(args.max_output_tokens),
+            temperature=sampling["temperature"],
             network_allowed=bool(meta.get("network_allowed")),
         )
     except client_module.GatewayRefusal as exc:

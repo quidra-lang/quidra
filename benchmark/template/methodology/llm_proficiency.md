@@ -37,7 +37,7 @@ The frozen Primary configuration overrides only replication/execution counts. Ev
 
 ## 6.2 Fixed LLM Execution Configuration
 
-All LLM Proficiency replication counts are read **only** from `./.quidra-benchmark/template/config/primary.json`. Do not hardcode an alternate trial count in prompts, scripts or reports.
+All LLM Proficiency replication counts are read **only** from `/quidra-benchmark/template/config/primary.json`. Do not hardcode an alternate trial count in prompts, scripts or reports.
 
 Binding controls:
 

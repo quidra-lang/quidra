@@ -133,9 +133,23 @@ jobs:
           assert "deterministic-plan" in master
           assert "benchmark.py prepare" in master
           assert "Past run directories" in master
-          assert "/quidra-benchmark" not in master
-          assert str(module.DEFAULT_WORKSPACE) == ".quidra-benchmark"
+          assert str(module.DEFAULT_WORKSPACE) == "/quidra-benchmark"
+          assert str(module.HOST_WORKSPACE) == ".quidra-benchmark"
           assert "/.quidra-benchmark/" in Path(".gitignore").read_text()
+          primary_cfg = json.loads((root / "config" / "primary.json").read_text())
+          assert primary_cfg["workspace_root"] == "/quidra-benchmark"
+          sample = "read /quidra-benchmark/repo only"
+          assert module.render_workspace_paths(sample, Path("/tmp/host-a")) == sample
+          assert module.render_workspace_paths(sample, Path("/tmp/host-b")) == sample
+          assert module.render_workspace_paths(
+              "read ./.quidra-benchmark/repo only", Path("/Users/example/project")
+          ) == sample
+          assert module.privacy_match_is_safe(
+              "host_temp_path", "/quidra-benchmark/repo", Path("/quidra-benchmark")
+          )
+          assert not module.privacy_match_is_safe(
+              "unix_home", "/Users/example/", Path("/Users/example/project/.quidra-benchmark")
+          )
           assert len(master) < 20_000
 
           lq = (root / "methodology" / "language_quality.md").read_text()
@@ -601,11 +615,45 @@ jobs:
           rm -rf "$TMP"
 
 
+      - name: Exercise host staging bootstrap
+        run: |
+          rm -rf .quidra-benchmark
+          git checkout -B develop "$GITHUB_SHA"
+          OUTSIDE="$RUNNER_TEMP/quidra-benchmark-cwd"
+          rm -rf "$OUTSIDE"
+          mkdir -p "$OUTSIDE"
+          (
+            cd "$OUTSIDE"
+            python "$GITHUB_WORKSPACE/benchmark/template/scripts/benchmark.py" init \
+              --source-repo "$GITHUB_WORKSPACE" --sandbox-mode external-sandbox
+          )
+          test -f "$GITHUB_WORKSPACE/.quidra-benchmark/run.json"
+          test ! -e "$OUTSIDE/.quidra-benchmark"
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          run = json.loads(Path(".quidra-benchmark/run.json").read_text())
+          assert run["workspace_root"] == "/quidra-benchmark"
+          assert "/Users/" not in json.dumps(run)
+          assert "/home/" not in json.dumps(run)
+          PY
+          git check-ignore -q .quidra-benchmark/run.json
+          rm -rf .quidra-benchmark
+
       - name: Exercise finalized run import and cleanup
         run: |
-          RUN="$PWD/.benchmark-post-run"
           REPO="$PWD/.benchmark-post-run-repo"
-          rm -rf "$RUN" "$REPO"
+          rm -rf "$REPO"
+          mkdir -p "$REPO/benchmark"
+          git -C "$REPO" init -b develop
+          git -C "$REPO" config user.name "Benchmark CI"
+          git -C "$REPO" config user.email "benchmark-ci@example.invalid"
+          echo synthetic > "$REPO/README.md"
+          echo '/.quidra-benchmark/' > "$REPO/.gitignore"
+          git -C "$REPO" add README.md .gitignore
+          git -C "$REPO" commit -m init
+
+          RUN="$REPO/.quidra-benchmark"
           mkdir -p \
             "$RUN/results" "$RUN/raw" "$RUN/prompts/by-hash" \
             "$RUN/work/agents/worker-a" "$RUN/work/root/plans" "$RUN/work/root/commands/cmd-a"
@@ -613,28 +661,21 @@ jobs:
           {
             "schema_version": 1,
             "run_id": "synthetic-post-run",
+            "workspace_root": "/quidra-benchmark",
             "evaluated": {"commit_sha": "deadbeef"}
           }
           JSON
           echo '{"ok":true}' > "$RUN/results/finalization.json"
           echo '{"raw":true}' > "$RUN/raw/sample.json"
-          echo 'prompt' > "$RUN/prompts/by-hash/sample.md"
+          echo 'prompt /quidra-benchmark/repo' > "$RUN/prompts/by-hash/sample.md"
           echo '{"schema_version":1}' > "$RUN/work/agents/worker-a/result.json"
           echo '{"schema_version":1}' > "$RUN/work/root/manifest.json"
           echo '{"schema_version":1}' > "$RUN/work/root/ledger.json"
           echo '{"schema_version":1}' > "$RUN/work/root/plans/language_quality.json"
           echo '{"schema_version":1}' > "$RUN/work/root/commands/cmd-a/result.json"
 
-          mkdir -p "$REPO/benchmark"
-          git -C "$REPO" init -b develop
-          git -C "$REPO" config user.name "Benchmark CI"
-          git -C "$REPO" config user.email "benchmark-ci@example.invalid"
-          echo synthetic > "$REPO/README.md"
-          git -C "$REPO" add README.md
-          git -C "$REPO" commit -m init
-
           python benchmark/template/scripts/benchmark.py post-run \
-            --workspace "$RUN" --source-repo "$REPO"
+            --source-repo "$REPO"
 
           test ! -e "$RUN"
           OUT="$REPO/benchmark/synthetic-post-run"
@@ -650,19 +691,6 @@ jobs:
           test ! -e "$OUT/home"
           rm -rf "$REPO"
 
-      - name: Exercise default local workspace bootstrap
-        run: |
-          rm -rf .quidra-benchmark
-          python benchmark/template/scripts/benchmark.py init \
-            --source-repo . --sandbox-mode external-sandbox
-          test -f .quidra-benchmark/run.json
-          python - <<'PY'
-          from pathlib import Path
-          import json
-          run = json.loads(Path(".quidra-benchmark/run.json").read_text())
-          assert run["workspace_root"].endswith("/.quidra-benchmark")
-          PY
-          rm -rf .quidra-benchmark
 
       - name: Exercise full five-Primary synthetic completion
         run: |

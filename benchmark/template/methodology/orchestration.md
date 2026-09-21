@@ -6,7 +6,7 @@ This file is for the root benchmark orchestrator. Leaf workers do not read it.
 
 A new run uses only the evaluated Quidra checkout plus the current `benchmark/master_prompt.md` and `benchmark/template/`. Past run directories are not valid inputs.
 
-Trusted `init` requires a clean `develop` checkout, records the exact commit identity, and copies only Git-tracked current source/template content into `./.quidra-benchmark`.
+Trusted `init` requires a clean `develop` checkout, records the exact commit identity, and copies only Git-tracked current source/template content into the Git-ignored host staging directory `<source-repo>/.quidra-benchmark`. The outer runner then maps that physical directory to the canonical sandbox root `/quidra-benchmark` before any scored or delegated work begins.
 
 ## 2. Deterministic planning
 

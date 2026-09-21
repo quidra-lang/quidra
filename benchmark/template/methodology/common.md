@@ -12,7 +12,7 @@ Within a worker Task Packet, precedence is:
 
 The split specifications are complete for new runs. New runs must not read historical run directories as input, and workers must not depend on the root conversation.
 
-The evaluated source visible to workers is the immutable snapshot at `./.quidra-benchmark/repo`. Use only the fixed 10-language comparison set. Never change a condition selectively for Quidra.
+The evaluated source visible to workers is the immutable snapshot at `/quidra-benchmark/repo`. Use only the fixed 10-language comparison set. Never change a condition selectively for Quidra.
 
 # 3. Fixed Comparison Languages
 

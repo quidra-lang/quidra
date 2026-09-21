@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "workspace_root": "./.quidra-benchmark",
+  "workspace_root": "/quidra-benchmark",
   "primary_first": true,
   "extended_only_after_primary": true,
   "timing": {
@@ -84,7 +84,7 @@
   },
   "privacy": {
     "sandbox_visible_root_only": true,
-    "allowed_absolute_path_prefix": "./.quidra-benchmark/",
+    "allowed_absolute_path_prefix": "/quidra-benchmark/",
     "forbid_personal_email_in_retained_artifacts": true,
     "forbid_host_home_paths_in_retained_artifacts": true,
     "environment_allowlist_required": true

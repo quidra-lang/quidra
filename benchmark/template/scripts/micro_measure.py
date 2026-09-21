@@ -75,7 +75,7 @@ def root_from(value: str) -> Path:
 
 def synthetic_mode(root: Path) -> bool:
     return (
-        root.name != ".quidra-benchmark"
+        root != Path("/quidra-benchmark").resolve()
         and os.environ.get("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS") == "1"
     )
 
@@ -855,7 +855,7 @@ def measure(root: Path, unit_id: str) -> int:
         dump_json(out_dir / "micro_raw.json", {
             "schema_version": 1,
             "synthetic_ci": True,
-            "note": "Orchestration-only CI path; never enabled at ./.quidra-benchmark.",
+            "note": "Orchestration-only CI path; never enabled at /quidra-benchmark.",
         })
         dump_json(out_dir / "result.json", {
             "schema_version": 1,

@@ -28,19 +28,31 @@ Each Primary evaluation has its own score and ranking only when its scientific/i
 
 ## 3. Sandbox
 
-All agents and scored processes run inside a real filesystem sandbox rooted at `./.quidra-benchmark`.
+All agents and scored processes run inside a real filesystem sandbox rooted at `/quidra-benchmark`.
 
-The evaluated source is `./.quidra-benchmark/repo`; the immutable current template is `./.quidra-benchmark/template`. Host home directories, credentials, unrelated repositories and untracked host files must not be visible.
+The trusted host-side staging directory is `<source-repo>/.quidra-benchmark`. It is ignored by Git and is never the path exposed to workers. The outer runner maps that physical directory into the sandbox as exactly `/quidra-benchmark`; prompt text, run metadata, attestations and retained artifacts use only the canonical sandbox path. Merely changing a path string or environment variable does not satisfy the isolation requirement.
+
+The evaluated source is `/quidra-benchmark/repo`; the immutable current template is `/quidra-benchmark/template`. Host home directories, credentials, unrelated repositories and untracked host files must not be visible.
 
 ## 4. Command-first lifecycle
 
-Mechanical work belongs to the CLI, not to an LLM:
+Trusted host bootstrap happens before the sandbox exists:
 
 ```bash
-python3 ./.quidra-benchmark/template/scripts/benchmark.py <command>
+cd <source-repo>
+python3 benchmark/template/scripts/benchmark.py init \
+  --source-repo . --sandbox-mode <container|chroot|namespace|external-sandbox>
 ```
 
-Canonical lifecycle:
+This stages only Git-tracked inputs under `./.quidra-benchmark`. The outer runner must then map that directory to `/quidra-benchmark` inside the real isolation boundary and inject matching sandbox attestation.
+
+After that mapping, mechanical and scored work belongs to the sandbox CLI, not to an LLM:
+
+```bash
+python3 /quidra-benchmark/template/scripts/benchmark.py <command>
+```
+
+Canonical in-sandbox lifecycle:
 
 ```bash
 benchmark.py prepare
@@ -84,9 +96,7 @@ benchmark.py post-run --source-repo /path/to/trusted/quidra-checkout
 ```
 
 `post-run` is a trusted outer-runner operation after the scored sandbox work is over.
-It copies only compact retained run artifacts into `benchmark/<run-id>/` in a clean
-local `develop` checkout, verifies every copied file by SHA-256, and only then
-deletes `./.quidra-benchmark`. The checkout is never exposed to leaf workers.
+After the scored sandbox has exited, it copies only compact retained run artifacts from the host-side `<source-repo>/.quidra-benchmark` staging directory into `benchmark/<run-id>/` in a clean local `develop` checkout, verifies every copied file by SHA-256, and only then deletes that host staging directory. The checkout is never exposed to leaf workers.
 
 ## 5. LLMs only where judgment is required
 
@@ -134,6 +144,6 @@ Template maintenance happens before freeze or after finalization.
 
 Machine-readable results are the single source of truth. Markdown/CSV/charts are generated from them.
 
-Retain only compact reproducible run artifacts. The retained set is limited to run identity, results, required raw evidence, exact prompts, leaf outputs, frozen plans/manifest/ledger, and runner command results. Build caches, the evaluated repository snapshot, template copy, temporary home, temporary files and micro build products are not imported. Never retain credentials, personal email addresses, host home paths or source-checkout paths outside `./.quidra-benchmark`.
+Retain only compact reproducible run artifacts. The retained set is limited to run identity, results, required raw evidence, exact prompts, leaf outputs, frozen plans/manifest/ledger, and runner command results. Build caches, the evaluated repository snapshot, template copy, temporary home, temporary files and micro build products are not imported. Never retain credentials, personal email addresses, host home paths or source-checkout paths outside `/quidra-benchmark`.
 
 A successful run has attempted all five Primary evaluations, mechanically aggregated every scoreable evaluation, emitted a ranking for every COMPLETE evaluation, recorded exact blockers for all others, and passed reconciliation/privacy/finalization gates.

@@ -25,7 +25,7 @@ The frozen Primary configuration overrides only replication/execution counts. Ev
 
 ## 6.2 Fixed LLM Execution Configuration
 
-All LLM Learnability replication counts are read **only** from `./.quidra-benchmark/template/config/primary.json`. Do not hardcode or infer alternate counts from prose.
+All LLM Learnability replication counts are read **only** from `/quidra-benchmark/template/config/primary.json`. Do not hardcode or infer alternate counts from prose.
 
 Binding controls:
 
@@ -176,7 +176,7 @@ If leakage is discovered after a scored request was sent, all affected scores ar
 
 The primary Learnability score consists of six independently reported subtests.
 
-The Primary replication counts come from `./.quidra-benchmark/template/config/primary.json`, which is the **single source of truth for the run shape**. Generate the cell plan mechanically from that configuration. Do not maintain an independent hand-written scope document with a second copy of seed, transformation-set, trial or generation counts. Any derived plan must be hash-linked back to the frozen config and mechanically checked for exact agreement before scoring.
+The Primary replication counts come from `/quidra-benchmark/template/config/primary.json`, which is the **single source of truth for the run shape**. Generate the cell plan mechanically from that configuration. Do not maintain an independent hand-written scope document with a second copy of seed, transformation-set, trial or generation counts. Any derived plan must be hash-linked back to the frozen config and mechanically checked for exact agreement before scoring.
 
 ### I1. Keyword Anonymization — 20%
 

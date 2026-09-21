@@ -1,20 +1,45 @@
 cmake_minimum_required(VERSION 3.20)
 
+# project.toml is the single source of truth for project metadata. Reading it
+# here, before project(), is what lets every other file derive its values
+# instead of repeating them.
+function(quidra_project_value key output)
+  file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/project.toml" matched
+       REGEX "^${key} = .+$")
+  list(LENGTH matched count)
+  if(NOT count EQUAL 1)
+    message(FATAL_ERROR
+        "project.toml must declare '${key}' exactly once, found ${count}")
+  endif()
+  string(REGEX REPLACE "^${key} = \"?([^\"]*)\"?$" "\\1" value "${matched}")
+  set(${output} "${value}" PARENT_SCOPE)
+endfunction()
+
+quidra_project_value(version QUIDRA_PROJECT_VERSION)
+quidra_project_value(name QUIDRA_PROJECT_NAME)
+quidra_project_value(cli QUIDRA_PROJECT_CLI)
+quidra_project_value(extension QUIDRA_PROJECT_EXTENSION)
+quidra_project_value(language_version QUIDRA_LANGUAGE_VERSION)
+quidra_project_value(tagline QUIDRA_TAGLINE)
+quidra_project_value(abi QUIDRA_ABI_VERSION)
+quidra_project_value(ir QUIDRA_IR_VERSION)
+quidra_project_value(package_schema QUIDRA_PACKAGE_SCHEMA_VERSION)
+
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/quidra.manifest.json" QUIDRA_MANIFEST_JSON)
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/docs/spec/grammar.ebnf" QUIDRA_GRAMMAR_EBNF)
-string(JSON QUIDRA_PROJECT_VERSION GET "${QUIDRA_MANIFEST_JSON}" compiler_version)
-project(quidra VERSION ${QUIDRA_PROJECT_VERSION} LANGUAGES CXX)
+project(${QUIDRA_PROJECT_CLI} VERSION ${QUIDRA_PROJECT_VERSION} LANGUAGES CXX)
 
 if(APPLE)
   enable_language(OBJCXX)
   set_source_files_properties(src/device_backend.cpp PROPERTIES LANGUAGE OBJCXX)
 endif()
 
-# The manifest supplies both the project version and the text `quidra describe`
-# prints, but file(READ) creates no dependency on its own: editing the manifest
-# would otherwise leave a stale copy compiled in until the next reconfigure.
-# The machine-readable grammar is embedded for the same reason.
+# file(READ) and file(STRINGS) create no dependency on their own: editing any of
+# these would otherwise leave a stale copy compiled in until the next
+# reconfigure. The manifest supplies the text `quidra describe` prints and the
+# machine-readable grammar is embedded for the same reason.
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/project.toml"
     "${CMAKE_CURRENT_SOURCE_DIR}/quidra.manifest.json"
     "${CMAKE_CURRENT_SOURCE_DIR}/docs/spec/grammar.ebnf")
 
@@ -42,8 +67,8 @@ if(QUIDRA_WARNINGS_AS_ERRORS)
 endif()
 
 configure_file(
-    include/quidra/version.hpp.in
-    ${CMAKE_CURRENT_BINARY_DIR}/generated/quidra/version.hpp
+    include/quidra/project.hpp.in
+    ${CMAKE_CURRENT_BINARY_DIR}/generated/quidra/project.hpp
     @ONLY
 )
 
@@ -71,6 +96,7 @@ add_library(quidra_core
     src/source_patch.cpp
     src/formatter.cpp
     src/package_manifest.cpp
+    src/toml_subset.cpp
     src/package_lock.cpp
 )
 target_include_directories(quidra_core PUBLIC include ${CMAKE_CURRENT_BINARY_DIR}/generated)
@@ -123,7 +149,7 @@ add_library(quidra_runtime_jit SHARED
     src/runtime_video.cpp
     src/device_backend.cpp
 )
-target_include_directories(quidra_runtime_jit PRIVATE ${CURL_INCLUDE_DIRS} ${WEBP_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIR})
+target_include_directories(quidra_runtime_jit PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated ${CURL_INCLUDE_DIRS} ${WEBP_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIR})
 target_link_libraries(quidra_runtime_jit PRIVATE
     CURL::libcurl PNG::PNG JPEG::JPEG TIFF::TIFF ${WEBP_LIBRARY}
     ${AVFORMAT_LIBRARY} ${AVCODEC_LIBRARY} ${AVUTIL_LIBRARY} ${SWSCALE_LIBRARY})
@@ -171,7 +197,7 @@ if(WIN32)
   set_target_properties(quidra_runtime_jit PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
   target_compile_definitions(quidra_runtime_jit PRIVATE NOMINMAX)
 endif()
-target_include_directories(quidra_runtime PRIVATE ${CURL_INCLUDE_DIRS} ${WEBP_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIR})
+target_include_directories(quidra_runtime PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated ${CURL_INCLUDE_DIRS} ${WEBP_INCLUDE_DIR} ${FFMPEG_INCLUDE_DIR})
 target_link_libraries(quidra_runtime PRIVATE
     PNG::PNG JPEG::JPEG TIFF::TIFF ${WEBP_LIBRARY}
     ${AVFORMAT_LIBRARY} ${AVCODEC_LIBRARY} ${AVUTIL_LIBRARY} ${SWSCALE_LIBRARY})
@@ -332,6 +358,7 @@ if(BUILD_TESTING)
   endif()
   add_test(NAME quidra_documentation_examples COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/documentation_examples.py $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
   add_test(NAME quidra_manifest_registry COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/manifest_registry_tests.py $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
+  add_test(NAME quidra_metadata_ssot COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/metadata_ssot_tests.py)
   add_test(
     NAME quidra_generic_specialization_benchmark_smoke
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tests/generic_specialization_scaling.py

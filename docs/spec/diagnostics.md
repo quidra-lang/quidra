@@ -61,7 +61,7 @@ Codes are contracts for the category of failure. Message wording may become more
 | `NOT_CALLABLE` | A binding is invoked even though its type is not callable. | Call a function/function-value binding instead, or remove the call syntax. |
 | `NUMERIC_CAST` | A statically known explicit numeric cast would change the value. | Choose an exact destination or an operation that states the intended transformation. |
 | `NUMERIC_FAMILY` | Integer-family and real-family literals/expressions are being mixed or materialized across families implicitly. | Keep the expression within one numeric family or write an explicit cast/conversion. |
-| `PACKAGE_COMPATIBILITY` | An installed package's declared Quidra version range does not include the running compiler. | Install a compatible package release or use a compatible Quidra compiler. |
+| `PACKAGE_COMPATIBILITY` | An installed package's declared Quidra version range does not include the running compiler, or the package's declared `requires.abi` is not equal to the compiler's ABI version. | Install a compatible package release or use a compatible Quidra compiler. |
 | `PACKAGE_DEPENDENCY` | A package dependency is missing, malformed, or does not satisfy the declared version requirement. | Install/fix the declared dependency at a compatible version. |
 | `PACKAGE_IMPORT` | An unquoted package name is structurally invalid. | Use a package name containing only ASCII letters, digits, `_`, and `-`. |
 | `PACKAGE_LOCK` | `quidra.lock` cannot be read or parsed, or an installed package tree cannot be hashed. | Correct the lockfile or regenerate it with `quidra lock FILE.qui`. |

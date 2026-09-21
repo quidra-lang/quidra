@@ -935,7 +935,7 @@ bool cudnn_conv2d_backward(
     std::size_t width,std::size_t channels_out,std::size_t kernel_h,
     std::size_t kernel_w,std::size_t output_h,std::size_t output_w,
     std::size_t stride,std::size_t padding) {
-    if(input_gradient->backend!=Backend::Nvidia||(dtype!=9&&dtype!=10))return false;
+    if(input_gradient->backend!=Backend::Cuda||(dtype!=9&&dtype!=10))return false;
     const auto fits=[](std::size_t v){
         return v<=static_cast<std::size_t>(std::numeric_limits<int>::max());
     };
@@ -1114,7 +1114,7 @@ bool compute_conv2d_backward(
     }
 #endif
     const auto launch_counts=std::array<std::size_t,2>{input_count,weight_count};
-    if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Cuda){
         if(cudnn_conv2d_backward(input_gradient,weight_gradient,bias_gradient,
                                  gradient,input,weight,dtype,batches,channels_in,
                                  height,width,channels_out,kernel_h,kernel_w,
@@ -1145,7 +1145,7 @@ bool compute_conv2d_backward(
         }
         return true;
     }
-    if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Hip){
         bool input_tiled=false;
         std::size_t footprint=0;
         bool can_tile=kernel_h!=0&&kernel_w!=0&&
@@ -1321,7 +1321,7 @@ bool compute_normalize_training(
         error="neural.normalize training requires a floating dtype";return false;
     }
 #endif
-    if((dtype==9||dtype==10)&&output->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Cuda){
         auto stats=ptx_normalize_stats_source(dtype);
         auto cache_ptr=cache->cuda_pointer,rm=running_mean->cuda_pointer,rv=running_variance->cuda_pointer,in=input->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count),f=static_cast<std::uint64_t>(features),inn=static_cast<std::uint64_t>(inner),s=static_cast<std::uint64_t>(samples);
@@ -1332,7 +1332,7 @@ bool compute_normalize_training(
         void* apply_args[]={&out,&in,&sc,&bi,&cache_ptr,&n,&f,&inn};
         return launch_ptx_1d(output,"normalize-train-apply-"+std::to_string(dtype),apply,count,apply_args,error);
     }
-    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Hip){
         auto stats=hip_normalize_stats_source(dtype);
         auto cache_ptr=cache->pointer,rm=running_mean->pointer,rv=running_variance->pointer,in=input->pointer;
         auto n=static_cast<std::uint64_t>(count),f=static_cast<std::uint64_t>(features),inn=static_cast<std::uint64_t>(inner),s=static_cast<std::uint64_t>(samples);
@@ -1397,7 +1397,7 @@ bool compute_normalize_backward(
         error="neural.normalize backward requires a floating dtype";return false;
     }
 #endif
-    if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Cuda){
         auto out=input_gradient->cuda_pointer,sg=scale_gradient->cuda_pointer,bg=bias_gradient->cuda_pointer,
              g=gradient->cuda_pointer,in=input->cuda_pointer,sc=scale->cuda_pointer,ca=cache->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count),f=static_cast<std::uint64_t>(features),
@@ -1410,7 +1410,7 @@ bool compute_normalize_backward(
         return launch_ptx_1d(input_gradient,"normalize-backward-input-"+std::to_string(dtype),
                              input_source,count,args,error);
     }
-    if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Hip){
         auto out=input_gradient->pointer,sg=scale_gradient->pointer,bg=bias_gradient->pointer,
              g=gradient->pointer,in=input->pointer,sc=scale->pointer,ca=cache->pointer;
         auto n=static_cast<std::uint64_t>(count),f=static_cast<std::uint64_t>(features),
@@ -1480,14 +1480,14 @@ bool compute_random_mask(
         error="neural.random_mask requires a floating dtype";return false;
     }
 #endif
-    if((dtype==9||dtype==10)&&output->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Cuda){
         auto ptx=ptx_random_mask_source(dtype);
         auto out=output->cuda_pointer,ma=mask->cuda_pointer,in=input->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count),state=initial_state,cut=cutoff;double sc=scale;
         void* args[]={&out,&ma,&in,&n,&state,&cut,&sc};
         return launch_ptx_1d(output,"random-mask-"+std::to_string(dtype),ptx,count,args,error);
     }
-    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Hip){
         auto source=hip_random_mask_source(dtype);
         auto out=output->pointer,ma=mask->pointer,in=input->pointer;
         auto n=static_cast<std::uint64_t>(count),state=initial_state,cut=cutoff;double sc=scale;
@@ -1526,7 +1526,7 @@ bool compute_scaled_subtract_in_place(
         error="scaled subtract requires a floating dtype";return false;
     }
 #endif
-    if((dtype==9||dtype==10)&&parameter->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&parameter->backend==Backend::Cuda){
         auto ptx=ptx_scaled_subtract_source(dtype);
         auto pa=parameter->cuda_pointer,g=gradient->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count);double s=scale;
@@ -1534,7 +1534,7 @@ bool compute_scaled_subtract_in_place(
         return launch_ptx_1d(
             parameter,"scaled-subtract-"+std::to_string(dtype),ptx,count,args,error);
     }
-    if((dtype==9||dtype==10)&&parameter->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&parameter->backend==Backend::Hip){
         auto source=hip_scaled_subtract_source(dtype);
         auto pa=parameter->pointer,g=gradient->pointer;
         auto n=static_cast<std::uint64_t>(count);double s=scale;
@@ -1578,14 +1578,14 @@ bool compute_moment_update(
         error="neural.moment_update requires a floating dtype";return false;
     }
 #endif
-    if((dtype==9||dtype==10)&&parameter->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&parameter->backend==Backend::Cuda){
         auto ptx=ptx_moment_source(dtype);
         auto pa=parameter->cuda_pointer,g=gradient->cuda_pointer,f=first->cuda_pointer,s=second->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count);double r=rate,b1=beta1,b2=beta2,e=epsilon,c1=correction1,c2=correction2;
         void* args[]={&pa,&g,&f,&s,&n,&r,&b1,&b2,&e,&c1,&c2};
         return launch_ptx_1d(parameter,"moment-update-"+std::to_string(dtype),ptx,count,args,error);
     }
-    if((dtype==9||dtype==10)&&parameter->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&parameter->backend==Backend::Hip){
         auto source=hip_moment_source(dtype);
         auto pa=parameter->pointer,g=gradient->pointer,f=first->pointer,s=second->pointer;
         auto n=static_cast<std::uint64_t>(count);double r=rate,b1=beta1,b2=beta2,e=epsilon,c1=correction1,c2=correction2;

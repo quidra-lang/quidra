@@ -14,6 +14,8 @@
 #include <utility>
 #include <vector>
 
+#include "quidra/project.hpp"
+
 extern "C" void* quidra_managed_alloc(unsigned long long bytes);
 extern "C" void quidra_managed_release(void* value, void* drop_function);
 extern "C" char* quidra_runtime_copy_text(
@@ -241,7 +243,10 @@ extern "C" void* quidra_http_get(const char* url) {
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, 5000L);
     curl_easy_setopt(curl, CURLOPT_TIMEOUT_MS, 30000L);
-    curl_easy_setopt(curl, CURLOPT_USERAGENT, "Quidra/0.1.0");
+    static const std::string user_agent = std::string(quidra::language_name) +
+                                          "/" +
+                                          std::string(quidra::compiler_version);
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, user_agent.c_str());
     curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
 #if LIBCURL_VERSION_NUM >= 0x075500
     curl_easy_setopt(curl, CURLOPT_PROTOCOLS_STR, "http,https");

@@ -62,13 +62,13 @@ repository = https://github.com/quidra-lang/dnn
 description = Neural network layers and optimizers for Quidra
 license = MIT
 homepage = https://github.com/quidra-lang/dnn
-requires.quidra = >=0.1.0 <0.2.0
+requires.quidra = >=0.1.0 <0.3.0
 ```
 
 Package-to-package requirements use the same form:
 
 ```text
-requires.vision = >=0.1.0 <0.2.0
+requires.vision = >=0.1.0 <0.3.0
 ```
 
 Versions use exact `MAJOR.MINOR.PATCH` Semantic Versioning. Requirement terms
@@ -85,6 +85,50 @@ For a dependency other than Quidra, the current installer requires an already
 installed compatible package and reports the required range when it is missing
 or incompatible. Dependency resolution can become more automatic later without
 changing the manifest format.
+
+### Package `project.toml`
+
+`quidra.package` recognizes a closed set of keys, and an unknown key is an error
+rather than a warning, so a package that added one could not be read by an
+already-released compiler. Metadata beyond that set therefore lives in an
+optional `project.toml` next to it, which older compilers simply never open:
+
+```toml
+[package]
+name = "quidra-dnn"
+import = "dnn"
+display_name = "Quidra DNN"
+version = "0.2.0"
+repository = "https://github.com/quidra-lang/dnn"
+
+[requires]
+quidra = ">=0.1.0 <0.3.0"
+abi = 1
+```
+
+It separates four identities that `quidra.package`'s single `name` cannot carry
+at once:
+
+| Field | Meaning |
+| --- | --- |
+| `name` | distribution name, how the package is referred to as a product |
+| `import` | the identifier `import NAME` binds, and the installed directory name |
+| `display_name` | human-facing title |
+| `repository` | where releases come from |
+
+`import` is the constrained one: it must be a valid Quidra identifier, so it
+cannot contain a hyphen, and it must equal `quidra.package`'s `name` and the
+repository basename.
+
+`requires.abi` cannot appear in `quidra.package`, because every `requires.<dep>`
+value there is parsed as a version range. It lives here instead, and it is an
+exact match against the compiler's ABI version rather than a range: the ABI
+number changes only when the contract itself changes, so a package either speaks
+it or does not.
+
+When `project.toml` is present the compiler reads it alongside `quidra.package`
+and rejects the package if the two disagree on the import name or the version,
+which is what makes `quidra.package` safe to generate from it.
 
 Local directory installation remains available for package development:
 

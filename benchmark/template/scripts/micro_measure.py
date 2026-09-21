@@ -25,10 +25,12 @@ from typing import Any
 
 WORKLOADS = [f"mb{i:02d}" for i in range(1, 12)]
 STARTUP_WORKLOAD = "mb00"
-LANGUAGES = [
-    "Quidra", "Python", "C++", "Rust", "Go", "Java",
-    "TypeScript", "Kotlin", "Swift", "Zig",
-]
+TEMPLATE_DIR = Path(__file__).resolve().parent.parent
+LANGUAGES = list(
+    json.loads(
+        (TEMPLATE_DIR / "config" / "benchmark_metadata.json").read_text(encoding="utf-8")
+    )["languages"]
+)
 CONFIGS = {
     "Quidra": ("quidra_native", "quidra", "qui"),
     "Python": ("python", "python", "py"),

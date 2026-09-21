@@ -9,6 +9,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Needs no compiler, so it reports a hand-edited generated file or a second
+  # copy of an SSOT value in seconds rather than after a full build.
+  metadata:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Project metadata derives from project.toml
+        run: python3 tests/metadata_ssot_tests.py
+
   release-build:
     runs-on: ubuntu-latest
     strategy:

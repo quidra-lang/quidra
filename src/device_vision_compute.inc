@@ -661,7 +661,7 @@ bool compute_image_geometry(
         return fake_image_geometry(output,input,bytes,channels,input_height,input_width,
                                    output_height,output_width,operation,parameter0,parameter1,error);
 #endif
-    if(output->backend==Backend::Nvidia){
+    if(output->backend==Backend::Cuda){
         auto ptx=ptx_image_geometry_source(bytes,operation);
         auto out_ptr=output->cuda_pointer,in_ptr=input->cuda_pointer;
         auto n=static_cast<std::uint64_t>(output_count),ih=static_cast<std::uint64_t>(input_height),
@@ -672,7 +672,7 @@ bool compute_image_geometry(
         return launch_ptx_1d(output,"image-geometry-"+std::to_string(bytes)+"-"+std::to_string(operation),
                              ptx,output_count,args,error);
     }
-    if(output->backend==Backend::Amd){
+    if(output->backend==Backend::Hip){
         auto source=hip_image_geometry_source(bytes,operation);
         auto out_ptr=output->pointer,in_ptr=input->pointer;
         auto n=static_cast<std::uint64_t>(output_count),ih=static_cast<std::uint64_t>(input_height),
@@ -717,14 +717,14 @@ bool compute_image_grayscale(
     if(output->backend==Backend::Test)
         return fake_image_grayscale(output,input,channels,height,width);
 #endif
-    if(output->backend==Backend::Nvidia){
+    if(output->backend==Backend::Cuda){
         auto ptx=ptx_image_grayscale_source();
         auto out_ptr=output->cuda_pointer,in_ptr=input->cuda_pointer;
         auto n=static_cast<std::uint64_t>(pixels),c=static_cast<std::uint64_t>(channels);
         void* args[]={&out_ptr,&in_ptr,&n,&c};
         return launch_ptx_1d(output,"image-grayscale-u8",ptx,pixels,args,error);
     }
-    if(output->backend==Backend::Amd){
+    if(output->backend==Backend::Hip){
         auto source=hip_image_grayscale_source();
         auto out_ptr=output->pointer,in_ptr=input->pointer;
         auto n=static_cast<std::uint64_t>(pixels),c=static_cast<std::uint64_t>(channels);
@@ -756,7 +756,7 @@ bool compute_image_threshold(
     if(output->backend==Backend::Test)
         return fake_image_threshold(output,input,count,cutoff,low,high);
 #endif
-    if(output->backend==Backend::Nvidia){
+    if(output->backend==Backend::Cuda){
         auto ptx=ptx_image_threshold_source();
         auto out_ptr=output->cuda_pointer,in_ptr=input->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count);
@@ -764,7 +764,7 @@ bool compute_image_threshold(
         void* args[]={&out_ptr,&in_ptr,&n,&c,&l,&h};
         return launch_ptx_1d(output,"image-threshold-u8",ptx,count,args,error);
     }
-    if(output->backend==Backend::Amd){
+    if(output->backend==Backend::Hip){
         auto source=hip_image_threshold_source();
         auto out_ptr=output->pointer,in_ptr=input->pointer;
         auto n=static_cast<std::uint64_t>(count);
@@ -798,7 +798,7 @@ bool compute_image_blur(
 #ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
     if(output->backend==Backend::Test)return fake_image_blur(output,input,channels,height,width,radius);
 #endif
-    if(output->backend==Backend::Nvidia){
+    if(output->backend==Backend::Cuda){
         auto ptx=ptx_image_blur_source();
         auto out_ptr=output->cuda_pointer,in_ptr=input->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count),h=static_cast<std::uint64_t>(height),
@@ -806,7 +806,7 @@ bool compute_image_blur(
         void* args[]={&out_ptr,&in_ptr,&n,&h,&w,&r};
         return launch_ptx_1d(output,"image-blur-u8",ptx,count,args,error);
     }
-    if(output->backend==Backend::Amd){
+    if(output->backend==Backend::Hip){
         auto source=hip_image_blur_source();
         auto out_ptr=output->pointer,in_ptr=input->pointer;
         auto n=static_cast<std::uint64_t>(count),h=static_cast<std::uint64_t>(height),
@@ -851,7 +851,7 @@ bool compute_image_filter(
         [](Buffer* value){quidra::device::release(value);});
     if(!status)return false;
 
-    if(output->backend==Backend::Nvidia){
+    if(output->backend==Backend::Cuda){
         auto ptx=ptx_image_filter_source();
         auto out_ptr=output->cuda_pointer,in_ptr=input->cuda_pointer,
              k_ptr=kernel->cuda_pointer,status_ptr=status->cuda_pointer;
@@ -862,7 +862,7 @@ bool compute_image_filter(
         void* args[]={&out_ptr,&in_ptr,&k_ptr,&status_ptr,&n,&hh,&ww,&kh64,&kw64,&div,&off};
         if(!launch_ptx_1d(output,"image-filter-u8-i64",ptx,count,args,error))return false;
     }
-    else if(output->backend==Backend::Amd){
+    else if(output->backend==Backend::Hip){
         auto source=hip_image_filter_source();
         auto out_ptr=output->pointer,in_ptr=input->pointer,
              k_ptr=kernel->pointer,status_ptr=status->pointer;
@@ -929,7 +929,7 @@ bool compute_image_morphology(
         }
     }
 #endif
-    if(output->backend==Backend::Nvidia){
+    if(output->backend==Backend::Cuda){
         auto ptx=ptx_image_morphology_source(dtype,dilate);
         auto out_ptr=output->cuda_pointer,in_ptr=input->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count),h=static_cast<std::uint64_t>(height),
@@ -939,7 +939,7 @@ bool compute_image_morphology(
             "image-morph-"+std::to_string(dtype)+"-"+(dilate?"d":"e"),
             ptx,count,args,error);
     }
-    if(output->backend==Backend::Amd){
+    if(output->backend==Backend::Hip){
         auto source=hip_image_morph_source(dtype,dilate);
         auto out_ptr=output->pointer,in_ptr=input->pointer;
         auto n=static_cast<std::uint64_t>(count),h=static_cast<std::uint64_t>(height),

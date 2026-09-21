@@ -1,5 +1,7 @@
 #include "quidra/package_manifest.hpp"
 
+#include "quidra/toml_subset.hpp"
+
 #include <charconv>
 #include <cctype>
 #include <fstream>
@@ -59,6 +61,45 @@ bool clause_matches(const VersionClause& clause, const SemanticVersion& version)
         case VersionOperator::GreaterEqual: return order >= 0;
     }
     return false;
+}
+
+std::optional<PackageProject> read_package_project(
+    const fs::path& package_root, const PackageManifest& manifest) {
+    const auto path = package_root / "project.toml";
+    const auto document = try_read_toml_subset(path);
+    if (!document) return std::nullopt;
+
+    const auto required = [&](std::string_view key) -> const std::string& {
+        if (const auto* value = document->find("package", key)) return *value;
+        throw std::runtime_error("project.toml requires 'package." +
+                                 std::string(key) + "': " + path.string());
+    };
+
+    PackageProject project;
+    project.distribution_name = required("name");
+    project.import_name = required("import");
+    project.display_name = required("display_name");
+
+    // project.toml is the source these were generated from, so a disagreement
+    // means quidra.package was hand-edited and the two have drifted.
+    if (project.import_name != manifest.name) {
+        throw std::runtime_error(
+            "project.toml package.import '" + project.import_name +
+            "' does not match quidra.package name '" + manifest.name +
+            "': " + path.string());
+    }
+    const auto version = parse_semantic_version(required("version"));
+    if (compare(version, manifest.version) != 0) {
+        throw std::runtime_error(
+            "project.toml package.version " + version.str() +
+            " does not match quidra.package version " + manifest.version.str() +
+            ": " + path.string());
+    }
+
+    if (const auto* abi = document->find("requires", "abi")) {
+        project.abi_requirement = parse_component(*abi);
+    }
+    return project;
 }
 
 } // namespace
@@ -226,6 +267,7 @@ PackageManifest read_package_manifest(const fs::path& package_root) {
         manifest.requirements.emplace(
             dependency, parse_version_requirement(value));
     }
+    manifest.project = read_package_project(package_root, manifest);
     return manifest;
 }
 

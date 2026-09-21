@@ -7,7 +7,7 @@
 #include "quidra/parser.hpp"
 #include "quidra/package_lock.hpp"
 #include "quidra/package_manifest.hpp"
-#include "quidra/version.hpp"
+#include "quidra/project.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -1274,6 +1274,19 @@ private:
                             " requires Quidra " + requirement->second.text +
                             "; current compiler is " +
                             std::string(compiler_version) + ".",
+                        span);
+                }
+
+                if (manifest->project &&
+                    manifest->project->abi_requirement &&
+                    *manifest->project->abi_requirement !=
+                        static_cast<unsigned long long>(abi_version)) {
+                    frontend_error(
+                        "PACKAGE_COMPATIBILITY",
+                        "Package '" + name + "' requires Quidra ABI " +
+                            std::to_string(*manifest->project->abi_requirement) +
+                            "; current compiler provides ABI " +
+                            std::to_string(abi_version) + ".",
                         span);
                 }
 

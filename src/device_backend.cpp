@@ -1876,7 +1876,7 @@ constexpr std::size_t validation_page_bytes=
     validation_slots_per_page*sizeof(std::uint32_t);
 
 struct BufferImpl {
-    Backend backend{Backend::Nvidia};
+    Backend backend{Backend::Cuda};
     int global_index{-1};
     int backend_index{-1};
     std::size_t bytes{};
@@ -1896,7 +1896,7 @@ struct BufferImpl {
 };
 
 struct ModuleImpl {
-    Backend backend{Backend::Nvidia};
+    Backend backend{Backend::Cuda};
     int global_index{-1};
     int backend_index{-1};
     void* cuda_module{};
@@ -1952,7 +1952,7 @@ std::vector<Info> enumerate_devices() {
                 if (cu.device_name(name, static_cast<int>(sizeof(name)), dev) != 0)
                     std::memcpy(name, "NVIDIA GPU", sizeof("NVIDIA GPU"));
                 result.push_back(Info{
-                    static_cast<int>(result.size()), Backend::Nvidia, i, name,
+                    static_cast<int>(result.size()), Backend::Cuda, i, name,
                     cuda_version_string(driver), "CUDA Driver API"});
             }
         }
@@ -1974,7 +1974,7 @@ std::vector<Info> enumerate_devices() {
                           std::to_string((version / 100000) % 100)
                     : "HIP";
                 result.push_back(Info{
-                    static_cast<int>(result.size()), Backend::Amd, i, name,
+                    static_cast<int>(result.size()), Backend::Hip, i, name,
                     "AMD GPU driver", runtime});
             }
         }
@@ -2043,7 +2043,7 @@ Buffer* acquire_validation_status(int global_index,std::string& error) {
     // Metal keeps its existing per-operation status buffer because MTLBuffer
     // bindings do not expose a cheap portable sub-buffer view. CUDA/HIP use
     // shared pages, which removes the allocation storm on long async runs.
-    if(info->backend!=Backend::Nvidia&&info->backend!=Backend::Amd){
+    if(info->backend!=Backend::Cuda&&info->backend!=Backend::Hip){
         auto* status=allocate(global_index,sizeof(std::uint32_t),error);
         if(!status) return nullptr;
         if(!zero(status,0,sizeof(std::uint32_t),error)){
@@ -2085,7 +2085,7 @@ Buffer* acquire_validation_status(int global_index,std::string& error) {
     view->validation_page=page_index;
     view->validation_slot=slot;
     view->cuda_context=page.storage->cuda_context;
-    if(view->backend==Backend::Nvidia)
+    if(view->backend==Backend::Cuda)
         view->cuda_pointer=page.storage->cuda_pointer+offset;
     else
         view->pointer=
@@ -2106,7 +2106,7 @@ bool raw_validation_synchronize(Buffer* status,std::string& error) {
 #ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
     if(status->backend==Backend::Test) return true;
 #endif
-    if(status->backend==Backend::Nvidia){
+    if(status->backend==Backend::Cuda){
         auto& api=cuda();
         CudaApi::CUcontext context=nullptr;
         if(!api.current(status->backend_index,context,error)) return false;
@@ -2118,7 +2118,7 @@ bool raw_validation_synchronize(Buffer* status,std::string& error) {
         cuda_reap_device_blocks(api,status->backend_index,true);
         return true;
     }
-    if(status->backend==Backend::Amd){
+    if(status->backend==Backend::Hip){
         auto& api=hip();
         if(!api.device_synchronize||!api.set_device||
            api.set_device(status->backend_index)!=0||
@@ -2149,7 +2149,7 @@ bool raw_validation_copy_bytes(const Buffer* status,void* destination,
         return true;
     }
 #endif
-    if(status->backend==Backend::Nvidia){
+    if(status->backend==Backend::Cuda){
         auto& api=cuda();
         CudaApi::CUcontext context=nullptr;
         if(!api.current(status->backend_index,context,error)) return false;
@@ -2160,7 +2160,7 @@ bool raw_validation_copy_bytes(const Buffer* status,void* destination,
         }
         return true;
     }
-    if(status->backend==Backend::Amd){
+    if(status->backend==Backend::Hip){
         auto& api=hip();
         if(!api.ready||!api.set_device||
            api.set_device(status->backend_index)!=0||!api.memcpy_fn||
@@ -2391,7 +2391,7 @@ bool synchronize(int index, std::string& error) {
         return consume_deferred_validations(index, error);
     }
 #endif
-    if (info->backend == Backend::Nvidia) {
+    if (info->backend == Backend::Cuda) {
         auto& api = cuda();
         CudaApi::CUcontext context = nullptr;
         bool exists=false;
@@ -2423,7 +2423,7 @@ bool synchronize(int index, std::string& error) {
         if(!consume_deferred_validations(index,error)) return false;
         return true;
     }
-    if (info->backend == Backend::Amd) {
+    if (info->backend == Backend::Hip) {
         auto& api = hip();
         if (!api.is_active(info->backend_index)) return true;
         if(!api.set_device||api.set_device(info->backend_index)!=0){
@@ -2480,10 +2480,10 @@ DnnMode dnn_mode() {
         dnn_mode_value.load(std::memory_order_relaxed));
 }
 
-std::string backend_name(Backend backend) {
+std::string backend_display_name(Backend backend) {
     switch (backend) {
-        case Backend::Nvidia: return "NVIDIA";
-        case Backend::Amd: return "AMD";
+        case Backend::Cuda: return "NVIDIA";
+        case Backend::Hip: return "AMD";
         case Backend::Metal: return "Metal";
 #ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
         case Backend::Test: return "TEST";
@@ -2518,7 +2518,7 @@ Buffer* allocate(int index, std::size_t bytes, std::string& error) {
     }
 #endif
 
-    if (info->backend == Backend::Nvidia) {
+    if (info->backend == Backend::Cuda) {
         auto& api = cuda();
         CudaApi::CUcontext context = nullptr;
         if (!api.current(info->backend_index, context, error)) return nullptr;
@@ -2539,7 +2539,7 @@ Buffer* allocate(int index, std::size_t bytes, std::string& error) {
         return buffer.release();
     }
 
-    if (info->backend == Backend::Amd) {
+    if (info->backend == Backend::Hip) {
         auto& api = hip();
         if (!api.ready || api.set_device(info->backend_index) != 0) {
             error = "failed to select AMD GPU";
@@ -2600,10 +2600,10 @@ void release(Buffer* raw) {
         abandon_validation_view(*buffer);
         return;
     }
-    if (buffer->backend == Backend::Nvidia && buffer->cuda_pointer != 0) {
+    if (buffer->backend == Backend::Cuda && buffer->cuda_pointer != 0) {
         cuda_return_device_block(buffer->backend_index,buffer->bytes,
                                  buffer->cuda_pointer);
-    } else if (buffer->backend == Backend::Amd && buffer->pointer) {
+    } else if (buffer->backend == Backend::Hip && buffer->pointer) {
         hip_return_device_block(buffer->backend_index,buffer->bytes,
                                 buffer->pointer);
 #ifdef __APPLE__
@@ -2627,14 +2627,14 @@ bool copy_from_host(Buffer* raw, std::size_t offset, const void* source,
         return true;
     }
 #endif
-    if (raw->backend == Backend::Nvidia) {
+    if (raw->backend == Backend::Cuda) {
         auto& api = cuda();
         CudaApi::CUcontext context = nullptr;
         if (!api.current(raw->backend_index, context, error)) return false;
         return cuda_copy_from_host_async(
             api,raw->backend_index,raw->cuda_pointer+offset,source,bytes,error);
     }
-    if (raw->backend == Backend::Amd) {
+    if (raw->backend == Backend::Hip) {
         auto& api = hip();
         if (!api.ready || api.set_device(raw->backend_index) != 0) {
             error = "failed to select AMD GPU";
@@ -2666,7 +2666,7 @@ bool copy_to_host(const Buffer* raw, std::size_t offset, void* destination,
         return true;
     }
 #endif
-    if (raw->backend == Backend::Nvidia) {
+    if (raw->backend == Backend::Cuda) {
         if(!synchronize(raw->global_index,error)) return false;
         auto& api = cuda();
         if (api.copy_d2h(destination, raw->cuda_pointer + offset, bytes) != 0) {
@@ -2675,7 +2675,7 @@ bool copy_to_host(const Buffer* raw, std::size_t offset, void* destination,
         }
         return true;
     }
-    if (raw->backend == Backend::Amd) {
+    if (raw->backend == Backend::Hip) {
         if(!synchronize(raw->global_index,error)) return false;
         auto& api = hip();
         if (!api.ready || api.set_device(raw->backend_index) != 0 ||
@@ -2720,7 +2720,7 @@ bool copy_device_to_device(
     }
 #endif
 
-    if (destination->backend == Backend::Nvidia) {
+    if (destination->backend == Backend::Cuda) {
         auto& api = cuda();
         CudaApi::CUcontext context = nullptr;
         if (!api.copy_d2d ||
@@ -2740,7 +2740,7 @@ bool copy_device_to_device(
         }
         return true;
     }
-    if (destination->backend == Backend::Amd) {
+    if (destination->backend == Backend::Hip) {
         auto& api = hip();
         if (!api.ready || api.set_device(destination->backend_index) != 0) {
             error = "failed to select AMD GPU";
@@ -2781,7 +2781,7 @@ bool zero(Buffer* raw, std::size_t offset, std::size_t bytes,
         return true;
     }
 #endif
-    if (raw->backend == Backend::Nvidia) {
+    if (raw->backend == Backend::Cuda) {
         auto& api = cuda();
         CudaApi::CUcontext context = nullptr;
         if (!api.current(raw->backend_index, context, error)) return false;
@@ -2795,7 +2795,7 @@ bool zero(Buffer* raw, std::size_t offset, std::size_t bytes,
         }
         return true;
     }
-    if (raw->backend == Backend::Amd) {
+    if (raw->backend == Backend::Hip) {
         auto& api = hip();
         if (!api.ready || api.set_device(raw->backend_index) != 0) {
             error = "failed to select AMD GPU";
@@ -2830,7 +2830,7 @@ Module* load_ptx(int index, const std::string& ptx, std::string& error) {
         error = "gpu(" + std::to_string(index) + ") is not available";
         return nullptr;
     }
-    if (info->backend != Backend::Nvidia) {
+    if (info->backend != Backend::Cuda) {
         error = "PTX modules are only supported by the NVIDIA backend";
         return nullptr;
     }
@@ -2849,7 +2849,7 @@ Module* load_ptx(int index, const std::string& ptx, std::string& error) {
         return nullptr;
     }
     auto result = std::make_unique<Module>();
-    result->backend = Backend::Nvidia;
+    result->backend = Backend::Cuda;
     result->global_index = index;
     result->backend_index = info->backend_index;
     result->cuda_module = module;
@@ -2863,7 +2863,7 @@ Module* load_hip_source(int index, const std::string& source, std::string& error
         error = "gpu(" + std::to_string(index) + ") is not available";
         return nullptr;
     }
-    if (info->backend != Backend::Amd) {
+    if (info->backend != Backend::Hip) {
         error = "HIP source modules are only supported by the AMD backend";
         return nullptr;
     }
@@ -2926,7 +2926,7 @@ Module* load_hip_source(int index, const std::string& source, std::string& error
         return nullptr;
     }
     auto result = std::make_unique<Module>();
-    result->backend = Backend::Amd;
+    result->backend = Backend::Hip;
     result->global_index = index;
     result->backend_index = info->backend_index;
     result->hip_module = module;
@@ -2936,13 +2936,13 @@ Module* load_hip_source(int index, const std::string& source, std::string& error
 void release(Module* raw) {
     if (!raw) return;
     std::unique_ptr<Module> module(raw);
-    if (module->backend == Backend::Nvidia) {
+    if (module->backend == Backend::Cuda) {
         cuda_retire_module(
             module->backend_index,
             static_cast<CudaApi::CUmodule>(module->cuda_module));
         return;
     }
-    if (module->backend == Backend::Amd && module->hip_module) {
+    if (module->backend == Backend::Hip && module->hip_module) {
         hip_retire_module(
             module->backend_index,
             static_cast<HipApi::Module>(module->hip_module));
@@ -2961,7 +2961,7 @@ bool launch(Module* module, const char* kernel,
         return false;
     }
 
-    if (module->backend == Backend::Nvidia) {
+    if (module->backend == Backend::Cuda) {
         if (!module->cuda_module) {
             error = "invalid NVIDIA kernel module";
             return false;
@@ -2994,7 +2994,7 @@ bool launch(Module* module, const char* kernel,
         return true;
     }
 
-    if (module->backend == Backend::Amd) {
+    if (module->backend == Backend::Hip) {
         if (!module->hip_module) {
             error = "invalid AMD HIP kernel module";
             return false;
@@ -3088,7 +3088,7 @@ bool compute_all_reduce_sum(
 
     std::unordered_map<int, bool> seen_devices;
     for (auto* buffer : buffers) {
-        if (buffer->backend != Backend::Nvidia) {
+        if (buffer->backend != Backend::Cuda) {
             error = "NCCL all-reduce requires NVIDIA gpu(n) tensors";
             return false;
         }

@@ -6,7 +6,7 @@
 #include "quidra/source_tools.hpp"
 #include "quidra/source_patch.hpp"
 #include "quidra/tooling.hpp"
-#include "quidra/version.hpp"
+#include "quidra/project.hpp"
 #include "repl_cli.hpp"
 #include "lsp_server.hpp"
 #include "package_cli.hpp"
@@ -213,7 +213,7 @@ std::string description_json() {
 }
 
 void usage(std::ostream& out) {
-    out << "Quidra " << quidra::compiler_version << "\n"
+    out << quidra::language_name << " " << quidra::compiler_version << "\n"
         << "usage:\n"
         << "  quidra                            start REPL when stdin is a TTY\n"
         << "  quidra repl                       start REPL explicitly\n"

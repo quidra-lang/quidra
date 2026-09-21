@@ -14,15 +14,15 @@ inline constexpr std::string_view grammar_ebnf = R"QUIDRA_EBNF(@QUIDRA_GRAMMAR_E
 // to infer a workflow from prose.
 inline constexpr std::string_view llm_interface_json = R"QUIDRA_JSON({
   "schema_version": 1,
-  "language": "Quidra",
-  "source_extension": ".qui",
+  "language": "@QUIDRA_PROJECT_NAME@",
+  "source_extension": "@QUIDRA_PROJECT_EXTENSION@",
   "generation": {
-    "grammar_command": "quidra describe grammar",
-    "format_command": "quidra fmt FILE.qui",
-    "check_command": "quidra check FILE.qui --json"
+    "grammar_command": "@QUIDRA_PROJECT_CLI@ describe grammar",
+    "format_command": "@QUIDRA_PROJECT_CLI@ fmt FILE@QUIDRA_PROJECT_EXTENSION@",
+    "check_command": "@QUIDRA_PROJECT_CLI@ check FILE@QUIDRA_PROJECT_EXTENSION@ --json"
   },
   "inspection": {
-    "command": "quidra inspect FILE.qui --no-source",
+    "command": "@QUIDRA_PROJECT_CLI@ inspect FILE@QUIDRA_PROJECT_EXTENSION@ --no-source",
     "fields": ["revision", "node_id", "kind", "source_hash", "parent_id", "depth", "inferred_type", "authority", "effects"],
     "type_contracts": {
       "tensor": "tensor<T> | tensor<T><D0, D1, ...>",
@@ -31,9 +31,9 @@ inline constexpr std::string_view llm_interface_json = R"QUIDRA_JSON({
     }
   },
   "repair": {
-    "schema_command": "quidra describe patch-schema",
+    "schema_command": "@QUIDRA_PROJECT_CLI@ describe patch-schema",
     "preferred_schema_version": 2,
-    "apply_command": "quidra patch FILE.qui PATCH.json --write",
+    "apply_command": "@QUIDRA_PROJECT_CLI@ patch FILE@QUIDRA_PROJECT_EXTENSION@ PATCH.json --write",
     "operations": ["replace_node", "insert_before", "insert_after", "delete_node"]
   },
   "calls": {
@@ -43,8 +43,8 @@ inline constexpr std::string_view llm_interface_json = R"QUIDRA_JSON({
     "rejected": ["positional_after_named", "unknown_argument", "duplicate_parameter", "missing_required"]
   },
   "validation_sequence": [
-    "quidra fmt FILE.qui --check",
-    "quidra check FILE.qui --json"
+    "@QUIDRA_PROJECT_CLI@ fmt FILE@QUIDRA_PROJECT_EXTENSION@ --check",
+    "@QUIDRA_PROJECT_CLI@ check FILE@QUIDRA_PROJECT_EXTENSION@ --json"
   ]
 })QUIDRA_JSON";
 

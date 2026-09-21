@@ -21,21 +21,55 @@ import sys
 import tarfile
 from typing import Any, Iterable
 
+
+class BenchmarkError(RuntimeError):
+    pass
+
+
 DEFAULT_WORKSPACE = Path("/quidra-benchmark")
-PRIMARY_NAMES = (
-    "semantic_compression",
-    "llm_learnability",
-    "language_quality",
-    "ecosystem",
-    "llm_proficiency",
-)
-EVALUATION_SPEC_FILES = {
-    "semantic_compression": "semantic_compression.md",
-    "llm_learnability": "llm_learnability.md",
-    "language_quality": "language_quality.md",
-    "ecosystem": "ecosystem.md",
-    "llm_proficiency": "llm_proficiency.md",
+TEMPLATE_DIR = Path(__file__).resolve().parent.parent
+BENCHMARK_METADATA_RELATIVE = PurePosixPath("config/benchmark_metadata.json")
+
+
+def load_benchmark_metadata(template: Path) -> dict[str, Any]:
+    path = template / BENCHMARK_METADATA_RELATIVE
+    try:
+        metadata = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        raise BenchmarkError(f"benchmark metadata is missing: {path}") from None
+    except json.JSONDecodeError as exc:
+        raise BenchmarkError(f"benchmark metadata is not valid JSON: {path}: {exc}") from None
+    if metadata.get("schema_version") != 1:
+        raise BenchmarkError(f"unsupported benchmark metadata schema_version: {path}")
+    evaluations = metadata.get("evaluations")
+    languages = metadata.get("languages")
+    if not isinstance(evaluations, list) or not evaluations:
+        raise BenchmarkError(f"benchmark metadata has no evaluations: {path}")
+    if not isinstance(languages, list) or not languages:
+        raise BenchmarkError(f"benchmark metadata has no languages: {path}")
+    for entry in evaluations:
+        if (
+            not isinstance(entry, dict)
+            or not isinstance(entry.get("id"), str)
+            or not isinstance(entry.get("display_name"), str)
+        ):
+            raise BenchmarkError(f"benchmark metadata evaluation entries need id/display_name: {path}")
+    if not all(isinstance(language, str) for language in languages):
+        raise BenchmarkError(f"benchmark metadata languages must be strings: {path}")
+    return metadata
+
+
+def metadata_languages(root: Path) -> list[str]:
+    """Fixed evaluated-language set, in ranking/table order, from the frozen template."""
+    return list(load_benchmark_metadata(root / "template")["languages"])
+
+
+BENCHMARK_METADATA = load_benchmark_metadata(TEMPLATE_DIR)
+PRIMARY_NAMES = tuple(entry["id"] for entry in BENCHMARK_METADATA["evaluations"])
+PRIMARY_DISPLAY_NAMES = {
+    entry["id"]: entry["display_name"] for entry in BENCHMARK_METADATA["evaluations"]
 }
+EVALUATION_SPEC_FILES = {name: f"{name}.md" for name in PRIMARY_NAMES}
 TEXT_SUFFIXES = {
     ".txt", ".md", ".json", ".csv", ".tsv", ".yaml", ".yml", ".toml",
     ".py", ".sh", ".ps1", ".c", ".cc", ".cpp", ".h", ".hpp", ".rs",
@@ -69,10 +103,6 @@ RETAINED_RUN_PATHS = (
     "work/root/plans",
     "work/root/commands",
 )
-
-
-class BenchmarkError(RuntimeError):
-    pass
 
 
 def eprint(*args: Any) -> None:
@@ -907,8 +937,8 @@ def cmd_preflight(args: argparse.Namespace) -> int:
 
 
 
-def plan_counts(cfg: dict[str, Any]) -> dict[str, Any]:
-    nlang = len(cfg["languages"])
+def plan_counts(cfg: dict[str, Any], languages: list[str]) -> dict[str, Any]:
+    nlang = len(languages)
     sc = cfg["semantic_compression"]
     ll = cfg["llm_learnability"]
     counts: dict[str, Any] = {
@@ -939,7 +969,7 @@ def cmd_plan(args: argparse.Namespace) -> int:
     if integrity:
         raise BenchmarkError("template integrity failed: " + ", ".join(integrity))
     cfg = json_load(root / "template" / "config" / "primary.json")
-    counts = plan_counts(cfg)
+    counts = plan_counts(cfg, metadata_languages(root))
     manifest_path = root / "work" / "root" / "manifest.json"
     manifest = json_load(manifest_path) if manifest_path.exists() else None
     ledger_path = root / "work" / "root" / "ledger.json"
@@ -1245,9 +1275,7 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
             isinstance(x, str) for x in assigned_languages
         ):
             raise BenchmarkError(f"{uid}: assigned_languages must be a string array")
-        fixed_languages = set(
-            json_load(root / "template" / "config" / "primary.json")["languages"]
-        )
+        fixed_languages = set(metadata_languages(root))
         unknown_languages = sorted(set(assigned_languages) - fixed_languages)
         if unknown_languages:
             raise BenchmarkError(
@@ -1438,15 +1466,15 @@ def load_work_plan_templates(root: Path) -> dict[str, Any]:
 
 def derive_llm_call_budget(
     primary: dict[str, Any],
+    languages: list[str],
     evaluation: str,
     raw: dict[str, Any],
 ) -> int:
-    """Derive the maximum scored-model call budget from primary.json only."""
+    """Derive the maximum scored-model call budget from the frozen configuration only."""
     formula = raw.get("llm_budget_formula")
     if not formula:
         return int(raw.get("max_llm_calls", 0) or 0)
 
-    languages = list(primary["languages"])
     if formula == "learnability_conditions":
         cfg = primary["llm_learnability"]
         count_keys = {
@@ -1562,7 +1590,7 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
             for raw in spec.get("units", [])
             if bool(raw.get("split_by_language", False))
         }
-        fixed_languages = list(primary["languages"])
+        fixed_languages = metadata_languages(root)
         for raw in spec.get("units", []):
             base_uid = str(raw["id"])
             execution_kind = str(raw.get("execution_kind", "agent"))
@@ -1626,7 +1654,7 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                 regular_ids.append(uid)
 
                 total_calls = (
-                    derive_llm_call_budget(primary, evaluation, raw)
+                    derive_llm_call_budget(primary, fixed_languages, evaluation, raw)
                     if execution_kind == "agent"
                     else 0
                 )
@@ -1701,6 +1729,9 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                     "input_hashes": {
                         "primary_config": sha256_file(
                             root / "template" / "config" / "primary.json"
+                        ),
+                        "benchmark_metadata": sha256_file(
+                            root / "template" / BENCHMARK_METADATA_RELATIVE
                         ),
                         "evaluation_spec": sha256_file(
                             root / "template" / "methodology"
@@ -2368,7 +2399,8 @@ def cmd_task_create(args: argparse.Namespace) -> int:
         core_path = methodology / "worker_core.md"
         eval_path = methodology / EVALUATION_SPEC_FILES[args.evaluation]
         config_path = root / "template" / "config" / "primary.json"
-        for required_path in (core_path, eval_path, config_path):
+        metadata_path = root / "template" / BENCHMARK_METADATA_RELATIVE
+        for required_path in (core_path, eval_path, config_path, metadata_path):
             if not required_path.is_file():
                 raise BenchmarkError(f"required Task Packet input is missing: {required_path}")
 
@@ -2377,11 +2409,15 @@ def cmd_task_create(args: argparse.Namespace) -> int:
         eval_content = extract_markdown_sections(eval_source, prompt_sections)
         eval_content = render_workspace_paths(eval_content, root)
         config_content = render_workspace_paths(config_path.read_text(encoding="utf-8"), root)
+        metadata_content = render_workspace_paths(
+            metadata_path.read_text(encoding="utf-8"), root
+        )
 
         for name, source_path, content in (
             ("worker_core.md", core_path, core_content),
             (eval_path.name, eval_path, eval_content),
             ("primary.json", config_path, config_content),
+            ("benchmark_metadata.json", metadata_path, metadata_content),
         ):
             digest = sha256_file(source_path)
             embedded_inputs.append({"path": str(source_path), "sha256": digest})
@@ -2603,7 +2639,7 @@ def cmd_result_check(args: argparse.Namespace) -> int:
             raise BenchmarkError(
                 f"result requirement mismatch; missing={missing}, unknown={unknown}"
             )
-        languages = json_load(root / "template" / "config" / "primary.json")["languages"]
+        languages = metadata_languages(root)
         assigned_languages = list(task.get("assigned_languages", []) or [])
         expected_languages = assigned_languages or languages
         for rid in requirement_ids:
@@ -2660,7 +2696,7 @@ def cmd_command_result_check(args: argparse.Namespace) -> int:
         raise BenchmarkError(
             f"command result requirement mismatch; missing={missing}, unknown={unknown}"
         )
-    languages = json_load(root / "template" / "config" / "primary.json")["languages"]
+    languages = metadata_languages(root)
     for rid in requirement_ids:
         value = req[rid]
         if rid.startswith("gate.") or rid.startswith("coverage."):
@@ -2860,9 +2896,7 @@ def cmd_reclaim_stale(args: argparse.Namespace) -> int:
 def requirement_results_for_evaluation(root: Path, evaluation: str) -> dict[str, Any]:
     manifest = json_load(root / "work" / "root" / "manifest.json")
     ledger = json_load(root / "work" / "root" / "ledger.json")
-    fixed_languages = list(
-        json_load(root / "template" / "config" / "primary.json")["languages"]
-    )
+    fixed_languages = metadata_languages(root)
     merged: dict[str, Any] = {}
     for unit in manifest.get("work_units", []):
         if unit.get("evaluation") != evaluation or unit.get("phase") == "aggregation":
@@ -2988,7 +3022,7 @@ def cmd_aggregate_primary(args: argparse.Namespace) -> int:
     evaluation = args.evaluation
     req = requirement_results_for_evaluation(root, evaluation)
     aggregation = json_load(root / "template" / "config" / "aggregation.json")
-    languages = list(aggregation["languages"])
+    languages = metadata_languages(root)
     config = aggregation["evaluations"][evaluation]
 
     failed_gates = [
@@ -3083,7 +3117,7 @@ def cmd_aggregate_check(args: argparse.Namespace) -> int:
         raise BenchmarkError("aggregate evaluation mismatch")
     status = data.get("status")
     if status == "COMPLETE":
-        languages = json_load(root / "template" / "config" / "aggregation.json")["languages"]
+        languages = metadata_languages(root)
         scores = data.get("scores")
         ranking = data.get("ranking")
         if not isinstance(scores, dict) or set(scores) != set(languages):

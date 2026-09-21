@@ -4,7 +4,7 @@
 #include "quidra/lexer.hpp"
 #include "quidra/parser.hpp"
 #include "quidra/types.hpp"
-#include "quidra/version.hpp"
+#include "quidra/project.hpp"
 #include "native_build.hpp"
 
 #include <cerrno>
@@ -821,7 +821,7 @@ int run_repl() {
 #endif
     };
 
-    std::cout << "Quidra " << compiler_version << "\n";
+    std::cout << language_name << " " << compiler_version << "\n";
     ReplSession session;
 
 #ifdef _WIN32

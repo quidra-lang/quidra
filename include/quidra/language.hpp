@@ -5,12 +5,9 @@
 #include <string_view>
 #include <utility>
 
-namespace quidra {
+#include "quidra/project.hpp"
 
-inline constexpr std::string_view language_name = "Quidra";
-inline constexpr std::string_view language_version = "0.1";
-inline constexpr std::string_view ir_version = "0.1";
-inline constexpr std::string_view source_extension = ".qui";
+namespace quidra {
 
 struct BuiltinTypeName {
     std::string_view name;

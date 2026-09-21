@@ -7,7 +7,7 @@
 #include "quidra/lexer.hpp"
 #include "quidra/parser.hpp"
 #include "quidra/types.hpp"
-#include "quidra/version.hpp"
+#include "quidra/project.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -1285,7 +1285,7 @@ private:
             "\"namespace\",\"type\",\"class\",\"function\",\"method\",\"parameter\","
             "\"variable\",\"property\",\"keyword\",\"string\",\"number\",\"operator\"],"
             "\"tokenModifiers\":[]},\"full\":true}},"
-            "\"serverInfo\":{\"name\":\"Quidra\",\"version\":\""+escape(compiler_version)+"\"}}");
+            "\"serverInfo\":{\"name\":\""+escape(std::string(language_name))+"\",\"version\":\""+escape(compiler_version)+"\"}}");
     }
 
     void diagnostics(std::string_view uri,std::string_view source) {

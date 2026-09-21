@@ -1,0 +1,23 @@
+#pragma once
+#include <string_view>
+
+// Generated from project.toml at configure time. Edit project.toml, not this
+// template's output: these constants are the compiler's only copy of the
+// project metadata, so anything that needs one must read it from here.
+
+namespace quidra {
+
+inline constexpr std::string_view language_name = "@QUIDRA_PROJECT_NAME@";
+inline constexpr std::string_view cli_name = "@QUIDRA_PROJECT_CLI@";
+inline constexpr std::string_view source_extension = "@QUIDRA_PROJECT_EXTENSION@";
+inline constexpr std::string_view tagline = "@QUIDRA_TAGLINE@";
+
+inline constexpr std::string_view compiler_version = "@PROJECT_VERSION@";
+inline constexpr std::string_view language_version = "@QUIDRA_LANGUAGE_VERSION@";
+
+// Format versions, independent of compiler_version.
+inline constexpr std::string_view ir_version = "@QUIDRA_IR_VERSION@";
+inline constexpr int abi_version = @QUIDRA_ABI_VERSION@;
+inline constexpr int package_schema_version = @QUIDRA_PACKAGE_SCHEMA_VERSION@;
+
+} // namespace quidra

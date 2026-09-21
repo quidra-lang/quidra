@@ -1,25 +1,6 @@
 {
   "schema_version": 1,
   "workspace_root": "/quidra-benchmark",
-  "languages": [
-    "Quidra",
-    "Python",
-    "C++",
-    "Rust",
-    "Go",
-    "Java",
-    "TypeScript",
-    "Kotlin",
-    "Swift",
-    "Zig"
-  ],
-  "primary_evaluations": [
-    "semantic_compression",
-    "llm_learnability",
-    "language_quality",
-    "ecosystem",
-    "llm_proficiency"
-  ],
   "primary_first": true,
   "extended_only_after_primary": true,
   "timing": {

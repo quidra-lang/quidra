@@ -22,7 +22,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="$(python3 -c 'import json; print(json.load(open("quidra.manifest.json"))["compiler_version"])')"
+          python3 tests/metadata_ssot_tests.py
+          version="$(python3 -c 'import sys; sys.path.insert(0, "scripts"); import toml_subset; print(toml_subset.load("project.toml")["project"]["version"])')"
           test -n "$version"
           tag="v$version"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"

@@ -9,9 +9,13 @@ namespace quidra::device {
 
 enum class DnnMode { Fast, Deterministic };
 
+// Members are named after the canonical backend ids in project.toml rather than
+// after the vendors, so the identifier a human reads here is the same one that
+// appears in machine-readable metadata. `backend_display_name` holds the
+// separate, human-facing spelling.
 enum class Backend {
-    Nvidia,
-    Amd,
+    Cuda,
+    Hip,
     Metal,
 #ifdef QUIDRA_ENABLE_TEST_GPU_BACKEND
     Test,
@@ -20,7 +24,7 @@ enum class Backend {
 
 struct Info {
     int index{};
-    Backend backend{Backend::Nvidia};
+    Backend backend{Backend::Cuda};
     int backend_index{};
     std::string name;
     std::string driver;
@@ -38,7 +42,9 @@ struct LaunchDimensions {
 
 const std::vector<Info>& devices();
 const Info* find(int index);
-std::string backend_name(Backend backend);
+
+// Human-facing name, matching the [[backends]] display value in project.toml.
+std::string backend_display_name(Backend backend);
 
 void set_dnn_mode(DnnMode mode);
 DnnMode dnn_mode();

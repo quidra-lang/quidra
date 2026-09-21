@@ -41,30 +41,10 @@ claimed_callables = declared - non_callable
 
 failures = []
 
-# Basic language metadata and the standard namespace set are also registry-owned.
-# Keep the manifest aligned with the same source of truth used by the compiler.
-def header_string(name: str) -> str:
-    match = re.search(
-        rf'inline constexpr std::string_view {re.escape(name)} = "([^"]+)";',
-        header,
-    )
-    if not match:
-        raise SystemExit(f"could not locate {name} in language.hpp")
-    return match.group(1)
-
-
-for manifest_key, header_name in (
-    ("language", "language_name"),
-    ("language_version", "language_version"),
-    ("source_extension", "source_extension"),
-):
-    expected = header_string(header_name)
-    actual = manifest.get(manifest_key)
-    if actual != expected:
-        failures.append(
-            f"manifest {manifest_key} is {actual!r}, compiler registry says {expected!r}"
-        )
-
+# The language name, language version and source extension are not checked here:
+# project.toml is their single definition, and both the manifest and the
+# compiler's generated project.hpp derive from it. tests/metadata_ssot_tests.py
+# owns that check. The registries below are genuinely header-owned.
 modules_block = re.search(r"standard_modules\{\{(.*?)\}\};", header, re.S)
 if not modules_block:
     raise SystemExit("could not locate standard_modules in language.hpp")

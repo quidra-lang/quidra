@@ -880,7 +880,7 @@ bool compute_binary_backward(
         return false;
     }
 #endif
-    if((dtype==9||dtype==10)&&left_gradient->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&left_gradient->backend==Backend::Cuda){
         auto ptx=ptx_binary_backward_source(dtype,operation,shared_output);
         auto lg=left_gradient->cuda_pointer,rg=right_gradient->cuda_pointer,
              g=gradient->cuda_pointer,a=left->cuda_pointer,b=right->cuda_pointer;
@@ -892,7 +892,7 @@ bool compute_binary_backward(
                  (shared_output?"-shared":"-split"),
             ptx,count,args,error);
     }
-    if((dtype==9||dtype==10)&&left_gradient->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&left_gradient->backend==Backend::Hip){
         auto source=hip_binary_backward_source(dtype,operation,shared_output);
         auto lg=left_gradient->pointer,rg=right_gradient->pointer,
              g=gradient->pointer,a=left->pointer,b=right->pointer;
@@ -954,7 +954,7 @@ bool compute_scalar_backward(
         return false;
     }
 #endif
-    if((dtype==9||dtype==10)&&output->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Cuda){
         auto source=ptx_scalar_backward_source(dtype,operation,scalar_left);
         auto o=output->cuda_pointer,g=gradient->cuda_pointer,in=input->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count);
@@ -975,7 +975,7 @@ bool compute_scalar_backward(
                 (scalar_left?"left":"right"),
             source,count,args,error);
     }
-    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Hip){
         auto source=hip_scalar_backward_source(dtype,operation,scalar_left);
         auto o=output->pointer,g=gradient->pointer,in=input->pointer;
         auto n=static_cast<std::uint64_t>(count);
@@ -1037,14 +1037,14 @@ bool compute_abs_backward(Buffer* output, const Buffer* gradient,
         error="neural absolute backward requires a floating dtype";return false;
     }
 #endif
-    if((dtype==9||dtype==10)&&output->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Cuda){
         auto ptx=ptx_abs_backward_source(dtype);
         auto out_ptr=output->cuda_pointer,g_ptr=gradient->cuda_pointer,in_ptr=input->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count);
         void* args[]={&out_ptr,&g_ptr,&in_ptr,&n};
         return launch_ptx_1d(output,"neural-abs-backward-"+std::to_string(dtype),ptx,count,args,error);
     }
-    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Hip){
         auto source=hip_abs_backward_source(dtype);
         auto out_ptr=output->pointer,g_ptr=gradient->pointer,in_ptr=input->pointer;
         auto n=static_cast<std::uint64_t>(count);
@@ -1082,14 +1082,14 @@ bool compute_mean_backward(Buffer* output, const Buffer* gradient_scalar,
         error="neural mean backward requires a floating dtype";return false;
     }
 #endif
-    if((dtype==9||dtype==10)&&output->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Cuda){
         auto ptx=ptx_mean_backward_source(dtype);
         auto out_ptr=output->cuda_pointer,g_ptr=gradient_scalar->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count);
         void* args[]={&out_ptr,&g_ptr,&n};
         return launch_ptx_1d(output,"neural-mean-backward-"+std::to_string(dtype),ptx,count,args,error);
     }
-    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Hip){
         auto source=hip_mean_backward_source(dtype);
         auto out_ptr=output->pointer,g_ptr=gradient_scalar->pointer;
         auto n=static_cast<std::uint64_t>(count);
@@ -1130,14 +1130,14 @@ bool compute_max_last_backward(Buffer* output, const Buffer* gradient,
         error="neural max_last backward requires a floating dtype";return false;
     }
 #endif
-    if((dtype==9||dtype==10)&&output->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Cuda){
         auto ptx=ptx_max_last_backward_source(dtype);
         auto out_ptr=output->cuda_pointer,g_ptr=gradient->cuda_pointer,in_ptr=input->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count),w=static_cast<std::uint64_t>(width);
         void* args[]={&out_ptr,&g_ptr,&in_ptr,&n,&w};
         return launch_ptx_1d(output,"neural-max-last-backward-"+std::to_string(dtype),ptx,count,args,error);
     }
-    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Hip){
         auto source=hip_max_last_backward_source(dtype);
         auto out_ptr=output->pointer,g_ptr=gradient->pointer,in_ptr=input->pointer;
         auto n=static_cast<std::uint64_t>(count),w=static_cast<std::uint64_t>(width);
@@ -1168,7 +1168,7 @@ bool cublas_affine_backward(
     const Buffer* gradient, const Buffer* input, const Buffer* weight,
     int dtype, std::size_t batches, std::size_t features_in,
     std::size_t features_out) {
-    if(input_gradient->backend!=Backend::Nvidia||(dtype!=9&&dtype!=10))return false;
+    if(input_gradient->backend!=Backend::Cuda||(dtype!=9&&dtype!=10))return false;
     if(batches>static_cast<std::size_t>(std::numeric_limits<int>::max())||
        features_in>static_cast<std::size_t>(std::numeric_limits<int>::max())||
        features_out>static_cast<std::size_t>(std::numeric_limits<int>::max()))
@@ -1279,7 +1279,7 @@ bool compute_affine_backward(
         error="neural affine backward requires a floating dtype";return false;
     }
 #endif
-    if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Cuda){
         if(cublas_affine_backward(input_gradient,weight_gradient,bias_gradient,
                                   gradient,input,weight,dtype,batches,features_in,
                                   features_out))
@@ -1312,7 +1312,7 @@ bool compute_affine_backward(
         return launch_target(input_gradient,1,input_count) &&
                launch_target(weight_gradient,2,weight_count);
     }
-    if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&input_gradient->backend==Backend::Hip){
         auto launch_target=[&](Buffer* target,int kind,std::size_t target_count)->bool{
             auto source=hip_affine_backward_source(dtype,kind);
             auto out_ptr=target->pointer,g_ptr=gradient->pointer,

@@ -80,6 +80,50 @@ int main() {
         manifest.requirements.at("vision")
             .matches(parse_semantic_version("0.1.9")));
 
+    // A package without project.toml keeps working: the richer names are
+    // optional and older packages predate the file.
+    assert(!manifest.project);
+
+    {
+        std::ofstream out(root / "project.toml");
+        out << "[package]\n"
+            << "name = \"quidra-sample\"\n"
+            << "import = \"sample\"\n"
+            << "display_name = \"Quidra Sample\"\n"
+            << "version = \"0.4.1\"\n"
+            << "repository = \"https://github.com/example/sample\"\n"
+            << "\n"
+            << "[requires]\n"
+            << "quidra = \">=0.2.0 <0.3.0\"\n"
+            << "abi = 1\n";
+    }
+
+    const auto described = read_package_manifest(root);
+    assert(described.project);
+    assert(described.project->distribution_name == "quidra-sample");
+    assert(described.project->import_name == "sample");
+    assert(described.project->display_name == "Quidra Sample");
+    assert(described.project->abi_requirement &&
+           *described.project->abi_requirement == 1);
+
+    // quidra.package is generated from project.toml, so a disagreement means
+    // one of them was hand-edited.
+    {
+        std::ofstream out(root / "project.toml");
+        out << "[package]\n"
+            << "name = \"quidra-sample\"\n"
+            << "import = \"sample\"\n"
+            << "display_name = \"Quidra Sample\"\n"
+            << "version = \"0.5.0\"\n";
+    }
+    bool drift_rejected = false;
+    try {
+        (void)read_package_manifest(root);
+    } catch (const std::runtime_error&) {
+        drift_rejected = true;
+    }
+    assert(drift_rejected);
+
     fs::remove_all(root);
     return 0;
 }

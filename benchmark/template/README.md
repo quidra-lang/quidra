@@ -4,6 +4,7 @@ This directory is the complete reusable input for a new benchmark run.
 
 ## Layout
 
+- `config/benchmark_metadata.json` — single source of truth for the five Primary evaluation IDs, their display names and the fixed evaluated-language set.
 - `config/primary.json` — frozen Primary replication/timing and runner recovery policy.
 - `config/quidra_representation_schema.json` — exact current-run output contract for Quidra micro representation/API resolution.
 - `config/evaluation_requirements.json` — mandatory Primary coverage IDs.
@@ -14,6 +15,7 @@ This directory is the complete reusable input for a new benchmark run.
 - `methodology/execution_policy.md` — execution/recovery/isolation policy.
 - `methodology/orchestration.md` — root-only state-machine rules.
 - `scripts/benchmark.py` — deterministic orchestration CLI.
+- `scripts/check_metadata.py` — template-maintenance check that every restatement of the evaluation IDs, display names and language set still agrees with `config/benchmark_metadata.json`.
 - `scripts/micro_measure.py` — runner-owned correctness/build/startup/timing/RSS/source/artifact measurement for the Language Quality startup + micro suite.
 - `programs/`, `fixtures/`, `validators/`, `workloads/`, `methodology-assets/` — reusable current-run inputs tracked directly in this template.
 - `reuse/catalog.json` — metadata and toolchain-currency fingerprints for those in-template assets.

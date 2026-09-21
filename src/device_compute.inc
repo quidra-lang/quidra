@@ -1547,7 +1547,7 @@ bool real_compute_unavailable(const Buffer* buffer, const char* operation,
     const auto* info = buffer ? find(buffer->global_index) : nullptr;
     std::ostringstream out;
     out << operation << " is not supported on ";
-    if (info) out << backend_name(info->backend);
+    if (info) out << backend_display_name(info->backend);
     else out << "this GPU backend";
     out << " for tensor dtype " << dtype;
     error = out.str();
@@ -1591,7 +1591,7 @@ bool compute_fill_ones(Buffer* output, int dtype, std::size_t count,
         std::memcpy(&raw, &one, sizeof(one));
         bits = raw;
     }
-    if (output->backend == Backend::Nvidia) {
+    if (output->backend == Backend::Cuda) {
         auto ptx = ptx_fill_kernel(width, bits);
         auto out_ptr = output->cuda_pointer;
         auto n = static_cast<std::uint64_t>(count);
@@ -1599,7 +1599,7 @@ bool compute_fill_ones(Buffer* output, int dtype, std::size_t count,
         return launch_ptx_1d(
             output, "fill-one-" + std::to_string(dtype), ptx, count, args, error);
     }
-    if (output->backend == Backend::Amd) {
+    if (output->backend == Backend::Hip) {
         auto source=hip_fill_source(width,bits);
         auto out_ptr=output->pointer;
         auto n=static_cast<std::uint64_t>(count);
@@ -1664,7 +1664,7 @@ bool compute_gather(Buffer* output, const Buffer* source, int dtype,
     if (!indices) return false;
     if (!copy_from_host(indices.get(), 0, source_indices,
                         count * sizeof(std::uint64_t), error)) return false;
-    if (output->backend == Backend::Nvidia) {
+    if (output->backend == Backend::Cuda) {
         auto ptx = ptx_gather_kernel(width);
         auto out_ptr = output->cuda_pointer;
         auto src_ptr = source->cuda_pointer;
@@ -1674,7 +1674,7 @@ bool compute_gather(Buffer* output, const Buffer* source, int dtype,
         return launch_ptx_1d(
             output, "gather-" + std::to_string(width), ptx, count, args, error);
     }
-    if (output->backend == Backend::Amd) {
+    if (output->backend == Backend::Hip) {
         auto source_code=hip_gather_source(width);
         auto out_ptr=output->pointer;
         auto src_ptr=source->pointer;
@@ -1902,7 +1902,7 @@ bool compute_compare_all(
     if (!copy_from_host(flag.get(), 0, &host_flag, sizeof(host_flag), error))
         return false;
 
-    if (left->backend == Backend::Nvidia) {
+    if (left->backend == Backend::Cuda) {
         auto ptx = ptx_compare_all_kernel(dtype, operation);
         auto left_ptr = left->cuda_pointer + left_offset;
         auto right_ptr = right->cuda_pointer + right_offset;
@@ -1916,7 +1916,7 @@ bool compute_compare_all(
                 ptx, count, args, error)) {
             return false;
         }
-    } else if (left->backend == Backend::Amd) {
+    } else if (left->backend == Backend::Hip) {
         auto source = hip_compare_all_source(dtype, operation);
         auto* left_ptr = static_cast<unsigned char*>(left->pointer) + left_offset;
         auto* right_ptr = static_cast<unsigned char*>(right->pointer) + right_offset;
@@ -1999,7 +1999,7 @@ bool compute_binary(Buffer* output, const Buffer* left, std::size_t left_offset,
         }
     }
 #endif
-    if (gpu_integer_dtype(dtype) && output->backend==Backend::Nvidia) {
+    if (gpu_integer_dtype(dtype) && output->backend==Backend::Cuda) {
         std::unique_ptr<Buffer,void(*)(Buffer*)> status(
             acquire_validation_status(output->global_index,error),
             [](Buffer* value){quidra::device::release(value);});
@@ -2053,7 +2053,7 @@ bool compute_binary(Buffer* output, const Buffer* left, std::size_t left_offset,
         return true;
     }
 #endif
-    if (hip_integer_dtype(dtype) && output->backend==Backend::Amd) {
+    if (hip_integer_dtype(dtype) && output->backend==Backend::Hip) {
         std::unique_ptr<Buffer,void(*)(Buffer*)> status(
             acquire_validation_status(output->global_index,error),
             [](Buffer* value){quidra::device::release(value);});
@@ -2080,7 +2080,7 @@ bool compute_binary(Buffer* output, const Buffer* left, std::size_t left_offset,
         return true;
     }
     if ((dtype == 9 || dtype == 10) && operation != 5 &&
-        output->backend == Backend::Nvidia) {
+        output->backend == Backend::Cuda) {
         auto ptx = ptx_float_binary_kernel(dtype, operation, scalar_side);
         auto out_ptr = output->cuda_pointer;
         auto left_ptr = left->cuda_pointer + left_offset;
@@ -2097,7 +2097,7 @@ bool compute_binary(Buffer* output, const Buffer* left, std::size_t left_offset,
             ptx, count, args, error);
     }
     if ((dtype==9||dtype==10) && operation!=5 &&
-        output->backend==Backend::Amd) {
+        output->backend==Backend::Hip) {
         auto source_code=hip_float_binary_source(dtype,operation,scalar_side);
         auto out_ptr=output->pointer;
         auto left_ptr=static_cast<unsigned char*>(left->pointer)+left_offset;
@@ -2222,7 +2222,7 @@ bool compute_unary(Buffer* output, const Buffer* input, std::size_t input_offset
             [](Buffer* value){quidra::device::release(value);});
         if(!status)return false;
         bool launched=false;
-        if(output->backend==Backend::Nvidia){
+        if(output->backend==Backend::Cuda){
             auto ptx=ptx_log_validate_kernel(dtype);
             auto in_ptr=input->cuda_pointer+input_offset;
             auto status_ptr=status->cuda_pointer;
@@ -2230,7 +2230,7 @@ bool compute_unary(Buffer* output, const Buffer* input, std::size_t input_offset
             void* args[]={&in_ptr,&n,&status_ptr};
             launched=launch_ptx_1d(
                 status.get(),"log-domain-"+std::to_string(dtype),ptx,count,args,error);
-        } else if(output->backend==Backend::Amd){
+        } else if(output->backend==Backend::Hip){
             auto source=hip_log_validate_source(dtype);
             auto in_ptr=static_cast<unsigned char*>(input->pointer)+input_offset;
             auto status_ptr=status->pointer;
@@ -2257,7 +2257,7 @@ bool compute_unary(Buffer* output, const Buffer* input, std::size_t input_offset
             launched=true;
         }
         if(!launched)return false;
-        if(output->backend==Backend::Nvidia || output->backend==Backend::Amd
+        if(output->backend==Backend::Cuda || output->backend==Backend::Hip
 #ifdef __APPLE__
            || (dtype==10 && output->backend==Backend::Metal)
 #endif
@@ -2266,7 +2266,7 @@ bool compute_unary(Buffer* output, const Buffer* input, std::size_t input_offset
                 status.release(),"logarithm requires finite positive values");
         }
     }
-    if (gpu_integer_signed(dtype) && output->backend==Backend::Nvidia) {
+    if (gpu_integer_signed(dtype) && output->backend==Backend::Cuda) {
         std::unique_ptr<Buffer,void(*)(Buffer*)> status(
             acquire_validation_status(output->global_index,error),
             [](Buffer* value){quidra::device::release(value);});
@@ -2302,7 +2302,7 @@ bool compute_unary(Buffer* output, const Buffer* input, std::size_t input_offset
         return true;
     }
 #endif
-    if (hip_signed_dtype(dtype) && output->backend==Backend::Amd) {
+    if (hip_signed_dtype(dtype) && output->backend==Backend::Hip) {
         std::unique_ptr<Buffer,void(*)(Buffer*)> status(
             acquire_validation_status(output->global_index,error),
             [](Buffer* value){quidra::device::release(value);});
@@ -2319,7 +2319,7 @@ bool compute_unary(Buffer* output, const Buffer* input, std::size_t input_offset
         return true;
     }
     if ((dtype==9 || dtype==10) &&
-        output->backend==Backend::Nvidia) {
+        output->backend==Backend::Cuda) {
         auto ptx=ptx_float_unary_kernel(dtype,operation);
         auto out_ptr=output->cuda_pointer;
         auto in_ptr=input->cuda_pointer+input_offset;
@@ -2329,7 +2329,7 @@ bool compute_unary(Buffer* output, const Buffer* input, std::size_t input_offset
             output,"unary-"+std::to_string(dtype)+"-"+std::to_string(operation),
             ptx,count,args,error);
     }
-    if ((dtype==9||dtype==10) && output->backend==Backend::Amd) {
+    if ((dtype==9||dtype==10) && output->backend==Backend::Hip) {
         auto source_code=hip_float_unary_source(dtype,operation);
         auto out_ptr=output->pointer;
         auto in_ptr=static_cast<unsigned char*>(input->pointer)+input_offset;
@@ -2387,7 +2387,7 @@ bool compute_cast(Buffer* output, const Buffer* input, std::size_t input_offset,
         return copy_device_to_device(output,0,input,input_offset,count*source_width,error);
     if(gpu_integer_dtype(source_dtype) &&
        (gpu_integer_dtype(target_dtype)||target_dtype==9||target_dtype==10) &&
-       output->backend==Backend::Nvidia){
+       output->backend==Backend::Cuda){
         std::unique_ptr<Buffer,void(*)(Buffer*)> status(
             acquire_validation_status(output->global_index,error),
             [](Buffer* value){quidra::device::release(value);});
@@ -2435,7 +2435,7 @@ bool compute_cast(Buffer* output, const Buffer* input, std::size_t input_offset,
 #endif
     if((source_dtype==9||source_dtype==10) &&
        (target_dtype==9||target_dtype==10) &&
-       output->backend==Backend::Nvidia){
+       output->backend==Backend::Cuda){
         if(source_dtype==9 && target_dtype==10){
             std::unique_ptr<Buffer,void(*)(Buffer*)> status(
                 acquire_validation_status(output->global_index,error),
@@ -2461,7 +2461,7 @@ bool compute_cast(Buffer* output, const Buffer* input, std::size_t input_offset,
             output,"cast-"+std::to_string(source_dtype)+"-"+std::to_string(target_dtype),
             ptx,count,args,error);
     }
-    if (output->backend==Backend::Amd &&
+    if (output->backend==Backend::Hip &&
         hip_integer_dtype(source_dtype) &&
         (hip_integer_dtype(target_dtype)||target_dtype==9||target_dtype==10)) {
         std::unique_ptr<Buffer,void(*)(Buffer*)> status(
@@ -2482,14 +2482,14 @@ bool compute_cast(Buffer* output, const Buffer* input, std::size_t input_offset,
             "tensor cast is unsupported or a value is outside the target range");
         return true;
     }
-    if (output->backend==Backend::Amd &&
+    if (output->backend==Backend::Hip &&
         (source_dtype==9||source_dtype==10) && hip_integer_dtype(target_dtype)) {
         error="tensor cast is unsupported or a value is outside the target range";
         return false;
     }
     if ((source_dtype==9||source_dtype==10) &&
         (target_dtype==9||target_dtype==10) &&
-        output->backend==Backend::Amd) {
+        output->backend==Backend::Hip) {
         if(source_dtype==9 && target_dtype==10){
             std::unique_ptr<Buffer,void(*)(Buffer*)> status(
                 acquire_validation_status(output->global_index,error),
@@ -2564,7 +2564,7 @@ bool compute_matmul(Buffer* output, const Buffer* left, const Buffer* right,
         }
     }
 #endif
-    if(gpu_integer_dtype(dtype)&&output->backend==Backend::Nvidia){
+    if(gpu_integer_dtype(dtype)&&output->backend==Backend::Cuda){
         std::unique_ptr<Buffer,void(*)(Buffer*)> status(
             acquire_validation_status(output->global_index,error),
             [](Buffer* value){quidra::device::release(value);});
@@ -2604,7 +2604,7 @@ bool compute_matmul(Buffer* output, const Buffer* left, const Buffer* right,
         return true;
     }
 #endif
-    if((dtype==9||dtype==10)&&output->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Cuda){
         auto ptx=ptx_float_matmul_kernel(dtype);
         auto out_ptr=output->cuda_pointer;
         auto left_ptr=left->cuda_pointer;
@@ -2616,7 +2616,7 @@ bool compute_matmul(Buffer* output, const Buffer* left, const Buffer* right,
         return launch_ptx_1d(
             output,"matmul-"+std::to_string(dtype),ptx,out_count,args,error);
     }
-    if(output->backend==Backend::Amd){
+    if(output->backend==Backend::Hip){
         const bool checked=hip_integer_dtype(dtype);
         auto source_code=checked
             ? hip_matmul_source(dtype,true)
@@ -2709,7 +2709,7 @@ bool compute_dot(const Buffer* left, const Buffer* right, int dtype,
         }
     }
 #endif
-    if(gpu_integer_dtype(dtype)&&left->backend==Backend::Nvidia){
+    if(gpu_integer_dtype(dtype)&&left->backend==Backend::Cuda){
         std::unique_ptr<Buffer,void(*)(Buffer*)> result(
             allocate(left->global_index,width,error),
             [](Buffer* value){quidra::device::release(value);});
@@ -2754,7 +2754,7 @@ bool compute_dot(const Buffer* left, const Buffer* right, int dtype,
         return copy_to_host(result.get(),0,host_result,width,error);
     }
 #endif
-    if((dtype==9||dtype==10)&&left->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&left->backend==Backend::Cuda){
         std::unique_ptr<Buffer,void(*)(Buffer*)> result(
             allocate(left->global_index,width,error),
             [](Buffer* value){quidra::device::release(value);});
@@ -2797,7 +2797,7 @@ bool compute_dot(const Buffer* left, const Buffer* right, int dtype,
         return copy_to_host(result_buffer.get(),0,host_result,sizeof(float),error);
     }
 #endif
-    if(left->backend==Backend::Amd){
+    if(left->backend==Backend::Hip){
         const bool checked=hip_integer_dtype(dtype);
         std::unique_ptr<Buffer,void(*)(Buffer*)> result(
             allocate(left->global_index,width,error),
@@ -2893,7 +2893,7 @@ bool compute_reduce(const Buffer* input, int dtype, int operation,
     }
 #endif
 
-    if (gpu_integer_dtype(dtype) && input->backend == Backend::Nvidia) {
+    if (gpu_integer_dtype(dtype) && input->backend == Backend::Cuda) {
         std::unique_ptr<Buffer,void(*)(Buffer*)> output(
             allocate(input->global_index,width,error),
             [](Buffer* value){quidra::device::release(value);});
@@ -2938,7 +2938,7 @@ bool compute_reduce(const Buffer* input, int dtype, int operation,
         return copy_to_host(output.get(),0,host_result,width,error);
     }
 #endif
-    if ((dtype == 9 || dtype == 10) && input->backend == Backend::Nvidia) {
+    if ((dtype == 9 || dtype == 10) && input->backend == Backend::Cuda) {
         const bool f32 = dtype == 10;
         const auto element_width = f32 ? 4U : 8U;
         std::ostringstream ptx;
@@ -3003,7 +3003,7 @@ bool compute_reduce(const Buffer* input, int dtype, int operation,
         return copy_to_host(output.get(), 0, host_result, width, error);
     }
 
-    if (input->backend==Backend::Amd) {
+    if (input->backend==Backend::Hip) {
         const bool checked=hip_integer_dtype(dtype);
         std::unique_ptr<Buffer,void(*)(Buffer*)> output(
             allocate(input->global_index,width,error),
@@ -3115,7 +3115,7 @@ bool compute_mean(const Buffer* input, int dtype, std::size_t count,
         return true;
     }
 #endif
-    if(gpu_integer_dtype(dtype)&&input->backend==Backend::Nvidia){
+    if(gpu_integer_dtype(dtype)&&input->backend==Backend::Cuda){
         std::unique_ptr<Buffer,void(*)(Buffer*)> output(
             allocate(input->global_index,sizeof(double),error),
             [](Buffer* value){quidra::device::release(value);});
@@ -3130,7 +3130,7 @@ bool compute_mean(const Buffer* input, int dtype, std::size_t count,
         if(!launch(module,"q_kernel",LaunchDimensions{1,1,1},LaunchDimensions{1,1,1},args,error))return false;
         return copy_to_host(output.get(),0,&result,sizeof(result),error);
     }
-    if((dtype==9||dtype==10)&&input->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&input->backend==Backend::Cuda){
         std::unique_ptr<Buffer,void(*)(Buffer*)> output(
             allocate(input->global_index,sizeof(double),error),
             [](Buffer* value){quidra::device::release(value);});
@@ -3211,7 +3211,7 @@ bool compute_mean(const Buffer* input, int dtype, std::size_t count,
         return true;
     }
 #endif
-    if(input->backend==Backend::Amd){
+    if(input->backend==Backend::Hip){
         std::unique_ptr<Buffer,void(*)(Buffer*)> output(
             allocate(input->global_index,sizeof(double),error),
             [](Buffer* value){quidra::device::release(value);});

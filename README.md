@@ -687,7 +687,7 @@ tensor<float32> copied_back = copied_to_gpu.cpu()
 
 GPU execution is host-asynchronous by default. Kernel launches, same-device copies, uploads, cuDNN/cuBLAS work, and supported multi-GPU collectives are queued without an implicit host wait; backend stream/queue ordering preserves dependencies. CPU observation is a synchronization boundary: `.cpu()`, `.item()`, and other operations that must expose completed GPU data wait as required. `gpu.sync(index)` is the explicit escape hatch for a specific GPU. Time sampling is non-synchronizing by default: `time.now()` and `time.since(start)` do not wait for queued GPU work, so progress bars, logging, and ordinary timing keep GPU execution asynchronous. For GPU latency or benchmark timing, use `time.now(sync = true)` and `time.since(start, sync = true)`; the start call waits before sampling, while the end call waits before its sample so measured GPU completion time is included. Quidra synchronizes only GPUs it has actually used.
 
-Tensor operations require tensor operands on the same device. Scalar operands are allowed as kernel arguments/constants. A GPU operation that the active backend does not yet implement fails explicitly instead of secretly executing over CPU memory. Use `quidra gpu` to inspect the zero-based device index space and active backend. NVIDIA placement uses the OS NVIDIA Driver API without depending on a user CUDA Toolkit, `nvcc`, `CUDA_HOME`, or `/usr/local/cuda`; Apple Silicon uses Metal; AMD uses the HIP runtime and runtime-compiled HIP kernels when a compatible ROCm/HIP runtime is present. NVIDIA and AMD compute support Quidra `float32`, `float`/`float64`, and checked integer tensor kernels where the operation is implemented. Metal compute supports `float32` and the built-in integer tensor element types; because Apple GPU Metal kernels do not provide the required binary64 compute semantics, `float`/`float64` device computation fails explicitly on Metal instead of narrowing precision or using CPU fallback.
+Tensor operations require tensor operands on the same device. Scalar operands are allowed as kernel arguments/constants. A GPU operation that the active backend does not yet implement fails explicitly instead of secretly executing over CPU memory. Use `quidra gpu` to inspect the zero-based device index space and active backend. There are three device backends, written as a canonical id in machine-readable output and as a display name for humans: `cuda` (NVIDIA), `hip` (AMD), and `metal` (Metal). CPU execution is ordinary native LLVM code rather than a device backend, so there is no `cpu` placement target. NVIDIA placement uses the OS NVIDIA Driver API without depending on a user CUDA Toolkit, `nvcc`, `CUDA_HOME`, or `/usr/local/cuda`; Apple Silicon uses Metal; AMD uses the HIP runtime and runtime-compiled HIP kernels when a compatible ROCm/HIP runtime is present. NVIDIA and AMD compute support Quidra `float32`, `float`/`float64`, and checked integer tensor kernels where the operation is implemented. Metal compute supports `float32` and the built-in integer tensor element types; because Apple GPU Metal kernels do not provide the required binary64 compute semantics, `float`/`float64` device computation fails explicitly on Metal instead of narrowing precision or using CPU fallback.
 
 Array dimensions accept the same integer-expression form. `float[n * m]` captures `n * m` when that array binding is created, while `float[][n * m]` keeps the outer dimension runtime-sized and captures the inner extent. Captured array and tensor constraints remain fixed across later reassignment.
 
@@ -886,7 +886,7 @@ Run `quidra` with no arguments from a terminal to start the native REPL. REPL su
 
 ```text
 $ quidra
-Quidra 0.1.0
+Quidra 0.2.0
 >>> 1 + 2
 3
 >>> int x = 5
@@ -1144,7 +1144,7 @@ match result
         print(problem)
 ```
 
-`http.Response.body` is `bin`, not `string`, because an HTTP body is not necessarily text. Header lookup is ASCII case-insensitive and a missing header is `none`. HTTP status codes such as 404 and 500 still produce a `Response`; DNS, TLS, connection, redirect, timeout, and protocol failures produce `error`. The v0.1 runtime supports only `http://` and `https://`, follows at most 10 redirects, keeps TLS certificate verification enabled, and captures the complete response body in memory.
+`http.Response.body` is `bin`, not `string`, because an HTTP body is not necessarily text. Header lookup is ASCII case-insensitive and a missing header is `none`. HTTP status codes such as 404 and 500 still produce a `Response`; DNS, TLS, connection, redirect, timeout, and protocol failures produce `error`. The runtime supports only `http://` and `https://`, follows at most 10 redirects, keeps TLS certificate verification enabled, and captures the complete response body in memory.
 
 ### Tensor numerics and image I/O
 

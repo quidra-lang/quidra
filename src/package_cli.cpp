@@ -5,7 +5,7 @@
 #include "quidra/frontend.hpp"
 #include "quidra/package_lock.hpp"
 #include "quidra/package_manifest.hpp"
-#include "quidra/version.hpp"
+#include "quidra/project.hpp"
 #include "native_build.hpp"
 
 #include <algorithm>
@@ -408,7 +408,8 @@ void validate_asset_archive_listing(std::string_view listing) {
             }
             if (first) {
                 if (part == ".git" || part == "main.qui" ||
-                    part == "quidra.package" || part == "quidra.lock") {
+                    part == "quidra.package" || part == "project.toml" ||
+                    part == "quidra.lock") {
                     throw std::runtime_error(
                         "package asset archive may not replace package identity files");
                 }

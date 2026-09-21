@@ -29,6 +29,17 @@ struct VersionRequirement {
     bool matches(const SemanticVersion& version) const;
 };
 
+// The names a package declares in project.toml. quidra.package's `name` is the
+// import identifier, and it is welded to the install directory, the repository
+// basename and the lockfile key, so it cannot also carry a distribution name or
+// a human-facing title. Those live here.
+struct PackageProject {
+    std::string distribution_name;
+    std::string import_name;
+    std::string display_name;
+    std::optional<unsigned long long> abi_requirement;
+};
+
 struct PackageManifest {
     std::string name;
     SemanticVersion version;
@@ -38,6 +49,7 @@ struct PackageManifest {
     std::optional<std::string> homepage;
     std::map<std::string, std::string> assets;
     std::map<std::string, VersionRequirement> requirements;
+    std::optional<PackageProject> project;
 };
 
 SemanticVersion parse_semantic_version(std::string_view text);

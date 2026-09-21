@@ -324,7 +324,7 @@ bool cublas_affine(Buffer* output, const Buffer* input, const Buffer* weight,
                    const Buffer* bias, int dtype, std::size_t batches,
                    std::size_t features_in, std::size_t features_out,
                    std::string& error) {
-    if (output->backend != Backend::Nvidia || (dtype != 9 && dtype != 10))
+    if (output->backend != Backend::Cuda || (dtype != 9 && dtype != 10))
         return false;
     if (batches > static_cast<std::size_t>(std::numeric_limits<int>::max()) ||
         features_in > static_cast<std::size_t>(std::numeric_limits<int>::max()) ||
@@ -461,7 +461,7 @@ bool cudnn_conv2d_forward(
     std::size_t height,std::size_t width,std::size_t channels_out,
     std::size_t kernel_h,std::size_t kernel_w,std::size_t output_h,
     std::size_t output_w,std::size_t stride,std::size_t padding) {
-    if(output->backend!=Backend::Nvidia||(dtype!=9&&dtype!=10))return false;
+    if(output->backend!=Backend::Cuda||(dtype!=9&&dtype!=10))return false;
     const auto fits=[](std::size_t v){
         return v<=static_cast<std::size_t>(std::numeric_limits<int>::max());
     };
@@ -963,7 +963,7 @@ bool compute_mean_to(Buffer* output, const Buffer* input, int dtype,
         error="neural.mean requires a floating dtype"; return false;
     }
 #endif
-    if ((dtype==9||dtype==10) && output->backend==Backend::Nvidia) {
+    if ((dtype==9||dtype==10) && output->backend==Backend::Cuda) {
         auto ptx=ptx_neural_mean_source(dtype);
         auto out_ptr=output->cuda_pointer, in_ptr=input->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count);
@@ -974,7 +974,7 @@ bool compute_mean_to(Buffer* output, const Buffer* input, int dtype,
         return launch(module,"q_kernel",LaunchDimensions{1,1,1},
                       LaunchDimensions{1,1,1},args,error);
     }
-    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Hip){
         auto source=hip_neural_mean_source(dtype);
         auto out_ptr=output->pointer,in_ptr=input->pointer;
         auto n=static_cast<std::uint64_t>(count);
@@ -1039,7 +1039,7 @@ bool compute_last_reduce_broadcast(Buffer* output, const Buffer* input, int dtyp
     }
 #endif
     const auto segments=count/width;
-    if((dtype==9||dtype==10)&&output->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Cuda){
         auto ptx=ptx_last_reduce_source(dtype,operation);
         auto out_ptr=output->cuda_pointer,in_ptr=input->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count);
@@ -1049,7 +1049,7 @@ bool compute_last_reduce_broadcast(Buffer* output, const Buffer* input, int dtyp
             "neural-last-"+std::to_string(dtype)+"-"+std::to_string(operation),
             ptx,segments,args,error);
     }
-    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Hip){
         auto source=hip_neural_last_source(dtype,operation);
         auto out_ptr=output->pointer,in_ptr=input->pointer;
         auto n=static_cast<std::uint64_t>(count),w=static_cast<std::uint64_t>(width);
@@ -1095,7 +1095,7 @@ bool compute_affine(Buffer* output, const Buffer* input, const Buffer* weight,
         error="neural.affine requires a floating dtype";return false;
     }
 #endif
-    if((dtype==9||dtype==10)&&output->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Cuda){
         std::string accelerated_error;
         if(cublas_affine(output,input,weight,bias,dtype,batches,features_in,
                          features_out,accelerated_error))
@@ -1106,7 +1106,7 @@ bool compute_affine(Buffer* output, const Buffer* input, const Buffer* weight,
         void* args[]={&out_ptr,&in_ptr,&w_ptr,&b_ptr,&total64,&in64,&out64};
         return launch_ptx_1d(output,"neural-affine-"+std::to_string(dtype),ptx,total,args,error);
     }
-    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Hip){
         auto source=hip_neural_affine_source(dtype);
         auto out_ptr=output->pointer,in_ptr=input->pointer,
              w_ptr=weight->pointer,b_ptr=bias->pointer;
@@ -1160,7 +1160,7 @@ bool compute_conv2d(Buffer* output, const Buffer* input, const Buffer* weight,
         error="neural.convolve2d requires a floating dtype";return false;
     }
 #endif
-    if((dtype==9||dtype==10)&&output->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Cuda){
         if(cudnn_conv2d_forward(output,input,weight,bias,dtype,batches,channels_in,
                                 height,width,channels_out,kernel_h,kernel_w,
                                 output_h,output_w,stride,padding))
@@ -1171,7 +1171,7 @@ bool compute_conv2d(Buffer* output, const Buffer* input, const Buffer* weight,
         void* args[]={&out_ptr,&in_ptr,&w_ptr,&b_ptr,&total64,&ci,&hh,&ww,&co,&kh,&kw,&oh,&ow,&st,&pa};
         return launch_ptx_1d(output,"neural-conv2d-"+std::to_string(dtype),ptx,total,args,error);
     }
-    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Hip){
         std::size_t footprint=0;
         bool tiled=kernel_h!=0&&kernel_w!=0&&
             kernel_h<=std::numeric_limits<std::size_t>::max()/kernel_w;
@@ -1357,7 +1357,7 @@ bool compute_normalize_inference(
         error="neural.normalize_inference requires a floating dtype";return false;
     }
 #endif
-    if((dtype==9||dtype==10)&&output->backend==Backend::Nvidia){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Cuda){
         auto ptx=ptx_normalize_inference_source(dtype);
         auto out_ptr=output->cuda_pointer,in_ptr=input->cuda_pointer,s_ptr=scale->cuda_pointer,b_ptr=bias->cuda_pointer,m_ptr=mean->cuda_pointer,v_ptr=variance->cuda_pointer;
         auto n=static_cast<std::uint64_t>(count),f=static_cast<std::uint64_t>(features),in=static_cast<std::uint64_t>(inner);
@@ -1365,7 +1365,7 @@ bool compute_normalize_inference(
         void* args[]={&out_ptr,&in_ptr,&s_ptr,&b_ptr,&m_ptr,&v_ptr,&n,&f,&in,&eps};
         return launch_ptx_1d(output,"neural-normalize-inference-"+std::to_string(dtype),ptx,count,args,error);
     }
-    if((dtype==9||dtype==10)&&output->backend==Backend::Amd){
+    if((dtype==9||dtype==10)&&output->backend==Backend::Hip){
         auto source=hip_neural_normalize_source(dtype);
         auto out_ptr=output->pointer,in_ptr=input->pointer,s_ptr=scale->pointer,
              b_ptr=bias->pointer,m_ptr=mean->pointer,v_ptr=variance->pointer;

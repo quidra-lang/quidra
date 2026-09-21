@@ -199,12 +199,12 @@ def ensure_host_workspace_ignored(source: Path) -> None:
     if tracked.strip():
         raise BenchmarkError("host benchmark workspace path must not be Git-tracked")
 
-    # Probe a child path rather than the directory name itself. A trailing-slash
-    # ignore rule such as '/.quidra-benchmark/' is directory-specific, so Git
-    # cannot classify a not-yet-created bare path as a directory during init.
-    ignore_probe = (HOST_WORKSPACE_RELATIVE / ".ignore-probe").as_posix()
+    # cmd_init creates the empty staging directory before this check. Probe the
+    # directory form explicitly so a directory-only rule such as
+    # '/.quidra-benchmark/' is evaluated exactly as Git will treat the workspace.
+    ignore_probe = HOST_WORKSPACE_RELATIVE.as_posix() + "/"
     ignored = subprocess.run(
-        ["git", "check-ignore", "--quiet", "--", ignore_probe],
+        ["git", "check-ignore", "--quiet", "--no-index", "--", ignore_probe],
         cwd=source,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -703,12 +703,20 @@ def cmd_init(args: argparse.Namespace) -> int:
             "benchmark target must have a clean working tree so its recorded commit SHA "
             "fully identifies the evaluated snapshot"
         )
-    ensure_host_workspace_ignored(source)
-
     root = host_workspace(args, source)
     if root.exists() and any(root.iterdir()):
         raise BenchmarkError(f"workspace must be absent or empty: {root}")
     root.mkdir(parents=True, exist_ok=True)
+    try:
+        # Directory-only ignore rules cannot be validated reliably before the
+        # directory exists. Verify while it is still empty, before staging data.
+        ensure_host_workspace_ignored(source)
+    except Exception:
+        try:
+            root.rmdir()
+        except OSError:
+            pass
+        raise
     template_src = source / "benchmark" / "template"
     master_src = source / "benchmark" / "master_prompt.md"
     if not template_src.is_dir() or not master_src.is_file():

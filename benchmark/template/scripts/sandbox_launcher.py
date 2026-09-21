@@ -212,8 +212,11 @@ def gateway_container_argv(
     This container is the credential side of the boundary: it keeps provider
     egress and any API key, and exposes only the socket on the shared volume.
     """
+    # Deliberately not --rm: a gateway that dies during startup takes its logs
+    # with it, and the launcher is then left reporting that the container does
+    # not exist rather than why it failed. Teardown removes it explicitly.
     command = [
-        engine, "run", "--rm", "--detach",
+        engine, "run", "--detach",
         "--name", name,
         "--user", f"{uid}:{gid}",
         "--security-opt", "no-new-privileges",
@@ -397,41 +400,60 @@ def wait_for_gateway(engine: str, container: str, volume_reader: list[str], time
         )
         if (alive.stdout or "").strip() != "true":
             logs = run_engine([engine, "logs", container], check=False)
+            detail = (logs.stderr or logs.stdout or "").strip()[-2000:]
+            if not detail:
+                detail = (
+                    "the container produced no output and is already gone; "
+                    + (alive.stderr or "").strip()
+                )
             raise LauncherError(
                 "the trusted gateway container exited before binding its socket: "
-                + ((logs.stderr or logs.stdout or "").strip()[-2000:] or "no output")
+                + detail
             )
         time.sleep(0.3)
     raise LauncherError(f"the trusted gateway socket did not appear within {timeout}s")
 
 
-def probe_staging_visibility(
-    engine: str, image: str, staging: Path, uid: int, gid: int
+def require_host_path_visible(
+    engine: str,
+    image: str,
+    host_dir: Path,
+    marker: str | None,
+    uid: int,
+    gid: int,
+    *,
+    what: str,
 ) -> None:
-    """Confirm the container really sees the staging directory.
+    """Confirm the container really sees a host directory this run depends on.
 
-    On macOS the engine runs in a VM that only shares configured host paths.
-    Colima shares $HOME by default, so a checkout elsewhere bind-mounts as an
-    empty directory and the run fails much later with a confusing error. Asking
-    the container what it can see is cheaper and more reliable than trying to
-    infer the VM's mount configuration.
+    On macOS the engine runs inside a VM that shares only configured host paths.
+    Colima shares $HOME by default, and a path outside it bind-mounts as an empty
+    directory with no error at all - the failure surfaces much later as a missing
+    file. Asking the container what it can see is both cheaper and more reliable
+    than trying to infer the VM's mount configuration.
     """
+    target = "/quidra-visibility-probe"
+    if marker is not None:
+        argv = ["test", "-e", f"{target}/{marker}"]
+    else:
+        # No marker to look for, so an empty mount is the only signal available.
+        argv = ["sh", "-c", f'[ -n "$(ls -A {target} 2>/dev/null)" ]']
     probe = run_engine(
         [
             engine, "run", "--rm", "--network", "none",
             "--user", f"{uid}:{gid}",
-            "--volume", f"{staging}:{CANONICAL_ROOT}:ro",
-            image,
-            "test", "-f", f"{CANONICAL_ROOT}/run.json",
+            "--volume", f"{host_dir}:{target}:ro",
+            image, *argv,
         ],
         check=False,
     )
     if probe.returncode != 0:
         raise LauncherError(
-            f"the container cannot see {staging}. The engine is running in a VM "
-            "that does not share this path. On Colima, either move the checkout "
-            "under your home directory or restart with the path shared, for "
-            f"example: colima start --mount '{staging.parent}:w'"
+            f"the container cannot see {what} at {host_dir}. The engine is "
+            "running in a VM that does not share this path, so it mounts as an "
+            "empty directory. Move it under your home directory, or restart the "
+            f"VM with the path shared, for example: colima start --mount "
+            f"'{host_dir}:w'"
         )
 
 
@@ -565,6 +587,28 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     started_gateway = False
     try:
+        require_host_path_visible(
+            engine, image, staging, "run.json", uid, gid,
+            what="the staged benchmark workspace",
+        )
+        if fake_script is not None:
+            require_host_path_visible(
+                engine, image, fake_script.parent, fake_script.name, uid, gid,
+                what="the fake provider script",
+            )
+        if args.task_policy:
+            policy = Path(args.task_policy).resolve()
+            require_host_path_visible(
+                engine, image, policy.parent, policy.name, uid, gid,
+                what="the task network policy",
+            )
+        for mount in args.gateway_mount or []:
+            source = Path(mount.split(":", 1)[0]).expanduser()
+            require_host_path_visible(
+                engine, image, source, None, uid, gid,
+                what="a trusted-side gateway mount",
+            )
+
         if owns_volume:
             run_engine([engine, "volume", "create", volume])
             # A fresh engine volume belongs to root. Both containers run
@@ -603,8 +647,6 @@ def cmd_run(args: argparse.Namespace) -> int:
                 image,
             ]
             wait_for_gateway(engine, gateway_name, volume_reader, float(args.gateway_timeout))
-
-        probe_staging_visibility(engine, image, staging, uid, gid)
 
         scored = scored_container_argv(
             engine,

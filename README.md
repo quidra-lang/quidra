@@ -6,7 +6,7 @@ Quidra is a statically typed, native general-purpose programming language design
 
 Its primary optimization target is **semantic density**: how much reliable intent can be recovered from each token without hidden conventions, guesswork, or repeated ceremony. Fewer characters are not automatically better. Fewer tokens are better only when the same meaning remains explicit, stable, and mechanically checkable.
 
-The name **Quidra** is derived from *quid*.
+The name **Quidra** is inspired by the Latin *quidditas* — the “whatness” or essence of a thing.
 
 ## The design thesis
 

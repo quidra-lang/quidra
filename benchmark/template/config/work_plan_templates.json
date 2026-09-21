@@ -233,7 +233,7 @@
           ],
           "network_allowed": false,
           "estimated_input_tokens_per_call": 6000,
-          "max_output_tokens_per_call": 16000,
+          "max_output_tokens_per_call": 4000,
           "split_by_language": true,
           "llm_budget_formula": "learnability_conditions",
           "worker_mode": "sandbox-agent"
@@ -259,7 +259,7 @@
           ],
           "network_allowed": false,
           "estimated_input_tokens_per_call": 6000,
-          "max_output_tokens_per_call": 16000,
+          "max_output_tokens_per_call": 4000,
           "split_by_language": true,
           "llm_budget_formula": "learnability_conditions",
           "worker_mode": "sandbox-agent"
@@ -285,7 +285,7 @@
           ],
           "network_allowed": false,
           "estimated_input_tokens_per_call": 6000,
-          "max_output_tokens_per_call": 16000,
+          "max_output_tokens_per_call": 4000,
           "split_by_language": true,
           "llm_budget_formula": "learnability_conditions",
           "worker_mode": "sandbox-agent"
@@ -1033,7 +1033,7 @@
           ],
           "network_allowed": false,
           "estimated_input_tokens_per_call": 7000,
-          "max_output_tokens_per_call": 16000,
+          "max_output_tokens_per_call": 5000,
           "split_by_language": true,
           "llm_budget_formula": "proficiency_primary_cells",
           "worker_mode": "sandbox-agent"

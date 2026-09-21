@@ -131,7 +131,7 @@
     "sandbox_provider_credentials": "forbidden",
     "sandbox_agent_launcher": "scripts/sandbox_launcher.py",
     "packet_only_inference": "benchmark.py task-infer via the same credential-less gateway",
-    "default_max_output_tokens": 16384,
+    "default_max_output_tokens": 8192,
     "trial_turn_multiplier": 3
   }
 }

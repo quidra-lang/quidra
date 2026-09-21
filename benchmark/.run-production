@@ -1,0 +1,19 @@
+# Request marker for the benchmark-production workflow.
+#
+# Changing this file and pushing to develop asks CI to run the full paid
+# benchmark against the develop snapshot at that push: pinned image build,
+# deterministic preparation with the offline fake provider, then all five
+# Primary evaluations through the credential-less gateway. The workflow's
+# soft spend guard is sized against the token envelope benchmark.py plan
+# reports for the frozen manifest.
+#
+# Request one only after benchmark-smoke has passed on the same snapshot, and
+# do not push to develop again until the run has finished: the measurement
+# window is frozen from manifest-merge to finalize, and a moved develop turns
+# the result into a workflow artifact instead of a commit.
+#
+# Re-request by editing any line below.
+
+requested_at_utc: 2026-09-21T19:05:19Z
+reason: first production run; smoke passed on b7559d3 and benchmark CI is green
+model: claude-sonnet-5

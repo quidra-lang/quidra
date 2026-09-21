@@ -607,7 +607,7 @@ QUI
 (
     cd "$TMP/package-project"
     HOME="$TMP/package-home" "$QUIDRA" package lock main.qui
-    grep -Eq '^local_math - [0-9a-f]{64}$' quidra.lock
+    grep -Eq '^local_math local_math - [0-9a-f]{64}$' quidra.lock
     HOME="$TMP/package-home" "$QUIDRA" package lock main.qui --check
     HOME="$TMP/package-home" "$QUIDRA" check main.qui
 )
@@ -632,7 +632,7 @@ grep -q 'PACKAGE_LOCK_MISMATCH' "$TMP/package-lock-check.err"
     HOME="$TMP/package-home" "$QUIDRA" package lock main.qui >/dev/null
     HOME="$TMP/package-home" "$QUIDRA" package lock main.qui --check
     HOME="$TMP/package-home" "$QUIDRA" check main.qui
-    printf 'unused_package - %064d\n' 0 >> quidra.lock
+    printf 'unused_package unused_package - %064d\n' 0 >> quidra.lock
     set +e
     HOME="$TMP/package-home" "$QUIDRA" check main.qui >"$TMP/package-lock-unused.out" 2>"$TMP/package-lock-unused.err"
     package_lock_unused_rc=$?

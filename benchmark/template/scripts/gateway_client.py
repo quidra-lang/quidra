@@ -14,6 +14,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import socket
 import sys
 import uuid
@@ -174,25 +175,72 @@ class InferenceGatewayClient:
         return response
 
 
-def parse_model_json(text: str) -> dict:
-    """Parse one JSON object out of a model completion.
+def _json_object_spans(text: str) -> list[tuple[int, int]]:
+    """Locate every top-level balanced {...} span, ignoring braces inside strings."""
+    spans: list[tuple[int, int]] = []
+    depth = 0
+    start = -1
+    in_string = False
+    escaped = False
+    for index, char in enumerate(text):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            if depth == 0:
+                start = index
+            depth += 1
+        elif char == "}":
+            if depth > 0:
+                depth -= 1
+                if depth == 0 and start >= 0:
+                    spans.append((start, index + 1))
+                    start = -1
+    return spans
 
-    Models reliably wrap JSON in a Markdown fence even when told not to, and a
-    rejected turn costs a scored model call. Tolerating exactly one fence - and
-    nothing looser - keeps the contract strict without burning retries on
-    formatting.
+
+def parse_model_json(text: str) -> dict:
+    """Parse the one JSON object a model completion is supposed to carry.
+
+    The contract is that a worker returns exactly one JSON object, and that does
+    not change here. What changes is tolerance for how the model packages it.
+    Real models routinely add "Here is the response:" before the object and a
+    closing remark after it, even when told not to, and every rejection costs a
+    paid call and moves a work unit closer to being blocked for a formatting
+    habit rather than a wrong answer.
+
+    So: take the single object the completion contains, wherever it sits. Refuse
+    when the completion carries none, or more than one, because that is genuine
+    ambiguity about which answer was meant - and let the schema checks downstream
+    stay exactly as strict as they were.
     """
     stripped = text.strip()
-    if stripped.startswith("```"):
-        lines = stripped.splitlines()
-        if len(lines) >= 2 and lines[-1].strip() == "```":
-            stripped = "\n".join(lines[1:-1]).strip()
-    if not stripped.startswith("{"):
+
+    fenced = re.findall(r"```(?:[A-Za-z0-9_-]*)\n(.*?)```", stripped, re.S)
+    candidates = [block.strip() for block in fenced] if fenced else []
+    if not candidates:
+        spans = _json_object_spans(stripped)
+        candidates = [stripped[start:end] for start, end in spans]
+
+    if not candidates:
         raise GatewayClientError(
-            "model completion is not a single JSON object as required by the contract"
+            "model completion contains no JSON object; the contract requires exactly one"
         )
+    if len(candidates) > 1:
+        raise GatewayClientError(
+            f"model completion contains {len(candidates)} JSON objects; the contract "
+            "requires exactly one, and which was meant is ambiguous"
+        )
+
     try:
-        value = json.loads(stripped)
+        value = json.loads(candidates[0])
     except json.JSONDecodeError as exc:
         raise GatewayClientError(f"model completion is not valid JSON: {exc}") from exc
     if not isinstance(value, dict):

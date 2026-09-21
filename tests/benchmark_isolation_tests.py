@@ -1096,6 +1096,49 @@ def test_declared_tool_surface_matches_what_the_provider_will_do() -> None:
         check(expected in problems, f"{label} surface was accepted: {problems}")
 
 
+def test_model_completions_are_parsed_by_content_not_packaging() -> None:
+    """A formatting habit must not cost a work unit.
+
+    Both worker protocols require exactly one JSON object, and both consume a
+    paid call per attempt before a unit is retried and finally blocked. Real
+    models routinely wrap that object in a preamble or follow it with a closing
+    remark; rejecting those spends the call and moves the unit toward being
+    blocked for packaging rather than for a wrong answer. Genuine ambiguity -
+    no object, or more than one - still has to be refused, because then which
+    answer was meant is unknown.
+    """
+    accepted = {
+        "bare object": '{"action":"final"}',
+        "fenced with a language tag": '```json\n{"action":"final"}\n```',
+        "fenced without one": '```\n{"action":"final"}\n```',
+        "preamble then a fence": 'Here is the response:\n```json\n{"action":"final"}\n```',
+        "fence then a closing remark": '```json\n{"action":"final"}\n```\nLet me know.',
+        "prose then a bare object": 'Sure.\n{"action":"final"}',
+        "object then prose": '{"action":"final"}\nDone.',
+        "braces and quotes inside strings": '{"a":"} not a brace","b":"say \\"hi\\""}',
+    }
+    for label, completion in accepted.items():
+        try:
+            gateway_client.parse_model_json(completion)
+        except gateway_client.GatewayClientError as exc:
+            check(False, f"a well-formed answer was rejected for its packaging ({label}): {exc}")
+
+    refused = {
+        "no object at all": "I'll help with that! Let me think first.",
+        "two bare objects": '{"a":1}\n{"b":2}',
+        "two fenced objects": '```json\n{"a":1}\n```\n```json\n{"b":2}\n```',
+        "unbalanced": '{"a":1',
+        "an array, not an object": "[1,2,3]",
+        "invalid JSON": '{"a": unquoted}',
+    }
+    for label, completion in refused.items():
+        try:
+            gateway_client.parse_model_json(completion)
+        except gateway_client.GatewayClientError:
+            continue
+        check(False, f"an ambiguous or malformed completion was accepted ({label})")
+
+
 # --------------------------------------------------------------------------
 # 5. The exec provider keeps a local agent session on the trusted side
 # --------------------------------------------------------------------------

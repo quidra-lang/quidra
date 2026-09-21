@@ -28,7 +28,7 @@ class BenchmarkError(RuntimeError):
 
 CANONICAL_WORKSPACE = Path("/quidra-benchmark")
 HOST_WORKSPACE_RELATIVE = Path(".quidra-benchmark")
-HOST_SENTINEL_NAME = ".quidra-benchmark-host.json"
+HOST_SENTINEL_NAME = "quidra-benchmark-host.json"
 HOST_SENTINEL_KIND = "quidra-benchmark-host-staging-v1"
 TEMPLATE_DIR = Path(__file__).resolve().parent.parent
 BENCHMARK_METADATA_RELATIVE = PurePosixPath("config/benchmark_metadata.json")
@@ -176,18 +176,28 @@ def workspace(args: argparse.Namespace) -> Path:
     return lexical_absolute(Path(getattr(args, "workspace", CANONICAL_WORKSPACE)))
 
 
-def host_workspace(args: argparse.Namespace, source: Path) -> Path:
-    """Resolve the trusted host staging directory relative to the source checkout."""
-    raw = Path(getattr(args, "workspace", HOST_WORKSPACE_RELATIVE))
-    root = lexical_absolute(raw if raw.is_absolute() else source / raw)
-    expected = lexical_absolute(source / HOST_WORKSPACE_RELATIVE)
-    if root != expected:
-        raise BenchmarkError(
-            "host benchmark workspace must be exactly <source-repo>/.quidra-benchmark"
-        )
-    if expected.is_symlink():
+def host_workspace(source: Path) -> Path:
+    """Return the fixed trusted host staging directory for this checkout."""
+    root = lexical_absolute(source / HOST_WORKSPACE_RELATIVE)
+    if root.is_symlink():
         raise BenchmarkError("host benchmark workspace may not be a symlink")
     return root
+
+
+def host_sentinel_path(source: Path) -> Path:
+    """Return the Git-private host guard path, outside the sandbox staging tree."""
+    raw = Path(
+        run_capture(["git", "rev-parse", "--git-path", HOST_SENTINEL_NAME], source)
+    )
+    path = lexical_absolute(raw if raw.is_absolute() else source / raw)
+    root = lexical_absolute(source / HOST_WORKSPACE_RELATIVE)
+    try:
+        path.relative_to(root)
+    except ValueError:
+        pass
+    else:
+        raise BenchmarkError("host benchmark sentinel must be outside ./.quidra-benchmark")
+    return path
 
 
 def source_path_sha256(source: Path) -> str:
@@ -215,18 +225,69 @@ def ensure_host_workspace_ignored(source: Path) -> None:
         )
 
 
-def write_host_workspace_sentinel(root: Path, source: Path, run: dict[str, Any]) -> None:
-    marker = {
+def host_workspace_sentinel(
+    source: Path,
+    run_id: str,
+    evaluated_commit_sha: str,
+) -> dict[str, Any]:
+    return {
         "schema_version": 1,
         "kind": HOST_SENTINEL_KIND,
         "source_path_sha256": source_path_sha256(source),
-        "run_id": run.get("run_id"),
-        "evaluated_commit_sha": run.get("evaluated", {}).get("commit_sha"),
+        "run_id": run_id,
+        "evaluated_commit_sha": evaluated_commit_sha,
         "canonical_workspace_root": CANONICAL_WORKSPACE.as_posix(),
     }
-    path = root / HOST_SENTINEL_NAME
+
+
+def write_host_workspace_sentinel(
+    source: Path,
+    run_id: str,
+    evaluated_commit_sha: str,
+) -> None:
+    path = host_sentinel_path(source)
+    if path.is_symlink() or path.exists():
+        raise BenchmarkError(
+            "host benchmark sentinel already exists; use discard-workspace before starting a new run"
+        )
+    marker = host_workspace_sentinel(source, run_id, evaluated_commit_sha)
     json_dump(path, marker)
     os.chmod(path, 0o600)
+
+
+def validate_host_workspace_path(root: Path, source: Path) -> None:
+    expected_root = lexical_absolute(source / HOST_WORKSPACE_RELATIVE)
+    if root != expected_root or root.name != HOST_WORKSPACE_RELATIVE.name:
+        raise BenchmarkError("refusing host workspace operation outside ./.quidra-benchmark")
+    if root.is_symlink():
+        raise BenchmarkError("refusing host workspace operation through a symlink")
+
+
+def validate_host_workspace_guard(source: Path) -> dict[str, Any]:
+    marker_path = host_sentinel_path(source)
+    if marker_path.is_symlink() or not marker_path.is_file():
+        raise BenchmarkError("host benchmark sentinel is missing or invalid")
+    try:
+        marker = json_load(marker_path)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise BenchmarkError("host benchmark sentinel is unreadable or invalid") from exc
+    expected_static = {
+        "schema_version": 1,
+        "kind": HOST_SENTINEL_KIND,
+        "source_path_sha256": source_path_sha256(source),
+        "canonical_workspace_root": CANONICAL_WORKSPACE.as_posix(),
+    }
+    for key, value in expected_static.items():
+        if marker.get(key) != value:
+            raise BenchmarkError("host benchmark sentinel does not match this source checkout")
+    if not isinstance(marker.get("run_id"), str) or not marker["run_id"]:
+        raise BenchmarkError("host benchmark sentinel has no valid run_id")
+    if (
+        not isinstance(marker.get("evaluated_commit_sha"), str)
+        or not marker["evaluated_commit_sha"]
+    ):
+        raise BenchmarkError("host benchmark sentinel has no valid evaluated commit")
+    return marker
 
 
 def validate_host_workspace_sentinel(
@@ -234,32 +295,32 @@ def validate_host_workspace_sentinel(
     source: Path,
     run: dict[str, Any],
 ) -> None:
-    expected_root = lexical_absolute(source / HOST_WORKSPACE_RELATIVE)
-    if root != expected_root or root.name != HOST_WORKSPACE_RELATIVE.name:
-        raise BenchmarkError("refusing host workspace operation outside ./.quidra-benchmark")
-    if root.is_symlink():
-        raise BenchmarkError("refusing host workspace operation through a symlink")
-    marker_path = root / HOST_SENTINEL_NAME
-    if marker_path.is_symlink() or not marker_path.is_file():
-        raise BenchmarkError("host benchmark workspace sentinel is missing or invalid")
-    marker = json_load(marker_path)
-    expected = {
-        "schema_version": 1,
-        "kind": HOST_SENTINEL_KIND,
-        "source_path_sha256": source_path_sha256(source),
-        "run_id": run.get("run_id"),
-        "evaluated_commit_sha": run.get("evaluated", {}).get("commit_sha"),
-        "canonical_workspace_root": CANONICAL_WORKSPACE.as_posix(),
-    }
-    if marker != expected:
-        raise BenchmarkError("host benchmark workspace sentinel does not match this run")
+    validate_host_workspace_path(root, source)
+    marker = validate_host_workspace_guard(source)
+    if marker.get("run_id") != run.get("run_id"):
+        raise BenchmarkError("host benchmark sentinel run_id does not match this run")
+    if marker.get("evaluated_commit_sha") != run.get("evaluated", {}).get("commit_sha"):
+        raise BenchmarkError("host benchmark sentinel commit does not match this run")
     if run.get("workspace_root") != CANONICAL_WORKSPACE.as_posix():
         raise BenchmarkError("run.json does not name the canonical /quidra-benchmark root")
 
 
-def delete_host_workspace(root: Path, source: Path, run: dict[str, Any]) -> None:
-    validate_host_workspace_sentinel(root, source, run)
-    shutil.rmtree(root)
+def delete_host_workspace(root: Path, source: Path) -> bool:
+    validate_host_workspace_path(root, source)
+    marker_path = host_sentinel_path(source)
+    validate_host_workspace_guard(source)
+    workspace_existed = root.exists()
+    if workspace_existed:
+        if not root.is_dir():
+            raise BenchmarkError("host benchmark workspace is not a directory")
+        shutil.rmtree(root)
+    try:
+        marker_path.unlink()
+    except OSError as exc:
+        raise BenchmarkError(
+            f"workspace deletion succeeded but host sentinel cleanup failed: {exc}"
+        ) from exc
+    return workspace_existed
 
 
 def run_capture(cmd: list[str], cwd: Path) -> str:
@@ -703,7 +764,7 @@ def cmd_init(args: argparse.Namespace) -> int:
             "benchmark target must have a clean working tree so its recorded commit SHA "
             "fully identifies the evaluated snapshot"
         )
-    root = host_workspace(args, source)
+    root = host_workspace(source)
     if root.exists() and any(root.iterdir()):
         raise BenchmarkError(f"workspace must be absent or empty: {root}")
     root.mkdir(parents=True, exist_ok=True)
@@ -717,6 +778,9 @@ def cmd_init(args: argparse.Namespace) -> int:
         except OSError:
             pass
         raise
+    run_id = args.run_id or f"{dt.date.today().isoformat()}-{meta['short_sha']}"
+    write_host_workspace_sentinel(source, run_id, meta["commit_sha"])
+
     template_src = source / "benchmark" / "template"
     master_src = source / "benchmark" / "master_prompt.md"
     if not template_src.is_dir() or not master_src.is_file():
@@ -757,7 +821,6 @@ def cmd_init(args: argparse.Namespace) -> int:
     materialized_hash = sha256_file(materialized_path) if materialized_path.exists() else None
     template_hash = sha256_tree(root / "template")
 
-    run_id = args.run_id or f"{dt.date.today().isoformat()}-{meta['short_sha']}"
     run = {
         "schema_version": 1,
         "run_id": run_id,
@@ -778,7 +841,6 @@ def cmd_init(args: argparse.Namespace) -> int:
         "created_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
     }
     json_dump(root / "run.json", run)
-    write_host_workspace_sentinel(root, source, run)
     print(json.dumps(run, indent=2))
     return 0
 
@@ -4162,7 +4224,7 @@ def cmd_post_run(args: argparse.Namespace) -> int:
     source = Path(args.source_repo).resolve()
     if not source.is_dir():
         raise BenchmarkError(f"source repository does not exist: {source}")
-    root = host_workspace(args, source)
+    root = host_workspace(source)
     if not root.is_dir():
         raise BenchmarkError(f"benchmark workspace does not exist: {root}")
     run_path = root / "run.json"
@@ -4239,7 +4301,8 @@ def cmd_post_run(args: argparse.Namespace) -> int:
         )
 
     try:
-        delete_host_workspace(root, source, run)
+        validate_host_workspace_sentinel(root, source, run)
+        delete_host_workspace(root, source)
     except (OSError, BenchmarkError) as exc:
         raise BenchmarkError(
             f"run imported successfully to {destination}, but guarded workspace cleanup failed: {exc}"
@@ -4256,13 +4319,29 @@ def cmd_post_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_discard_workspace(args: argparse.Namespace) -> int:
+    source = Path(args.source_repo).resolve()
+    if not source.is_dir():
+        raise BenchmarkError(f"source repository does not exist: {source}")
+    root = host_workspace(source)
+    marker = validate_host_workspace_guard(source)
+    workspace_deleted = delete_host_workspace(root, source)
+    result = {
+        "ok": True,
+        "run_id": marker["run_id"],
+        "workspace_deleted": workspace_deleted,
+        "sentinel_deleted": True,
+    }
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Quidra benchmark orchestration CLI")
     sub = p.add_subparsers(dest="command", required=True)
 
     init = sub.add_parser("init", help="stage <source-repo>/.quidra-benchmark for mapping to /quidra-benchmark inside the sandbox")
     init.add_argument("--source-repo", required=True)
-    init.add_argument("--workspace", default=str(HOST_WORKSPACE_RELATIVE))
     init.add_argument("--run-id")
     init.add_argument(
         "--sandbox-mode",
@@ -4436,9 +4515,15 @@ def build_parser() -> argparse.ArgumentParser:
         "post-run",
         help="import finalized artifacts from <source-repo>/.quidra-benchmark and delete the host staging workspace",
     )
-    post.add_argument("--workspace", default=str(HOST_WORKSPACE_RELATIVE))
     post.add_argument("--source-repo", required=True)
     post.set_defaults(func=cmd_post_run)
+
+    discard = sub.add_parser(
+        "discard-workspace",
+        help="safely discard an abandoned <source-repo>/.quidra-benchmark staging workspace",
+    )
+    discard.add_argument("--source-repo", required=True)
+    discard.set_defaults(func=cmd_discard_workspace)
 
     return p
 

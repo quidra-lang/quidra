@@ -135,7 +135,7 @@ jobs:
           assert "Past run directories" in master
           assert str(module.CANONICAL_WORKSPACE) == "/quidra-benchmark"
           assert str(module.HOST_WORKSPACE_RELATIVE) == ".quidra-benchmark"
-          assert module.HOST_SENTINEL_NAME == ".quidra-benchmark-host.json"
+          assert module.HOST_SENTINEL_NAME == "quidra-benchmark-host.json"
           assert "/.quidra-benchmark/" in Path(".gitignore").read_text()
           primary_cfg = json.loads((root / "config" / "primary.json").read_text())
           assert primary_cfg["workspace_root"] == "/quidra-benchmark"
@@ -649,12 +649,19 @@ jobs:
           )
           test -f "$GITHUB_WORKSPACE/.quidra-benchmark/run.json"
           test ! -e "$OUTSIDE/.quidra-benchmark"
+          SENTINEL="$(git rev-parse --git-path quidra-benchmark-host.json)"
+          export SENTINEL
+          test -f "$SENTINEL"
+          test ! -e "$GITHUB_WORKSPACE/.quidra-benchmark/quidra-benchmark-host.json"
           python - <<'PY'
           from pathlib import Path
           import json
+          import os
           root = Path(".quidra-benchmark")
           run = json.loads((root / "run.json").read_text())
-          sentinel = json.loads((root / ".quidra-benchmark-host.json").read_text())
+          sentinel_path = Path(os.environ["SENTINEL"])
+          sentinel = json.loads(sentinel_path.read_text())
+          assert root not in sentinel_path.parents
           assert run["workspace_root"] == "/quidra-benchmark"
           assert sentinel["kind"] == "quidra-benchmark-host-staging-v1"
           assert sentinel["run_id"] == run["run_id"]
@@ -666,7 +673,12 @@ jobs:
           assert "/home/" not in json.dumps(sentinel)
           PY
           git check-ignore -q .quidra-benchmark/run.json
-          rm -rf .quidra-benchmark
+
+          # Abandoned runs must remain safely discardable even if sandbox state is damaged.
+          rm .quidra-benchmark/run.json
+          python benchmark/template/scripts/benchmark.py discard-workspace             --source-repo "$GITHUB_WORKSPACE"
+          test ! -e .quidra-benchmark
+          test ! -e "$SENTINEL"
 
       - name: Exercise finalized run import and cleanup
         run: |
@@ -716,6 +728,7 @@ jobs:
           import hashlib
           import json
           import os
+          import subprocess
 
           root = Path(os.environ["RUN"])
           source = Path(os.environ["REPO"]).resolve()
@@ -730,15 +743,20 @@ jobs:
               "evaluated_commit_sha": run["evaluated"]["commit_sha"],
               "canonical_workspace_root": "/quidra-benchmark",
           }
-          (root / ".quidra-benchmark-host.json").write_text(
-              json.dumps(sentinel, indent=2, sort_keys=True) + "\n"
-          )
+          sentinel_raw = Path(subprocess.check_output(
+              ["git", "rev-parse", "--git-path", "quidra-benchmark-host.json"],
+              cwd=source,
+              text=True,
+          ).strip())
+          sentinel_path = sentinel_raw if sentinel_raw.is_absolute() else source / sentinel_raw
+          sentinel_path.write_text(json.dumps(sentinel, indent=2, sort_keys=True) + "\n")
           PY
 
           python benchmark/template/scripts/benchmark.py post-run \
             --source-repo "$REPO"
 
           test ! -e "$RUN"
+          test ! -e "$REPO/.git/quidra-benchmark-host.json"
           OUT="$REPO/benchmark/synthetic-post-run"
           test -f "$OUT/run.json"
           test -f "$OUT/results/finalization.json"

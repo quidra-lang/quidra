@@ -43,6 +43,7 @@ from gateway_client import (  # noqa: E402
     GatewayClientError,
     GatewayRefusal,
     InferenceGatewayClient,
+    completion_problem,
     parse_model_json,
 )
 
@@ -430,6 +431,15 @@ def run_agent(args: argparse.Namespace) -> int:
         usage["output_tokens"] += int(response.get("usage", {}).get("output_tokens", 0) or 0)
         completion = response["content"]
         messages.append({"role": "assistant", "content": completion})
+
+        incomplete = completion_problem(response)
+        if incomplete:
+            # Not a protocol error on the model's part, and not worth another
+            # identical turn: the answer was cut off or declined, and saying so
+            # is more useful than three retries that end the same way.
+            stop_reason = f"incomplete_completion:{incomplete.split(':', 1)[0]}"
+            trace.append({"turn": turn, "action": None, "incomplete": incomplete})
+            break
 
         try:
             action = parse_model_json(completion)

@@ -3350,6 +3350,9 @@ def cmd_task_infer(args: argparse.Namespace) -> int:
         raise BenchmarkError(f"inference transport failure: {exc}") from exc
 
     completion = response["content"]
+    incomplete = client_module.completion_problem(response)
+    if incomplete:
+        raise BenchmarkError(f"packet-only worker response is incomplete: {incomplete}")
     try:
         worker_response = client_module.parse_model_json(completion)
     except client_module.GatewayClientError as exc:

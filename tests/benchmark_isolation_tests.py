@@ -1139,6 +1139,42 @@ def test_model_completions_are_parsed_by_content_not_packaging() -> None:
         check(False, f"an ambiguous or malformed completion was accepted ({label})")
 
 
+def test_a_truncated_or_declined_completion_says_so() -> None:
+    """Name the failure the provider reported instead of the one parsing invents.
+
+    A completion cut off at the output limit is a truncated JSON object, which
+    the parser can only describe as "no JSON object". The driver then retries an
+    identical request three times and blocks the unit with a diagnosis pointing
+    at the model's formatting rather than at the cap that actually stopped it.
+    Adaptive thinking bills into the same output budget, so this is the ordinary
+    way a large answer fails, not an edge case.
+    """
+    check(
+        gateway_client.completion_problem({"stop_reason": "end_turn"}) is None,
+        "a normal completion was reported as a problem",
+    )
+    for reason in ("max_tokens", "refusal"):
+        message = gateway_client.completion_problem({"stop_reason": reason})
+        check(bool(message) and message.startswith(reason),
+              f"{reason} was not surfaced as its own failure: {message}")
+    check(
+        "output cap" in (gateway_client.completion_problem({"stop_reason": "max_tokens"}) or ""),
+        "the truncation message does not say what to change",
+    )
+
+    # The parse failure it would otherwise be mistaken for.
+    truncated = '{"schema_version":1,"files":[{"path":"result.json","content":"abc'
+    try:
+        gateway_client.parse_model_json(truncated)
+    except gateway_client.GatewayClientError as exc:
+        check(
+            "JSON" in str(exc),
+            f"a truncated object produced an unexpected error: {exc}",
+        )
+    else:
+        check(False, "a truncated object was accepted")
+
+
 # --------------------------------------------------------------------------
 # 5. The exec provider keeps a local agent session on the trusted side
 # --------------------------------------------------------------------------

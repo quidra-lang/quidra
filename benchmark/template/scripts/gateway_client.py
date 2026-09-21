@@ -175,6 +175,27 @@ class InferenceGatewayClient:
         return response
 
 
+#: Provider stop reasons that mean the completion is not a whole answer. Left
+#: unchecked, each surfaces later as a confusing parse failure - a truncated
+#: object reads as "no JSON object" - and the work unit is retried and blocked
+#: with a diagnosis that points at the wrong thing.
+INCOMPLETE_STOP_REASONS = {
+    "max_tokens": (
+        "the model hit its output limit and the answer is truncated; raise the "
+        "unit's output cap rather than retrying the same request"
+    ),
+    "refusal": "the provider declined this request",
+}
+
+
+def completion_problem(response: dict[str, Any]) -> str | None:
+    """Explain why a completion is not a usable answer, before anyone parses it."""
+    reason = str(response.get("stop_reason") or "")
+    if reason in INCOMPLETE_STOP_REASONS:
+        return f"{reason}: {INCOMPLETE_STOP_REASONS[reason]}"
+    return None
+
+
 def _json_object_spans(text: str) -> list[tuple[int, int]]:
     """Locate every top-level balanced {...} span, ignoring braces inside strings."""
     spans: list[tuple[int, int]] = []

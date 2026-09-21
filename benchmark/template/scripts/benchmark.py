@@ -198,8 +198,13 @@ def ensure_host_workspace_ignored(source: Path) -> None:
     tracked = run_capture(["git", "ls-files", "--", HOST_WORKSPACE_RELATIVE.as_posix()], source)
     if tracked.strip():
         raise BenchmarkError("host benchmark workspace path must not be Git-tracked")
+
+    # Probe a child path rather than the directory name itself. A trailing-slash
+    # ignore rule such as '/.quidra-benchmark/' is directory-specific, so Git
+    # cannot classify a not-yet-created bare path as a directory during init.
+    ignore_probe = (HOST_WORKSPACE_RELATIVE / ".ignore-probe").as_posix()
     ignored = subprocess.run(
-        ["git", "check-ignore", "--quiet", "--", HOST_WORKSPACE_RELATIVE.as_posix()],
+        ["git", "check-ignore", "--quiet", "--", ignore_probe],
         cwd=source,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,

@@ -53,7 +53,7 @@ This phase boundary is a correctness property, not only an optimization. Backend
 
 ## Format versions
 
-The device ABI, typed Quidra IR, and the package-manifest schema each carry their own version number. All three are declared in `project.toml` under `[compat]`, and the build exposes them to the compiler as `abi_version`, `ir_version` and `package_schema_version`.
+The device ABI, typed Quidra IR, package-manifest schema, and package lockfile schema each carry their own version number. All four are declared in `project.toml` under `[compat]`, and the build exposes them to the compiler as `abi_version`, `ir_version`, `package_schema_version`, and `lockfile_schema_version`.
 
 These numbers are deliberately independent of the compiler version. A number changes only when its own format changes, so consecutive Quidra releases may declare the same ABI or IR version, and a later release may raise one of them without raising the others. Nothing derives a format version from the release version, and no format version implies a release version.
 

@@ -176,6 +176,70 @@ def check_source_extension_consumers(project: dict) -> None:
     )
 
 
+def check_lockfile_schema_ownership(project: dict) -> None:
+    schema = project["compat"]["lockfile_schema"]
+    current = f"quidra-lock-v{schema}"
+    roots = ("src", "include", "tests", ".github")
+    current_offenders = []
+    for root in roots:
+        base = ROOT / root
+        for path in sorted(p for p in base.rglob("*") if p.is_file()):
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            if current in text:
+                current_offenders.append(path.relative_to(ROOT).as_posix())
+    check(
+        not current_offenders,
+        f"current lockfile header {current!r} is handwritten instead of "
+        "derived from project.toml: " + ", ".join(current_offenders),
+    )
+
+    allowed_legacy = {
+        "src/package_lock.cpp",
+        "tests/package_lock_tests.cpp",
+    }
+    legacy_offenders = []
+    for legacy in ("quidra-lock-v1", "quidra-lock-v2"):
+        for root in roots:
+            base = ROOT / root
+            for path in sorted(p for p in base.rglob("*") if p.is_file()):
+                name = path.relative_to(ROOT).as_posix()
+                if name in allowed_legacy:
+                    continue
+                try:
+                    text = path.read_text(encoding="utf-8")
+                except (UnicodeDecodeError, OSError):
+                    continue
+                if legacy in text:
+                    legacy_offenders.append(f"{name}: {legacy}")
+    check(
+        not legacy_offenders,
+        "legacy lockfile headers belong only in the compatibility parser/test: "
+        + ", ".join(legacy_offenders),
+    )
+
+
+def check_package_store_ownership(project: dict) -> None:
+    store = project["package_manager"]["store_relative"]
+    offenders = []
+    for root in ("src", "include"):
+        base = ROOT / root
+        for path in sorted(p for p in base.rglob("*") if p.is_file()):
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            if store in text:
+                offenders.append(path.relative_to(ROOT).as_posix())
+    check(
+        not offenders,
+        f"package store {store!r} is handwritten in C++ instead of deriving "
+        "from project.toml: " + ", ".join(offenders),
+    )
+
+
 def check_installer_repository(project: dict) -> None:
     expected = project["repos"]["core"].removeprefix("https://github.com/")
     installer = read(ROOT / "scripts" / "install-ubuntu.sh")
@@ -263,6 +327,8 @@ def main() -> int:
     check_backend_names(project)
     check_platform_targets(project)
     check_source_extension_consumers(project)
+    check_lockfile_schema_ownership(project)
+    check_package_store_ownership(project)
     check_installer_repository(project)
     check_generated_header_placeholders()
     check_no_second_version_definition(project)

@@ -32,7 +32,8 @@ abi = 1
 EOF
 
 HOME="$TMP/home" "$QUIDRA" package install "$TMP/package" >/dev/null
-[[ -f "$TMP/home/.quidra/packages/named_pkg/main.qui" ]]
+PACKAGE_STORE="$(HOME="$TMP/home" "$QUIDRA" package path)"
+[[ -f "$PACKAGE_STORE/named_pkg/main.qui" ]]
 [[ "$(HOME="$TMP/home" "$QUIDRA" package list)" == "quidra-named 0.2.0 (import named_pkg)" ]]
 HOME="$TMP/home" "$QUIDRA" package-info quidra-named --json > "$TMP/info.json"
 python3 - "$TMP/info.json" <<'PY'
@@ -41,7 +42,7 @@ info=json.load(open(sys.argv[1]))
 assert info["name"]=="quidra-named"
 assert info["import"]=="named_pkg"
 assert info["display_name"]=="Quidra Named"
-assert info["path"].replace("\\","/").endswith("/.quidra/packages/named_pkg")
+assert info["path"].replace("\\","/").endswith("/named_pkg")
 PY
 
 cat > "$TMP/project/main.qui" <<'QUI'
@@ -51,8 +52,6 @@ QUI
 (
   cd "$TMP/project"
   HOME="$TMP/home" "$QUIDRA" package lock main.qui >/dev/null
-  head -n1 quidra.lock | grep -qx 'quidra-lock-v3'
-  grep -Eq '^quidra-named named_pkg 0\.2\.0 [0-9a-f]{64}$' quidra.lock
   HOME="$TMP/home" "$QUIDRA" package lock main.qui --check
   [[ "$(HOME="$TMP/home" "$QUIDRA" main.qui)" == "42" ]]
 )

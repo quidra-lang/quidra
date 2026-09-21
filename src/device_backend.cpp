@@ -1,4 +1,5 @@
 #include "device_backend.hpp"
+#include "quidra/project.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -8,6 +9,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cmath>
+#include <filesystem>
 #include <functional>
 #include <iterator>
 #include <limits>
@@ -659,8 +661,11 @@ bool open_dnn_nvidia_library(DynamicLibrary& library,
     std::size_t home_size = 0;
     if (_dupenv_s(&home_buffer, &home_size, "USERPROFILE") == 0 &&
         home_buffer && *home_buffer) {
-        managed_root = std::string(home_buffer) +
-            "\\.quidra\\packages\\dnn\\nvidia\\lib";
+        managed_root =
+            (std::filesystem::path(home_buffer) /
+             std::filesystem::path(std::string(package_store_relative)) /
+             "dnn" / "nvidia" / "lib")
+                .string();
     }
     std::free(home_buffer);
 
@@ -678,8 +683,11 @@ bool open_dnn_nvidia_library(DynamicLibrary& library,
         configured_root.assign(root);
     }
     if (const char* home = std::getenv("HOME"); home && *home) {
-        managed_root = std::string(home) +
-            "/.quidra/packages/dnn/nvidia/lib";
+        managed_root =
+            (std::filesystem::path(home) /
+             std::filesystem::path(std::string(package_store_relative)) /
+             "dnn" / "nvidia" / "lib")
+                .string();
     }
     if (const char* allow_system =
             std::getenv("QUIDRA_DNN_ALLOW_SYSTEM_NVIDIA_LIBS");

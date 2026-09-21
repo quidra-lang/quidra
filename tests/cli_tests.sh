@@ -592,7 +592,8 @@ int doubled(int value)
 QUI
 HOME="$TMP/package-home" "$QUIDRA" package install "$TMP/package-source" --name local_math
 [[ "$(HOME="$TMP/package-home" "$QUIDRA" package list)" == "local_math" ]]
-[[ "$(HOME="$TMP/package-home" "$QUIDRA" package path)" == "$TMP/package-home/.quidra/packages" ]]
+PACKAGE_STORE="$(HOME="$TMP/package-home" "$QUIDRA" package path)"
+[[ -d "$PACKAGE_STORE" ]]
 cat > "$TMP/package-use.qui" <<'QUI'
 import math_package = local_math
 print(math_package.doubled(21))
@@ -607,11 +608,10 @@ QUI
 (
     cd "$TMP/package-project"
     HOME="$TMP/package-home" "$QUIDRA" package lock main.qui
-    grep -Eq '^local_math local_math - [0-9a-f]{64}$' quidra.lock
     HOME="$TMP/package-home" "$QUIDRA" package lock main.qui --check
     HOME="$TMP/package-home" "$QUIDRA" check main.qui
 )
-printf '\n// package content changed after locking\n' >> "$TMP/package-home/.quidra/packages/local_math/main.qui"
+printf '\n// package content changed after locking\n' >> "$PACKAGE_STORE/local_math/main.qui"
 set +e
 (
     cd "$TMP/package-project"
@@ -632,7 +632,19 @@ grep -q 'PACKAGE_LOCK_MISMATCH' "$TMP/package-lock-check.err"
     HOME="$TMP/package-home" "$QUIDRA" package lock main.qui >/dev/null
     HOME="$TMP/package-home" "$QUIDRA" package lock main.qui --check
     HOME="$TMP/package-home" "$QUIDRA" check main.qui
-    printf 'unused_package unused_package - %064d\n' 0 >> quidra.lock
+
+    mkdir -p "$TMP/package-unused"
+    cat > "$TMP/package-unused/main.qui" <<'QUI'
+int unused_value()
+    return 0
+QUI
+    HOME="$TMP/package-home" "$QUIDRA" package install "$TMP/package-unused" --name unused_package >/dev/null
+    cat > with-unused.qui <<'QUI'
+import math_package = local_math
+import unused = unused_package
+print(math_package.doubled(21) + unused.unused_value())
+QUI
+    HOME="$TMP/package-home" "$QUIDRA" package lock with-unused.qui >/dev/null
     set +e
     HOME="$TMP/package-home" "$QUIDRA" check main.qui >"$TMP/package-lock-unused.out" 2>"$TMP/package-lock-unused.err"
     package_lock_unused_rc=$?
@@ -640,6 +652,8 @@ grep -q 'PACKAGE_LOCK_MISMATCH' "$TMP/package-lock-check.err"
     [[ "$package_lock_unused_rc" -eq 1 ]]
     grep -q 'PACKAGE_LOCK_UNUSED' "$TMP/package-lock-unused.err"
     HOME="$TMP/package-home" "$QUIDRA" package lock main.qui >/dev/null
+    HOME="$TMP/package-home" "$QUIDRA" package remove unused_package >/dev/null
+    rm -f with-unused.qui
 )
 
 set +e

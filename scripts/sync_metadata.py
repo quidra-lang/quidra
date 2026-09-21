@@ -28,6 +28,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PROJECT_TOML = ROOT / "project.toml"
 MANIFEST = ROOT / "quidra.manifest.json"
 README = ROOT / "README.md"
+PACKAGES_DOC = ROOT / "docs" / "packages.md"
 
 
 def manifest_fields(project: dict) -> dict:
@@ -85,9 +86,28 @@ def render_readme(project: dict) -> str:
     )
 
 
+def render_packages_doc(project: dict) -> str:
+    text = PACKAGES_DOC.read_text(encoding="utf-8")
+    schema = project["compat"]["lockfile_schema"]
+    lock_file = project["package_manager"]["lock_file"]
+    text = re.sub(
+        r"`[^\x60]+\.lock` version \d+",
+        f"`{lock_file}` version {schema}",
+        text,
+    )
+    text = re.sub(
+        r"^quidra-lock-v\d+$",
+        f"quidra-lock-v{schema}",
+        text,
+        flags=re.MULTILINE,
+    )
+    return text
+
+
 TARGETS = (
     (MANIFEST, render_manifest),
     (README, render_readme),
+    (PACKAGES_DOC, render_packages_doc),
 )
 
 

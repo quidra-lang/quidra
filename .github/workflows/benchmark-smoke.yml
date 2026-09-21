@@ -1,0 +1,89 @@
+name: benchmark-smoke
+
+# The paid request shape, on its own, for a few cents.
+#
+# benchmark-production runs this same check before it spends anything, but only
+# as the first step of a run that then builds an image and works through the
+# whole manifest. This workflow is the check by itself, so the paid path can be
+# verified after a provider, model or decoding change without committing to a
+# run. Same marker convention as benchmark-production: pushing a change to
+# benchmark/.run-smoke is the request.
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "benchmark/.run-smoke"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: benchmark-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BENCHMARK_MODEL: claude-sonnet-5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prove the paid request shape
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$ANTHROPIC_API_KEY" || {
+            echo "::error::Repository secret ANTHROPIC_API_KEY is not configured."
+            exit 1
+          }
+          python benchmark/template/scripts/production_run.py provider-smoke \
+            --model "$BENCHMARK_MODEL" \
+            --budget-usd 0.50 \
+            --output "$RUNNER_TEMP/provider-smoke.json"
+
+      - name: Report what it checked and what it cost
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          report_path = Path(os.environ["RUNNER_TEMP"], "provider-smoke.json")
+          if not report_path.is_file():
+              print("::error::the smoke produced no report; the gateway did not start")
+              raise SystemExit(1)
+
+          report = json.loads(report_path.read_text())
+          for check in report["checks"]:
+              print(f"{'PASS' if check['ok'] else 'FAIL'}  {check['check']}")
+              if not check["ok"]:
+                  print(f"      {check['detail']}")
+
+          spend = report["spend"]
+          print(
+              f"\nspend: ${spend['estimated_cost_usd']:.4f} over "
+              f"{spend['paid_inference_calls']} paid calls "
+              f"({spend['input_tokens']} in / {spend['output_tokens']} out, "
+              f"{spend['web_search_requests']} searches)"
+          )
+          # A smoke test that somehow cost real money is itself a finding.
+          assert spend["estimated_cost_usd"] < 0.10, "the smoke test spent too much"
+          assert report["ok"], report.get("failed_checks")
+          PY
+
+      - name: Preserve the smoke report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-smoke-${{ github.run_number }}
+          if-no-files-found: ignore
+          retention-days: 30
+          path: ${{ runner.temp }}/provider-smoke.json

@@ -116,6 +116,12 @@ Paid inference is intentionally opt-in and develop-only. The
 `benchmark/.run-production`. Normal source pushes, pull requests, scheduled CI,
 runtime-image CI and benchmark-template CI never call the Anthropic API.
 
+`benchmark-smoke` follows the same convention with its own marker,
+`benchmark/.run-smoke`. It runs only the paid-request check that
+`benchmark-production` performs before spending anything, so the provider path
+can be verified on its own after a provider, model or decoding change without
+committing to a run. It builds no image and dispatches no work units.
+
 When a production run is requested, update that marker on `develop` after the
 benchmark infrastructure itself is green. The marker lives under `benchmark/`,
 which is excluded from the evaluated source snapshot, so requesting a run does

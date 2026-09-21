@@ -26,7 +26,7 @@ class BenchmarkError(RuntimeError):
     pass
 
 
-DEFAULT_WORKSPACE = Path("/quidra-benchmark")
+DEFAULT_WORKSPACE = Path(".quidra-benchmark")
 TEMPLATE_DIR = Path(__file__).resolve().parent.parent
 BENCHMARK_METADATA_RELATIVE = PurePosixPath("config/benchmark_metadata.json")
 
@@ -610,7 +610,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     source = Path(args.source_repo).resolve()
     root = workspace(args)
     if root != lexical_absolute(DEFAULT_WORKSPACE):
-        raise BenchmarkError("benchmark workspace must be exactly /quidra-benchmark")
+        raise BenchmarkError("benchmark workspace must be exactly ./.quidra-benchmark from the invocation directory")
     if root.exists() and any(root.iterdir()):
         raise BenchmarkError(f"workspace must be absent or empty: {root}")
     root.mkdir(parents=True, exist_ok=True)
@@ -637,7 +637,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         root / "repo",
         excluded_top_level={"benchmark"},
     )
-    # Benchmark infrastructure is supplied separately through /quidra-benchmark/template.
+    # Benchmark infrastructure is supplied separately through ./.quidra-benchmark/template.
     # Materialize it from the same Git commit as well, never from ignored/untracked host files.
     template_snapshot = copy_tracked_tree(
         source,
@@ -885,7 +885,7 @@ def cmd_preflight(args: argparse.Namespace) -> int:
         problems.append(f"invalid_run_json:{exc}")
 
     if root != lexical_absolute(DEFAULT_WORKSPACE):
-        problems.append("workspace_root_must_be_/quidra-benchmark")
+        problems.append("workspace_root_must_be_./.quidra-benchmark")
 
     declared_sandbox_mode = run.get("sandbox_mode")
     if declared_sandbox_mode not in {"container", "chroot", "namespace", "external-sandbox"}:
@@ -2289,14 +2289,8 @@ def reject_overbroad_read_paths(paths: Iterable[str], root: Path) -> None:
 
 
 def render_workspace_paths(content: str, root: Path) -> str:
-    """Map specification workspace aliases to the concrete run workspace."""
-    marker = "__QUIDRA_BENCHMARK_ROOT__"
-    return (
-        content
-        .replace("/quidra-benchmark", marker)
-        .replace("/quidra-benchmark", marker)
-        .replace(marker, str(root))
-    )
+    """Map the portable workspace alias to the concrete run workspace."""
+    return content.replace("./.quidra-benchmark", str(root))
 
 
 def store_prompt_component(root: Path, content: str, kind: str) -> dict[str, Any]:
@@ -3914,22 +3908,15 @@ def privacy_match_is_safe(kind: str, sample: str, root: Path) -> bool:
     if kind not in {"unix_home", "windows_home", "host_temp_path"}:
         return False
 
-    fixed_root = DEFAULT_WORKSPACE.as_posix()
-    if sample == fixed_root or sample.startswith(fixed_root + "/"):
-        return True
-
-    synthetic = os.environ.get("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS") == "1"
-    if not synthetic or lexical_absolute(root) == lexical_absolute(DEFAULT_WORKSPACE):
-        return False
-
-    synthetic_root = lexical_absolute(root).as_posix()
-    # CI workspaces live under a hosted runner home/temp prefix. The privacy
-    # regex intentionally matches that prefix rather than the entire path, so
-    # allow it only when it is an ancestor of the synthetic workspace itself.
+    workspace_root = lexical_absolute(root).as_posix()
+    # The workspace now lives below the invocation directory. Privacy regexes
+    # may therefore match a host-home/temp prefix that is only present because
+    # it is an ancestor of the isolated workspace. Allow only that workspace
+    # path relationship; unrelated host paths remain findings.
     return (
-        sample == synthetic_root
-        or sample.startswith(synthetic_root + "/")
-        or synthetic_root.startswith(sample)
+        sample == workspace_root
+        or sample.startswith(workspace_root + "/")
+        or workspace_root.startswith(sample)
     )
 
 
@@ -4060,11 +4047,13 @@ def cmd_post_run(args: argparse.Namespace) -> int:
     else:
         raise BenchmarkError("source repository may not be inside the benchmark workspace")
     try:
-        root_real.relative_to(source_real)
+        workspace_relative = root_real.relative_to(source_real)
     except ValueError:
-        pass
-    else:
-        raise BenchmarkError("benchmark workspace may not be inside the source repository")
+        workspace_relative = None
+    if workspace_relative is not None and workspace_relative != Path(".quidra-benchmark"):
+        raise BenchmarkError(
+            "benchmark workspace may be inside the source repository only as ./.quidra-benchmark"
+        )
 
     benchmark_dir = source / "benchmark"
     if not benchmark_dir.is_dir():

@@ -2,7 +2,7 @@
 
 ## 1. Fixed sandbox view
 
-All benchmark agents operate inside a real filesystem sandbox rooted at `/quidra-benchmark`.
+All benchmark agents operate inside a real filesystem sandbox rooted at `./.quidra-benchmark`.
 
 The visible tree contains the current evaluated source, the current self-contained template, isolated work/results/prompts/home/tmp directories, and run metadata. Host home directories, SSH material, credentials, unrelated projects, ignored files and untracked checkout content must not be visible.
 
@@ -57,7 +57,7 @@ Validator failure follows the same bounded retry policy. A valid scientific nega
 
 ## 6. Agent path ownership
 
-Each agent writes only under `/quidra-benchmark/work/agents/<agent-id>/`. Shared state is written only by runner commands.
+Each agent writes only under `./.quidra-benchmark/work/agents/<agent-id>/`. Shared state is written only by runner commands.
 
 Retries reuse the same content-addressed packet and agent directory. Outputs should be atomic where practical.
 
@@ -97,7 +97,7 @@ Timing warm-ups, repetitions, cache policy and recovery are frozen before measur
 
 Privacy scanning is required before dispatch, before finalization, and once more over the exact retained set before import. Keep machine-readable final results, exact prompts/hashes, run identity, required raw measurements/audits, leaf outputs, frozen manifest/ledger/plans and runner command results. Drop caches/intermediates, the evaluated source snapshot, template copy, temporary home/files, micro build products and personal/host-specific data.
 
-After successful `finalize`, only the trusted outer runner may expose a clean local `develop` checkout to `post-run`. The command stages the retained set under `benchmark/<run-id>/`, verifies every retained file hash, atomically installs the run directory, and deletes `/quidra-benchmark` only after verification succeeds. A failed import never deletes the workspace.
+After successful `finalize`, only the trusted outer runner may expose a clean local `develop` checkout to `post-run`. The command stages the retained set under `benchmark/<run-id>/`, verifies every retained file hash, atomically installs the run directory, and deletes `./.quidra-benchmark` only after verification succeeds. A failed import never deletes the workspace.
 
 ## 13. Git freeze
 

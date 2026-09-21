@@ -835,6 +835,18 @@ The current implementation includes:
 
 The source extension is `.qui`.
 
+## Playground
+
+Quidra includes a local browser playground backed by the real compiler. After building Quidra:
+
+```bash
+python3 playground/server.py --quidra ./build/quidra
+```
+
+The playground opens on `http://127.0.0.1:8787/` and provides **Run**, **Check**, **Format**, **Quidra IR**, and **LLVM IR** views. If `quidra` is already on `PATH`, `--quidra` can be omitted.
+
+The included server is deliberately loopback-only and intended for local development. Each execution uses a fresh temporary working directory, a wall-clock timeout, a small concurrency limit, a reduced child-process environment, and a per-session request token. A public multi-user deployment must execute user programs inside a separately hardened sandbox; this local server is not a multi-tenant security boundary.
+
 ## Build
 
 Requirements:

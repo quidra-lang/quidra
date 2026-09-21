@@ -2089,14 +2089,30 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
             "lq-qudra-representation",
             *(shard["id"] for shard in shards),
         }
+        # Currency audits are a legitimate additional dependency here, not a
+        # defect. The mechanical unit reads the reusable comparison-language
+        # programs, so when one of those needs a toolchain-currency audit the
+        # planner correctly makes the measurement wait for it. Requiring exact
+        # equality rejected that, which made the plan unbuildable on any host
+        # whose toolchains differ from the ones the catalog was validated on -
+        # the ordinary case, since the catalog is validated on macOS and runs
+        # execute on Linux.
+        audit_unit_ids = {
+            unit["id"] for unit in normalized if unit.get("reuse_audit_for")
+        }
+        mechanical_dependencies = set(mechanical.get("dependencies", [])) if mechanical else set()
+        unexpected = mechanical_dependencies - required_dependencies - audit_unit_ids
         if (
             mechanical is None
             or mechanical.get("execution_kind") != "command"
-            or set(mechanical.get("dependencies", [])) != required_dependencies
+            or not required_dependencies <= mechanical_dependencies
+            or unexpected
         ):
             raise BenchmarkError(
                 "language_quality: mechanical micro unit must depend on the "
-                "representation audit and all four authoring shards"
+                "representation audit, all four authoring shards, and nothing "
+                "beyond the currency audits of the artifacts it measures"
+                + (f"; unexpected: {sorted(unexpected)}" if unexpected else "")
             )
 
     return {

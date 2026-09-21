@@ -983,8 +983,20 @@ jobs:
               ),
               "template_tree_sha256": module.sha256_tree(root / "template"),
           }, indent=2) + "\n")
+          # A real run executes on Linux while reuse/catalog.json records
+          # fingerprints validated on macOS, so some artifacts always need a
+          # currency audit and the planner always adds audit units. Seeding an
+          # empty set here meant the planning path every real run takes was
+          # never exercised, and a validator that rejected those units went
+          # unnoticed.
+          materialized = module.json_load(root / "template" / "reuse" / "materialized.json")
+          audit_required = [
+              a["id"] for a in materialized["artifacts"]
+              if a.get("language") in {"C++", "Python"} and a.get("validated_toolchain")
+          ]
+          assert audit_required, "expected at least one artifact to need a currency audit"
           (root / "results" / "reuse_status.json").write_text(
-              json.dumps({"schema_version":1,"audit_required":[]}) + "\n"
+              json.dumps({"schema_version":1,"audit_required":audit_required}) + "\n"
           )
           (root / "results" / "preflight.json").write_text(
               json.dumps({"ok": True, "synthetic_ci": True}) + "\n"
@@ -1020,6 +1032,13 @@ jobs:
               assert len(ev["scores"]) == 10, (name, ev)
 
           manifest = json.loads((root / "work/root/manifest.json").read_text())
+          audit_units = [u for u in manifest["work_units"] if u.get("reuse_audit_for")]
+          assert audit_units, "the currency audits never reached the manifest"
+          mechanical = next(
+              u for u in manifest["work_units"] if u["id"] == "lq-micro-mechanical"
+          )
+          # The measurement has to wait for the audits of the artifacts it measures.
+          assert {u["id"] for u in audit_units} & set(mechanical["dependencies"]), mechanical
           traces = 0
           receipts = 0
           for unit in manifest["work_units"]:

@@ -26,13 +26,15 @@ Never create a cross-evaluation combined score or overall winner.
 
 Each Primary evaluation has its own score and ranking only when its scientific/integrity gates pass. If it is scoreable, the runner must calculate and publish the ranking mechanically; a missing ranking is an orchestration error.
 
-## 3. Sandbox
+## 3. Sandbox and worker isolation
 
-All agents and scored processes run inside a real filesystem sandbox rooted at `/quidra-benchmark`.
+The trusted outer orchestrator may run on the host. Its authority is limited to host bootstrap/cleanup, starting the isolation boundary, transporting self-contained Task Packets, importing structured worker responses, and launching explicitly sandbox-bound agent runtimes. It is not a scored worker and must not perform scored judgment.
 
-Before this prompt is dispatched, the trusted outer runner must already have staged the run and mapped it into the isolation boundary at exactly `/quidra-benchmark`. Host-side staging paths are implementation details and must not appear in scored prompts, run metadata, attestations or retained artifacts. Merely changing a path string or environment variable does not satisfy the isolation requirement.
+All scored local processes run against a real filesystem sandbox rooted at `/quidra-benchmark`. Any leaf with local filesystem, shell, editor, compiler, or process tools uses `worker_mode=sandbox-agent`, and the agent process itself must run inside that attested sandbox. A host-side Claude Code/subagent with host tools is not a valid scored leaf.
 
-The evaluated source is `/quidra-benchmark/repo`; the immutable current template is `/quidra-benchmark/template`. Host home directories, credentials, unrelated repositories and untracked host files must not be visible.
+The default leaf mode is `packet-only`. Its permitted local UTF-8 inputs are embedded in the rendered Task Packet. The LLM has no local filesystem/shell/process/editor/host-application tools and returns only a structured Worker Response consumed by `benchmark.py task-apply`. Provider-level network retrieval may be exposed only when the frozen Task Packet permits network access; it must never provide host filesystem or environment access.
+
+The evaluated source is `/quidra-benchmark/repo`; the immutable current template is `/quidra-benchmark/template`. Host home directories, credentials, unrelated repositories and untracked host files must not be visible. `preflight` requires the real sandbox attestation plus worker-gateway, packet-local-tool-disablement and in-sandbox-agent-launcher attestations. Merely changing path strings or forging attestations does not satisfy the isolation requirement.
 
 ## 4. Command-first lifecycle
 
@@ -59,15 +61,22 @@ and diagnosis, but a normal run does not need an LLM to sequence them.
 
 `advance` is the state-machine driver. It reclaims stale work, runs deterministic command units, creates/reuses dependency-ready leaf packets, emits `results/dispatch_queue.json`, and derives current Primary status.
 
-For each queued agent task, the outer agent runner normally performs only:
+For each queued leaf, the outer runner reads `worker_mode` from `results/dispatch_queue.json` and begins with:
 
 ```bash
 benchmark.py task-start --id <work-unit-id>
 benchmark.py task-render --id <agent-id>
-# dispatch the rendered packet to the worker
+```
+
+For `packet-only`, send the rendered packet to a model session with local filesystem/shell/process/application tools disabled, capture exactly one JSON Worker Response, and import it through the sandbox:
+
+```bash
+benchmark.py task-apply --id <agent-id> < worker-response.json
 benchmark.py task-finish --id <work-unit-id>
 benchmark.py advance
 ```
+
+For `sandbox-agent`, launch the tool-capable agent process itself inside the attested `/quidra-benchmark` sandbox, never as a host-side tool-capable subagent, then run `task-finish` and `advance`.
 
 Long-running workers periodically call:
 
@@ -94,7 +103,7 @@ The runner owns planning, dependency release, retries, state transitions, valida
 
 For Language Quality micro workloads, Quidra source authoring and measurement are deliberately separate. One narrow leaf freezes the evaluated commit's required Quidra representations/APIs, then four independent authoring leaves create only three fresh `.qui` programs each from the current Quidra documentation plus the frozen language-neutral workload/validator. No such leaf may read historical Quidra benchmark programs or reusable comparison-language implementations. After validation, the runner builds the Quidra compiler from the evaluated snapshot and mechanically owns correctness runs, compilation, timing, peak RSS, artifact sizing, diagnostic source-byte collection, normalization and requirement-level result emission for the metrics the frozen micro methodology explicitly owns.
 
-Leaf workers handle only tasks that require language/evidence/model judgment. They receive a self-contained Task Packet containing exact requirement IDs, narrow read paths, one writable directory, compact worker rules, only the selected methodology sections needed by that task, frozen Primary configuration, exact validator and network permission.
+Leaf workers handle only tasks that require language/evidence/model judgment. Every manifest unit freezes a worker mode. Packet-only leaves receive embedded permitted inputs and return files only through the structured response importer; sandbox-agent leaves receive narrow sandbox read paths and one sandbox writable directory. Both receive exact requirement IDs, compact worker rules, selected methodology sections, frozen Primary configuration, exact validator and network permission. No scored leaf is a host-side tool-capable subagent.
 
 A multi-language leaf may own at most the frozen runner limit of Primary requirement IDs (currently 3). Larger bundles are rejected mechanically. The only exception is a leaf expanded to exactly one assigned language when several metrics intentionally derive from the same isolated trial history; splitting that history would duplicate scored trials and change the experiment.
 

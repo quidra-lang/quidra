@@ -8,9 +8,9 @@ This is the compact rule set embedded into ordinary leaf-worker Task Packets.
 4. Normalized metric/condition scores use 0-100 with 100 best. Follow the selected methodology sections in this packet for the required raw measurement and normalization rule.
 5. A genuine `N/A` is represented as `{"status":"N/A","reason":"..."}`. A missing capability intentionally tested by the metric is not automatically N/A.
 6. Gate and coverage requirements return booleans supported by evidence. A valid negative gate result is evidence, not a validator failure; the runner will withhold the score mechanically.
-7. Work only on the requirement IDs in this packet. Do not read the root conversation, historical run directories, sibling-agent outputs, or unrelated evaluation specifications.
-8. Write only inside your assigned directory. Preserve supporting raw files there and write the required summary to `result.json`.
-9. Network access is disabled unless the Task Packet explicitly enables it. Do not browse during timing measurements.
+7. Work only on the requirement IDs and inputs in this packet. Do not read the root conversation, historical run directories, sibling-agent outputs, or unrelated evaluation specifications.
+8. Obey the frozen worker mode. In `packet-only` mode, all permitted local inputs are embedded below: do not use local filesystem, shell, process, editor, IDE, host-application or connector tools. Return exactly one JSON Worker Response containing relative UTF-8 output files. In `sandbox-agent` mode, the agent process itself is already inside `/quidra-benchmark`; read only listed paths and write only inside the assigned directory.
+9. Network access is disabled unless the Task Packet explicitly enables it. When enabled for packet-only work, only provider/gateway network retrieval is permitted; it must not expose host filesystem or environment. Do not browse during timing measurements.
 10. Independent scored LLM trials must not share previous trial generations, repairs, or hidden parent conversation state. Provider/transport failures are infrastructure failures, not incorrect language/model results.
 11. Do not hand-copy a final ranking. The runner calculates Primary scores and rankings from validated requirement outputs.
 
@@ -41,7 +41,15 @@ For ordinary requirement workers:
 }
 ```
 
-Metric/condition values are normalized 0-100 summaries. A language-sharded Task Packet returns only its assigned language keys; the runner merges disjoint shards and rejects overlap or missing languages before aggregation. Put raw measurements, formulas, source citations, diagnostics, and audit details under `evidence` or additional files in the worker directory.
+Metric/condition values are normalized 0-100 summaries. A language-sharded Task Packet returns only its assigned language keys; the runner merges disjoint shards and rejects overlap or missing languages before aggregation. Put raw measurements, formulas, source citations, diagnostics, and audit details under `evidence` or additional output files.
+
+In `packet-only` mode, wrap `result.json` and any additional files in the Worker Response required by the Task Packet:
+
+```json
+{"schema_version":1,"task_id":"<agent-id>","files":[{"path":"result.json","content":"<serialized result.json>"}]}
+```
+
+Do not surround the Worker Response with Markdown fences. In `sandbox-agent` mode, write files directly inside the assigned directory.
 
 For reusable-artifact currency audits with no Primary requirement IDs:
 

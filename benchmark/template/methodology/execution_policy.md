@@ -1,14 +1,14 @@
 # Benchmark Execution Policy
 
-## 1. Fixed sandbox view
+## 1. Fixed sandbox view and trusted outer orchestrator
 
-All benchmark agents operate inside a real filesystem sandbox rooted at `/quidra-benchmark`.
+The trusted outer orchestrator may run on the host, but it is outside the scored worker population. Its authority is limited to bootstrap/cleanup, sandbox lifecycle, packet/response transport and launching explicitly sandbox-bound agents. It must not perform scored judgments or expose arbitrary host filesystem/shell/application tools to a scored leaf.
 
-Before the sandbox starts, trusted bootstrap may use the Git-ignored physical staging directory `<source-repo>/.quidra-benchmark`. Successful init writes a host-only sentinel in checkout-local Git-private metadata containing the run ID, evaluated commit and canonical sandbox root. The sentinel deliberately does not authorize against the checkout's absolute path, so moving or renaming the checkout does not strand cleanup. The outer runner must map the staging directory to exactly `/quidra-benchmark` inside the isolation boundary. The physical host path and sentinel are not part of the scientific task identity and must not appear in worker prompts or retained artifacts.
+All scored local processes operate against a real filesystem sandbox rooted at `/quidra-benchmark`. Host home directories, SSH material, credentials, unrelated projects, ignored files and untracked checkout content must not be visible.
 
-The visible tree contains the current evaluated source, the current self-contained template, isolated work/results/prompts/home/tmp directories, and run metadata. Host home directories, SSH material, credentials, unrelated projects, ignored files and untracked checkout content must not be visible.
+Two leaf modes are frozen in the manifest. `packet-only` is the default: the runner embeds all permitted local text inputs into the rendered packet, the LLM has no local filesystem/shell/process/editor/host-application tools, and outputs return only as structured JSON through `task-apply`. `sandbox-agent` is reserved for work requiring a larger local corpus or interactive local tools; its tool-capable agent process itself must run inside the attested sandbox and may never be a host-side tool-capable subagent.
 
-The outer runner enforces the actual container/chroot/namespace boundary and injects matching sandbox attestation for the canonical `/quidra-benchmark` root. A bind mount or equivalent namespace mapping is acceptable; string substitution, a symlink without isolation, or falsified attestation is not. `preflight` rejects an unattested or noncanonical workspace.
+The outer runner enforces the actual container/chroot/namespace boundary and injects matching sandbox and worker-runtime attestations. A bind mount or equivalent namespace mapping is acceptable; string substitution, a symlink without isolation, a host-side Claude Code/subagent with host tools, or falsified attestation is not. `preflight` rejects unattested/noncanonical sandboxes, missing worker-gateway/launcher attestations, packet workers whose local tools are not disabled, and sensitive host environment variables.
 
 ## 2. Current-template-only rule
 
@@ -36,16 +36,15 @@ The runner owns bookkeeping, dependency scheduling, retry/recovery, environment 
 
 The Language Quality micro suite is the concrete command-first model. A current-run leaf authors only the fresh Quidra programs; once those sources pass the frozen validator, a runner command builds the compiler from the evaluated snapshot and performs correctness, compilation, cold/steady timing, peak-RSS and artifact-size work symmetrically across the fixed languages; source bytes may be retained as diagnostic evidence but are not promoted into Source Code Size unless its frozen owner says so.
 
-## 4. Leaf agents
+## 4. Leaf agents and worker modes
 
 Agents are used only for tasks requiring judgment, model interaction, evidence interpretation, annotation, implementation or other work that cannot be made deterministic without changing the evaluation.
 
-Each leaf gets one persisted Task Packet with exact requirement IDs, narrow read paths, one writable directory, expected result schema, exact validator, network permission and selected methodology sections.
+Each agent work unit freezes `worker_mode` as either `packet-only` or `sandbox-agent`. Packet-only is preferred whenever the frozen readable inputs fit the embedding limits. `task-render` snapshots those permitted UTF-8 inputs, records hashes and embeds them in the self-contained prompt. The worker receives no local filesystem/shell/process/editor/host-application tools. If the task permits network access, provider/gateway retrieval may be used, but it must not expose host files or environment. The worker returns one JSON response; `task-apply` validates task identity, relative paths, file/byte limits and expected outputs before writing anything.
 
-Multi-language leaves are mechanically capped at the frozen runner requirement-ID limit. If a larger requirement bundle genuinely shares one scored LLM trial history, deterministic planning must shard it to exactly one language per leaf instead of duplicating the trial across several workers.
+Sandbox-agent mode is used only where the task needs a larger local corpus or interactive local tools. The agent runtime itself must be started inside `/quidra-benchmark`. Its reads remain limited to the packet's narrow sandbox paths and its writes to one agent directory. Host Read/Glob/Bash/editor/process access, host credentials and SSH sockets are forbidden.
 
-A worker must not need the root conversation or a historical run. Independent scored LLM trials must not read one another's generations or repairs.
-LLM-heavy work is sharded by language when trials are independent, so one worker never accumulates the full ten-language generation/repair history. The runner merges only validated disjoint language shards.
+A worker never needs the root conversation or a historical run. Independent scored LLM trials must not read one another's generations or repairs.
 
 ## 5. Retry and lease policy
 
@@ -57,17 +56,21 @@ After the maximum attempts, the unit becomes BLOCKED with an infrastructure bloc
 
 Validator failure follows the same bounded retry policy. A valid scientific negative result is written as evidence and should still pass the structural validator.
 
-## 6. Agent path ownership
+## 6. Agent path and response ownership
 
-Each agent writes only under `/quidra-benchmark/work/agents/<agent-id>/`. Shared state is written only by runner commands.
+Each sandbox-agent writes only under `/quidra-benchmark/work/agents/<agent-id>/`. Shared state is written only by runner commands.
 
-Retries reuse the same content-addressed packet and agent directory. Outputs should be atomic where practical.
+Packet-only workers never write the filesystem directly. Their response contains relative UTF-8 file paths and contents; `task-apply` is the only command allowed to materialize those files, and it rejects traversal, duplicates, oversized responses and missing expected outputs.
+
+Retries reuse the same content-addressed packet and worker mode. Failed attempts are archived before reset.
 
 ## 7. Prompt minimization
 
-Ordinary Task Packets embed `methodology/worker_core.md`, only the selected sections of the applicable evaluation spec, the frozen Primary configuration, and exact requirement IDs.
+Ordinary Task Packets embed `methodology/worker_core.md`, only the selected sections of the applicable evaluation spec, the frozen Primary configuration, exact requirement IDs and the frozen worker mode.
 
-Do not embed unrelated sections or all five evaluation specifications.
+Packet-only packets additionally embed the exact readable UTF-8 inputs with canonical sandbox paths and SHA-256 hashes. If that bundle exceeds the frozen file/byte limit, planning must narrow the packet or explicitly use sandbox-agent mode; the runner must not silently grant host filesystem access.
+
+Do not embed unrelated evaluation specifications or hidden parent conversation state.
 
 ## 8. Reuse and toolchain currency
 

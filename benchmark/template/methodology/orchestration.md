@@ -32,17 +32,23 @@ The same frozen Task Packet is reused for retries; retrying must not change the 
 
 ## 4. Advance loop
 
-`benchmark.py advance` reclaims stale work, executes dependency-ready runner-owned command units, materializes dependency-ready leaf Task Packets, writes `results/dispatch_queue.json`, derives current Primary status, and reports the next mechanical action.
+`benchmark.py advance` reclaims stale work, executes dependency-ready runner-owned command units, materializes dependency-ready leaf Task Packets, writes `results/dispatch_queue.json`, derives current Primary status and reports the next mechanical action.
 
-Runner command units can emit validated requirement-level results, not only aggregates. In Language Quality, `lq-qudra-representation` first freezes the evaluated commit's required Quidra representations/APIs. Four `lq-qudra-micro-authoring-*` leaves then each own exactly three workload sources and validate only their shard against the compiler built from the evaluated snapshot. Only after the representation unit and all four authoring shards are COMPLETE may `lq-micro-mechanical` run correctness/build/timing/RSS/source/artifact-size measurement and emit the mechanically derived metric maps explicitly owned by the frozen micro methodology.
+Every queued leaf includes its frozen `worker_mode`. The trusted outer orchestrator may transport packets but never substitutes a host-side tool-capable subagent for scored work. For `packet-only`, it sends the rendered packet to a local-tool-disabled model session and pipes the returned JSON into `task-apply`. For `sandbox-agent`, it launches the agent process itself inside the attested sandbox. `task-finish` validates the resulting files and state transition.
 
-The outer agent runtime only dispatches packets listed in that queue. It does not invent work units, perform repeatable measurements by hand, or manually aggregate scores.
+Runner command units can emit validated requirement-level results, not only aggregates. In Language Quality, current-commit Quidra representation/authoring work completes before the runner-owned mechanical measurement unit.
 
-## 5. Worker context
+The outer runtime does not invent work units, perform repeatable measurements by hand, or manually aggregate scores.
 
-A leaf packet embeds `methodology/worker_core.md`, the selected evaluation sections listed by the deterministic plan, the frozen Primary configuration, and its exact requirement IDs.
+## 5. Worker context and isolation
 
-Read paths must be narrow. A multi-language requirement worker is rejected if it exceeds the frozen requirement-ID limit. A larger bundle is allowed only after deterministic expansion to exactly one assigned language when those metrics share one scored trial history. A worker must not depend on the root conversation, sibling outputs, unrelated evaluations, or historical runs.
+A leaf packet embeds `methodology/worker_core.md`, selected evaluation sections, frozen Primary configuration, exact requirement IDs and its worker mode.
+
+`packet-only` is preferred. The runner embeds every permitted local input and hashes it. The LLM has no local filesystem/shell/process/editor/host-application tools and returns only a structured response imported by `task-apply`. Network retrieval may be available only when explicitly permitted and may not expose host files.
+
+`sandbox-agent` is reserved for tasks whose local corpus or interactive tool needs make packet-only impractical. The agent process itself runs inside `/quidra-benchmark`; host-side Claude Code/subagents with host tools are not valid workers.
+
+Read paths remain narrow. A worker must not depend on the root conversation, sibling outputs, unrelated evaluations, or historical runs.
 
 ## 6. Aggregation and ranking
 

@@ -97,6 +97,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libncurses6 libpython3-dev libsqlite3-0 libxml2 tzdata \
     && rm -rf /var/lib/apt/lists/*
 
+# Keep the install and verification phases on exactly the same toolchain
+# environment. In particular rustc is a rustup proxy and needs RUSTUP_HOME
+# during build-time verification, not only in the final image metadata.
+ENV JAVA_HOME=/opt/java \
+    GOTOOLCHAIN=local \
+    RUSTUP_HOME=/opt/rust \
+    CARGO_HOME=/opt/rust
+
 COPY install_toolchains.sh /opt/quidra-benchmark/install_toolchains.sh
 RUN chmod +x /opt/quidra-benchmark/install_toolchains.sh \
  && /opt/quidra-benchmark/install_toolchains.sh
@@ -104,11 +112,6 @@ RUN chmod +x /opt/quidra-benchmark/install_toolchains.sh \
 COPY toolchains.json verify_toolchains.py /opt/quidra-benchmark/runtime/
 RUN python3 /opt/quidra-benchmark/runtime/verify_toolchains.py \
  && chown -R 1000:1000 /opt/quidra-benchmark
-
-ENV JAVA_HOME=/opt/java \
-    GOTOOLCHAIN=local \
-    RUSTUP_HOME=/opt/rust \
-    CARGO_HOME=/opt/rust
 
 WORKDIR /quidra-benchmark
 USER 1000:1000

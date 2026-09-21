@@ -206,6 +206,7 @@ def gateway_container_argv(
     task_policy: Path | None,
     credential_env: dict[str, str],
     extra_mounts: list[str] | None = None,
+    budget_usd: float | None = None,
 ) -> list[str]:
     """Build the trusted gateway sidecar command line.
 
@@ -252,6 +253,8 @@ def gateway_container_argv(
     ]
     if model:
         command += ["--model", model]
+    if budget_usd is not None:
+        command += ["--budget-usd", str(budget_usd)]
     if fake_script is not None:
         command += ["--fake-script", f"/fake/{fake_script.name}"]
     if task_policy is not None:
@@ -637,6 +640,7 @@ def cmd_run(args: argparse.Namespace) -> int:
                 task_policy=Path(args.task_policy).resolve() if args.task_policy else None,
                 credential_env=collect_credential_env(args.provider),
                 extra_mounts=list(args.gateway_mount or []),
+                budget_usd=args.budget_usd,
             )
             run_engine(command)
             started_gateway = True
@@ -731,6 +735,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--fake-script")
     run.add_argument("--model")
+    run.add_argument(
+        "--budget-usd",
+        type=float,
+        help="soft API spend limit passed only to the trusted inference gateway",
+    )
     run.add_argument(
         "--exec-command",
         help="quoted command for --provider exec, run on the trusted side only, "

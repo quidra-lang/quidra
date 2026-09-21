@@ -1,0 +1,146 @@
+name: benchmark-production
+
+# Paid inference is triggered only by an explicit benchmark request marker.
+# Ordinary source pushes cannot match this path, and there is no PR or schedule
+# trigger. Updating benchmark/.run-production is the deliberate "run it now"
+# action for develop.
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "benchmark/.run-production"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: benchmark-production
+  cancel-in-progress: false
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      BENCHMARK_IMAGE: quidra-benchmark/runtime:production
+      BENCHMARK_MODEL: claude-sonnet-5
+      BENCHMARK_BUDGET_USD: "18.0"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Confirm paid-run contract
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$ANTHROPIC_API_KEY" || {
+            echo "::error::Repository secret ANTHROPIC_API_KEY is not configured."
+            exit 1
+          }
+          short_sha="$(git rev-parse --short=7 HEAD)"
+          run_id="$(date -u +%F)-${short_sha}-gh${GITHUB_RUN_NUMBER}"
+          echo "RUN_ID=$run_id" >> "$GITHUB_ENV"
+          echo "EVALUATED_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Reclaim runner disk
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/share/boost "$AGENT_TOOLSDIRECTORY" || true
+          df -h /
+
+      - name: Build and verify the pinned ten-language image
+        run: |
+          python benchmark/template/runtime/check_pins.py
+          python benchmark/template/scripts/sandbox_launcher.py build-image \
+            --target toolchains --image "$BENCHMARK_IMAGE"
+          python benchmark/template/scripts/sandbox_launcher.py doctor \
+            --image "$BENCHMARK_IMAGE"
+
+      - name: Stage evaluated snapshot
+        run: |
+          python benchmark/template/scripts/benchmark.py init \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --sandbox-mode container \
+            --run-id "$RUN_ID"
+
+      - name: Deterministic preparation without paid inference
+        run: |
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image "$BENCHMARK_IMAGE" \
+            --provider fake \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
+
+      - name: Freeze trusted task network policy
+        run: |
+          python benchmark/template/scripts/production_run.py policy \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --output "$RUNNER_TEMP/task-policy.json"
+
+      - name: Run paid production benchmark
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image "$BENCHMARK_IMAGE" \
+            --provider anthropic-messages \
+            --model "$BENCHMARK_MODEL" \
+            --budget-usd "$BENCHMARK_BUDGET_USD" \
+            --network-policy allowed \
+            --task-policy "$RUNNER_TEMP/task-policy.json" \
+            --gateway-log-out "$RUNNER_TEMP/gateway-audit.jsonl" \
+            -- python3 /quidra-benchmark/template/scripts/production_run.py run \
+               --workspace /quidra-benchmark
+
+      - name: Record API usage and estimated cost
+        if: always()
+        run: |
+          python benchmark/template/scripts/production_run.py cost-report \
+            --log "$RUNNER_TEMP/gateway-audit.jsonl" \
+            --output "$RUNNER_TEMP/api-cost.json"
+          if [ -d .quidra-benchmark ]; then
+            mkdir -p .quidra-benchmark/raw .quidra-benchmark/results
+            cp "$RUNNER_TEMP/gateway-audit.jsonl" \
+               .quidra-benchmark/raw/gateway-audit.jsonl 2>/dev/null || true
+            cp "$RUNNER_TEMP/api-cost.json" .quidra-benchmark/results/api_cost.json
+          fi
+
+      - name: Import and push successful result when develop has not moved
+        if: success()
+        run: |
+          git fetch origin develop
+          if [ "$(git rev-parse origin/develop)" != "$EVALUATED_SHA" ]; then
+            echo "::warning::develop moved during the benchmark; preserving the completed run as an artifact instead of pushing onto a different snapshot."
+            exit 0
+          fi
+          python benchmark/template/scripts/benchmark.py post-run \
+            --source-repo "$GITHUB_WORKSPACE"
+          git add "benchmark/$RUN_ID"
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Add benchmark results for ${EVALUATED_SHA:0:7}"
+          git push origin HEAD:develop
+
+      - name: Preserve run evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ env.RUN_ID }}
+          if-no-files-found: ignore
+          retention-days: 30
+          path: |
+            .quidra-benchmark/results
+            .quidra-benchmark/raw/gateway-audit.jsonl
+            .quidra-benchmark/work/root/ledger.json
+            benchmark/${{ env.RUN_ID }}
+            ${{ runner.temp }}/api-cost.json
+            ${{ runner.temp }}/gateway-audit.jsonl

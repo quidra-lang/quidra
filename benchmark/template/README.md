@@ -107,6 +107,35 @@ Leaf work has two frozen modes, and both reach a model only through that socket:
 
 `preflight` verifies the running process rather than any declaration. It checks an unprivileged uid, a loopback-only network namespace, an empty capability bounding set, `NoNewPrivs`, read-only `repo` and `template` mounts, the absence of unexpected or host-home mounts, the absence of provider credentials in the environment and on disk, a live gateway socket that refuses forbidden requests when actually probed, and a launcher contract that agrees with all of it. Setting the attestation variables without applying the restrictions fails, and the sensitive-environment checks must not be widened to tolerate a credential.
 
+## Production benchmark trigger
+
+Paid inference is intentionally opt-in and develop-only. The
+`benchmark-production` workflow listens only for a push that changes
+`benchmark/.run-production`. Normal source pushes, pull requests, scheduled CI,
+runtime-image CI and benchmark-template CI never call the Anthropic API.
+
+When a production run is requested, update that marker on `develop` after the
+benchmark infrastructure itself is green. The marker lives under `benchmark/`,
+which is excluded from the evaluated source snapshot, so requesting a run does
+not alter the compiler/program sources being measured.
+
+The production workflow evaluates that frozen `develop` snapshot with
+`claude-sonnet-5`. The repository secret `ANTHROPIC_API_KEY` exists only in
+the trusted Actions step and is passed only to the gateway sidecar. The scored
+container remains credential-less and network-isolated.
+
+The run freezes Claude Sonnet 5 pricing in the template snapshot ($2/M input
+tokens, $10/M output tokens) and includes Anthropic web-search charges for only
+the work units whose trusted frozen policy permits live network evidence. A
+trusted-side soft budget of $18 is applied by default. Once reported spend has
+reached that limit, the gateway refuses to start another paid request. Token
+usage, web-search count and estimated cost are retained in a redacted audit log.
+
+The workflow performs deterministic preparation with the offline fake provider
+before it starts any paid inference. If `develop` moves while the benchmark is
+running, the completed result is preserved as a workflow artifact rather than
+being silently committed onto a different evaluated snapshot.
+
 ## Runtime image
 
 `runtime/Dockerfile` builds the reproducible Linux image in two stages. `base` carries the OS, Python and the native dependencies needed to build the Quidra compiler from the evaluated snapshot; `toolchains` adds the nine pinned comparison-language toolchains. `runtime/toolchains.json` is the single source of truth for those pins, and `runtime/verify_toolchains.py` runs at build time: if an upstream repository serves a different build than the pin names, the image fails to build rather than shipping an unrecorded toolchain into a measurement run. The observed fingerprints are written into the image at `/opt/quidra-benchmark/toolchains-observed.json`.

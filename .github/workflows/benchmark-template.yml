@@ -8,6 +8,7 @@ on:
       - "benchmark/template/**"
       - "tests/benchmark_isolation_tests.py"
       - ".github/workflows/benchmark-template.yml"
+      - ".github/workflows/benchmark-production.yml"
   pull_request:
     paths:
       - "benchmark/master_prompt.md"
@@ -33,6 +34,7 @@ jobs:
           python -m py_compile benchmark/template/scripts/sandbox_agent.py
           python -m py_compile benchmark/template/scripts/sandbox_launcher.py
           python -m py_compile benchmark/template/scripts/synthetic_run.py
+          python -m py_compile benchmark/template/scripts/production_run.py
           python -m py_compile benchmark/template/runtime/verify_toolchains.py
           bash -n benchmark/template/runtime/install_toolchains.sh
           python benchmark/template/scripts/check_metadata.py

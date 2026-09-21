@@ -84,5 +84,19 @@
     ".docker/config.json",
     ".git-credentials"
   ],
-  "note": "The gateway is a pure model-inference broker. It accepts only the request kinds listed here, rejects every request field that could describe a tool, file, command, credential or endpoint, and never exposes host filesystem, shell, repository or agent-platform tools to the model. Provider credentials exist only in the trusted gateway process; the scored sandbox reaches the gateway through a credential-less Unix domain socket."
+  "note": "The gateway is a pure model-inference broker. It accepts only the request kinds listed here and rejects every sandbox-supplied field that could describe a tool, file, command, credential or endpoint. Provider credentials exist only in the trusted gateway process; the scored sandbox reaches the gateway through a credential-less Unix domain socket. For tasks whose frozen trusted policy grants network_allowed=true, the anthropic-messages adapter may add only the frozen Anthropic server-side web-search tool itself; the sandbox cannot select or configure tools.",
+  "anthropic_pricing": {
+    "claude-sonnet-5": {
+      "input_usd_per_million_tokens": 2,
+      "output_usd_per_million_tokens": 10,
+      "web_search_usd_per_request": 0.01
+    }
+  },
+  "anthropic_web_search": {
+    "tool_type": "web_search_20250305",
+    "max_uses_per_request": 5,
+    "allowed_callers": [
+      "direct"
+    ]
+  }
 }

@@ -308,32 +308,94 @@ class ExecProvider(Provider):
 
 
 class AnthropicMessagesProvider(Provider):
-    """Direct provider HTTP call. The only provider-specific adapter in the tree.
+    """Direct Anthropic Messages adapter with a gateway-side soft spend guard.
 
-    The credential is read from the gateway process environment exactly once, at
-    construction, and never leaves this object.
+    The credential, pricing policy and optional server-side web search all live on
+    the trusted side. The sandbox can only request the frozen network_allowed bit;
+    it cannot supply tools, endpoints, credentials or provider options.
     """
 
     id = "anthropic-messages"
 
-    def __init__(self, model: str, timeout: int, base_url: str | None = None) -> None:
+    def __init__(
+        self,
+        model: str,
+        timeout: int,
+        *,
+        budget_usd: float | None = None,
+        pricing: dict[str, Any] | None = None,
+        web_search: dict[str, Any] | None = None,
+        base_url: str | None = None,
+    ) -> None:
         api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
         if not api_key:
             raise GatewayError(
                 "anthropic-messages provider requires ANTHROPIC_API_KEY in the trusted "
                 "gateway environment; it must never be present in the scored sandbox"
             )
+        if budget_usd is not None and budget_usd <= 0:
+            raise GatewayError("--budget-usd must be positive")
+        if budget_usd is not None and not pricing:
+            raise GatewayError(
+                f"no frozen pricing is configured for {model!r}; refusing to run with a spend guard"
+            )
         self._api_key = api_key
         self.model = model
         self.timeout = timeout
         self.base_url = (base_url or os.environ.get("ANTHROPIC_BASE_URL")
                          or "https://api.anthropic.com").rstrip("/")
+        self.budget_usd = float(budget_usd) if budget_usd is not None else None
+        self.pricing = dict(pricing or {})
+        self.web_search = dict(web_search or {})
+        self._estimated_cost_usd = 0.0
+        self._lock = threading.Lock()
 
     def describe(self) -> dict[str, Any]:
-        return {"id": self.id, "model": self.model, "offline": False}
+        return {
+            "id": self.id,
+            "model": self.model,
+            "offline": False,
+            "soft_budget_usd": self.budget_usd,
+            "estimated_cost_usd": round(self._estimated_cost_usd, 6),
+        }
 
     def secrets(self) -> list[str]:
         return [self._api_key]
+
+    def _request_cost(self, usage: dict[str, Any]) -> float:
+        if not self.pricing:
+            return 0.0
+        return (
+            float(usage.get("input_tokens", 0) or 0)
+            * float(self.pricing["input_usd_per_million_tokens"])
+            / 1_000_000.0
+            + float(usage.get("output_tokens", 0) or 0)
+            * float(self.pricing["output_usd_per_million_tokens"])
+            / 1_000_000.0
+            + float(usage.get("web_search_requests", 0) or 0)
+            * float(self.pricing.get("web_search_usd_per_request", 0.0))
+        )
+
+    def _open(self, http_request: urllib.request.Request) -> dict[str, Any]:
+        for attempt in range(6):
+            try:
+                with urllib.request.urlopen(http_request, timeout=self.timeout) as response:
+                    return json.loads(response.read().decode("utf-8"))
+            except urllib.error.HTTPError as exc:
+                detail = exc.read().decode("utf-8", "replace")[:2000]
+                if exc.code not in {429, 500, 502, 503, 529} or attempt == 5:
+                    raise GatewayError(f"provider HTTP {exc.code}: {detail}") from exc
+                retry_after = exc.headers.get("retry-after")
+                try:
+                    delay = float(retry_after) if retry_after else min(2 ** attempt, 30)
+                except ValueError:
+                    delay = min(2 ** attempt, 30)
+                time.sleep(max(1.0, min(delay, 60.0)))
+            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+                if attempt == 5:
+                    raise GatewayError(f"provider transport failure: {exc}") from exc
+                time.sleep(min(2 ** attempt, 30))
+        raise GatewayError("provider retry loop exhausted")
 
     def complete(self, request: dict[str, Any]) -> dict[str, Any]:
         system_chunks = [m["content"] for m in request["messages"] if m["role"] == "system"]
@@ -353,8 +415,16 @@ class AnthropicMessagesProvider(Provider):
             payload["temperature"] = float(request["temperature"])
         if request.get("stop"):
             payload["stop_sequences"] = list(request["stop"])
-        # No server-side tools are ever requested, so a network-capable model tool
-        # cannot be reached even when the run's network policy allows provider egress.
+
+        if request.get("network_allowed"):
+            if not self.web_search:
+                raise GatewayError("network-enabled task has no frozen provider web-search policy")
+            payload["tools"] = [{
+                "type": str(self.web_search["tool_type"]),
+                "name": "web_search",
+                "max_uses": int(self.web_search["max_uses_per_request"]),
+                "allowed_callers": list(self.web_search.get("allowed_callers", ["direct"])),
+            }]
 
         http_request = urllib.request.Request(
             f"{self.base_url}/v1/messages",
@@ -366,30 +436,40 @@ class AnthropicMessagesProvider(Provider):
             },
             method="POST",
         )
-        try:
-            with urllib.request.urlopen(http_request, timeout=self.timeout) as response:
-                body = json.loads(response.read().decode("utf-8"))
-        except urllib.error.HTTPError as exc:
-            detail = exc.read().decode("utf-8", "replace")[:2000]
-            raise GatewayError(f"provider HTTP {exc.code}: {detail}") from exc
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
-            raise GatewayError(f"provider transport failure: {exc}") from exc
 
-        text = "".join(
-            block.get("text", "")
-            for block in body.get("content", [])
-            if block.get("type") == "text"
-        )
-        usage = body.get("usage", {})
+        with self._lock:
+            if (
+                self.budget_usd is not None
+                and self._estimated_cost_usd >= self.budget_usd
+            ):
+                raise GatewayError(
+                    "soft API budget exhausted: "
+                    f"estimated {self._estimated_cost_usd:.4f} USD >= {self.budget_usd:.4f} USD"
+                )
+            body = self._open(http_request)
+
+            text = "".join(
+                block.get("text", "")
+                for block in body.get("content", [])
+                if block.get("type") == "text"
+            )
+            raw_usage = body.get("usage", {}) or {}
+            server_tool_use = raw_usage.get("server_tool_use", {}) or {}
+            usage = {
+                "input_tokens": int(raw_usage.get("input_tokens", 0) or 0),
+                "output_tokens": int(raw_usage.get("output_tokens", 0) or 0),
+                "web_search_requests": int(server_tool_use.get("web_search_requests", 0) or 0),
+            }
+            call_cost = self._request_cost(usage)
+            self._estimated_cost_usd += call_cost
+            usage["estimated_cost_usd"] = round(call_cost, 6)
+            usage["cumulative_estimated_cost_usd"] = round(self._estimated_cost_usd, 6)
+
         return {
             "content": text,
             "stop_reason": body.get("stop_reason", "end_turn"),
-            "usage": {
-                "input_tokens": int(usage.get("input_tokens", 0) or 0),
-                "output_tokens": int(usage.get("output_tokens", 0) or 0),
-            },
+            "usage": usage,
         }
-
 
 def render_conversation(messages: list[dict[str, str]]) -> str:
     chunks = []
@@ -398,7 +478,7 @@ def render_conversation(messages: list[dict[str, str]]) -> str:
     return "\n\n".join(chunks) + "\n"
 
 
-def build_provider(args: argparse.Namespace) -> Provider:
+def build_provider(args: argparse.Namespace, config: dict[str, Any]) -> Provider:
     if args.provider == "fake":
         script = Path(args.fake_script).resolve() if args.fake_script else None
         return FakeProvider(script)
@@ -409,7 +489,14 @@ def build_provider(args: argparse.Namespace) -> Provider:
     if args.provider == "anthropic-messages":
         if not args.model:
             raise GatewayError("--provider anthropic-messages requires --model")
-        return AnthropicMessagesProvider(args.model, int(args.provider_timeout))
+        pricing = config.get("anthropic_pricing", {}).get(args.model)
+        return AnthropicMessagesProvider(
+            args.model,
+            int(args.provider_timeout),
+            budget_usd=float(args.budget_usd) if args.budget_usd is not None else None,
+            pricing=pricing,
+            web_search=config.get("anthropic_web_search"),
+        )
     raise GatewayError(f"unknown provider: {args.provider}")
 
 
@@ -527,7 +614,12 @@ class GatewayState:
         self.started_at = utc_now()
         self.lock = threading.Lock()
         self.counters = {"health": 0, "inference": 0, "policy_refusals": 0, "errors": 0}
-        self.usage = {"input_tokens": 0, "output_tokens": 0}
+        self.usage = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "web_search_requests": 0,
+            "estimated_cost_usd": 0.0,
+        }
         self.shutdown_event = threading.Event()
 
     def log(self, record: dict[str, Any]) -> None:
@@ -615,6 +707,14 @@ class GatewayHandler(socketserver.StreamRequestHandler):
                 state.counters["inference"] += 1
                 state.usage["input_tokens"] += int(usage.get("input_tokens", 0) or 0)
                 state.usage["output_tokens"] += int(usage.get("output_tokens", 0) or 0)
+                state.usage["web_search_requests"] += int(
+                    usage.get("web_search_requests", 0) or 0
+                )
+                state.usage["estimated_cost_usd"] = round(
+                    float(state.usage["estimated_cost_usd"])
+                    + float(usage.get("estimated_cost_usd", 0.0) or 0.0),
+                    6,
+                )
                 served = state.counters["inference"]
             state.log({
                 "event": "inference",
@@ -724,7 +824,7 @@ def prepare_socket_path(path: Path) -> None:
 def cmd_serve(args: argparse.Namespace) -> int:
     config = load_config(Path(args.template).resolve() if args.template else None)
     socket_path = Path(args.socket or config["socket_path"])
-    provider = build_provider(args)
+    provider = build_provider(args, config)
 
     task_policy: dict[str, str] = {}
     if args.task_policy:
@@ -835,6 +935,11 @@ def build_parser() -> argparse.ArgumentParser:
         help="trusted local command; the conversation arrives on stdin, text leaves on stdout",
     )
     serve.add_argument("--model")
+    serve.add_argument(
+        "--budget-usd",
+        type=float,
+        help="trusted-side soft API spend limit; no new paid request starts after it is reached",
+    )
     serve.add_argument("--provider-timeout", type=int, default=900)
     serve.add_argument("--network-policy", default="disabled", choices=("disabled", "allowed"))
     serve.add_argument("--task-policy", help="JSON file granting per-task network ceilings")

@@ -140,7 +140,7 @@ class InferenceGatewayClient:
         *,
         task_id: str | None = None,
         max_output_tokens: int = 8192,
-        temperature: float | None = 0.0,
+        temperature: float | None = None,
         stop: list[str] | None = None,
         network_allowed: bool = False,
         request_id: str | None = None,

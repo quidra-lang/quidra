@@ -26,8 +26,10 @@ class BenchmarkError(RuntimeError):
     pass
 
 
-DEFAULT_WORKSPACE = Path("/quidra-benchmark")
-HOST_WORKSPACE = Path(".quidra-benchmark")
+CANONICAL_WORKSPACE = Path("/quidra-benchmark")
+HOST_WORKSPACE_RELATIVE = Path(".quidra-benchmark")
+HOST_SENTINEL_NAME = ".quidra-benchmark-host.json"
+HOST_SENTINEL_KIND = "quidra-benchmark-host-staging-v1"
 TEMPLATE_DIR = Path(__file__).resolve().parent.parent
 BENCHMARK_METADATA_RELATIVE = PurePosixPath("config/benchmark_metadata.json")
 
@@ -171,14 +173,14 @@ def require_under(path: Path, root: Path) -> Path:
 
 
 def workspace(args: argparse.Namespace) -> Path:
-    return lexical_absolute(Path(getattr(args, "workspace", DEFAULT_WORKSPACE)))
+    return lexical_absolute(Path(getattr(args, "workspace", CANONICAL_WORKSPACE)))
 
 
 def host_workspace(args: argparse.Namespace, source: Path) -> Path:
     """Resolve the trusted host staging directory relative to the source checkout."""
-    raw = Path(getattr(args, "workspace", HOST_WORKSPACE))
+    raw = Path(getattr(args, "workspace", HOST_WORKSPACE_RELATIVE))
     root = lexical_absolute(raw if raw.is_absolute() else source / raw)
-    expected = lexical_absolute(source / HOST_WORKSPACE)
+    expected = lexical_absolute(source / HOST_WORKSPACE_RELATIVE)
     if root != expected:
         raise BenchmarkError(
             "host benchmark workspace must be exactly <source-repo>/.quidra-benchmark"
@@ -186,6 +188,73 @@ def host_workspace(args: argparse.Namespace, source: Path) -> Path:
     if expected.is_symlink():
         raise BenchmarkError("host benchmark workspace may not be a symlink")
     return root
+
+
+def source_path_sha256(source: Path) -> str:
+    return sha256_bytes(str(source.resolve()).encode("utf-8"))
+
+
+def ensure_host_workspace_ignored(source: Path) -> None:
+    tracked = run_capture(["git", "ls-files", "--", HOST_WORKSPACE_RELATIVE.as_posix()], source)
+    if tracked.strip():
+        raise BenchmarkError("host benchmark workspace path must not be Git-tracked")
+    ignored = subprocess.run(
+        ["git", "check-ignore", "--quiet", "--", HOST_WORKSPACE_RELATIVE.as_posix()],
+        cwd=source,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    if ignored.returncode != 0:
+        raise BenchmarkError(
+            "host benchmark workspace must be ignored by Git; add '/.quidra-benchmark/'"
+        )
+
+
+def write_host_workspace_sentinel(root: Path, source: Path, run: dict[str, Any]) -> None:
+    marker = {
+        "schema_version": 1,
+        "kind": HOST_SENTINEL_KIND,
+        "source_path_sha256": source_path_sha256(source),
+        "run_id": run.get("run_id"),
+        "evaluated_commit_sha": run.get("evaluated", {}).get("commit_sha"),
+        "canonical_workspace_root": CANONICAL_WORKSPACE.as_posix(),
+    }
+    path = root / HOST_SENTINEL_NAME
+    json_dump(path, marker)
+    os.chmod(path, 0o600)
+
+
+def validate_host_workspace_sentinel(
+    root: Path,
+    source: Path,
+    run: dict[str, Any],
+) -> None:
+    expected_root = lexical_absolute(source / HOST_WORKSPACE_RELATIVE)
+    if root != expected_root or root.name != HOST_WORKSPACE_RELATIVE.name:
+        raise BenchmarkError("refusing host workspace operation outside ./.quidra-benchmark")
+    if root.is_symlink():
+        raise BenchmarkError("refusing host workspace operation through a symlink")
+    marker_path = root / HOST_SENTINEL_NAME
+    if marker_path.is_symlink() or not marker_path.is_file():
+        raise BenchmarkError("host benchmark workspace sentinel is missing or invalid")
+    marker = json_load(marker_path)
+    expected = {
+        "schema_version": 1,
+        "kind": HOST_SENTINEL_KIND,
+        "source_path_sha256": source_path_sha256(source),
+        "run_id": run.get("run_id"),
+        "evaluated_commit_sha": run.get("evaluated", {}).get("commit_sha"),
+        "canonical_workspace_root": CANONICAL_WORKSPACE.as_posix(),
+    }
+    if marker != expected:
+        raise BenchmarkError("host benchmark workspace sentinel does not match this run")
+    if run.get("workspace_root") != CANONICAL_WORKSPACE.as_posix():
+        raise BenchmarkError("run.json does not name the canonical /quidra-benchmark root")
+
+
+def delete_host_workspace(root: Path, source: Path, run: dict[str, Any]) -> None:
+    validate_host_workspace_sentinel(root, source, run)
+    shutil.rmtree(root)
 
 
 def run_capture(cmd: list[str], cwd: Path) -> str:
@@ -629,6 +698,7 @@ def cmd_init(args: argparse.Namespace) -> int:
             "benchmark target must have a clean working tree so its recorded commit SHA "
             "fully identifies the evaluated snapshot"
         )
+    ensure_host_workspace_ignored(source)
 
     root = host_workspace(args, source)
     if root.exists() and any(root.iterdir()):
@@ -682,7 +752,7 @@ def cmd_init(args: argparse.Namespace) -> int:
             **meta,
             "compiler_version": manifest_version(root / "repo"),
         },
-        "workspace_root": str(DEFAULT_WORKSPACE),
+        "workspace_root": str(CANONICAL_WORKSPACE),
         "sandbox_mode": args.sandbox_mode,
         "master_prompt_sha256": master_hash,
         "primary_config_sha256": config_hash,
@@ -695,18 +765,37 @@ def cmd_init(args: argparse.Namespace) -> int:
         "created_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
     }
     json_dump(root / "run.json", run)
+    write_host_workspace_sentinel(root, source, run)
     print(json.dumps(run, indent=2))
     return 0
 
 
 def template_integrity_problems(root: Path, run: dict[str, Any]) -> list[str]:
     problems: list[str] = []
+    if run.get("workspace_root") != CANONICAL_WORKSPACE.as_posix():
+        problems.append("run_workspace_root_must_be_/quidra-benchmark")
+
+    master_hash = str(run.get("master_prompt_sha256") or "")
+    master_path = root / "prompts" / "by-hash" / f"{master_hash}.md"
+    if not master_hash:
+        problems.append("master_prompt_hash_missing_from_run")
+    elif not master_path.is_file():
+        problems.append("master_prompt_missing")
+    elif sha256_file(master_path) != master_hash:
+        problems.append("master_prompt_hash_mismatch")
+
     template = root / "template"
     expected = run.get("template_tree_sha256")
     if not expected:
         problems.append("template_tree_hash_missing_from_run")
     elif template.exists() and sha256_tree(template) != expected:
         problems.append("template_tree_hash_mismatch")
+
+    primary = template / "config" / "primary.json"
+    if primary.exists() and run.get("primary_config_sha256"):
+        if sha256_file(primary) != run["primary_config_sha256"]:
+            problems.append("primary_config_hash_mismatch")
+
     catalog = template / "reuse" / "catalog.json"
     if catalog.exists() and run.get("reuse_catalog_sha256"):
         if sha256_file(catalog) != run["reuse_catalog_sha256"]:
@@ -898,9 +987,9 @@ def cmd_preflight(args: argparse.Namespace) -> int:
         run = {}
         problems.append(f"invalid_run_json:{exc}")
 
-    if root != lexical_absolute(DEFAULT_WORKSPACE):
+    if root != lexical_absolute(CANONICAL_WORKSPACE):
         problems.append("workspace_root_must_be_/quidra-benchmark")
-    if run.get("workspace_root") != DEFAULT_WORKSPACE.as_posix():
+    if run.get("workspace_root") != CANONICAL_WORKSPACE.as_posix():
         problems.append("run_workspace_root_must_be_/quidra-benchmark")
 
     declared_sandbox_mode = run.get("sandbox_mode")
@@ -941,10 +1030,10 @@ def cmd_preflight(args: argparse.Namespace) -> int:
     if config.exists():
         try:
             primary_cfg = json_load(config)
-            if primary_cfg.get("workspace_root") != DEFAULT_WORKSPACE.as_posix():
+            if primary_cfg.get("workspace_root") != CANONICAL_WORKSPACE.as_posix():
                 problems.append("primary_config_workspace_root_must_be_/quidra-benchmark")
             allowed_prefix = primary_cfg.get("privacy", {}).get("allowed_absolute_path_prefix")
-            if allowed_prefix != DEFAULT_WORKSPACE.as_posix() + "/":
+            if allowed_prefix != CANONICAL_WORKSPACE.as_posix() + "/":
                 problems.append("primary_config_allowed_path_prefix_mismatch")
         except Exception as exc:
             problems.append(f"primary_config_invalid:{exc}")
@@ -1066,7 +1155,7 @@ def sanitized_subprocess_env(root: Path, cwd: Path) -> dict[str, str]:
         if value:
             env[key] = value
     if (
-        root != lexical_absolute(DEFAULT_WORKSPACE)
+        root != lexical_absolute(CANONICAL_WORKSPACE)
         and os.environ.get("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS") == "1"
     ):
         env["QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS"] = "1"
@@ -1082,7 +1171,7 @@ def validator_argv(command: str, root: Path) -> list[str]:
         raise BenchmarkError("validator command is empty")
 
     if argv == ["true"]:
-        if lexical_absolute(root) == lexical_absolute(DEFAULT_WORKSPACE):
+        if lexical_absolute(root) == lexical_absolute(CANONICAL_WORKSPACE):
             raise BenchmarkError(
                 "unconditional 'true' validator is forbidden in a real benchmark run"
             )
@@ -2316,7 +2405,16 @@ def reject_overbroad_read_paths(paths: Iterable[str], root: Path) -> None:
 
 def render_workspace_paths(content: str, root: Path) -> str:
     """Keep prompt-visible workspace paths canonical and machine-independent."""
-    return content.replace("./.quidra-benchmark", DEFAULT_WORKSPACE.as_posix())
+    canonical = CANONICAL_WORKSPACE.as_posix()
+    aliases = {
+        "./.quidra-benchmark",
+        str(lexical_absolute(root)),
+        lexical_absolute(root).as_posix(),
+    }
+    for alias in sorted(aliases, key=len, reverse=True):
+        if alias and alias != canonical:
+            content = content.replace(alias, canonical)
+    return content
 
 
 def store_prompt_component(root: Path, content: str, kind: str) -> dict[str, Any]:
@@ -2516,6 +2614,7 @@ Goal: {args.goal}
 - Write the standard summary to result.json in your writable directory.
 - A child agent must receive its own persisted self-contained Task Packet. Do not pass implicit parent conversation state.
 """
+    packet = render_workspace_paths(packet, root)
     components = [store_prompt_component(root, packet, "task")]
     for name, section in embedded_sections:
         components.append(store_prompt_component(root, section, f"embedded:{name}"))
@@ -3934,12 +4033,12 @@ def privacy_match_is_safe(kind: str, sample: str, root: Path) -> bool:
     if kind not in {"unix_home", "windows_home", "host_temp_path"}:
         return False
 
-    fixed_root = DEFAULT_WORKSPACE.as_posix()
+    fixed_root = CANONICAL_WORKSPACE.as_posix()
     if sample == fixed_root or sample.startswith(fixed_root + "/"):
         return True
 
     synthetic = os.environ.get("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS") == "1"
-    if not synthetic or lexical_absolute(root) == lexical_absolute(DEFAULT_WORKSPACE):
+    if not synthetic or lexical_absolute(root) == lexical_absolute(CANONICAL_WORKSPACE):
         return False
 
     synthetic_root = lexical_absolute(root).as_posix()
@@ -4053,6 +4152,11 @@ def cmd_post_run(args: argparse.Namespace) -> int:
     root = host_workspace(args, source)
     if not root.is_dir():
         raise BenchmarkError(f"benchmark workspace does not exist: {root}")
+    run_path = root / "run.json"
+    if not run_path.is_file():
+        raise BenchmarkError("benchmark workspace is missing run.json")
+    run = json_load(run_path)
+    validate_host_workspace_sentinel(root, source, run)
 
     finalization_path = root / "results" / "finalization.json"
     if not finalization_path.is_file() or not json_load(finalization_path).get("ok"):
@@ -4062,7 +4166,6 @@ def cmd_post_run(args: argparse.Namespace) -> int:
     if privacy_rc != 0:
         raise BenchmarkError("post-run retention privacy check failed")
 
-    run = json_load(root / "run.json")
     run_id = str(run.get("run_id") or "").strip()
     if not re.fullmatch(r"[A-Za-z0-9._()\-]+", run_id):
         raise BenchmarkError(f"invalid run_id for repository import: {run_id!r}")
@@ -4083,7 +4186,7 @@ def cmd_post_run(args: argparse.Namespace) -> int:
         workspace_relative = root_real.relative_to(source_real)
     except ValueError:
         workspace_relative = None
-    if workspace_relative is not None and workspace_relative != HOST_WORKSPACE:
+    if workspace_relative is not None and workspace_relative != HOST_WORKSPACE_RELATIVE:
         raise BenchmarkError(
             "benchmark workspace may be inside the source repository only as ./.quidra-benchmark"
         )
@@ -4123,10 +4226,10 @@ def cmd_post_run(args: argparse.Namespace) -> int:
         )
 
     try:
-        shutil.rmtree(root)
-    except OSError as exc:
+        delete_host_workspace(root, source, run)
+    except (OSError, BenchmarkError) as exc:
         raise BenchmarkError(
-            f"run imported successfully to {destination}, but workspace cleanup failed: {exc}"
+            f"run imported successfully to {destination}, but guarded workspace cleanup failed: {exc}"
         ) from exc
 
     result = {
@@ -4146,7 +4249,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     init = sub.add_parser("init", help="stage <source-repo>/.quidra-benchmark for mapping to /quidra-benchmark inside the sandbox")
     init.add_argument("--source-repo", required=True)
-    init.add_argument("--workspace", default=str(HOST_WORKSPACE))
+    init.add_argument("--workspace", default=str(HOST_WORKSPACE_RELATIVE))
     init.add_argument("--run-id")
     init.add_argument(
         "--sandbox-mode",
@@ -4156,12 +4259,12 @@ def build_parser() -> argparse.ArgumentParser:
     init.set_defaults(func=cmd_init)
 
     tcs = sub.add_parser("toolchain-scan", help="record current comparison-language toolchain fingerprints")
-    tcs.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    tcs.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     tcs.add_argument("--strict", action="store_true")
     tcs.set_defaults(func=cmd_toolchain_scan)
 
     rs = sub.add_parser("reuse-status", help="identify reusable assets needing a toolchain currency audit")
-    rs.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    rs.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     rs.add_argument("--strict", action="store_true")
     rs.set_defaults(func=cmd_reuse_status)
 
@@ -4169,86 +4272,86 @@ def build_parser() -> argparse.ArgumentParser:
         "toolchain-blockers",
         help="record missing toolchains as infrastructure blockers without aborting unrelated evaluations",
     )
-    tcb.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    tcb.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     tcb.set_defaults(func=cmd_toolchain_blockers)
 
     pre = sub.add_parser("preflight", help="validate workspace/config/environment invariants")
-    pre.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    pre.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     pre.set_defaults(func=cmd_preflight)
 
     plan = sub.add_parser("plan", help="report frozen primary work and missing manifest coverage")
-    plan.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    plan.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     plan.add_argument("--strict", action="store_true")
     plan.set_defaults(func=cmd_plan)
 
     dp = sub.add_parser("deterministic-plan", help="generate all five Primary plans without a planning LLM")
-    dp.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    dp.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     dp.set_defaults(func=cmd_deterministic_plan)
 
     rc = sub.add_parser("result-check", help="validate a standardized leaf-worker result.json")
-    rc.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    rc.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     rc.add_argument("--id", required=True)
     rc.set_defaults(func=cmd_result_check)
 
     crc = sub.add_parser("command-result-check", help="validate runner-owned requirement result.json")
-    crc.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    crc.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     crc.add_argument("--id", required=True)
     crc.set_defaults(func=cmd_command_result_check)
 
     ts = sub.add_parser("task-start", help="claim an agent work unit and start its lease")
-    ts.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    ts.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     ts.add_argument("--id", required=True)
     ts.set_defaults(func=cmd_task_start)
 
     hb = sub.add_parser("heartbeat", help="renew a RUNNING work-unit lease")
-    hb.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    hb.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     hb.add_argument("--id", required=True)
     hb.set_defaults(func=cmd_heartbeat)
 
     tf = sub.add_parser("task-finish", help="validate a worker result and complete or retry the unit")
-    tf.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    tf.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     tf.add_argument("--id", required=True)
     tf.set_defaults(func=cmd_task_finish)
 
     reclaim = sub.add_parser("reclaim-stale", help="reclaim stale RUNNING units or block exhausted work")
-    reclaim.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    reclaim.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     reclaim.set_defaults(func=cmd_reclaim_stale)
 
     agg = sub.add_parser("aggregate-primary", help="mechanically aggregate one Primary evaluation and ranking")
-    agg.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    agg.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     agg.add_argument("--evaluation", required=True, choices=PRIMARY_NAMES)
     agg.set_defaults(func=cmd_aggregate_primary)
 
     ac = sub.add_parser("aggregate-check", help="validate a runner-generated Primary aggregate")
-    ac.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    ac.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     ac.add_argument("--evaluation", required=True, choices=PRIMARY_NAMES)
     ac.add_argument("--file", required=True)
     ac.set_defaults(func=cmd_aggregate_check)
 
     psd = sub.add_parser("primary-status-derive", help="derive Primary statuses from ledger/aggregates")
-    psd.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    psd.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     psd.set_defaults(func=cmd_primary_status_derive)
 
     adv = sub.add_parser("advance", help="advance the runner state machine and emit the agent dispatch queue")
-    adv.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    adv.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     adv.set_defaults(func=cmd_advance)
 
     prep = sub.add_parser("prepare", help="run all deterministic pre-dispatch steps and emit the first queue")
-    prep.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    prep.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     prep.set_defaults(func=cmd_prepare)
 
     pcx = sub.add_parser("plan-check", help="validate one planning agent work_plan.json")
-    pcx.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    pcx.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     pcx.add_argument("--evaluation", required=True, choices=PRIMARY_NAMES)
     pcx.add_argument("--file", required=True)
     pcx.set_defaults(func=cmd_plan_check)
 
     mm = sub.add_parser("manifest-merge", help="freeze deterministic Primary plans into manifest and ledger")
-    mm.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    mm.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     mm.set_defaults(func=cmd_manifest_merge)
 
     lu = sub.add_parser("ledger-update", help="atomically update one work-unit state")
-    lu.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    lu.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     lu.add_argument("--id", required=True)
     lu.add_argument("--status", required=True, choices=("PENDING", "RUNNING", "COMPLETE", "BLOCKED", "INVALID"))
     lu.add_argument("--evidence", action="append", default=[])
@@ -4261,14 +4364,14 @@ def build_parser() -> argparse.ArgumentParser:
     lu.set_defaults(func=cmd_ledger_update)
 
     tcm = sub.add_parser("tasks-create", help="create child Task Packets from the frozen manifest")
-    tcm.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    tcm.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     tcm.add_argument("--evaluation", choices=PRIMARY_NAMES)
     tcm.add_argument("--parent")
     tcm.add_argument("--depth", type=int, default=1)
     tcm.set_defaults(func=cmd_tasks_create)
 
     tc = sub.add_parser("task-create", help="create and hash a self-contained delegated Task Packet")
-    tc.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    tc.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     tc.add_argument("--id", required=True)
     tc.add_argument("--parent")
     tc.add_argument("--evaluation", choices=PRIMARY_NAMES)
@@ -4285,42 +4388,42 @@ def build_parser() -> argparse.ArgumentParser:
     tc.set_defaults(func=cmd_task_create)
 
     ps = sub.add_parser("prompt-save", help="content-address and preserve an exact scored/delegated prompt")
-    ps.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    ps.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     ps.add_argument("--file", required=True)
     ps.set_defaults(func=cmd_prompt_save)
 
     tr = sub.add_parser("task-render", help="render one self-contained Task Packet to stdout")
-    tr.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    tr.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     tr.add_argument("--id", required=True)
     tr.set_defaults(func=cmd_task_render)
 
     tv = sub.add_parser("task-validate", help="run the exact validator frozen in a Task Packet")
-    tv.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    tv.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     tv.add_argument("--id", required=True)
     tv.set_defaults(func=cmd_task_validate)
 
     lr = sub.add_parser("ledger-reconcile", help="reconcile manifest state with required evidence paths")
-    lr.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    lr.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     lr.set_defaults(func=cmd_ledger_reconcile)
 
     ss = sub.add_parser("score-status", help="show scoreability/blockers for all five primary evaluations")
-    ss.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    ss.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     ss.add_argument("--strict", action="store_true")
     ss.set_defaults(func=cmd_score_status)
 
     pc = sub.add_parser("privacy-check", help="scan retained artifacts for personal/sensitive data")
-    pc.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    pc.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     pc.set_defaults(func=cmd_privacy_check)
 
     fin = sub.add_parser("finalize", help="enforce score/blocker and privacy gates")
-    fin.add_argument("--workspace", default=str(DEFAULT_WORKSPACE))
+    fin.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     fin.set_defaults(func=cmd_finalize)
 
     post = sub.add_parser(
         "post-run",
         help="import finalized artifacts from <source-repo>/.quidra-benchmark and delete the host staging workspace",
     )
-    post.add_argument("--workspace", default=str(HOST_WORKSPACE))
+    post.add_argument("--workspace", default=str(HOST_WORKSPACE_RELATIVE))
     post.add_argument("--source-repo", required=True)
     post.set_defaults(func=cmd_post_run)
 

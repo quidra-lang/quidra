@@ -4,7 +4,7 @@
 
 All benchmark agents operate inside a real filesystem sandbox rooted at `/quidra-benchmark`.
 
-Before the sandbox starts, trusted bootstrap may use the Git-ignored physical staging directory `<source-repo>/.quidra-benchmark`. The outer runner must map that directory to exactly `/quidra-benchmark` inside the isolation boundary. The physical host path is not part of the scientific task identity and must not appear in worker prompts or retained artifacts.
+Before the sandbox starts, trusted bootstrap may use the Git-ignored physical staging directory `<source-repo>/.quidra-benchmark`. Successful init writes a host-only sentinel that binds that directory to the source checkout, run ID, evaluated commit, and canonical sandbox root. The outer runner must map the staging directory to exactly `/quidra-benchmark` inside the isolation boundary. The physical host path and sentinel are not part of the scientific task identity and must not appear in worker prompts or retained artifacts.
 
 The visible tree contains the current evaluated source, the current self-contained template, isolated work/results/prompts/home/tmp directories, and run metadata. Host home directories, SSH material, credentials, unrelated projects, ignored files and untracked checkout content must not be visible.
 
@@ -99,7 +99,7 @@ Timing warm-ups, repetitions, cache policy and recovery are frozen before measur
 
 Privacy scanning is required before dispatch, before finalization, and once more over the exact retained set before import. Keep machine-readable final results, exact prompts/hashes, run identity, required raw measurements/audits, leaf outputs, frozen manifest/ledger/plans and runner command results. Drop caches/intermediates, the evaluated source snapshot, template copy, temporary home/files, micro build products and personal/host-specific data.
 
-After successful `finalize` and sandbox exit, only the trusted outer runner may expose a clean local `develop` checkout to `post-run`. The command reads the physical `<source-repo>/.quidra-benchmark` staging directory, stages the retained set under `benchmark/<run-id>/`, verifies every retained file hash, atomically installs the run directory, and deletes the host staging directory only after verification succeeds. A failed import never deletes the workspace.
+After successful `finalize` and sandbox exit, only the trusted outer runner may expose a clean local `develop` checkout to `post-run`. The command reads the physical `<source-repo>/.quidra-benchmark` staging directory, requires its sentinel to match the source checkout and finalized run, stages the retained set under `benchmark/<run-id>/`, verifies every retained file hash, atomically installs the run directory, revalidates the sentinel immediately before cleanup, and deletes the host staging directory only after verification succeeds. A failed import or sentinel mismatch never deletes the workspace.
 
 ## 13. Git freeze
 

@@ -133,8 +133,9 @@ jobs:
           assert "deterministic-plan" in master
           assert "benchmark.py prepare" in master
           assert "Past run directories" in master
-          assert str(module.DEFAULT_WORKSPACE) == "/quidra-benchmark"
-          assert str(module.HOST_WORKSPACE) == ".quidra-benchmark"
+          assert str(module.CANONICAL_WORKSPACE) == "/quidra-benchmark"
+          assert str(module.HOST_WORKSPACE_RELATIVE) == ".quidra-benchmark"
+          assert module.HOST_SENTINEL_NAME == ".quidra-benchmark-host.json"
           assert "/.quidra-benchmark/" in Path(".gitignore").read_text()
           primary_cfg = json.loads((root / "config" / "primary.json").read_text())
           assert primary_cfg["workspace_root"] == "/quidra-benchmark"
@@ -143,6 +144,12 @@ jobs:
           assert module.render_workspace_paths(sample, Path("/tmp/host-b")) == sample
           assert module.render_workspace_paths(
               "read ./.quidra-benchmark/repo only", Path("/Users/example/project")
+          ) == sample
+          assert module.render_workspace_paths(
+              "read /tmp/host-a/repo only", Path("/tmp/host-a")
+          ) == sample
+          assert module.render_workspace_paths(
+              "read /tmp/host-b/repo only", Path("/tmp/host-b")
           ) == sample
           assert module.privacy_match_is_safe(
               "host_temp_path", "/quidra-benchmark/repo", Path("/quidra-benchmark")
@@ -465,6 +472,11 @@ jobs:
           python benchmark/template/scripts/benchmark.py task-render             --workspace "$TMP" --id worker-sc-structure-gates--part-1 > "$TMP/rendered-task.md"
           grep -q "Embedded input: worker_core.md" "$TMP/rendered-task.md"
           grep -q "Mandatory semantic-site matrix" "$TMP/rendered-task.md"
+          grep -q "/quidra-benchmark" "$TMP/rendered-task.md"
+          if grep -Fq "$TMP" "$TMP/rendered-task.md"; then
+            echo "physical synthetic workspace leaked into rendered Task Packet" >&2
+            exit 1
+          fi
           if grep -q "LLM Proficiency Evaluation" "$TMP/rendered-task.md"; then
             echo "unrelated evaluation content leaked into narrow Task Packet" >&2
             exit 1
@@ -632,10 +644,18 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import json
-          run = json.loads(Path(".quidra-benchmark/run.json").read_text())
+          root = Path(".quidra-benchmark")
+          run = json.loads((root / "run.json").read_text())
+          sentinel = json.loads((root / ".quidra-benchmark-host.json").read_text())
           assert run["workspace_root"] == "/quidra-benchmark"
+          assert sentinel["kind"] == "quidra-benchmark-host-staging-v1"
+          assert sentinel["run_id"] == run["run_id"]
+          assert sentinel["evaluated_commit_sha"] == run["evaluated"]["commit_sha"]
+          assert sentinel["canonical_workspace_root"] == "/quidra-benchmark"
           assert "/Users/" not in json.dumps(run)
           assert "/home/" not in json.dumps(run)
+          assert "/Users/" not in json.dumps(sentinel)
+          assert "/home/" not in json.dumps(sentinel)
           PY
           git check-ignore -q .quidra-benchmark/run.json
           rm -rf .quidra-benchmark
@@ -673,6 +693,39 @@ jobs:
           echo '{"schema_version":1}' > "$RUN/work/root/ledger.json"
           echo '{"schema_version":1}' > "$RUN/work/root/plans/language_quality.json"
           echo '{"schema_version":1}' > "$RUN/work/root/commands/cmd-a/result.json"
+
+          # Cleanup must refuse an otherwise valid-looking directory without the host sentinel.
+          if python benchmark/template/scripts/benchmark.py post-run \
+            --source-repo "$REPO"; then
+            echo "post-run unexpectedly accepted a workspace without the host sentinel" >&2
+            exit 1
+          fi
+          test -d "$RUN"
+
+          export RUN REPO
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import json
+          import os
+
+          root = Path(os.environ["RUN"])
+          source = Path(os.environ["REPO"]).resolve()
+          run = json.loads((root / "run.json").read_text())
+          sentinel = {
+              "schema_version": 1,
+              "kind": "quidra-benchmark-host-staging-v1",
+              "source_path_sha256": hashlib.sha256(
+                  str(source).encode("utf-8")
+              ).hexdigest(),
+              "run_id": run["run_id"],
+              "evaluated_commit_sha": run["evaluated"]["commit_sha"],
+              "canonical_workspace_root": "/quidra-benchmark",
+          }
+          (root / ".quidra-benchmark-host.json").write_text(
+              json.dumps(sentinel, indent=2, sort_keys=True) + "\n"
+          )
+          PY
 
           python benchmark/template/scripts/benchmark.py post-run \
             --source-repo "$REPO"

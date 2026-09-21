@@ -865,6 +865,7 @@ std::vector<StmtPtr> Parser::block_until(bool) {
 }
 
 StmtPtr Parser::statement() {
+    ParseDepthGuard depth(statement_depth_, max_parse_statement_depth, peek(), "Statement");
     if (at(TokenKind::KwReturn)) return return_stmt();
     if (at(TokenKind::KwBreak) || at(TokenKind::KwContinue)) return loop_control_stmt();
     if (at(TokenKind::KwIf)) return if_stmt();
@@ -922,6 +923,13 @@ StmtPtr Parser::if_stmt() {
         auto then_body = block_until(false);
         std::vector<StmtPtr> else_body;
         if (at(TokenKind::KwElif)) {
+            // An elif chain recurses directly here, without passing through
+            // statement(), so count it against the same budget. The guard goes
+            // at the recursion site, not inside the lambda: an `if` head is
+            // already counted by statement(), and counting it twice would put
+            // the parser's limit below the checker's statement budget.
+            ParseDepthGuard depth(
+                statement_depth_, max_parse_statement_depth, peek(), "Statement");
             else_body.push_back(parse_branch(TokenKind::KwElif));
         } else if (match(TokenKind::KwElse)) {
             end_statement("else");

@@ -1,6 +1,7 @@
 #include "quidra/ir.hpp"
 #include "quidra/language.hpp"
 #include "operator_policy.hpp"
+#include "nesting_budget.hpp"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -18,6 +19,10 @@ struct Lowerer {
     Function* fn{};
     Block* block{};
     ValueId next_value{1};
+    // Lowering overflows the stack on input the checker accepts: an `and`
+    // chain of 900 links (5,425 bytes) checks clean and segfaults here.
+    std::size_t expr_depth_{};
+    std::size_t stmt_depth_{};
     std::uint32_t next_label{};
     std::uint32_t next_hidden{};
     std::unordered_map<std::string, Type> locals;
@@ -1887,6 +1892,8 @@ struct Lowerer {
     }
 
     ValueId raw_expr(const Expr& e) {
+        nesting::DepthGuard guard(
+            expr_depth_, nesting::max_expression_depth, e.span, "Expression");
         if (const auto construction = checked.enum_constructions.find(&e);
             construction != checked.enum_constructions.end()) {
             ValueId payload = 0;
@@ -4290,6 +4297,9 @@ struct Lowerer {
 
     void lower_loop_statement_sequence(
         const std::vector<StmtPtr>& statements) {
+        nesting::DepthGuard guard(
+            stmt_depth_, nesting::max_statement_depth,
+            statements.empty() ? SourceSpan{} : statements.front()->span, "Statement");
         for (std::size_t i = 0; i < statements.size(); ++i) {
             bool split_sequence_lowered = false;
             if (const auto* split_sequence_binding =
@@ -5211,6 +5221,8 @@ struct Lowerer {
     }
 
     void stmt(const Stmt& s) {
+        nesting::DepthGuard guard(
+            stmt_depth_, nesting::max_statement_depth, s.span, "Statement");
         block->instructions.push_back(SourceLocation{
             static_cast<std::uint32_t>(s.span.start.line),
             static_cast<std::uint32_t>(s.span.start.column)});

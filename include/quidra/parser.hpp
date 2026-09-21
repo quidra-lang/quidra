@@ -16,9 +16,15 @@ private:
     std::size_t expression_depth_{};
     std::size_t unary_depth_{};
     std::size_t type_depth_{};
+    std::size_t statement_depth_{};
     std::vector<Diagnostic> diagnostics_;
     std::size_t max_errors_{20};
     static constexpr std::size_t max_parse_depth = 128;
+    // Statements get their own, looser budget: the checker bounds statement
+    // nesting at 256 (src/nesting_budget.hpp), so a parser limit of 128 would
+    // make that budget unreachable from source. This one only has to bound the
+    // parser's own cycle, which costs ~608 bytes per level.
+    static constexpr std::size_t max_parse_statement_depth = 512;
 
     const Token& peek(std::size_t n = 0) const;
     const Token& previous() const;

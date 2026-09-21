@@ -9,6 +9,8 @@
 #include "quidra/package_manifest.hpp"
 #include "quidra/project.hpp"
 
+#include "nesting_budget.hpp"
+
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
@@ -1909,6 +1911,10 @@ public:
     }
 
 private:
+    // Shared by clone_expr and clone_stmt: they interleave over one AST, and
+    // this walk runs before the checker, so no checker budget can protect it.
+    std::size_t clone_depth_{};
+
     static bool known_generic_constraint(std::string_view constraint) {
         return constraint.empty() || constraint == "numeric" || constraint == "integer" ||
                constraint == "floating" || constraint == "ordered" ||
@@ -2686,6 +2692,8 @@ private:
         const Substitution& substitution,
         const std::unordered_set<std::string>& deferred,
         const std::string& current_class) {
+        nesting::DepthGuard guard(
+            clone_depth_, nesting::max_ast_clone_depth, source.span, "Expression");
         auto out = std::make_unique<Expr>();
         out->span = source.span;
 
@@ -2906,6 +2914,8 @@ private:
         const Substitution& substitution,
         const std::unordered_set<std::string>& deferred,
         const std::string& current_class) {
+        nesting::DepthGuard guard(
+            clone_depth_, nesting::max_ast_clone_depth, source.span, "Statement");
         auto out = std::make_unique<Stmt>();
         out->span = source.span;
 

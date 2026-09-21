@@ -2712,5 +2712,38 @@ print(x)
  deep.append(5000, ')');
  deep += ")\n";
  bad_code(deep, "PARSE_DEPTH");
+
+ // Nesting budgets. Each of these segfaulted the compiler before the budgets
+ // existed; the source stays small because the cost is depth, not size.
+ std::string eager = "int x = 1";
+ for (int i = 0; i < 200; ++i) eager += " + 1";
+ eager += "\n";
+ bad_code(eager, "NESTING_DEPTH");
+
+ // Short-circuit operands are excluded from the iterative eager-binary
+ // worklist, so this shape reaches IR lowering's own expression recursion.
+ std::string shortcircuit = "bool b = true\nbool c = b";
+ for (int i = 0; i < 200; ++i) shortcircuit += " and b";
+ shortcircuit += "\n";
+ bad_code(shortcircuit, "NESTING_DEPTH");
+
+ // The cheapest crash shape: 600 links segfaulted in 4,284 bytes.
+ std::string postfix = "class P\n    int v\n\n    P grow()\n        return P(v = v + 1)\n\n"
+                       "P p = P(v = 1)\nP q = p";
+ for (int i = 0; i < 100; ++i) postfix += ".grow()";
+ postfix += "\n";
+ bad_code(postfix, "NESTING_DEPTH");
+
+ std::string nested = "void f()\n";
+ for (int i = 0; i < 300; ++i) nested += std::string(4 * (i + 1), ' ') + "if true\n";
+ nested += std::string(4 * 301, ' ') + "print(\"x\")\n";
+ bad_code(nested, "NESTING_DEPTH");
+
+ // elif recurses without passing through Parser::statement().
+ std::string elifs = "void f()\n    int x = 0\n    if x == 0\n        print(\"a\")\n";
+ for (int i = 0; i < 300; ++i)
+     elifs += "    elif x == " + std::to_string(i + 1) + "\n        print(\"b\")\n";
+ bad_code(elifs, "NESTING_DEPTH");
+
  std::cout<<"all compiler tests passed\n";
 }

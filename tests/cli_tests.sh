@@ -3469,3 +3469,56 @@ print(float(1.0 / 0.0))
 print(float(-1.0 / 0.0))
 QUI
 [[ "$("$QUIDRA" run "$TMP/float-exception-text.qui")" == $'nan\ninf\n-inf' ]]
+
+# Nesting budgets must produce a diagnostic and a normal exit status, never a
+# signal. This is the only test that observes the real process exit code, so it
+# is the only place a regression back to SIGSEGV (139) can be caught. Each
+# fixture below crashed the compiler before the budgets existed.
+python3 -c "
+import sys
+open(sys.argv[1] + '/nest-eager.qui', 'w').write('int x = 1' + ' + 1' * 1599 + '\n')
+open(sys.argv[1] + '/nest-shortcircuit.qui', 'w').write('bool b = true\nbool c = b' + ' and b' * 900 + '\n')
+open(sys.argv[1] + '/nest-postfix.qui', 'w').write(
+    'class P\n    int v\n\n    P grow()\n        return P(v = v + 1)\n\n'
+    'P p = P(v = 1)\nP q = p' + '.grow()' * 600 + '\n')
+open(sys.argv[1] + '/nest-statements.qui', 'w').write(
+    'void f()\n' + ''.join(' ' * (4 * (i + 1)) + 'if true\n' for i in range(300))
+    + ' ' * (4 * 301) + 'print(\"x\")\n')
+" "$TMP"
+
+for nest_case in nest-eager nest-shortcircuit nest-postfix nest-statements; do
+    for nest_command in check ir inspect; do
+        set +e
+        "$QUIDRA" "$nest_command" "$TMP/$nest_case.qui" > "$TMP/$nest_case.$nest_command.out" 2>&1
+        nest_rc=$?
+        set -e
+        [[ "$nest_rc" -eq 1 ]]
+    done
+    set +e
+    "$QUIDRA" check "$TMP/$nest_case.qui" --json > "$TMP/$nest_case.json" 2>&1
+    nest_rc=$?
+    set -e
+    [[ "$nest_rc" -eq 1 ]]
+    grep -q 'NESTING_DEPTH' "$TMP/$nest_case.json"
+done
+
+# Untrusted patch JSON: 50,000 nested brackets exhausted the stack.
+python3 -c "
+import sys
+open(sys.argv[1] + '/deep-patch.json', 'w').write('[' * 100000)
+open(sys.argv[1] + '/patch-target.qui', 'w').write('print(\"hi\")\n')
+" "$TMP"
+set +e
+"$QUIDRA" patch "$TMP/patch-target.qui" "$TMP/deep-patch.json" > "$TMP/deep-patch.out" 2>&1
+nest_rc=$?
+set -e
+[[ "$nest_rc" -eq 1 ]]
+
+# Control for the depth-versus-size decision: a large but flat program must
+# still compile. 40,000 statements, 737,780 bytes, zero nesting.
+python3 -c "
+import sys
+open(sys.argv[1] + '/flat-program.qui', 'w').write(
+    ''.join('int v%d = %d\n' % (i, i) for i in range(40000)))
+" "$TMP"
+"$QUIDRA" check "$TMP/flat-program.qui"

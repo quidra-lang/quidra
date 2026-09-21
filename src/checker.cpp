@@ -3,6 +3,7 @@
 #include "operator_policy.hpp"
 #include "numeric_literal_policy.hpp"
 #include "constant_integer_eval.hpp"
+#include "nesting_budget.hpp"
 #include <stdexcept>
 #include <algorithm>
 #include <cctype>
@@ -325,6 +326,20 @@ std::unordered_map<std::string, StorageEffect> merge_reference_loop(
     }
     return result;
 }
+
+
+// check_block can now throw NESTING_DEPTH, which makes the previously
+// unreachable loop_depth_ leak reachable. A leaked loop_depth_ silently
+// legalises break/continue outside a loop for the rest of the check.
+struct ScopedCounter {
+    explicit ScopedCounter(std::size_t& value) : value_(value) { ++value_; }
+    ~ScopedCounter() { --value_; }
+    ScopedCounter(const ScopedCounter&) = delete;
+    ScopedCounter& operator=(const ScopedCounter&) = delete;
+
+private:
+    std::size_t& value_;
+};
 
 } // namespace
 
@@ -720,6 +735,10 @@ void Checker::check_static_index_bounds(const Type& base, const Expr& index) {
 }
 
 Type Checker::check_address_target(const Expr& expression, bool allow_tensor_element) {
+    // Shares expr_depth_ with check_expr: the two interleave, and the budget
+    // is about total stack, not about either cycle alone.
+    nesting::DepthGuard guard(
+        expr_depth_, nesting::max_expression_depth, expression.span, "Address target");
     Type type;
     if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
         if (variables_.contains(name->name)) {
@@ -5355,6 +5374,8 @@ Type Checker::check_call_expr(const Expr& expression,
 }
 
 Type Checker::check_expr(const Expr& expression, const Type* expected) {
+    nesting::DepthGuard guard(
+        expr_depth_, nesting::max_expression_depth, expression.span, "Expression");
     Type type = simple(TypeKind::Void);
 
     if (const auto* node = std::get_if<IntegerExpr>(&expression.data)) {
@@ -6513,9 +6534,10 @@ void Checker::check_while_stmt(const Stmt&, const WhileStmt& node) {
         collect_assigned_bindings(node.body, loop_assigned);
         weaken_loop_tensor_facts(variables_, loop_assigned);
         variables = variables_;
-        ++loop_depth_;
-        check_block(node.body);
-        --loop_depth_;
+        {
+            ScopedCounter loop(loop_depth_);
+            check_block(node.body);
+        }
         auto body_variables = variables_;
         auto body_written = current_receiver_effect_.writes;
         auto body_invalidated = current_receiver_effect_.invalidates;
@@ -6602,9 +6624,10 @@ void Checker::check_for_stmt(const Stmt& statement, const ForStmt& node) {
         }
         variables_[node.name] = item_type;
         initialized_.insert(node.name);
-        ++loop_depth_;
-        check_block(node.body);
-        --loop_depth_;
+        {
+            ScopedCounter loop(loop_depth_);
+            check_block(node.body);
+        }
         auto body_variables = variables_;
         auto body_written = current_receiver_effect_.writes;
         auto body_invalidated = current_receiver_effect_.invalidates;
@@ -6948,6 +6971,11 @@ void Checker::check_stmt(const Stmt& statement) {
 }
 
 void Checker::check_block(const std::vector<StmtPtr>& body) {
+    // Before this block establishes its own checkpoint machinery, so an
+    // over-deep block is recovered by the PARENT block's per-statement handler.
+    nesting::DepthGuard guard(
+        stmt_depth_, nesting::max_statement_depth,
+        body.empty() ? SourceSpan{} : body.front()->span, "Block");
     // Valid code is the hot path. Snapshot flow state once per block and only
     // create a new checkpoint after a recovered diagnostic. If a statement
     // fails, restore the latest checkpoint and replay only the statements since
@@ -7151,6 +7179,8 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     diagnostics_.clear();
     current_class_.clear();
     loop_depth_ = 0;
+    expr_depth_ = 0;
+    stmt_depth_ = 0;
     explicit_numeric_literal_context_ = false;
 
     std::unordered_map<std::string, ClassDecl*> class_decls;

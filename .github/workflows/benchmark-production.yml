@@ -50,6 +50,32 @@ jobs:
           echo "RUN_ID=$run_id" >> "$GITHUB_ENV"
           echo "EVALUATED_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
+      - name: Prove the paid request shape before spending on the run
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Everything before this point has run against the deterministic fake
+          # provider, so the request this benchmark actually sends has never been
+          # tried. A malformed one fails identically on call 1 and call 1160;
+          # finding out here costs a fraction of a cent instead of an image build,
+          # a planning pass and a partial run.
+          python benchmark/template/scripts/production_run.py provider-smoke \
+            --model "$BENCHMARK_MODEL" \
+            --budget-usd 0.50 \
+            --output "$RUNNER_TEMP/provider-smoke.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(
+              Path(os.environ["RUNNER_TEMP"], "provider-smoke.json").read_text()
+          )
+          assert report["ok"], report.get("failed_checks")
+          spent = report["spend"]["estimated_cost_usd"]
+          print(f"smoke spend: ${spent:.4f} over {report['spend']['paid_inference_calls']} calls")
+          # A smoke test that somehow cost real money is itself a finding.
+          assert spent < 0.10, f"the smoke test spent {spent} USD"
+          PY
+
       - name: Reclaim runner disk
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
@@ -142,3 +168,4 @@ jobs:
             benchmark/${{ env.RUN_ID }}
             ${{ runner.temp }}/api-cost.json
             ${{ runner.temp }}/gateway-audit.jsonl
+            ${{ runner.temp }}/provider-smoke.json

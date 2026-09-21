@@ -14,6 +14,17 @@ from typing import Any
 import benchmark
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
+
+
+def load_module(path: Path, name: str) -> Any:
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(name, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 CLI = SCRIPTS_DIR / "benchmark.py"
 AGENT = SCRIPTS_DIR / "sandbox_agent.py"
 
@@ -203,6 +214,168 @@ def run_production(root: Path, max_iterations: int) -> dict[str, Any]:
     return payload
 
 
+def provider_smoke(
+    model: str, template: Path, budget_usd: float, timeout: float
+) -> dict[str, Any]:
+    """Spend a few cents proving the paid path works before spending the rest.
+
+    Everything up to this point has run against the deterministic fake provider,
+    so the one thing never exercised is the request this benchmark will actually
+    send: the frozen decoding state, the frozen web-search tool, and the response
+    shape the evaluated model returns. A malformed request fails identically on
+    call 1 and call 1160, and finding out on call 1 costs a fraction of a cent
+    instead of an image build, a planning pass and a partial run.
+
+    The checks that need no provider call run first and for free.
+    """
+    import shutil
+    import tempfile
+    import time
+    import uuid
+
+    gateway_client = load_module(SCRIPTS_DIR / "gateway_client.py", "smoke_gateway_client")
+
+    workdir = Path(tempfile.mkdtemp(prefix="quidra-smoke-"))
+    sock = workdir / "s.sock"
+    policy_path = workdir / "task-policy.json"
+    log_path = workdir / "audit.jsonl"
+    granted, refused = "smoke-network-task", "smoke-unknown-task"
+    policy_path.write_text(
+        json.dumps({"schema_version": 1, "tasks": {granted: "allowed"}}) + "\n",
+        encoding="utf-8",
+    )
+
+    process = subprocess.Popen(
+        [
+            sys.executable, str(SCRIPTS_DIR / "inference_gateway.py"), "serve",
+            "--socket", str(sock),
+            "--template", str(template),
+            "--provider", "anthropic-messages",
+            "--model", model,
+            "--budget-usd", str(budget_usd),
+            "--network-policy", "disabled",
+            "--task-policy", str(policy_path),
+            "--log", str(log_path),
+        ],
+        env=dict(os.environ),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+
+    checks: list[dict[str, Any]] = []
+
+    def record(name: str, ok: bool, detail: Any = "") -> None:
+        checks.append({"check": name, "ok": bool(ok), "detail": detail})
+
+    try:
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline and not sock.is_socket():
+            if process.poll() is not None:
+                out, err = process.communicate(timeout=5)
+                raise ProductionRunError(
+                    f"the gateway could not start with the paid provider: {err or out}"
+                )
+            time.sleep(0.05)
+        if not sock.is_socket():
+            raise ProductionRunError("the gateway did not bind its socket")
+
+        client = gateway_client.InferenceGatewayClient(sock, timeout=timeout)
+        health = client.health()
+        record(
+            "handshake reports the paid provider",
+            health.get("provider", {}).get("id") == "anthropic-messages",
+            health.get("provider"),
+        )
+        frozen_tool = (
+            json.loads((template / "config" / "inference_gateway.json").read_text("utf-8"))
+            .get("anthropic_web_search", {})
+            .get("tool_type")
+        )
+        declared = [entry.get("type") for entry in health.get("exposed_tool_surface", [])]
+        record(
+            "the declared tool surface matches the frozen policy",
+            declared == [frozen_tool],
+            {"declared": declared, "frozen": frozen_tool},
+        )
+
+        # Free checks: both are refused before any provider call.
+        for name, payload in (
+            ("a task absent from the frozen policy is refused", {
+                "schema_version": 1, "kind": "inference.request",
+                "request_id": "smoke-unknown", "task_id": refused,
+                "messages": [{"role": "user", "content": "x"}],
+            }),
+            ("a sandbox-supplied temperature is refused", {
+                "schema_version": 1, "kind": "inference.request",
+                "request_id": "smoke-temp", "task_id": granted,
+                "messages": [{"role": "user", "content": "x"}], "temperature": 0.0,
+            }),
+        ):
+            response = client.raw_exchange(payload)
+            record(
+                name,
+                response.get("kind") == "inference.error"
+                and response.get("error", {}).get("class") == "policy",
+                response.get("error", {}).get("message"),
+            )
+
+        # The first real call. Tiny prompt, tiny output cap.
+        plain = client.complete(
+            [{"role": "user", "content": "Reply with the single word: ready"}],
+            task_id="smoke-plain",
+            max_output_tokens=16,
+            request_id=uuid.uuid4().hex,
+        )
+        record("the frozen request shape is accepted by the provider", bool(plain.get("content")))
+        record(
+            "the response carries usable text",
+            isinstance(plain.get("content"), str) and plain["content"].strip() != "",
+            plain.get("content", "")[:120],
+        )
+        record(
+            "usage is reported for cost accounting",
+            int(plain.get("usage", {}).get("input_tokens", 0)) > 0,
+            plain.get("usage"),
+        )
+
+        # The second real call exercises the network-enabled payload shape, which
+        # carries the frozen server-side tool and is otherwise never sent.
+        searched = client.complete(
+            [{"role": "user", "content": "Reply with the single word: ready"}],
+            task_id=granted,
+            max_output_tokens=16,
+            network_allowed=True,
+            request_id=uuid.uuid4().hex,
+        )
+        record(
+            "the network-enabled request shape is accepted by the provider",
+            bool(searched.get("content")),
+            searched.get("usage"),
+        )
+    finally:
+        process.terminate()
+        try:
+            process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            process.kill()
+
+    cost = build_cost_report(log_path)
+    shutil.rmtree(workdir, ignore_errors=True)
+
+    failures = [c["check"] for c in checks if not c["ok"]]
+    payload = {
+        "schema_version": 1,
+        "ok": not failures,
+        "model": model,
+        "checks": checks,
+        "spend": cost,
+    }
+    if failures:
+        payload["failed_checks"] = failures
+    return payload
+
+
 def build_cost_report(log_path: Path) -> dict[str, Any]:
     calls = 0
     input_tokens = 0
@@ -245,6 +418,16 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--workspace", default="/quidra-benchmark")
     run.add_argument("--max-iterations", type=int, default=200)
 
+    smoke = sub.add_parser(
+        "provider-smoke",
+        help="spend a few cents proving the paid request shape works before the run",
+    )
+    smoke.add_argument("--model", required=True)
+    smoke.add_argument("--template", default=str(SCRIPTS_DIR.parent))
+    smoke.add_argument("--budget-usd", type=float, default=0.50)
+    smoke.add_argument("--timeout", type=float, default=180.0)
+    smoke.add_argument("--output")
+
     cost = sub.add_parser("cost-report", help="summarize the trusted gateway audit log")
     cost.add_argument("--log", required=True)
     cost.add_argument("--output")
@@ -256,6 +439,21 @@ def main() -> int:
     args = build_parser().parse_args()
     if args.command == "policy":
         payload = write_policy(Path(args.workspace).resolve(), Path(args.output).resolve())
+    elif args.command == "provider-smoke":
+        payload = provider_smoke(
+            args.model, Path(args.template).resolve(),
+            float(args.budget_usd), float(args.timeout),
+        )
+        if args.output:
+            Path(args.output).write_text(
+                json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+        if not payload["ok"]:
+            print(json.dumps(payload, indent=2, sort_keys=True))
+            raise ProductionRunError(
+                "the paid request shape failed before the run: "
+                + ", ".join(payload["failed_checks"])
+            )
     elif args.command == "run":
         payload = run_production(Path(args.workspace).resolve(), int(args.max_iterations))
     else:

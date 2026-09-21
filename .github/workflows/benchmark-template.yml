@@ -1037,8 +1037,8 @@ jobs:
           assert traces and receipts, (traces, receipts)
 
           # The gateway holds a provider credential for the whole run. Nothing it
-          # brokered may carry that credential, or a host path, into an artifact
-          # the repository will keep.
+          # brokered may carry that credential into an artifact the repository
+          # will keep.
           retained = []
           for relative in ("run.json", "results", "raw", "prompts", "work/agents",
                           "work/root/manifest.json", "work/root/ledger.json",
@@ -1058,8 +1058,19 @@ jobs:
               except (UnicodeDecodeError, OSError):
                   continue
               assert not credential.search(text), str(path)
-              for forbidden in ("ANTHROPIC_API_KEY", "/home/runner", "/Users/"):
-                  assert forbidden not in text, (str(path), forbidden)
+              # The bare variable name is policy prose in the master prompt; an
+              # assignment is what a leak would look like.
+              assert "ANTHROPIC_API_KEY=" not in text, str(path)
+
+          # Host paths are a different question. A synthetic run puts the
+          # workspace itself under the runner's home, which privacy_match_is_safe
+          # already exempts and the privacy-check command below enforces. The
+          # invariant worth asserting here is the one that holds in every run:
+          # the physical workspace path never reaches a prompt a model is sent.
+          physical = str(root.resolve())
+          for component in (root / "prompts/components/by-hash").rglob("*"):
+              if component.is_file():
+                  assert physical not in component.read_text(), str(component)
           PY
 
           python benchmark/template/scripts/benchmark.py ledger-reconcile --workspace "$TMP"

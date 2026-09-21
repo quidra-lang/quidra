@@ -47,7 +47,11 @@ RUN update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-${CLANG_MAJO
 # The sandbox always runs unprivileged. The account exists so an interactive
 # `docker run` without --user is still non-root; the launcher additionally pins
 # --user explicitly so the bind-mounted staging directory stays writable.
-RUN useradd --create-home --uid 1000 --shell /usr/sbin/nologin benchmark \
+# ubuntu:24.04 ships its own uid-1000 account, so that uid has to be freed
+# before this one can claim it. The guard keeps the build working on a future
+# base image that drops the default account.
+RUN userdel --remove ubuntu >/dev/null 2>&1 || true; \
+    useradd --create-home --uid 1000 --shell /usr/sbin/nologin benchmark \
  && mkdir -p /quidra-benchmark /quidra-benchmark/gateway /opt/quidra-benchmark \
  && chown -R 1000:1000 /quidra-benchmark /opt/quidra-benchmark
 

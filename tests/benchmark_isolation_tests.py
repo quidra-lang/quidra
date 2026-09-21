@@ -940,14 +940,25 @@ def test_retained_artifacts_carry_no_secret_or_host_path() -> None:
                 f"a credential assignment reached a retained artifact: {path.name}",
             )
 
+        task = json.loads((agent_dir / "task.json").read_text(encoding="utf-8"))
         packet = benchmark.render_prompt_components(
-            json.loads((agent_dir / "task.json").read_text(encoding="utf-8"))["prompt_components"],
-            json.loads((agent_dir / "task.json").read_text(encoding="utf-8"))["prompt_sha256"],
+            task["prompt_components"], task["prompt_sha256"]
         ).decode("utf-8")
         check(
             str(tmp) not in packet,
             "the synthetic host workspace path leaked into a rendered Task Packet",
         )
+
+        # Every stored prompt component, not just the assembled packet: these are
+        # exactly the bytes a model is sent, and the physical workspace path must
+        # never appear in them regardless of where the workspace happens to live.
+        physical = str(root.resolve())
+        for component in (root / "prompts" / "components" / "by-hash").rglob("*"):
+            if component.is_file():
+                check(
+                    physical not in component.read_text(encoding="utf-8"),
+                    f"the physical workspace path leaked into {component.name}",
+                )
 
         import contextlib
         import io

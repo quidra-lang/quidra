@@ -4,6 +4,8 @@
 
 Quidra is a statically typed, native general-purpose programming language designed for both humans and language models.
 
+Try it without installing anything: **[Quidra Playground](https://quidra-lang.github.io/playground/)** runs the real compiler frontend in your browser.
+
 Its primary optimization target is **semantic density**: how much reliable intent can be recovered from each token without hidden conventions, guesswork, or repeated ceremony. Fewer characters are not automatically better. Fewer tokens are better only when the same meaning remains explicit, stable, and mechanically checkable.
 
 The name **Quidra** is inspired by the Latin *quidditas* — the “whatness” or essence of a thing.
@@ -853,9 +855,9 @@ The included server is deliberately loopback-only and intended for local develop
 The local server above is the developer-facing playground: it shells out to the
 real `quidra` binary, so it can offer **Run** and **LLVM IR**.
 
-The public playground at [quidra-lang/playground](https://github.com/quidra-lang/playground)
-is a different thing: a fully static site that runs the compiler frontend in the
-browser. It loads `quidra_core` compiled to WebAssembly, so **Check**, **Format**,
+The public playground at **<https://quidra-lang.github.io/playground/>**
+([source](https://github.com/quidra-lang/playground)) is a different thing: a
+fully static site that runs the compiler frontend in the browser. It loads `quidra_core` compiled to WebAssembly, so **Check**, **Format**,
 **Quidra IR**, **Inspect** and **Patch** all run on the visitor's machine with no
 server, and the source never leaves the tab. It deliberately has no Run button --
 execution needs LLVM, the native runtime and OS process facilities, none of which

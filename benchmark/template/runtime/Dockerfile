@@ -50,9 +50,13 @@ RUN update-alternatives --install /usr/bin/c++ c++ /usr/bin/clang++-${CLANG_MAJO
 # ubuntu:24.04 ships its own uid-1000 account, so that uid has to be freed
 # before this one can claim it. The guard keeps the build working on a future
 # base image that drops the default account.
+# Every directory the runtime contract names exists in the image. At run time
+# they are covered by the workspace mount, but the image must stand on its own:
+# the toolchain install below runs against this TMPDIR long before any mount.
 RUN userdel --remove ubuntu >/dev/null 2>&1 || true; \
     useradd --create-home --uid 1000 --shell /usr/sbin/nologin benchmark \
- && mkdir -p /quidra-benchmark /quidra-benchmark/gateway /opt/quidra-benchmark \
+ && mkdir -p /quidra-benchmark/gateway /quidra-benchmark/home /quidra-benchmark/tmp \
+             /quidra-benchmark/work /opt/quidra-benchmark \
  && chown -R 1000:1000 /quidra-benchmark /opt/quidra-benchmark
 
 ENV HOME=/quidra-benchmark/home \
@@ -61,6 +65,15 @@ ENV HOME=/quidra-benchmark/home \
 
 WORKDIR /quidra-benchmark
 USER 1000:1000
+
+# Declaring HOME and TMPDIR is not the same as providing them. This fails the
+# build the moment the image stops satisfying its own contract, rather than
+# leaving it to whichever later step first calls mktemp.
+RUN set -e; \
+    test -d "$HOME" || { echo "image declares HOME=$HOME but does not create it" >&2; exit 1; }; \
+    probe="$(mktemp -d)" && rmdir "$probe"; \
+    printf 'runtime contract satisfied: HOME=%s TMPDIR=%s uid=%s\n' "$HOME" "$TMPDIR" "$(id -u)"
+
 CMD ["python3", "/quidra-benchmark/template/scripts/benchmark.py", "preflight"]
 
 

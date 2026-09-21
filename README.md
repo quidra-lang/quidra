@@ -847,6 +847,38 @@ The playground opens on `http://127.0.0.1:8787/` and provides **Run**, **Check**
 
 The included server is deliberately loopback-only and intended for local development. Each execution uses a fresh temporary working directory, a wall-clock timeout, a small concurrency limit, a reduced child-process environment, and a per-session request token. A public multi-user deployment must execute user programs inside a separately hardened sandbox; this local server is not a multi-tenant security boundary.
 
+
+### Public Playground (WebAssembly)
+
+The local server above is the developer-facing playground: it shells out to the
+real `quidra` binary, so it can offer **Run** and **LLVM IR**.
+
+The public playground at [quidra-lang/playground](https://github.com/quidra-lang/playground)
+is a different thing: a fully static site that runs the compiler frontend in the
+browser. It loads `quidra_core` compiled to WebAssembly, so **Check**, **Format**,
+**Quidra IR**, **Inspect** and **Patch** all run on the visitor's machine with no
+server, and the source never leaves the tab. It deliberately has no Run button --
+execution needs LLVM, the native runtime and OS process facilities, none of which
+the frontend carries.
+
+It is not a reimplementation. The playground has no parser, checker, formatter or
+IR of its own; it calls the same `quidra::check`, `quidra::format_source`,
+`quidra::ir::lower`, `quidra::inspect_source_json` and `quidra::apply_source_patch`
+entry points this repository already exposes.
+
+Build the frontend bridge with the Emscripten toolchain:
+
+```bash
+emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release
+cmake --build build-wasm --target quidra_wasm
+node tests/wasm_api_tests.mjs build-wasm
+```
+
+`QUIDRA_BUILD_WASM_FRONTEND` (implied by Emscripten) restricts the build to
+`quidra_core` and `src/wasm_api.cpp`. That configuration needs no CURL, PNG,
+JPEG, TIFF, WebP, FFmpeg, GPU backend or native runtime, because those belong to
+the generated-program runtime and the CLI rather than to the frontend.
+
 ## Build
 
 Requirements:

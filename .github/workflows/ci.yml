@@ -92,6 +92,40 @@ jobs:
       - name: Native smoke
         run: bash scripts/native-smoke.sh ./build-release-compat/quidra "$PWD"
 
+  # The browser frontend is a first-class target, so it is built and actually
+  # exercised on every push. A build that nobody runs rots into a fork.
+  wasm-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 4.0.7
+          actions-cache-folder: emsdk-cache
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Configure the frontend-only build
+        run: >-
+          emcmake cmake -S . -B build-wasm
+          -DCMAKE_BUILD_TYPE=Release
+          -DQUIDRA_WARNINGS_AS_ERRORS=ON
+      - name: Confirm no native runtime dependency was pulled in
+        run: |
+          # The frontend build must not require CURL/PNG/JPEG/TIFF/WebP/FFmpeg.
+          # None of them are installed on this runner, so a successful configure
+          # above is the assertion; this step makes the intent explicit.
+          ! grep -q "CURL_INCLUDE_DIR" build-wasm/CMakeCache.txt
+      - name: Build
+        run: cmake --build build-wasm --target quidra_wasm --parallel
+      - name: Report artifact size
+        run: |
+          raw=$(stat -c%s build-wasm/quidra-core.wasm)
+          gz=$(gzip -9 -c build-wasm/quidra-core.wasm | wc -c)
+          echo "quidra-core.wasm: ${raw} bytes raw, ${gz} bytes gzip" >> "$GITHUB_STEP_SUMMARY"
+      - name: Exercise the WebAssembly API
+        run: node tests/wasm_api_tests.mjs build-wasm
+
   gpu-contracts:
     runs-on: ubuntu-latest
     steps:

@@ -103,6 +103,33 @@ External C declarations remain explicit in the checked program and typed IR. The
 
 Declaration-only REPL submissions (functions, classes, and imports with no top-level executable statement) take a non-executing incremental path: the complete candidate is validated by the ordinary file-aware checker, then accepted without LLVM generation, native linking, or process execution. This remains safe after an external-effect replay barrier because no runtime state is reconstructed. Executable submissions still use accumulated-source reconstruction until a persistent runtime-state ABI can preserve bindings, references, managed ownership, imports, generics, and definite-initialization facts without changing language semantics.
 
+## WebAssembly frontend boundary
+
+`quidra_core` -- lexer, parser, checker, formatter, typed IR, source inspection
+and source patching -- depends on nothing but the C++ standard library. Every
+third-party dependency in this repository belongs to `quidra_runtime`, which is
+linked into generated programs, or to the CLI. That split is what makes a
+browser build possible without forking the frontend.
+
+`QUIDRA_BUILD_WASM_FRONTEND` (set automatically under Emscripten) builds only
+`quidra_core` plus `src/wasm_api.cpp`, which exposes one versioned entry point:
+
+```c
+char* quidra_wasm_invoke(const char* request_json);
+void  quidra_wasm_free(char* result);
+```
+
+Requests and responses are JSON envelopes carrying their own `schema_version`,
+independent of the product version in the same way as `abi` and `ir`. The bridge
+answers `check`, `format`, `ir`, `inspect`, `patch`, `patch_schema` and
+`metadata`; `metadata` reports the product version, the language version, the IR
+version and the exact core commit, so a consumer never infers which compiler
+answered. No C++ exception crosses the boundary: failures are values.
+
+The bridge adds no semantics. It is a transport in front of the same frontend
+API the CLI calls, and it cannot execute a program -- execution requires LLVM,
+the runtime archive and process facilities that the frontend does not carry.
+
 ## Native runtime boundary
 
 Generated programs are still lowered directly from typed Quidra IR to LLVM IR. Native executables additionally link a small platform static runtime archive through a C ABI (`libquidra_runtime.a` on Unix-like hosts and `quidra_runtime.lib` on Windows). The runtime is for operating-system and standard-library facilities that should not be duplicated as emitted LLVM text; it is not a source transpilation layer and does not interpret Quidra.

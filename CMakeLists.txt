@@ -66,6 +66,17 @@ option(QUIDRA_WARNINGS_AS_ERRORS "Treat compiler warnings as errors for Quidra t
 option(QUIDRA_SANITIZE_RUNTIME "Instrument the generated-program runtime archive in sanitizer builds" OFF)
 option(QUIDRA_ENABLE_TEST_GPU_BACKEND "Compile the deterministic test-only fake GPU backend" OFF)
 
+# The browser frontend needs the parser, checker, formatter, typed IR, source
+# inspection and source patching -- all of which live in quidra_core, which has
+# no third-party dependencies. Everything that pulls CURL/PNG/JPEG/TIFF/WebP/
+# FFmpeg/Metal belongs to the generated-program runtime and the native CLI, so a
+# frontend-only build simply omits those targets. Emscripten implies it.
+option(QUIDRA_BUILD_WASM_FRONTEND
+    "Build only the dependency-free compiler frontend and its WebAssembly bridge" OFF)
+if(EMSCRIPTEN)
+  set(QUIDRA_BUILD_WASM_FRONTEND ON)
+endif()
+
 if(QUIDRA_WARNINGS_AS_ERRORS)
   if(MSVC)
     add_compile_options(/WX)
@@ -108,6 +119,8 @@ add_library(quidra_core
     src/package_lock.cpp
 )
 target_include_directories(quidra_core PUBLIC include ${CMAKE_CURRENT_BINARY_DIR}/generated)
+
+if(NOT QUIDRA_BUILD_WASM_FRONTEND)
 
 find_package(CURL REQUIRED)
 find_package(PNG REQUIRED)
@@ -270,15 +283,81 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU" AND CMAKE_CXX_FLAGS MATCHES "saniti
   target_compile_definitions(quidra PRIVATE QUIDRA_SANITIZE_GENERATED=1)
 endif()
 
+endif() # NOT QUIDRA_BUILD_WASM_FRONTEND
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(quidra_core PRIVATE -Wall -Wextra -Wpedantic)
+elseif(MSVC)
+  target_compile_options(quidra_core PRIVATE /W4 /wd4456 /bigobj)
+endif()
+
+if(QUIDRA_BUILD_WASM_FRONTEND)
+  # The bridge reports the exact revision it was built from so that a consumer
+  # never has to guess which compiler produced a result. The version itself
+  # still comes from project.toml by way of PROJECT_VERSION.
+  set(QUIDRA_CORE_COMMIT "unknown")
+  find_package(Git QUIET)
+  if(GIT_FOUND)
+    execute_process(
+        COMMAND "${GIT_EXECUTABLE}" rev-parse HEAD
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+        OUTPUT_VARIABLE QUIDRA_CORE_COMMIT_FOUND
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET)
+    if(QUIDRA_CORE_COMMIT_FOUND)
+      set(QUIDRA_CORE_COMMIT "${QUIDRA_CORE_COMMIT_FOUND}")
+    endif()
+  endif()
+  if(DEFINED ENV{QUIDRA_CORE_COMMIT} AND NOT "$ENV{QUIDRA_CORE_COMMIT}" STREQUAL "")
+    set(QUIDRA_CORE_COMMIT "$ENV{QUIDRA_CORE_COMMIT}")
+  endif()
+  message(STATUS "Quidra WebAssembly frontend: core commit ${QUIDRA_CORE_COMMIT}")
+
+  add_executable(quidra_wasm src/wasm_api.cpp)
+  target_link_libraries(quidra_wasm PRIVATE quidra_core)
+  target_compile_definitions(quidra_wasm PRIVATE
+      QUIDRA_CORE_COMMIT="${QUIDRA_CORE_COMMIT}")
+  set_target_properties(quidra_wasm PROPERTIES OUTPUT_NAME "quidra-core")
+  if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    target_compile_options(quidra_wasm PRIVATE -Wall -Wextra -Wpedantic)
+  endif()
+
+  if(EMSCRIPTEN)
+    # Native Wasm exception handling: the frontend throws to report ordinary
+    # diagnostics, so the happy path must stay cheap. Compile and link both.
+    target_compile_options(quidra_core PUBLIC -fwasm-exceptions)
+    target_compile_options(quidra_wasm PRIVATE -fwasm-exceptions)
+    # The checker and IR lowering recurse over the AST. Their depth budgets in
+    # src/nesting_budget.hpp are sized against a multi-megabyte stack, so the
+    # 64 KiB Emscripten default has to be raised for those budgets to be the
+    # thing that stops a deep program. INITIAL_MEMORY must exceed STACK_SIZE.
+    target_link_options(quidra_wasm PRIVATE
+        -fwasm-exceptions
+        -sSTACK_SIZE=16MB
+        -sINITIAL_MEMORY=64MB
+        -sALLOW_MEMORY_GROWTH=1
+        -sSTACK_OVERFLOW_CHECK=1
+        -sMODULARIZE=1
+        -sEXPORT_ES6=1
+        -sEXPORT_NAME=createQuidraCore
+        -sENVIRONMENT=web,worker,node
+        -sTEXTDECODER=2
+        # FILESYSTEM stays on: quidra::check resolves standard namespaces
+        # through the module loader, which calls std::filesystem::current_path.
+        # Emscripten's default MEMFS satisfies that for a few tens of KiB; a
+        # hand-written shim would be a second source of truth for no gain.
+        -sEXPORTED_RUNTIME_METHODS=UTF8ToString,stringToNewUTF8
+        -sEXPORTED_FUNCTIONS=_quidra_wasm_invoke,_quidra_wasm_free,_malloc,_free
+        --no-entry)
+  endif()
+endif()
+
+if(NOT QUIDRA_BUILD_WASM_FRONTEND)
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
   target_compile_options(quidra_runtime PRIVATE -Wall -Wextra -Wpedantic -ffunction-sections -fdata-sections)
   target_compile_options(quidra_runtime_jit PRIVATE -Wall -Wextra -Wpedantic -ffunction-sections -fdata-sections)
   target_compile_options(quidra PRIVATE -Wall -Wextra -Wpedantic)
 elseif(MSVC)
-  # MSVC C4456 treats repeated condition-declaration names across an if/else-if
-  # variant-matching chain as shadowing. The names are intentionally branch-local.
-  target_compile_options(quidra_core PRIVATE /W4 /wd4456 /bigobj)
   target_compile_options(quidra_runtime PRIVATE /W4 /Gy /Gw)
   target_compile_options(quidra_runtime_jit PRIVATE /W4 /Gy /Gw)
   target_compile_options(quidra PRIVATE /W4)
@@ -297,8 +376,10 @@ install(FILES README.md LICENSE quidra.manifest.json DESTINATION ${CMAKE_INSTALL
 install(DIRECTORY docs/spec/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/spec)
 install(DIRECTORY examples/ DESTINATION ${CMAKE_INSTALL_DOCDIR}/examples)
 
+endif() # NOT QUIDRA_BUILD_WASM_FRONTEND
+
 include(CTest)
-if(BUILD_TESTING)
+if(BUILD_TESTING AND NOT QUIDRA_BUILD_WASM_FRONTEND)
   find_package(Python3 REQUIRED COMPONENTS Interpreter)
   add_executable(quidra_tests tests/compiler_tests.cpp)
   target_link_libraries(quidra_tests PRIVATE quidra_core)

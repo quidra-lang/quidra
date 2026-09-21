@@ -11,8 +11,11 @@
     "cache_policy": "must_be_declared_per_workload"
   },
   "sampling": {
-    "temperature": 0.0,
-    "note": "Frozen decoding parameters for every scored inference request. Deterministic decoding is what the LLM Proficiency and LLM Learnability specifications assume: both state that duplicate outputs across independent trials must be preserved and reported, not papered over with ad-hoc prompt noise. This value is frozen here rather than left to a provider default so that a change to it is a deliberate, reviewable edit to the benchmark configuration."
+    "sampling_parameters": "omitted",
+    "decoding_state": "provider-controlled",
+    "thinking": "provider-default-adaptive",
+    "effort": "high",
+    "note": "Scored requests send no temperature, top_p or top_k. The evaluated model family rejects them: on Claude Sonnet 5 those parameters are removed and a request carrying one fails with HTTP 400, so a fixed temperature is not a control that exists to be set. Section 6.2 of the LLM Proficiency specification already allows this: it requires identical decoding controls OR the same recorded provider-controlled state for all languages. That state is recorded here and in the gateway audit log. Depth is pinned through output_config.effort instead, which is the control this model family actually exposes, and it is identical for every language."
   },
   "llm_learnability": {
     "keyword_anonymization_seeds": 3,

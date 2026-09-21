@@ -113,16 +113,20 @@ Network is disabled unless a Task Packet explicitly allows it, and the scored sa
 
 Timing warm-ups, repetitions, cache policy and recovery are frozen before measurement and applied symmetrically.
 
-Decoding parameters are frozen the same way. `primary.json` holds the sampling
-temperature every scored request uses, and both worker paths read it from there;
-`preflight` rejects a missing or out-of-range value. Leaving it to a provider
-default would let a change in sampling behaviour reach every scored trial without
-appearing in any diff of the benchmark's parameters. The gateway records the
-temperature of each brokered request, so a finished run carries evidence of how
-it was decoded rather than an assumption. Deterministic decoding is what the LLM
-Proficiency and LLM Learnability specifications assume: both require duplicate
-outputs across independent trials to be preserved and reported rather than
-disguised with ad-hoc prompt noise.
+The decoding state is frozen the same way, but it is a declaration rather than a
+value. The evaluated model family removed `temperature`, `top_p` and `top_k` and
+rejects a request carrying one, so a fixed sampling value is not a control that
+exists to be set. `primary.json` therefore records that no sampling parameters are
+sent, that decoding is provider-controlled, and which effort level pins depth;
+`preflight` rejects a section that claims otherwise. Section 6.2 of the LLM
+Proficiency specification asks for exactly this: identical decoding controls *or*
+the same recorded provider-controlled state for all languages. The gateway refuses
+any decoding field the sandbox tries to supply and records the state it used on
+every brokered request, so a finished run carries evidence of how it was decoded
+rather than an assumption. Where decoding is deterministic, both the LLM
+Proficiency and LLM Learnability specifications still require duplicate outputs
+across independent trials to be preserved and reported rather than disguised with
+ad-hoc prompt noise.
 
 ## 12. Privacy and retention
 

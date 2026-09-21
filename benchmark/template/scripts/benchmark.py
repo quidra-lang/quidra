@@ -3061,22 +3061,34 @@ def extract_markdown_sections(content: str, selectors: list[str]) -> str:
 
 
 def sampling_config(root: Path) -> dict[str, Any]:
-    """Frozen decoding parameters for scored inference.
+    """Frozen declaration of how scored requests are decoded.
 
-    These belong in the frozen configuration, not in a client default: a silent
-    provider default once changed every scored trial's sampling behaviour without
-    appearing in any diff of the benchmark's parameters.
+    The evaluated model family removed temperature, top_p and top_k and rejects a
+    request carrying one, so there is no fixed sampling value to set. What the
+    benchmark can still freeze, and what section 6.2 of the LLM Proficiency
+    specification actually asks for, is that the decoding state is identical for
+    every language and is recorded. This returns that declaration; the scored
+    paths send no decoding parameters at all.
     """
     cfg = json_load(root / "template" / "config" / "primary.json")
     sampling = cfg.get("sampling")
     if not isinstance(sampling, dict):
         raise BenchmarkError("primary config is missing the frozen sampling section")
-    temperature = sampling.get("temperature")
-    if not isinstance(temperature, (int, float)) or isinstance(temperature, bool):
-        raise BenchmarkError("frozen sampling temperature must be a number")
-    if not 0.0 <= float(temperature) <= 2.0:
-        raise BenchmarkError(f"frozen sampling temperature is out of range: {temperature}")
-    return {"temperature": float(temperature)}
+    if sampling.get("sampling_parameters") != "omitted":
+        raise BenchmarkError(
+            "frozen sampling must declare sampling_parameters=omitted: the evaluated "
+            "model family rejects temperature/top_p/top_k with HTTP 400"
+        )
+    if sampling.get("decoding_state") != "provider-controlled":
+        raise BenchmarkError("frozen sampling must record a provider-controlled state")
+    effort = sampling.get("effort")
+    if effort not in {"low", "medium", "high", "xhigh", "max"}:
+        raise BenchmarkError(f"frozen sampling effort is not a known level: {effort}")
+    return {
+        "sampling_parameters": "omitted",
+        "decoding_state": "provider-controlled",
+        "effort": str(effort),
+    }
 
 
 def worker_isolation_config(root: Path) -> dict[str, Any]:
@@ -3314,7 +3326,6 @@ def cmd_task_infer(args: argparse.Namespace) -> int:
             ],
             task_id=args.id,
             max_output_tokens=int(args.max_output_tokens),
-            temperature=sampling["temperature"],
             network_allowed=bool(meta.get("network_allowed")),
         )
     except client_module.GatewayRefusal as exc:
@@ -3334,6 +3345,7 @@ def cmd_task_infer(args: argparse.Namespace) -> int:
             "gateway": health.get("gateway"),
             "provider": health.get("provider", {}).get("id"),
             "network_allowed": bool(meta.get("network_allowed")),
+            "sampling": sampling,
             "usage": response.get("usage", {}),
             "completion_sha256": sha256_bytes(completion.encode("utf-8")),
         },

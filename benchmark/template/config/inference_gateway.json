@@ -11,29 +11,35 @@
     "inference.request"
   ],
   "forbidden_request_fields": [
-    "tools",
-    "tool_choice",
-    "tool_use",
-    "functions",
-    "function_call",
-    "mcp_servers",
-    "connectors",
-    "files",
-    "file_paths",
-    "attachments",
-    "shell",
-    "command",
-    "argv",
-    "cwd",
-    "env",
-    "environment",
     "api_key",
+    "argv",
+    "attachments",
     "auth",
     "authorization",
-    "credentials",
-    "provider_options",
     "base_url",
-    "proxy"
+    "command",
+    "connectors",
+    "credentials",
+    "cwd",
+    "effort",
+    "env",
+    "environment",
+    "file_paths",
+    "files",
+    "function_call",
+    "functions",
+    "mcp_servers",
+    "output_config",
+    "provider_options",
+    "proxy",
+    "shell",
+    "temperature",
+    "thinking",
+    "tool_choice",
+    "tool_use",
+    "tools",
+    "top_k",
+    "top_p"
   ],
   "max_request_bytes": 4194304,
   "max_response_bytes": 2097152,
@@ -93,10 +99,16 @@
     }
   },
   "anthropic_web_search": {
-    "tool_type": "web_search_20250305",
+    "tool_type": "web_search_20260209",
     "max_uses_per_request": 5,
     "allowed_callers": [
       "direct"
-    ]
+    ],
+    "note": "The _20260209 variant is the one Claude Sonnet 5 supports. Older models take the basic web_search_20250305 variant instead; update this together with the model."
+  },
+  "anthropic_decoding": {
+    "send_sampling_parameters": false,
+    "effort": "high",
+    "note": "Claude Sonnet 5 removed temperature/top_p/top_k and rejects them with HTTP 400, and runs adaptive thinking when the thinking parameter is omitted. The adapter therefore sends no sampling parameters and no thinking block, and pins depth with output_config.effort, which is identical for every scored request."
   }
 }

@@ -1218,113 +1218,120 @@ def test_exec_provider_errors_reach_the_sandbox_scrubbed() -> None:
             check(False, "the leaky stub was expected to fail")
 
 
-def test_both_scored_paths_send_the_frozen_sampling_temperature() -> None:
-    """Scored decoding comes from the frozen config, not from a provider default.
+def test_scored_paths_send_no_sampling_parameters() -> None:
+    """Scored requests must carry no decoding parameters at all.
 
-    This is a regression guard with a specific history: the client default was
-    once changed from 0.0 to None in an unrelated commit, which silently handed
-    every scored trial to the provider's own default temperature. Nothing failed,
-    because nothing checked. Reading the value from primary.json is only half the
-    fix; this asserts it actually reaches the gateway on both worker paths.
+    This replaces an earlier guard that asserted a frozen temperature reached the
+    gateway. That guard was wrong about the model: Claude Sonnet 5 removed
+    temperature, top_p and top_k and rejects a request carrying one with HTTP 400,
+    so sending a fixed value would have failed every paid request. What the
+    benchmark can freeze is that the decoding state is identical for all languages
+    and recorded, which is what section 6.2 actually requires.
     """
     frozen = json.loads((TEMPLATE / "config" / "primary.json").read_text(encoding="utf-8"))
-    expected = frozen["sampling"]["temperature"]
-    check(expected == 0.0, f"the frozen sampling temperature is not 0.0: {expected}")
+    sampling = frozen["sampling"]
+    check(
+        sampling["sampling_parameters"] == "omitted"
+        and sampling["decoding_state"] == "provider-controlled",
+        f"the frozen sampling declaration is not provider-controlled: {sampling}",
+    )
 
-    def brokered_temperatures(log_path: Path) -> list[Any]:
+    def brokered(log_path: Path) -> list[dict[str, Any]]:
         if not log_path.is_file():
             return []
         return [
-            json.loads(line)["temperature"]
+            json.loads(line)
             for line in log_path.read_text(encoding="utf-8").splitlines()
             if line.strip() and json.loads(line).get("event") == "inference"
         ]
 
-    # packet-only, through benchmark.py task-infer
-    with tempfile.TemporaryDirectory() as td:
-        root = make_workspace(Path(td))
-        agent_id = "worker-sampling-packet"
-        create_task(root, agent_id, "packet-only")
-        response = {
-            "schema_version": 1,
-            "task_id": agent_id,
-            "files": [{"path": "result.json", "content": '{"schema_version":1}\n'}],
-        }
-        with Gateway(root / "gateway", script={"schema_version": 1,
-                                               "default": json.dumps(response)}) as gw:
-            completed = subprocess.run(
-                [
-                    sys.executable, str(SCRIPTS / "benchmark.py"), "task-infer",
-                    "--workspace", str(root), "--id", agent_id,
-                    "--socket", str(gw.socket_path),
-                ],
-                env=sandbox_side_env(),
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+    for mode, argv_for in (
+        ("packet-only", lambda root, agent, sock: [
+            sys.executable, str(SCRIPTS / "benchmark.py"), "task-infer",
+            "--workspace", str(root), "--id", agent, "--socket", str(sock),
+        ]),
+        ("sandbox-agent", lambda root, agent, sock: [
+            sys.executable, str(SCRIPTS / "sandbox_agent.py"),
+            "--workspace", str(root), "--id", agent, "--socket", str(sock),
+        ]),
+    ):
+        with tempfile.TemporaryDirectory() as td:
+            root = make_workspace(Path(td))
+            agent_id = f"worker-sampling-{mode}"
+            create_task(root, agent_id, mode)
+            if mode == "packet-only":
+                script = {"schema_version": 1, "default": json.dumps({
+                    "schema_version": 1, "task_id": agent_id,
+                    "files": [{"path": "result.json", "content": '{"schema_version":1}\n'}],
+                })}
+            else:
+                script = {"schema_version": 1, "sequence": [
+                    json.dumps({"action": "write_file", "path": "result.json",
+                                "content": '{"schema_version":1}\n'}),
+                    json.dumps({"action": "final", "summary": "done"}),
+                ]}
+            with Gateway(root / "gateway", script=script) as gw:
+                completed = subprocess.run(
+                    argv_for(root, agent_id, gw.socket_path),
+                    env=sandbox_side_env(),
+                    stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                )
+                check(
+                    completed.returncode == 0,
+                    f"{mode} worker failed: {completed.stderr or completed.stdout}",
+                )
+                records = brokered(gw.log_path)
+            check(records, f"{mode} brokered no requests")
+            check(
+                all(r.get("sampling_parameters") == "omitted" for r in records),
+                f"{mode} did not record omitted sampling: {records}",
             )
             check(
-                completed.returncode == 0,
-                f"packet-only task-infer failed: {completed.stderr or completed.stdout}",
+                all("temperature" not in r for r in records),
+                f"{mode} sent a decoding parameter the model rejects: {records}",
             )
-            observed = brokered_temperatures(gw.log_path)
-        check(
-            observed and all(value == expected for value in observed),
-            f"packet-only work did not send the frozen temperature: {observed}",
-        )
 
-    # sandbox-agent, through the in-sandbox runtime
+
+def test_gateway_refuses_sandbox_supplied_decoding_parameters() -> None:
+    """Decoding is a trusted-side decision, so the sandbox may not set it."""
     with tempfile.TemporaryDirectory() as td:
-        root = make_workspace(Path(td))
-        agent_id = "worker-sampling-agent"
-        create_task(root, agent_id, "sandbox-agent")
-        script = {
-            "schema_version": 1,
-            "sequence": [
-                json.dumps({"action": "write_file", "path": "result.json",
-                            "content": '{"schema_version":1}\n'}),
-                json.dumps({"action": "final", "summary": "done"}),
-            ],
-        }
-        with Gateway(root / "gateway", script=script) as gw:
-            completed = subprocess.run(
-                [
-                    sys.executable, str(SCRIPTS / "sandbox_agent.py"),
-                    "--workspace", str(root), "--id", agent_id,
-                    "--socket", str(gw.socket_path),
-                ],
-                env=sandbox_side_env(),
-                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-            )
-            check(
-                completed.returncode == 0,
-                f"sandbox agent failed: {completed.stderr or completed.stdout}",
-            )
-            observed = brokered_temperatures(gw.log_path)
-        check(
-            observed and all(value == expected for value in observed),
-            f"sandbox-agent work did not send the frozen temperature: {observed}",
-        )
-        trace = json.loads(
-            (root / "work/agents" / agent_id / "agent_trace.json").read_text(encoding="utf-8")
-        )
-        check(
-            trace.get("sampling", {}).get("temperature") == expected,
-            f"the agent trace does not record the sampling it used: {trace.get('sampling')}",
-        )
+        with Gateway(Path(td)) as gw:
+            for field in ("temperature", "top_p", "top_k", "thinking", "output_config"):
+                response = raw_request(gw.socket_path, {
+                    "schema_version": 1,
+                    "kind": "inference.request",
+                    "request_id": "decoding-probe",
+                    "messages": [{"role": "user", "content": "x"}],
+                    field: 0.0 if field in {"temperature", "top_p"} else 1,
+                })
+                check(
+                    response.get("kind") == "inference.error"
+                    and response["error"]["class"] == "policy",
+                    f"the gateway accepted a sandbox-supplied {field}: {response}",
+                )
 
 
-def test_preflight_rejects_an_unfrozen_sampling_temperature() -> None:
+def test_preflight_rejects_an_unfrozen_sampling_declaration() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
         config_path = root / "template" / "config" / "primary.json"
         good = json.loads(config_path.read_text(encoding="utf-8"))
+        declared = benchmark.sampling_config(root)
         check(
-            benchmark.sampling_config(root) == {"temperature": 0.0},
-            "the frozen sampling value was not read back",
+            declared["sampling_parameters"] == "omitted"
+            and declared["decoding_state"] == "provider-controlled"
+            and declared["effort"] in {"low", "medium", "high", "xhigh", "max"},
+            f"the frozen declaration was not read back: {declared}",
         )
         for label, sampling in (
             ("missing", None),
-            ("non-numeric", {"temperature": "zero"}),
-            ("out of range", {"temperature": 7.5}),
+            ("a fixed temperature", {"temperature": 0.0}),
+            ("an unrecorded state", {"sampling_parameters": "omitted"}),
+            ("an unknown effort", {
+                "sampling_parameters": "omitted",
+                "decoding_state": "provider-controlled",
+                "effort": "turbo",
+            }),
         ):
             broken = dict(good)
             if sampling is None:
@@ -1337,8 +1344,13 @@ def test_preflight_rejects_an_unfrozen_sampling_temperature() -> None:
             except benchmark.BenchmarkError:
                 pass
             else:
-                check(False, f"a {label} sampling temperature was accepted")
+                check(False, f"a sampling section with {label} was accepted")
         config_path.write_text(json.dumps(good, indent=2) + "\n", encoding="utf-8")
+
+
+# --------------------------------------------------------------------------
+# 5. The exec provider keeps a local agent session on the trusted side
+# --------------------------------------------------------------------------
 
 
 # --------------------------------------------------------------------------

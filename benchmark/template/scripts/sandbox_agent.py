@@ -418,7 +418,6 @@ def run_agent(args: argparse.Namespace) -> int:
                 messages,
                 task_id=args.id,
                 max_output_tokens=int(args.max_output_tokens),
-                temperature=sampling["temperature"],
                 network_allowed=bool(task.get("network_allowed")),
             )
         except GatewayRefusal as exc:

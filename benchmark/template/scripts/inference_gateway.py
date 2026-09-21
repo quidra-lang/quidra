@@ -335,6 +335,7 @@ class AnthropicMessagesProvider(Provider):
         budget_usd: float | None = None,
         pricing: dict[str, Any] | None = None,
         web_search: dict[str, Any] | None = None,
+        decoding: dict[str, Any] | None = None,
         base_url: str | None = None,
     ) -> None:
         api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
@@ -357,6 +358,13 @@ class AnthropicMessagesProvider(Provider):
         self.budget_usd = float(budget_usd) if budget_usd is not None else None
         self.pricing = dict(pricing or {})
         self.web_search = dict(web_search or {})
+        self.decoding = dict(decoding or {})
+        if self.decoding.get("send_sampling_parameters"):
+            raise GatewayError(
+                "this adapter refuses to send sampling parameters: the evaluated "
+                "model family rejects temperature/top_p/top_k with HTTP 400"
+            )
+        self.effort = self.decoding.get("effort")
         self._estimated_cost_usd = 0.0
         self._lock = threading.Lock()
 
@@ -367,6 +375,8 @@ class AnthropicMessagesProvider(Provider):
             "offline": False,
             "soft_budget_usd": self.budget_usd,
             "estimated_cost_usd": round(self._estimated_cost_usd, 6),
+            "sampling_parameters": "omitted",
+            "effort": self.effort,
         }
 
     def secrets(self) -> list[str]:
@@ -434,8 +444,11 @@ class AnthropicMessagesProvider(Provider):
         }
         if system_chunks:
             payload["system"] = "\n\n".join(system_chunks)
-        if request.get("temperature") is not None:
-            payload["temperature"] = float(request["temperature"])
+        # No temperature/top_p/top_k: this model family removed them and rejects a
+        # request carrying one with HTTP 400. Depth is pinned with effort, which is
+        # the control it does expose, and thinking is left at the provider default.
+        if self.effort:
+            payload["output_config"] = {"effort": str(self.effort)}
         if request.get("stop"):
             payload["stop_sequences"] = list(request["stop"])
 
@@ -519,6 +532,7 @@ def build_provider(args: argparse.Namespace, config: dict[str, Any]) -> Provider
             budget_usd=float(args.budget_usd) if args.budget_usd is not None else None,
             pricing=pricing,
             web_search=config.get("anthropic_web_search"),
+            decoding=config.get("anthropic_decoding"),
         )
     raise GatewayError(f"unknown provider: {args.provider}")
 
@@ -579,10 +593,6 @@ def validate_inference_request(
         raise ProtocolError("max_output_tokens must be a positive integer")
     max_output_tokens = min(max_output_tokens, int(config["max_output_tokens_ceiling"]))
 
-    temperature = request.get("temperature")
-    if temperature is not None and not isinstance(temperature, (int, float)):
-        raise ProtocolError("temperature must be a number")
-
     stop = request.get("stop")
     if stop is not None:
         if not isinstance(stop, list) or not all(isinstance(s, str) for s in stop):
@@ -595,7 +605,23 @@ def validate_inference_request(
     # The sandbox may only ever narrow the run's policy. A task that claims more
     # network than the trusted side granted is refused rather than downgraded, so
     # a mis-scoped Task Packet is a visible failure instead of a silent one.
-    ceiling = task_policy.get(task_id or "", network_policy)
+    # Fail closed. When the trusted side has frozen a per-task policy, a task it
+    # does not name is unknown work, not work that inherits the run-wide default.
+    # Inheriting was the one place this contract opened rather than closed.
+    if task_policy:
+        if not task_id:
+            raise PolicyError(
+                "a frozen task network policy is in force, so every request must "
+                "identify its task"
+            )
+        if task_id not in task_policy:
+            raise PolicyError(
+                f"task {task_id!r} is not named in the frozen network policy; "
+                "refusing rather than falling back to the run-wide default"
+            )
+        ceiling = task_policy[task_id]
+    else:
+        ceiling = network_policy
     if requested_network and ceiling != "allowed":
         raise PolicyError(
             "network_allowed=true is refused: the trusted gateway policy for this run "
@@ -607,7 +633,6 @@ def validate_inference_request(
         "task_id": task_id,
         "messages": messages,
         "max_output_tokens": max_output_tokens,
-        "temperature": temperature,
         "stop": stop,
         "network_allowed": bool(requested_network),
     }
@@ -750,7 +775,8 @@ class GatewayHandler(socketserver.StreamRequestHandler):
                 "task_id": validated["task_id"],
                 "provider": state.provider.describe().get("id"),
                 "network_allowed": validated["network_allowed"],
-                "temperature": validated["temperature"],
+                "decoding": state.provider.describe().get("effort"),
+                "sampling_parameters": "omitted",
                 "elapsed_seconds": round(elapsed, 3),
                 "response_sha256": sha256_text(content),
                 "usage": usage,

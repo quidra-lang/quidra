@@ -95,7 +95,7 @@ jobs:
             --provider anthropic-messages \
             --model "$BENCHMARK_MODEL" \
             --budget-usd "$BENCHMARK_BUDGET_USD" \
-            --network-policy allowed \
+            --network-policy disabled \
             --task-policy "$RUNNER_TEMP/task-policy.json" \
             --gateway-log-out "$RUNNER_TEMP/gateway-audit.jsonl" \
             -- python3 /quidra-benchmark/template/scripts/production_run.py run \
@@ -104,15 +104,14 @@ jobs:
       - name: Record API usage and estimated cost
         if: always()
         run: |
+          # Both stay in RUNNER_TEMP and reach the workflow artifact only. The
+          # gateway audit is trusted-side evidence the scored workspace must never
+          # contain, and this step runs after the sandbox has already finalized:
+          # copying anything in here would add files to the retained set after the
+          # privacy gate and finalization that are supposed to cover it.
           python benchmark/template/scripts/production_run.py cost-report \
             --log "$RUNNER_TEMP/gateway-audit.jsonl" \
             --output "$RUNNER_TEMP/api-cost.json"
-          if [ -d .quidra-benchmark ]; then
-            mkdir -p .quidra-benchmark/raw .quidra-benchmark/results
-            cp "$RUNNER_TEMP/gateway-audit.jsonl" \
-               .quidra-benchmark/raw/gateway-audit.jsonl 2>/dev/null || true
-            cp "$RUNNER_TEMP/api-cost.json" .quidra-benchmark/results/api_cost.json
-          fi
 
       - name: Import and push successful result when develop has not moved
         if: success()
@@ -139,7 +138,6 @@ jobs:
           retention-days: 30
           path: |
             .quidra-benchmark/results
-            .quidra-benchmark/raw/gateway-audit.jsonl
             .quidra-benchmark/work/root/ledger.json
             benchmark/${{ env.RUN_ID }}
             ${{ runner.temp }}/api-cost.json

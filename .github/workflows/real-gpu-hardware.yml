@@ -1,0 +1,74 @@
+name: real-gpu-hardware
+
+on:
+  workflow_dispatch:
+    inputs:
+      backend:
+        description: Hardware backend to validate
+        required: true
+        default: nvidia
+        type: choice
+        options:
+          - nvidia
+          - amd
+          - all
+  push:
+    branches:
+      - develop
+    paths:
+      - ".github/workflows/real-gpu-hardware.yml"
+      - "src/device_backend.cpp"
+      - "src/device_backend.hpp"
+      - "src/device_compute.inc"
+      - "src/device_integer_compute.inc"
+      - "src/device_neural_compute.inc"
+      - "src/device_training_compute.inc"
+      - "src/device_vision_compute.inc"
+      - "tests/real_gpu_integration.sh"
+
+concurrency:
+  group: real-gpu-hardware-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nvidia:
+    if: >-
+      (github.event_name == 'workflow_dispatch' &&
+       (inputs.backend == 'nvidia' || inputs.backend == 'all')) ||
+      (github.event_name == 'push' && vars.QUIDRA_NVIDIA_GPU_CI == '1')
+    runs-on: [self-hosted, linux, x64, quidra-nvidia]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build clang llvm libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev ffmpeg libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Require NVIDIA hardware and run numerical integration
+        env:
+          QUIDRA_REQUIRE_REAL_GPU: "1"
+          QUIDRA_REQUIRE_GPU_BACKEND: "NVIDIA"
+        run: bash tests/real_gpu_integration.sh "$GITHUB_WORKSPACE/build/quidra"
+
+  amd:
+    if: >-
+      (github.event_name == 'workflow_dispatch' &&
+       (inputs.backend == 'amd' || inputs.backend == 'all')) ||
+      (github.event_name == 'push' && vars.QUIDRA_AMD_GPU_CI == '1')
+    runs-on: [self-hosted, linux, x64, quidra-amd]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build clang llvm libcurl4-openssl-dev libpng-dev libjpeg-dev libtiff-dev libwebp-dev ffmpeg libavformat-dev libavcodec-dev libavutil-dev libswscale-dev
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build build --parallel
+      - name: Require AMD hardware and run numerical integration
+        env:
+          QUIDRA_REQUIRE_REAL_GPU: "1"
+          QUIDRA_REQUIRE_GPU_BACKEND: "AMD"
+        run: bash tests/real_gpu_integration.sh "$GITHUB_WORKSPACE/build/quidra"

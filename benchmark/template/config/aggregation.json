@@ -1,0 +1,142 @@
+{
+  "schema_version": 1,
+  "languages": [
+    "Quidra",
+    "Python",
+    "C++",
+    "Rust",
+    "Go",
+    "Java",
+    "TypeScript",
+    "Kotlin",
+    "Swift",
+    "Zig"
+  ],
+  "evaluations": {
+    "semantic_compression": {
+      "type": "semantic_harmonic",
+      "quality_weights": {
+        "metric.semantic_density": 0.2,
+        "metric.semantic_determinacy": 0.25,
+        "metric.semantic_locality": 0.2,
+        "metric.hidden_semantic_cost": 0.2,
+        "metric.capability_efficiency": 0.15
+      },
+      "coverage_metric": "metric.capability_coverage"
+    },
+    "llm_learnability": {
+      "type": "weighted_mean",
+      "weights": {
+        "condition.i1_keyword_anonymization": 0.2,
+        "condition.i2_vocabulary_anonymization": 0.2,
+        "condition.i3_structural_surface_perturbation": 0.15,
+        "condition.i4_novel_rule_generalization": 0.2,
+        "condition.i5_held_out_rule_composition": 0.15,
+        "condition.i6_prior_conflict_resistance": 0.1
+      }
+    },
+    "language_quality": {
+      "type": "category_mean",
+      "categories": {
+        "performance": {
+          "weight": 0.25,
+          "metrics": [
+            "metric.native_execution_performance",
+            "metric.long_running_performance",
+            "metric.compile_build_performance",
+            "metric.startup_latency"
+          ]
+        },
+        "resource": {
+          "weight": 0.1875,
+          "metrics": [
+            "metric.memory_efficiency",
+            "metric.source_code_size",
+            "metric.binary_artifact_size",
+            "metric.runtime_overhead"
+          ]
+        },
+        "language_development": {
+          "weight": 0.25,
+          "metrics": [
+            "metric.code_efficiency_conciseness",
+            "metric.readability",
+            "metric.functionality_expressiveness",
+            "metric.diagnostics",
+            "metric.dependency_simplicity",
+            "metric.portability_design_platform_neutrality",
+            "metric.ffi_interoperability_design",
+            "metric.concurrency"
+          ]
+        },
+        "safety_robustness": {
+          "weight": 0.3125,
+          "metrics": [
+            "metric.type_safety",
+            "metric.memory_safety",
+            "metric.runtime_safety",
+            "metric.boundary_value_safety",
+            "metric.adversarial_input_robustness",
+            "metric.early_error_detection",
+            "metric.debuggability",
+            "metric.silent_bug_resistance",
+            "metric.implementation_robustness"
+          ]
+        }
+      }
+    },
+    "ecosystem": {
+      "type": "category_mean",
+      "categories": {
+        "external": {
+          "weight": 0.5,
+          "metrics": [
+            "metric.third_party_library_availability_domain_coverage",
+            "metric.package_ecosystem_activity_maintenance",
+            "metric.third_party_tool_availability",
+            "metric.production_adoption_deployment_evidence",
+            "metric.community_public_knowledge_availability"
+          ]
+        },
+        "tooling": {
+          "weight": 0.5,
+          "metrics": [
+            "metric.core_tooling_availability_quality",
+            "metric.package_dependency_management_quality",
+            "metric.ide_editor_support_quality",
+            "metric.debugger_profiler_support",
+            "metric.build_test_integration",
+            "metric.documentation_quality",
+            "metric.installation_distribution_experience",
+            "metric.toolchain_stability_release_maturity",
+            "metric.implemented_platform_coverage",
+            "metric.external_integration_coverage"
+          ]
+        }
+      }
+    },
+    "llm_proficiency": {
+      "type": "weighted_mean",
+      "weights": {
+        "metric.generation_success_rate": 0.04,
+        "metric.compile_parse_success_rate": 0.04,
+        "metric.correct_at_1": 0.12,
+        "metric.correct_at_n": 0.05,
+        "metric.test_pass_rate": 0.1,
+        "metric.repair_success_rate": 0.07,
+        "metric.repair_efficiency": 0.05,
+        "metric.diagnosis_efficiency": 0.05,
+        "metric.silent_bug_resistance": 0.12,
+        "metric.syntax_hallucination_resistance": 0.07,
+        "metric.specification_compliance": 0.07,
+        "metric.prompt_robustness": 0.05,
+        "metric.unseen_case_generalization": 0.06,
+        "metric.source_token_efficiency": 0.03,
+        "metric.total_token_efficiency": 0.03,
+        "metric.generated_code_performance": 0.03,
+        "metric.generated_code_memory_efficiency": 0.01,
+        "metric.generated_code_compile_performance": 0.01
+      }
+    }
+  }
+}

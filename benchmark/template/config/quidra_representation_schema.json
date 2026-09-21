@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "purpose": "Current-run Quidra representation/API freeze for Language Quality startup and micro workloads.",
+  "output_file": "quidra_representation.json",
+  "reusable_across_target_commits": false,
+  "required_top_level_fields": [
+    "schema_version",
+    "evaluated_commit_sha",
+    "numeric_arrays",
+    "string_buffer",
+    "file_io",
+    "collections",
+    "monotonic_clock",
+    "runtime_checks",
+    "documentation_evidence"
+  ],
+  "field_rules": {
+    "schema_version": {
+      "exact_value": 1
+    },
+    "evaluated_commit_sha": {
+      "rule": "Must equal the evaluated current-run commit SHA from run.json."
+    },
+    "numeric_arrays": {
+      "type": "object",
+      "non_empty": true,
+      "describe": [
+        "binary64 array representation",
+        "64-bit integer array representation",
+        "ordinary allocation/ownership behavior relevant to the workloads"
+      ]
+    },
+    "string_buffer": {
+      "type": "object",
+      "non_empty": true,
+      "describe": [
+        "mutable byte/buffer representation",
+        "string representation",
+        "character/index/iteration API used by MB-08"
+      ]
+    },
+    "file_io": {
+      "type": "object",
+      "non_empty": true,
+      "describe": [
+        "ordinary writer API",
+        "ordinary reader/line-reading API",
+        "whether incremental I/O exists",
+        "documented fallback used by MB-10 when it does not"
+      ]
+    },
+    "collections": {
+      "type": "object",
+      "non_empty": true,
+      "describe": [
+        "standard map",
+        "standard set",
+        "growable array",
+        "ordinary allocator or memory-management model"
+      ]
+    },
+    "monotonic_clock": {
+      "type": "object",
+      "non_empty": true,
+      "describe": [
+        "current documented monotonic clock API used by steady-mode timing"
+      ]
+    },
+    "runtime_checks": {
+      "type": "object",
+      "non_empty": true,
+      "describe": [
+        "effective current-run bounds/overflow/runtime-check behavior relevant to the frozen build path"
+      ]
+    },
+    "documentation_evidence": {
+      "type": "array[string]",
+      "non_empty": true,
+      "rule": "Every item must name an existing current-snapshot file below repo/docs/, optionally followed by #section context. Historical-run files, URLs, and comparison-language sources are invalid."
+    }
+  },
+  "example_shape": {
+    "schema_version": 1,
+    "evaluated_commit_sha": "<current-run commit sha>",
+    "numeric_arrays": {
+      "binary64": "<current docs choice>",
+      "integer64": "<current docs choice>"
+    },
+    "string_buffer": {
+      "buffer": "<current docs choice>",
+      "string_access": "<current docs choice>"
+    },
+    "file_io": {
+      "writer": "<current docs choice>",
+      "reader": "<current docs choice>",
+      "incremental": "<true/false + docs basis>"
+    },
+    "collections": {
+      "map": "<current docs choice>",
+      "set": "<current docs choice>",
+      "growable_array": "<current docs choice>"
+    },
+    "monotonic_clock": {
+      "api": "<current docs choice>"
+    },
+    "runtime_checks": {
+      "effective_behavior": "<current docs/toolchain behavior>"
+    },
+    "documentation_evidence": [
+      "repo/docs/<current-file>.md#<relevant-section>"
+    ]
+  },
+  "required_object_sections": [
+    "numeric_arrays",
+    "string_buffer",
+    "file_io",
+    "collections",
+    "monotonic_clock",
+    "runtime_checks"
+  ]
+}

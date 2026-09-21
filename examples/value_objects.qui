@@ -1,0 +1,24 @@
+class Point
+    int x = 1
+    int y = 2
+
+    int sum()
+        return x + y
+
+class ShiftedPoint
+    Point point = Point()
+    int offset = 1
+
+    int sum()
+        return point.sum() + offset
+
+Point a = Point()
+Point b = Point(x = 1)
+ShiftedPoint shifted = ShiftedPoint()
+
+int[] left = [1, 2, 3]
+int[] right = [1, 2, 3]
+
+print(a == b)
+print(left == right)
+print(shifted.sum())

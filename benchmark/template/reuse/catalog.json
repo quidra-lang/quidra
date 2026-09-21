@@ -1,0 +1,321 @@
+{
+  "schema_version": 3,
+  "policy": "All reusable benchmark assets required by a new run are tracked directly under benchmark/template. New runs must not read prior run directories. Reuse applies only to source/harness/fixture assets; every run rebuilds, executes, validates, and remeasures them. Quidra program sources are never reused across target commits. Git object SHA-1 values are derived mechanically from the evaluated repository HEAD during init and frozen into reuse/materialized.json; they are not duplicated manually in this catalog.",
+  "artifacts": [
+    {
+      "id": "micro-cpp",
+      "kind": "tree",
+      "destination": "programs/cpp/micro",
+      "language": "C++",
+      "workload": "micro",
+      "validated_toolchain": "Apple clang version 17.0.0 (clang-1700.6.3.2)",
+      "reuse_dependencies": [
+        "micro-workload-definition",
+        "micro-reference",
+        "micro-validator",
+        "frozen-tolerance"
+      ]
+    },
+    {
+      "id": "adversarial-cpp",
+      "kind": "tree",
+      "destination": "programs/cpp/adversarial",
+      "language": "C++",
+      "workload": "adversarial-safety",
+      "validated_toolchain": "Apple clang version 17.0.0 (clang-1700.6.3.2)",
+      "reuse_dependencies": [
+        "adversarial-case-definition"
+      ]
+    },
+    {
+      "id": "micro-go",
+      "kind": "tree",
+      "destination": "programs/go/micro",
+      "language": "Go",
+      "workload": "micro",
+      "validated_toolchain": "go version go1.26.3 darwin/arm64",
+      "reuse_dependencies": [
+        "micro-workload-definition",
+        "micro-reference",
+        "micro-validator",
+        "frozen-tolerance"
+      ]
+    },
+    {
+      "id": "adversarial-go",
+      "kind": "tree",
+      "destination": "programs/go/adversarial",
+      "language": "Go",
+      "workload": "adversarial-safety",
+      "validated_toolchain": "go version go1.26.3 darwin/arm64",
+      "reuse_dependencies": [
+        "adversarial-case-definition"
+      ]
+    },
+    {
+      "id": "micro-java",
+      "kind": "tree",
+      "destination": "programs/java/micro",
+      "language": "Java",
+      "workload": "micro",
+      "validated_toolchain": "javac 26.0.1",
+      "reuse_dependencies": [
+        "micro-workload-definition",
+        "micro-reference",
+        "micro-validator",
+        "frozen-tolerance"
+      ]
+    },
+    {
+      "id": "adversarial-java",
+      "kind": "tree",
+      "destination": "programs/java/adversarial",
+      "language": "Java",
+      "workload": "adversarial-safety",
+      "validated_toolchain": "javac 26.0.1",
+      "reuse_dependencies": [
+        "adversarial-case-definition"
+      ]
+    },
+    {
+      "id": "micro-kotlin",
+      "kind": "tree",
+      "destination": "programs/kotlin/micro",
+      "language": "Kotlin",
+      "workload": "micro",
+      "validated_toolchain": "kotlinc-jvm 2.3.21 (JRE 26.0.1)",
+      "reuse_dependencies": [
+        "micro-workload-definition",
+        "micro-reference",
+        "micro-validator",
+        "frozen-tolerance"
+      ]
+    },
+    {
+      "id": "adversarial-kotlin",
+      "kind": "tree",
+      "destination": "programs/kotlin/adversarial",
+      "language": "Kotlin",
+      "workload": "adversarial-safety",
+      "validated_toolchain": "kotlinc-jvm 2.3.21 (JRE 26.0.1)",
+      "reuse_dependencies": [
+        "adversarial-case-definition"
+      ]
+    },
+    {
+      "id": "micro-python",
+      "kind": "tree",
+      "destination": "programs/python/micro",
+      "language": "Python",
+      "workload": "micro",
+      "validated_toolchain": "Python 3.14.5",
+      "reuse_dependencies": [
+        "micro-workload-definition",
+        "micro-reference",
+        "micro-validator",
+        "frozen-tolerance"
+      ]
+    },
+    {
+      "id": "adversarial-python",
+      "kind": "tree",
+      "destination": "programs/python/adversarial",
+      "language": "Python",
+      "workload": "adversarial-safety",
+      "validated_toolchain": "Python 3.14.5",
+      "reuse_dependencies": [
+        "adversarial-case-definition"
+      ]
+    },
+    {
+      "id": "micro-rust",
+      "kind": "tree",
+      "destination": "programs/rust/micro",
+      "language": "Rust",
+      "workload": "micro",
+      "validated_toolchain": "rustc 1.95.0 (59807616e 2026-04-14) (Homebrew)",
+      "reuse_dependencies": [
+        "micro-workload-definition",
+        "micro-reference",
+        "micro-validator",
+        "frozen-tolerance"
+      ]
+    },
+    {
+      "id": "adversarial-rust",
+      "kind": "tree",
+      "destination": "programs/rust/adversarial",
+      "language": "Rust",
+      "workload": "adversarial-safety",
+      "validated_toolchain": "rustc 1.95.0 (59807616e 2026-04-14) (Homebrew)",
+      "reuse_dependencies": [
+        "adversarial-case-definition"
+      ]
+    },
+    {
+      "id": "micro-swift",
+      "kind": "tree",
+      "destination": "programs/swift/micro",
+      "language": "Swift",
+      "workload": "micro",
+      "validated_toolchain": "Apple Swift version 6.2.3 (swiftlang-6.2.3.3.21 clang-1700.6.3.2)",
+      "reuse_dependencies": [
+        "micro-workload-definition",
+        "micro-reference",
+        "micro-validator",
+        "frozen-tolerance"
+      ]
+    },
+    {
+      "id": "adversarial-swift",
+      "kind": "tree",
+      "destination": "programs/swift/adversarial",
+      "language": "Swift",
+      "workload": "adversarial-safety",
+      "validated_toolchain": "Apple Swift version 6.2.3 (swiftlang-6.2.3.3.21 clang-1700.6.3.2)",
+      "reuse_dependencies": [
+        "adversarial-case-definition"
+      ]
+    },
+    {
+      "id": "micro-typescript",
+      "kind": "tree",
+      "destination": "programs/typescript/micro",
+      "language": "TypeScript",
+      "workload": "micro",
+      "validated_toolchain": "tsc 7.0.2; node v24.2.0",
+      "reuse_dependencies": [
+        "micro-workload-definition",
+        "micro-reference",
+        "micro-validator",
+        "frozen-tolerance"
+      ]
+    },
+    {
+      "id": "adversarial-typescript",
+      "kind": "tree",
+      "destination": "programs/typescript/adversarial",
+      "language": "TypeScript",
+      "workload": "adversarial-safety",
+      "validated_toolchain": "tsc 7.0.2; node v24.2.0",
+      "reuse_dependencies": [
+        "adversarial-case-definition"
+      ]
+    },
+    {
+      "id": "micro-zig",
+      "kind": "tree",
+      "destination": "programs/zig/micro",
+      "language": "Zig",
+      "workload": "micro",
+      "validated_toolchain": "0.16.0",
+      "reuse_dependencies": [
+        "micro-workload-definition",
+        "micro-reference",
+        "micro-validator",
+        "frozen-tolerance"
+      ]
+    },
+    {
+      "id": "adversarial-zig",
+      "kind": "tree",
+      "destination": "programs/zig/adversarial",
+      "language": "Zig",
+      "workload": "adversarial-safety",
+      "validated_toolchain": "0.16.0",
+      "reuse_dependencies": [
+        "adversarial-case-definition"
+      ]
+    },
+    {
+      "id": "micro-reference",
+      "kind": "tree",
+      "destination": "fixtures/micro/reference",
+      "language": null,
+      "workload": "micro",
+      "validated_toolchain": null,
+      "reuse_dependencies": []
+    },
+    {
+      "id": "micro-validator",
+      "kind": "blob",
+      "destination": "validators/micro/check_micro.py",
+      "language": null,
+      "workload": "micro",
+      "validated_toolchain": null,
+      "reuse_dependencies": []
+    },
+    {
+      "id": "micro-workload-definition",
+      "kind": "blob",
+      "destination": "workloads/micro.md",
+      "language": null,
+      "workload": "micro",
+      "validated_toolchain": null,
+      "reuse_dependencies": []
+    },
+    {
+      "id": "adversarial-case-definition",
+      "kind": "blob",
+      "destination": "methodology-assets/language_quality/adversarial_cases.json",
+      "language": null,
+      "workload": "adversarial-safety",
+      "validated_toolchain": null,
+      "reuse_dependencies": []
+    },
+    {
+      "id": "debuggability-definition",
+      "kind": "blob",
+      "destination": "methodology-assets/language_quality/debuggability.json",
+      "language": null,
+      "workload": "debuggability",
+      "validated_toolchain": null,
+      "reuse_dependencies": []
+    },
+    {
+      "id": "memory-safety-definition",
+      "kind": "blob",
+      "destination": "methodology-assets/language_quality/memory_safety.json",
+      "language": null,
+      "workload": "memory-safety",
+      "validated_toolchain": null,
+      "reuse_dependencies": []
+    },
+    {
+      "id": "type-safety-definition",
+      "kind": "blob",
+      "destination": "methodology-assets/language_quality/type_safety.json",
+      "language": null,
+      "workload": "type-safety",
+      "validated_toolchain": null,
+      "reuse_dependencies": []
+    },
+    {
+      "id": "scoring-constants",
+      "kind": "blob",
+      "destination": "methodology-assets/scoring/constants.json",
+      "language": null,
+      "workload": "shared-scoring",
+      "validated_toolchain": null,
+      "reuse_dependencies": []
+    },
+    {
+      "id": "frozen-tolerance",
+      "kind": "blob",
+      "destination": "methodology-assets/scoring/frozen_tolerance.json",
+      "language": null,
+      "workload": "shared-validation",
+      "validated_toolchain": null,
+      "reuse_dependencies": []
+    },
+    {
+      "id": "semantic-capability-universe",
+      "kind": "blob",
+      "destination": "methodology-assets/semantic_compression/capability_universe.json",
+      "language": null,
+      "workload": "semantic-compression",
+      "validated_toolchain": null,
+      "reuse_dependencies": []
+    }
+  ]
+}

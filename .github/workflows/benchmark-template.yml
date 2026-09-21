@@ -1,0 +1,767 @@
+name: benchmark-template
+
+on:
+  push:
+    branches: [develop]
+    paths:
+      - "benchmark/master_prompt.md"
+      - "benchmark/template/**"
+      - ".github/workflows/benchmark-template.yml"
+  pull_request:
+    paths:
+      - "benchmark/master_prompt.md"
+      - "benchmark/template/**"
+      - ".github/workflows/benchmark-template.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate template and CLI
+        run: |
+          python -m py_compile benchmark/template/scripts/benchmark.py
+          python -m py_compile benchmark/template/scripts/micro_measure.py
+          python benchmark/template/scripts/micro_measure.py --help >/dev/null
+          python -m json.tool benchmark/template/config/primary.json >/dev/null
+          python -m json.tool benchmark/template/config/evaluation_requirements.json >/dev/null
+          python -m json.tool benchmark/template/config/work_plan_templates.json >/dev/null
+          python -m json.tool benchmark/template/config/aggregation.json >/dev/null
+          python -m json.tool benchmark/template/reuse/catalog.json >/dev/null
+          python benchmark/template/scripts/benchmark.py --help >/dev/null
+
+          python - <<'PY'
+          from pathlib import Path
+          import importlib.util
+          import json
+          import tempfile
+
+          spec = importlib.util.spec_from_file_location(
+              "benchmark_cli", "benchmark/template/scripts/benchmark.py"
+          )
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+
+          root = Path("benchmark/template")
+          required = [
+              root / "methodology" / "worker_core.md",
+              root / "methodology" / "common.md",
+              root / "methodology" / "execution_policy.md",
+              root / "methodology" / "orchestration.md",
+              root / "methodology" / "semantic_compression.md",
+              root / "methodology" / "llm_learnability.md",
+              root / "methodology" / "language_quality.md",
+              root / "methodology" / "ecosystem.md",
+              root / "methodology" / "llm_proficiency.md",
+              root / "config" / "aggregation.json",
+              root / "config" / "work_plan_templates.json",
+              root / "config" / "quidra_representation_schema.json",
+              root / "programs" / "python" / "micro" / "mb01.py",
+              root / "programs" / "python" / "micro" / "mb00.py",
+              root / "fixtures" / "micro" / "reference",
+              root / "validators" / "micro" / "check_micro.py",
+              root / "methodology-assets" / "semantic_compression" / "capability_universe.json",
+          ]
+          missing = [str(path) for path in required if not path.exists()]
+          assert not missing, missing
+
+          catalog = json.loads((root / "reuse" / "catalog.json").read_text())
+          module.validate_reuse_catalog(catalog)
+          assert catalog["schema_version"] == 3
+          assert len(catalog["artifacts"]) >= 20
+          assert not any(
+              "source_run_id" in a
+              or "source_run_relative_path" in a
+              or "validation_summary" in a
+              for a in catalog["artifacts"]
+          )
+          assert not any(
+              "expected_git_object_sha1" in a
+              for a in catalog["artifacts"]
+          )
+          comparison_slugs = {
+              "python", "cpp", "rust", "go", "java",
+              "typescript", "kotlin", "swift", "zig",
+          }
+          for slug in comparison_slugs:
+              assert (root / "programs" / slug / "micro" / {
+                  "python":"mb00.py","cpp":"mb00.cpp","rust":"mb00.rs",
+                  "go":"mb00.go","java":"mb00.java","typescript":"mb00.ts",
+                  "kotlin":"mb00.kt","swift":"mb00.swift","zig":"mb00.zig",
+              }[slug]).is_file(), slug
+          micro_tree_destinations = {
+              a["destination"] for a in catalog["artifacts"]
+              if a.get("kind") == "tree" and a.get("workload") == "micro"
+          }
+          assert {
+              f"programs/{slug}/micro" for slug in comparison_slugs
+          } <= micro_tree_destinations
+          assert "programs/quidra/micro" not in micro_tree_destinations
+          broken = json.loads(json.dumps(catalog))
+          broken["artifacts"][1]["id"] = broken["artifacts"][0]["id"]
+          try:
+              module.validate_reuse_catalog(broken)
+          except module.BenchmarkError:
+              pass
+          else:
+              raise AssertionError("duplicate reusable artifact IDs must be rejected")
+
+          quidra_reuse = json.loads(json.dumps(catalog))
+          quidra_reuse["artifacts"].append({
+              "id": "forbidden-quidra-program",
+              "kind": "tree",
+              "destination": "programs/quidra/micro",
+              "language": "Quidra",
+              "workload": "micro",
+              "validated_toolchain": None,
+              "reuse_dependencies": [],
+          })
+          try:
+              module.validate_reuse_catalog(quidra_reuse)
+          except module.BenchmarkError:
+              pass
+          else:
+              raise AssertionError("Quidra program reuse must be rejected")
+
+          master = Path("benchmark/master_prompt.md").read_text()
+          assert "deterministic-plan" in master
+          assert "benchmark.py prepare" in master
+          assert "Past run directories" in master
+          assert len(master) < 20_000
+
+          lq = (root / "methodology" / "language_quality.md").read_text()
+          assert "3 unscored warm-up runs" not in lq
+          assert "all 10 raw scored measurements" not in lq
+          assert "all 10 individual scored measurements" not in lq
+          assert "W = timing.warmups_per_cell" in lq
+          assert "R = timing.measured_runs_per_cell" in lq
+          ecosystem = (root / "methodology" / "ecosystem.md").read_text()
+          assert "previous published run" not in ecosystem
+          assert "must not be a threshold, direct score" in ecosystem
+
+          forbidden_legacy = (
+              "quidra_interpreter",
+              "Quidra Interpreter",
+              "Quidra interpreter",
+              "quidra_mode_rule",
+              "Startup / REPL",
+              "Compiler / Interpreter Robustness",
+              "compiler_interpreter_robustness",
+          )
+          text_files = [
+              Path("benchmark/master_prompt.md"),
+              *[
+                  p for p in root.rglob("*")
+                  if p.is_file() and p.suffix in {".md", ".json", ".py"}
+              ],
+          ]
+          for path in text_files:
+              text = path.read_text(errors="ignore")
+              for token in forbidden_legacy:
+                  assert token not in text, (path, token)
+
+          forbidden_history = (
+              "DEFECT CORRECTED",
+              "Remediation changelog",
+              "previous value",
+          )
+          historical_run_id = __import__("re").compile(
+              r"\b20\d{2}-\d{2}-\d{2}-[0-9a-f]{7,}(?:\(latest\))?\b"
+          )
+          methodology_files = [
+              p for p in root.rglob("*")
+              if p.is_file() and p.suffix in {".md", ".json"}
+          ]
+          for path in methodology_files:
+              text = path.read_text(errors="ignore")
+              for token in forbidden_history:
+                  assert token not in text, (path, token)
+              assert historical_run_id.search(text) is None, path
+
+          micro_spec = importlib.util.spec_from_file_location(
+              "micro_measure", "benchmark/template/scripts/micro_measure.py"
+          )
+          micro = importlib.util.module_from_spec(micro_spec)
+          micro_spec.loader.exec_module(micro)
+
+          with tempfile.TemporaryDirectory() as td:
+              test_root = Path(td)
+              (test_root / "template" / "config").mkdir(parents=True)
+              (test_root / "template" / "config" / "quidra_representation_schema.json").write_text(
+                  (root / "config" / "quidra_representation_schema.json").read_text()
+              )
+              (test_root / "repo" / "docs" / "spec").mkdir(parents=True)
+              (test_root / "repo" / "docs" / "spec" / "language.md").write_text(
+                  "current synthetic Quidra docs\n"
+              )
+              (test_root / "run.json").write_text(json.dumps({
+                  "evaluated": {"commit_sha": "abc123"}
+              }))
+              valid_representation = {
+                  "schema_version": 1,
+                  "evaluated_commit_sha": "abc123",
+                  "numeric_arrays": {"choice": "current-docs"},
+                  "string_buffer": {"choice": "current-docs"},
+                  "file_io": {"choice": "current-docs"},
+                  "collections": {"choice": "current-docs"},
+                  "monotonic_clock": {"choice": "current-docs"},
+                  "runtime_checks": {"choice": "current-docs"},
+                  "documentation_evidence": ["repo/docs/spec/language.md#current"],
+              }
+              rep = test_root / "quidra_representation.json"
+              rep.write_text(json.dumps(valid_representation))
+              assert micro.validate_quidra_representation(
+                  test_root, rep
+              )["evaluated_commit_sha"] == "abc123"
+
+              bad = dict(valid_representation)
+              bad["evaluated_commit_sha"] = "different"
+              rep.write_text(json.dumps(bad))
+              try:
+                  micro.validate_quidra_representation(test_root, rep)
+              except micro.MeasureError:
+                  pass
+              else:
+                  raise AssertionError("representation commit mismatch must fail")
+
+              bad = dict(valid_representation)
+              bad["documentation_evidence"] = []
+              rep.write_text(json.dumps(bad))
+              try:
+                  micro.validate_quidra_representation(test_root, rep)
+              except micro.MeasureError:
+                  pass
+              else:
+                  raise AssertionError("representation evidence omission must fail")
+
+          original_wait = micro.wait_for_host_window
+          try:
+              micro.wait_for_host_window = lambda: (False, [9.0])
+              calls = []
+              host_checks = []
+              unresolved = micro.run_host_gated_batches(
+                  ["a", "b"], "synthetic", calls.append, host_checks
+              )
+              assert unresolved == {"a", "b"}
+              assert calls == []
+              assert sum(
+                  1 for row in host_checks
+                  if row.get("na_reason") == "host_contention_unresolved"
+              ) == 2
+          finally:
+              micro.wait_for_host_window = original_wait
+          PY
+
+      - name: Verify self-contained template bootstrap
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import importlib.util
+          import tempfile
+
+          spec = importlib.util.spec_from_file_location(
+              "benchmark_cli", "benchmark/template/scripts/benchmark.py"
+          )
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+
+          source = Path.cwd()
+          with tempfile.TemporaryDirectory() as td:
+              dest = Path(td) / "template"
+              module.copy_tracked_tree(source, "benchmark/template", dest)
+              records = module.materialize_reuse_catalog(source, dest)
+              assert len(records) >= 20
+              mat = module.json_load(dest / "reuse" / "materialized.json")
+              assert mat["schema_version"] == 3
+              assert not any("source_run_id" in a for a in mat["artifacts"])
+              assert all(
+                  len(a.get("content_git_object_sha1", "")) == 40
+                  for a in mat["artifacts"]
+              )
+              assert (dest / "programs/python/micro/mb01.py").is_file()
+              assert (dest / "programs/python/micro/mb00.py").is_file()
+              assert (dest / "config/quidra_representation_schema.json").is_file()
+              assert not (dest / "programs/quidra/micro").exists()
+              assert (dest / "fixtures/micro/reference").is_dir()
+              assert (dest / "validators/micro/check_micro.py").is_file()
+          PY
+
+      - name: Exercise deterministic runner
+        run: |
+          TMP="$PWD/.benchmark-template-test"
+          rm -rf "$TMP"
+          mkdir -p             "$TMP/work/root" "$TMP/work/agents" "$TMP/raw" "$TMP/results"             "$TMP/prompts/by-hash" "$TMP/prompts/components/by-hash" "$TMP/prompts/manifests"             "$TMP/home" "$TMP/tmp" "$TMP/repo/docs"
+
+          python - <<'PY'
+          from pathlib import Path
+          import importlib.util
+          import json
+
+          root = Path(".benchmark-template-test")
+          spec = importlib.util.spec_from_file_location(
+              "benchmark_cli", "benchmark/template/scripts/benchmark.py"
+          )
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+
+          module.copy_tracked_tree(Path.cwd(), "benchmark/template", root / "template")
+          module.materialize_reuse_catalog(Path.cwd(), root / "template")
+          (root / "run.json").write_text(json.dumps({
+              "schema_version": 1,
+              "run_id": "synthetic-e2e",
+              "evaluated": {"commit_sha": "synthetic"},
+              "template_tree_sha256": module.sha256_tree(root / "template"),
+          }, indent=2) + "\n")
+          (root / "results" / "reuse_status.json").write_text(
+              json.dumps({"schema_version":1,"audit_required":[]}) + "\n"
+          )
+          PY
+
+          python benchmark/template/scripts/benchmark.py privacy-check --workspace "$TMP"
+          python benchmark/template/scripts/benchmark.py deterministic-plan --workspace "$TMP"
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          root = Path(".benchmark-template-test")
+          prof = json.loads(
+              (root / "work/root/plans/llm_proficiency.json").read_text()
+          )
+          prof_trials = [
+              u for u in prof["work_units"]
+              if u["id"].startswith("proficiency-trials--")
+          ]
+          assert len(prof_trials) == 10, [u["id"] for u in prof_trials]
+          assert all(len(u.get("assigned_languages", [])) == 1 for u in prof_trials)
+          learn = json.loads(
+              (root / "work/root/plans/llm_learnability.json").read_text()
+          )
+          assert len([
+              u for u in learn["work_units"]
+              if u["id"].startswith("learnability-i1-i2--")
+          ]) == 10
+          primary = json.loads((root / "template/config/primary.json").read_text())
+          repairs_l = 1 + primary["llm_learnability"]["max_repair_turns"]
+          expected_i12 = (
+              primary["llm_learnability"]["keyword_anonymization_seeds"]
+              + primary["llm_learnability"]["vocabulary_anonymization_seeds"]
+          ) * repairs_l
+          i12 = [
+              u for u in learn["work_units"]
+              if u["id"].startswith("learnability-i1-i2--")
+          ]
+          assert all(u["max_llm_calls"] == expected_i12 for u in i12)
+
+          repairs_p = 1 + primary["llm_proficiency"]["max_repair_turns"]
+          expected_prof = (
+              len(primary["llm_proficiency"]["primary_workloads"])
+              * len(primary["llm_proficiency"]["primary_scenarios"])
+              * primary["llm_proficiency"]["independent_trials_per_replicated_cell"]
+              * repairs_p
+          )
+          assert all(u["max_llm_calls"] == expected_prof for u in prof_trials)
+
+          lq = json.loads(
+              (root / "work/root/plans/language_quality.json").read_text()
+          )
+          by_id = {u["id"]: u for u in lq["work_units"]}
+          representation = by_id["lq-qudra-representation"]
+          assert representation["execution_kind"] == "agent"
+          assert representation["result_kind"] == "audit"
+          assert "template/programs" not in "\n".join(representation["read_paths"])
+          assert any(
+              path.endswith("template/config/quidra_representation_schema.json")
+              for path in representation["read_paths"]
+          )
+          assert "quidra_representation.json" in representation["goal"]
+
+          expected_shards = {
+              "lq-qudra-micro-authoring-a": ["mb00", "mb01", "mb02"],
+              "lq-qudra-micro-authoring-b": ["mb03", "mb04", "mb05"],
+              "lq-qudra-micro-authoring-c": ["mb06", "mb07", "mb08"],
+              "lq-qudra-micro-authoring-d": ["mb09", "mb10", "mb11"],
+          }
+          for uid, workloads in expected_shards.items():
+              shard = by_id[uid]
+              assert shard["execution_kind"] == "agent"
+              assert shard["result_kind"] == "audit"
+              assert shard["workload_ids"] == workloads
+              assert len(shard["workload_ids"]) <= 3
+              assert shard["dependencies"] == ["lq-qudra-representation"]
+              assert "template/programs" not in "\n".join(shard["read_paths"])
+
+          mechanical = by_id["lq-micro-mechanical"]
+          assert mechanical["execution_kind"] == "command"
+          assert mechanical["runner_action"] == "micro-measure"
+          assert set(mechanical["dependencies"]) == {
+              "lq-qudra-representation",
+              *expected_shards.keys(),
+          }
+          assert set(mechanical["requirement_ids"]) == {
+              "metric.native_execution_performance",
+              "metric.long_running_performance",
+              "metric.compile_build_performance",
+              "metric.startup_latency",
+              "metric.memory_efficiency",
+              "metric.runtime_overhead",
+              "metric.source_code_size",
+              "metric.binary_artifact_size",
+          }
+          PY
+          python benchmark/template/scripts/benchmark.py manifest-merge --workspace "$TMP"
+          python benchmark/template/scripts/benchmark.py plan --workspace "$TMP" --strict
+
+          # Missing toolchains become explicit infrastructure blockers for only
+          # the affected execution-heavy Primaries; unrelated evaluations still advance.
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          root = Path(".benchmark-template-test")
+          (root / "results/toolchains.json").write_text(json.dumps({
+              "schema_version": 1,
+              "missing": ["Zig"],
+              "toolchains": {},
+              "ok": False,
+          }) + "\n")
+          PY
+          python benchmark/template/scripts/benchmark.py toolchain-blockers --workspace "$TMP"
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          ledger = json.loads(Path(".benchmark-template-test/work/root/ledger.json").read_text())
+          assert ledger["units"]["lq-coverage"]["status"] == "BLOCKED"
+          assert ledger["units"]["learnability-gates--part-2"]["status"] == "BLOCKED"
+          assert ledger["units"]["proficiency-gates--part-2"]["status"] == "BLOCKED"
+          assert ledger["units"]["sc-structure-gates--part-1"]["status"] == "PENDING"
+          assert ledger["units"]["ecosystem-gates--part-1"]["status"] == "PENDING"
+          PY
+
+          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
+
+          test -f "$TMP/results/dispatch_queue.json"
+          grep -q '"agent_id": "worker-sc-structure-gates--part-1"' "$TMP/results/dispatch_queue.json"
+          python benchmark/template/scripts/benchmark.py task-render             --workspace "$TMP" --id worker-sc-structure-gates--part-1 > "$TMP/rendered-task.md"
+          grep -q "Embedded input: worker_core.md" "$TMP/rendered-task.md"
+          grep -q "Mandatory semantic-site matrix" "$TMP/rendered-task.md"
+          if grep -q "LLM Proficiency Evaluation" "$TMP/rendered-task.md"; then
+            echo "unrelated evaluation content leaked into narrow Task Packet" >&2
+            exit 1
+          fi
+
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          root = Path(".benchmark-template-test")
+          langs = ["Quidra","Python","C++","Rust","Go","Java","TypeScript","Kotlin","Swift","Zig"]
+
+          def write(agent, evaluation, requirements):
+              d = root / "work" / "agents" / agent
+              d.mkdir(parents=True, exist_ok=True)
+              payload = {
+                  "schema_version": 1,
+                  "evaluation": evaluation,
+                  "requirements": requirements,
+                  "evidence": {"ci": "synthetic normalized smoke evidence"},
+              }
+              (d / "result.json").write_text(json.dumps(payload, indent=2) + "\n")
+
+          write("worker-sc-structure-gates--part-1", "semantic_compression", {
+              "gate.capability_universe": True,
+              "gate.semantic_site_matrix": True,
+          })
+          write("worker-sc-structure-gates--part-2", "semantic_compression", {
+              "gate.matrix_validator": True,
+              "coverage.all_frozen_probes": True,
+          })
+          PY
+          for ID in sc-structure-gates--part-1 sc-structure-gates--part-2; do
+            python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id "$ID"
+            python benchmark/template/scripts/benchmark.py task-finish --workspace "$TMP" --id "$ID"
+          done
+          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
+
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          root = Path(".benchmark-template-test")
+          langs = ["Quidra","Python","C++","Rust","Go","Java","TypeScript","Kotlin","Swift","Zig"]
+          scores = {name: 90 - i for i, name in enumerate(langs)}
+
+          def write(agent, requirements):
+              d = root / "work" / "agents" / agent
+              d.mkdir(parents=True, exist_ok=True)
+              (d / "result.json").write_text(json.dumps({
+                  "schema_version": 1,
+                  "evaluation": "semantic_compression",
+                  "requirements": requirements,
+                  "evidence": {"ci": "synthetic normalized smoke evidence"},
+              }, indent=2) + "\n")
+
+          write("worker-sc-metrics-local--part-1", {
+              "metric.semantic_density": scores,
+              "metric.semantic_determinacy": scores,
+          })
+          write("worker-sc-metrics-local--part-2", {
+              "metric.semantic_locality": scores,
+          })
+          write("worker-sc-metrics-hidden-coverage--part-1", {
+              "metric.hidden_semantic_cost": scores,
+              "metric.capability_efficiency": scores,
+          })
+          write("worker-sc-metrics-hidden-coverage--part-2", {
+              "metric.capability_coverage": scores,
+          })
+          PY
+          for ID in sc-metrics-local--part-1 sc-metrics-local--part-2 sc-metrics-hidden-coverage--part-1 sc-metrics-hidden-coverage--part-2; do
+            python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id "$ID"
+            python benchmark/template/scripts/benchmark.py task-finish --workspace "$TMP" --id "$ID"
+          done
+          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
+
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          root = Path(".benchmark-template-test")
+          d = root / "work" / "agents" / "worker-sc-comparability"
+          d.mkdir(parents=True, exist_ok=True)
+          (d / "result.json").write_text(json.dumps({
+              "schema_version": 1,
+              "evaluation": "semantic_compression",
+              "requirements": {"gate.comparability_audit": True},
+              "evidence": {"ci": "gate pass"},
+          }, indent=2) + "\n")
+          PY
+          python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id sc-comparability
+          python benchmark/template/scripts/benchmark.py task-finish --workspace "$TMP" --id sc-comparability
+          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
+
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          root = Path(".benchmark-template-test")
+          result = json.loads((root / "results/evaluations/semantic_compression.json").read_text())
+          assert result["status"] == "COMPLETE", result
+          assert len(result["ranking"]) == 10, result
+          assert result["ranking"][0]["language"] == "Quidra", result
+          primary = json.loads((root / "results/primary_status.json").read_text())
+          assert primary["evaluations"]["semantic_compression"]["ranking"], primary
+          PY
+
+          # Stale RUNNING work is automatically reclaimable instead of hanging forever.
+          python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id ecosystem-gates--part-1
+          echo "stale-attempt-evidence" > "$TMP/work/agents/worker-ecosystem-gates--part-1/stale.txt"
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          p = Path(".benchmark-template-test/work/root/ledger.json")
+          data = json.loads(p.read_text())
+          data["units"]["ecosystem-gates--part-1"]["heartbeat_at_utc"] = "2000-01-01T00:00:00+00:00"
+          p.write_text(json.dumps(data, indent=2) + "\n")
+          PY
+          python benchmark/template/scripts/benchmark.py reclaim-stale --workspace "$TMP"
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          data = json.loads(Path(".benchmark-template-test/work/root/ledger.json").read_text())
+          assert data["units"]["ecosystem-gates--part-1"]["status"] == "PENDING"
+          assert data["units"]["ecosystem-gates--part-1"]["attempts"] == 1
+          PY
+
+          # A terminal blocker must propagate through dependent work instead of
+          # leaving the evaluation permanently PENDING.
+          python benchmark/template/scripts/benchmark.py ledger-update \
+            --workspace "$TMP" --id ecosystem-gates--part-1 --status BLOCKED \
+            --blocker "synthetic CI infrastructure blocker" \
+            --blocker-class infrastructure
+          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          root = Path(".benchmark-template-test")
+          ledger = json.loads((root / "work/root/ledger.json").read_text())
+          for uid in ("ecosystem-external--part-1", "ecosystem-tooling--part-1", "ecosystem-aggregate"):
+              assert ledger["units"][uid]["status"] == "BLOCKED", (uid, ledger["units"][uid])
+          status = json.loads((root / "results/primary_status.json").read_text())
+          eco = status["evaluations"]["ecosystem"]
+          assert eco["status"] == "PARTIAL", eco
+          assert eco["blocker_class"] == "infrastructure", eco
+          assert eco["ranking"] is None, eco
+          PY
+
+          rm -rf "$TMP"
+
+
+      - name: Exercise finalized run import and cleanup
+        run: |
+          RUN="$PWD/.benchmark-post-run"
+          REPO="$PWD/.benchmark-post-run-repo"
+          rm -rf "$RUN" "$REPO"
+          mkdir -p \
+            "$RUN/results" "$RUN/raw" "$RUN/prompts/by-hash" \
+            "$RUN/work/agents/worker-a" "$RUN/work/root/plans" "$RUN/work/root/commands/cmd-a"
+          cat > "$RUN/run.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "run_id": "synthetic-post-run",
+            "evaluated": {"commit_sha": "deadbeef"}
+          }
+          JSON
+          echo '{"ok":true}' > "$RUN/results/finalization.json"
+          echo '{"raw":true}' > "$RUN/raw/sample.json"
+          echo 'prompt' > "$RUN/prompts/by-hash/sample.md"
+          echo '{"schema_version":1}' > "$RUN/work/agents/worker-a/result.json"
+          echo '{"schema_version":1}' > "$RUN/work/root/manifest.json"
+          echo '{"schema_version":1}' > "$RUN/work/root/ledger.json"
+          echo '{"schema_version":1}' > "$RUN/work/root/plans/language_quality.json"
+          echo '{"schema_version":1}' > "$RUN/work/root/commands/cmd-a/result.json"
+
+          mkdir -p "$REPO/benchmark"
+          git -C "$REPO" init -b develop
+          git -C "$REPO" config user.name "Benchmark CI"
+          git -C "$REPO" config user.email "benchmark-ci@example.invalid"
+          echo synthetic > "$REPO/README.md"
+          git -C "$REPO" add README.md
+          git -C "$REPO" commit -m init
+
+          python benchmark/template/scripts/benchmark.py post-run \
+            --workspace "$RUN" --source-repo "$REPO"
+
+          test ! -e "$RUN"
+          OUT="$REPO/benchmark/synthetic-post-run"
+          test -f "$OUT/run.json"
+          test -f "$OUT/results/finalization.json"
+          test -f "$OUT/raw/sample.json"
+          test -f "$OUT/work/agents/worker-a/result.json"
+          test -f "$OUT/work/root/commands/cmd-a/result.json"
+          test -f "$OUT/import_manifest.json"
+          test ! -e "$OUT/repo"
+          test ! -e "$OUT/template"
+          test ! -e "$OUT/tmp"
+          test ! -e "$OUT/home"
+          rm -rf "$REPO"
+
+
+      - name: Exercise full five-Primary synthetic completion
+        run: |
+          export QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS=1
+          TMP="$PWD/.benchmark-template-e2e"
+          rm -rf "$TMP"
+          mkdir -p \
+            "$TMP/work/root" "$TMP/work/agents" "$TMP/raw" "$TMP/results" \
+            "$TMP/prompts/by-hash" "$TMP/prompts/components/by-hash" "$TMP/prompts/manifests" \
+            "$TMP/home" "$TMP/tmp" "$TMP/repo/docs"
+
+          python - <<'PY'
+          from pathlib import Path
+          import importlib.util
+          import json
+
+          root = Path(".benchmark-template-e2e")
+          spec = importlib.util.spec_from_file_location(
+              "benchmark_cli", "benchmark/template/scripts/benchmark.py"
+          )
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+          module.copy_tracked_tree(Path.cwd(), "benchmark/template", root / "template")
+          module.materialize_reuse_catalog(Path.cwd(), root / "template")
+          (root / "run.json").write_text(json.dumps({
+              "schema_version": 1,
+              "template_tree_sha256": module.sha256_tree(root / "template"),
+          }, indent=2) + "\n")
+          (root / "results" / "reuse_status.json").write_text(
+              json.dumps({"schema_version":1,"audit_required":[]}) + "\n"
+          )
+          (root / "results" / "preflight.json").write_text(
+              json.dumps({"ok": True, "synthetic_ci": True}) + "\n"
+          )
+          PY
+
+          python benchmark/template/scripts/benchmark.py privacy-check --workspace "$TMP"
+          python benchmark/template/scripts/benchmark.py deterministic-plan --workspace "$TMP"
+          python benchmark/template/scripts/benchmark.py manifest-merge --workspace "$TMP"
+          python benchmark/template/scripts/benchmark.py plan --workspace "$TMP" --strict
+
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import subprocess
+          import sys
+
+          root = Path(".benchmark-template-e2e")
+          cli = Path("benchmark/template/scripts/benchmark.py")
+          languages = ["Quidra","Python","C++","Rust","Go","Java","TypeScript","Kotlin","Swift","Zig"]
+
+          def run(*args):
+              subprocess.run(
+                  [sys.executable, str(cli), *args, "--workspace", str(root)],
+                  check=True,
+              )
+
+          for _ in range(100):
+              run("advance")
+              queue = json.loads((root / "results/dispatch_queue.json").read_text())["tasks"]
+              if not queue:
+                  ledger = json.loads((root / "work/root/ledger.json").read_text())
+                  states = {u["status"] for u in ledger["units"].values()}
+                  if states <= {"COMPLETE", "BLOCKED", "INVALID"}:
+                      break
+                  raise AssertionError(f"empty queue with nonterminal states: {states}")
+
+              manifest = json.loads((root / "work/root/manifest.json").read_text())
+              units = {u["id"]: u for u in manifest["work_units"]}
+              for task in queue:
+                  uid = task["work_unit_id"]
+                  unit = units[uid]
+                  agent = unit["assigned_agent_id"]
+                  assigned = unit.get("assigned_languages") or languages
+                  if unit.get("result_kind") == "audit":
+                      payload = {
+                          "schema_version": 1,
+                          "evaluation": unit["evaluation"],
+                          "audit_pass": True,
+                          "evidence": {"ci": "synthetic full-primary audit"},
+                      }
+                  else:
+                      requirements = {}
+                      for rid in unit.get("requirement_ids", []):
+                          if rid.startswith("gate.") or rid.startswith("coverage."):
+                              requirements[rid] = True
+                          else:
+                              requirements[rid] = {
+                                  lang: float(90 - languages.index(lang))
+                                  for lang in assigned
+                              }
+                      payload = {
+                          "schema_version": 1,
+                          "evaluation": unit["evaluation"],
+                          "requirements": requirements,
+                          "evidence": {"ci": "synthetic full-primary evidence"},
+                      }
+                  d = root / "work/agents" / agent
+                  d.mkdir(parents=True, exist_ok=True)
+                  (d / "result.json").write_text(json.dumps(payload, indent=2) + "\n")
+                  run("task-start", "--id", uid)
+                  run("task-finish", "--id", uid)
+          else:
+              raise AssertionError("full synthetic benchmark did not terminate")
+
+          run("advance")
+          status = json.loads((root / "results/primary_status.json").read_text())
+          for name, ev in status["evaluations"].items():
+              assert ev["status"] == "COMPLETE", (name, ev)
+              assert len(ev["ranking"]) == 10, (name, ev)
+              assert len(ev["scores"]) == 10, (name, ev)
+          PY
+
+          python benchmark/template/scripts/benchmark.py ledger-reconcile --workspace "$TMP"
+          python benchmark/template/scripts/benchmark.py score-status --workspace "$TMP" --strict
+          python benchmark/template/scripts/benchmark.py privacy-check --workspace "$TMP"
+          python benchmark/template/scripts/benchmark.py finalize --workspace "$TMP"
+          test -f "$TMP/results/finalization.json"
+
+          rm -rf "$TMP"

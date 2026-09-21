@@ -1,0 +1,189 @@
+{
+  "document_id": "13_memory_safety",
+  "title": "FROZEN METHODOLOGY 13 - Memory Safety (Language Quality, Safety / Robustness)",
+  "spec_authority": "benchmark/template/methodology/language_quality.md sections 7, 8, 17 and 18, plus benchmark/template/methodology/common.md and the frozen adversarial case asset",
+  "frozen": true,
+  "freeze_statement": "The row set, inclusion rule, formula, normalization, N/A policy and mode rule are template inputs frozen before measurement and immutable for the run after manifest-merge.",
+  "status": "FROZEN_TEMPLATE_INPUT",
+  "intended_reader": "An operator who has never seen the conversation that produced this file. Every decision needed to reproduce the score from the measured records is stated here.",
+  "what_this_metric_measures": {
+    "definition": "Memory Safety measures whether a language's memory abstraction HELD when a program deliberately performed a hazardous memory operation. For each memory hazard in the frozen case set it asks one question: did the language itself intervene before an invalid memory operation could produce a consumable result, or did the operation proceed and the outcome escape into the program's behaviour?",
+    "intervention_means": "One of exactly three things, all of which mean the same thing for memory integrity: (a) the hazard cannot arise in the language at all (`Prevented By Construction`); (b) the program was rejected before the hazardous operation ever executed (`Compile-time Detection` or `Static Checking Before Execution`); (c) the language's own runtime stopped the program with a diagnostic that names the hazard, before doing anything with the invalid value (`Runtime Safe Detection`, decision rules D5a / D5a_prime of the frozen procedure).",
+    "non_intervention_means": "Everything else recorded by the frozen procedure: the invalid operation proceeded and the program produced a plausible-but-wrong value (`Silent Bug`), produced a value under normative undefined behaviour or lost its own tail (`Undefined Behavior`), produced an implausible value or never terminated (`Output Verification`), or died abnormally WITHOUT the language naming the hazard - a bare fault taken by the OS or the hardware rather than by the language (`Crash`, decision rule D5b).",
+    "hazard_material": "Bounds violations below and above a sequence (ADV-09, ADV-10), an allocation request that cannot be satisfied (ADV-11), reading storage that was never given a value (ADV-12), reinterpreting a value as an unrelated declared type (ADV-13), mutating a sequence while its iterator is live (ADV-15), member access through an absent reference (ADV-17), and stack exhaustion by unbounded and by deep recursion (ADV-19, ADV-20). These are the memory-integrity hazards of spec section 17.",
+    "what_it_does_not_measure": "It does not measure how EARLY the intervention happened, how good the diagnostic was, how fast the program was, or how easy the defect was to repair. Those belong to Early Error Detection, Diagnostics and Debuggability respectively."
+  },
+  "how_it_differs_from_the_metrics_already_derived_from_this_evidence": {
+    "statement": "methodology/08_adversarial_cases.json derives six metrics from this same body of records and states that the metrics deliberately share evidence, each computed ONCE by its own formula. That document lists the rows below under `evidence_only_no_score_here.Memory_Safety` and supplies evidence only; the present document is the one place Memory Safety is computed, and 08 is not aggregated into it a second time.",
+    "vs_Early_Error_Detection_Boundary_Value_Safety_Adversarial_Input_Robustness": "Those three are normalization family F: the arithmetic mean of the eight-rung stage SCORES, i.e. a measure of EARLINESS, on which `Compile-time Detection` (100) is worth 25 points more than `Runtime Safe Detection` (75) and `Crash` (20) is worth 20 points more than `Silent Bug` (0). Memory Safety deliberately COLLAPSES the earliness axis: a compile-time rejection and a diagnosed runtime trap are scored IDENTICALLY, because for memory integrity both mean the invalid memory operation never produced a consumable result. Conversely Memory Safety is STRICTER at the bottom of the ladder: `Crash` and `Output Verification` receive no partial credit, because on a memory hazard a bare fault or a hung process means the language did not intervene. Memory Safety is therefore a different function of the same rungs, not a re-weighted mean of the same numbers, and it is in a different normalization family (A, not F).",
+    "vs_Runtime_Safety": "Runtime Safety (family A) asks what the RUNTIME does with hazards that reach it: its numerator is `Runtime Safe Detection` or `Prevented By Construction`, and its denominator EXCLUDES every row the compiler already rejected, so compile-time rejection neither helps nor hurts it and each language is scored over a different, language-determined denominator. Memory Safety COUNTS compile-time rejection as full success, uses a FIXED denominator identical for all ten languages, and is restricted to the memory-hazard subset. A language cannot move both metrics the same way: rejecting a memory hazard at compile time raises Memory Safety and removes the row from Runtime Safety's denominator entirely.",
+    "vs_Silent_Bug_Resistance": "Silent Bug Resistance (family B) counts only `Silent Bug` and `Undefined Behavior` rows, over all 34 rows, and treats `Crash` and `Output Verification` as non-failures - correctly, because its subject is the silent wrong answer. Memory Safety counts `Crash` and `Output Verification` as failures too, on the memory subset only, because a segmentation fault on an out-of-bounds read and a never-terminating recursion are both memory-integrity failures even though neither is a silent wrong answer. The two metrics disagree by construction on exactly the rows where a language faults loudly instead of lying quietly.",
+    "vs_Type_Safety_and_Debuggability": "Type Safety and Debuggability are scored in their own documents from partly overlapping rows (ADV-13 and ADV-17 are named as evidence for both Type Safety and Memory Safety). This is the deliberate evidence sharing that 08 documents and spec 8 requires: ADV-13 is a type-system hazard AND a memory-reinterpretation hazard, and each metric asks a different question of it. Memory Safety asks whether the reinterpreted bytes were ever read; Type Safety asks whether the type system admitted the conversion. Neither document aggregates the other's formula.",
+    "double_counting_position": "The overlap is in the EVIDENCE, never in the FORMULA. No quantity computed by any of the six metrics in 08 is an input to the formula below; the formula reads the primitive field `earliest_observable_stage` from the measured records and nothing else.",
+    "vs_Implementation_Robustness": "That metric counts TOOLCHAIN failures (toolchain_crash, no artifact, build timeout). Memory Safety counts no toolchain flag and is a property of the language's semantics, not of its tooling's stability."
+  },
+  "row_set": {
+    "inclusion_criterion": "A case-variant is in the Memory Safety row set if and only if its frozen `spec_17_hazard` is a hazard whose realisation is an operation on STORAGE that violates the storage's own invariants: reading or writing outside the extent of an allocated sequence, reading storage whose contents were never established, obtaining storage that was never validly allocated, interpreting storage through a declared type it does not hold, using a reference to storage that has been invalidated or is absent, or consuming stack storage beyond what the implementation reserved. The criterion is applied to the hazard, never to any language's behaviour on it.",
+    "criterion_applied": [
+      {
+        "case": "ADV-09",
+        "hazard": "array lower-bound violation",
+        "why_in": "read outside the extent of an allocated sequence",
+        "variants_in": [
+          "C",
+          "R"
+        ]
+      },
+      {
+        "case": "ADV-10",
+        "hazard": "array upper-bound violation",
+        "why_in": "read outside the extent of an allocated sequence",
+        "variants_in": [
+          "C",
+          "R"
+        ]
+      },
+      {
+        "case": "ADV-11",
+        "hazard": "huge allocation",
+        "why_in": "storage that cannot validly be allocated",
+        "variants_in": [
+          "R"
+        ]
+      },
+      {
+        "case": "ADV-12",
+        "hazard": "uninitialized value",
+        "why_in": "read of storage whose contents were never established",
+        "variants_in": [
+          "single"
+        ]
+      },
+      {
+        "case": "ADV-13",
+        "hazard": "invalid cast",
+        "why_in": "interpretation of storage through a declared type it does not hold",
+        "variants_in": [
+          "single"
+        ]
+      },
+      {
+        "case": "ADV-15",
+        "hazard": "invalid mutation",
+        "why_in": "use of a sequence reference invalidated by mutation during iteration",
+        "variants_in": [
+          "single"
+        ]
+      },
+      {
+        "case": "ADV-17",
+        "hazard": "null / none misuse",
+        "why_in": "member access through a reference to absent storage",
+        "variants_in": [
+          "single"
+        ]
+      },
+      {
+        "case": "ADV-19",
+        "hazard": "infinite recursion",
+        "why_in": "unbounded consumption of stack storage",
+        "variants_in": [
+          "single"
+        ]
+      },
+      {
+        "case": "ADV-20",
+        "hazard": "excessive recursion depth",
+        "why_in": "consumption of stack storage beyond the reserved extent",
+        "variants_in": [
+          "single"
+        ]
+      }
+    ],
+    "cases": [
+      "ADV-09",
+      "ADV-10",
+      "ADV-11",
+      "ADV-12",
+      "ADV-13",
+      "ADV-15",
+      "ADV-17",
+      "ADV-19",
+      "ADV-20"
+    ],
+    "case_count": 9,
+    "rows": [
+      "ADV-09/C",
+      "ADV-09/R",
+      "ADV-10/C",
+      "ADV-10/R",
+      "ADV-11/R",
+      "ADV-12",
+      "ADV-13",
+      "ADV-15",
+      "ADV-17",
+      "ADV-19",
+      "ADV-20"
+    ],
+    "row_count": 11,
+    "agreement_with_frozen_list": "This set is exactly `metrics_computed_from_this_evidence.evidence_only_no_score_here.Memory_Safety.relevant_rows` of methodology/08_adversarial_cases.json. The frozen list was hand-enumerated with no stated criterion; the criterion above is written here so an independent analyst can re-derive the set, and applying it reproduces the frozen list member for member, with no addition and no removal.",
+    "cases_deliberately_excluded_and_why": "Integer narrowing, overflow, underflow, signed/unsigned boundaries, float conversion, NaN, Infinity and divide-by-zero (ADV-01..ADV-08) are VALUE hazards, not storage hazards: nothing outside a datum's own storage is read or written. Malformed source, malformed UTF-8, huge literals, deep parser nesting and invalid external input (ADV-21..ADV-25) are INPUT hazards. Missing return (ADV-16), immutable mutation (ADV-14) and invalid program state (ADV-18) are control/contract hazards. Their exclusion follows from the criterion and not from any language's results."
+  },
+  "formula": {
+    "scored_quantity_name": "Memory Integrity Preservation Rate",
+    "per_row_indicator": {
+      "name": "integrity_preserved",
+      "rule": "Read the measured field `earliest_observable_stage` from the row's record in language-quality/raw/adversarial/<case>.<config>.json. It is copied, never re-derived; the frozen decision procedure of 08 is the only classifier.",
+      "value_1_stages": [
+        "Prevented By Construction",
+        "Compile-time Detection",
+        "Static Checking Before Execution",
+        "Runtime Safe Detection"
+      ],
+      "value_0_stages": [
+        "Test Failure",
+        "Output Verification",
+        "Crash",
+        "Undefined Behavior",
+        "Silent Bug"
+      ],
+      "justification_of_the_cut": "The cut falls exactly where the frozen decision procedure stops establishing that the LANGUAGE intervened. Rules D0, D1b, D3b, D5a and D5a_prime all require positive evidence that the hazard was named or could not arise. Rules D4, D5b, D6a, D6c-i, D6c-ii, D7b, D7c and D7d all record that the operation proceeded and the language said nothing about it; D5b is explicitly the 'uncontrolled-fault case', and 08 states that a controlled abort accompanied by a hazard-naming diagnostic is D5a and NOT D5b, so the Crash rung already means an undiagnosed fault and nothing else. `Test Failure` is listed for completeness and is structurally unreachable in this case set (08, test_failure_reachability).",
+      "language_neutrality": "The indicator is a function of the recorded rung alone. It names no language, no construct, no compiler flag and no implementation. Every language is scored by the same predicate over the same nine hazards."
+    },
+    "per_case_aggregation": "A case's value is the unweighted arithmetic mean of its variants' indicators (spec 25.2). ADV-09 and ADV-10 have two variants each and therefore take a value in {0, 0.5, 1}; the other seven cases have one row each. This keeps every one of the nine memory hazards at EQUAL WEIGHT and follows the same per-hazard rule the frozen document applied to Early Error Detection, Boundary Value Safety and Adversarial Input Robustness. A per-row mean would give the two bounds hazards 4 of 11 rows (36 percent) of the metric.",
+    "sub_program_aggregation": "Where a record's `aggregation` field names more than one sub-program, the row's indicator is the unweighted mean of its sub-programs' indicators. (Pre-registered for completeness; every row of this set is recorded as a single program.)",
+    "raw_fraction": "raw_fraction = ( sum over the applicable cases of the case value ) / ( count of applicable cases )",
+    "normalized_score": "Memory Safety = 100 * clamp(raw_fraction, 0, 1)",
+    "precision": "Raw fractions are kept at full precision; the published score is reported to two decimal places and rankings use the unrounded value (spec 25.3). All scores are clipped to [0, 100].",
+    "direction": "100 = best (the language intervened on every memory hazard), 0 = worst (it intervened on none). Spec 25.4 satisfied."
+  },
+  "normalization_family": {
+    "family": "A — bounded success fraction, 100 best.",
+    "formula_from_spec": "Score = 100 * clamp(raw_fraction, 0, 1)",
+    "justification": "The scored quantity is a bounded success fraction on [0,1] with a real, attainable ideal: the fraction of memory hazards on which the language intervened, where 1.0 means it intervened on all nine. It is not a stage-earliness average, so family F would be wrong and would also duplicate Early Error Detection, Boundary Value Safety and Adversarial Input Robustness. It is not a lower-is-better physical quantity, so family C is wrong. It is not a rubric judgement, so family G is wrong. It is expressed as a success rate rather than as its complementary failure rate, so A is chosen over B; the choice is cosmetic between A and B and is fixed here before any language was scored so that it cannot be flipped afterwards.",
+    "no_new_scale": "No new scale is introduced. The frozen `fixed_stage_score_table` supplies the rung names and is used unchanged as the input classification; the 0-100 conversion is spec 25.1.A verbatim. The registered `Prevented By Construction` rung of 08 is honoured at its registered meaning (the hazard cannot arise), which maps to indicator 1."
+  },
+  "na_policy": {
+    "inherits": "methodology/08_adversarial_cases.json -> na_policy, unchanged.",
+    "missing_capability_is_not_na": "A language that lacks the capability a case tests is NEVER N/A (spec 26). It is resolved by rule TM3 of the frozen document: either the hazard cannot arise, in which case the row is `Prevented By Construction` and scores indicator 1, or the ordinary alternative construct is used and the case proceeds. There is no 'young language' allowance (spec 7): a language that does not prevent, reject or diagnose a memory hazard today takes indicator 0 on that hazard regardless of intent, roadmap or documentation.",
+    "effect_of_an_na_row": "An N/A row is removed from its case's variant mean. Where only one variant of a two-variant case is N/A, the case is scored on its remaining variant. Only a case ALL of whose rows are N/A leaves the nine-case denominator, and the denominator actually used is published with every score.",
+    "na_authoring_defect": "A row flagged `na_authoring_defect` is never scored indicator 1 and its per-language count is printed beside the score.",
+    "not_executed_is_not_na": "`Not Executed` is never N/A (spec 26). If any row of this set had been Not Executed, Memory Safety would be reported `Not Executed` and the spec 8.1 / 4.1 publication gate would apply to the whole Language Quality Score; its weight could not be renormalized away.",
+    "observed_at_freeze_time": "The record set was verified complete before freezing: 11 rows x 11 execution configurations = 121 records exist, none carries `na`, and none is Not Executed. This is an inventory check, not a score."
+  },
+  "published_companions_non_scoring": {
+    "purpose": "Diagnostics. None of these enters the Language Quality Score, and none may be substituted for the scored figure after results are seen.",
+    "MS_per_variant": "The 11-row mean of the same indicator, published beside the 9-case scored figure, exactly as 08 requires `EED_per_variant` beside Early Error Detection.",
+    "MS_excluding_prevented_by_construction": "The same formula with `Prevented By Construction` rows removed from BOTH numerator and denominator, with the excluded row count printed. Required because `Prevented By Construction` awards full credit for a hazard a language cannot express, and a reader must always be able to see how much of a score came from intervening and how much from not having the construct. This mirrors the dual-publication obligation the frozen document attaches to its own registered rung.",
+    "MS_composition": "The count of rows at each of the eight rungs plus `Prevented By Construction`.",
+    "uncontained_severity_profile": "Of the rows scoring 0, how many were `Silent Bug` or `Undefined Behavior` (the operation proceeded and a wrong value was consumed), how many were `Crash` (an undiagnosed fault), and how many were `Output Verification` (an implausible value or a non-terminating program). This is the severity detail the binary scored predicate deliberately discards, published so it is not lost."
+  },
+  "audit_checklist": [
+    "Every score is reproducible from the 121 measured records by reading one field, `earliest_observable_stage`, and applying the indicator table.",
+    "No language name appears in the formula.",
+    "No metric score from language-quality/adversarial_scores.json is an input.",
+    "The row set equals the frozen list in 08 and is re-derivable from the stated criterion.",
+    "The denominator is 9 cases for every language.",
+    "Quidra uses the same single-Primary-configuration rule as every other language."
+  ]
+}

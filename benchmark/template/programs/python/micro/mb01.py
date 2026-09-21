@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""MB-01 -- Fibonacci: naive double recursion, n = 30..37 inclusive.
+
+Frozen workload definition: methodology/06_micro_workloads.md section 4, MB-01.
+No memoisation, no iterative rewrite, no closed form.
+"""
+
+import sys
+import time
+
+
+def fib(n):
+    if n < 2:
+        return n
+    return fib(n - 1) + fib(n - 2)
+
+
+def workload():
+    total = 0
+    for n in range(30, 38):
+        total = total + fib(n)
+    return total
+
+
+def main():
+    mode = sys.argv[1] if len(sys.argv) > 1 else "once"
+    if mode == "steady":
+        k_count = int(sys.argv[2]) if len(sys.argv) > 2 else 7
+        for k in range(k_count):
+            start = time.perf_counter_ns()
+            total = workload()
+            elapsed = time.perf_counter_ns() - start
+            print("ITER %d %d" % (k, elapsed), flush=True)
+    else:
+        total = workload()
+    print("MB01 %d" % total)
+
+
+if __name__ == "__main__":
+    main()

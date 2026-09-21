@@ -1,0 +1,220 @@
+{
+  "document_id": "debuggability_methodology",
+  "metric": "Debuggability",
+  "spec_authority": "benchmark/template/methodology/language_quality.md sections 7, 8, 17, 18 and 19, plus benchmark/template/methodology/common.md",
+  "language_quality_category": "Safety / Robustness",
+  "frozen": true,
+  "frozen_before_any_language_was_scored": {
+    "declaration": "THIS DOCUMENT WAS WRITTEN AND FROZEN BEFORE ANY LANGUAGE'S DEBUGGABILITY SCORE WAS COMPUTED. The row set, the inclusion criterion, the three components and their matchers, the aggregation, the normalization family, the N/A policy, the Prevented-By-Construction rule and the Quidra mode rule were all fixed here first; the scorer was then run once over all eleven execution configurations without further change.",
+    "what_was_looked_at_first": "Before freezing, the measured records were inspected ONLY to establish which fields exist uniformly across all 374 rows and which do not, so that the metric could be defined on a substrate that exists for every language. That inspection is reported under `substrate_selection` and did not involve computing or comparing any language's score.",
+    "no_post_result_formula_selection": "No component, weight, matcher or aggregation was added, removed or altered after any language's score existed (spec 25.4, 32). Two matcher defects found during the pre-freeze self-test are recorded under `matcher_self_test` together with the direction of their correction; both corrections were made before any score was computed and one of them removed a false positive that had favoured the subject language."
+  },
+  "what_this_metric_measures": {
+    "one_sentence": "Debuggability scores the QUALITY OF THE EVIDENCE a language's frozen toolchain actually handed the developer at the moment each adversarial hazard became observable: whether the fault report identifies the hazard, whether it locates the fault site in the source, and whether it carries a machine-stable identifier for the error kind.",
+    "chain_position": "Spec 19 asks how easily a bug can be noticed, then diagnosed, then repaired. This metric measures the artefact on which noticing and diagnosis rest. It does NOT measure repair.",
+    "why_this_and_not_time": "Spec 19 forbids inventing human debugging times and forbids claiming a human-study result. No human participant study was performed for this benchmark, so no minutes, no 'a developer would need N ...' statement, and no human-time field appears anywhere in this metric or its records.",
+    "what_the_proxy_does_measure": [
+      "whether a fault report exists at all at the point of detection, and its recorded content",
+      "whether that content names the hazard class, in the frozen language-neutral hazard vocabulary",
+      "whether that content points at a source position",
+      "whether that content carries a stable identifier for the error kind that a tool, a search engine or a documentation index can key on"
+    ],
+    "what_the_proxy_does_NOT_measure": [
+      "how long any human takes to notice, diagnose or repair anything - not measured, not estimated, not modelled",
+      "agent turns, tokens, misdiagnoses or repair success - the frozen 80-session agent protocol was NOT EXECUTED in this run (see `relationship_to_the_frozen_debuggability_protocol`)",
+      "whether the diagnostic's explanation is CORRECT or helpful beyond naming the hazard class; a wrong but well-formed message scores the same as a right one",
+      "the quality of interactive debuggers, backtraces in a debugger, watchpoints or profilers - those belong to the separate `Debugger / Profiler Support` metric in the Toolchain category",
+      "diagnostic quality on ordinary, non-adversarial programs - that is the separate `Diagnostics` metric in the Language / Development category",
+      "anything about a language's intent, roadmap or age (spec 7): a toolchain that says nothing today scores as saying nothing"
+    ]
+  },
+  "relationship_to_the_frozen_debuggability_protocol": {
+    "status_of_the_frozen_protocol": "NOT EXECUTED.",
+    "what_the_frozen_protocol_required": "08_adversarial_cases.json -> debuggability_protocol defines Debuggability as the mean of seven sub-metrics - detection_stage, diagnosis_turns, repair_turns, tokens_to_diagnosis, tokens_to_repair, misdiagnosis_count, diagnosis_success - measured over 8 case-variants x 10 languages = 80 fresh agent sessions under the fixed LLM execution configuration of spec 6.2.",
+    "what_was_actually_run": "0 of 80 sessions. The run's LLM tracks were not executed (NOT_EXECUTED.md items 3 and 4), and no session transcript, turn count, token count or misdiagnosis count exists for any language. Six of the seven frozen sub-metrics therefore have no measured value for any language, and inventing them is forbidden (spec 32, spec 33).",
+    "why_this_document_exists": "Debuggability is an applicable metric. Spec 26 forbids converting Not Executed into N/A and spec 8.1 forbids renormalising its weight away; leaving it unmeasured withholds the entire Language Quality Score. This document therefore defines an executable metric over evidence that WAS measured, states plainly that it is a different quantity from the frozen session protocol, and does not claim the session protocol's result.",
+    "honest_label": "The published figure is a DIAGNOSTIC-EVIDENCE PROXY for Debuggability. It must be reported under that description. It is not, and must not be presented as, a measurement of diagnosis turns, repair turns, token cost, misdiagnosis rate or diagnosis success.",
+    "seventh_sub_metric": "The frozen protocol's `detection_stage` sub-metric is deliberately EXCLUDED from this formula; see `non_double_counting`.",
+    "for_the_scoring_owner": "Whether this proxy satisfies the spec 8.1 publication gate for the Debuggability metric is a decision for the scoring owner. This document supplies the measurement and the disclosure, not that decision. The frozen 80-session protocol remains Not Executed and is recorded as such in NOT_EXECUTED.md.",
+    "human_time_fields": "`time_to_detection_human` and `time_to_root_cause_human` are recorded in every per-language record as the literal string 'N/A - no human study performed', exactly as the frozen protocol requires. They never become numbers and never enter any score."
+  },
+  "non_double_counting": {
+    "metrics_already_derived_from_this_evidence": [
+      "Early Error Detection",
+      "Boundary Value Safety",
+      "Adversarial Input Robustness",
+      "Runtime Safety",
+      "Silent Bug Resistance",
+      "Implementation Robustness"
+    ],
+    "what_those_metrics_score": "Every one of them is a function of the recorded RUNG - the `earliest_observable_stage` of each row - and of nothing else. Early Error Detection, Boundary Value Safety and Adversarial Input Robustness are means of the family-F stage score over the whole case set or a subset; Runtime Safety and Silent Bug Resistance are rates over rung membership; Implementation Robustness is a rate over toolchain-failure flags.",
+    "what_this_metric_scores_instead": "The CONTENT of the recorded fault report. The formula never reads `earliest_observable_stage`, `stage_score`, `outcome_class` or any rung membership, with the single declared exception of the Prevented By Construction rung (see `prevented_by_construction_rule`). Two rows on the same rung routinely receive different Debuggability scores, and two rows on different rungs routinely receive the same one.",
+    "design_guarantee_that_this_is_not_a_recolouring_of_the_stage": "The formula is a function of the recorded fault-report TEXT alone. Two rows on the same rung receive different scores whenever their fault reports differ in content, and two rows on different rungs receive the same score whenever their fault reports carry the same three properties. A compile-time rejection that names neither the hazard nor a code outscores nothing; a runtime detection that names the hazard, the line and the code scores 100. The measured spread within each rung is published in `post_computation_addendum`, together with the correlation of this metric against each metric already derived from these rows.",
+    "the_overlap_that_does_remain": "A hazard that produced NO fault report has no content to score and takes 0. Silent Bug Resistance also counts such rows. The two metrics are therefore correlated at the bottom of the scale, and this is disclosed rather than engineered away: it is a structural consequence of the fact that a message which does not exist cannot name a hazard. It is not a re-aggregation - Silent Bug Resistance is a RATE over a rung membership, this metric is a MEAN over the content of what was printed, and the rank order of the ten languages differs between them.",
+    "frozen_document_position": "08_adversarial_cases.json states that the metrics derived from this evidence deliberately share it and that each is computed once by its own formula. This metric is computed once, by the formula below."
+  },
+  "substrate_selection": {
+    "problem": "The 374 measured records were written by several per-language recorders and their metadata field names differ: `structured_diagnostic` is populated on 34 C++ rows and 0 Go rows, `lexicon_match` on 19 Kotlin rows and 0 Java rows, `first_diagnostic_verbatim` on some configurations and `first_diagnostic_line_verbatim` on others. Scoring a language on whether ITS recorder filled in a field would measure the recorder, not the language.",
+    "resolution": "The metric is computed from the one substrate that exists for all 374 rows: the stdout and stderr ACTUALLY WRITTEN by the frozen build command and the frozen run command, read from the evidence files named by the records' own `*_path` fields (all 6,381 recorded paths were verified to exist). One matcher set, defined below, is applied unchanged to all eleven configurations.",
+    "recorder_metadata_used": "Only `earliest_observable_stage` (for the Prevented By Construction rule and for reporting), `flags` (reporting only), `evidence_precedence_level_used` (reporting only) and `na` (N/A policy) are taken from the records. No component reads a recorder's own lexicon-match verdict."
+  },
+  "row_set": {
+    "inclusion_criterion": "Every case-variant row of the frozen scored case set, in the PRIMARY configuration, for every language: the 34 rows of `fixed_scored_case_variant_list`, covering all 26 cases of `case_set.cases`. A row is included because it is in the frozen scored list, never because of what it contains.",
+    "rows": 34,
+    "cases": 26,
+    "configurations_measured": 11,
+    "excluded_and_why": {
+      "secondary_non_scoring_configurations": "Excluded from the fault report. 08_adversarial_cases.json makes the secondary configurations explicitly non-scoring because not every language has an equivalent (spec 7). Sanitizer and checked-build output therefore never contributes to any component. They are published beside the scored figure as the frozen document requires, not inside it.",
+      "auxiliary_structured_check_invocations": "Excluded. Where a recorder additionally invoked a structured checking command that is NOT the frozen build or run command - `quidra check --json` for the two Quidra configurations - its output is not part of the fault report, because no equivalent invocation was made for the other nine languages. Including it would have scored Quidra on a command the comparison set never ran. See `matcher_self_test` defect 1.",
+      "post_rejection_probes_staleness_probes_regeneration_probes": "Excluded: not the frozen build or run command."
+    }
+  },
+  "fault_report_definition": {
+    "rule": "The fault report of a row is the concatenation of (a) the stdout and stderr of every BUILD invocation in that row that exited non-zero, and (b) the stdout and stderr of RUN #1 of every run invocation in that row, with the harness sentinel lines `ADV-START`, `ADV-END` and the `OBS=` observation payload removed.",
+    "why_run_1": "Spec 25.2 fixes the median as the representative value for repeated measurements; for text the records show the observation identical across the five repetitions on every row but one, and run #1 is the run whose artefact the frozen protocol itself hands to a reader. All five runs are preserved in the evidence tree either way.",
+    "why_a_successful_build_is_excluded": "Output from a build that SUCCEEDED is warning chatter that did not stop the program and did not point at the observed fault. Counting it credited, for example, a Rust row whose only build output was `warning: field is never read` on a case whose defect was a runtime abort. The rule is applied identically to all ten languages and costs several of them; see `matcher_self_test` defect 2.",
+    "why_sentinels_are_stripped": "`ADV-START`/`ADV-END`/`OBS=` are the harness's own protocol lines and the program's observation payload. They are not diagnostics and are present or absent for reasons unrelated to diagnostic quality."
+  },
+  "components": {
+    "count": 3,
+    "weighting": "Equal, 1/3 each. Spec 8.1 fixes equal weighting within a group wherever the specification does not name a more specific aggregation; no weighting was invented for this run.",
+    "A1_hazard_identification": {
+      "question": "Does the fault report say WHAT went wrong, in the benchmark's own language-neutral hazard vocabulary?",
+      "values": {
+        "1.0": "the fault report matches at least one fragment of the case's own frozen `hazard_diagnostic_lexicon`",
+        "0.5": "it matches no fragment of the case's lexicon but matches at least one fragment of the frozen `global_hazard_diagnostic_lexicon`, so it names A hazard but not this case's",
+        "0.0": "no fault report, or a fault report that matches neither"
+      },
+      "matcher": "The frozen fragments of `global_hazard_diagnostic_lexicon.fragments`, compiled case-insensitively, exactly as frozen. No fragment was added, removed or reworded for this metric, for any language, at any time.",
+      "known_limitation": "The frozen lexicon was authored as a classification aid, not as a completeness guarantee, and its coverage of the ten toolchains' wording is uneven. A diagnostic that names its hazard in words the lexicon does not contain scores 0.5 or 0.0 here. The frozen records already flag this as `diagnostic_mismatch` and `compile_rejection_unmatched_lexicon`. Both counts, and the count of rows with a fault report but A1 = 0, are published per language beside the score, together with the exact bound on how much the score could rise if every such diagnostic were judged to name its hazard. The lexicon is NOT extended, because extending it after the diagnostics are visible is post-result formula selection (spec 25.4)."
+    },
+    "A2_fault_site_localization": {
+      "question": "Does the fault report say WHERE, as a source position?",
+      "values": {
+        "1.0": "the fault report contains at least one source-position form",
+        "0.0": "it does not, or there is no fault report"
+      },
+      "forms": [
+        {
+          "pattern": "[\\w./+-]+\\.[A-Za-z][A-Za-z0-9+]{0,4}:\\d+(?::\\d+)?",
+          "reads": "file.ext:line[:col]"
+        },
+        {
+          "pattern": "[\\w./+-]+\\.[A-Za-z][A-Za-z0-9+]{0,4}\\(\\d+,\\d+\\)",
+          "reads": "file.ext(line,col)"
+        },
+        {
+          "pattern": "\\bline\\s+\\d+\\b",
+          "reads": "line N"
+        },
+        {
+          "pattern": "\\bat\\s+\\d+:\\d+",
+          "reads": "at line:col"
+        },
+        {
+          "pattern": "<[A-Za-z][A-Za-z0-9_]*>:\\d+(?::\\d+)?",
+          "reads": "<unit>:line[:col]"
+        }
+      ],
+      "construction_rule": "The alternation was built from the position syntaxes the ten toolchains use, one entry per syntax, before any score existed: `file.ext:line[:col]` (Go, Rust, Zig, Kotlin, Swift, C++, Node), `file.ext(line,col)` (TypeScript / tsc), `... line N` (Python tracebacks, Swift fatal-error lines), `at line:col` (Quidra's runtime diagnostics, which carry no file name) and `<unit>:line[:col]` (a synthetic unit). Every language's own form is present; none was added after a result was seen."
+    },
+    "A3_machine_stable_fault_key": {
+      "question": "Does the fault report carry an identifier for the ERROR KIND that a tool, a grep, a test assertion or a documentation index can key on without parsing prose?",
+      "values": {
+        "1.0": "the fault report contains at least one such identifier",
+        "0.0": "it does not, or there is no fault report"
+      },
+      "forms": [
+        {
+          "pattern": "\\berror\\[[A-Za-z0-9_]+\\]",
+          "reads": "error[CODE]"
+        },
+        {
+          "pattern": "\\b(?:error|code)\\s*[ =:]\\s*[A-Z]{0,5}\\d{2,5}\\b",
+          "reads": "error/code NNNN"
+        },
+        {
+          "pattern": "\\b[A-Z][A-Za-z0-9_]*(?:Error|Exception)\\b",
+          "reads": "TypedError/Exception name"
+        },
+        {
+          "pattern": "\\berror\\.[A-Za-z][A-Za-z0-9_]*\\b",
+          "reads": "error.Value"
+        },
+        {
+          "pattern": "\\berror:[ \\t]*[A-Z][A-Za-z0-9_]*[ \\t]*(?:\\n|\\r|$)",
+          "reads": "error: ErrorSetValue"
+        },
+        {
+          "pattern": "\\[-W[a-z0-9-]+\\]",
+          "reads": "[-Wdiagnostic-name]"
+        }
+      ],
+      "construction_rule": "One entry per form in which a toolchain in the comparison set publishes a stable error identity: a bracketed code (`error[E0308]` for Rust, `error[TYPE_MISMATCH]` for Quidra), a numeric code attached to the word error or code (`error TS18047` for TypeScript, `Code=259` for a Foundation NSError), a CamelCase type name ending in Error or Exception (Java, Kotlin, Python, JavaScript), an error-set value (`error.Overflow` or a line whose whole payload after `error:` is one CamelCase identifier, for Zig) and a diagnostic-option tag (`[-Wconstant-conversion]`, for Clang and GCC).",
+      "languages_that_score_low_here_and_why": "Go and Swift publish no stable identifier for a compile diagnostic or a runtime panic, and C++ publishes one only for warnings that carry a `-W` tag. That is a real property of those toolchains, not a gap in the matcher: there is no `go build` error code to look up and no Swift diagnostic code. Under spec 7 this is scored as it is, with no allowance in either direction.",
+      "what_is_deliberately_NOT_counted": "Stable PROSE - `panic: runtime error:`, `Fatal error:`, `Traceback (most recent call last):` - is not an identifier; it names no error kind that a tool can enumerate. Counting it would have promoted one language's prose to the status of another language's code."
+    }
+  },
+  "formula": {
+    "row_evidence_score": "evidence(row) = 100 * (A1 + A2 + A3) / 3, each component as defined above, all three zero when the row produced no fault report.",
+    "row_score": "row_score = ( n_pbc * 100 + (n_rungs - n_pbc) * evidence(row) ) / n_rungs, where n_rungs is the number of rung tokens the record's `earliest_observable_stage` names for that row (1 for an ordinary row, 2 for a two-sub-program row) and n_pbc is how many of them are `Prevented By Construction`.",
+    "case_score": "case_score = unweighted arithmetic mean of the row scores of that case's variants and sub-programs (spec 25.2).",
+    "metric": "Debuggability = unweighted arithmetic mean of the 26 case scores, clipped to [0,100], reported to two decimal places; ranking uses the unrounded value (spec 25.3).",
+    "per_hazard_not_per_variant": "The scored quantity is the mean over the 26 CASES, so each spec-17 hazard carries equal weight, exactly as Early Error Detection does after its own correction. The 34-row per-variant mean is published beside it as `DBG_per_variant` and is not the scored figure."
+  },
+  "prevented_by_construction_rule": {
+    "rule": "A rung recorded as `Prevented By Construction` contributes 100 instead of an evidence score.",
+    "why": "Where the hazard cannot arise in that language, no defect exists, so no fault report can exist and none is owed. Scoring such a rung 0 would make this metric reward HAVING the hazard, which is the opposite of what spec 18 and spec 19 ask for. The frozen `fixed_stage_score_table.registered_addition` already resolves this rung to 100, and `na_policy.never_na` directs a missing capability to that resolution rather than to N/A.",
+    "this_is_the_only_place_a_rung_label_enters_the_formula": true,
+    "mandatory_dual_publication": "Because `Prevented By Construction` is a registered addition to a fixed normalization family, the frozen table requires every metric that uses it to be published twice. Every per-language record therefore carries `DBG_excluding_prevented_by_construction`, the same metric with Prevented-By-Construction rows dropped from numerator and denominator, with the dropped count printed. Any ranking that cites one cites the other.",
+    "companion_counts": "`n_prevented_by_construction_rungs` is published for every language."
+  },
+  "normalization_family": {
+    "family": "A (spec 25.1.A) - rates, probabilities and bounded success fractions where 1.0 is ideal: `Score = 100 * clamp(raw_fraction, 0, 1)`.",
+    "justification": "Each component is a bounded success fraction on [0,1] for which 1.0 is unambiguously the ideal - the report named the hazard, gave the position, carried a key. Their equally weighted mean is again a bounded fraction on [0,1], and the case-level and metric-level means preserve that bound, so the whole quantity is a family-A fraction scaled by 100. 100 is best and 0 is worst, as spec 25.4 requires.",
+    "why_not_family_F": "Family F is the fixed ORDERED DEFECT-DETECTION STAGE ladder. This metric deliberately does not score the stage - that is what Early Error Detection already does from the same rows - so family F does not apply to it. The one place a family-F value appears is the Prevented By Construction rung's fixed 100, taken from the frozen table rather than invented here.",
+    "why_not_family_C": "Family C is for positive lower-is-better physical quantities. The frozen session protocol used it for turns and tokens; this metric measures none of those, so no family-C sub-metric and no family-C disclosure applies.",
+    "no_new_scale": "No new scale is introduced. The frozen `fixed_stage_score_table` is used unchanged where it is used at all, and the frozen hazard lexicons are used unchanged."
+  },
+  "na_policy": {
+    "rule": "A row is N/A only where the frozen `na_policy` of 08_adversarial_cases.json already records it as N/A - a toolchain defect on this host, a missing host facility, or an authoring defect that cannot be corrected without changing the case. An N/A row leaves both numerator and denominator; where only one variant of a case is N/A the case scores its remaining variant; a case all of whose members are N/A leaves the 26-case denominator, and the count is printed beside the score.",
+    "measured_state": "ZERO of the 374 rows carries `na`, and zero carries `na_authoring_defect`. No language's denominator is reduced in this run.",
+    "a_missing_capability_is_not_NA": "A language whose toolchain produces no fault report, no source position or no error identifier for a hazard the case exercises is NOT N/A. It takes the low score. That is the capability the metric intentionally tests (spec 26, spec 8.1).",
+    "silence_is_a_score_not_an_exclusion": "A row with no fault report scores 0 and stays in the denominator. It is never dropped, because dropping it would hide the outcome the metric exists to expose (spec 32).",
+    "not_executed_is_not_NA": "The frozen 80-session agent protocol is Not Executed and is recorded as Not Executed. It is not converted into N/A and no weight is renormalised around it (spec 26)."
+  },
+  "matcher_self_test": {
+    "purpose": "Before freezing, each matcher was run against the measured corpus and every row where a component fired or failed to fire was read by eye, to find matchers that were measuring the recorder or the wording rather than the toolchain.",
+    "defect_1_corrected": {
+      "finding": "Including the auxiliary `quidra check --json` output in the fault report gave Quidra spurious A1 credit on four rows: the JSON envelope contains the literal `\"truncated\":false`, and the frozen fragment `L_NARROW` matches the substring `truncat`. A clean structured check that found nothing was therefore being counted as a diagnostic that named a narrowing hazard.",
+      "correction": "The fault report is restricted to the frozen build and run commands, for every language. No auxiliary command's output is counted for any language.",
+      "direction": "AGAINST the subject language. It lowers Quidra's A1 on ADV-01/C, ADV-01/R, ADV-05/C and ADV-05/R."
+    },
+    "defect_2_corrected": {
+      "finding": "Including the output of builds that SUCCEEDED credited unrelated warning chatter: a Rust row whose defect was a runtime abort was scoring on `warning: field is never read`, and C++ rows were scoring on warnings the program then ignored.",
+      "correction": "Only the output of a build that exited non-zero enters the fault report; where a record does not preserve that build's exit status, its output enters only if it carries an `error` severity marker.",
+      "direction": "Against Rust and C++, and neutral for Quidra."
+    },
+    "residual_limitation_published_not_corrected": "The frozen hazard lexicon's wording coverage is uneven across the ten toolchains and is NOT extended here. It costs Quidra 12 rows and Zig 8 rows on which an informative diagnostic exists but matches no frozen fragment - Quidra writes 'index -1 outside length 5' where the lexicon expects 'index out of range', 'call depth limit' where it expects 'stack overflow', and 'Expected X but received Y' where it expects 'expected ... but got/found'. The per-language counts and the exact upper bound on the effect are published beside every score. Correcting the lexicon after reading the diagnostics would be post-result formula selection."
+  },
+  "reported_beside_the_score": {
+    "per_language": [
+      "DBG_per_variant - the 34-row per-variant mean (not the scored figure)",
+      "DBG_excluding_prevented_by_construction - the mandatory dual publication, with the excluded case count",
+      "DBG_frozen_8_case_corpus - this metric restricted to the 8 case-variants the frozen debuggability_protocol named as its corpus, so the frozen corpus choice stays visible",
+      "component means A1, A2, A3",
+      "n_rows_with_fault_report, out of 34",
+      "n_prevented_by_construction_rungs",
+      "n_rows_with_fault_report_but_A1_zero, n_flag_diagnostic_mismatch, n_flag_compile_rejection_unmatched_lexicon, and lexicon_coverage_upper_bound_points - the most the score could rise if every unmatched-but-informative diagnostic were judged to name its hazard",
+      "the evidence-precedence-level histogram and the stage histogram, as context only - neither enters the formula",
+      "time_to_detection_human and time_to_root_cause_human, both the literal string 'N/A - no human study performed'"
+    ]
+  },
+  "prohibited_practices_restated": [
+    "No human debugging time is measured, estimated, modelled or reported, for any language including Quidra.",
+    "No agent turn, token or misdiagnosis figure is reported, because none was measured.",
+    "No young-language allowance: a toolchain that emits nothing today scores 0 on that row (spec 7).",
+    "No metric-specific formula was chosen after seeing results, and no formula exists here whose purpose is to improve Quidra's relative position (spec 25.4, 32).",
+    "No frozen document, measured record or case-set entry was modified by this work."
+  ]
+}

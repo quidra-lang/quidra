@@ -1,0 +1,242 @@
+name: native-performance
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/native-performance.yml"
+      - "src/**"
+      - "include/**"
+      - "CMakeLists.txt"
+      - "tests/performance_regressions.py"
+      - "tests/native_performance_trends.py"
+      - "benchmark/**"
+
+concurrency:
+  group: native-performance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repl-latency:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ runner.os }}-${{ github.workflow }}-${{ hashFiles('CMakeLists.txt', 'src/**', 'include/**') }}
+          restore-keys: |
+            ccache-${{ runner.os }}-${{ github.workflow }}-
+
+      - name: Install native dependencies
+        run: brew install ccache llvm curl libpng jpeg-turbo libtiff webp ffmpeg
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DQUIDRA_WARNINGS_AS_ERRORS=ON -DCMAKE_PREFIX_PATH="$(brew --prefix curl);$(brew --prefix libpng);$(brew --prefix jpeg-turbo);$(brew --prefix libtiff);$(brew --prefix webp);$(brew --prefix ffmpeg)" -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+      - name: Build Quidra
+        run: cmake --build build --parallel
+      - name: Measure representative native workloads
+        run: python3 tests/native_performance_trends.py build/quidra --output "$RUNNER_TEMP/native-performance-trends.json"
+      - name: Summarize representative native workloads
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, os
+          path = os.path.join(os.environ["RUNNER_TEMP"], "native-performance-trends.json")
+          if not os.path.exists(path):
+              raise SystemExit(0)
+          data = json.load(open(path))
+          lines = ["## Representative native workload trends", "", "| workload | run median | build | artifact |", "| --- | ---: | ---: | ---: |"]
+          for name, row in data["workloads"].items():
+              lines.append(f"| {name} | {row['run_median_seconds']:.4f} s | {row['build_seconds']:.3f} s | {row['artifact_bytes']} B |")
+          lines.append("")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as handle:
+              handle.write("\n".join(lines) + "\n")
+          PY
+      - name: Measure runtime performance trends
+        env:
+          QUIDRA_PERF_JSON: ${{ runner.temp }}/runtime-performance.json
+        run: python3 tests/performance_regressions.py "${{ github.workspace }}/build/quidra" "${{ github.workspace }}"
+      - name: Summarize runtime performance trends
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, os
+          path = os.path.join(os.environ["RUNNER_TEMP"], "runtime-performance.json")
+          if not os.path.exists(path):
+              print("runtime-performance.json was not produced")
+              raise SystemExit(0)
+          data = json.load(open(path))
+          lines = ["## Runtime performance trends", ""]
+          for item in data["measurements"]:
+              if item["kind"] == "ratio":
+                  lines.append(
+                      f"- {item['name']}: {item['baseline_seconds']:.4f}s -> "
+                      f"{item['candidate_seconds']:.4f}s ({item['ratio']:.2f}x)"
+                  )
+              elif item["kind"] == "correctness":
+                  lines.append(f"- {item['name']}: {item.get('status', 'passed')}")
+              elif item.get("status") == "measured":
+                  lines.append(
+                      f"- {item['name']}: n={item['small_n']} {item['small_seconds']:.4f}s -> "
+                      f"n={item['large_n']} {item['large_seconds']:.4f}s "
+                      f"({item['work_ratio']:.2f}x workload ratio)"
+                  )
+              else:
+                  lines.append(
+                      f"- {item['name']}: below startup resolution "
+                      f"({item['startup_seconds']:.4f}s startup)"
+                  )
+          text = "\n".join(lines) + "\n"
+          print(text)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as handle:
+              handle.write(text)
+          PY
+      - name: Preserve runtime performance measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-performance-${{ github.sha }}
+          path: ${{ runner.temp }}/runtime-performance.json
+          if-no-files-found: warn
+
+      - name: Measure persistent REPL latency
+        env:
+          QUIDRA_BIN: ${{ github.workspace }}/build/quidra
+        run: |
+          python3 - <<'PY'
+          import json, os, pty, select, statistics, subprocess, termios, time
+          quidra = os.environ["QUIDRA_BIN"]
+
+          def start_repl():
+              # The REPL deliberately gives redirected pipe input file semantics.
+              # Use a PTY here so this benchmark exercises the real interactive path.
+              master, slave = pty.openpty()
+              attrs = termios.tcgetattr(slave)
+              attrs[3] &= ~termios.ECHO
+              termios.tcsetattr(slave, termios.TCSANOW, attrs)
+              process = subprocess.Popen(
+                  [quidra, "repl"], stdin=slave, stdout=slave, stderr=slave,
+                  close_fds=True)
+              os.close(slave)
+              return process, master
+
+          def read_prompt(process, fd, timeout=120):
+              data = bytearray()
+              deadline = time.monotonic() + timeout
+              while b">>> " not in data:
+                  remaining = deadline - time.monotonic()
+                  if remaining <= 0:
+                      process.kill()
+                      raise SystemExit("timed out waiting for REPL prompt")
+                  ready, _, _ = select.select([fd], [], [], remaining)
+                  if not ready:
+                      process.kill()
+                      raise SystemExit("timed out waiting for REPL output")
+                  try:
+                      chunk = os.read(fd, 4096)
+                  except OSError:
+                      chunk = b""
+                  if not chunk:
+                      raise SystemExit(f"REPL exited before prompt with {process.poll()}")
+                  data.extend(chunk)
+
+          def startup_once():
+              started = time.perf_counter()
+              process, fd = start_repl()
+              try:
+                  read_prompt(process, fd)
+                  os.write(fd, b":quit\n")
+                  if process.wait(timeout=30) != 0:
+                      raise SystemExit("REPL startup session exited nonzero")
+                  return time.perf_counter() - started
+              finally:
+                  os.close(fd)
+
+          def session_once():
+              process, fd = start_repl()
+              try:
+                  read_prompt(process, fd)
+                  declarations = []
+                  for index in range(20):
+                      source = (
+                          f"int repl_perf_{index}(int value)\n"
+                          f"    return value + {index}\n\n").encode()
+                      started = time.perf_counter()
+                      os.write(fd, source)
+                      read_prompt(process, fd)
+                      declarations.append(time.perf_counter() - started)
+
+                  expressions = []
+                  for value in range(5):
+                      started = time.perf_counter()
+                      os.write(fd, f"repl_perf_19({value})\n".encode())
+                      read_prompt(process, fd)
+                      expressions.append(time.perf_counter() - started)
+
+                  os.write(fd, b":quit\n")
+                  if process.wait(timeout=30) != 0:
+                      raise SystemExit("REPL session exited nonzero")
+                  return declarations, expressions
+              finally:
+                  os.close(fd)
+
+          startup = [startup_once() for _ in range(5)]
+          declaration_samples = []
+          expression_samples = []
+          for _ in range(3):
+              declarations, expressions = session_once()
+              declaration_samples.extend(declarations[10:])
+              expression_samples.extend(expressions)
+
+          result = {
+              "kind": "persistent-repl-latency",
+              "startup_seconds": startup,
+              "startup_median_seconds": statistics.median(startup),
+              "declaration_seconds": declaration_samples,
+              "declaration_median_seconds": statistics.median(declaration_samples),
+              "expression_seconds": expression_samples,
+              "expression_median_seconds": statistics.median(expression_samples),
+              "sessions": 3,
+              "declarations_per_session": 20,
+              "measured_declarations_per_session": 10,
+              "expressions_per_session": 5,
+          }
+          path = os.path.join(os.environ["RUNNER_TEMP"], "repl-latency.json")
+          with open(path, "w") as handle:
+              json.dump(result, handle, indent=2)
+          print(json.dumps(result, indent=2))
+          PY
+      - name: Summarize REPL latency
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json, os
+          path = os.path.join(os.environ["RUNNER_TEMP"], "repl-latency.json")
+          if not os.path.exists(path):
+              print("repl-latency.json was not produced")
+              raise SystemExit(0)
+          data = json.load(open(path))
+          text = "\n".join([
+              "## Persistent REPL latency",
+              "",
+              f"- startup median: {data['startup_median_seconds']:.4f} s",
+              f"- declaration-only submission median: {data['declaration_median_seconds']:.4f} s",
+              f"- executable expression submission median: {data['expression_median_seconds']:.4f} s",
+              "",
+              "Executable-expression latency is measured through the REPL's LLVM ORC JIT path, without Clang/linker/executable generation."
+          ]) + "\n"
+          print(text)
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as handle:
+              handle.write(text)
+          PY
+      - name: Preserve performance measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-performance-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/native-performance-trends.json
+            ${{ runner.temp }}/repl-latency.json
+          if-no-files-found: warn

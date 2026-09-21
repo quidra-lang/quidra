@@ -145,6 +145,7 @@ class InferenceGatewayClient:
         stop: list[str] | None = None,
         network_allowed: bool = False,
         request_id: str | None = None,
+        purpose: str | None = None,
     ) -> dict[str, Any]:
         payload: dict[str, Any] = {
             "schema_version": 1,
@@ -156,6 +157,13 @@ class InferenceGatewayClient:
         }
         if task_id:
             payload["task_id"] = task_id
+        # A label, not a decoding parameter: the trusted side maps each purpose
+        # to a frozen depth. "scored" is a trial or packet-only completion that
+        # the benchmark measures; "orchestration" is a sandbox-agent action turn,
+        # which is never scored and is decoded shallowly so it cannot spend the
+        # whole output cap on reasoning before emitting its one JSON action.
+        if purpose is not None:
+            payload["purpose"] = str(purpose)
         if temperature is not None:
             payload["temperature"] = float(temperature)
         if stop:

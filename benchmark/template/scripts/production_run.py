@@ -54,13 +54,23 @@ def run_cli(root: Path, *args: str, check: bool = True) -> subprocess.CompletedP
     return completed
 
 
-def write_policy(root: Path, output: Path) -> dict[str, Any]:
+def write_policy(root: Path, output: Path, model: str | None = None) -> dict[str, Any]:
     benchmark.assert_template_integrity(root)
     manifest_path = root / "work" / "root" / "manifest.json"
     if not manifest_path.is_file():
         raise ProductionRunError("manifest missing; run deterministic prepare first")
     manifest = json_load(manifest_path)
+    isolation = benchmark.worker_isolation_config(root)
+    guard = isolation.get("task_spend_guard") or {}
+    floor_usd = float(guard.get("floor_usd", 0) or 0)
+    multiplier = float(guard.get("envelope_multiplier", 0) or 0)
+    gateway = benchmark.gateway_config(root)
+    pricing = (gateway.get("anthropic_pricing") or {}).get(model or "", {}) if model else {}
+    input_price = float(pricing.get("input_usd_per_million_tokens", 0) or 0)
+    output_price = float(pricing.get("output_usd_per_million_tokens", 0) or 0)
+
     tasks: dict[str, str] = {}
+    budgets: dict[str, float] = {}
     for unit in manifest.get("work_units", []):
         if unit.get("execution_kind", "agent") != "agent":
             continue
@@ -71,12 +81,25 @@ def write_policy(root: Path, output: Path) -> dict[str, Any]:
         if agent_id in tasks and tasks[agent_id] != policy:
             raise ProductionRunError(f"conflicting network policy for {agent_id}")
         tasks[agent_id] = policy
+        # A per-task soft ceiling the gateway enforces: the unit's planned token
+        # envelope at frozen prices, with headroom for the agent's own turns,
+        # never below the floor. Its job is to stop one runaway unit from
+        # spending the run's budget by itself, not to price the unit exactly.
+        if floor_usd > 0 or multiplier > 0:
+            calls = int(unit.get("max_llm_calls", 0) or 0)
+            per_call = (
+                int(unit.get("estimated_input_tokens_per_call", 0) or 0) * input_price
+                + int(unit.get("max_output_tokens_per_call", 0) or 0) * output_price
+            ) / 1_000_000.0
+            budgets[agent_id] = round(max(floor_usd, multiplier * calls * per_call), 4)
 
     payload = {
         "schema_version": 1,
         "manifest_sha256": benchmark.sha256_file(manifest_path),
         "tasks": tasks,
     }
+    if budgets:
+        payload["budgets"] = budgets
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return payload
@@ -91,8 +114,32 @@ def ledger_state(root: Path, work_unit_id: str) -> dict[str, Any]:
     return json_load(root / "work" / "root" / "ledger.json")["units"][work_unit_id]
 
 
+#: Provider answers that no retry and no other unit can get past. Continuing
+#: would turn every remaining unit into three instant failures and a ledger
+#: full of blockers that say nothing about the work.
+FATAL_PROVIDER_TOKENS = (
+    "soft api budget exhausted",
+    "credit balance",
+    "provider http 401",
+    "provider http 403",
+    "authentication_error",
+    "permission_error",
+)
+
+#: Failures that repeat deterministically for the same request. Re-dispatching
+#: the unit buys the same failure again at the same price.
+NON_RETRYABLE_TOKENS = (
+    "spend ceiling",
+    "max_tokens",
+    "output limit",
+    "gateway refused",
+)
+
+
 def classify_failure(detail: str) -> str:
     lowered = detail.lower()
+    if "spend ceiling" in lowered or "gateway refused" in lowered:
+        return "budget-plan-defect"
     if any(token in lowered for token in (
         "gateway", "provider", "transport", "connection", "timed out", "timeout",
         "rate limit", "http 429", "http 5",
@@ -101,10 +148,19 @@ def classify_failure(detail: str) -> str:
     return "ordinary-incomplete"
 
 
+def is_retryable(detail: str) -> bool:
+    lowered = detail.lower()
+    return not any(token in lowered for token in NON_RETRYABLE_TOKENS)
+
+
 def handle_worker_failure(root: Path, unit: dict[str, Any], detail: str) -> None:
-    if "soft api budget exhausted" in detail.lower():
+    lowered = detail.lower()
+    fatal = next((token for token in FATAL_PROVIDER_TOKENS if token in lowered), None)
+    if fatal:
         raise ProductionRunError(
-            "soft API budget exhausted; stopping before another paid request"
+            f"the provider cannot serve this run any further ({fatal}); stopping "
+            "before another paid request so the remaining units stay pending "
+            "instead of being blocked one by one"
         )
 
     uid = str(unit["id"])
@@ -116,7 +172,7 @@ def handle_worker_failure(root: Path, unit: dict[str, Any], detail: str) -> None
     safe_detail = " ".join(detail.strip().split())[:1200] or "worker process failed"
     blocker_class = classify_failure(safe_detail)
 
-    if attempts < max_attempts:
+    if attempts < max_attempts and is_retryable(safe_detail):
         benchmark.archive_attempt(
             root, unit, attempts, "worker-process-failed-retry", reset=True
         )
@@ -141,7 +197,7 @@ def dispatch_one(root: Path, task: dict[str, Any], units: dict[str, dict[str, An
     run_cli(root, "task-start", "--id", uid)
 
     frozen_default = int(
-        benchmark.worker_isolation_config(root).get("default_max_output_tokens", 16384)
+        benchmark.worker_isolation_config(root).get("default_max_output_tokens", 8192)
     )
     max_output = int(unit.get("max_output_tokens_per_call", 0) or frozen_default)
     max_output = max(1, min(max_output, 32768))
@@ -371,6 +427,58 @@ def provider_smoke(
             bool(searched.get("content")),
             searched.get("usage"),
         )
+
+        # An orchestration-purpose turn is decoded at its own frozen depth. The
+        # label has to be accepted by the provider path and recorded as such,
+        # because every sandbox-agent action turn in the run will carry it.
+        orchestration = client.complete(
+            [{"role": "user", "content": "Reply with the single word: ready"}],
+            task_id=plain,
+            max_output_tokens=16,
+            purpose="orchestration",
+            request_id=uuid.uuid4().hex,
+        )
+        record_call("orchestration purpose (frozen shallow depth)", orchestration)
+        record(
+            "an orchestration-purpose request is accepted by the provider",
+            isinstance(orchestration.get("content"), str)
+            and orchestration["content"].strip() != "",
+            orchestration.get("content", "")[:120],
+        )
+
+        # Prompt caching is what keeps a growing sandbox-agent conversation from
+        # re-buying its whole prefix every turn. It is silent when it does not
+        # work, so prove it on this key: the same request twice, and the second
+        # must report a cache read. The prefix has to clear the model's minimum
+        # cacheable size, hence the filler.
+        filler = "\n".join(
+            f"Line {index:04d}: the quick brown fox jumps over the lazy dog."
+            for index in range(220)
+        )
+        cached_messages = [
+            {"role": "system", "content": "You answer with one word.\n\n" + filler},
+            {"role": "user", "content": "Reply with the single word: ready"},
+        ]
+        first = client.complete(
+            cached_messages, task_id=plain, max_output_tokens=16,
+            request_id=uuid.uuid4().hex,
+        )
+        second = client.complete(
+            cached_messages, task_id=plain, max_output_tokens=16,
+            request_id=uuid.uuid4().hex,
+        )
+        record_call("cache probe, first send", first)
+        record_call("cache probe, identical second send", second)
+        record(
+            "the provider reports cache activity fields",
+            "cache_read_input_tokens" in (first.get("usage") or {}),
+            first.get("usage"),
+        )
+        record(
+            "an identical second request is served from the prompt cache",
+            int((second.get("usage") or {}).get("cache_read_input_tokens", 0) or 0) > 0,
+            {"first": first.get("usage"), "second": second.get("usage")},
+        )
     finally:
         process.terminate()
         try:
@@ -390,7 +498,7 @@ def provider_smoke(
         "calls": calls,
         "spend": cost,
     }
-    if len(calls) == 2:
+    if len(calls) >= 2:
         plain_in = int(calls[0]["usage"].get("input_tokens", 0) or 0)
         tooled_in = int(calls[1]["usage"].get("input_tokens", 0) or 0)
         payload["input_token_breakdown"] = {
@@ -409,32 +517,59 @@ def provider_smoke(
 
 
 def build_cost_report(log_path: Path) -> dict[str, Any]:
+    totals = {
+        "input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 0,
+        "web_search_requests": 0,
+    }
     calls = 0
-    input_tokens = 0
-    output_tokens = 0
-    searches = 0
+    empty = 0
     estimated_cost = 0.0
+    errors: dict[str, int] = {}
+    by_task: dict[str, dict[str, Any]] = {}
     if log_path.is_file():
         for line in log_path.read_text(encoding="utf-8").splitlines():
             if not line.strip():
                 continue
             record = json.loads(line)
-            if record.get("event") != "inference":
+            event = record.get("event")
+            if event in {"provider_error", "policy_refusal", "protocol_error"}:
+                errors[event] = errors.get(event, 0) + 1
+                continue
+            if event != "inference":
                 continue
             calls += 1
             usage = record.get("usage", {}) or {}
-            input_tokens += int(usage.get("input_tokens", 0) or 0)
-            output_tokens += int(usage.get("output_tokens", 0) or 0)
-            searches += int(usage.get("web_search_requests", 0) or 0)
-            estimated_cost += float(usage.get("estimated_cost_usd", 0.0) or 0.0)
+            for key in totals:
+                totals[key] += int(usage.get(key, 0) or 0)
+            cost = float(usage.get("estimated_cost_usd", 0.0) or 0.0)
+            estimated_cost += cost
+            is_empty = int(record.get("response_chars", 1) or 0) == 0
+            empty += is_empty
+            task = str(record.get("task_id") or "")
+            entry = by_task.setdefault(task, {"calls": 0, "empty_completions": 0,
+                                              "estimated_cost_usd": 0.0})
+            entry["calls"] += 1
+            entry["empty_completions"] += is_empty
+            entry["estimated_cost_usd"] = round(entry["estimated_cost_usd"] + cost, 6)
     return {
         "schema_version": 1,
         "paid_inference_calls": calls,
-        "input_tokens": input_tokens,
-        "output_tokens": output_tokens,
-        "web_search_requests": searches,
+        **totals,
+        "empty_completions": empty,
         "estimated_cost_usd": round(estimated_cost, 6),
-        "note": "Estimated from the frozen per-token and web-search prices in the benchmark template.",
+        "gateway_errors": errors,
+        # Sorted by spend so the first lines answer where the money went.
+        "by_task": dict(sorted(
+            by_task.items(), key=lambda kv: -kv[1]["estimated_cost_usd"]
+        )),
+        "note": (
+            "Estimated from the frozen per-token, cache and web-search prices in the "
+            "benchmark template. input_tokens is the uncached remainder; the cached "
+            "prefix is reported and priced separately."
+        ),
     }
 
 
@@ -445,6 +580,11 @@ def build_parser() -> argparse.ArgumentParser:
     policy = sub.add_parser("policy", help="freeze trusted per-task network policy")
     policy.add_argument("--workspace", required=True)
     policy.add_argument("--output", required=True)
+    policy.add_argument(
+        "--model",
+        help="model whose frozen prices size the per-task spend ceilings; without it "
+             "every ceiling is the configured floor",
+    )
 
     run = sub.add_parser("run", help="drive the prepared scored run to finalization")
     run.add_argument("--workspace", default="/quidra-benchmark")
@@ -470,7 +610,9 @@ def build_parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = build_parser().parse_args()
     if args.command == "policy":
-        payload = write_policy(Path(args.workspace).resolve(), Path(args.output).resolve())
+        payload = write_policy(
+            Path(args.workspace).resolve(), Path(args.output).resolve(), args.model
+        )
     elif args.command == "provider-smoke":
         payload = provider_smoke(
             args.model, Path(args.template).resolve(),

@@ -15,6 +15,7 @@
     "decoding_state": "provider-controlled",
     "thinking": "provider-default-adaptive",
     "effort": "high",
+    "orchestration_effort": "low",
     "note": "Scored requests send no temperature, top_p or top_k. The evaluated model family rejects them: on Claude Sonnet 5 those parameters are removed and a request carrying one fails with HTTP 400, so a fixed temperature is not a control that exists to be set. Section 6.2 of the LLM Proficiency specification already allows this: it requires identical decoding controls OR the same recorded provider-controlled state for all languages. That state is recorded here and in the gateway audit log. Depth is pinned through output_config.effort instead, which is the control this model family actually exposes, and it is identical for every language."
   },
   "llm_learnability": {
@@ -132,6 +133,15 @@
     "sandbox_agent_launcher": "scripts/sandbox_launcher.py",
     "packet_only_inference": "benchmark.py task-infer via the same credential-less gateway",
     "default_max_output_tokens": 8192,
-    "trial_turn_multiplier": 3
+    "orchestration_max_output_tokens": 8192,
+    "trial_turn_multiplier": 3,
+    "max_trial_batch": 16,
+    "trial_records": "runtime-owned files under work/agents/<agent-id>/trials/, written verbatim by scripts/sandbox_agent.py and not writable by the worker",
+    "prompt_caching": "trusted-side, invisible to the sandbox, changes prefix cost only",
+    "task_spend_guard": {
+      "floor_usd": 8.0,
+      "envelope_multiplier": 3.0,
+      "note": "Per-task soft ceiling enforced by the trusted gateway from the frozen task policy: max(floor, multiplier x the unit's planned token envelope). A unit that keeps spending past its plan is refused further inference and blocked, instead of consuming the run-wide budget on its own."
+    }
   }
 }

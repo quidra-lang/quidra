@@ -110,10 +110,11 @@ jobs:
             --provider fake \
             -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
 
-      - name: Freeze trusted task network policy
+      - name: Freeze trusted task network policy and spend ceilings
         run: |
           python benchmark/template/scripts/production_run.py policy \
             --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --model "$BENCHMARK_MODEL" \
             --output "$RUNNER_TEMP/task-policy.json"
 
       - name: Run paid production benchmark
@@ -143,6 +144,39 @@ jobs:
           python benchmark/template/scripts/production_run.py cost-report \
             --log "$RUNNER_TEMP/gateway-audit.jsonl" \
             --output "$RUNNER_TEMP/api-cost.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path(os.environ["RUNNER_TEMP"], "api-cost.json").read_text())
+          print(
+              f"spend: ${report['estimated_cost_usd']:.2f} over {report['paid_inference_calls']} calls; "
+              f"uncached in {report['input_tokens']}, cache read {report['cache_read_input_tokens']}, "
+              f"cache write {report['cache_creation_input_tokens']}, out {report['output_tokens']}, "
+              f"empty completions {report['empty_completions']}, errors {report['gateway_errors']}"
+          )
+          for task, entry in list(report["by_task"].items())[:15]:
+              print(f"  {entry['estimated_cost_usd']:7.2f}  {entry['calls']:4} calls  "
+                    f"{entry['empty_completions']:3} empty  {task}")
+          PY
+
+      - name: Snapshot the workspace before import discards it
+        if: always()
+        run: |
+          # post-run imports the retained set of the finished run and deletes the
+          # workspace. A unit that ended blocked has its evidence outside that set
+          # (work/attempts holds every retried attempt's directory), and a run that
+          # failed before finalizing has no retained set at all. Either way the
+          # workspace is the only record of what went wrong, so it is archived
+          # here, into RUNNER_TEMP, before anything discards it.
+          if [ -d .quidra-benchmark ]; then
+            tar -czf "$RUNNER_TEMP/workspace-evidence.tgz" \
+              --ignore-failed-read \
+              -C .quidra-benchmark \
+              run.json results raw prompts work/agents work/attempts \
+              work/root/manifest.json work/root/ledger.json \
+              work/root/plans work/root/commands 2>/dev/null || true
+            ls -la "$RUNNER_TEMP/workspace-evidence.tgz" || true
+          fi
 
       - name: Import the finished run
         if: success()
@@ -193,16 +227,9 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
           path: |
-            .quidra-benchmark/run.json
-            .quidra-benchmark/results
-            .quidra-benchmark/raw
-            .quidra-benchmark/prompts
-            .quidra-benchmark/work/agents
-            .quidra-benchmark/work/root/manifest.json
-            .quidra-benchmark/work/root/ledger.json
-            .quidra-benchmark/work/root/plans
-            .quidra-benchmark/work/root/commands
+            ${{ runner.temp }}/workspace-evidence.tgz
             benchmark/${{ env.RUN_ID }}
             ${{ runner.temp }}/api-cost.json
             ${{ runner.temp }}/gateway-audit.jsonl
             ${{ runner.temp }}/provider-smoke.json
+            ${{ runner.temp }}/task-policy.json

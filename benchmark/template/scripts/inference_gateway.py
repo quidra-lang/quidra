@@ -169,6 +169,7 @@ class FakeProvider(Provider):
         self.script: dict[str, Any] = {}
         self._script_source: str | None = None
         self._calls = 0
+        self._sequence_served = 0
         self._task_calls: dict[str, int] = {}
         self._lock = threading.Lock()
         self._reload()
@@ -220,6 +221,13 @@ class FakeProvider(Provider):
                 break
         transcript = "\n".join(f"{m['role']}:{m['content']}" for m in messages)
 
+        # A script may price its completions so the spend guards can be tested
+        # without a paid provider. Zero by default: the fake costs nothing.
+        usage = {"input_tokens": len(transcript) // 4, "output_tokens": 0}
+        priced = self.script.get("usage_cost_usd_per_call")
+        if priced is not None:
+            usage["estimated_cost_usd"] = float(priced)
+
         # Per-task turn scripts come first: they let one gateway drive many
         # independent work units deterministically, each with its own turn counter.
         turns = (self.script.get("tasks") or {}).get(task_id)
@@ -227,7 +235,7 @@ class FakeProvider(Provider):
             return {
                 "content": str(turns[task_index - 1]),
                 "stop_reason": "end_turn",
-                "usage": {"input_tokens": len(transcript) // 4, "output_tokens": 0},
+                "usage": dict(usage),
             }
 
         for rule in self.script.get("rules", []):
@@ -236,23 +244,31 @@ class FakeProvider(Provider):
                 return {
                     "content": str(rule["content"]),
                     "stop_reason": "end_turn",
-                    "usage": {"input_tokens": len(transcript) // 4, "output_tokens": 0},
+                    "usage": dict(usage),
                 }
 
+        # The sequence answers the calls that nothing above answered, in order.
+        # Counting every call here instead would let a scripted trial completion
+        # (served by a rule) silently consume the agent's next scripted action.
         sequence = self.script.get("sequence")
-        if sequence and call_index <= len(sequence):
-            return {
-                "content": str(sequence[call_index - 1]),
-                "stop_reason": "end_turn",
-                "usage": {"input_tokens": len(transcript) // 4, "output_tokens": 0},
-            }
+        if sequence:
+            with self._lock:
+                position = self._sequence_served
+                if position < len(sequence):
+                    self._sequence_served += 1
+            if position < len(sequence):
+                return {
+                    "content": str(sequence[position]),
+                    "stop_reason": "end_turn",
+                    "usage": dict(usage),
+                }
 
         default = self.script.get("default")
         if default is not None:
             return {
                 "content": str(default),
                 "stop_reason": "end_turn",
-                "usage": {"input_tokens": len(transcript) // 4, "output_tokens": 0},
+                "usage": dict(usage),
             }
 
         digest = sha256_text(transcript)
@@ -336,6 +352,7 @@ class AnthropicMessagesProvider(Provider):
         pricing: dict[str, Any] | None = None,
         web_search: dict[str, Any] | None = None,
         decoding: dict[str, Any] | None = None,
+        caching: dict[str, Any] | None = None,
         base_url: str | None = None,
     ) -> None:
         api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
@@ -365,8 +382,17 @@ class AnthropicMessagesProvider(Provider):
                 "model family rejects temperature/top_p/top_k with HTTP 400"
             )
         self.effort = self.decoding.get("effort")
+        # Sandbox-agent action turns are never scored. They are decoded at their
+        # own frozen depth because adaptive thinking is billed inside max_tokens:
+        # at the scored depth the first action turn of a unit regularly spent its
+        # whole cap on reasoning and returned no text, which ended the unit.
+        self.orchestration_effort = self.decoding.get("orchestration_effort") or self.effort
+        self.caching = dict(caching or {})
         self._estimated_cost_usd = 0.0
         self._lock = threading.Lock()
+
+    def effort_for(self, purpose: str | None) -> str | None:
+        return self.orchestration_effort if purpose == "orchestration" else self.effort
 
     def describe(self) -> dict[str, Any]:
         return {
@@ -377,6 +403,8 @@ class AnthropicMessagesProvider(Provider):
             "estimated_cost_usd": round(self._estimated_cost_usd, 6),
             "sampling_parameters": "omitted",
             "effort": self.effort,
+            "orchestration_effort": self.orchestration_effort,
+            "prompt_caching": bool(self.caching.get("enabled")),
         }
 
     def secrets(self) -> list[str]:
@@ -398,9 +426,23 @@ class AnthropicMessagesProvider(Provider):
     def _request_cost(self, usage: dict[str, Any]) -> float:
         if not self.pricing:
             return 0.0
+        input_price = float(self.pricing["input_usd_per_million_tokens"])
+        # The provider reports the uncached remainder as input_tokens and the
+        # cached prefix separately; each part has its own rate, and pricing the
+        # cached part at full rate would overstate spend by the whole prefix.
+        cache_write_price = float(
+            self.pricing.get("cache_write_usd_per_million_tokens", input_price * 1.25)
+        )
+        cache_read_price = float(
+            self.pricing.get("cache_read_usd_per_million_tokens", input_price * 0.1)
+        )
         return (
-            float(usage.get("input_tokens", 0) or 0)
-            * float(self.pricing["input_usd_per_million_tokens"])
+            float(usage.get("input_tokens", 0) or 0) * input_price / 1_000_000.0
+            + float(usage.get("cache_creation_input_tokens", 0) or 0)
+            * cache_write_price
+            / 1_000_000.0
+            + float(usage.get("cache_read_input_tokens", 0) or 0)
+            * cache_read_price
             / 1_000_000.0
             + float(usage.get("output_tokens", 0) or 0)
             * float(self.pricing["output_usd_per_million_tokens"])
@@ -432,23 +474,53 @@ class AnthropicMessagesProvider(Provider):
 
     def complete(self, request: dict[str, Any]) -> dict[str, Any]:
         system_chunks = [m["content"] for m in request["messages"] if m["role"] == "system"]
-        turns = [
+        turns: list[dict[str, Any]] = [
             {"role": m["role"], "content": m["content"]}
             for m in request["messages"]
             if m["role"] in {"user", "assistant"}
         ]
+        effort = self.effort_for(request.get("purpose"))
+        cache_marker = {"type": "ephemeral"}
+        caching = bool(self.caching.get("enabled"))
+        if caching and str(self.caching.get("ttl", "5m")) == "1h":
+            cache_marker["ttl"] = "1h"
         payload: dict[str, Any] = {
             "model": self.model,
             "max_tokens": int(request["max_output_tokens"]),
             "messages": turns,
         }
         if system_chunks:
-            payload["system"] = "\n\n".join(system_chunks)
+            system_text = "\n\n".join(system_chunks)
+            if caching:
+                payload["system"] = [
+                    {"type": "text", "text": system_text, "cache_control": dict(cache_marker)}
+                ]
+            else:
+                payload["system"] = system_text
+        # Prompt caching is a trusted-side pricing decision the sandbox cannot see
+        # or select. A sandbox-agent conversation grows by appending, so every
+        # turn re-sends the same prefix; a breakpoint on the last user block lets
+        # each turn read that prefix at the cache rate instead of full price. A
+        # server-side web-search loop re-sends the Task Packet on every
+        # continuation and benefits the same way. What the model sees and what it
+        # produces are unchanged.
+        if caching:
+            for index in range(len(turns) - 1, -1, -1):
+                if turns[index]["role"] == "user":
+                    turns[index] = {
+                        "role": "user",
+                        "content": [{
+                            "type": "text",
+                            "text": turns[index]["content"],
+                            "cache_control": dict(cache_marker),
+                        }],
+                    }
+                    break
         # No temperature/top_p/top_k: this model family removed them and rejects a
         # request carrying one with HTTP 400. Depth is pinned with effort, which is
         # the control it does expose, and thinking is left at the provider default.
-        if self.effort:
-            payload["output_config"] = {"effort": str(self.effort)}
+        if effort:
+            payload["output_config"] = {"effort": str(effort)}
         if request.get("stop"):
             payload["stop_sequences"] = list(request["stop"])
 
@@ -464,7 +536,13 @@ class AnthropicMessagesProvider(Provider):
 
         max_continuations = int(self.web_search.get("max_turn_continuations", 8) or 0)
         texts: list[str] = []
-        usage = {"input_tokens": 0, "output_tokens": 0, "web_search_requests": 0}
+        usage = {
+            "input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 0,
+            "output_tokens": 0,
+            "web_search_requests": 0,
+        }
         stop_reason = "end_turn"
         with self._lock:
             for continuation in range(max_continuations + 1):
@@ -495,6 +573,12 @@ class AnthropicMessagesProvider(Provider):
                 server_tool_use = raw_usage.get("server_tool_use", {}) or {}
                 step = {
                     "input_tokens": int(raw_usage.get("input_tokens", 0) or 0),
+                    "cache_creation_input_tokens": int(
+                        raw_usage.get("cache_creation_input_tokens", 0) or 0
+                    ),
+                    "cache_read_input_tokens": int(
+                        raw_usage.get("cache_read_input_tokens", 0) or 0
+                    ),
                     "output_tokens": int(raw_usage.get("output_tokens", 0) or 0),
                     "web_search_requests": int(server_tool_use.get("web_search_requests", 0) or 0),
                 }
@@ -516,6 +600,7 @@ class AnthropicMessagesProvider(Provider):
             "content": text,
             "stop_reason": stop_reason,
             "usage": usage,
+            "effort": effort,
         }
 
 def render_conversation(messages: list[dict[str, str]]) -> str:
@@ -544,8 +629,15 @@ def build_provider(args: argparse.Namespace, config: dict[str, Any]) -> Provider
             pricing=pricing,
             web_search=config.get("anthropic_web_search"),
             decoding=config.get("anthropic_decoding"),
+            caching=config.get("prompt_caching"),
         )
     raise GatewayError(f"unknown provider: {args.provider}")
+
+
+#: Request purposes the broker recognises. This is a label the trusted side maps
+#: to a frozen decoding depth; it is not a decoding parameter, which the sandbox
+#: may not supply.
+REQUEST_PURPOSES = ("scored", "orchestration")
 
 
 # --------------------------------------------------------------------------
@@ -613,6 +705,13 @@ def validate_inference_request(
     requested_network = request.get("network_allowed", False)
     if not isinstance(requested_network, bool):
         raise ProtocolError("network_allowed must be a boolean")
+
+    purpose = request.get("purpose", "scored")
+    if purpose not in REQUEST_PURPOSES:
+        raise ProtocolError(
+            "purpose must be one of " + ", ".join(REQUEST_PURPOSES)
+            + "; it names which frozen depth applies, it does not set one"
+        )
     # The sandbox may only ever narrow the run's policy. A task that claims more
     # network than the trusted side granted is refused rather than downgraded, so
     # a mis-scoped Task Packet is a visible failure instead of a silent one.
@@ -646,6 +745,7 @@ def validate_inference_request(
         "max_output_tokens": max_output_tokens,
         "stop": stop,
         "network_allowed": bool(requested_network),
+        "purpose": str(purpose),
     }
 
 
@@ -663,11 +763,17 @@ class GatewayState:
         task_policy: dict[str, str],
         log_path: Path | None,
         max_requests: int | None,
+        task_budgets: dict[str, float] | None = None,
     ) -> None:
         self.config = config
         self.provider = provider
         self.network_policy = network_policy
         self.task_policy = task_policy
+        # Per-task soft ceilings from the frozen policy, enforced here so they
+        # hold for every provider. A unit that keeps spending past its plan is
+        # refused its next request rather than draining the run-wide budget.
+        self.task_budgets = dict(task_budgets or {})
+        self.task_spend: dict[str, float] = {}
         self.log_path = log_path
         self.max_requests = max_requests
         self.started_at = utc_now()
@@ -675,11 +781,26 @@ class GatewayState:
         self.counters = {"health": 0, "inference": 0, "policy_refusals": 0, "errors": 0}
         self.usage = {
             "input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 0,
             "output_tokens": 0,
             "web_search_requests": 0,
             "estimated_cost_usd": 0.0,
         }
         self.shutdown_event = threading.Event()
+
+    def check_task_ceiling(self, task_id: str | None) -> None:
+        if not task_id or task_id not in self.task_budgets:
+            return
+        with self.lock:
+            spent = self.task_spend.get(task_id, 0.0)
+            ceiling = self.task_budgets[task_id]
+        if spent >= ceiling:
+            raise PolicyError(
+                f"task spend ceiling reached: {task_id} has an estimated "
+                f"{spent:.4f} USD against a frozen ceiling of {ceiling:.4f} USD; "
+                "the unit is stopped here so it cannot consume the run's budget alone"
+            )
 
     def log(self, record: dict[str, Any]) -> None:
         if self.log_path is None:
@@ -752,6 +873,7 @@ class GatewayHandler(socketserver.StreamRequestHandler):
                 request, config, state.network_policy, state.task_policy
             )
             request_id = validated["request_id"]
+            state.check_task_ceiling(validated["task_id"])
             started = time.perf_counter()
             result = state.provider.complete(validated)
             elapsed = time.perf_counter() - started
@@ -767,29 +889,36 @@ class GatewayHandler(socketserver.StreamRequestHandler):
                     f"provider completion exceeds the frozen limit {max_response} bytes"
                 )
             usage = result.get("usage") or {}
+            request_cost = float(usage.get("estimated_cost_usd", 0.0) or 0.0)
             with state.lock:
                 state.counters["inference"] += 1
-                state.usage["input_tokens"] += int(usage.get("input_tokens", 0) or 0)
-                state.usage["output_tokens"] += int(usage.get("output_tokens", 0) or 0)
-                state.usage["web_search_requests"] += int(
-                    usage.get("web_search_requests", 0) or 0
-                )
+                for key in (
+                    "input_tokens", "cache_creation_input_tokens",
+                    "cache_read_input_tokens", "output_tokens", "web_search_requests",
+                ):
+                    state.usage[key] += int(usage.get(key, 0) or 0)
                 state.usage["estimated_cost_usd"] = round(
-                    float(state.usage["estimated_cost_usd"])
-                    + float(usage.get("estimated_cost_usd", 0.0) or 0.0),
-                    6,
+                    float(state.usage["estimated_cost_usd"]) + request_cost, 6
                 )
+                if validated["task_id"]:
+                    state.task_spend[validated["task_id"]] = (
+                        state.task_spend.get(validated["task_id"], 0.0) + request_cost
+                    )
                 served = state.counters["inference"]
+            describe = state.provider.describe()
             state.log({
                 "event": "inference",
                 "request_id": validated["request_id"],
                 "task_id": validated["task_id"],
-                "provider": state.provider.describe().get("id"),
+                "provider": describe.get("id"),
                 "network_allowed": validated["network_allowed"],
-                "decoding": state.provider.describe().get("effort"),
+                "purpose": validated["purpose"],
+                "decoding": result.get("effort", describe.get("effort")),
                 "sampling_parameters": "omitted",
+                "stop_reason": result.get("stop_reason", "end_turn"),
                 "elapsed_seconds": round(elapsed, 3),
                 "response_sha256": sha256_text(content),
+                "response_chars": len(content),
                 "usage": usage,
             })
             self.respond({
@@ -802,6 +931,12 @@ class GatewayHandler(socketserver.StreamRequestHandler):
                 "stop_reason": result.get("stop_reason", "end_turn"),
                 "usage": {
                     "input_tokens": int(usage.get("input_tokens", 0) or 0),
+                    "cache_creation_input_tokens": int(
+                        usage.get("cache_creation_input_tokens", 0) or 0
+                    ),
+                    "cache_read_input_tokens": int(
+                        usage.get("cache_read_input_tokens", 0) or 0
+                    ),
                     "output_tokens": int(usage.get("output_tokens", 0) or 0),
                 },
                 "provider": {
@@ -893,6 +1028,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
     provider = build_provider(args, config)
 
     task_policy: dict[str, str] = {}
+    task_budgets: dict[str, float] = {}
     if args.task_policy:
         raw = json.loads(Path(args.task_policy).read_text(encoding="utf-8"))
         if raw.get("schema_version") != 1:
@@ -901,6 +1037,16 @@ def cmd_serve(args: argparse.Namespace) -> int:
             if policy not in config["network_policies"]:
                 raise GatewayError(f"unknown network policy for {task_id}: {policy}")
             task_policy[task_id] = policy
+        for task_id, ceiling in (raw.get("budgets") or {}).items():
+            if task_id not in task_policy:
+                raise GatewayError(f"spend ceiling names a task the policy does not: {task_id}")
+            try:
+                value = float(ceiling)
+            except (TypeError, ValueError) as exc:
+                raise GatewayError(f"spend ceiling for {task_id} is not a number") from exc
+            if value <= 0:
+                raise GatewayError(f"spend ceiling for {task_id} must be positive")
+            task_budgets[task_id] = value
 
     state = GatewayState(
         config=config,
@@ -909,6 +1055,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
         task_policy=task_policy,
         log_path=Path(args.log).resolve() if args.log else None,
         max_requests=int(args.max_requests) if args.max_requests else None,
+        task_budgets=task_budgets,
     )
 
     prepare_socket_path(socket_path)

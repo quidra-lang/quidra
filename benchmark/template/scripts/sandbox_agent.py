@@ -142,6 +142,11 @@ class Permissions:
         relative = target.relative_to(self.agent_dir).as_posix()
         if relative in self.reserved_names:
             raise AgentDenied(f"{relative} is runner-owned and may not be written by the worker")
+        if relative == "trials" or relative.startswith("trials/"):
+            raise AgentDenied(
+                "trials/ is runtime-owned: trial prompts and completions are recorded "
+                "there verbatim by the runtime and may not be written by the worker"
+            )
         return target
 
     def resolve_cwd(self, raw: str | None) -> Path:
@@ -338,12 +343,20 @@ class Trials:
                     break
         primary = benchmark.json_load(root / "template" / "config" / "primary.json")
         section = primary.get(str(task.get("evaluation") or ""), {}) or {}
+        isolation = primary.get("worker_isolation", {}) or {}
         self.max_repairs = int(section.get("max_repair_turns", 3) or 0)
-        multiplier = int(primary.get("worker_isolation", {}).get("trial_turn_multiplier", 3) or 3)
+        multiplier = int(isolation.get("trial_turn_multiplier", 3) or 3)
+        self.max_batch = max(1, int(isolation.get("max_trial_batch", 16) or 16))
         base_turns = int(config["max_turns"])
         self.max_turns = max(base_turns, self.budget * multiplier) if self.budget else base_turns
         self.used = 0
         self.sessions: dict[str, dict[str, Any]] = {}
+        # Every prompt and completion is also written verbatim to disk, under a
+        # directory the worker can read but not write. The agent processes trial
+        # output in bulk with its own scripts instead of copying completions out
+        # of observations one turn at a time, and an auditor reads the record
+        # without going through the trace.
+        self.records_dir = root / "work" / "agents" / agent_id / "trials"
 
     @staticmethod
     def _valid_id(value: Any) -> str:
@@ -363,6 +376,7 @@ class Trials:
                 task_id=self.agent_id,
                 max_output_tokens=self.max_output_tokens,
                 network_allowed=self.network_allowed,
+                purpose="scored",
             )
         except GatewayRefusal as exc:
             raise AgentFailure(f"inference gateway refused a trial request: {exc}") from exc
@@ -371,22 +385,41 @@ class Trials:
         self.used += 1
         completion = response["content"]
         incomplete = completion_problem(response)
+        if incomplete is None and not completion.strip():
+            incomplete = "empty: the model returned no text for this trial call"
         prompt_text = session["messages"][-1]["content"]
+        call = len(session["records"]) + 1
+        trial_dir = self.records_dir / trial_id
+        trial_dir.mkdir(parents=True, exist_ok=True)
+        prompt_path = trial_dir / f"prompt_{call:02d}.txt"
+        completion_path = trial_dir / f"completion_{call:02d}.txt"
+        prompt_path.write_text(prompt_text, encoding="utf-8")
+        completion_path.write_text(completion, encoding="utf-8")
+        agent_dir = self.records_dir.parent
         session["records"].append({
-            "call": len(session["records"]) + 1,
+            "call": call,
             "prompt": prompt_text,
             "prompt_sha256": benchmark.sha256_bytes(prompt_text.encode("utf-8")),
+            "prompt_path": prompt_path.relative_to(agent_dir).as_posix(),
             "completion": completion,
             "completion_sha256": benchmark.sha256_bytes(completion.encode("utf-8")),
+            "completion_path": completion_path.relative_to(agent_dir).as_posix(),
             "stop_reason": response.get("stop_reason"),
             "incomplete": incomplete,
             "usage": response.get("usage", {}),
+        })
+        benchmark.json_dump(trial_dir / "session.json", {
+            "schema_version": 1,
+            "trial_id": trial_id,
+            "calls": session["records"],
         })
         session["messages"].append({"role": "assistant", "content": completion})
         return {
             "ok": incomplete is None,
             "trial_id": trial_id,
             "completion": completion,
+            "completion_path": completion_path.relative_to(agent_dir).as_posix(),
+            "completion_chars": len(completion),
             "stop_reason": response.get("stop_reason"),
             "incomplete": incomplete,
             "repairs_used": len(session["records"]) - 1,
@@ -395,21 +428,14 @@ class Trials:
             "calls_remaining": self.budget - self.used,
         }
 
-    def start(self, action: dict[str, Any]) -> dict[str, Any]:
-        if self.budget <= 0:
-            raise AgentDenied("this unit has no trial budget; trial actions are not available")
-        trial_id = self._valid_id(action.get("trial_id"))
-        if trial_id in self.sessions:
-            raise AgentDenied(f"trial {trial_id!r} already exists; a trial is fresh exactly once")
-        prompt = action.get("prompt")
+    def _start_one(self, trial_id: str, prompt: Any) -> dict[str, Any]:
         if not isinstance(prompt, str) or not prompt.strip():
-            raise AgentDenied("trial_start needs a non-empty prompt string")
+            raise AgentDenied(f"trial {trial_id!r} needs a non-empty prompt string")
         session = {"messages": [{"role": "user", "content": prompt}], "records": []}
         self.sessions[trial_id] = session
         return self._call(trial_id, session)
 
-    def resume(self, action: dict[str, Any]) -> dict[str, Any]:
-        trial_id = self._valid_id(action.get("trial_id"))
+    def _resume_one(self, trial_id: str, message: Any) -> dict[str, Any]:
         session = self.sessions.get(trial_id)
         if session is None:
             raise AgentDenied(f"trial {trial_id!r} has not been started")
@@ -417,17 +443,96 @@ class Trials:
             raise AgentDenied(
                 f"trial {trial_id!r} has used all {self.max_repairs} repair turns"
             )
-        message = action.get("message")
         if not isinstance(message, str) or not message.strip():
-            raise AgentDenied("trial_continue needs a non-empty message string")
+            raise AgentDenied(f"trial {trial_id!r} needs a non-empty message string")
         session["messages"].append({"role": "user", "content": message})
         return self._call(trial_id, session)
+
+    def _batch(self, action: dict[str, Any], field: str) -> list[tuple[str, Any]]:
+        """Validate a whole batch before any call, so a bad entry costs nothing."""
+        raw = action.get("trials")
+        if not isinstance(raw, list) or not raw:
+            raise AgentDenied("trials must be a non-empty array")
+        if len(raw) > self.max_batch:
+            raise AgentDenied(
+                f"a batch holds at most {self.max_batch} trials; this one has {len(raw)}"
+            )
+        if self.used + len(raw) > self.budget:
+            raise AgentDenied(
+                f"batch of {len(raw)} exceeds the remaining trial budget "
+                f"({self.budget - self.used} of {self.budget} calls left)"
+            )
+        entries: list[tuple[str, Any]] = []
+        seen: set[str] = set()
+        for item in raw:
+            if not isinstance(item, dict):
+                raise AgentDenied("each batch entry must be an object")
+            trial_id = self._valid_id(item.get("trial_id"))
+            if trial_id in seen:
+                raise AgentDenied(f"trial {trial_id!r} appears twice in one batch")
+            seen.add(trial_id)
+            entries.append((trial_id, item.get(field)))
+        return entries
+
+    @staticmethod
+    def _batch_view(observation: dict[str, Any]) -> dict[str, Any]:
+        # Completions are on disk and in the trace; repeating them inline for a
+        # whole batch would only inflate every later turn of this conversation.
+        return {k: v for k, v in observation.items() if k != "completion"}
+
+    def start(self, action: dict[str, Any]) -> dict[str, Any]:
+        if self.budget <= 0:
+            raise AgentDenied("this unit has no trial budget; trial actions are not available")
+        if "trials" in action:
+            entries = self._batch(action, "prompt")
+            for trial_id, _ in entries:
+                if trial_id in self.sessions:
+                    raise AgentDenied(
+                        f"trial {trial_id!r} already exists; a trial is fresh exactly once"
+                    )
+            results = [self._batch_view(self._start_one(t, p)) for t, p in entries]
+            return {
+                "ok": all(r["ok"] for r in results),
+                "trials": results,
+                "calls_used": self.used,
+                "calls_remaining": self.budget - self.used,
+            }
+        trial_id = self._valid_id(action.get("trial_id"))
+        if trial_id in self.sessions:
+            raise AgentDenied(f"trial {trial_id!r} already exists; a trial is fresh exactly once")
+        if self.used >= self.budget:
+            raise AgentDenied(
+                f"trial budget exhausted: this unit is frozen at {self.budget} trial calls"
+            )
+        return self._start_one(trial_id, action.get("prompt"))
+
+    def resume(self, action: dict[str, Any]) -> dict[str, Any]:
+        if "trials" in action:
+            entries = self._batch(action, "message")
+            for trial_id, _ in entries:
+                if trial_id not in self.sessions:
+                    raise AgentDenied(f"trial {trial_id!r} has not been started")
+            results = [self._batch_view(self._resume_one(t, m)) for t, m in entries]
+            return {
+                "ok": all(r["ok"] for r in results),
+                "trials": results,
+                "calls_used": self.used,
+                "calls_remaining": self.budget - self.used,
+            }
+        trial_id = self._valid_id(action.get("trial_id"))
+        if self.used >= self.budget:
+            raise AgentDenied(
+                f"trial budget exhausted: this unit is frozen at {self.budget} trial calls"
+            )
+        return self._resume_one(trial_id, action.get("message"))
 
     def summary(self) -> dict[str, Any]:
         return {
             "budget": self.budget,
             "used": self.used,
             "max_repairs_per_trial": self.max_repairs,
+            "max_batch": self.max_batch,
+            "records_dir": "trials/",
             "trials": {
                 trial_id: {"calls": session["records"], "repairs": len(session["records"]) - 1}
                 for trial_id, session in self.sessions.items()
@@ -449,12 +554,21 @@ ACTIONS = {
 
 
 def runtime_contract_prompt(perms: Permissions, task: dict[str, Any],
-                            config: dict[str, Any], trials: "Trials | None" = None) -> str:
+                            config: dict[str, Any], trials: "Trials | None" = None,
+                            max_turns: int | None = None,
+                            orchestration_cap: int | None = None) -> str:
     read_lines = "\n".join(f"- {Path(p).as_posix()}" for p in task.get("read_paths", []))
     outputs = task.get("expected_outputs") or []
     output_lines = "\n".join(f"- {Path(p).as_posix()}" for p in outputs) or "- defined by this task"
     allowlist = ", ".join(config["exec_allowlist"])
-    max_turns = trials.max_turns if trials is not None else config["max_turns"]
+    if max_turns is None:
+        max_turns = trials.max_turns if trials is not None else config["max_turns"]
+    cap_line = ""
+    if orchestration_cap is not None:
+        cap_line = (
+            f"- Each of your own turns is capped at {orchestration_cap} output tokens; "
+            "keep actions small and put large content in files.\n"
+        )
     trial_block = ""
     if trials is not None and trials.budget > 0:
         trial_block = f"""
@@ -462,15 +576,25 @@ Independent model trials (this unit's scored experiment):
 
 ```
 {{"action":"trial_start","trial_id":"<cell>-t<n>","prompt":"<exact initial prompt for the model under test>"}}
+{{"action":"trial_start","trials":[{{"trial_id":"<cell>-t1","prompt":"..."}}, {{"trial_id":"<cell>-t2","prompt":"..."}}]}}
 {{"action":"trial_continue","trial_id":"<cell>-t<n>","message":"<repair prompt with the failure>"}}
+{{"action":"trial_continue","trials":[{{"trial_id":"<cell>-t1","message":"..."}}]}}
 ```
 
 Each `trial_start` opens a FRESH session for the model under test: it sees only the
 prompt you give it, never this conversation, never another trial. `trial_continue`
 is a repair turn inside that same trial; at most {trials.max_repairs} per trial.
-The runtime records every trial prompt and completion verbatim. Budget for this
-unit: {trials.budget} trial calls in total ({trials.used} used). Compile and test
-what a trial produces with `write_file` and `run`, then decide whether to repair.
+The batch form runs up to {trials.max_batch} independent trials in one turn; use
+it. Every trial prompt and completion is recorded verbatim by the runtime under
+`trials/<trial_id>/` in your directory (`prompt_NN.txt`, `completion_NN.txt`,
+`session.json`); you can read those files but not write them. Batch observations
+report each completion's path and size rather than its text, so extract, compile
+and test trial output in bulk with a script you `write_file` and `run`, then
+decide which trials to repair. Trial completions are capped at
+{trials.max_output_tokens} output tokens; a trial whose reply hit that cap or came
+back empty is reported with `ok:false` and counts as a failed attempt for that
+trial. Budget for this unit: {trials.budget} trial calls in total ({trials.used}
+used); a batch larger than the remaining budget is denied before any call.
 """
     return f"""# Sandbox agent runtime contract
 
@@ -501,7 +625,7 @@ Permissions:
 - `run` executes with `shell=False`. Permitted programs: {allowlist}.
 - Network access: {"allowed through the inference gateway only" if task.get("network_allowed") else "disabled"}.
 - Maximum turns: {max_turns}.
-{trial_block}
+{cap_line}{trial_block}
 Expected outputs before you send `final`:
 {output_lines}
 
@@ -542,15 +666,35 @@ def run_agent(args: argparse.Namespace) -> int:
         raise AgentFailure("gateway reports an exposed host tool surface; refusing to run")
 
     trials = Trials(root, task, args.id, config, client, int(args.max_output_tokens))
+    isolation = benchmark.worker_isolation_config(root)
+    # The agent's own action turns are never scored, so they do not carry the
+    # unit's scored output cap: that cap is sized for one trial completion, and
+    # an action turn that has to reason about a whole packet first needs room the
+    # scored cap does not give it.
+    orchestration_cap = int(
+        isolation.get("orchestration_max_output_tokens", args.max_output_tokens)
+        or args.max_output_tokens
+    )
+    # Every turn adds two messages; the gateway refuses a conversation longer than
+    # its frozen limit, so stop before that becomes the way a unit ends.
+    max_turns = min(int(trials.max_turns), (int(client.config["max_messages"]) - 2) // 2)
     messages: list[dict[str, str]] = [
-        {"role": "system", "content": runtime_contract_prompt(perms, task, config, trials)},
+        {"role": "system", "content": runtime_contract_prompt(
+            perms, task, config, trials, max_turns=max_turns,
+            orchestration_cap=orchestration_cap,
+        )},
         {"role": "user", "content": packet},
     ]
 
     trace: list[dict[str, Any]] = []
     denials: list[dict[str, Any]] = []
-    usage = {"input_tokens": 0, "output_tokens": 0, "calls": 0}
-    max_turns = int(trials.max_turns)
+    usage = {
+        "input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 0,
+        "calls": 0,
+    }
     protocol_errors = 0
     max_protocol_errors = int(config["max_consecutive_protocol_errors"])
     final_summary: str | None = None
@@ -561,8 +705,9 @@ def run_agent(args: argparse.Namespace) -> int:
             response = client.complete(
                 messages,
                 task_id=args.id,
-                max_output_tokens=int(args.max_output_tokens),
+                max_output_tokens=orchestration_cap,
                 network_allowed=bool(task.get("network_allowed")),
+                purpose="orchestration",
             )
         except GatewayRefusal as exc:
             raise AgentFailure(f"inference gateway refused this worker's request: {exc}") from exc
@@ -570,14 +715,25 @@ def run_agent(args: argparse.Namespace) -> int:
             raise AgentFailure(f"inference transport failure: {exc}") from exc
 
         usage["calls"] += 1
-        usage["input_tokens"] += int(response.get("usage", {}).get("input_tokens", 0) or 0)
-        usage["output_tokens"] += int(response.get("usage", {}).get("output_tokens", 0) or 0)
+        for key in (
+            "input_tokens", "cache_creation_input_tokens",
+            "cache_read_input_tokens", "output_tokens",
+        ):
+            usage[key] += int(response.get("usage", {}).get(key, 0) or 0)
         completion = response["content"]
         if not completion.strip():
             # An empty assistant turn is rejected by the provider on the next
-            # request, so it must not enter the conversation at all.
+            # request, so it must not enter the conversation at all. Record what
+            # the provider reported: an empty turn that used the whole cap spent
+            # it on reasoning, which is a depth problem, not a model refusal.
             protocol_errors += 1
-            trace.append({"turn": turn, "action": None, "protocol_error": "empty completion"})
+            trace.append({
+                "turn": turn,
+                "action": None,
+                "protocol_error": "empty completion",
+                "stop_reason": response.get("stop_reason"),
+                "output_tokens": int(response.get("usage", {}).get("output_tokens", 0) or 0),
+            })
             if protocol_errors >= max_protocol_errors:
                 stop_reason = "protocol_contract_violated"
                 break

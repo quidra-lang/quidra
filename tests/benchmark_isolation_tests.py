@@ -91,7 +91,8 @@ class Gateway:
     """A real gateway subprocess that holds a secret the sandbox must never see."""
 
     def __init__(self, socket_dir: Path, script: dict[str, Any] | None = None,
-                 network_policy: str = "disabled") -> None:
+                 network_policy: str = "disabled",
+                 task_policy: dict[str, Any] | None = None) -> None:
         self.socket_path = socket_dir / "inference.sock"
         self.script_path = socket_dir / "fake_script.json"
         if script is not None:
@@ -107,6 +108,10 @@ class Gateway:
         ]
         if script is not None:
             argv += ["--fake-script", str(self.script_path)]
+        if task_policy is not None:
+            self.policy_path = socket_dir / "task_policy.json"
+            self.policy_path.write_text(json.dumps(task_policy), encoding="utf-8")
+            argv += ["--task-policy", str(self.policy_path)]
         self.env = {**os.environ, "ANTHROPIC_API_KEY": FAKE_PROVIDER_SECRET}
         self.process = subprocess.Popen(
             argv, env=self.env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
@@ -1457,6 +1462,27 @@ def test_frozen_configuration_agrees_with_the_implementation() -> None:
         isolation["sandbox_provider_credentials"] == "forbidden",
         "primary.json does not forbid provider credentials in the sandbox",
     )
+    decoding = gateway["anthropic_decoding"]
+    check(
+        primary["sampling"]["effort"] == decoding["effort"]
+        and primary["sampling"]["orchestration_effort"] == decoding["orchestration_effort"],
+        "the declared decoding depths disagree with what the gateway adapter sends",
+    )
+    for model, pricing in gateway["anthropic_pricing"].items():
+        check(
+            {"cache_write_usd_per_million_tokens", "cache_read_usd_per_million_tokens"}
+            <= set(pricing),
+            f"pricing for {model} has no cache rates; cached prefixes would be priced wrongly",
+        )
+    check(
+        gateway["prompt_caching"]["enabled"] is True,
+        "prompt caching is off; every sandbox-agent turn would re-buy its whole prefix",
+    )
+    check(
+        "purpose" not in gateway["forbidden_request_fields"]
+        and "effort" in gateway["forbidden_request_fields"],
+        "purpose must be a permitted label while effort itself stays refused",
+    )
 
     manifest = json.loads((TEMPLATE / "runtime" / "toolchains.json").read_text(encoding="utf-8"))
     dockerfile = (TEMPLATE / "runtime" / "Dockerfile").read_text(encoding="utf-8")
@@ -1479,6 +1505,234 @@ def test_frozen_configuration_agrees_with_the_implementation() -> None:
             f'"{language}"' in verify,
             f"the image build does not verify the pinned {language} toolchain",
         )
+
+
+# --------------------------------------------------------------------------
+# 7. Trials are runtime-owned, batched, and recorded on disk
+# --------------------------------------------------------------------------
+
+
+def test_trials_are_runtime_owned_fresh_sessions() -> None:
+    """A trial is a fresh session the runtime records verbatim, in batches too.
+
+    The first paid run spent most of its budget on one action turn per trial:
+    every trial start, every write and every compile was its own model turn on
+    an ever-growing conversation. The batch form and the on-disk record exist so
+    the agent can run a whole cell in one turn and process it with a script.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        agent_id = "worker-trials"
+        agent_dir = create_task(root, agent_id, "sandbox-agent")
+        # The trial budget comes from the frozen manifest, never from the agent.
+        (root / "work" / "root" / "manifest.json").write_text(json.dumps({
+            "schema_version": 1,
+            "work_units": [{
+                "id": "trials-unit", "assigned_agent_id": agent_id,
+                "evaluation": "llm_proficiency", "max_llm_calls": 4,
+            }],
+        }), encoding="utf-8")
+        task_path = agent_dir / "task.json"
+        task = json.loads(task_path.read_text(encoding="utf-8"))
+        task["evaluation"] = "llm_proficiency"
+        task_path.write_text(json.dumps(task), encoding="utf-8")
+
+        actions = [
+            # A whole batch is refused before any call when it exceeds the budget.
+            {"action": "trial_start", "trials": [
+                {"trial_id": f"c-t{n}", "prompt": f"TRIAL-PROMPT {n}"} for n in range(5)
+            ]},
+            {"action": "trial_start", "trials": [
+                {"trial_id": "c-t1", "prompt": "TRIAL-PROMPT one"},
+                {"trial_id": "c-t2", "prompt": "TRIAL-PROMPT two"},
+            ]},
+            # The record is runtime-owned even though it sits in the agent's directory.
+            {"action": "write_file", "path": "trials/c-t1/completion_01.txt", "content": "forged"},
+            {"action": "read_file", "path": "trials/c-t1/completion_01.txt"},
+            {"action": "trial_continue", "trial_id": "c-t1", "message": "TRIAL-PROMPT repair"},
+            {"action": "trial_start", "trial_id": "c-t1", "prompt": "TRIAL-PROMPT again"},
+            {"action": "trial_start", "trial_id": "c-t3", "prompt": "TRIAL-PROMPT three"},
+            # Budget is 4: two in the batch, one repair, one single start. This is the fifth.
+            {"action": "trial_start", "trial_id": "c-t4", "prompt": "TRIAL-PROMPT four"},
+            {"action": "write_file", "path": "result.json", "content": '{"schema_version":1}\n'},
+            {"action": "final", "summary": "done"},
+        ]
+        script = {
+            "schema_version": 1,
+            # Trial prompts are answered by content; the agent's own turns by order.
+            "rules": [{"contains": "TRIAL-PROMPT", "content": "fn main() {}"}],
+            "sequence": [json.dumps(a) for a in actions],
+        }
+        with Gateway(root / "gateway", script=script) as gw:
+            completed = subprocess.run(
+                [
+                    sys.executable, str(SCRIPTS / "sandbox_agent.py"),
+                    "--workspace", str(root), "--id", agent_id,
+                    "--socket", str(gw.socket_path), "--max-output-tokens", "4000",
+                ],
+                env=sandbox_side_env(),
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            )
+            audit = [
+                json.loads(line) for line in gw.log_path.read_text(encoding="utf-8").splitlines()
+                if line.strip() and json.loads(line).get("event") == "inference"
+            ]
+        check(completed.returncode == 0, f"the trial agent failed: {completed.stderr or completed.stdout}")
+        trace = json.loads((agent_dir / "agent_trace.json").read_text(encoding="utf-8"))
+        by_turn = {entry["turn"]: entry for entry in trace["trace"]}
+
+        check("exceeds the remaining trial budget" in str(by_turn[1]["observation"].get("denied")),
+              f"an oversized batch was not refused up front: {by_turn[1]}")
+        batch = by_turn[2]["observation"]
+        check(batch.get("ok") is True and len(batch.get("trials", [])) == 2
+              and all("completion" not in t for t in batch["trials"])
+              and all(t.get("completion_path", "").startswith("trials/") for t in batch["trials"]),
+              f"the batch observation is not the on-disk summary it should be: {batch}")
+        check("runtime-owned" in str(by_turn[3]["observation"].get("denied")),
+              f"the worker could write into the trial record: {by_turn[3]}")
+        # The trace elides file contents; the read itself succeeded on the record.
+        check(by_turn[4]["observation"].get("ok") is True
+              and str(by_turn[4]["observation"].get("content", "")).startswith("<12 chars"),
+              f"the worker could not read the trial record: {by_turn[4]}")
+        repair = by_turn[5]["observation"]
+        check(repair.get("ok") is True and repair.get("repairs_used") == 1
+              and repair.get("completion_chars") == len("fn main() {}")
+              and repair.get("completion_path") == "trials/c-t1/completion_02.txt",
+              f"a single repair turn did not behave: {repair}")
+        check("already exists" in str(by_turn[6]["observation"].get("denied")),
+              f"a trial was allowed to start twice: {by_turn[6]}")
+        check(by_turn[7]["observation"].get("ok") is True
+              and by_turn[7]["observation"].get("calls_remaining") == 0,
+              f"the fourth trial call was not accounted: {by_turn[7]}")
+        check("budget exhausted" in str(by_turn[8]["observation"].get("denied")),
+              f"a fifth trial call was allowed past the frozen budget: {by_turn[8]}")
+
+        record = agent_dir / "trials" / "c-t1"
+        check((record / "prompt_01.txt").read_text(encoding="utf-8") == "TRIAL-PROMPT one"
+              and (record / "completion_01.txt").read_text(encoding="utf-8") == "fn main() {}"
+              and (record / "prompt_02.txt").read_text(encoding="utf-8") == "TRIAL-PROMPT repair"
+              and (record / "session.json").is_file(),
+              "trial prompts and completions were not recorded verbatim on disk")
+        summary = trace["trials"]
+        check(summary["budget"] == 4 and summary["used"] == 4
+              and set(summary["trials"]) == {"c-t1", "c-t2", "c-t3"},
+              f"the trace does not account the trials: {summary}")
+
+        purposes = [r.get("purpose") for r in audit]
+        check(purposes.count("scored") == 4 and purposes.count("orchestration") == len(actions),
+              f"the audit log does not separate scored trial calls from action turns: {purposes}")
+        # Trial sessions are fresh: the scored requests never carry the agent's conversation.
+        check(all("stop_reason" in r for r in audit), "the audit log does not record stop reasons")
+
+
+def test_gateway_maps_purpose_to_a_frozen_depth_and_refuses_the_rest() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        with Gateway(Path(td)) as gw:
+            for purpose, ok in (("scored", True), ("orchestration", True), ("turbo", False)):
+                response = raw_request(gw.socket_path, {
+                    "schema_version": 1, "kind": "inference.request",
+                    "request_id": f"purpose-{purpose}", "purpose": purpose,
+                    "messages": [{"role": "user", "content": "x"}],
+                })
+                check(
+                    (response.get("kind") == "inference.response") is ok,
+                    f"purpose {purpose!r} handled wrongly: {response}",
+                )
+                if not ok:
+                    check(response.get("error", {}).get("class") == "protocol", response)
+            records = [
+                json.loads(line) for line in gw.log_path.read_text(encoding="utf-8").splitlines()
+                if line.strip() and json.loads(line).get("event") == "inference"
+            ]
+        check(
+            [r.get("purpose") for r in records] == ["scored", "orchestration"],
+            f"the audit log does not record request purposes: {records}",
+        )
+
+    config = json.loads((TEMPLATE / "config" / "inference_gateway.json").read_text("utf-8"))
+    os.environ["ANTHROPIC_API_KEY"] = FAKE_PROVIDER_SECRET
+    try:
+        provider = inference_gateway.AnthropicMessagesProvider(
+            "claude-sonnet-5", timeout=30,
+            pricing=config["anthropic_pricing"]["claude-sonnet-5"],
+            decoding=config["anthropic_decoding"],
+            caching=config["prompt_caching"],
+        )
+    finally:
+        os.environ.pop("ANTHROPIC_API_KEY", None)
+    check(
+        provider.effort_for("scored") == config["anthropic_decoding"]["effort"]
+        and provider.effort_for("orchestration") == config["anthropic_decoding"]["orchestration_effort"]
+        and provider.effort_for(None) == config["anthropic_decoding"]["effort"],
+        "the adapter does not map purposes to the frozen depths",
+    )
+    # Cached prefixes are priced at their own rates, not as fresh input.
+    pricing = config["anthropic_pricing"]["claude-sonnet-5"]
+    cost = provider._request_cost({
+        "input_tokens": 1_000_000, "cache_creation_input_tokens": 1_000_000,
+        "cache_read_input_tokens": 1_000_000, "output_tokens": 0,
+    })
+    expected = (
+        pricing["input_usd_per_million_tokens"]
+        + pricing["cache_write_usd_per_million_tokens"]
+        + pricing["cache_read_usd_per_million_tokens"]
+    )
+    check(abs(cost - expected) < 1e-9, f"cache tokens are mispriced: {cost} != {expected}")
+
+
+def test_gateway_enforces_per_task_spend_ceilings() -> None:
+    """One unit must not be able to spend the run's budget by itself."""
+    with tempfile.TemporaryDirectory() as td:
+        script = {"schema_version": 1, "default": "ok", "usage_cost_usd_per_call": 1.0}
+        policy = {
+            "schema_version": 1,
+            "tasks": {"capped": "disabled", "free": "disabled"},
+            "budgets": {"capped": 2.5},
+        }
+        with Gateway(Path(td), script=script, task_policy=policy) as gw:
+            outcomes = []
+            for _ in range(4):
+                response = raw_request(gw.socket_path, {
+                    "schema_version": 1, "kind": "inference.request",
+                    "request_id": "spend", "task_id": "capped",
+                    "messages": [{"role": "user", "content": "x"}],
+                })
+                outcomes.append(response.get("kind"))
+            # 1.0 + 1.0 + 1.0 = 3.0 >= 2.5 after three calls; the fourth is refused.
+            check(
+                outcomes == ["inference.response"] * 3 + ["inference.error"],
+                f"the spend ceiling did not stop the fourth call: {outcomes}",
+            )
+            refused = raw_request(gw.socket_path, {
+                "schema_version": 1, "kind": "inference.request",
+                "request_id": "spend", "task_id": "capped",
+                "messages": [{"role": "user", "content": "x"}],
+            })
+            check(
+                refused.get("error", {}).get("class") == "policy"
+                and "spend ceiling" in refused["error"]["message"],
+                f"the refusal is not a policy refusal naming the ceiling: {refused}",
+            )
+            other = raw_request(gw.socket_path, {
+                "schema_version": 1, "kind": "inference.request",
+                "request_id": "spend", "task_id": "free",
+                "messages": [{"role": "user", "content": "x"}],
+            })
+            check(other.get("kind") == "inference.response",
+                  f"a ceiling on one task leaked onto another: {other}")
+
+    production_run = load(SCRIPTS / "production_run.py", "isolation_tests_production_run")
+    check(
+        production_run.classify_failure("inference gateway refused this worker's request: task spend ceiling reached")
+        == "budget-plan-defect"
+        and not production_run.is_retryable("task spend ceiling reached")
+        and not production_run.is_retryable("packet-only worker response is incomplete: max_tokens: ..."),
+        "a deterministic failure would be retried at full price",
+    )
+    check(
+        production_run.is_retryable("sandbox agent error: inference transport failure: timed out"),
+        "a transient failure would not be retried",
+    )
 
 
 def main() -> int:

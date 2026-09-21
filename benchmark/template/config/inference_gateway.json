@@ -94,9 +94,16 @@
   "anthropic_pricing": {
     "claude-sonnet-5": {
       "input_usd_per_million_tokens": 2,
+      "cache_write_usd_per_million_tokens": 2.5,
+      "cache_read_usd_per_million_tokens": 0.2,
       "output_usd_per_million_tokens": 10,
       "web_search_usd_per_request": 0.01
     }
+  },
+  "prompt_caching": {
+    "enabled": true,
+    "ttl": "5m",
+    "note": "Trusted-side only and invisible to the sandbox. The adapter marks the system block and the last user block as cache breakpoints, so a sandbox-agent conversation re-reads its growing prefix at the cache-read rate instead of full price, and a server-side web-search loop re-reads the Task Packet the same way. Caching changes what a prefix costs, never what the model sees or produces. Usage reports cache_creation_input_tokens and cache_read_input_tokens separately and the cost estimate prices each at its own rate."
   },
   "anthropic_web_search": {
     "tool_type": "web_search_20260209",
@@ -110,6 +117,7 @@
   "anthropic_decoding": {
     "send_sampling_parameters": false,
     "effort": "high",
-    "note": "Claude Sonnet 5 removed temperature/top_p/top_k and rejects them with HTTP 400, and runs adaptive thinking when the thinking parameter is omitted. The adapter therefore sends no sampling parameters and no thinking block, and pins depth with output_config.effort, which is identical for every scored request."
+    "orchestration_effort": "low",
+    "note": "Claude Sonnet 5 removed temperature/top_p/top_k and rejects them with HTTP 400, and runs adaptive thinking when the thinking parameter is omitted. The adapter therefore sends no sampling parameters and no thinking block, and pins depth with output_config.effort. `effort` applies to every scored request (trial completions and packet-only workers) and is identical for every language. `orchestration_effort` applies only to sandbox-agent action turns, which are never scored: adaptive thinking is billed inside max_tokens, and at high effort the first action turn of a unit regularly spent its entire output cap on reasoning and returned no text at all. The sandbox selects a purpose label only; both depths are frozen here and recorded per request in the audit log."
   }
 }

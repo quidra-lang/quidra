@@ -3097,13 +3097,23 @@ def sampling_config(root: Path) -> dict[str, Any]:
         )
     if sampling.get("decoding_state") != "provider-controlled":
         raise BenchmarkError("frozen sampling must record a provider-controlled state")
+    levels = {"low", "medium", "high", "xhigh", "max"}
     effort = sampling.get("effort")
-    if effort not in {"low", "medium", "high", "xhigh", "max"}:
+    if effort not in levels:
         raise BenchmarkError(f"frozen sampling effort is not a known level: {effort}")
+    # Sandbox-agent action turns are decoded at their own frozen depth. They are
+    # never scored, and adaptive thinking is billed inside the output cap, so a
+    # deep action turn can spend the whole cap reasoning and return nothing.
+    orchestration = sampling.get("orchestration_effort", effort)
+    if orchestration not in levels:
+        raise BenchmarkError(
+            f"frozen orchestration effort is not a known level: {orchestration}"
+        )
     return {
         "sampling_parameters": "omitted",
         "decoding_state": "provider-controlled",
         "effort": str(effort),
+        "orchestration_effort": str(orchestration),
     }
 
 
@@ -3356,6 +3366,7 @@ def cmd_task_infer(args: argparse.Namespace) -> int:
             task_id=args.id,
             max_output_tokens=int(args.max_output_tokens),
             network_allowed=bool(meta.get("network_allowed")),
+            purpose="scored",
         )
     except client_module.GatewayRefusal as exc:
         raise BenchmarkError(f"inference gateway refused this Task Packet: {exc}") from exc

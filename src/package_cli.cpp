@@ -1060,7 +1060,7 @@ int lock_packages(
     if (!fs::is_regular_file(absolute, error) ||
         error || absolute.extension() != source_extension) {
         throw std::runtime_error(
-            "package lock requires an existing "
+            "package lock requires an existing " +
             std::string(source_extension) + " root source file");
     }
 

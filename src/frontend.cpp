@@ -1216,8 +1216,11 @@ public:
                     frontend_error(
                         "PACKAGE_LOCK_UNUSED",
                         "Package '" + name +
-                            "' is recorded in quidra.lock but is not reached by the current import graph. "
-                            "Regenerate it with 'quidra lock FILE.qui'.");
+                            "' is recorded in " +
+                            std::string(package_lock_filename) +
+                            " but is not reached by the current import graph. "
+                            "Regenerate it with 'quidra lock FILE" +
+                            std::string(source_extension) + "'.");
                 }
             }
         }
@@ -1367,8 +1370,10 @@ private:
             frontend_error(
                 "PACKAGE_LOCK_MISSING",
                 "Package '" + name +
-                    "' is imported but is not recorded in quidra.lock. "
-                    "Regenerate it with 'quidra lock FILE.qui'.",
+                    "' is imported but is not recorded in " +
+                    std::string(package_lock_filename) +
+                    ". Regenerate it with 'quidra lock FILE" +
+                    std::string(source_extension) + "'.",
                 span);
         }
 

@@ -207,7 +207,9 @@ std::string package_tree_sha256(const fs::path& package_main) {
     std::error_code error;
     if (!fs::is_regular_file(main, error) || error ||
         main.filename() != package_entrypoint_filename()) {
-        throw std::runtime_error("package hash requires a package main.qui file");
+        throw std::runtime_error(
+            "package hash requires package entrypoint " +
+            package_entrypoint_filename());
     }
     const auto root = main.parent_path();
 

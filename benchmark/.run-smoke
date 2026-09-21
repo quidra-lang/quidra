@@ -6,6 +6,6 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-21T17:58:00Z
-reason: measure where the input tokens actually go
+requested_at_utc: 2026-09-21T19:20:00Z
+reason: verify the paid request shape after the trial runtime, pause_turn resume and cap changes
 model: claude-sonnet-5

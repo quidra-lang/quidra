@@ -1,0 +1,11 @@
+# Request marker for the benchmark-smoke workflow.
+#
+# Changing this file and pushing to develop asks CI to verify the paid request
+# shape against the live provider: two tiny calls plus two refusals that cost
+# nothing. It builds no image and dispatches no work units.
+#
+# Re-request by editing any line below.
+
+requested_at_utc: 2026-09-21T17:35:00Z
+reason: first live verification of the anthropic-messages adapter
+model: claude-sonnet-5

@@ -6,8 +6,8 @@ Quidra is a statically typed, native general-purpose programming language design
 
 Try Quidra Playground, which runs the real compiler frontend rather than an imitation of it:
 
-- <https://quidra-lang.github.io/playground/> — nothing to install.
-- [A local playground](#playground) ships in this repository and adds Run and LLVM IR.
+- **Hosted** — <https://quidra-lang.github.io/playground/>, nothing to install.
+- **[Local](#playground)** — ships in this repository, adds Run and LLVM IR.
 
 Its primary optimization target is **semantic density**: how much reliable intent can be recovered from each token without hidden conventions, guesswork, or repeated ceremony. Fewer characters are not automatically better. Fewer tokens are better only when the same meaning remains explicit, stable, and mechanically checkable.
 

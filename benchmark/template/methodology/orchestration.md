@@ -6,7 +6,7 @@ This file is for the root benchmark orchestrator. Leaf workers do not read it.
 
 A new run uses only the evaluated Quidra checkout plus the current `benchmark/master_prompt.md` and `benchmark/template/`. Past run directories are not valid inputs.
 
-Trusted `init` requires a clean `develop` checkout, requires `<source-repo>/.quidra-benchmark` to be Git-ignored, records the exact commit identity, copies only Git-tracked current source/template content into that fixed host staging directory, and writes a host-only sentinel under the checkout's Git-private path returned by `git rev-parse --git-path quidra-benchmark-host.json`. The sentinel is outside the staging tree and binds it to the source checkout and run. The outer runner then maps only the physical staging directory to the canonical sandbox root `/quidra-benchmark` before any scored or delegated work begins.
+Trusted `init` requires a clean `develop` checkout, requires `<source-repo>/.quidra-benchmark` to be Git-ignored, records the exact commit identity, copies only Git-tracked current source/template content into that fixed host staging directory, and writes a host-only sentinel under the checkout's Git-private path returned by `git rev-parse --git-path quidra-benchmark-host.json`. The sentinel is outside the staging tree and records the run identity without binding authorization to the checkout's absolute path, so the checkout may be moved or renamed safely. The outer runner then maps only the physical staging directory to the canonical sandbox root `/quidra-benchmark` before any scored or delegated work begins.
 
 ## 2. Deterministic planning
 
@@ -68,5 +68,6 @@ After that window, the trusted outer runner executes `post-run` with a clean loc
 `develop` checkout. This is the only repository-import step: it retains the compact
 audit/result set, verifies hashes, then removes the fixed host staging workspace and
 its Git-private sentinel. If a run is abandoned before finalization, the outer runner
-uses `discard-workspace`; discard is authorized by the host-only sentinel and fixed
-workspace path and intentionally does not depend on sandbox-visible `run.json`.
+uses `discard-workspace`; discard is authorized by the checkout-local host-only
+sentinel contract and fixed workspace path, intentionally does not depend on
+sandbox-visible `run.json`, and remains valid after checkout relocation.

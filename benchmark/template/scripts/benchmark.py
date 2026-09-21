@@ -200,10 +200,6 @@ def host_sentinel_path(source: Path) -> Path:
     return path
 
 
-def source_path_sha256(source: Path) -> str:
-    return sha256_bytes(str(source.resolve()).encode("utf-8"))
-
-
 def ensure_host_workspace_ignored(source: Path) -> None:
     tracked = run_capture(["git", "ls-files", "--", HOST_WORKSPACE_RELATIVE.as_posix()], source)
     if tracked.strip():
@@ -226,14 +222,12 @@ def ensure_host_workspace_ignored(source: Path) -> None:
 
 
 def host_workspace_sentinel(
-    source: Path,
     run_id: str,
     evaluated_commit_sha: str,
 ) -> dict[str, Any]:
     return {
         "schema_version": 1,
         "kind": HOST_SENTINEL_KIND,
-        "source_path_sha256": source_path_sha256(source),
         "run_id": run_id,
         "evaluated_commit_sha": evaluated_commit_sha,
         "canonical_workspace_root": CANONICAL_WORKSPACE.as_posix(),
@@ -250,7 +244,7 @@ def write_host_workspace_sentinel(
         raise BenchmarkError(
             "host benchmark sentinel already exists; use discard-workspace before starting a new run"
         )
-    marker = host_workspace_sentinel(source, run_id, evaluated_commit_sha)
+    marker = host_workspace_sentinel(run_id, evaluated_commit_sha)
     json_dump(path, marker)
     os.chmod(path, 0o600)
 
@@ -274,12 +268,11 @@ def validate_host_workspace_guard(source: Path) -> dict[str, Any]:
     expected_static = {
         "schema_version": 1,
         "kind": HOST_SENTINEL_KIND,
-        "source_path_sha256": source_path_sha256(source),
         "canonical_workspace_root": CANONICAL_WORKSPACE.as_posix(),
     }
     for key, value in expected_static.items():
         if marker.get(key) != value:
-            raise BenchmarkError("host benchmark sentinel does not match this source checkout")
+            raise BenchmarkError("host benchmark sentinel does not match the guard contract")
     if not isinstance(marker.get("run_id"), str) or not marker["run_id"]:
         raise BenchmarkError("host benchmark sentinel has no valid run_id")
     if (

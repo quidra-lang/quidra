@@ -667,6 +667,7 @@ jobs:
           assert sentinel["run_id"] == run["run_id"]
           assert sentinel["evaluated_commit_sha"] == run["evaluated"]["commit_sha"]
           assert sentinel["canonical_workspace_root"] == "/quidra-benchmark"
+          assert "source_path_sha256" not in sentinel
           assert "/Users/" not in json.dumps(run)
           assert "/home/" not in json.dumps(run)
           assert "/Users/" not in json.dumps(sentinel)
@@ -676,9 +677,34 @@ jobs:
 
           # Abandoned runs must remain safely discardable even if sandbox state is damaged.
           rm .quidra-benchmark/run.json
-          python benchmark/template/scripts/benchmark.py discard-workspace             --source-repo "$GITHUB_WORKSPACE"
+          python benchmark/template/scripts/benchmark.py discard-workspace \
+            --source-repo "$GITHUB_WORKSPACE"
           test ! -e .quidra-benchmark
           test ! -e "$SENTINEL"
+
+          # A checkout may be moved or renamed after init. Even an older sentinel
+          # carrying a stale source_path_sha256 must not make safe discard impossible.
+          DISCARD_ORIG="$RUNNER_TEMP/quidra-discard-origin"
+          DISCARD_MOVED="$RUNNER_TEMP/quidra-discard-moved"
+          rm -rf "$DISCARD_ORIG" "$DISCARD_MOVED"
+          mkdir -p "$DISCARD_ORIG/.quidra-benchmark"
+          git -C "$DISCARD_ORIG" init -b develop
+          cat > "$DISCARD_ORIG/.git/quidra-benchmark-host.json" <<'JSON'
+          {
+            "schema_version": 1,
+            "kind": "quidra-benchmark-host-staging-v1",
+            "source_path_sha256": "obsolete-path-bound-value",
+            "run_id": "synthetic-discard-after-move",
+            "evaluated_commit_sha": "deadbeef",
+            "canonical_workspace_root": "/quidra-benchmark"
+          }
+          JSON
+          mv "$DISCARD_ORIG" "$DISCARD_MOVED"
+          python benchmark/template/scripts/benchmark.py discard-workspace \
+            --source-repo "$DISCARD_MOVED"
+          test ! -e "$DISCARD_MOVED/.quidra-benchmark"
+          test ! -e "$DISCARD_MOVED/.git/quidra-benchmark-host.json"
+          rm -rf "$DISCARD_MOVED"
 
       - name: Exercise finalized run import and cleanup
         run: |
@@ -725,7 +751,6 @@ jobs:
           export RUN REPO
           python - <<'PY'
           from pathlib import Path
-          import hashlib
           import json
           import os
           import subprocess
@@ -736,9 +761,7 @@ jobs:
           sentinel = {
               "schema_version": 1,
               "kind": "quidra-benchmark-host-staging-v1",
-              "source_path_sha256": hashlib.sha256(
-                  str(source).encode("utf-8")
-              ).hexdigest(),
+              "source_path_sha256": "stale-from-before-checkout-move",
               "run_id": run["run_id"],
               "evaluated_commit_sha": run["evaluated"]["commit_sha"],
               "canonical_workspace_root": "/quidra-benchmark",
@@ -751,6 +774,12 @@ jobs:
           sentinel_path = sentinel_raw if sentinel_raw.is_absolute() else source / sentinel_raw
           sentinel_path.write_text(json.dumps(sentinel, indent=2, sort_keys=True) + "\n")
           PY
+
+          MOVED_REPO="$PWD/.benchmark-post-run-repo-moved"
+          rm -rf "$MOVED_REPO"
+          mv "$REPO" "$MOVED_REPO"
+          REPO="$MOVED_REPO"
+          RUN="$REPO/.quidra-benchmark"
 
           python benchmark/template/scripts/benchmark.py post-run \
             --source-repo "$REPO"

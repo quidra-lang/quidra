@@ -1,0 +1,45 @@
+{
+  "agent_id": "worker-learnability-i5-i6--zig",
+  "components": [
+    {
+      "bytes": 2655,
+      "kind": "task",
+      "path": "/quidra-benchmark/prompts/components/by-hash/c6b54c350f5fed75166278e1710a74db425d386d50f51f61041962ac68e27a10.md",
+      "sha256": "c6b54c350f5fed75166278e1710a74db425d386d50f51f61041962ac68e27a10"
+    },
+    {
+      "bytes": 4245,
+      "kind": "embedded:worker_core.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/4fc6f960d7b0dfd7b7a4748ba267514a605981df12b4582ebadd4fd7af8336cb.md",
+      "sha256": "4fc6f960d7b0dfd7b7a4748ba267514a605981df12b4582ebadd4fd7af8336cb"
+    },
+    {
+      "bytes": 2802,
+      "kind": "embedded:llm_learnability.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/af75729cafd03778a967ae8cc53fd41a6517e544b1a81e4dd4be6870c3c8b549.md",
+      "sha256": "af75729cafd03778a967ae8cc53fd41a6517e544b1a81e4dd4be6870c3c8b549"
+    },
+    {
+      "bytes": 5943,
+      "kind": "embedded:primary.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/c61bbf06c813e5c641485a215e54d88b9f201c4aaf7d7b4ab9dbda5d9ed3cf56.md",
+      "sha256": "c61bbf06c813e5c641485a215e54d88b9f201c4aaf7d7b4ab9dbda5d9ed3cf56"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857.md",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 311,
+      "kind": "embedded:assigned_requirements.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/384852b8e9dcd6bd31df08abdfa6a31ab7810695c839485d8061edb4fc516ea0.md",
+      "sha256": "384852b8e9dcd6bd31df08abdfa6a31ab7810695c839485d8061edb4fc516ea0"
+    }
+  ],
+  "evaluation": "llm_learnability",
+  "prompt_sha256": "633cd6c8bd72de30dc64c1b2acfcfd6b64003dc5522fc299a8c269e09acce14b",
+  "rendered_bytes": 16992,
+  "schema_version": 1
+}

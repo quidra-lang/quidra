@@ -1,0 +1,95 @@
+{
+  "assigned_languages": [
+    "Go"
+  ],
+  "delegation_depth_remaining": 1,
+  "embedded_inputs": [
+    {
+      "path": "/quidra-benchmark/template/methodology/worker_core.md",
+      "sha256": "6990fe07389ed241b67e3d5c320a9cf8da4ed3ea50fb8a80147484938f3d2f7c"
+    },
+    {
+      "path": "/quidra-benchmark/template/methodology/llm_learnability.md",
+      "sha256": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c"
+    },
+    {
+      "path": "/quidra-benchmark/template/config/primary.json",
+      "sha256": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+    },
+    {
+      "path": "/quidra-benchmark/template/config/benchmark_metadata.json",
+      "sha256": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba"
+    },
+    {
+      "path": "/quidra-benchmark/template/config/evaluation_requirements.json",
+      "selection": "llm_learnability",
+      "sha256": "101e651ff4038b801d64cc3361802f1505f88258c190b56296f71a73b16b84c2"
+    }
+  ],
+  "evaluation": "llm_learnability",
+  "expected_outputs": [
+    "/quidra-benchmark/work/agents/worker-learnability-i5-i6--go/result.json"
+  ],
+  "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i5_held_out_rule_composition, condition.i6_prior_conflict_resistance. Assigned language: Go. Write result.json.\n\nFrozen Primary requirement IDs served by this work unit:\n- condition.i5_held_out_rule_composition\n- condition.i6_prior_conflict_resistance",
+  "id": "worker-learnability-i5-i6--go",
+  "network_allowed": false,
+  "packet_inputs": [],
+  "parent": "RUNNER",
+  "prompt_components": [
+    {
+      "bytes": 2649,
+      "kind": "task",
+      "path": "/quidra-benchmark/prompts/components/by-hash/7ff3f6ed4d7c618f793f3e430f2aa2b2893b3c0eb206b7eb51a144d4b612e464.md",
+      "sha256": "7ff3f6ed4d7c618f793f3e430f2aa2b2893b3c0eb206b7eb51a144d4b612e464"
+    },
+    {
+      "bytes": 4245,
+      "kind": "embedded:worker_core.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/4fc6f960d7b0dfd7b7a4748ba267514a605981df12b4582ebadd4fd7af8336cb.md",
+      "sha256": "4fc6f960d7b0dfd7b7a4748ba267514a605981df12b4582ebadd4fd7af8336cb"
+    },
+    {
+      "bytes": 2802,
+      "kind": "embedded:llm_learnability.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/af75729cafd03778a967ae8cc53fd41a6517e544b1a81e4dd4be6870c3c8b549.md",
+      "sha256": "af75729cafd03778a967ae8cc53fd41a6517e544b1a81e4dd4be6870c3c8b549"
+    },
+    {
+      "bytes": 5943,
+      "kind": "embedded:primary.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/c61bbf06c813e5c641485a215e54d88b9f201c4aaf7d7b4ab9dbda5d9ed3cf56.md",
+      "sha256": "c61bbf06c813e5c641485a215e54d88b9f201c4aaf7d7b4ab9dbda5d9ed3cf56"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857.md",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 311,
+      "kind": "embedded:assigned_requirements.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/384852b8e9dcd6bd31df08abdfa6a31ab7810695c839485d8061edb4fc516ea0.md",
+      "sha256": "384852b8e9dcd6bd31df08abdfa6a31ab7810695c839485d8061edb4fc516ea0"
+    }
+  ],
+  "prompt_manifest_path": "/quidra-benchmark/prompts/manifests/worker-learnability-i5-i6--go.json",
+  "prompt_sections": [
+    "### I5. Held-out Rule Composition \u2014 15%",
+    "### I6. Prior-conflict Resistance \u2014 10%",
+    "## 10.6 Scoring"
+  ],
+  "prompt_sha256": "fcb469ecfe3f5056a86ae1ebf2c8973f59ca259dff55e4008167580ef2f4afcd",
+  "read_paths": [
+    "/quidra-benchmark/repo/docs"
+  ],
+  "rendered_bytes": 16986,
+  "requirement_ids": [
+    "condition.i5_held_out_rule_composition",
+    "condition.i6_prior_conflict_resistance"
+  ],
+  "schema_version": 1,
+  "validation_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i5-i6--go",
+  "worker_mode": "sandbox-agent",
+  "write_path": "/quidra-benchmark/work/agents/worker-learnability-i5-i6--go"
+}

@@ -1,0 +1,14 @@
+public class Shapes {
+    public static double rectangleArea(double w, double h) {
+        return w*h;
+    }
+
+    public static double triangleArea(double base, double height) {
+        return 0.5*base*height;
+    }
+
+    public static void main(String[] args) {
+        System.out.println(rectangleArea(3.0, 4.0));
+        System.out.println(triangleArea(6.0, 2.0));
+    }
+}

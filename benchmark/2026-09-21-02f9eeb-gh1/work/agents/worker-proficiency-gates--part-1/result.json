@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "evaluation": "llm_proficiency",
+  "requirements": {
+    "gate.fixed_model_configuration": false,
+    "gate.prompt_preservation": false
+  },
+  "evidence": {
+    "scope": "Evaluated symmetrically across the full fixed comparison set (Quidra, Python, C++, Rust, Go, Java, TypeScript, Kotlin, Swift, Zig) as required by methodology section 6.2 and section 28.3.",
+    "readable_inputs_examined": [
+      "/quidra-benchmark/template/workloads/micro.md",
+      "/quidra-benchmark/template/fixtures/micro/reference/PROVENANCE.md",
+      "/quidra-benchmark/template/fixtures/micro/reference/ref.py (listed)",
+      "/quidra-benchmark/template/fixtures/micro/reference/golden_c.txt (listed)",
+      "/quidra-benchmark/template/fixtures/micro/reference/golden_py.txt (listed)",
+      "/quidra-benchmark/repo/docs/development.md (listed)",
+      "/quidra-benchmark/repo/docs/issue-ai-triage.md (listed)",
+      "/quidra-benchmark/repo/docs/packages.md (listed)",
+      "/quidra-benchmark/repo/docs/spec/architecture.md (listed)",
+      "/quidra-benchmark/repo/docs/spec/diagnostics.md (listed)",
+      "/quidra-benchmark/repo/docs/spec/grammar.ebnf (listed)",
+      "/quidra-benchmark/repo/docs/spec/language.md (listed)",
+      "/quidra-benchmark/repo/docs/spec/llm-guide.md",
+      "/quidra-benchmark/repo/docs/spec/numeric-and-bin.md (listed)",
+      "/quidra-benchmark/repo/docs/spec/patch-schema.md (listed)"
+    ],
+    "gate.fixed_model_configuration": {
+      "requirement": "Section 6.2 requires one exact model/version and provider/client interface for the whole Primary evaluation, exactly llm_proficiency.independent_trials_per_replicated_cell (3) fresh independent trials per replicated Proficiency cell, at most llm_proficiency.max_repair_turns (3) repair turns per trial, and identical decoding controls (or the same recorded provider-controlled/unavailable state) for all 10 languages, applied identically to the Cartesian product of primary_workloads (SVM, GMM, LightGrad) and primary_scenarios (specification_to_implementation, reference_to_porting).",
+      "configuration_as_documented": "primary.json's sampling block records a single provider-controlled decoding state (sampling_parameters=omitted, decoding_state=provider-controlled, thinking=provider-default-adaptive, effort=high) declared identical for every language, satisfying the 6.2 alternative of 'the same recorded provider-controlled/unavailable state for all languages' at the configuration-document level.",
+      "finding": false,
+      "reason": "This work unit's readable paths (repo/docs, template/workloads, template/fixtures) and writable directory contain no evidence that any actual llm_proficiency trial was dispatched in this run: no gateway/inference logs, no per-language trial transcripts, no model/version identifier bound to a completed trial, and no record of the 3 independent trials per (workload, scenario) cell for any of the 10 languages. This worker has no inference-capable action exposed by the runtime (no task-infer/gateway call available) and network access is disabled, so it cannot itself generate or observe a scored trial. A gate certifying that a single fixed model/version/decoding-control setting was used consistently across every actually-executed replicated cell cannot be affirmed without evidence of those executed cells. Per Worker Core rule 6, this negative result is evidence, not a validator failure; per rule 3, this is recorded as a blocker rather than fabricated as true or marked N/A, because a fixed model configuration is applicable, intentional required work whose completion cannot be confirmed from the evidence available to this leaf.",
+      "blocker": "No LLM Proficiency trial artifacts (prompts, generations, gateway audit entries, model/version stamps) exist anywhere under the readable paths granted to this worker. This worker's action set contains no inference/gateway action, so it cannot originate a trial to observe the configuration directly.",
+      "symmetry_note": "No asymmetry was introduced: the same absence-of-evidence finding applies identically to all 10 languages in the fixed comparison set; no language was evaluated under a different standard."
+    },
+    "gate.prompt_preservation": {
+      "requirement": "Section 24 requires that all prompts actually used during LLM evaluation (system prompts, user prompts, supplied language specifications/examples, Specification-to-Implementation prompts, Reference-to-Porting prompts, repair prompts, adversarial-test/unseen-case/prompt-robustness variations) be preserved per trial, sufficient for a third party to reconstruct prompt to generated program to failure to diagnosis to repair to final result (Section 23), and Section 6.2 requires that actual scored prompts be content-addressed with prompt-save before dispatch.",
+      "finding": false,
+      "reason": "No prompt.md, prompt-save content-addressed artifacts, per-trial prompt records, or repair-turn transcripts exist under the readable paths available to this worker for any of the 10 languages or any of the 6 primary replicated cells (3 workloads x 2 scenarios) x 3 independent trials. Because no such preserved-prompt artifact can be located or produced from within this worker's permitted read/write scope (no inference action is available to generate one, and sibling-agent outputs are explicitly out of scope per this packet's isolation rules), the preservation gate cannot be affirmed as satisfied. This is recorded as a genuine blocker rather than an unsupported pass, consistent with rule 3 (unfinished applicable work is never N/A) and rule 6 (a supported negative gate result is valid evidence).",
+      "blocker": "No prompt-preservation artifacts (prompt.md, content-addressed prompt-save records, per-trial preserved prompts/repairs) are present in any path this worker is permitted to read, and this worker has no capability to dispatch or observe a scored LLM trial to produce one.",
+      "symmetry_note": "The same absence-of-evidence finding was applied uniformly to every language in the fixed comparison set; no workload, scenario, or language received a different evidentiary bar."
+    },
+    "scope_of_this_work_unit": "This worker was assigned only gate.fixed_model_configuration and gate.prompt_preservation for llm_proficiency, evaluated against the full fixed 10-language comparison set and the full primary_workloads x primary_scenarios cell universe. It performed no per-language metric scoring, no repair-efficiency or token-efficiency computation, and made no assumptions about sibling work units' trial evidence."
+  }
+}

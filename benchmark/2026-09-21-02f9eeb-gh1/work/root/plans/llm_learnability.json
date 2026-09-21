@@ -1,0 +1,1562 @@
+{
+  "evaluation": "llm_learnability",
+  "schema_version": 1,
+  "work_units": [
+    {
+      "assigned_agent_id": "worker-learnability-gates--part-1",
+      "assigned_languages": [],
+      "dependencies": [],
+      "estimated_input_tokens_per_call": 0,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-gates--part-1/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: gate.infrastructure_preflight, gate.reference_pack_leakage. Evaluate the fixed comparison set symmetrically. Write result.json.",
+      "id": "learnability-gates--part-1",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": null,
+      "max_attempts": 3,
+      "max_llm_calls": 0,
+      "max_output_tokens_per_call": 0,
+      "network_allowed": false,
+      "phase": "readiness",
+      "prompt_sections": [
+        "## 6.2 Fixed LLM Execution Configuration",
+        "## 10.2 Common controls",
+        "## 10.3 Controlled random lexicalization",
+        "## 10.4 Reversible transformation requirement"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "gate.infrastructure_preflight",
+        "gate.reference_pack_leakage"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-gates--part-1",
+      "worker_mode": "packet-only",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-gates--part-2",
+      "assigned_languages": [],
+      "dependencies": [],
+      "estimated_input_tokens_per_call": 0,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-gates--part-2/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: coverage.all_10_languages. Evaluate the fixed comparison set symmetrically. Write result.json.",
+      "id": "learnability-gates--part-2",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": null,
+      "max_attempts": 3,
+      "max_llm_calls": 0,
+      "max_output_tokens_per_call": 0,
+      "network_allowed": false,
+      "phase": "readiness",
+      "prompt_sections": [
+        "## 6.2 Fixed LLM Execution Configuration",
+        "## 10.2 Common controls",
+        "## 10.3 Controlled random lexicalization",
+        "## 10.4 Reversible transformation requirement"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "coverage.all_10_languages"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-gates--part-2",
+      "worker_mode": "packet-only",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i1-i2--quidra",
+      "assigned_languages": [
+        "Quidra"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i1-i2--quidra/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i1_keyword_anonymization, condition.i2_vocabulary_anonymization. Assigned language: Quidra. Write result.json.",
+      "id": "learnability-i1-i2--quidra",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 24,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I1. Keyword Anonymization \u2014 20%",
+        "### I2. Vocabulary Anonymization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i1_keyword_anonymization",
+        "condition.i2_vocabulary_anonymization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i1-i2--quidra",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i1-i2--python",
+      "assigned_languages": [
+        "Python"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i1-i2--python/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i1_keyword_anonymization, condition.i2_vocabulary_anonymization. Assigned language: Python. Write result.json.",
+      "id": "learnability-i1-i2--python",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 24,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I1. Keyword Anonymization \u2014 20%",
+        "### I2. Vocabulary Anonymization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i1_keyword_anonymization",
+        "condition.i2_vocabulary_anonymization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i1-i2--python",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i1-i2--c",
+      "assigned_languages": [
+        "C++"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i1-i2--c/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i1_keyword_anonymization, condition.i2_vocabulary_anonymization. Assigned language: C++. Write result.json.",
+      "id": "learnability-i1-i2--c",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 24,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I1. Keyword Anonymization \u2014 20%",
+        "### I2. Vocabulary Anonymization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i1_keyword_anonymization",
+        "condition.i2_vocabulary_anonymization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i1-i2--c",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i1-i2--rust",
+      "assigned_languages": [
+        "Rust"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i1-i2--rust/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i1_keyword_anonymization, condition.i2_vocabulary_anonymization. Assigned language: Rust. Write result.json.",
+      "id": "learnability-i1-i2--rust",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 24,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I1. Keyword Anonymization \u2014 20%",
+        "### I2. Vocabulary Anonymization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i1_keyword_anonymization",
+        "condition.i2_vocabulary_anonymization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i1-i2--rust",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i1-i2--go",
+      "assigned_languages": [
+        "Go"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i1-i2--go/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i1_keyword_anonymization, condition.i2_vocabulary_anonymization. Assigned language: Go. Write result.json.",
+      "id": "learnability-i1-i2--go",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 24,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I1. Keyword Anonymization \u2014 20%",
+        "### I2. Vocabulary Anonymization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i1_keyword_anonymization",
+        "condition.i2_vocabulary_anonymization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i1-i2--go",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i1-i2--java",
+      "assigned_languages": [
+        "Java"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i1-i2--java/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i1_keyword_anonymization, condition.i2_vocabulary_anonymization. Assigned language: Java. Write result.json.",
+      "id": "learnability-i1-i2--java",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 24,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I1. Keyword Anonymization \u2014 20%",
+        "### I2. Vocabulary Anonymization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i1_keyword_anonymization",
+        "condition.i2_vocabulary_anonymization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i1-i2--java",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i1-i2--typescript",
+      "assigned_languages": [
+        "TypeScript"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i1-i2--typescript/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i1_keyword_anonymization, condition.i2_vocabulary_anonymization. Assigned language: TypeScript. Write result.json.",
+      "id": "learnability-i1-i2--typescript",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 24,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I1. Keyword Anonymization \u2014 20%",
+        "### I2. Vocabulary Anonymization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i1_keyword_anonymization",
+        "condition.i2_vocabulary_anonymization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i1-i2--typescript",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i1-i2--kotlin",
+      "assigned_languages": [
+        "Kotlin"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i1-i2--kotlin/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i1_keyword_anonymization, condition.i2_vocabulary_anonymization. Assigned language: Kotlin. Write result.json.",
+      "id": "learnability-i1-i2--kotlin",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 24,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I1. Keyword Anonymization \u2014 20%",
+        "### I2. Vocabulary Anonymization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i1_keyword_anonymization",
+        "condition.i2_vocabulary_anonymization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i1-i2--kotlin",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i1-i2--swift",
+      "assigned_languages": [
+        "Swift"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i1-i2--swift/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i1_keyword_anonymization, condition.i2_vocabulary_anonymization. Assigned language: Swift. Write result.json.",
+      "id": "learnability-i1-i2--swift",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 24,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I1. Keyword Anonymization \u2014 20%",
+        "### I2. Vocabulary Anonymization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i1_keyword_anonymization",
+        "condition.i2_vocabulary_anonymization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i1-i2--swift",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i1-i2--zig",
+      "assigned_languages": [
+        "Zig"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i1-i2--zig/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i1_keyword_anonymization, condition.i2_vocabulary_anonymization. Assigned language: Zig. Write result.json.",
+      "id": "learnability-i1-i2--zig",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 24,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I1. Keyword Anonymization \u2014 20%",
+        "### I2. Vocabulary Anonymization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i1_keyword_anonymization",
+        "condition.i2_vocabulary_anonymization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i1-i2--zig",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i3-i4--quidra",
+      "assigned_languages": [
+        "Quidra"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i3-i4--quidra/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i3_structural_surface_perturbation, condition.i4_novel_rule_generalization. Assigned language: Quidra. Write result.json.",
+      "id": "learnability-i3-i4--quidra",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 12,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I3. Structural Surface Perturbation \u2014 15%",
+        "### I4. Novel-rule Generalization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i3_structural_surface_perturbation",
+        "condition.i4_novel_rule_generalization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i3-i4--quidra",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i3-i4--python",
+      "assigned_languages": [
+        "Python"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i3-i4--python/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i3_structural_surface_perturbation, condition.i4_novel_rule_generalization. Assigned language: Python. Write result.json.",
+      "id": "learnability-i3-i4--python",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 12,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I3. Structural Surface Perturbation \u2014 15%",
+        "### I4. Novel-rule Generalization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i3_structural_surface_perturbation",
+        "condition.i4_novel_rule_generalization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i3-i4--python",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i3-i4--c",
+      "assigned_languages": [
+        "C++"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i3-i4--c/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i3_structural_surface_perturbation, condition.i4_novel_rule_generalization. Assigned language: C++. Write result.json.",
+      "id": "learnability-i3-i4--c",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 12,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I3. Structural Surface Perturbation \u2014 15%",
+        "### I4. Novel-rule Generalization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i3_structural_surface_perturbation",
+        "condition.i4_novel_rule_generalization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i3-i4--c",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i3-i4--rust",
+      "assigned_languages": [
+        "Rust"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i3-i4--rust/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i3_structural_surface_perturbation, condition.i4_novel_rule_generalization. Assigned language: Rust. Write result.json.",
+      "id": "learnability-i3-i4--rust",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 12,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I3. Structural Surface Perturbation \u2014 15%",
+        "### I4. Novel-rule Generalization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i3_structural_surface_perturbation",
+        "condition.i4_novel_rule_generalization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i3-i4--rust",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i3-i4--go",
+      "assigned_languages": [
+        "Go"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i3-i4--go/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i3_structural_surface_perturbation, condition.i4_novel_rule_generalization. Assigned language: Go. Write result.json.",
+      "id": "learnability-i3-i4--go",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 12,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I3. Structural Surface Perturbation \u2014 15%",
+        "### I4. Novel-rule Generalization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i3_structural_surface_perturbation",
+        "condition.i4_novel_rule_generalization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i3-i4--go",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i3-i4--java",
+      "assigned_languages": [
+        "Java"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i3_structural_surface_perturbation, condition.i4_novel_rule_generalization. Assigned language: Java. Write result.json.",
+      "id": "learnability-i3-i4--java",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 12,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I3. Structural Surface Perturbation \u2014 15%",
+        "### I4. Novel-rule Generalization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i3_structural_surface_perturbation",
+        "condition.i4_novel_rule_generalization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i3-i4--java",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i3-i4--typescript",
+      "assigned_languages": [
+        "TypeScript"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i3-i4--typescript/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i3_structural_surface_perturbation, condition.i4_novel_rule_generalization. Assigned language: TypeScript. Write result.json.",
+      "id": "learnability-i3-i4--typescript",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 12,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I3. Structural Surface Perturbation \u2014 15%",
+        "### I4. Novel-rule Generalization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i3_structural_surface_perturbation",
+        "condition.i4_novel_rule_generalization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i3-i4--typescript",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i3-i4--kotlin",
+      "assigned_languages": [
+        "Kotlin"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i3-i4--kotlin/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i3_structural_surface_perturbation, condition.i4_novel_rule_generalization. Assigned language: Kotlin. Write result.json.",
+      "id": "learnability-i3-i4--kotlin",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 12,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I3. Structural Surface Perturbation \u2014 15%",
+        "### I4. Novel-rule Generalization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i3_structural_surface_perturbation",
+        "condition.i4_novel_rule_generalization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i3-i4--kotlin",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i3-i4--swift",
+      "assigned_languages": [
+        "Swift"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i3-i4--swift/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i3_structural_surface_perturbation, condition.i4_novel_rule_generalization. Assigned language: Swift. Write result.json.",
+      "id": "learnability-i3-i4--swift",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 12,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I3. Structural Surface Perturbation \u2014 15%",
+        "### I4. Novel-rule Generalization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i3_structural_surface_perturbation",
+        "condition.i4_novel_rule_generalization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i3-i4--swift",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i3-i4--zig",
+      "assigned_languages": [
+        "Zig"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i3-i4--zig/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i3_structural_surface_perturbation, condition.i4_novel_rule_generalization. Assigned language: Zig. Write result.json.",
+      "id": "learnability-i3-i4--zig",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 12,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I3. Structural Surface Perturbation \u2014 15%",
+        "### I4. Novel-rule Generalization \u2014 20%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i3_structural_surface_perturbation",
+        "condition.i4_novel_rule_generalization"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i3-i4--zig",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i5-i6--quidra",
+      "assigned_languages": [
+        "Quidra"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i5-i6--quidra/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i5_held_out_rule_composition, condition.i6_prior_conflict_resistance. Assigned language: Quidra. Write result.json.",
+      "id": "learnability-i5-i6--quidra",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 8,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I5. Held-out Rule Composition \u2014 15%",
+        "### I6. Prior-conflict Resistance \u2014 10%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i5_held_out_rule_composition",
+        "condition.i6_prior_conflict_resistance"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i5-i6--quidra",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i5-i6--python",
+      "assigned_languages": [
+        "Python"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i5-i6--python/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i5_held_out_rule_composition, condition.i6_prior_conflict_resistance. Assigned language: Python. Write result.json.",
+      "id": "learnability-i5-i6--python",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 8,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I5. Held-out Rule Composition \u2014 15%",
+        "### I6. Prior-conflict Resistance \u2014 10%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i5_held_out_rule_composition",
+        "condition.i6_prior_conflict_resistance"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i5-i6--python",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i5-i6--c",
+      "assigned_languages": [
+        "C++"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i5-i6--c/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i5_held_out_rule_composition, condition.i6_prior_conflict_resistance. Assigned language: C++. Write result.json.",
+      "id": "learnability-i5-i6--c",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 8,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I5. Held-out Rule Composition \u2014 15%",
+        "### I6. Prior-conflict Resistance \u2014 10%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i5_held_out_rule_composition",
+        "condition.i6_prior_conflict_resistance"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i5-i6--c",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i5-i6--rust",
+      "assigned_languages": [
+        "Rust"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i5-i6--rust/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i5_held_out_rule_composition, condition.i6_prior_conflict_resistance. Assigned language: Rust. Write result.json.",
+      "id": "learnability-i5-i6--rust",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 8,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I5. Held-out Rule Composition \u2014 15%",
+        "### I6. Prior-conflict Resistance \u2014 10%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i5_held_out_rule_composition",
+        "condition.i6_prior_conflict_resistance"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i5-i6--rust",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i5-i6--go",
+      "assigned_languages": [
+        "Go"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i5-i6--go/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i5_held_out_rule_composition, condition.i6_prior_conflict_resistance. Assigned language: Go. Write result.json.",
+      "id": "learnability-i5-i6--go",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 8,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I5. Held-out Rule Composition \u2014 15%",
+        "### I6. Prior-conflict Resistance \u2014 10%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i5_held_out_rule_composition",
+        "condition.i6_prior_conflict_resistance"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i5-i6--go",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i5-i6--java",
+      "assigned_languages": [
+        "Java"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i5-i6--java/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i5_held_out_rule_composition, condition.i6_prior_conflict_resistance. Assigned language: Java. Write result.json.",
+      "id": "learnability-i5-i6--java",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 8,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I5. Held-out Rule Composition \u2014 15%",
+        "### I6. Prior-conflict Resistance \u2014 10%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i5_held_out_rule_composition",
+        "condition.i6_prior_conflict_resistance"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i5-i6--java",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i5-i6--typescript",
+      "assigned_languages": [
+        "TypeScript"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i5-i6--typescript/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i5_held_out_rule_composition, condition.i6_prior_conflict_resistance. Assigned language: TypeScript. Write result.json.",
+      "id": "learnability-i5-i6--typescript",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 8,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I5. Held-out Rule Composition \u2014 15%",
+        "### I6. Prior-conflict Resistance \u2014 10%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i5_held_out_rule_composition",
+        "condition.i6_prior_conflict_resistance"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i5-i6--typescript",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i5-i6--kotlin",
+      "assigned_languages": [
+        "Kotlin"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i5-i6--kotlin/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i5_held_out_rule_composition, condition.i6_prior_conflict_resistance. Assigned language: Kotlin. Write result.json.",
+      "id": "learnability-i5-i6--kotlin",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 8,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I5. Held-out Rule Composition \u2014 15%",
+        "### I6. Prior-conflict Resistance \u2014 10%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i5_held_out_rule_composition",
+        "condition.i6_prior_conflict_resistance"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i5-i6--kotlin",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i5-i6--swift",
+      "assigned_languages": [
+        "Swift"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i5-i6--swift/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i5_held_out_rule_composition, condition.i6_prior_conflict_resistance. Assigned language: Swift. Write result.json.",
+      "id": "learnability-i5-i6--swift",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 8,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I5. Held-out Rule Composition \u2014 15%",
+        "### I6. Prior-conflict Resistance \u2014 10%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i5_held_out_rule_composition",
+        "condition.i6_prior_conflict_resistance"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i5-i6--swift",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "worker-learnability-i5-i6--zig",
+      "assigned_languages": [
+        "Zig"
+      ],
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2"
+      ],
+      "estimated_input_tokens_per_call": 6000,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/work/agents/worker-learnability-i5-i6--zig/result.json"
+      ],
+      "execution_kind": "agent",
+      "goal": "Produce validated requirement-level evidence for llm_learnability: condition.i5_held_out_rule_composition, condition.i6_prior_conflict_resistance. Assigned language: Zig. Write result.json.",
+      "id": "learnability-i5-i6--zig",
+      "input_hashes": {
+        "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+        "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+        "primary_config": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+      },
+      "llm_budget_formula": "learnability_conditions",
+      "max_attempts": 3,
+      "max_llm_calls": 8,
+      "max_output_tokens_per_call": 4000,
+      "network_allowed": false,
+      "phase": "measurement",
+      "prompt_sections": [
+        "### I5. Held-out Rule Composition \u2014 15%",
+        "### I6. Prior-conflict Resistance \u2014 10%",
+        "## 10.6 Scoring"
+      ],
+      "read_paths": [
+        "/quidra-benchmark/repo/docs"
+      ],
+      "requirement_ids": [
+        "condition.i5_held_out_rule_composition",
+        "condition.i6_prior_conflict_resistance"
+      ],
+      "result_kind": "requirements",
+      "reuse_audit_for": [],
+      "runner_action": null,
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i5-i6--zig",
+      "worker_mode": "sandbox-agent",
+      "workload_ids": []
+    },
+    {
+      "assigned_agent_id": "system-llm_learnability-aggregate",
+      "dependencies": [
+        "learnability-gates--part-1",
+        "learnability-gates--part-2",
+        "learnability-i1-i2--c",
+        "learnability-i1-i2--go",
+        "learnability-i1-i2--java",
+        "learnability-i1-i2--kotlin",
+        "learnability-i1-i2--python",
+        "learnability-i1-i2--quidra",
+        "learnability-i1-i2--rust",
+        "learnability-i1-i2--swift",
+        "learnability-i1-i2--typescript",
+        "learnability-i1-i2--zig",
+        "learnability-i3-i4--c",
+        "learnability-i3-i4--go",
+        "learnability-i3-i4--java",
+        "learnability-i3-i4--kotlin",
+        "learnability-i3-i4--python",
+        "learnability-i3-i4--quidra",
+        "learnability-i3-i4--rust",
+        "learnability-i3-i4--swift",
+        "learnability-i3-i4--typescript",
+        "learnability-i3-i4--zig",
+        "learnability-i5-i6--c",
+        "learnability-i5-i6--go",
+        "learnability-i5-i6--java",
+        "learnability-i5-i6--kotlin",
+        "learnability-i5-i6--python",
+        "learnability-i5-i6--quidra",
+        "learnability-i5-i6--rust",
+        "learnability-i5-i6--swift",
+        "learnability-i5-i6--typescript",
+        "learnability-i5-i6--zig"
+      ],
+      "estimated_input_tokens_per_call": 0,
+      "evaluation": "llm_learnability",
+      "evidence_paths": [
+        "/quidra-benchmark/results/evaluations/llm_learnability.json"
+      ],
+      "execution_kind": "command",
+      "goal": "Mechanically aggregate llm_learnability and generate its language ranking.",
+      "id": "llm_learnability-aggregate",
+      "input_hashes": {
+        "aggregation_config": "24366904bdf30107d547e3350b430c2a62c767317dfc1e22ac067c2ed335f020"
+      },
+      "max_attempts": 1,
+      "max_llm_calls": 0,
+      "max_output_tokens_per_call": 0,
+      "network_allowed": false,
+      "phase": "aggregation",
+      "prompt_sections": [],
+      "read_paths": [],
+      "requirement_ids": [],
+      "result_kind": "aggregate",
+      "reuse_audit_for": [],
+      "runner_action": "aggregate-primary",
+      "validator_command": "python3 /quidra-benchmark/template/scripts/benchmark.py aggregate-check --workspace /quidra-benchmark --evaluation llm_learnability --file /quidra-benchmark/results/evaluations/llm_learnability.json",
+      "worker_mode": "runner-command"
+    }
+  ]
+}

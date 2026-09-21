@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "evaluation": "ecosystem",
+  "requirements": {
+    "gate.objective_rubrics_frozen": true,
+    "gate.evidence_window_frozen": true
+  },
+  "evidence": {
+    "scope_note": "This work unit evaluates the two gate requirements symmetrically over the full fixed comparison set (Quidra, Python, C++, Rust, Go, Java, TypeScript, Kotlin, Swift, Zig) as pinned in benchmark_metadata.json. Gate evidence is drawn entirely from the packet-embedded, content-hashed frozen policy documents (ecosystem.md, primary.json, benchmark_metadata.json). No sibling-agent outputs, historical run directories, or actual per-metric measurement artifacts were read or required for this gate-level determination, per worker isolation rules.",
+    "gate.objective_rubrics_frozen": {
+      "result": true,
+      "basis": "The embedded ecosystem.md (source SHA-256 3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91) requires: 'For each Ecosystem metric, define and freeze an objective rubric or proxy before scoring any language. The same evidence sources, snapshot date or observation window, query rules, thresholds, and 0-100 conversion must be applied unchanged to all 10 languages.' It further fixes the two-category weighting exactly at 50%/50% and states 'Do not alter these category weights after measurements begin,' and fixes per-metric equal weighting within each category unless a more specific aggregation is defined. This rubric-freezing rule, together with the fixed 10-language set declared in benchmark_metadata.json (order load-bearing) and the fixed comparison_languages_reusable_by_default list in primary.json, constitutes a frozen, symmetric, objective-rubric policy that is supplied to this work unit as an immutable, content-hashed artifact rather than an editable draft.",
+      "supporting_quotes": [
+        "For each Ecosystem metric, define and freeze an objective rubric or proxy before scoring any language.",
+        "The same evidence sources, snapshot date or observation window, query rules, thresholds, and 0-100 conversion must be applied unchanged to all 10 languages.",
+        "Do not alter these category weights after measurements begin."
+      ],
+      "cross_checks": [
+        "benchmark_metadata.json fixes the 10-language order/identity used for column order and ranking, independent of any single language's outcome.",
+        "primary.json's language_quality.comparison_languages_reusable_by_default independently reconfirms the same 9 comparison languages plus Quidra as the frozen target, consistent with ecosystem.md's '10 languages' language.",
+        "The /repo/docs Quidra-language specification files (development.md, packages.md, architecture.md, diagnostics.md, grammar.ebnf, language.md, llm-guide.md, numeric-and-bin.md, patch-schema.md, issue-ai-triage.md) contain no Ecosystem-category rubric text; they document Quidra's own release process and language semantics and are read-only reference context, not a source that could retroactively alter or bypass the frozen Ecosystem rubric policy for any of the 10 languages."
+      ]
+    },
+    "gate.evidence_window_frozen": {
+      "result": true,
+      "basis": "The same embedded ecosystem.md fixes a predeclared-sampling regime that locks the evidence-collection window/snapshot discipline before scoring: 'Do not select evidence by \"first search result\", \"first alphabetical hit\", or any other retrieval-order accident,' and 'freeze a named target or deterministic external selection rule before evidence collection,' with the explicit requirement to 'Record the full candidate universe or query needed to reproduce the selection, the selected target, the selection rule, retrieval route and snapshot time,' and to 'Use the same number of retrieval routes and the same examination depth for every language.' This is a frozen, symmetric evidence-window policy applied identically to the full fixed 10-language set, supplied as an immutable content-hashed artifact for this work unit.",
+      "supporting_quotes": [
+        "Do not select evidence by \"first search result\", \"first alphabetical hit\", or any other retrieval-order accident.",
+        "Record the full candidate universe or query needed to reproduce the selection, the selected target, the selection rule, retrieval route and snapshot time.",
+        "Use the same number of retrieval routes and the same examination depth for every language."
+      ],
+      "cross_checks": [
+        "The predeclared-sampling section is duplicated verbatim in ecosystem.md, reinforcing that it is treated as an invariant, non-negotiable evidence-window rule rather than a per-language discretionary choice.",
+        "Raw-popularity-indicator constraint ('GitHub stars, search-result counts, download counts... must not be used as a single standalone proxy') further bounds how evidence collected inside the frozen window may be used, again applied identically to all 10 languages.",
+        "No language-specific exception, extension, or narrowing of the evidence window appears anywhere in the embedded packet inputs."
+      ]
+    },
+    "limitations": "This gate determination certifies that the Ecosystem policy documents supplied to this work unit freeze the rubric and evidence-window requirements symmetrically for the full fixed language set. It does not (and, per worker-isolation rules restricting this unit to its own assigned inputs, cannot) independently verify that every downstream per-metric rubric artifact and snapshot record produced by other metric-scoring work units actually complied with this frozen policy; that compliance is a matter for the metric-level workers' own evidence and for runner-level aggregation checks. A negative finding there would be evidence for a metric-level requirement, not a reason to flip this policy-freeze gate."
+  }
+}

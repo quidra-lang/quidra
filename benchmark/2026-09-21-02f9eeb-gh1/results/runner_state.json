@@ -1,0 +1,839 @@
+{
+  "dispatch_count": 0,
+  "dispatch_queue": "/quidra-benchmark/results/dispatch_queue.json",
+  "ok": true,
+  "progress": {
+    "evaluations": {
+      "ecosystem": {
+        "aggregate_present": false,
+        "aggregation_status": "BLOCKED",
+        "aggregation_work_unit": "ecosystem-aggregate",
+        "all_work_units_complete": false,
+        "blocked": [
+          {
+            "assigned_agent_id": "worker-ecosystem-external--part-1",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): benchmark error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNU6cDknu5hNxLG6Fjf\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "ecosystem-external--part-1",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-ecosystem-external--part-2",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): benchmark error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNU91LhhepL7YQsR6ad\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "ecosystem-external--part-2",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-ecosystem-external--part-3",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): benchmark error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNUBVf14rGEKQX3xfes\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "ecosystem-external--part-3",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-ecosystem-tooling--part-1",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): benchmark error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNUDu1x1vsDsZVWn1rD\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "ecosystem-tooling--part-1",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-ecosystem-tooling--part-2",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): benchmark error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNUGDRbD8GKBimJ16mY\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "ecosystem-tooling--part-2",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-ecosystem-tooling--part-3",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): benchmark error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNUJhVhDdxKCy8a2ioT\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "ecosystem-tooling--part-3",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-ecosystem-tooling--part-4",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): benchmark error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNUMCoqiXLEqUgvEAtU\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "ecosystem-tooling--part-4",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-ecosystem-tooling--part-5",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): benchmark error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNUPuXqrvrXdrAYcMdn\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "ecosystem-tooling--part-5",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "system-ecosystem-aggregate",
+            "attempts": 0,
+            "blocker": "dependency blockers: ecosystem-external--part-1, ecosystem-external--part-2, ecosystem-external--part-3, ecosystem-tooling--part-1, ecosystem-tooling--part-2, ecosystem-tooling--part-3, ecosystem-tooling--part-4, ecosystem-tooling--part-5",
+            "blocker_class": "infrastructure",
+            "execution_kind": "command",
+            "id": "ecosystem-aggregate",
+            "max_attempts": 1,
+            "phase": "aggregation"
+          }
+        ],
+        "complete_count": 2,
+        "invalid": [],
+        "next_actions": [
+          "Resolve the listed blocker or preserve it as the explicit Primary blocker."
+        ],
+        "ready": [],
+        "running": [],
+        "waiting": [],
+        "work_unit_count": 11
+      },
+      "language_quality": {
+        "aggregate_present": false,
+        "aggregation_status": "BLOCKED",
+        "aggregation_work_unit": "language_quality-aggregate",
+        "all_work_units_complete": false,
+        "blocked": [
+          {
+            "assigned_agent_id": "worker-lq-coverage",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNS2BWZTEY1n62xqAmx\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "lq-coverage",
+            "max_attempts": 3,
+            "phase": "readiness"
+          },
+          {
+            "assigned_agent_id": "worker-lq-qudra-representation",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-coverage",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "lq-qudra-representation",
+            "max_attempts": 3,
+            "phase": "readiness"
+          },
+          {
+            "assigned_agent_id": "worker-lq-qudra-micro-authoring-a",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-qudra-representation",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "lq-qudra-micro-authoring-a",
+            "max_attempts": 3,
+            "phase": "readiness"
+          },
+          {
+            "assigned_agent_id": "worker-lq-qudra-micro-authoring-b",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-qudra-representation",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "lq-qudra-micro-authoring-b",
+            "max_attempts": 3,
+            "phase": "readiness"
+          },
+          {
+            "assigned_agent_id": "worker-lq-qudra-micro-authoring-c",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-qudra-representation",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "lq-qudra-micro-authoring-c",
+            "max_attempts": 3,
+            "phase": "readiness"
+          },
+          {
+            "assigned_agent_id": "worker-lq-qudra-micro-authoring-d",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-qudra-representation",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "lq-qudra-micro-authoring-d",
+            "max_attempts": 3,
+            "phase": "readiness"
+          },
+          {
+            "assigned_agent_id": "system-lq-micro-mechanical",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-qudra-micro-authoring-a, lq-qudra-micro-authoring-b, lq-qudra-micro-authoring-c, lq-qudra-micro-authoring-d, lq-qudra-representation",
+            "blocker_class": "infrastructure",
+            "execution_kind": "command",
+            "id": "lq-micro-mechanical",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-lq-language-development--part-1",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-coverage",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "lq-language-development--part-1",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-lq-language-development--part-2",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-coverage",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "lq-language-development--part-2",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-lq-language-development--part-3",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-coverage",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "lq-language-development--part-3",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-lq-language-development--part-4",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-coverage",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "lq-language-development--part-4",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-lq-safety--part-1",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-coverage",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "lq-safety--part-1",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-lq-safety--part-2",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-coverage",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "lq-safety--part-2",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-lq-safety--part-3",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-coverage",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "lq-safety--part-3",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-lq-safety--part-4",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-coverage",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "lq-safety--part-4",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-lq-safety--part-5",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-coverage",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "lq-safety--part-5",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "system-language_quality-aggregate",
+            "attempts": 0,
+            "blocker": "dependency blockers: lq-coverage, lq-language-development--part-1, lq-language-development--part-2, lq-language-development--part-3, lq-language-development--part-4, lq-micro-mechanical, lq-qudra-micro-authoring-a, lq-qudra-micro-authoring-b, lq-qudra-micro-authoring-c, lq-qudra-micro-authoring-d, lq-qudra-representation, lq-safety--part-1, lq-safety--part-2, lq-safety--part-3, lq-safety--part-4, lq-safety--part-5",
+            "blocker_class": "infrastructure",
+            "execution_kind": "command",
+            "id": "language_quality-aggregate",
+            "max_attempts": 1,
+            "phase": "aggregation"
+          }
+        ],
+        "complete_count": 4,
+        "invalid": [],
+        "next_actions": [
+          "Resolve the listed blocker or preserve it as the explicit Primary blocker."
+        ],
+        "ready": [],
+        "running": [],
+        "waiting": [],
+        "work_unit_count": 21
+      },
+      "llm_learnability": {
+        "aggregate_present": false,
+        "aggregation_status": "BLOCKED",
+        "aggregation_work_unit": "llm_learnability-aggregate",
+        "all_work_units_complete": false,
+        "blocked": [
+          {
+            "assigned_agent_id": "worker-learnability-i1-i2--quidra",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNSuHoeiZvjQEFC2kWY\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i1-i2--quidra",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i1-i2--python",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNSwjQDAdv4f1tNyXio\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i1-i2--python",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i1-i2--c",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNSz8GHbR622LyRwmEE\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i1-i2--c",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i1-i2--rust",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNT2YsPLtEYSB5uxmeT\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i1-i2--rust",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i1-i2--go",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNT59e4dqkVKoYeqTUK\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i1-i2--go",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i1-i2--java",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNT7ZVnHsmCz1JXszGx\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i1-i2--java",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i1-i2--typescript",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTA2KkEtokVXUgfDf2\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i1-i2--typescript",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i1-i2--kotlin",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTCHG6gwhN8AyuGbRe\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i1-i2--kotlin",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i1-i2--swift",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTEXSnb74J2UhSSc8T\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i1-i2--swift",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i1-i2--zig",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTGhRGy1NcUtd7qVZ4\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i1-i2--zig",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i3-i4--quidra",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTJv7T3sfKBp4b2mDP\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i3-i4--quidra",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i3-i4--python",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTMNxDLAh9qGWxn5dc\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i3-i4--python",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i3-i4--c",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTPg7NFWvRkjPFTsvT\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i3-i4--c",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i3-i4--rust",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTS6xned6h9U56dPE6\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i3-i4--rust",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i3-i4--go",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTUd1wRGL1BehTu6es\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i3-i4--go",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i3-i4--typescript",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTX8aYwS8vy5sFw3mt\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i3-i4--typescript",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i3-i4--kotlin",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTZhcUafQnrbeXFvqk\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i3-i4--kotlin",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i3-i4--swift",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTc4jteUYPWphDeH61\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i3-i4--swift",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i3-i4--zig",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTeTMkatjrdc9f9n5Z\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i3-i4--zig",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i5-i6--quidra",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTgyRNNz1b8dyb3DPj\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i5-i6--quidra",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i5-i6--python",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTjSFPVucqsNjLHVNx\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i5-i6--python",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i5-i6--c",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTmntENCwUzAQ1PTSM\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i5-i6--c",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i5-i6--rust",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTpDywLd6tszjD2AM7\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i5-i6--rust",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i5-i6--go",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTrf5ixWycyTastsbe\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i5-i6--go",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i5-i6--java",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTu1TtUptVPKoCNu4m\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i5-i6--java",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i5-i6--typescript",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTwF9vHuqBBwLvXHLK\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i5-i6--typescript",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i5-i6--kotlin",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNTyjjLpGZXj4YGGEmo\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i5-i6--kotlin",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i5-i6--swift",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNU276y2imqmj1mfzDB\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i5-i6--swift",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-learnability-i5-i6--zig",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNU4FbKWVcC8qigpwBw\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "learnability-i5-i6--zig",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "system-llm_learnability-aggregate",
+            "attempts": 0,
+            "blocker": "dependency blockers: learnability-i1-i2--c, learnability-i1-i2--go, learnability-i1-i2--java, learnability-i1-i2--kotlin, learnability-i1-i2--python, learnability-i1-i2--quidra, learnability-i1-i2--rust, learnability-i1-i2--swift, learnability-i1-i2--typescript, learnability-i1-i2--zig, learnability-i3-i4--c, learnability-i3-i4--go, learnability-i3-i4--kotlin, learnability-i3-i4--python, learnability-i3-i4--quidra, learnability-i3-i4--rust, learnability-i3-i4--swift, learnability-i3-i4--typescript, learnability-i3-i4--zig, learnability-i5-i6--c, learnability-i5-i6--go, learnability-i5-i6--java, learnability-i5-i6--kotlin, learnability-i5-i6--python, learnability-i5-i6--quidra, learnability-i5-i6--rust, learnability-i5-i6--swift, learnability-i5-i6--typescript, learnability-i5-i6--zig",
+            "blocker_class": "infrastructure",
+            "execution_kind": "command",
+            "id": "llm_learnability-aggregate",
+            "max_attempts": 1,
+            "phase": "aggregation"
+          }
+        ],
+        "complete_count": 3,
+        "invalid": [],
+        "next_actions": [
+          "Resolve the listed blocker or preserve it as the explicit Primary blocker."
+        ],
+        "ready": [],
+        "running": [],
+        "waiting": [],
+        "work_unit_count": 33
+      },
+      "llm_proficiency": {
+        "aggregate_present": false,
+        "aggregation_status": "BLOCKED",
+        "aggregation_work_unit": "llm_proficiency-aggregate",
+        "all_work_units_complete": false,
+        "blocked": [
+          {
+            "assigned_agent_id": "worker-proficiency-trials--quidra",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNSPr1JafPT7BjeUWH5\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "proficiency-trials--quidra",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-proficiency-trials--python",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNSU4W9GS8bTMNF7zta\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "proficiency-trials--python",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-proficiency-trials--c",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNSWVMnMeRT6GuMwBMt\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "proficiency-trials--c",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-proficiency-trials--rust",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNSYyBHzntCihZEtfbR\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "proficiency-trials--rust",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-proficiency-trials--go",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNScdSsqcT15ebHufUs\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "proficiency-trials--go",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-proficiency-trials--java",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNSf3JgpE3aotk9AP13\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "proficiency-trials--java",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-proficiency-trials--typescript",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNShMDF69N8GFL5mCQs\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "proficiency-trials--typescript",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-proficiency-trials--kotlin",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNSm5h9zxPrsrYRpDcj\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "proficiency-trials--kotlin",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-proficiency-trials--swift",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNSoN7RbUm6j1umJvY9\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "proficiency-trials--swift",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-proficiency-trials--zig",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): sandbox agent error: inference transport failure: inference gateway error (infrastructure): provider HTTP 400: {\"type\":\"error\",\"error\":{\"type\":\"invalid_request_error\",\"message\":\"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.\"},\"request_id\":\"req_011CfHNSqfGrht9iKBqDFsVc\"}",
+            "blocker_class": "infrastructure",
+            "execution_kind": "agent",
+            "id": "proficiency-trials--zig",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "system-llm_proficiency-aggregate",
+            "attempts": 0,
+            "blocker": "dependency blockers: proficiency-trials--c, proficiency-trials--go, proficiency-trials--java, proficiency-trials--kotlin, proficiency-trials--python, proficiency-trials--quidra, proficiency-trials--rust, proficiency-trials--swift, proficiency-trials--typescript, proficiency-trials--zig",
+            "blocker_class": "infrastructure",
+            "execution_kind": "command",
+            "id": "llm_proficiency-aggregate",
+            "max_attempts": 1,
+            "phase": "aggregation"
+          }
+        ],
+        "complete_count": 2,
+        "invalid": [],
+        "next_actions": [
+          "Resolve the listed blocker or preserve it as the explicit Primary blocker."
+        ],
+        "ready": [],
+        "running": [],
+        "waiting": [],
+        "work_unit_count": 13
+      },
+      "semantic_compression": {
+        "aggregate_present": false,
+        "aggregation_status": "BLOCKED",
+        "aggregation_work_unit": "semantic_compression-aggregate",
+        "all_work_units_complete": false,
+        "blocked": [
+          {
+            "assigned_agent_id": "worker-sc-structure-gates--part-1",
+            "attempts": 3,
+            "blocker": "worker process failed after 3 attempt(s): benchmark error: packet-only worker response is incomplete: max_tokens: the model hit its output limit and the answer is truncated; raise the unit's output cap rather than retrying the same request",
+            "blocker_class": "ordinary-incomplete",
+            "execution_kind": "agent",
+            "id": "sc-structure-gates--part-1",
+            "max_attempts": 3,
+            "phase": "readiness"
+          },
+          {
+            "assigned_agent_id": "worker-sc-metrics-local--part-1",
+            "attempts": 0,
+            "blocker": "dependency blockers: sc-structure-gates--part-1",
+            "blocker_class": "ordinary-incomplete",
+            "execution_kind": "agent",
+            "id": "sc-metrics-local--part-1",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-sc-metrics-local--part-2",
+            "attempts": 0,
+            "blocker": "dependency blockers: sc-structure-gates--part-1",
+            "blocker_class": "ordinary-incomplete",
+            "execution_kind": "agent",
+            "id": "sc-metrics-local--part-2",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-sc-metrics-hidden-coverage--part-1",
+            "attempts": 0,
+            "blocker": "dependency blockers: sc-structure-gates--part-1",
+            "blocker_class": "ordinary-incomplete",
+            "execution_kind": "agent",
+            "id": "sc-metrics-hidden-coverage--part-1",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-sc-metrics-hidden-coverage--part-2",
+            "attempts": 0,
+            "blocker": "dependency blockers: sc-structure-gates--part-1",
+            "blocker_class": "ordinary-incomplete",
+            "execution_kind": "agent",
+            "id": "sc-metrics-hidden-coverage--part-2",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "worker-sc-comparability",
+            "attempts": 0,
+            "blocker": "dependency blockers: sc-metrics-local--part-1, sc-metrics-local--part-2, sc-metrics-hidden-coverage--part-1, sc-metrics-hidden-coverage--part-2",
+            "blocker_class": "ordinary-incomplete",
+            "execution_kind": "agent",
+            "id": "sc-comparability",
+            "max_attempts": 3,
+            "phase": "measurement"
+          },
+          {
+            "assigned_agent_id": "system-semantic_compression-aggregate",
+            "attempts": 0,
+            "blocker": "dependency blockers: sc-comparability, sc-metrics-hidden-coverage--part-1, sc-metrics-hidden-coverage--part-2, sc-metrics-local--part-1, sc-metrics-local--part-2, sc-structure-gates--part-1",
+            "blocker_class": "ordinary-incomplete",
+            "execution_kind": "command",
+            "id": "semantic_compression-aggregate",
+            "max_attempts": 1,
+            "phase": "aggregation"
+          }
+        ],
+        "complete_count": 1,
+        "invalid": [],
+        "next_actions": [
+          "Resolve the listed blocker or preserve it as the explicit Primary blocker."
+        ],
+        "ready": [],
+        "running": [],
+        "waiting": [],
+        "work_unit_count": 8
+      }
+    },
+    "global_next_action": "Run benchmark.py advance, dispatch queued agent work, and repeat until terminal.",
+    "ledger_present": true,
+    "manifest_matches_ledger": true,
+    "manifest_present": true,
+    "manifest_sha256": "79bd55483b2d84f3950b0a6e3d63217601dfac8ea21766fc06ba470d9e1f8550"
+  }
+}

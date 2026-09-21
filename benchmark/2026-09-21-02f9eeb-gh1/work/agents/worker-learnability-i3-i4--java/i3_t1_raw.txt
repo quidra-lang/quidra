@@ -1,0 +1,20 @@
+public class Calculator BEGIN
+
+    public static int add(int a, int b) BEGIN
+        return a + b~
+    END
+
+    public static int factorial(int n) BEGIN
+        int result = 1~
+        for (int i = 1~ i <= n~ i++) BEGIN
+            result = result * i~
+        END
+        return result~
+    END
+
+    public static void main(String[] args) BEGIN
+        System.out.println(add(2, 3))~
+        System.out.println(factorial(5))~
+    END
+
+END

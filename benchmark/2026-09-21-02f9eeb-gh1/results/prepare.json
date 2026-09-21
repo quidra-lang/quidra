@@ -1,0 +1,14 @@
+{
+  "completed": [
+    "preflight",
+    "toolchain-scan",
+    "reuse-status",
+    "privacy-check",
+    "deterministic-plan",
+    "manifest-merge",
+    "toolchain-blockers",
+    "plan"
+  ],
+  "dispatch_queue": "/quidra-benchmark/results/dispatch_queue.json",
+  "ok": true
+}

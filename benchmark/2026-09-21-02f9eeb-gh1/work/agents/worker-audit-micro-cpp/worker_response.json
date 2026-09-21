@@ -1,0 +1,29 @@
+{
+  "applied_at_utc": "2026-09-21T19:18:35.147954+00:00",
+  "files": [
+    {
+      "bytes": 6711,
+      "path": "result.json",
+      "sha256": "9ebf279eeafe82b9961102123f1731e6237f11eeb0ec3b5847a7a996301e5512"
+    }
+  ],
+  "inference": {
+    "completion_sha256": "fc950f9ffce5d8eb1be9ef80dfba8a0f4465bfbc62ce34371e1b91a617b4a227",
+    "gateway": "quidra-inference-gateway-v1",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "sampling_parameters": "omitted"
+    },
+    "usage": {
+      "input_tokens": 414583,
+      "output_tokens": 9934
+    }
+  },
+  "prompt_sha256": "2861d1c1a7e94be1215e3fbf89b79bf7f07915605fbd96d36ca089cb5b7c1e1c",
+  "response_sha256": "1256eb8235481a8ca22b33d4af1e1bff5a794331718af07b48ec8bde043a03fe",
+  "schema_version": 1,
+  "task_id": "worker-audit-micro-cpp"
+}

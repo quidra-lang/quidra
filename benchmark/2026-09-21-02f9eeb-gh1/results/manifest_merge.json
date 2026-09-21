@@ -1,0 +1,13 @@
+{
+  "by_evaluation": {
+    "ecosystem": 11,
+    "language_quality": 21,
+    "llm_learnability": 33,
+    "llm_proficiency": 13,
+    "semantic_compression": 8
+  },
+  "manifest_sha256": "79bd55483b2d84f3950b0a6e3d63217601dfac8ea21766fc06ba470d9e1f8550",
+  "ok": true,
+  "plan_count": 5,
+  "work_unit_count": 86
+}

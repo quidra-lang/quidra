@@ -1,0 +1,411 @@
+{
+  "agent_id": "worker-learnability-i3-i4--java",
+  "denied_actions": [],
+  "expected_outputs": [
+    "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java/result.json"
+  ],
+  "final_summary": "Produced result.json for llm_learnability requirements condition.i3_structural_surface_perturbation and condition.i4_novel_rule_generalization for Java. Ran 2 independent structural-surface-transformation trials (I3, matching the frozen structural_surface_transformation_sets=2 primary count) using fresh trial_start sessions: (1) semicolon->~, brace->BEGIN/END; (2) semicolon->!!, brace-><</>>, comma->;;. Both raw model outputs were saved, mechanically inverse-mapped back to standard Java via Python scripts, compiled with javac, and executed with java, producing correct outputs (Calculator: 5/120; Shapes: 12.0/6.0). Ran 1 novel-rule-generalization trial (I4, matching novel_rule_generalization_trials_per_language=1) with a synthetic overlay rule (RC-VOID/RC-ARRAY/RC-PRIM/RC-OBJ marker comments keyed to static return-type category) described only in the prompt; the model's Registry.java was compiled, executed (correct output), and mechanically validated against the rule with a Python checker confirming all 4 methods' markers were correct. All raw evidence, inversion/validation scripts, and generated Java sources are saved as artifacts alongside result.json in the writable directory. Both conditions scored 100/100 for Java given perfect correct@1, compile, run, and specification-compliance outcomes across all trials, with full per-trial evidence and scoring rationale recorded under evidence.",
+  "finished_at_utc": "2026-09-21T21:48:39.474039+00:00",
+  "gateway": {
+    "credential_less_client": true,
+    "host_tools_exposed": false,
+    "network_policy": "disabled",
+    "protocol": "quidra-inference-gateway-v1",
+    "provider": "anthropic-messages"
+  },
+  "missing_outputs": [],
+  "network_allowed": false,
+  "prompt_sha256": "473d93669c546259a3b10767ae4072f4403a48f644c9730ce55ad188e4566f83",
+  "runtime": "quidra-sandbox-agent-v1",
+  "sampling": {
+    "decoding_state": "provider-controlled",
+    "effort": "high",
+    "sampling_parameters": "omitted"
+  },
+  "schema_version": 1,
+  "stop_reason": "final",
+  "trace": [
+    {
+      "action": null,
+      "protocol_error": "empty completion",
+      "turn": 1
+    },
+    {
+      "action": null,
+      "protocol_error": "empty completion",
+      "turn": 2
+    },
+    {
+      "action": "trial_start",
+      "observation": {
+        "calls_remaining": 11,
+        "calls_used": 1,
+        "completion": "<439 chars, preserved under trials>",
+        "incomplete": null,
+        "ok": true,
+        "repairs_remaining": 3,
+        "repairs_used": 0,
+        "stop_reason": "end_turn",
+        "trial_id": "i3-t1"
+      },
+      "turn": 3
+    },
+    {
+      "action": "write_file",
+      "observation": {
+        "bytes": 440,
+        "ok": true,
+        "path": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java/i3_t1_raw.txt",
+        "sha256": "1af4be23121f0dec5627c77e7b0a56ae9db529bf1baa906be8b6bcb2a6960ae0"
+      },
+      "turn": 4
+    },
+    {
+      "action": null,
+      "protocol_error": "empty completion",
+      "turn": 5
+    },
+    {
+      "action": "write_file",
+      "observation": {
+        "bytes": 190,
+        "ok": true,
+        "path": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java/invert_i3.py",
+        "sha256": "49f5f34b80a5f567350b287c1f372ba62a65f648773a7773b3d50c16e101573a"
+      },
+      "turn": 6
+    },
+    {
+      "action": "run",
+      "observation": {
+        "argv": [
+          "/usr/bin/python3",
+          "invert_i3.py"
+        ],
+        "cwd": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java",
+        "exit_code": 0,
+        "ok": true,
+        "stderr": "",
+        "stdout": "public class Calculator {\n\n    public static int add(int a, int b) {\n        return a + b;\n    }\n\n    public static int factorial(int n) {\n        int result = 1;\n        for (int i = 1; i <= n; i++) {\n            result = result * i;\n        }\n        return result;\n    }\n\n    public static void main(String[] args) {\n        System.out.println(add(2, 3));\n        System.out.println(factorial(5));\n    }\n\n}\n\n",
+        "truncated": false
+      },
+      "turn": 7
+    },
+    {
+      "action": "run",
+      "observation": {
+        "argv": [
+          "/usr/local/bin/javac",
+          "Calculator.java"
+        ],
+        "cwd": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java",
+        "exit_code": 0,
+        "ok": true,
+        "stderr": "",
+        "stdout": "",
+        "truncated": false
+      },
+      "turn": 8
+    },
+    {
+      "action": "run",
+      "observation": {
+        "argv": [
+          "/usr/local/bin/java",
+          "Calculator"
+        ],
+        "cwd": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java",
+        "exit_code": 0,
+        "ok": true,
+        "stderr": "",
+        "stdout": "5\n120\n",
+        "truncated": false
+      },
+      "turn": 9
+    },
+    {
+      "action": null,
+      "protocol_error": "empty completion",
+      "turn": 10
+    },
+    {
+      "action": "trial_start",
+      "observation": {
+        "calls_remaining": 10,
+        "calls_used": 2,
+        "completion": "<390 chars, preserved under trials>",
+        "incomplete": null,
+        "ok": true,
+        "repairs_remaining": 3,
+        "repairs_used": 0,
+        "stop_reason": "end_turn",
+        "trial_id": "i3-t2"
+      },
+      "turn": 11
+    },
+    {
+      "action": "write_file",
+      "observation": {
+        "bytes": 391,
+        "ok": true,
+        "path": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java/i3_t2_raw.txt",
+        "sha256": "50ffb8885ccb888b8ff5fde62d66ed9815921348578fe8de0bfe29f5e18a5dff"
+      },
+      "turn": 12
+    },
+    {
+      "action": "write_file",
+      "observation": {
+        "bytes": 192,
+        "ok": true,
+        "path": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java/invert_i3_t2.py",
+        "sha256": "602caae57ff5c21aecffff8cc64803be7ce299521bb6849866416acc8ee1ae06"
+      },
+      "turn": 13
+    },
+    {
+      "action": null,
+      "protocol_error": "empty completion",
+      "turn": 14
+    },
+    {
+      "action": "run",
+      "observation": {
+        "argv": [
+          "/usr/bin/python3",
+          "invert_i3_t2.py"
+        ],
+        "cwd": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java",
+        "exit_code": 0,
+        "ok": true,
+        "stderr": "",
+        "stdout": "public class Shapes {\n    public static double rectangleArea(double w, double h) {\n        return w*h;\n    }\n\n    public static double triangleArea(double base, double height) {\n        return 0.5*base*height;\n    }\n\n    public static void main(String[] args) {\n        System.out.println(rectangleArea(3.0, 4.0));\n        System.out.println(triangleArea(6.0, 2.0));\n    }\n}\n\n",
+        "truncated": false
+      },
+      "turn": 15
+    },
+    {
+      "action": "run",
+      "observation": {
+        "argv": [
+          "/usr/local/bin/javac",
+          "Shapes.java"
+        ],
+        "cwd": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java",
+        "exit_code": 0,
+        "ok": true,
+        "stderr": "",
+        "stdout": "",
+        "truncated": false
+      },
+      "turn": 16
+    },
+    {
+      "action": "run",
+      "observation": {
+        "argv": [
+          "/usr/local/bin/java",
+          "Shapes"
+        ],
+        "cwd": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java",
+        "exit_code": 0,
+        "ok": true,
+        "stderr": "",
+        "stdout": "12.0\n6.0\n",
+        "truncated": false
+      },
+      "turn": 17
+    },
+    {
+      "action": null,
+      "protocol_error": "empty completion",
+      "turn": 18
+    },
+    {
+      "action": "trial_start",
+      "observation": {
+        "calls_remaining": 9,
+        "calls_used": 3,
+        "completion": "<617 chars, preserved under trials>",
+        "incomplete": null,
+        "ok": true,
+        "repairs_remaining": 3,
+        "repairs_used": 0,
+        "stop_reason": "end_turn",
+        "trial_id": "i4-t1"
+      },
+      "turn": 19
+    },
+    {
+      "action": "write_file",
+      "observation": {
+        "bytes": 618,
+        "ok": true,
+        "path": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java/Registry.java",
+        "sha256": "83d65ee0c5214774fb85657e520d992b964c77abcf12cd4c9ebd155909b7ebec"
+      },
+      "turn": 20
+    },
+    {
+      "action": null,
+      "protocol_error": "empty completion",
+      "turn": 21
+    },
+    {
+      "action": "run",
+      "observation": {
+        "argv": [
+          "/usr/local/bin/javac",
+          "Registry.java"
+        ],
+        "cwd": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java",
+        "exit_code": 0,
+        "ok": true,
+        "stderr": "",
+        "stdout": "",
+        "truncated": false
+      },
+      "turn": 22
+    },
+    {
+      "action": "run",
+      "observation": {
+        "argv": [
+          "/usr/local/bin/java",
+          "Registry"
+        ],
+        "cwd": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java",
+        "exit_code": 0,
+        "ok": true,
+        "stderr": "",
+        "stdout": "0\n1\n2\nn=5\n",
+        "truncated": false
+      },
+      "turn": 23
+    },
+    {
+      "action": "write_file",
+      "observation": {
+        "bytes": 871,
+        "ok": true,
+        "path": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java/validate_i4.py",
+        "sha256": "bce507e393867f00e09f81c53959792a37e13d0068932d1091c53bd7e5fcd79d"
+      },
+      "turn": 24
+    },
+    {
+      "action": "run",
+      "observation": {
+        "argv": [
+          "/usr/bin/python3",
+          "validate_i4.py"
+        ],
+        "cwd": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java",
+        "exit_code": 0,
+        "ok": true,
+        "stderr": "",
+        "stdout": "('makeRange', 'int[]', '// RC-ARRAY', '// RC-ARRAY', True)\n('describe', 'String', '// RC-OBJ', '// RC-OBJ', True)\n('printAll', 'void', '// RC-VOID', '// RC-VOID', True)\n('main', 'void', '// RC-VOID', '// RC-VOID', True)\nALL_OK\n",
+        "truncated": false
+      },
+      "turn": 25
+    },
+    {
+      "action": null,
+      "completion_sha256": "1c00e5fcc4667b8928dd73fdb99b40ceadbb01b6d5f7f09a50811d7d86c0c559",
+      "protocol_error": "model completion is not valid JSON: Invalid control character at: line 1 column 613 (char 612)",
+      "turn": 26
+    },
+    {
+      "action": "write_file",
+      "observation": {
+        "bytes": 5738,
+        "ok": true,
+        "path": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java/result.json",
+        "sha256": "27f69bbe21b9ccd29d3f792a3011af1d98e3bd65db8200d55eae35f69d00414e"
+      },
+      "turn": 27
+    },
+    {
+      "action": "read_file",
+      "observation": {
+        "content": "<5738 chars elided from trace>",
+        "ok": true,
+        "path": "/quidra-benchmark/work/agents/worker-learnability-i3-i4--java/result.json",
+        "truncated": false
+      },
+      "turn": 28
+    },
+    {
+      "action": "final",
+      "turn": 29
+    }
+  ],
+  "trials": {
+    "budget": 12,
+    "max_repairs_per_trial": 3,
+    "trials": {
+      "i3-t1": {
+        "calls": [
+          {
+            "call": 1,
+            "completion": "public class Calculator BEGIN\n\n    public static int add(int a, int b) BEGIN\n        return a + b~\n    END\n\n    public static int factorial(int n) BEGIN\n        int result = 1~\n        for (int i = 1~ i <= n~ i++) BEGIN\n            result = result * i~\n        END\n        return result~\n    END\n\n    public static void main(String[] args) BEGIN\n        System.out.println(add(2, 3))~\n        System.out.println(factorial(5))~\n    END\n\nEND",
+            "completion_sha256": "66713431911b848bea4bacb108ec37e0dfcd8cf4bcf87b223d0fb21da3304b62",
+            "incomplete": null,
+            "prompt": "You are given a task to write Java source code, but the code must be written using a transformed surface grammar instead of standard Java surface syntax. The underlying language semantics are standard Java; only the following surface tokens are replaced:\n\n1. Statement terminator: use the token `~` in every place where standard Java would use a semicolon `;` to terminate a statement (including inside for-loop headers between init/condition/update clauses).\n2. Block delimiters: use the keyword `BEGIN` in every place where standard Java would use an opening curly brace `{`, and use the keyword `END` in every place where standard Java would use a closing curly brace `}`.\n\nAll other Java syntax (keywords, identifiers, operators, parentheses, commas, package/import placement, etc.) remains completely standard and unchanged. Do not use real `;`, `{`, or `}` characters anywhere in your output.\n\nTask: Write a complete Java source file for a public class named `Calculator` in the default package containing:\n- a public static method `int add(int a, int b)` that returns a+b\n- a public static method `int factorial(int n)` that returns n! computed iteratively (factorial(0)=1)\n- a `public static void main(String[] args)` method that prints the result of `add(2,3)` on one line and the result of `factorial(5)` on the next line (using System.out.println).\n\nOutput ONLY the Java code written in the transformed grammar described above (with `~` replacing `;` and `BEGIN`/`END` replacing `{`/`}`). Do not include any explanation, markdown fences, or commentary \u2014 output only the raw transformed-grammar source code.",
+            "prompt_sha256": "add04c4a624f8fe380c566f2cf609b9bca8b5e292db344944bc8a86a2f65b6aa",
+            "stop_reason": "end_turn",
+            "usage": {
+              "input_tokens": 526,
+              "output_tokens": 174
+            }
+          }
+        ],
+        "repairs": 0
+      },
+      "i3-t2": {
+        "calls": [
+          {
+            "call": 1,
+            "completion": "public class Shapes <<\n    public static double rectangleArea(double w;; double h) <<\n        return w*h!!\n    >>\n\n    public static double triangleArea(double base;; double height) <<\n        return 0.5*base*height!!\n    >>\n\n    public static void main(String[] args) <<\n        System.out.println(rectangleArea(3.0;; 4.0))!!\n        System.out.println(triangleArea(6.0;; 2.0))!!\n    >>\n>>",
+            "completion_sha256": "97fb9e2e4ff96fc88e8e4dfefeb0079ba5965e0630133d65ac18a1586199e76e",
+            "incomplete": null,
+            "prompt": "You are given a task to write Java source code, but the code must be written using a transformed surface grammar instead of standard Java surface syntax. The underlying language semantics are standard Java; only the following surface tokens are replaced:\n\n1. Statement terminator: use the token `!!` in every place where standard Java would use a semicolon `;` to terminate a statement (including inside for-loop headers between init/condition/update clauses).\n2. Block delimiters: use the token `<<` in every place where standard Java would use an opening curly brace `{`, and use the token `>>` in every place where standard Java would use a closing curly brace `}`.\n3. Argument/parameter separator: use the token `;;` in every place where standard Java would use a comma `,` to separate method parameters or call arguments.\n\nAll other Java syntax (keywords, identifiers, operators, parentheses, array brackets, etc.) remains completely standard and unchanged. Do not use real `;`, `{`, `}`, or `,` characters anywhere in your output.\n\nTask: Write a complete Java source file for a public class named `Shapes` in the default package containing:\n- a public static method `double rectangleArea(double w, double h)` that returns w*h\n- a public static method `double triangleArea(double base, double height)` that returns 0.5*base*height\n- a `public static void main(String[] args)` method that prints the result of `rectangleArea(3.0, 4.0)` on one line and `triangleArea(6.0, 2.0)` on the next line (using System.out.println).\n\nOutput ONLY the Java code written in the transformed grammar described above (with `!!` replacing `;`, `<<`/`>>` replacing `{`/`}`, and `;;` replacing `,`). Do not include any explanation, markdown fences, or commentary \u2014 output only the raw transformed-grammar source code.",
+            "prompt_sha256": "d3f1ce08c0b54c2dd2e283ab07b1e27424dc748aed411b95d94d0dfb2ee9c436",
+            "stop_reason": "end_turn",
+            "usage": {
+              "input_tokens": 597,
+              "output_tokens": 169
+            }
+          }
+        ],
+        "repairs": 0
+      },
+      "i4-t1": {
+        "calls": [
+          {
+            "call": 1,
+            "completion": "public class Registry {\n\n    // RC-ARRAY\n    public static int[] makeRange(int n) {\n        int[] result = new int[n];\n        for (int i = 0; i < n; i++) {\n            result[i] = i;\n        }\n        return result;\n    }\n\n    // RC-OBJ\n    public static String describe(int n) {\n        return \"n=\" + n;\n    }\n\n    // RC-VOID\n    public static void printAll(int[] arr) {\n        for (int i = 0; i < arr.length; i++) {\n            System.out.println(arr[i]);\n        }\n    }\n\n    // RC-VOID\n    public static void main(String[] args) {\n        printAll(makeRange(3));\n        System.out.println(describe(5));\n    }\n}",
+            "completion_sha256": "b4ab3021508f21bd9ac32d9fa0a21125eaf685d8c8b4ba8d2fe743d6fcd3b250",
+            "incomplete": null,
+            "prompt": "This task tests your ability to apply a brand-new synthetic annotation rule that is specific to this benchmark and does not exist in real Java or any real language convention. Follow it exactly.\n\nOVERLAY RULE (synthetic, invented for this task only):\nFor every method declaration in the file (including main), you must place a marker comment on the line immediately above the method signature, chosen by this rule:\n- If the method's return type is `void`, place the marker `// RC-VOID`.\n- If the method's return type is an array type (any type followed by `[]`), place the marker `// RC-ARRAY`.\n- If the method's return type is a primitive type that is NOT `void` (e.g. int, double, boolean, long, char, float, short, byte), place the marker `// RC-PRIM`.\n- If the method's return type is any other reference/object type (e.g. String, List<...>, a class name), place the marker `// RC-OBJ`.\n\nEach marker comment must be the sole content of its own line, directly above the corresponding method's signature line, with no blank line between the marker and the signature.\n\nAside from inserting these marker comments, write completely standard, ordinary Java code with standard syntax (normal `;`, `{`, `}`, `,` etc. \u2014 no other transformation applies here).\n\nTask: Write a complete Java source file for a public class named `Registry` in the default package containing exactly these four methods, in this order:\n1. `public static int[] makeRange(int n)` \u2014 returns a new int array containing values 0..n-1 in order.\n2. `public static String describe(int n)` \u2014 returns the string \"n=\" concatenated with n.\n3. `public static void printAll(int[] arr)` \u2014 prints each element of arr on its own line using System.out.println.\n4. `public static void main(String[] args)` \u2014 calls `printAll(makeRange(3))`, then prints `describe(5)` using System.out.println.\n\nOutput ONLY the complete Java source file, with the correct marker comment placed above each method per the rule above. Do not include any explanation, markdown fences, or commentary outside the code.",
+            "prompt_sha256": "2bd3e8806ff62584f3f6dd8d54c42bbbc18ec1316279cd41c2dbbb3462cecc9d",
+            "stop_reason": "end_turn",
+            "usage": {
+              "input_tokens": 666,
+              "output_tokens": 249
+            }
+          }
+        ],
+        "repairs": 0
+      }
+    },
+    "used": 3
+  },
+  "turns": 29,
+  "usage": {
+    "calls": 29,
+    "input_tokens": 339701,
+    "output_tokens": 24462
+  },
+  "worker_mode": "sandbox-agent"
+}

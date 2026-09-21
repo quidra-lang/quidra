@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "evaluation": "llm_learnability",
+  "requirements": {
+    "coverage.all_10_languages": false
+  },
+  "evidence": {
+    "coverage.all_10_languages": {
+      "assigned_languages_scope": "full fixed comparison set (Quidra, Python, C++, Rust, Go, Java, TypeScript, Kotlin, Swift, Zig)",
+      "method": "Attempted to evaluate llm_learnability coverage.all_10_languages symmetrically across the full fixed comparison set per worker_core.md rule 1-3 and llm_learnability.md Section 6.2/10.2-10.4.",
+      "finding": "Coverage cannot be confirmed true. This packet's only embedded task inputs are Quidra-language repository documentation files (docs/development.md, docs/issue-ai-triage.md, docs/packages.md, docs/spec/architecture.md, docs/spec/diagnostics.md, docs/spec/grammar.ebnf, docs/spec/language.md, docs/spec/llm-guide.md, docs/spec/numeric-and-bin.md, docs/spec/patch-schema.md). None of these are Learnability Reference Packs, forward/inverse transformers, transformation manifests, deterministic seed records, round-trip test fixtures, pre-flight validation evidence, leakage-audit manifests, or scored-trial outputs for ANY of the 10 languages, including Quidra itself.",
+      "missing_artifacts_required_by_spec": [
+        "Section 6.2: fixed LLM execution configuration records (model/version, decoding-state, repair-turn logs) per language",
+        "Section 10.2: Learnability Reference Pack per language with published token counts, using the same section template and comparable token budget",
+        "Section 10.3: I1/I2 seed mappings (keyword_anonymization_seeds=3, vocabulary_anonymization_seeds=3 per primary.json) with deterministic recorded mappings and tokenizer counts per language",
+        "Section 10.4: forward transformer, inverse transformer, transformation manifest, deterministic seed, round-trip tests, positive/negative fixtures per language and condition",
+        "Mandatory pre-flight validation evidence (fixture compile/run parity, harness-convention isolation, validator pass/fail exercise) per language",
+        "Mandatory Reference Pack leakage audit manifest (pack hash, fixture hash, leakage checks, pass/fail, planted-leak positive control) per language, condition, seed, transformation set",
+        "I4/I5/I6 per-language trial records (novel_rule_generalization, held_out_rule_composition, prior_conflict_resistance; 1 trial per language per primary.json)"
+      ],
+      "languages_with_zero_supplied_evidence": [
+        "Quidra", "Python", "C++", "Rust", "Go", "Java", "TypeScript", "Kotlin", "Swift", "Zig"
+      ],
+      "conclusion": "Per worker_core.md rule 3 and rule 6 ('A valid negative gate result is evidence, not a validator failure') and llm_learnability.md's mandatory pre-flight/leakage-audit gating ('No Learnability scored trial may begin until every pack that can enter that trial has passed the leakage audit'), coverage.all_10_languages is reported false. This is an infrastructure/evidence blocker, not a claim that any language failed a scored trial: no scored trial evidence, reference packs, transformation manifests, or audits for any language were available in this packet-only task's embedded inputs. Unfinished applicable work is recorded as a blocker per the frozen rules rather than marked N/A or fabricated as true.",
+      "blocker": "INFRASTRUCTURE_EVIDENCE_MISSING: This worker was given only Quidra repository documentation as embedded input; it has no access to Learnability Reference Packs, transformer/manifest/seed artifacts, pre-flight validation records, or leakage-audit manifests for any of the 10 languages, and packet-only mode forbids using local tools to construct or fetch such artifacts. Coverage of the full fixed comparison set therefore cannot be validated true from the evidence available to this task and must be escalated to whichever work unit(s) produce/own the Reference Packs, transformation artifacts, and trial results referenced in Sections 6.2 and 10.2-10.4."
+    }
+  }
+}

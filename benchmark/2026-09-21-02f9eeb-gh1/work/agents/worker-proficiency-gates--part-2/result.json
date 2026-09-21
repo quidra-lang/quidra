@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "evaluation": "llm_proficiency",
+  "requirements": {
+    "coverage.all_10_languages": true
+  },
+  "evidence": {
+    "coverage.all_10_languages": {
+      "gate_definition": "Confirms the llm_proficiency evaluation is scoped, configured, and applied to the full fixed 10-language comparison set defined in benchmark_metadata.json, with one frozen contract (workloads, scenarios, trial counts, decoding state, prompt structure, oracle policy, success rule, token-accounting rule) applied symmetrically to every language, per worker_core.md rule 2 and Section 6.2 of llm_proficiency.md.",
+      "fixed_language_set_source": "benchmark_metadata.json languages[] (embedded input)",
+      "fixed_language_set": ["Quidra", "Python", "C++", "Rust", "Go", "Java", "TypeScript", "Kotlin", "Swift", "Zig"],
+      "assigned_languages_for_this_worker": "full fixed comparison set (per Task Packet 'Assigned languages')",
+      "language_count_check": {
+        "expected": 10,
+        "observed_in_metadata": 10,
+        "observed_in_assignment": 10,
+        "match": true
+      },
+      "frozen_config_source": "primary.json (embedded input) -> llm_proficiency block",
+      "frozen_replicated_cell_universe": {
+        "primary_workloads": ["SVM", "GMM", "LightGrad"],
+        "primary_scenarios": ["specification_to_implementation", "reference_to_porting"],
+        "independent_trials_per_replicated_cell": 3,
+        "max_repair_turns": 3,
+        "note": "This workload x scenario x trial-count universe is declared once in primary.json and is not language-specific; no per-language override, addition, or omission of a workload, scenario, or trial count exists anywhere in the readable configuration."
+      },
+      "decoding_controls": {
+        "decoding_state": "provider-controlled",
+        "thinking": "provider-default-adaptive",
+        "effort": "high",
+        "note": "Recorded once in primary.json.sampling and applies identically to all 10 languages; no per-language decoding variance is declared anywhere in the readable configuration."
+      },
+      "symmetry_findings": [
+        "benchmark_metadata.json lists exactly the same 10 languages that this worker's Task Packet assigns as the 'full fixed comparison set'.",
+        "primary.json's llm_proficiency block (workloads, scenarios, trial counts, repair turns) contains no per-language branch, override, or exclusion field for any of the 10 languages.",
+        "primary.json's sampling/decoding block contains no per-language branch, override, or exclusion field for any of the 10 languages.",
+        "No readable file under /quidra-benchmark/repo/docs or /quidra-benchmark/template/{workloads,fixtures} restricts the llm_proficiency comparison set to fewer than 10 languages or singles out any one language for different treatment.",
+        "No language is designated N/A, excluded, or given a different oracle policy, prompt budget, success-stopping rule, or token-accounting rule in any readable configuration source."
+      ],
+      "scope_of_this_gate": "This coverage gate attests that the evaluation is configured and scoped to cover all 10 languages under one identical frozen contract, per worker_core.md rule 2 and rule 6 ('Gate and coverage requirements return booleans supported by evidence'). It does not itself assert completion of per-language LLM trial execution/scoring; per-cell trial evidence and metric-level scoring (LLM Generation Success, Correct@1, etc.) are separate llm_proficiency requirement IDs outside this worker's assignment (assigned_requirements.json restricts this worker to coverage.all_10_languages only).",
+      "result": true,
+      "result_basis": "All 10 fixed-set languages are present, none are excluded or treated asymmetrically in any readable frozen configuration document; the coverage gate is satisfied on a configuration/scope basis as defined for this requirement ID."
+    }
+  }
+}

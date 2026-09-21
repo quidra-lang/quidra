@@ -1,0 +1,105 @@
+{
+  "agent_id": "worker-ecosystem-gates--part-1",
+  "components": [
+    {
+      "bytes": 2780,
+      "kind": "task",
+      "path": "/quidra-benchmark/prompts/components/by-hash/a565afb4af3ca99643a1e396924dd27ad3cf74b64240682c6a6353bae40e6caf.md",
+      "sha256": "a565afb4af3ca99643a1e396924dd27ad3cf74b64240682c6a6353bae40e6caf"
+    },
+    {
+      "bytes": 4245,
+      "kind": "embedded:worker_core.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/4fc6f960d7b0dfd7b7a4748ba267514a605981df12b4582ebadd4fd7af8336cb.md",
+      "sha256": "4fc6f960d7b0dfd7b7a4748ba267514a605981df12b4582ebadd4fd7af8336cb"
+    },
+    {
+      "bytes": 7237,
+      "kind": "embedded:ecosystem.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/73c8aa691d382322c75849b89b933ec5bbe5857aae8bd630b1269af19dacdd28.md",
+      "sha256": "73c8aa691d382322c75849b89b933ec5bbe5857aae8bd630b1269af19dacdd28"
+    },
+    {
+      "bytes": 5943,
+      "kind": "embedded:primary.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/c61bbf06c813e5c641485a215e54d88b9f201c4aaf7d7b4ab9dbda5d9ed3cf56.md",
+      "sha256": "c61bbf06c813e5c641485a215e54d88b9f201c4aaf7d7b4ab9dbda5d9ed3cf56"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857.md",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 284,
+      "kind": "embedded:assigned_requirements.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/4cc4dc44efe63ca4a311ae9e92303cc3161069454ffd154e8c0a1cd5e1f59403.md",
+      "sha256": "4cc4dc44efe63ca4a311ae9e92303cc3161069454ffd154e8c0a1cd5e1f59403"
+    },
+    {
+      "bytes": 9946,
+      "kind": "task-input:repo/docs/development.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/b357f7b6029404365953b294cbf4662359fdc0c72cbcbb6de6f3992181bfc3ad.md",
+      "sha256": "b357f7b6029404365953b294cbf4662359fdc0c72cbcbb6de6f3992181bfc3ad"
+    },
+    {
+      "bytes": 3458,
+      "kind": "task-input:repo/docs/issue-ai-triage.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/6914ea3e04177919b4c443a0913b0d0c4c358494541cfa98d3fb9044a163fd99.md",
+      "sha256": "6914ea3e04177919b4c443a0913b0d0c4c358494541cfa98d3fb9044a163fd99"
+    },
+    {
+      "bytes": 7676,
+      "kind": "task-input:repo/docs/packages.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/a47671eed29d8778b1e55954cc88111dc8940ba934d3c5d1b5150d63d43e4185.md",
+      "sha256": "a47671eed29d8778b1e55954cc88111dc8940ba934d3c5d1b5150d63d43e4185"
+    },
+    {
+      "bytes": 34354,
+      "kind": "task-input:repo/docs/spec/architecture.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/3b73b199e3c532abe5d48f6ce6c1c340c90523144bd31a4046c596ea5427ba11.md",
+      "sha256": "3b73b199e3c532abe5d48f6ce6c1c340c90523144bd31a4046c596ea5427ba11"
+    },
+    {
+      "bytes": 19891,
+      "kind": "task-input:repo/docs/spec/diagnostics.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/357d5ecafe1c5a438af7f9848e4277e9ac867096a1fcaa4b13f64a162a9ad294.md",
+      "sha256": "357d5ecafe1c5a438af7f9848e4277e9ac867096a1fcaa4b13f64a162a9ad294"
+    },
+    {
+      "bytes": 9583,
+      "kind": "task-input:repo/docs/spec/grammar.ebnf",
+      "path": "/quidra-benchmark/prompts/components/by-hash/4719405a735b8825f7f268f29f19b1ca1d5c972a3fded9713a2f484be40e3110.md",
+      "sha256": "4719405a735b8825f7f268f29f19b1ca1d5c972a3fded9713a2f484be40e3110"
+    },
+    {
+      "bytes": 96357,
+      "kind": "task-input:repo/docs/spec/language.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/1b7f83a9bd0302307d1112ee08fe460c3e25bce1800431a49725be4554d6318c.md",
+      "sha256": "1b7f83a9bd0302307d1112ee08fe460c3e25bce1800431a49725be4554d6318c"
+    },
+    {
+      "bytes": 23669,
+      "kind": "task-input:repo/docs/spec/llm-guide.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/741cd05b871e4b739f0074bc927419b779a210faf70a29975c810166b28eb879.md",
+      "sha256": "741cd05b871e4b739f0074bc927419b779a210faf70a29975c810166b28eb879"
+    },
+    {
+      "bytes": 12068,
+      "kind": "task-input:repo/docs/spec/numeric-and-bin.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/a2b0cfbb758b84baec8f7e6efdfcca34448885c65908e3639b094d11c74df15d.md",
+      "sha256": "a2b0cfbb758b84baec8f7e6efdfcca34448885c65908e3639b094d11c74df15d"
+    },
+    {
+      "bytes": 6431,
+      "kind": "task-input:repo/docs/spec/patch-schema.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/c68eb133b646fdb028510de26b37e560d04605ef51e227c2090ed5f437281cb2.md",
+      "sha256": "c68eb133b646fdb028510de26b37e560d04605ef51e227c2090ed5f437281cb2"
+    }
+  ],
+  "evaluation": "ecosystem",
+  "prompt_sha256": "54d1c0ced3d473bcb176f2e796426527d69bb57372d6844ed27f2d14ce359710",
+  "rendered_bytes": 244958,
+  "schema_version": 1
+}

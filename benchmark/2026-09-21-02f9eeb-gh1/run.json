@@ -1,0 +1,38 @@
+{
+  "created_at_utc": "2026-09-21T19:11:57.765425+00:00",
+  "evaluated": {
+    "branch": "develop",
+    "commit_date": "2026-09-22T04:07:38+09:00",
+    "commit_sha": "02f9eeb8c49c023e551be2fb5c62edb4416ff11f",
+    "commit_subject": "Request the first production benchmark run",
+    "compiler_version": "0.2.1",
+    "short_sha": "02f9eeb",
+    "working_tree_status": "clean"
+  },
+  "master_prompt_sha256": "ceec52c4895fd02b25e56dbed1652c1536f9e747111935e796f09250b2936504",
+  "materialized_reusable_artifacts": 28,
+  "primary_config_sha256": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95",
+  "reuse_catalog_sha256": "98c37b6810475f72c34408f22ced0d1d5cb04d727dab7fefb8801ee11ef6dd94",
+  "reuse_materialization_sha256": "a6eeabcc7bf09e392a9c0824248f620ee55968c0e04b0ef211900373b84c39ea",
+  "run_id": "2026-09-21-02f9eeb-gh1",
+  "sandbox_mode": "container",
+  "schema_version": 1,
+  "source_snapshot": {
+    "directories": 16,
+    "excluded_top_level": [
+      "benchmark"
+    ],
+    "files": 166,
+    "mode": "git-archive-HEAD-tracked-only",
+    "symlinks": 0
+  },
+  "template_source_snapshot": {
+    "directories": 82,
+    "files": 515,
+    "mode": "git-archive-HEAD-tracked-tree",
+    "repo_relative_path": "benchmark/template",
+    "symlinks": 0
+  },
+  "template_tree_sha256": "33272e7ec174e188683ec0d08f6ffff3d38828cb36acdb472cb8babc2e5727f2",
+  "workspace_root": "/quidra-benchmark"
+}

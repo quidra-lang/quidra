@@ -1,0 +1,219 @@
+{
+  "assigned_languages": [],
+  "delegation_depth_remaining": 1,
+  "embedded_inputs": [
+    {
+      "path": "/quidra-benchmark/template/methodology/worker_core.md",
+      "sha256": "6990fe07389ed241b67e3d5c320a9cf8da4ed3ea50fb8a80147484938f3d2f7c"
+    },
+    {
+      "path": "/quidra-benchmark/template/methodology/language_quality.md",
+      "sha256": "45ee32d9bfd26929f79c9fa85df801e3a0d7713fc3d97973be2b8ba24a50a824"
+    },
+    {
+      "path": "/quidra-benchmark/template/config/primary.json",
+      "sha256": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+    },
+    {
+      "path": "/quidra-benchmark/template/config/benchmark_metadata.json",
+      "sha256": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba"
+    },
+    {
+      "path": "/quidra-benchmark/template/config/evaluation_requirements.json",
+      "selection": "language_quality",
+      "sha256": "101e651ff4038b801d64cc3361802f1505f88258c190b56296f71a73b16b84c2"
+    }
+  ],
+  "evaluation": "language_quality",
+  "expected_outputs": [
+    "/quidra-benchmark/work/agents/worker-audit-micro-cpp/result.json"
+  ],
+  "goal": "Audit reusable artifact micro-cpp against the current toolchain/capability contract. Confirm whether the source/harness remains semantically valid; do not reuse old measurements.",
+  "id": "worker-audit-micro-cpp",
+  "network_allowed": true,
+  "packet_inputs": [
+    {
+      "bytes": 71,
+      "path": "/quidra-benchmark/template/programs/cpp/micro/mb00.cpp",
+      "sha256": "d5611a12ad4bd034184cc445704d02098388a86b5dc8ae7d17743e7a5faaf2fa"
+    },
+    {
+      "bytes": 1845,
+      "path": "/quidra-benchmark/template/programs/cpp/micro/mb01.cpp",
+      "sha256": "dd83f3f5768bfc8dd3ba162bcfe2d3db8049097c2f83a45d63cb19e7533bb556"
+    },
+    {
+      "bytes": 1963,
+      "path": "/quidra-benchmark/template/programs/cpp/micro/mb02.cpp",
+      "sha256": "2d32ff66fb655dcf85ebb20d28d7c7e3580631bbbbf8bbf195a614586995218e"
+    },
+    {
+      "bytes": 2432,
+      "path": "/quidra-benchmark/template/programs/cpp/micro/mb03.cpp",
+      "sha256": "595194e2fffa3922dfb8ac3abca898850564968368618d9a60c96ed8a47fd6c3"
+    },
+    {
+      "bytes": 3008,
+      "path": "/quidra-benchmark/template/programs/cpp/micro/mb04.cpp",
+      "sha256": "f755b7bb1f69bd7a7907fc32876aae8aafcebf974e7a7d516e05886e06140c4c"
+    },
+    {
+      "bytes": 2654,
+      "path": "/quidra-benchmark/template/programs/cpp/micro/mb05.cpp",
+      "sha256": "db772024320cbe0f6c54bfb2a5f2f69232bc28df282a122a449d60d7d8e342eb"
+    },
+    {
+      "bytes": 3083,
+      "path": "/quidra-benchmark/template/programs/cpp/micro/mb06.cpp",
+      "sha256": "b2102c4c183fb62e9af7c5fcc2c78075be7dd1909e6a9b74d829a7b26d9281e5"
+    },
+    {
+      "bytes": 3883,
+      "path": "/quidra-benchmark/template/programs/cpp/micro/mb07.cpp",
+      "sha256": "90891a09ca78be70c43b9975d4e430dfb9e607e9041bb26b2468a70b3ee3d1fe"
+    },
+    {
+      "bytes": 4656,
+      "path": "/quidra-benchmark/template/programs/cpp/micro/mb08.cpp",
+      "sha256": "baf4ac3b4c6d836ba94b500f92551796a7066c68a5ec4e4187e38d72ea1bd20c"
+    },
+    {
+      "bytes": 4422,
+      "path": "/quidra-benchmark/template/programs/cpp/micro/mb09.cpp",
+      "sha256": "9a23bb2e50efe85b73e764f811935682a08abc494cced4e4e19e3aad8cd0c842"
+    },
+    {
+      "bytes": 3977,
+      "path": "/quidra-benchmark/template/programs/cpp/micro/mb10.cpp",
+      "sha256": "9ada199818533d57384c2b7b9265bb073fba6f3d6f3652b4ce70afbcc4006070"
+    },
+    {
+      "bytes": 4098,
+      "path": "/quidra-benchmark/template/programs/cpp/micro/mb11.cpp",
+      "sha256": "4053ab23eb2a2d504cc55fc853f5935c8369943a16ea5da5c9dbb681f3d76c74"
+    }
+  ],
+  "parent": "RUNNER",
+  "prompt_components": [
+    {
+      "bytes": 2613,
+      "kind": "task",
+      "path": "/quidra-benchmark/prompts/components/by-hash/f3334126d97d5d9f4f85bd3ca638c5d35c04aed48e1cc9c5e3e547986d35fcd4.md",
+      "sha256": "f3334126d97d5d9f4f85bd3ca638c5d35c04aed48e1cc9c5e3e547986d35fcd4"
+    },
+    {
+      "bytes": 4245,
+      "kind": "embedded:worker_core.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/4fc6f960d7b0dfd7b7a4748ba267514a605981df12b4582ebadd4fd7af8336cb.md",
+      "sha256": "4fc6f960d7b0dfd7b7a4748ba267514a605981df12b4582ebadd4fd7af8336cb"
+    },
+    {
+      "bytes": 24461,
+      "kind": "embedded:language_quality.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/644b28d6feb6c6b7272b0f261af23060b3ac304cbab88314809a8f4f81728bee.md",
+      "sha256": "644b28d6feb6c6b7272b0f261af23060b3ac304cbab88314809a8f4f81728bee"
+    },
+    {
+      "bytes": 5943,
+      "kind": "embedded:primary.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/c61bbf06c813e5c641485a215e54d88b9f201c4aaf7d7b4ab9dbda5d9ed3cf56.md",
+      "sha256": "c61bbf06c813e5c641485a215e54d88b9f201c4aaf7d7b4ab9dbda5d9ed3cf56"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857.md",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 217,
+      "kind": "embedded:assigned_requirements.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/332b6ee927137fea5e7b7ba43cce570315dcd303f9483b1010b6fb6c43a55d89.md",
+      "sha256": "332b6ee927137fea5e7b7ba43cce570315dcd303f9483b1010b6fb6c43a55d89"
+    },
+    {
+      "bytes": 241,
+      "kind": "task-input:template/programs/cpp/micro/mb00.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/5a4150e7bdac01a35e867f64c0dd3b4de7025c442c05277aee2f6def06863dfc.md",
+      "sha256": "5a4150e7bdac01a35e867f64c0dd3b4de7025c442c05277aee2f6def06863dfc"
+    },
+    {
+      "bytes": 2015,
+      "kind": "task-input:template/programs/cpp/micro/mb01.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/716b27c7687e1932095f5d45ab415350dd1c6d95995b55c6fd91b8cdf41313c4.md",
+      "sha256": "716b27c7687e1932095f5d45ab415350dd1c6d95995b55c6fd91b8cdf41313c4"
+    },
+    {
+      "bytes": 2133,
+      "kind": "task-input:template/programs/cpp/micro/mb02.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/168fe06df6b566d319325dbce046629d39770b5ea474885b6294eed9d3f0423b.md",
+      "sha256": "168fe06df6b566d319325dbce046629d39770b5ea474885b6294eed9d3f0423b"
+    },
+    {
+      "bytes": 2602,
+      "kind": "task-input:template/programs/cpp/micro/mb03.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/ecbf5fc5e8cd1f363c15bc02992e41517a403d97ccfcc7890ed94738dcd1ab2e.md",
+      "sha256": "ecbf5fc5e8cd1f363c15bc02992e41517a403d97ccfcc7890ed94738dcd1ab2e"
+    },
+    {
+      "bytes": 3178,
+      "kind": "task-input:template/programs/cpp/micro/mb04.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/6abef5a50ecccb995367ed36d346754fe62b173eb961361483cc86e854700f2b.md",
+      "sha256": "6abef5a50ecccb995367ed36d346754fe62b173eb961361483cc86e854700f2b"
+    },
+    {
+      "bytes": 2824,
+      "kind": "task-input:template/programs/cpp/micro/mb05.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/bb3649a40b596577822966e24cf57cf6c54917996d86eead593bce87056c33df.md",
+      "sha256": "bb3649a40b596577822966e24cf57cf6c54917996d86eead593bce87056c33df"
+    },
+    {
+      "bytes": 3253,
+      "kind": "task-input:template/programs/cpp/micro/mb06.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/5d49766b63e2baa34bc1e6742644b8e9b40b952895e7cad9bec17830544c430f.md",
+      "sha256": "5d49766b63e2baa34bc1e6742644b8e9b40b952895e7cad9bec17830544c430f"
+    },
+    {
+      "bytes": 4053,
+      "kind": "task-input:template/programs/cpp/micro/mb07.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/5b9e43caa39719b3334b314597b790903f2f4c0313818525c6ba92fe7b8f3898.md",
+      "sha256": "5b9e43caa39719b3334b314597b790903f2f4c0313818525c6ba92fe7b8f3898"
+    },
+    {
+      "bytes": 4826,
+      "kind": "task-input:template/programs/cpp/micro/mb08.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/c811649653fc75181b260e6a57f12e92682b1b445eb752f3b8bddb6b594b8fb5.md",
+      "sha256": "c811649653fc75181b260e6a57f12e92682b1b445eb752f3b8bddb6b594b8fb5"
+    },
+    {
+      "bytes": 4592,
+      "kind": "task-input:template/programs/cpp/micro/mb09.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/e3d72e21bc4866478d2f5ad820d17d4efca4e76cd575bc06a0575efb99687c86.md",
+      "sha256": "e3d72e21bc4866478d2f5ad820d17d4efca4e76cd575bc06a0575efb99687c86"
+    },
+    {
+      "bytes": 4147,
+      "kind": "task-input:template/programs/cpp/micro/mb10.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/f230d453e137167e3616dbc66eca23ddfeec1c2a999ca9780bb00298fb98d28e.md",
+      "sha256": "f230d453e137167e3616dbc66eca23ddfeec1c2a999ca9780bb00298fb98d28e"
+    },
+    {
+      "bytes": 4268,
+      "kind": "task-input:template/programs/cpp/micro/mb11.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/d70fc30fa31b6666c6dda75a720d88240ec7d037747f52c6bda4e3c0d38419f5.md",
+      "sha256": "d70fc30fa31b6666c6dda75a720d88240ec7d037747f52c6bda4e3c0d38419f5"
+    }
+  ],
+  "prompt_manifest_path": "/quidra-benchmark/prompts/manifests/worker-audit-micro-cpp.json",
+  "prompt_sections": [],
+  "prompt_sha256": "2861d1c1a7e94be1215e3fbf89b79bf7f07915605fbd96d36ca089cb5b7c1e1c",
+  "read_paths": [
+    "/quidra-benchmark/template/programs/cpp/micro"
+  ],
+  "rendered_bytes": 76647,
+  "requirement_ids": [],
+  "schema_version": 1,
+  "validation_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-audit-micro-cpp",
+  "worker_mode": "packet-only",
+  "write_path": "/quidra-benchmark/work/agents/worker-audit-micro-cpp"
+}

@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "evaluation": "language_quality",
+  "audit_pass": true,
+  "evidence": {
+    "artifact": "adversarial-cpp",
+    "source_root": "/quidra-benchmark/template/programs/cpp/adversarial",
+    "files_reviewed": [
+      "ADV-01_C.cpp","ADV-01_R.cpp","ADV-02_C.cpp","ADV-02_R.cpp","ADV-03_C.cpp","ADV-03_R.cpp",
+      "ADV-04a_C.cpp","ADV-04a_R.cpp","ADV-04b_C.cpp","ADV-04b_R.cpp","ADV-05_C.cpp","ADV-05_R.cpp",
+      "ADV-06_R.cpp","ADV-07_R.cpp","ADV-08_C.cpp","ADV-08_R.cpp","ADV-09_C.cpp","ADV-09_R.cpp",
+      "ADV-10_C.cpp","ADV-10_R.cpp","ADV-11_R.cpp","ADV-12_single.cpp","ADV-13_single.cpp",
+      "ADV-14_R.cpp","ADV-15_single.cpp","ADV-16_single.cpp","ADV-17_single.cpp","ADV-18_single.cpp",
+      "ADV-19_single.cpp","ADV-20_single.cpp","ADV-21_single.cpp","ADV-21_single_depth1000.cpp",
+      "ADV-21_single_depth10000.cpp","ADV-22_single-valid.cpp","ADV-22a_single.cpp","ADV-22b_single.cpp",
+      "ADV-23_single.cpp","ADV-24_single.cpp","ADV-25_R.cpp","ADV-26_R.cpp"
+    ],
+    "coverage_against_section17_hazard_list": "Every mandated hazard category (int64->int32 narrowing, signed overflow, signed underflow, unsigned wrap, signed/unsigned comparison, float->int out-of-range, NaN, Infinity, integer divide-by-zero, array lower/upper bound violation, huge allocation, uninitialized value, invalid cast, type mismatch, invalid mutation, mutation of immutable value, missing return, infinite recursion, excessive recursion depth, extreme parser nesting, malformed source code, malformed/huge numeric literal, invalid external input) has a corresponding, correctly-shaped C++ source file. No case is missing and no case exercises a different hazard than its ID implies.",
+    "fairness_compliance": "All files use only standard C++ (<cstdio>, <cstdint>, <iostream>, <string>, <vector>). No GPU, hand-written SIMD, external optimized numeric libraries, or language-specific hacks are present, consistent with the frozen fairness rules in Section 7.",
+    "findings": [
+      {
+        "id": "F1",
+        "severity": "info-only, no fix required",
+        "file": "ADV-01_C.cpp / ADV-01_R.cpp (int64->int32 narrowing) and related conversions",
+        "note": "C++20 (P0907) now mandates two's-complement signed representation and defines narrowing integer conversions as well-defined modulo wrap; pre-C++20 the same conversion was implementation-defined (not UB). Arithmetic overflow/underflow proper (ADV-02_*, ADV-03_*, which add/subtract past INT64 bounds) remain undefined behavior regardless of the language standard selected, because that is overflow of an arithmetic operation rather than a conversion. The source files remain semantically valid silent-transformation test cases either way, but the exact classification label (Runtime Safe Detection vs Silent Bug vs UB) is standard-version sensitive, so the frozen build must pin and record its -std= flag rather than reuse an unrecorded prior assumption."
+      },
+      {
+        "id": "F2",
+        "severity": "actionable - recalibration required, not a source defect",
+        "file": "ADV-21_single.cpp, ADV-21_single_depth1000.cpp, ADV-21_single_depth10000.cpp",
+        "note": "These exercise the extreme-parser-nesting hazard via a deeply parenthesized additive expression, deliberately built at multiple depths for pre-freeze calibration as required by Section 17. Verified via current documentation that Clang's default `-fbracket-depth` limit (which governs this exact failure mode, emitting 'fatal error: bracket nesting level exceeded maximum of N') was raised from 256 to 2048 in the Clang 21.1.0 release (merged via LLVM PR #132021), whereas older toolchains used the long-standing 256 default. GCC has no comparable fixed ceiling and instead depends on host stack depth. Because this default recently changed on at least one major C++ toolchain, any previously recorded classification thresholds or pass/fail outcomes for ADV-21 and its depth-1000/depth-10000 siblings are stale and must not be reused; the mandated unscored calibration probe against the actual pinned compiler version for this run must be re-executed before scoring, per the task instruction not to reuse old measurements. The source files themselves require no rewrite; only the calibration/interpretation is toolchain-drift sensitive."
+      },
+      {
+        "id": "F3",
+        "severity": "info-only, confirmed stable",
+        "file": "ADV-16_single.cpp",
+        "note": "Assignment to a constexpr (hence const) int64_t remains a hard, version-independent compile-time error ('assignment of read-only variable' / 'read-only variable is not assignable') on all current GCC and Clang releases; no drift found."
+      },
+      {
+        "id": "F4",
+        "severity": "info-only, expected harness dependency",
+        "file": "ADV-23_single.cpp",
+        "note": "Reads an external fixture at inputs/ADV-23.bin (malformed-UTF-8 test) that is not embedded in this packet. This is an expected runtime input supplied by the execution harness rather than a source defect, but this audit cannot independently confirm the fixture's continued presence/content from the packet alone."
+      },
+      {
+        "id": "F5",
+        "severity": "info-only, build-flag sensitive",
+        "file": "ADV-18_single.cpp",
+        "note": "Relies on 'missing return' in a non-void function compiling (with only a warning, e.g. -Wreturn-type) rather than being escalated to a hard error. If the frozen build configuration adds -Werror=return-type, this case reclassifies from a runtime-UB/silent-bug test to a Compile-time Detection test. The harness must document whether -Werror is part of the frozen C++ build flags before scoring this case."
+      },
+      {
+        "id": "F6",
+        "severity": "info-only, confirmed intentional",
+        "file": "ADV-14_R.cpp, ADV-24_single.cpp",
+        "note": "ADV-14_R.cpp passes a std::string argument to a function expecting std::int64_t (no implicit conversion exists) and ADV-24_single.cpp assigns an integer literal exceeding LLONG_MAX to a long long. Both are intentionally ill-formed programs that should fail at compile time on any conforming current GCC/Clang, correctly representing the 'type mismatch' and 'huge numeric literal' hazard categories rather than being broken artifacts."
+      }
+    ],
+    "conclusion": "The adversarial-cpp source set remains a semantically valid, currently-compilable (or intentionally-uncompilable, per case design) representation of the frozen adversarial case universe defined in Section 17. No case needs to be rewritten or dropped. The one item requiring live re-verification before any Language Quality scoring occurs is the extreme-parser-nesting calibration (ADV-21 family), because the relevant Clang default limit changed upstream; this must be recalibrated against the actual pinned toolchain for the current run rather than relying on any previously recorded classification or timing result.",
+    "reuse_directive_followed": "No prior measurements, timings, or pass/fail outcomes were reused from historical runs; only the source text itself (already embedded in this packet) was audited for continued semantic validity."
+  }
+}

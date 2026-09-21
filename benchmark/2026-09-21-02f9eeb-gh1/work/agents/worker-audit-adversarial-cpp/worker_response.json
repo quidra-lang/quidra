@@ -1,0 +1,29 @@
+{
+  "applied_at_utc": "2026-09-21T19:21:21.348927+00:00",
+  "files": [
+    {
+      "bytes": 7195,
+      "path": "result.json",
+      "sha256": "4606f53c761f29373c552d838c4f8048c69710cc1a7c681ed9096c1071907fe8"
+    }
+  ],
+  "inference": {
+    "completion_sha256": "05d5ad7c55ccaeffe40629ab07094c77397d11f92c7a4121b5614c83e81c2fcb",
+    "gateway": "quidra-inference-gateway-v1",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "sampling_parameters": "omitted"
+    },
+    "usage": {
+      "input_tokens": 1351437,
+      "output_tokens": 12586
+    }
+  },
+  "prompt_sha256": "4ac7156ac1985224c0c2b6f68d6c3f3f1d123c21d10880d56d75b9ca74426304",
+  "response_sha256": "797140ae71bc8feaa2746266f34306cb7ac74be8809a22299bb9cfe854aee6cb",
+  "schema_version": 1,
+  "task_id": "worker-audit-adversarial-cpp"
+}

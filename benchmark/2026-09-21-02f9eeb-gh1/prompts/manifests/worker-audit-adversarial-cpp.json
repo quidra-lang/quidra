@@ -1,0 +1,285 @@
+{
+  "agent_id": "worker-audit-adversarial-cpp",
+  "components": [
+    {
+      "bytes": 2655,
+      "kind": "task",
+      "path": "/quidra-benchmark/prompts/components/by-hash/6eeae4a3b7127ba768a65b80ce31bd47bada1cf231a0b7946c57d40dcdd847a8.md",
+      "sha256": "6eeae4a3b7127ba768a65b80ce31bd47bada1cf231a0b7946c57d40dcdd847a8"
+    },
+    {
+      "bytes": 4245,
+      "kind": "embedded:worker_core.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/4fc6f960d7b0dfd7b7a4748ba267514a605981df12b4582ebadd4fd7af8336cb.md",
+      "sha256": "4fc6f960d7b0dfd7b7a4748ba267514a605981df12b4582ebadd4fd7af8336cb"
+    },
+    {
+      "bytes": 24461,
+      "kind": "embedded:language_quality.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/644b28d6feb6c6b7272b0f261af23060b3ac304cbab88314809a8f4f81728bee.md",
+      "sha256": "644b28d6feb6c6b7272b0f261af23060b3ac304cbab88314809a8f4f81728bee"
+    },
+    {
+      "bytes": 5943,
+      "kind": "embedded:primary.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/c61bbf06c813e5c641485a215e54d88b9f201c4aaf7d7b4ab9dbda5d9ed3cf56.md",
+      "sha256": "c61bbf06c813e5c641485a215e54d88b9f201c4aaf7d7b4ab9dbda5d9ed3cf56"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857.md",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 217,
+      "kind": "embedded:assigned_requirements.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/332b6ee927137fea5e7b7ba43cce570315dcd303f9483b1010b6fb6c43a55d89.md",
+      "sha256": "332b6ee927137fea5e7b7ba43cce570315dcd303f9483b1010b6fb6c43a55d89"
+    },
+    {
+      "bytes": 447,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-01_C.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/e9c183fb8a4a08e2fdd833367d29d5f6003f93c399c3242a9c311af148f0accb.md",
+      "sha256": "e9c183fb8a4a08e2fdd833367d29d5f6003f93c399c3242a9c311af148f0accb"
+    },
+    {
+      "bytes": 538,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-01_R.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/d3bdedd28d6130a82af4730175ee1e5f8aa46d735ca95f4e5c0a714f505ad10e.md",
+      "sha256": "d3bdedd28d6130a82af4730175ee1e5f8aa46d735ca95f4e5c0a714f505ad10e"
+    },
+    {
+      "bytes": 423,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-02_C.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/167b6e6785ee063ce6e7c3e9329f4aa691200f5d79f76bc15d63b21b8a6d44a9.md",
+      "sha256": "167b6e6785ee063ce6e7c3e9329f4aa691200f5d79f76bc15d63b21b8a6d44a9"
+    },
+    {
+      "bytes": 514,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-02_R.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/22a1a2968b3cdf23aed83468a818474744f149d36679126645863876e9beb737.md",
+      "sha256": "22a1a2968b3cdf23aed83468a818474744f149d36679126645863876e9beb737"
+    },
+    {
+      "bytes": 424,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-03_C.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/a60e1ec8592d63e66c5573574ee9cf01c4dc8f95fc57bd473dcbcde1d5405846.md",
+      "sha256": "a60e1ec8592d63e66c5573574ee9cf01c4dc8f95fc57bd473dcbcde1d5405846"
+    },
+    {
+      "bytes": 514,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-03_R.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/926df675ed1294ea6915e3b8bf31d178e48ae9499cf4822a28630feeeaab75ef.md",
+      "sha256": "926df675ed1294ea6915e3b8bf31d178e48ae9499cf4822a28630feeeaab75ef"
+    },
+    {
+      "bytes": 458,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-04a_C.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/737674141ad56328c35cd0287be76438b21d2d405df89e750a3978cde21d5fe3.md",
+      "sha256": "737674141ad56328c35cd0287be76438b21d2d405df89e750a3978cde21d5fe3"
+    },
+    {
+      "bytes": 610,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-04a_R.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/ad822088491509d22ec9cb0bac6459fedd21ee80cfecfafb4595361b400677c6.md",
+      "sha256": "ad822088491509d22ec9cb0bac6459fedd21ee80cfecfafb4595361b400677c6"
+    },
+    {
+      "bytes": 468,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-04b_C.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/e1a78e83ae5fa9c2f4b70f4ab16f729a0f175ba0cc33bd6b5eeba955293e8316.md",
+      "sha256": "e1a78e83ae5fa9c2f4b70f4ab16f729a0f175ba0cc33bd6b5eeba955293e8316"
+    },
+    {
+      "bytes": 618,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-04b_R.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/3e1849290f3f7d791da3225b079edd52c5e7c5c6b90d0e489b42f52b40d25934.md",
+      "sha256": "3e1849290f3f7d791da3225b079edd52c5e7c5c6b90d0e489b42f52b40d25934"
+    },
+    {
+      "bytes": 426,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-05_C.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/cb0ec6c4c886d125ebf9828bcb82f6e4748ad06970c6c5f28da651bc36eaf36a.md",
+      "sha256": "cb0ec6c4c886d125ebf9828bcb82f6e4748ad06970c6c5f28da651bc36eaf36a"
+    },
+    {
+      "bytes": 531,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-05_R.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/9d6fabeb4682e689e248fb0373f7f93cec55a4d13b05489ed3de2e85cb3a0873.md",
+      "sha256": "9d6fabeb4682e689e248fb0373f7f93cec55a4d13b05489ed3de2e85cb3a0873"
+    },
+    {
+      "bytes": 780,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-06_R.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/dc7a3585088f9bca5c65980e343d77db052a24a60dc951688ef5b92f00a3ce10.md",
+      "sha256": "dc7a3585088f9bca5c65980e343d77db052a24a60dc951688ef5b92f00a3ce10"
+    },
+    {
+      "bytes": 655,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-07_R.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/b55d0b606ca463429f324a646c75d33dbbc951e37021dc0388a91e8cbe636cf9.md",
+      "sha256": "b55d0b606ca463429f324a646c75d33dbbc951e37021dc0388a91e8cbe636cf9"
+    },
+    {
+      "bytes": 468,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-08_C.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/892f57945c9282a5e569b6e81df8b73b422a40946676612f2ad8f88107e05f2a.md",
+      "sha256": "892f57945c9282a5e569b6e81df8b73b422a40946676612f2ad8f88107e05f2a"
+    },
+    {
+      "bytes": 620,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-08_R.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/571b1f1524093ed6af535d41c5fba845c081289bed5175874985700ea5f65ff2.md",
+      "sha256": "571b1f1524093ed6af535d41c5fba845c081289bed5175874985700ea5f65ff2"
+    },
+    {
+      "bytes": 562,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-09_C.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/ccd23e62e86cdcc02356d0d869513247bc902ee7360e5e593315950a0fd6ae60.md",
+      "sha256": "ccd23e62e86cdcc02356d0d869513247bc902ee7360e5e593315950a0fd6ae60"
+    },
+    {
+      "bytes": 672,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-09_R.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/9511b3b75a56aabd53cab74b7f1041df287990e9e2b83d647d58a9a95a876ca3.md",
+      "sha256": "9511b3b75a56aabd53cab74b7f1041df287990e9e2b83d647d58a9a95a876ca3"
+    },
+    {
+      "bytes": 512,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-10_C.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/88916d2cc1b0312d2bbd93868e1a9efd4524e9a5a4e98da42af31772459288d6.md",
+      "sha256": "88916d2cc1b0312d2bbd93868e1a9efd4524e9a5a4e98da42af31772459288d6"
+    },
+    {
+      "bytes": 645,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-10_R.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/c0deafa969140ccba4e1d0142c88a5b761a8283958aa01a2ff41b7241b80a74a.md",
+      "sha256": "c0deafa969140ccba4e1d0142c88a5b761a8283958aa01a2ff41b7241b80a74a"
+    },
+    {
+      "bytes": 629,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-11_R.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/93ade1429f17320631b0520fdcfcd9fd6ffb33625c0174b81f1d5f2ca6f5e973.md",
+      "sha256": "93ade1429f17320631b0520fdcfcd9fd6ffb33625c0174b81f1d5f2ca6f5e973"
+    },
+    {
+      "bytes": 416,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-12_single.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/6038eda98dbd1fbecf392ba381daf9d6b8d53a059100334b2d9caf79328d7cd9.md",
+      "sha256": "6038eda98dbd1fbecf392ba381daf9d6b8d53a059100334b2d9caf79328d7cd9"
+    },
+    {
+      "bytes": 520,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-13_single.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/95b7e76e64f00ae4a45fb98fcfbf3f136eb345e773efd0badf5731541ce78c21.md",
+      "sha256": "95b7e76e64f00ae4a45fb98fcfbf3f136eb345e773efd0badf5731541ce78c21"
+    },
+    {
+      "bytes": 531,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-14_R.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/cec9e0cf4a5199bd065480a9d9fc4af4c9983bd5c32729ce10adaae3aad314fc.md",
+      "sha256": "cec9e0cf4a5199bd065480a9d9fc4af4c9983bd5c32729ce10adaae3aad314fc"
+    },
+    {
+      "bytes": 609,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-15_single.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/41cf7324a0f8fe2a2c879e67a0913f3bc3a0eab29d4367ec3c714692cad44352.md",
+      "sha256": "41cf7324a0f8fe2a2c879e67a0913f3bc3a0eab29d4367ec3c714692cad44352"
+    },
+    {
+      "bytes": 430,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-16_single.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/dc9e3c197169358e6da06400ac3616051d50bc286fb08981a78460e3f2c3d172.md",
+      "sha256": "dc9e3c197169358e6da06400ac3616051d50bc286fb08981a78460e3f2c3d172"
+    },
+    {
+      "bytes": 422,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-17_single.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/d3ba89c68d0fa9dd8c34c18a35aba236995a4ddc4087d16aeafe3ca5268e33e7.md",
+      "sha256": "d3ba89c68d0fa9dd8c34c18a35aba236995a4ddc4087d16aeafe3ca5268e33e7"
+    },
+    {
+      "bytes": 565,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-18_single.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/d2f21b6557083e1968c528eff8a00e790612daec065ccb527ff5f4c8b568e6f4.md",
+      "sha256": "d2f21b6557083e1968c528eff8a00e790612daec065ccb527ff5f4c8b568e6f4"
+    },
+    {
+      "bytes": 571,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-19_single.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/9bec8917de125c4cc6d98e7f8e5fb262f8dde641b8771142431ee88d9abc0cfd.md",
+      "sha256": "9bec8917de125c4cc6d98e7f8e5fb262f8dde641b8771142431ee88d9abc0cfd"
+    },
+    {
+      "bytes": 607,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-20_single.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/793eade02197fc359798f0e5f9627f79c78500a3f2c455ec5a3dc2cb039561fc.md",
+      "sha256": "793eade02197fc359798f0e5f9627f79c78500a3f2c455ec5a3dc2cb039561fc"
+    },
+    {
+      "bytes": 200407,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-21_single.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/f9bbe388d8d24520000af0423fc45abb25455174482b09f9c6b120487d558dc4.md",
+      "sha256": "f9bbe388d8d24520000af0423fc45abb25455174482b09f9c6b120487d558dc4"
+    },
+    {
+      "bytes": 2417,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-21_single_depth1000.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/ed51ceff4d86b0714f9597425e3198b7d3acd91b728e576652d476c0514a5ea8.md",
+      "sha256": "ed51ceff4d86b0714f9597425e3198b7d3acd91b728e576652d476c0514a5ea8"
+    },
+    {
+      "bytes": 20418,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-21_single_depth10000.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/fcd378a3a170c2d53b5d24d690fcc35467f7409ef0f9e9979d6a6415ca7ae894.md",
+      "sha256": "fcd378a3a170c2d53b5d24d690fcc35467f7409ef0f9e9979d6a6415ca7ae894"
+    },
+    {
+      "bytes": 413,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-22_single-valid.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/d90f7b54386562e033393897e2c0a3085263026f102736c581fd9a418b32bd28.md",
+      "sha256": "d90f7b54386562e033393897e2c0a3085263026f102736c581fd9a418b32bd28"
+    },
+    {
+      "bytes": 319,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-22a_single.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/cfc08a8ad54a070a2c00f7902f5ca67ec12aeb5e86ec119f1e2dffd9111cc7d8.md",
+      "sha256": "cfc08a8ad54a070a2c00f7902f5ca67ec12aeb5e86ec119f1e2dffd9111cc7d8"
+    },
+    {
+      "bytes": 411,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-22b_single.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/b9b0ba7875afe79f7daa21d2fc63130c3f1fd64b69b7267f0e00b249c5e71a62.md",
+      "sha256": "b9b0ba7875afe79f7daa21d2fc63130c3f1fd64b69b7267f0e00b249c5e71a62"
+    },
+    {
+      "bytes": 563,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-23_single.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/03f16a255e2f4e8054e5306befe174213610dd4bc97d8abd17d28b35f765f398.md",
+      "sha256": "03f16a255e2f4e8054e5306befe174213610dd4bc97d8abd17d28b35f765f398"
+    },
+    {
+      "bytes": 403,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-24_single.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/a32cbbf3462bf5179aac46a51d40f1533eb62745ae6a2cc55c8d2aed292bc316.md",
+      "sha256": "a32cbbf3462bf5179aac46a51d40f1533eb62745ae6a2cc55c8d2aed292bc316"
+    },
+    {
+      "bytes": 486,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-25_R.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/070bec0d5c9b8f14c371f0c59829aa83d306e5e02a68639b78d1838d635e27e9.md",
+      "sha256": "070bec0d5c9b8f14c371f0c59829aa83d306e5e02a68639b78d1838d635e27e9"
+    },
+    {
+      "bytes": 890,
+      "kind": "task-input:template/programs/cpp/adversarial/ADV-26_R.cpp",
+      "path": "/quidra-benchmark/prompts/components/by-hash/74a8935cc3d340e438a55b2dade788a794d0de1e646dd21df2534860883980dc.md",
+      "sha256": "74a8935cc3d340e438a55b2dade788a794d0de1e646dd21df2534860883980dc"
+    }
+  ],
+  "evaluation": "language_quality",
+  "prompt_sha256": "4ac7156ac1985224c0c2b6f68d6c3f3f1d123c21d10880d56d75b9ca74426304",
+  "rendered_bytes": 281469,
+  "schema_version": 1
+}

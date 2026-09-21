@@ -1,0 +1,29 @@
+{
+  "applied_at_utc": "2026-09-21T19:38:34.438375+00:00",
+  "files": [
+    {
+      "bytes": 4011,
+      "path": "result.json",
+      "sha256": "9cc25561ff003d32112f05c25001cbfdb85ee48167243b0b13684c5b91593767"
+    }
+  ],
+  "inference": {
+    "completion_sha256": "91e23bb690fc2cc141ac231893389a5a3788f198d909c370bb6e553c07959c02",
+    "gateway": "quidra-inference-gateway-v1",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "sampling_parameters": "omitted"
+    },
+    "usage": {
+      "input_tokens": 85409,
+      "output_tokens": 2624
+    }
+  },
+  "prompt_sha256": "e20aa3f6d656d74d4ffa4c6574b25578b81b59ae135199f9c0c5d4791a16ec0f",
+  "response_sha256": "132270908c3c7ca5fd1013ff03e0c726d2377f9a1208ab3e6c4c05b8a97a441d",
+  "schema_version": 1,
+  "task_id": "worker-learnability-gates--part-2"
+}

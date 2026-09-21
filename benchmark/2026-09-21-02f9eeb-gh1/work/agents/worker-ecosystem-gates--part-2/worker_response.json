@@ -1,0 +1,29 @@
+{
+  "applied_at_utc": "2026-09-21T19:42:53.161969+00:00",
+  "files": [
+    {
+      "bytes": 4039,
+      "path": "result.json",
+      "sha256": "67370577dd320d14553324d440b7ec1b12eb4abd67c7cee1b0d2b55238fe37b8"
+    }
+  ],
+  "inference": {
+    "completion_sha256": "490e70622bcd49a6d4ecf7299b83a7ce34f106e32df84b1e3503488801a4c342",
+    "gateway": "quidra-inference-gateway-v1",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "sampling_parameters": "omitted"
+    },
+    "usage": {
+      "input_tokens": 905765,
+      "output_tokens": 4295
+    }
+  },
+  "prompt_sha256": "14812061376fcf29a7998424bab759398f8ccd5486a39e5d8e115adcb972c348",
+  "response_sha256": "4fdb024e5eb9aa4693155bcd2fd0139ae53dee4187f96db3d5323fe16a732d6d",
+  "schema_version": 1,
+  "task_id": "worker-ecosystem-gates--part-2"
+}

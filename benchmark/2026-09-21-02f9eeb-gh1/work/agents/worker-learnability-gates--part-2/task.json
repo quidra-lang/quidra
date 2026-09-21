@@ -1,0 +1,204 @@
+{
+  "assigned_languages": [],
+  "delegation_depth_remaining": 1,
+  "embedded_inputs": [
+    {
+      "path": "/quidra-benchmark/template/methodology/worker_core.md",
+      "sha256": "6990fe07389ed241b67e3d5c320a9cf8da4ed3ea50fb8a80147484938f3d2f7c"
+    },
+    {
+      "path": "/quidra-benchmark/template/methodology/llm_learnability.md",
+      "sha256": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c"
+    },
+    {
+      "path": "/quidra-benchmark/template/config/primary.json",
+      "sha256": "d04c6ce20bb2bb4213b4690d1caa9139d0f0799e53bbe6a47dc6599933efad95"
+    },
+    {
+      "path": "/quidra-benchmark/template/config/benchmark_metadata.json",
+      "sha256": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba"
+    },
+    {
+      "path": "/quidra-benchmark/template/config/evaluation_requirements.json",
+      "selection": "llm_learnability",
+      "sha256": "101e651ff4038b801d64cc3361802f1505f88258c190b56296f71a73b16b84c2"
+    }
+  ],
+  "evaluation": "llm_learnability",
+  "expected_outputs": [
+    "/quidra-benchmark/work/agents/worker-learnability-gates--part-2/result.json"
+  ],
+  "goal": "Produce validated requirement-level evidence for llm_learnability: coverage.all_10_languages. Evaluate the fixed comparison set symmetrically. Write result.json.\n\nFrozen Primary requirement IDs served by this work unit:\n- coverage.all_10_languages",
+  "id": "worker-learnability-gates--part-2",
+  "network_allowed": false,
+  "packet_inputs": [
+    {
+      "bytes": 9788,
+      "path": "/quidra-benchmark/repo/docs/development.md",
+      "sha256": "7a99de5986e417a20ed863926b6966615c1b1c88e3687629d23b3674ff88384a"
+    },
+    {
+      "bytes": 3296,
+      "path": "/quidra-benchmark/repo/docs/issue-ai-triage.md",
+      "sha256": "1f6d63b7ee05a665bfc72c47bd0583655871f4ccda77dac5d2800fb0606187e1"
+    },
+    {
+      "bytes": 7521,
+      "path": "/quidra-benchmark/repo/docs/packages.md",
+      "sha256": "cdda4b7efb23fa0898e9ee2a08fd6c46d7412e05d20d52016942f93e42310864"
+    },
+    {
+      "bytes": 34190,
+      "path": "/quidra-benchmark/repo/docs/spec/architecture.md",
+      "sha256": "2c4ef37f218a6fcebf0f179596216c18a650a340c86aa9e5953107ac93dc8273"
+    },
+    {
+      "bytes": 19728,
+      "path": "/quidra-benchmark/repo/docs/spec/diagnostics.md",
+      "sha256": "ba256820431f516c7744ea3517ae9b254f0468ef77e5478246a33c686672f66c"
+    },
+    {
+      "bytes": 9422,
+      "path": "/quidra-benchmark/repo/docs/spec/grammar.ebnf",
+      "sha256": "ab41bc81d5014be39f95f22850617ea13378a0b2390eea365c8ba5febc46c1f5"
+    },
+    {
+      "bytes": 96197,
+      "path": "/quidra-benchmark/repo/docs/spec/language.md",
+      "sha256": "6f06be1f25bb2c0de9e4286ba8defd4f2af9f64b6d4ab577356a5315dc598dea"
+    },
+    {
+      "bytes": 23508,
+      "path": "/quidra-benchmark/repo/docs/spec/llm-guide.md",
+      "sha256": "0b9db693b385881e9783f5c19743f7d58f2fb56753daf5d79a80559a9ec9f388"
+    },
+    {
+      "bytes": 11901,
+      "path": "/quidra-benchmark/repo/docs/spec/numeric-and-bin.md",
+      "sha256": "7ecca27d37a55a4e41911a39602e0cd4b6a168c97ff2a96ceb8bbd576eab7e28"
+    },
+    {
+      "bytes": 6267,
+      "path": "/quidra-benchmark/repo/docs/spec/patch-schema.md",
+      "sha256": "262d6c42d5d00097ebafc93a56c55527ad689ed769f045e3da1e4af3f01733d0"
+    }
+  ],
+  "parent": "RUNNER",
+  "prompt_components": [
+    {
+      "bytes": 2710,
+      "kind": "task",
+      "path": "/quidra-benchmark/prompts/components/by-hash/40409c057b076a1c782e760e7a9196f59f26b35a2e69f34b8030dbf1bf17d153.md",
+      "sha256": "40409c057b076a1c782e760e7a9196f59f26b35a2e69f34b8030dbf1bf17d153"
+    },
+    {
+      "bytes": 4245,
+      "kind": "embedded:worker_core.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/4fc6f960d7b0dfd7b7a4748ba267514a605981df12b4582ebadd4fd7af8336cb.md",
+      "sha256": "4fc6f960d7b0dfd7b7a4748ba267514a605981df12b4582ebadd4fd7af8336cb"
+    },
+    {
+      "bytes": 8780,
+      "kind": "embedded:llm_learnability.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/c27aee6c50d52084997ddf52caf3c07a6089252b729f371f483a089de46c029f.md",
+      "sha256": "c27aee6c50d52084997ddf52caf3c07a6089252b729f371f483a089de46c029f"
+    },
+    {
+      "bytes": 5943,
+      "kind": "embedded:primary.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/c61bbf06c813e5c641485a215e54d88b9f201c4aaf7d7b4ab9dbda5d9ed3cf56.md",
+      "sha256": "c61bbf06c813e5c641485a215e54d88b9f201c4aaf7d7b4ab9dbda5d9ed3cf56"
+    },
+    {
+      "bytes": 1036,
+      "kind": "embedded:benchmark_metadata.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857.md",
+      "sha256": "6a718391988d7419868276809e94e7a7683b81cea0c1c4b5b7b3f14f55a0d857"
+    },
+    {
+      "bytes": 252,
+      "kind": "embedded:assigned_requirements.json",
+      "path": "/quidra-benchmark/prompts/components/by-hash/b77a8b6b938c236cc570c7077825028c3840022c9c07153d6b899efc76983bda.md",
+      "sha256": "b77a8b6b938c236cc570c7077825028c3840022c9c07153d6b899efc76983bda"
+    },
+    {
+      "bytes": 9946,
+      "kind": "task-input:repo/docs/development.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/b357f7b6029404365953b294cbf4662359fdc0c72cbcbb6de6f3992181bfc3ad.md",
+      "sha256": "b357f7b6029404365953b294cbf4662359fdc0c72cbcbb6de6f3992181bfc3ad"
+    },
+    {
+      "bytes": 3458,
+      "kind": "task-input:repo/docs/issue-ai-triage.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/6914ea3e04177919b4c443a0913b0d0c4c358494541cfa98d3fb9044a163fd99.md",
+      "sha256": "6914ea3e04177919b4c443a0913b0d0c4c358494541cfa98d3fb9044a163fd99"
+    },
+    {
+      "bytes": 7676,
+      "kind": "task-input:repo/docs/packages.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/a47671eed29d8778b1e55954cc88111dc8940ba934d3c5d1b5150d63d43e4185.md",
+      "sha256": "a47671eed29d8778b1e55954cc88111dc8940ba934d3c5d1b5150d63d43e4185"
+    },
+    {
+      "bytes": 34354,
+      "kind": "task-input:repo/docs/spec/architecture.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/3b73b199e3c532abe5d48f6ce6c1c340c90523144bd31a4046c596ea5427ba11.md",
+      "sha256": "3b73b199e3c532abe5d48f6ce6c1c340c90523144bd31a4046c596ea5427ba11"
+    },
+    {
+      "bytes": 19891,
+      "kind": "task-input:repo/docs/spec/diagnostics.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/357d5ecafe1c5a438af7f9848e4277e9ac867096a1fcaa4b13f64a162a9ad294.md",
+      "sha256": "357d5ecafe1c5a438af7f9848e4277e9ac867096a1fcaa4b13f64a162a9ad294"
+    },
+    {
+      "bytes": 9583,
+      "kind": "task-input:repo/docs/spec/grammar.ebnf",
+      "path": "/quidra-benchmark/prompts/components/by-hash/4719405a735b8825f7f268f29f19b1ca1d5c972a3fded9713a2f484be40e3110.md",
+      "sha256": "4719405a735b8825f7f268f29f19b1ca1d5c972a3fded9713a2f484be40e3110"
+    },
+    {
+      "bytes": 96357,
+      "kind": "task-input:repo/docs/spec/language.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/1b7f83a9bd0302307d1112ee08fe460c3e25bce1800431a49725be4554d6318c.md",
+      "sha256": "1b7f83a9bd0302307d1112ee08fe460c3e25bce1800431a49725be4554d6318c"
+    },
+    {
+      "bytes": 23669,
+      "kind": "task-input:repo/docs/spec/llm-guide.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/741cd05b871e4b739f0074bc927419b779a210faf70a29975c810166b28eb879.md",
+      "sha256": "741cd05b871e4b739f0074bc927419b779a210faf70a29975c810166b28eb879"
+    },
+    {
+      "bytes": 12068,
+      "kind": "task-input:repo/docs/spec/numeric-and-bin.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/a2b0cfbb758b84baec8f7e6efdfcca34448885c65908e3639b094d11c74df15d.md",
+      "sha256": "a2b0cfbb758b84baec8f7e6efdfcca34448885c65908e3639b094d11c74df15d"
+    },
+    {
+      "bytes": 6431,
+      "kind": "task-input:repo/docs/spec/patch-schema.md",
+      "path": "/quidra-benchmark/prompts/components/by-hash/c68eb133b646fdb028510de26b37e560d04605ef51e227c2090ed5f437281cb2.md",
+      "sha256": "c68eb133b646fdb028510de26b37e560d04605ef51e227c2090ed5f437281cb2"
+    }
+  ],
+  "prompt_manifest_path": "/quidra-benchmark/prompts/manifests/worker-learnability-gates--part-2.json",
+  "prompt_sections": [
+    "## 6.2 Fixed LLM Execution Configuration",
+    "## 10.2 Common controls",
+    "## 10.3 Controlled random lexicalization",
+    "## 10.4 Reversible transformation requirement"
+  ],
+  "prompt_sha256": "e20aa3f6d656d74d4ffa4c6574b25578b81b59ae135199f9c0c5d4791a16ec0f",
+  "read_paths": [
+    "/quidra-benchmark/repo/docs"
+  ],
+  "rendered_bytes": 246399,
+  "requirement_ids": [
+    "coverage.all_10_languages"
+  ],
+  "schema_version": 1,
+  "validation_command": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-gates--part-2",
+  "worker_mode": "packet-only",
+  "write_path": "/quidra-benchmark/work/agents/worker-learnability-gates--part-2"
+}

@@ -6,6 +6,6 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-21T17:45:00Z
-reason: retry after fixing the smoke's own task registration
+requested_at_utc: 2026-09-21T17:58:00Z
+reason: measure where the input tokens actually go
 model: claude-sonnet-5

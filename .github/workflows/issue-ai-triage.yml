@@ -3,36 +3,94 @@ name: AI issue triage
 on:
   issues:
     types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Existing issue number to triage manually
+        required: true
+        type: number
 
 permissions:
   contents: read
   issues: write
 
 concurrency:
-  group: issue-ai-triage-${{ github.event.issue.number }}
+  group: issue-ai-triage-${{ github.event.issue.number || inputs.issue_number }}
   cancel-in-progress: false
 
 jobs:
   triage:
+    if: ${{ github.event_name == 'workflow_dispatch' || !endsWith(github.actor, '[bot]') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - name: Check out trusted workflow code
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
+
+      - name: Check out current develop documentation
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+          path: .triage-context
+          persist-credentials: false
+
+      - name: Record Quidra context commit
+        shell: bash
+        run: |
+          echo "QUIDRA_CONTEXT_REF=develop" >> "$GITHUB_ENV"
+          echo "QUIDRA_CONTEXT_SHA=$(git -C .triage-context rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Prepare issue event for manual run
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+        shell: bash
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/issues/$ISSUE_NUMBER" > "$RUNNER_TEMP/issue.json"
+          gh api "repos/$GITHUB_REPOSITORY" > "$RUNNER_TEMP/repository.json"
+          jq -n \
+            --slurpfile issue "$RUNNER_TEMP/issue.json" \
+            --slurpfile repository "$RUNNER_TEMP/repository.json" \
+            '{issue: $issue[0], repository: $repository[0]}' \
+            > "$RUNNER_TEMP/manual-event.json"
+          echo "TRIAGE_EVENT_PATH=$RUNNER_TEMP/manual-event.json" >> "$GITHUB_ENV"
+
+      - name: Use GitHub issue event
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        shell: bash
+        run: echo "TRIAGE_EVENT_PATH=$GITHUB_EVENT_PATH" >> "$GITHUB_ENV"
 
       - name: Read issue and generate triage response
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_ISSUE_TRIAGE_MODEL: ${{ vars.OPENAI_ISSUE_TRIAGE_MODEL }}
+          TRIAGE_CONTEXT_ROOT: ${{ github.workspace }}/.triage-context
           TRIAGE_OUTPUT: ${{ runner.temp }}/issue-triage.json
         run: python3 .github/scripts/issue_triage.py
 
-      - name: Comment and apply safe labels
+      - name: Ensure managed labels exist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh label create "ai-triaged" --repo "$GITHUB_REPOSITORY" --color "0E8A16" --description "Initial triage performed automatically" 2>/dev/null || true
+          gh label create "needs-info" --repo "$GITHUB_REPOSITORY" --color "D4C5F9" --description "More information is needed from the reporter" 2>/dev/null || true
+          gh label create "area: core" --repo "$GITHUB_REPOSITORY" --color "1D76DB" --description "Quidra core compiler/runtime/tooling" 2>/dev/null || true
+          gh label create "area: vision" --repo "$GITHUB_REPOSITORY" --color "5319E7" --description "Quidra Vision" 2>/dev/null || true
+          gh label create "area: dnn" --repo "$GITHUB_REPOSITORY" --color "B60205" --description "Quidra DNN" 2>/dev/null || true
+          gh label create "bug" --repo "$GITHUB_REPOSITORY" --color "D73A4A" --description "Something is not working" 2>/dev/null || true
+          gh label create "enhancement" --repo "$GITHUB_REPOSITORY" --color "A2EEEF" --description "New feature or improvement" 2>/dev/null || true
+          gh label create "documentation" --repo "$GITHUB_REPOSITORY" --color "0075CA" --description "Documentation" 2>/dev/null || true
+          gh label create "question" --repo "$GITHUB_REPOSITORY" --color "D876E3" --description "Question" 2>/dev/null || true
+
+      - name: Comment and apply triage labels
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue_number }}
           TRIAGE_OUTPUT: ${{ runner.temp }}/issue-triage.json
         shell: bash
         run: |
@@ -60,12 +118,7 @@ jobs:
             gh issue comment "$ISSUE_NUMBER" --repo "$GH_REPO" --body-file "$reply_file"
           fi
 
-          available_labels="$(gh label list --repo "$GH_REPO" --limit 100 --json name --jq '.[].name')"
           while IFS= read -r label; do
             [[ -z "$label" ]] && continue
-            if grep -Fxq "$label" <<<"$available_labels"; then
-              gh issue edit "$ISSUE_NUMBER" --repo "$GH_REPO" --add-label "$label" >/dev/null
-            else
-              echo "::warning::AI selected label '$label', but that label does not exist; skipping it."
-            fi
+            gh issue edit "$ISSUE_NUMBER" --repo "$GH_REPO" --add-label "$label" >/dev/null
           done < <(jq -r '.labels[]' "$TRIAGE_OUTPUT")

@@ -18,19 +18,24 @@ SPEC.loader.exec_module(issue_triage)
 
 
 class IssueTriageTests(unittest.TestCase):
-    def test_labels_are_whitelisted_deduplicated_and_capped(self) -> None:
-        labels = issue_triage.normalize_labels(
-            ["bug", "bug", "wontfix", "question", "enhancement"]
+    def test_classification_maps_only_to_managed_labels(self) -> None:
+        result = issue_triage.normalize_result(
+            {"category": "bug", "area": "dnn", "needs_info": True, "reply": "Thanks"}
         )
-        self.assertEqual(labels, ["bug", "question"])
+        self.assertEqual(
+            result["labels"], ["ai-triaged", "bug", "area: dnn", "needs-info"]
+        )
 
-    def test_reply_sanitizes_mentions_and_reserved_marker(self) -> None:
+    def test_reply_sanitizes_mentions_and_reserved_markers(self) -> None:
         reply = issue_triage.sanitize_reply(
-            "Thanks @octocat. mail@example.com " + issue_triage.MARKER
+            "Thanks @octocat. mail@example.com "
+            + issue_triage.MARKER
+            + issue_triage.VISIBLE_FOOTER
         )
         self.assertIn("@\u200boctocat", reply)
         self.assertIn("mail@example.com", reply)
         self.assertNotIn(issue_triage.MARKER, reply)
+        self.assertNotIn(issue_triage.VISIBLE_FOOTER, reply)
 
     def test_extract_output_text_ignores_non_message_items(self) -> None:
         response = {
@@ -39,17 +44,17 @@ class IssueTriageTests(unittest.TestCase):
                 {
                     "type": "message",
                     "content": [
-                        {"type": "output_text", "text": '{"reply":"ok","labels":[]}'},
+                        {
+                            "type": "output_text",
+                            "text": '{"category":"question","area":"core","needs_info":false,"reply":"ok"}',
+                        },
                     ],
                 },
             ]
         }
-        self.assertEqual(
-            issue_triage.extract_output_text(response),
-            '{"reply":"ok","labels":[]}',
-        )
+        self.assertIn('"reply":"ok"', issue_triage.extract_output_text(response))
 
-    def test_missing_key_uses_japanese_fallback_without_labels(self) -> None:
+    def test_missing_key_uses_japanese_fallback_without_ai_labels(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             event = root / "event.json"
@@ -57,13 +62,17 @@ class IssueTriageTests(unittest.TestCase):
                 json.dumps({"issue": {"title": "質問です", "body": "動きません"}}),
                 encoding="utf-8",
             )
-            result = issue_triage.generate(root, event, "", issue_triage.DEFAULT_MODEL)
+            result = issue_triage.generate(
+                root, event, "", issue_triage.DEFAULT_MODEL, "develop", "abc"
+            )
         self.assertEqual(result["mode"], "fallback-no-key")
         self.assertEqual(result["labels"], [])
         self.assertIn("Issueありがとうございます", result["reply"])
 
     def test_payload_uses_structured_output_and_does_not_store(self) -> None:
-        payload = issue_triage.build_payload("model", "title", "body", "context")
+        payload = issue_triage.build_payload(
+            "model", "title", "body", "context", "develop", "abc"
+        )
         self.assertFalse(payload["store"])
         self.assertEqual(payload["text"]["format"]["type"], "json_schema")
         self.assertTrue(payload["text"]["format"]["strict"])

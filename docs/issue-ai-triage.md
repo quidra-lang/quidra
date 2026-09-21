@@ -6,37 +6,39 @@ Newly opened GitHub issues can receive an automated first-pass triage response f
 
 The workflow `.github/workflows/issue-ai-triage.yml`:
 
-1. starts when an issue is opened;
-2. checks out the current `develop` branch as its Quidra knowledge source;
-3. provides the model with the issue title/body plus the current README, language specification, architecture, diagnostics, grammar, LLM guide, numeric/bin specification, package documentation, manifest, project metadata, and development documentation;
-4. classifies the issue as a bug, feature, documentation request, question, or other;
-5. classifies its area as Core, Vision, DNN, or unknown;
-6. decides whether material reproduction information is missing;
-7. adds only workflow-controlled labels from a fixed allowlist; and
-8. posts a concise reply in the issue author's language.
+1. starts when an issue is opened, or can be run manually for an existing issue;
+2. executes only trusted workflow code from the default branch, while checking out the current `develop` branch separately as read-only Quidra context;
+3. reads the issue title/body plus current Quidra documentation and specification files;
+4. asks the model for a structured category, repository area, information-needed flag, and natural-language reply;
+5. maps that classification locally to a fixed label allowlist;
+6. creates any missing managed labels without overwriting existing label definitions;
+7. adds the selected labels; and
+8. creates or updates one bot-owned triage comment, avoiding duplicate replies on reruns.
 
-The generated reply is explicitly marked as automated initial triage. It does not close issues, assign maintainers, modify code, or promise fixes.
+The reply is marked as automated initial triage. It does not close issues, assign maintainers, modify code, or promise fixes.
 
-## Required repository secret
+## OpenAI configuration
 
-Create an Actions repository secret named `OPENAI_API_KEY` containing an OpenAI API key. The workflow intentionally does not store an API key in the repository.
+Create an Actions repository secret named `OPENAI_API_KEY` containing an OpenAI API key. The default model is `gpt-5.6-luna`, chosen for low-cost, high-volume triage. An optional repository variable named `OPENAI_ISSUE_TRIAGE_MODEL` can override the model.
 
-The default model is `gpt-5.6-terra`. Change `OPENAI_MODEL` in the workflow if a different model is desired.
+If the key is missing or the model request fails after retries, the workflow posts a deterministic acknowledgement instead and applies no AI-derived labels.
 
 ## Security boundary
 
-Issue titles and bodies are treated as untrusted data. They are never interpolated into shell commands. The model is instructed not to follow commands embedded in issues, and model output cannot select arbitrary GitHub labels. Instead, the Python triage script validates the model's JSON classification and maps it to a fixed label allowlist.
+Issue titles and bodies are untrusted data. They are read from GitHub's event JSON or API response and are never interpolated into shell commands. The model receives no GitHub token or OpenAI API key.
 
-The workflow has only:
+Model output uses OpenAI Structured Outputs and is validated again locally. The model cannot choose arbitrary GitHub operations. Category/area fields are converted to fixed labels by Python code. Generated `@mentions` are neutralized to avoid unintended notifications.
+
+The workflow token is limited to:
 
 - `contents: read`
 - `issues: write`
 
-It does not receive repository-content write permission.
+The executable workflow/script comes from the default branch. Current `develop` is checked out only as documentation/specification context, so changes on `develop` are treated as data rather than executable workflow code.
 
 ## Managed labels
 
-The workflow may create a missing managed label, but it does not overwrite an existing label definition. It may apply:
+The workflow may create and apply:
 
 - `ai-triaged`
 - `needs-info`
@@ -48,10 +50,12 @@ The workflow may create a missing managed label, but it does not overwrite an ex
 - `area: vision`
 - `area: dnn`
 
+It does not automatically decide `duplicate`, `invalid`, `wontfix`, priority, severity, assignment, closure, milestones, `good first issue`, or `help wanted`.
+
 ## Manual triage
 
-The workflow also supports `workflow_dispatch` with an existing issue number. This is useful for testing or rerunning triage after setup.
+The workflow supports `workflow_dispatch` with an existing issue number. Rerunning triage updates the existing bot-owned triage comment instead of posting a duplicate. Labels are additive so the automation does not remove labels a maintainer may have applied.
 
 ## Activation
 
-GitHub's `issues` event runs a workflow only when that workflow file exists on the repository's default branch. Quidra's default branch is `main`, while normal development happens on `develop`. Therefore the implementation is developed and tested on `develop`, but automatic issue-open handling becomes active after the workflow reaches `main` through the normal release/integration process.
+GitHub's `issues` event runs a workflow only when that workflow file exists on the repository's default branch. Quidra's default branch is `main`, while normal development happens on `develop`. Therefore this implementation is developed and tested on `develop`, but automatic issue-open handling becomes active after the workflow reaches `main` through the normal integration/release process.

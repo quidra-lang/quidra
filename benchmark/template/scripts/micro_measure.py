@@ -93,9 +93,19 @@ def benchmark_env(root: Path, cwd: Path) -> dict[str, str]:
         "LANG": "C",
         "TZ": "UTC",
     }
-    java_home = Path("/opt/homebrew/opt/openjdk")
-    if java_home.exists():
-        env["JAVA_HOME"] = str(java_home)
+    for var, candidate in (
+        ("JAVA_HOME", "/opt/homebrew/opt/openjdk"),
+        ("JAVA_HOME", "/opt/java"),
+        ("RUSTUP_HOME", "/opt/rust"),
+        ("CARGO_HOME", "/opt/rust"),
+    ):
+        if var not in env and Path(candidate).exists():
+            env[var] = candidate
+    # Toolchains that keep a build cache must be able to write it somewhere the
+    # sandbox allows; HOME is inside the workspace but say so explicitly.
+    env.setdefault("GOCACHE", str(root / "tmp" / "go-build"))
+    env.setdefault("GOPATH", str(root / "tmp" / "gopath"))
+    env.setdefault("GOTOOLCHAIN", "local")
     return env
 
 
@@ -505,24 +515,34 @@ def pause() -> None:
     time.sleep(IDLE_SECONDS)
 
 
+# Peak RSS is read from the kernel's own accounting of the measured child, not
+# from a platform-specific `time` binary: a throwaway interpreter runs the
+# program and reports getrusage(RUSAGE_CHILDREN), which only that one child can
+# have contributed to. Linux reports ru_maxrss in kilobytes, Darwin in bytes.
+RSS_WRAPPER = (
+    "import json, resource, subprocess, sys\n"
+    "p = subprocess.run(sys.argv[1:])\n"
+    "r = resource.getrusage(resource.RUSAGE_CHILDREN)\n"
+    "scale = 1 if sys.platform == 'darwin' else 1024\n"
+    "sys.stderr.write('\\n@@rss ' + json.dumps({'peak_rss_bytes': r.ru_maxrss * scale}) + '\\n')\n"
+    "sys.exit(p.returncode)\n"
+)
+
+
 def wrapped_memory_run(root: Path, cell: dict[str, Any]) -> dict[str, Any]:
-    if sys.platform != "darwin":
-        raise MeasureError(
-            "scored micro RSS measurement currently requires Darwin /usr/bin/time -l, "
-            "as frozen by template/workloads/micro.md"
-        )
-    cmd = ["/usr/bin/time", "-l", *cell["run_cmd"]]
+    cmd = [sys.executable, "-c", RSS_WRAPPER, *cell["run_cmd"]]
     result = run_command(cmd, Path(cell["workdir"]), benchmark_env(root, Path(cell["workdir"])))
     if not result["timed_out"] and result["exit_code"] != 0:
         raise MeasureError(
             f"wrapped run failed for {cell['language']} {cell['workload']}: {result['stderr']}"
         )
-    m = re.search(r"(?m)^\s*(\d+)\s+maximum resident set size\s*$", result["stderr"])
+    m = re.search(r"(?m)^@@rss (\{.*\})\s*$", result["stderr"])
     if not m:
         raise MeasureError(
-            f"could not parse BSD time peak RSS for {cell['language']} {cell['workload']}"
+            f"could not read peak RSS for {cell['language']} {cell['workload']}"
         )
-    result["peak_rss_bytes"] = int(m.group(1))
+    result["peak_rss_bytes"] = int(json.loads(m.group(1))["peak_rss_bytes"])
+    result["stderr"] = result["stderr"][: m.start()].rstrip()
     return result
 
 
@@ -865,11 +885,6 @@ def measure(root: Path, unit_id: str) -> int:
         })
         print(json.dumps({"ok": True, "unit_id": unit_id, "synthetic_ci": True}, indent=2))
         return 0
-    if sys.platform != "darwin":
-        raise MeasureError(
-            "Language Quality micro measurement is frozen to the macOS measurement protocol; "
-            "run it on the declared Darwin benchmark host"
-        )
     quidra_authoring_units(root)
     validate_quidra_representation(root, quidra_representation_path(root))
     compiler = ensure_target_compiler(root)

@@ -311,6 +311,130 @@ def act_run(action: dict[str, Any], perms: Permissions) -> dict[str, Any]:
     }
 
 
+class Trials:
+    """Fresh, isolated model sessions for a scored experiment, enforced in code.
+
+    A replicated cell needs N independent trials, each with its own prompt chain
+    and up to R repair turns, and nothing from this agent's conversation or from
+    another trial may leak into it. The runtime, not the model, owns every
+    trial's message list: the agent supplies prompts and repair messages, the
+    runtime builds the session from its own records, sends it through the same
+    credential-less gateway, and preserves every prompt and completion verbatim.
+    """
+
+    def __init__(self, root: Path, task: dict[str, Any], agent_id: str,
+                 config: dict[str, Any], client: InferenceGatewayClient,
+                 max_output_tokens: int) -> None:
+        self.client = client
+        self.agent_id = agent_id
+        self.network_allowed = bool(task.get("network_allowed"))
+        self.max_output_tokens = max_output_tokens
+        self.budget = 0
+        manifest_path = root / "work" / "root" / "manifest.json"
+        if manifest_path.is_file():
+            for unit in benchmark.json_load(manifest_path).get("work_units", []):
+                if unit.get("assigned_agent_id") == agent_id:
+                    self.budget = int(unit.get("max_llm_calls", 0) or 0)
+                    break
+        primary = benchmark.json_load(root / "template" / "config" / "primary.json")
+        section = primary.get(str(task.get("evaluation") or ""), {}) or {}
+        self.max_repairs = int(section.get("max_repair_turns", 3) or 0)
+        multiplier = int(primary.get("worker_isolation", {}).get("trial_turn_multiplier", 3) or 3)
+        base_turns = int(config["max_turns"])
+        self.max_turns = max(base_turns, self.budget * multiplier) if self.budget else base_turns
+        self.used = 0
+        self.sessions: dict[str, dict[str, Any]] = {}
+
+    @staticmethod
+    def _valid_id(value: Any) -> str:
+        if not isinstance(value, str) or not value or len(value) > 96 \
+                or not all(ch.isalnum() or ch in "-_." for ch in value):
+            raise AgentDenied("trial_id must be a short identifier of letters, digits, '-', '_' or '.'")
+        return value
+
+    def _call(self, trial_id: str, session: dict[str, Any]) -> dict[str, Any]:
+        if self.used >= self.budget:
+            raise AgentDenied(
+                f"trial budget exhausted: this unit is frozen at {self.budget} trial calls"
+            )
+        try:
+            response = self.client.complete(
+                session["messages"],
+                task_id=self.agent_id,
+                max_output_tokens=self.max_output_tokens,
+                network_allowed=self.network_allowed,
+            )
+        except GatewayRefusal as exc:
+            raise AgentFailure(f"inference gateway refused a trial request: {exc}") from exc
+        except GatewayClientError as exc:
+            raise AgentFailure(f"inference transport failure during a trial: {exc}") from exc
+        self.used += 1
+        completion = response["content"]
+        incomplete = completion_problem(response)
+        prompt_text = session["messages"][-1]["content"]
+        session["records"].append({
+            "call": len(session["records"]) + 1,
+            "prompt": prompt_text,
+            "prompt_sha256": benchmark.sha256_bytes(prompt_text.encode("utf-8")),
+            "completion": completion,
+            "completion_sha256": benchmark.sha256_bytes(completion.encode("utf-8")),
+            "stop_reason": response.get("stop_reason"),
+            "incomplete": incomplete,
+            "usage": response.get("usage", {}),
+        })
+        session["messages"].append({"role": "assistant", "content": completion})
+        return {
+            "ok": incomplete is None,
+            "trial_id": trial_id,
+            "completion": completion,
+            "stop_reason": response.get("stop_reason"),
+            "incomplete": incomplete,
+            "repairs_used": len(session["records"]) - 1,
+            "repairs_remaining": self.max_repairs - (len(session["records"]) - 1),
+            "calls_used": self.used,
+            "calls_remaining": self.budget - self.used,
+        }
+
+    def start(self, action: dict[str, Any]) -> dict[str, Any]:
+        if self.budget <= 0:
+            raise AgentDenied("this unit has no trial budget; trial actions are not available")
+        trial_id = self._valid_id(action.get("trial_id"))
+        if trial_id in self.sessions:
+            raise AgentDenied(f"trial {trial_id!r} already exists; a trial is fresh exactly once")
+        prompt = action.get("prompt")
+        if not isinstance(prompt, str) or not prompt.strip():
+            raise AgentDenied("trial_start needs a non-empty prompt string")
+        session = {"messages": [{"role": "user", "content": prompt}], "records": []}
+        self.sessions[trial_id] = session
+        return self._call(trial_id, session)
+
+    def resume(self, action: dict[str, Any]) -> dict[str, Any]:
+        trial_id = self._valid_id(action.get("trial_id"))
+        session = self.sessions.get(trial_id)
+        if session is None:
+            raise AgentDenied(f"trial {trial_id!r} has not been started")
+        if len(session["records"]) - 1 >= self.max_repairs:
+            raise AgentDenied(
+                f"trial {trial_id!r} has used all {self.max_repairs} repair turns"
+            )
+        message = action.get("message")
+        if not isinstance(message, str) or not message.strip():
+            raise AgentDenied("trial_continue needs a non-empty message string")
+        session["messages"].append({"role": "user", "content": message})
+        return self._call(trial_id, session)
+
+    def summary(self) -> dict[str, Any]:
+        return {
+            "budget": self.budget,
+            "used": self.used,
+            "max_repairs_per_trial": self.max_repairs,
+            "trials": {
+                trial_id: {"calls": session["records"], "repairs": len(session["records"]) - 1}
+                for trial_id, session in self.sessions.items()
+            },
+        }
+
+
 ACTIONS = {
     "list_dir": act_list_dir,
     "read_file": act_read_file,
@@ -325,11 +449,29 @@ ACTIONS = {
 
 
 def runtime_contract_prompt(perms: Permissions, task: dict[str, Any],
-                            config: dict[str, Any]) -> str:
+                            config: dict[str, Any], trials: "Trials | None" = None) -> str:
     read_lines = "\n".join(f"- {Path(p).as_posix()}" for p in task.get("read_paths", []))
     outputs = task.get("expected_outputs") or []
     output_lines = "\n".join(f"- {Path(p).as_posix()}" for p in outputs) or "- defined by this task"
     allowlist = ", ".join(config["exec_allowlist"])
+    max_turns = trials.max_turns if trials is not None else config["max_turns"]
+    trial_block = ""
+    if trials is not None and trials.budget > 0:
+        trial_block = f"""
+Independent model trials (this unit's scored experiment):
+
+```
+{{"action":"trial_start","trial_id":"<cell>-t<n>","prompt":"<exact initial prompt for the model under test>"}}
+{{"action":"trial_continue","trial_id":"<cell>-t<n>","message":"<repair prompt with the failure>"}}
+```
+
+Each `trial_start` opens a FRESH session for the model under test: it sees only the
+prompt you give it, never this conversation, never another trial. `trial_continue`
+is a repair turn inside that same trial; at most {trials.max_repairs} per trial.
+The runtime records every trial prompt and completion verbatim. Budget for this
+unit: {trials.budget} trial calls in total ({trials.used} used). Compile and test
+what a trial produces with `write_file` and `run`, then decide whether to repair.
+"""
     return f"""# Sandbox agent runtime contract
 
 You are running as a `sandbox-agent` worker inside the benchmark sandbox rooted at
@@ -358,8 +500,8 @@ Permissions:
 - `write_file` and `run` paths are resolved relative to that directory.
 - `run` executes with `shell=False`. Permitted programs: {allowlist}.
 - Network access: {"allowed through the inference gateway only" if task.get("network_allowed") else "disabled"}.
-- Maximum turns: {config['max_turns']}.
-
+- Maximum turns: {max_turns}.
+{trial_block}
 Expected outputs before you send `final`:
 {output_lines}
 
@@ -399,15 +541,16 @@ def run_agent(args: argparse.Namespace) -> int:
     if health.get("host_tools_exposed"):
         raise AgentFailure("gateway reports an exposed host tool surface; refusing to run")
 
+    trials = Trials(root, task, args.id, config, client, int(args.max_output_tokens))
     messages: list[dict[str, str]] = [
-        {"role": "system", "content": runtime_contract_prompt(perms, task, config)},
+        {"role": "system", "content": runtime_contract_prompt(perms, task, config, trials)},
         {"role": "user", "content": packet},
     ]
 
     trace: list[dict[str, Any]] = []
     denials: list[dict[str, Any]] = []
     usage = {"input_tokens": 0, "output_tokens": 0, "calls": 0}
-    max_turns = int(config["max_turns"])
+    max_turns = int(trials.max_turns)
     protocol_errors = 0
     max_protocol_errors = int(config["max_consecutive_protocol_errors"])
     final_summary: str | None = None
@@ -430,6 +573,15 @@ def run_agent(args: argparse.Namespace) -> int:
         usage["input_tokens"] += int(response.get("usage", {}).get("input_tokens", 0) or 0)
         usage["output_tokens"] += int(response.get("usage", {}).get("output_tokens", 0) or 0)
         completion = response["content"]
+        if not completion.strip():
+            # An empty assistant turn is rejected by the provider on the next
+            # request, so it must not enter the conversation at all.
+            protocol_errors += 1
+            trace.append({"turn": turn, "action": None, "protocol_error": "empty completion"})
+            if protocol_errors >= max_protocol_errors:
+                stop_reason = "protocol_contract_violated"
+                break
+            continue
         messages.append({"role": "assistant", "content": completion})
 
         incomplete = completion_problem(response)
@@ -468,7 +620,13 @@ def run_agent(args: argparse.Namespace) -> int:
             trace.append({"turn": turn, "action": "final"})
             break
 
-        if name not in ACTIONS:
+        if name in {"trial_start", "trial_continue"}:
+            try:
+                observation = trials.start(action) if name == "trial_start" else trials.resume(action)
+            except AgentDenied as exc:
+                observation = {"ok": False, "denied": str(exc)}
+                denials.append({"turn": turn, "action": name, "reason": str(exc)})
+        elif name not in ACTIONS:
             observation: dict[str, Any] = {
                 "ok": False,
                 "denied": f"unknown action {name!r}; permitted actions are "
@@ -485,6 +643,8 @@ def run_agent(args: argparse.Namespace) -> int:
                 observation = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
 
         recorded = dict(observation)
+        if isinstance(recorded.get("completion"), str):
+            recorded["completion"] = f"<{len(recorded['completion'])} chars, preserved under trials>"
         if isinstance(recorded.get("content"), str):
             recorded["content"] = f"<{len(recorded['content'])} chars elided from trace>"
         trace.append({"turn": turn, "action": name, "observation": recorded})
@@ -524,6 +684,7 @@ def run_agent(args: argparse.Namespace) -> int:
         "expected_outputs": expected,
         "missing_outputs": missing,
         "denied_actions": denials,
+        "trials": trials.summary(),
         "trace": trace,
         "finished_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
     }

@@ -462,48 +462,59 @@ class AnthropicMessagesProvider(Provider):
                 "allowed_callers": list(self.web_search.get("allowed_callers", ["direct"])),
             }]
 
-        http_request = urllib.request.Request(
-            f"{self.base_url}/v1/messages",
-            data=json.dumps(payload).encode("utf-8"),
-            headers={
-                "content-type": "application/json",
-                "anthropic-version": "2023-06-01",
-                "x-api-key": self._api_key,
-            },
-            method="POST",
-        )
-
+        max_continuations = int(self.web_search.get("max_turn_continuations", 8) or 0)
+        texts: list[str] = []
+        usage = {"input_tokens": 0, "output_tokens": 0, "web_search_requests": 0}
+        stop_reason = "end_turn"
         with self._lock:
-            if (
-                self.budget_usd is not None
-                and self._estimated_cost_usd >= self.budget_usd
-            ):
-                raise GatewayError(
-                    "soft API budget exhausted: "
-                    f"estimated {self._estimated_cost_usd:.4f} USD >= {self.budget_usd:.4f} USD"
+            for continuation in range(max_continuations + 1):
+                if (
+                    self.budget_usd is not None
+                    and self._estimated_cost_usd >= self.budget_usd
+                ):
+                    raise GatewayError(
+                        "soft API budget exhausted: "
+                        f"estimated {self._estimated_cost_usd:.4f} USD >= {self.budget_usd:.4f} USD"
+                    )
+                http_request = urllib.request.Request(
+                    f"{self.base_url}/v1/messages",
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={
+                        "content-type": "application/json",
+                        "anthropic-version": "2023-06-01",
+                        "x-api-key": self._api_key,
+                    },
+                    method="POST",
                 )
-            body = self._open(http_request)
-
-            text = "".join(
-                block.get("text", "")
-                for block in body.get("content", [])
-                if block.get("type") == "text"
-            )
-            raw_usage = body.get("usage", {}) or {}
-            server_tool_use = raw_usage.get("server_tool_use", {}) or {}
-            usage = {
-                "input_tokens": int(raw_usage.get("input_tokens", 0) or 0),
-                "output_tokens": int(raw_usage.get("output_tokens", 0) or 0),
-                "web_search_requests": int(server_tool_use.get("web_search_requests", 0) or 0),
-            }
-            call_cost = self._request_cost(usage)
-            self._estimated_cost_usd += call_cost
-            usage["estimated_cost_usd"] = round(call_cost, 6)
+                body = self._open(http_request)
+                content = body.get("content", []) or []
+                texts.extend(
+                    block.get("text", "") for block in content if block.get("type") == "text"
+                )
+                raw_usage = body.get("usage", {}) or {}
+                server_tool_use = raw_usage.get("server_tool_use", {}) or {}
+                step = {
+                    "input_tokens": int(raw_usage.get("input_tokens", 0) or 0),
+                    "output_tokens": int(raw_usage.get("output_tokens", 0) or 0),
+                    "web_search_requests": int(server_tool_use.get("web_search_requests", 0) or 0),
+                }
+                for key, value in step.items():
+                    usage[key] += value
+                self._estimated_cost_usd += self._request_cost(step)
+                stop_reason = body.get("stop_reason", "end_turn")
+                # A server-side tool loop hands the turn back paused. Sending the
+                # response back verbatim lets it continue; the sandbox never sees
+                # the partial state and never has to know a tool ran.
+                if stop_reason != "pause_turn" or continuation == max_continuations:
+                    break
+                payload["messages"] = [*turns, {"role": "assistant", "content": content}]
+            usage["estimated_cost_usd"] = round(self._request_cost(usage), 6)
             usage["cumulative_estimated_cost_usd"] = round(self._estimated_cost_usd, 6)
+            text = "".join(texts)
 
         return {
             "content": text,
-            "stop_reason": body.get("stop_reason", "end_turn"),
+            "stop_reason": stop_reason,
             "usage": usage,
         }
 

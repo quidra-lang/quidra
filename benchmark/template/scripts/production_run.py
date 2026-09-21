@@ -140,7 +140,10 @@ def dispatch_one(root: Path, task: dict[str, Any], units: dict[str, dict[str, An
     agent_id = str(task["agent_id"])
     run_cli(root, "task-start", "--id", uid)
 
-    max_output = int(unit.get("max_output_tokens_per_call", 0) or 8192)
+    frozen_default = int(
+        benchmark.worker_isolation_config(root).get("default_max_output_tokens", 16384)
+    )
+    max_output = int(unit.get("max_output_tokens_per_call", 0) or frozen_default)
     max_output = max(1, min(max_output, 32768))
     if task.get("worker_mode") == "packet-only":
         argv = [

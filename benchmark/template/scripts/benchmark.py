@@ -3232,6 +3232,19 @@ def apply_worker_response(
                 "packet-only worker response file entries must be objects"
             )
         rel_text = str(entry.get("path") or "")
+        # The packet names the expected output by its canonical absolute path, so
+        # a model that echoes what it was told to produce sends that form. Accept
+        # it only when it lies inside this agent's own directory, and reduce it to
+        # the relative form every other check operates on. Nothing outside stays
+        # rejected, so the traversal surface is unchanged.
+        for base in (
+            (CANONICAL_WORKSPACE / "work" / "agents" / agent_id).as_posix() + "/",
+            agent_dir.as_posix() + "/",
+            f"work/agents/{agent_id}/",
+        ):
+            if rel_text.startswith(base):
+                rel_text = rel_text[len(base):]
+                break
         rel = PurePosixPath(rel_text)
         if (
             not rel_text
@@ -5036,6 +5049,14 @@ def copy_retained_run(root: Path, dest: Path) -> dict[str, str]:
 
 def privacy_match_is_safe(kind: str, sample: str, root: Path) -> bool:
     """Allow benchmark-workspace paths, never arbitrary host paths in a real run."""
+    if kind == "email":
+        # RFC 2606 / RFC 6761 reserve these for documentation; they can never
+        # identify a person, and models write them in sample code constantly.
+        domain = sample.rsplit("@", 1)[-1].lower()
+        reserved = domain in {"example.com", "example.net", "example.org"} or any(
+            domain.endswith(suffix) for suffix in (".example", ".invalid", ".test", ".localhost")
+        )
+        return reserved
     if kind not in {"unix_home", "windows_home", "host_temp_path"}:
         return False
 
@@ -5061,7 +5082,7 @@ def privacy_match_is_safe(kind: str, sample: str, root: Path) -> bool:
 PRIVACY_PATTERNS = {
     "email": re.compile(r"(?i)\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b"),
     "unix_home": re.compile(r"(?<![A-Za-z0-9_])/(?:Users|home)/[^/\s]+/"),
-    "windows_home": re.compile(r"(?i)\b[A-Z]:\\\\Users\\\\[^\\\s]+\\\\"),
+    "windows_home": re.compile(r"(?i)\b[A-Z]:\\{1,2}Users\\{1,2}[^\\\s]+\\{1,2}"),
     "host_temp_path": re.compile(r"(?<![A-Za-z0-9:])/(?:private/var/folders|var/folders|tmp|mnt|workspace)/[^\s\"'<>]+"),
     "private_key": re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     "github_token": re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b"),

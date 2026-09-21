@@ -130,6 +130,8 @@
     "gateway_socket_path": "/quidra-benchmark/gateway/inference.sock",
     "sandbox_provider_credentials": "forbidden",
     "sandbox_agent_launcher": "scripts/sandbox_launcher.py",
-    "packet_only_inference": "benchmark.py task-infer via the same credential-less gateway"
+    "packet_only_inference": "benchmark.py task-infer via the same credential-less gateway",
+    "default_max_output_tokens": 16384,
+    "trial_turn_multiplier": 3
   }
 }

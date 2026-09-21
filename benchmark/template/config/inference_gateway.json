@@ -104,7 +104,8 @@
     "allowed_callers": [
       "direct"
     ],
-    "note": "The _20260209 variant is the one Claude Sonnet 5 supports. Older models take the basic web_search_20250305 variant instead; update this together with the model."
+    "note": "The _20260209 variant is the one Claude Sonnet 5 supports. Older models take the basic web_search_20250305 variant instead; update this together with the model.",
+    "max_turn_continuations": 8
   },
   "anthropic_decoding": {
     "send_sampling_parameters": false,

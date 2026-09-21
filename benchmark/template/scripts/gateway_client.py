@@ -185,6 +185,7 @@ INCOMPLETE_STOP_REASONS = {
         "unit's output cap rather than retrying the same request"
     ),
     "refusal": "the provider declined this request",
+    "pause_turn": "a server-side tool paused the turn and the gateway did not resume it",
 }
 
 

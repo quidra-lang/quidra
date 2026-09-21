@@ -144,17 +144,42 @@ jobs:
             --log "$RUNNER_TEMP/gateway-audit.jsonl" \
             --output "$RUNNER_TEMP/api-cost.json"
 
-      - name: Import and push successful result when develop has not moved
+      - name: Import the finished run
+        if: success()
+        run: |
+          # Always produce benchmark/$RUN_ID once the paid step succeeded, so the
+          # artifact step below preserves the full retained set even when the
+          # push has to be skipped. post-run needs only a clean tree.
+          python benchmark/template/scripts/benchmark.py post-run \
+            --source-repo "$GITHUB_WORKSPACE"
+          test -f "benchmark/$RUN_ID/import_manifest.json"
+
+      - name: Push the result when develop has not moved
         if: success()
         run: |
           git fetch origin develop
           if [ "$(git rev-parse origin/develop)" != "$EVALUATED_SHA" ]; then
-            echo "::warning::develop moved during the benchmark; preserving the completed run as an artifact instead of pushing onto a different snapshot."
+            echo "::warning::develop moved during the benchmark; the imported run is preserved as an artifact instead of being pushed onto a different snapshot."
             exit 0
           fi
-          python benchmark/template/scripts/benchmark.py post-run \
-            --source-repo "$GITHUB_WORKSPACE"
-          git add "benchmark/$RUN_ID"
+          # -f: the repository ignores *.o, *.ll, __pycache__ and similar, and a
+          # retained agent directory legitimately contains such files. Dropping
+          # them silently would leave import_manifest.json listing hashes of
+          # files absent from the commit.
+          git add -f "benchmark/$RUN_ID"
+          python - <<'PY'
+          import json, os, subprocess
+          run_id = os.environ["RUN_ID"]
+          manifest = json.load(open(f"benchmark/{run_id}/import_manifest.json"))
+          listed = set(manifest.get("retained_files_sha256", {}))
+          staged = set(
+              p[len(f"benchmark/{run_id}/"):] for p in subprocess.check_output(
+                  ["git", "ls-files", "--cached", f"benchmark/{run_id}"], text=True
+              ).split()
+          )
+          missing = sorted(listed - staged)
+          assert not missing, f"retained files not staged: {missing[:10]}"
+          PY
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
               commit -m "Add benchmark results for ${EVALUATED_SHA:0:7}"
@@ -168,8 +193,15 @@ jobs:
           if-no-files-found: ignore
           retention-days: 30
           path: |
+            .quidra-benchmark/run.json
             .quidra-benchmark/results
+            .quidra-benchmark/raw
+            .quidra-benchmark/prompts
+            .quidra-benchmark/work/agents
+            .quidra-benchmark/work/root/manifest.json
             .quidra-benchmark/work/root/ledger.json
+            .quidra-benchmark/work/root/plans
+            .quidra-benchmark/work/root/commands
             benchmark/${{ env.RUN_ID }}
             ${{ runner.temp }}/api-cost.json
             ${{ runner.temp }}/gateway-audit.jsonl

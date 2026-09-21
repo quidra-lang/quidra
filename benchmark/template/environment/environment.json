@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "purpose": "Counterpart frozen copy required by capability_universe.json V5_recipe_agreement.",
+  "recipes_authority": "The recipes in this object are authoritative for Semantic Compression. Pre-measurement validation checks required toolchains/capabilities; a recipe change is a template change and must happen before manifest freeze.",
+  "frozen_toolchain_recipes": {
+    "Quidra": {
+      "build": "quidra build FILE.qui -o BIN",
+      "run": "./BIN",
+      "interpreter_run": "quidra run FILE.qui"
+    },
+    "Python": {
+      "run": "python3 FILE.py"
+    },
+    "C++": {
+      "build": "clang++ -std=c++20 -O2 FILE.cpp -o BIN",
+      "run": "./BIN"
+    },
+    "Rust": {
+      "build": "rustc -O -C debug-assertions=on FILE.rs -o BIN",
+      "run": "./BIN"
+    },
+    "Go": {
+      "build": "go build -o BIN FILE.go",
+      "run": "./BIN"
+    },
+    "Java": {
+      "build": "javac -d OUT FILE.java",
+      "run": "java -cp OUT Main"
+    },
+    "TypeScript": {
+      "build": "tsc --strict --target es2022 --module nodenext FILE.ts",
+      "run": "node FILE.js"
+    },
+    "Kotlin": {
+      "build": "kotlinc FILE.kt -include-runtime -d FILE.jar",
+      "run": "java -jar FILE.jar"
+    },
+    "Swift": {
+      "build": "swiftc -O FILE.swift -o BIN",
+      "run": "./BIN"
+    },
+    "Zig": {
+      "build": "zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN",
+      "run": "./BIN"
+    }
+  },
+  "runtime_image": "runtime/toolchains.json"
+}

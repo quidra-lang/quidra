@@ -17,6 +17,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Project metadata derives from project.toml
         run: python3 tests/metadata_ssot_tests.py
+      - name: Issue AI triage helper tests
+        run: python3 tests/issue_triage_tests.py
 
   release-build:
     runs-on: ubuntu-latest

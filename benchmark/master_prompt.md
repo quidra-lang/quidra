@@ -26,15 +26,19 @@ Never create a cross-evaluation combined score or overall winner.
 
 Each Primary evaluation has its own score and ranking only when its scientific/integrity gates pass. If it is scoreable, the runner must calculate and publish the ranking mechanically; a missing ranking is an orchestration error.
 
-## 3. Sandbox and worker isolation
+## 3. Sandbox, inference gateway and worker isolation
 
-The trusted outer orchestrator may run on the host. Its authority is limited to host bootstrap/cleanup, starting the isolation boundary, transporting self-contained Task Packets, importing structured worker responses, and launching explicitly sandbox-bound agent runtimes. It is not a scored worker and must not perform scored judgment.
+The trusted outer orchestrator may run on the host. Its authority is limited to host bootstrap/cleanup, starting the isolation boundary, running the trusted inference gateway, transporting self-contained Task Packets and importing structured worker responses. It is not a scored worker and must not perform scored judgment.
 
-All scored local processes run against a real filesystem sandbox rooted at `/quidra-benchmark`. Any leaf with local filesystem, shell, editor, compiler, or process tools uses `worker_mode=sandbox-agent`, and the agent process itself must run inside that attested sandbox. A host-side Claude Code/subagent with host tools is not a valid scored leaf.
+All scored local processes run against a real filesystem sandbox rooted at `/quidra-benchmark`, created by `template/scripts/sandbox_launcher.py`. The scored container is non-root, has `--network none`, drops all capabilities, sets `no-new-privileges`, uses a read-only root filesystem, mounts `/quidra-benchmark/repo` and `/quidra-benchmark/template` read-only, and receives `HOME=/quidra-benchmark/home`, `TMPDIR=/quidra-benchmark/tmp` and `PWD=/quidra-benchmark`. Host home directories, SSH agent sockets, provider tokens and agent-platform configuration are never mounted.
 
-The default leaf mode is `packet-only`. Its permitted local UTF-8 inputs are embedded in the rendered Task Packet. The LLM has no local filesystem/shell/process/editor/host-application tools and returns only a structured Worker Response consumed by `benchmark.py task-apply`. Provider-level network retrieval may be exposed only when the frozen Task Packet permits network access; it must never provide host filesystem or environment access.
+Provider credentials live only outside that sandbox. `template/scripts/inference_gateway.py` runs on the trusted side, holds whatever API key, OAuth token or local agent session the run uses, and is the only process with provider network access. It listens on a Unix domain socket shared with the scored sandbox through a container-engine volume, so the scored side needs no network of its own. The gateway is a pure model-inference broker: it answers a health handshake and an inference request, and refuses every request kind or field that could describe a tool, file, command, endpoint or credential. Host filesystem, shell, GitHub and agent-platform tools are never exposed to the model through it. Providers are pluggable behind one provider-agnostic protocol; a deterministic offline `fake` provider serves CI.
 
-The evaluated source is `/quidra-benchmark/repo`; the immutable current template is `/quidra-benchmark/template`. Host home directories, credentials, unrelated repositories and untracked host files must not be visible. `preflight` requires the real sandbox attestation plus worker-gateway, packet-local-tool-disablement and in-sandbox-agent-launcher attestations. Merely changing path strings or forging attestations does not satisfy the isolation requirement.
+Scored work reaches a model only through that socket, with no credential of its own and no fallback path. Packet-only units use `benchmark.py task-infer`; sandbox-agent units use `template/scripts/sandbox_agent.py`. Passing `ANTHROPIC_API_KEY`, `CLAUDE_CODE_MESSAGING_TOKEN`, `~/.claude`, an SSH agent socket or any equivalent into the scored sandbox is forbidden, and so is widening the sensitive-environment checks to tolerate one.
+
+Any leaf with local filesystem, shell, editor, compiler or process tools uses `worker_mode=sandbox-agent` and runs through the in-sandbox agent runtime. A host-side Claude Code subagent with host tools is not a valid scored leaf. The default leaf mode is `packet-only`: its permitted local UTF-8 inputs are embedded in the rendered Task Packet, it has no local tools at all, and it returns only a structured Worker Response consumed by `benchmark.py task-apply`.
+
+The evaluated source is `/quidra-benchmark/repo`; the immutable current template is `/quidra-benchmark/template`. `preflight` verifies the observed process rather than any declaration: unprivileged uid, a loopback-only network namespace, an empty capability bounding set, `NoNewPrivs`, read-only snapshot and template mounts, no unexpected mounts, no provider credential in the environment or on disk, a live gateway socket that refuses forbidden requests when probed, and a launcher contract that matches all of it. Setting the attestation variables without applying the restrictions fails.
 
 ## 4. Command-first lifecycle
 
@@ -61,22 +65,41 @@ and diagnosis, but a normal run does not need an LLM to sequence them.
 
 `advance` is the state-machine driver. It reclaims stale work, runs deterministic command units, creates/reuses dependency-ready leaf packets, emits `results/dispatch_queue.json`, and derives current Primary status.
 
+Before any scored work starts, the trusted side launches the sandbox and the gateway:
+
+```bash
+sandbox_launcher.py build-image
+sandbox_launcher.py run --source-repo <checkout> --provider <provider> \
+  --task-policy <network-ceilings.json> -- benchmark.py prepare
+```
+
+The per-task network ceiling handed to the gateway is derived from the frozen manifest on the trusted side. The gateway never takes a worker's word for how much network its own task may use.
+
 For each queued leaf, the outer runner reads `worker_mode` from `results/dispatch_queue.json` and begins with:
 
 ```bash
 benchmark.py task-start --id <work-unit-id>
-benchmark.py task-render --id <agent-id>
 ```
 
-For `packet-only`, send the rendered packet to a model session with local filesystem/shell/process/application tools disabled, capture exactly one JSON Worker Response, and import it through the sandbox:
+For `packet-only`, infer through the credential-less gateway and import the result:
 
 ```bash
-benchmark.py task-apply --id <agent-id> < worker-response.json
+benchmark.py task-infer --id <agent-id>
 benchmark.py task-finish --id <work-unit-id>
 benchmark.py advance
 ```
 
-For `sandbox-agent`, launch the tool-capable agent process itself inside the attested `/quidra-benchmark` sandbox, never as a host-side tool-capable subagent, then run `task-finish` and `advance`.
+`task-infer` renders the frozen packet, asks the gateway, and hands the reply to the same importer `task-apply` uses; `task-render` plus `task-apply` remain available when a response is produced outside the sandbox. Either way the worker has no local filesystem, shell, process, editor or host-application tools.
+
+For `sandbox-agent`, run the in-sandbox agent runtime, never a host-side tool-capable subagent:
+
+```bash
+sandbox_agent.py --id <agent-id>
+benchmark.py task-finish --id <work-unit-id>
+benchmark.py advance
+```
+
+The runtime enforces the packet's read paths, confines writes and subprocess working directories to `/quidra-benchmark/work/agents/<agent-id>/`, runs subprocesses with `shell=False` and an allowlisted `argv[0]`, and records every refusal in `agent_trace.json`. `task-finish` requires that trace to match the frozen packet and to record a credential-less gateway.
 
 Long-running workers periodically call:
 
@@ -103,7 +126,7 @@ The runner owns planning, dependency release, retries, state transitions, valida
 
 For Language Quality micro workloads, Quidra source authoring and measurement are deliberately separate. One narrow leaf freezes the evaluated commit's required Quidra representations/APIs, then four independent authoring leaves create only three fresh `.qui` programs each from the current Quidra documentation plus the frozen language-neutral workload/validator. No such leaf may read historical Quidra benchmark programs or reusable comparison-language implementations. After validation, the runner builds the Quidra compiler from the evaluated snapshot and mechanically owns correctness runs, compilation, timing, peak RSS, artifact sizing, diagnostic source-byte collection, normalization and requirement-level result emission for the metrics the frozen micro methodology explicitly owns.
 
-Leaf workers handle only tasks that require language/evidence/model judgment. Every manifest unit freezes a worker mode. Packet-only leaves receive embedded permitted inputs and return files only through the structured response importer; sandbox-agent leaves receive narrow sandbox read paths and one sandbox writable directory. Both receive exact requirement IDs, compact worker rules, selected methodology sections, frozen Primary configuration, exact validator and network permission. No scored leaf is a host-side tool-capable subagent.
+Leaf workers handle only tasks that require language/evidence/model judgment. Every manifest unit freezes a worker mode. Packet-only leaves receive embedded permitted inputs and return files only through the structured response importer; sandbox-agent leaves receive narrow sandbox read paths and one sandbox writable directory, enforced in code by the in-sandbox runtime. Both receive exact requirement IDs, compact worker rules, selected methodology sections, frozen Primary configuration, exact validator and network permission, and both reach a model only through the credential-less gateway socket. No scored leaf is a host-side tool-capable subagent.
 
 A multi-language leaf may own at most the frozen runner limit of Primary requirement IDs (currently 3). Larger bundles are rejected mechanically. The only exception is a leaf expanded to exactly one assigned language when several metrics intentionally derive from the same isolated trial history; splitting that history would duplicate scored trials and change the experiment.
 
@@ -143,6 +166,6 @@ Template maintenance happens before freeze or after finalization.
 
 Machine-readable results are the single source of truth. Markdown/CSV/charts are generated from them.
 
-Retain only compact reproducible run artifacts. The retained set is limited to run identity, results, required raw evidence, exact prompts, leaf outputs, frozen plans/manifest/ledger, and runner command results. Build caches, the evaluated repository snapshot, template copy, temporary home, temporary files and micro build products are not imported. Never retain credentials, personal email addresses, host home paths or source-checkout paths outside `/quidra-benchmark`.
+Retain only compact reproducible run artifacts. The retained set is limited to run identity, results, required raw evidence, exact prompts, leaf outputs including sandbox-agent traces, frozen plans/manifest/ledger, and runner command results. Build caches, the evaluated repository snapshot, template copy, temporary home, temporary files and micro build products are not imported. The gateway's request audit log belongs to the trusted side and is never written into the scored workspace. Never retain credentials, personal email addresses, host home paths or source-checkout paths outside `/quidra-benchmark`.
 
 A successful run has attempted all five Primary evaluations, mechanically aggregated every scoreable evaluation, emitted a ranking for every COMPLETE evaluation, recorded exact blockers for all others, and passed reconciliation/privacy/finalization gates.

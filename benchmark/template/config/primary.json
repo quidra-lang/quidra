@@ -115,8 +115,14 @@
     "packet_only_max_embedded_bytes": 1048576,
     "packet_only_max_response_files": 64,
     "packet_only_max_response_bytes": 2097152,
-    "sandbox_agent_runtime": "process-must-run-inside-attested-sandbox",
+    "sandbox_agent_runtime": "in-sandbox-agent-loop-scripts/sandbox_agent.py",
     "sandbox_agent_host_credentials": "forbidden",
-    "network_policy": "provider-or-sandbox-network-only-never-host-filesystem"
+    "network_policy": "provider egress belongs to the trusted gateway only; the scored sandbox runs with no network namespace and reaches the gateway solely through the shared Unix socket",
+    "inference_transport": "credential-less-gateway-socket",
+    "gateway_protocol": "quidra-inference-gateway-v1",
+    "gateway_socket_path": "/quidra-benchmark/gateway/inference.sock",
+    "sandbox_provider_credentials": "forbidden",
+    "sandbox_agent_launcher": "scripts/sandbox_launcher.py",
+    "packet_only_inference": "benchmark.py task-infer via the same credential-less gateway"
   }
 }

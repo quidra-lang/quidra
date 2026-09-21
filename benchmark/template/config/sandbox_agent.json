@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "runtime": "quidra-sandbox-agent-v1",
+  "max_turns": 24,
+  "max_observation_bytes": 65536,
+  "max_read_bytes": 262144,
+  "max_write_bytes": 1048576,
+  "max_total_write_bytes": 8388608,
+  "max_list_entries": 512,
+  "max_consecutive_protocol_errors": 3,
+  "exec_timeout_seconds": 900,
+  "exec_output_bytes": 65536,
+  "exec_allowlist": [
+    "python3",
+    "cmake",
+    "make",
+    "ninja",
+    "c++",
+    "g++",
+    "clang++",
+    "cc",
+    "gcc",
+    "clang",
+    "rustc",
+    "cargo",
+    "go",
+    "javac",
+    "java",
+    "kotlinc",
+    "tsc",
+    "node",
+    "swiftc",
+    "swift",
+    "zig",
+    "quidra"
+  ],
+  "exec_allowed_absolute_prefixes": [
+    "/quidra-benchmark/work/root/target-build/"
+  ],
+  "actions": [
+    "list_dir",
+    "read_file",
+    "write_file",
+    "run",
+    "final"
+  ],
+  "note": "Read access is limited to the Task Packet's declared read paths. Writes and subprocess working directories are limited to /quidra-benchmark/work/agents/<agent-id>/. Subprocesses always run with shell=False, a sanitized environment and an argv[0] drawn from this allowlist or from an allowed absolute prefix inside the workspace. These limits are enforced in code by scripts/sandbox_agent.py, not by prompt instructions."
+}

@@ -78,6 +78,8 @@ TEXT_SUFFIXES = {
     ".py", ".sh", ".ps1", ".c", ".cc", ".cpp", ".h", ".hpp", ".rs",
     ".go", ".java", ".kt", ".swift", ".zig", ".ts", ".js", ".qui",
 }
+# Text files the privacy gate must read even though they carry no suffix.
+TEXT_FILENAMES = {"Dockerfile", "Containerfile", "Makefile"}
 TOOLCHAIN_COMMANDS = {
     "C++": [["c++", "--version"]],
     "Go": [["go", "version"]],
@@ -94,6 +96,27 @@ SECRET_ENV_PARTS = (
     "TOKEN", "SECRET", "PASSWORD", "PASSWD", "API_KEY", "APIKEY",
     "PRIVATE_KEY", "SSH_AUTH_SOCK", "EMAIL",
 )
+
+GATEWAY_CONFIG_RELATIVE = PurePosixPath("config/inference_gateway.json")
+GATEWAY_SOCKET_ENV = "QUIDRA_BENCHMARK_INFERENCE_SOCKET"
+LAUNCHER_CONTRACT_ENV = "QUIDRA_BENCHMARK_LAUNCHER_CONTRACT"
+LAUNCHER_CONTRACT_VERSION = "quidra-sandbox-launcher-v1"
+
+# Mount points a hardened container legitimately carries. Anything else visible in
+# /proc/self/mountinfo means the sandbox was handed something it did not ask for -
+# typically a host home directory, an SSH agent socket or a credential file.
+ALLOWED_MOUNT_POINTS = frozenset({
+    "/",
+    "/etc/hosts",
+    "/etc/hostname",
+    "/etc/resolv.conf",
+    "/tmp",
+    "/quidra-benchmark",
+    "/quidra-benchmark/repo",
+    "/quidra-benchmark/template",
+    "/quidra-benchmark/gateway",
+})
+ALLOWED_MOUNT_PREFIXES = ("/proc", "/sys", "/dev")
 
 RETAINED_RUN_PATHS = (
     "run.json",
@@ -781,7 +804,10 @@ def cmd_init(args: argparse.Namespace) -> int:
 
     for d in (
         "work/root", "work/agents", "work/attempts", "raw", "results", "prompts/by-hash",
-        "prompts/components/by-hash", "prompts/manifests", "home", "tmp"
+        "prompts/components/by-hash", "prompts/manifests", "home", "tmp",
+        # Mountpoint only. The launcher mounts the trusted gateway's socket volume
+        # here, so nothing on the host side ever lands in this directory.
+        "gateway",
     ):
         (root / d).mkdir(parents=True, exist_ok=True)
 
@@ -1038,11 +1064,382 @@ def suspicious_env() -> list[str]:
     return sorted(set(bad))
 
 
+_GATEWAY_CLIENT_MODULE: Any = None
+
+
+def gateway_client_module() -> Any:
+    """Load the sibling credential-less client without touching sys.path."""
+    global _GATEWAY_CLIENT_MODULE
+    if _GATEWAY_CLIENT_MODULE is None:
+        import importlib.util
+
+        path = Path(__file__).resolve().parent / "gateway_client.py"
+        spec = importlib.util.spec_from_file_location(
+            "quidra_benchmark_gateway_client", path
+        )
+        if spec is None or spec.loader is None:
+            raise BenchmarkError(f"inference gateway client is missing: {path}")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        _GATEWAY_CLIENT_MODULE = module
+    return _GATEWAY_CLIENT_MODULE
+
+
+def gateway_config(root: Path) -> dict[str, Any]:
+    path = root / "template" / GATEWAY_CONFIG_RELATIVE
+    config = json_load(path)
+    if config.get("schema_version") != 1:
+        raise BenchmarkError(f"unsupported inference gateway config schema: {path}")
+    return config
+
+
+def gateway_socket_path(root: Path, config: dict[str, Any]) -> Path:
+    return Path(os.environ.get(GATEWAY_SOCKET_ENV) or config["socket_path"])
+
+
+# --------------------------------------------------------------------------
+# Observed isolation facts
+#
+# Everything below reads the state of the *running* process rather than trusting
+# a declaration. An environment variable can be typed by anyone; an empty
+# capability bounding set, a loopback-only network namespace and a read-only
+# snapshot mount cannot.
+# --------------------------------------------------------------------------
+
+
+def _path_is_writable(path: Path) -> bool:
+    if not path.is_dir():
+        return False
+    probe = path / f".quidra-write-probe-{os.getpid()}"
+    try:
+        with probe.open("wb"):
+            pass
+    except OSError:
+        return False
+    try:
+        probe.unlink()
+    except OSError:
+        pass
+    return True
+
+
+def _proc_status_field(name: str) -> str | None:
+    status = Path("/proc/self/status")
+    if not status.is_file():
+        return None
+    try:
+        for line in status.read_text(encoding="utf-8").splitlines():
+            if line.startswith(f"{name}:"):
+                return line.split(":", 1)[1].strip()
+    except OSError:
+        return None
+    return None
+
+
+def parse_mountinfo(text: str) -> list[dict[str, str]]:
+    """Extract mount target, options and source from /proc/self/mountinfo."""
+    mounts = []
+    for line in text.splitlines():
+        fields = line.split()
+        if len(fields) < 7 or "-" not in fields:
+            continue
+        separator = fields.index("-")
+        mounts.append({
+            "target": fields[4],
+            "options": fields[5],
+            "source": fields[separator + 2] if len(fields) > separator + 2 else "",
+        })
+    return mounts
+
+
+def collect_isolation_observations(root: Path) -> dict[str, Any]:
+    observations: dict[str, Any] = {
+        "platform": sys.platform,
+        "euid": os.geteuid() if hasattr(os, "geteuid") else None,
+        "cwd": os.getcwd(),
+        "network_interfaces": None,
+        "mounts": None,
+        "no_new_privileges": None,
+        "capability_bounding_set": None,
+        "writable": {},
+    }
+
+    interfaces = Path("/sys/class/net")
+    if interfaces.is_dir():
+        try:
+            observations["network_interfaces"] = sorted(p.name for p in interfaces.iterdir())
+        except OSError:
+            observations["network_interfaces"] = None
+
+    mountinfo = Path("/proc/self/mountinfo")
+    if mountinfo.is_file():
+        try:
+            observations["mounts"] = parse_mountinfo(mountinfo.read_text(encoding="utf-8"))
+        except OSError:
+            observations["mounts"] = None
+
+    no_new_privs = _proc_status_field("NoNewPrivs")
+    if no_new_privs is not None:
+        observations["no_new_privileges"] = no_new_privs
+    observations["capability_bounding_set"] = _proc_status_field("CapBnd")
+
+    for name in ("repo", "template"):
+        observations["writable"][name] = _path_is_writable(root / name)
+    observations["writable"]["work"] = _path_is_writable(root / "work")
+
+    return observations
+
+
+def isolation_problems(root: Path, observations: dict[str, Any]) -> list[str]:
+    """Hard requirements, judged only from what the process can observe."""
+    problems: list[str] = []
+
+    if observations.get("euid") == 0:
+        problems.append("sandbox_process_runs_as_root")
+
+    interfaces = observations.get("network_interfaces")
+    if interfaces is None:
+        problems.append("network_isolation_unverifiable")
+    else:
+        routable = sorted(set(interfaces) - {"lo"})
+        if routable:
+            problems.append("sandbox_network_not_isolated:" + ",".join(routable))
+
+    mounts = observations.get("mounts")
+    if mounts is None:
+        problems.append("mount_visibility_unverifiable")
+    else:
+        for mount in mounts:
+            target = mount.get("target", "")
+            if target in ALLOWED_MOUNT_POINTS:
+                continue
+            if any(target == p or target.startswith(p + "/") for p in ALLOWED_MOUNT_PREFIXES):
+                continue
+            problems.append(f"unexpected_mount_visible_in_sandbox:{target}")
+        for mount in mounts:
+            source = mount.get("source", "")
+            if re.match(r"^/(?:Users|home)/[^/]+", source) and mount.get("target") != "/":
+                problems.append(f"host_home_path_mounted:{mount.get('target')}")
+
+    writable = observations.get("writable", {})
+    if writable.get("repo"):
+        problems.append("evaluated_repo_snapshot_must_be_mounted_read_only")
+    if writable.get("template"):
+        problems.append("frozen_template_must_be_mounted_read_only")
+    if not writable.get("work"):
+        problems.append("agent_work_directory_is_not_writable")
+
+    no_new_privs = observations.get("no_new_privileges")
+    if no_new_privs is None:
+        problems.append("no_new_privileges_unverifiable")
+    elif no_new_privs.strip() != "1":
+        problems.append("no_new_privileges_not_set")
+
+    capabilities = observations.get("capability_bounding_set")
+    if capabilities is None:
+        problems.append("capability_bounding_set_unverifiable")
+    elif capabilities.strip("0") != "":
+        problems.append(f"capabilities_not_dropped:{capabilities}")
+
+    return problems
+
+
+def launcher_contract_problems(
+    raw_contract: str | None, observations: dict[str, Any], env: dict[str, str]
+) -> tuple[dict[str, Any], list[str]]:
+    """Cross-check the launcher's declaration against observed reality.
+
+    The contract can only ever *fail* a run. Every hard requirement is also
+    checked directly against the process, so a forged contract that claims more
+    than the sandbox delivers is caught by the mismatch, and one that claims less
+    is caught by the direct check.
+    """
+    problems: list[str] = []
+    if not raw_contract:
+        return {}, ["launcher_contract_missing"]
+    try:
+        contract = json.loads(raw_contract)
+    except json.JSONDecodeError as exc:
+        return {}, [f"launcher_contract_invalid_json:{exc}"]
+    if not isinstance(contract, dict):
+        return {}, ["launcher_contract_must_be_an_object"]
+
+    if contract.get("contract") != LAUNCHER_CONTRACT_VERSION:
+        problems.append("launcher_contract_version_mismatch")
+    if contract.get("workspace_root") != CANONICAL_WORKSPACE.as_posix():
+        problems.append("launcher_contract_workspace_root_mismatch")
+    if contract.get("network") != "none":
+        problems.append("launcher_contract_network_must_be_none")
+    for claim in (
+        "no_new_privileges",
+        "read_only_root_filesystem",
+    ):
+        if contract.get(claim) is not True:
+            problems.append(f"launcher_contract_{claim}_not_claimed")
+    for claim in (
+        "run_as_root",
+        "host_home_mounted",
+        "ssh_agent_forwarded",
+        "provider_credentials_in_sandbox",
+        "claude_configuration_mounted",
+    ):
+        if contract.get(claim) is not False:
+            problems.append(f"launcher_contract_{claim}_must_be_false")
+    if contract.get("capabilities_dropped") != "ALL":
+        problems.append("launcher_contract_capabilities_must_drop_all")
+
+    if observations.get("euid") is not None and contract.get("uid") != observations["euid"]:
+        problems.append("launcher_contract_uid_does_not_match_running_process")
+
+    declared_env = contract.get("environment")
+    if not isinstance(declared_env, dict):
+        problems.append("launcher_contract_environment_missing")
+    else:
+        for key, value in declared_env.items():
+            if env.get(key) != value:
+                problems.append(f"launcher_contract_environment_mismatch:{key}")
+
+    socket_claim = contract.get("inference_socket")
+    if socket_claim != env.get(GATEWAY_SOCKET_ENV):
+        problems.append("launcher_contract_inference_socket_mismatch")
+
+    return contract, problems
+
+
+def credential_exposure_problems(
+    root: Path, config: dict[str, Any], env: dict[str, str]
+) -> list[str]:
+    """Provider credentials must simply not exist on this side of the boundary."""
+    problems: list[str] = []
+
+    for name in config.get("sandbox_forbidden_credential_environment_names", []):
+        if env.get(name):
+            problems.append(f"provider_credential_in_sandbox_environment:{name}")
+
+    for key, value in env.items():
+        if not value:
+            continue
+        for kind, pattern in PRIVACY_PATTERNS.items():
+            if kind in {"unix_home", "windows_home", "host_temp_path", "email"}:
+                continue
+            if pattern.search(value):
+                problems.append(f"credential_shaped_environment_value:{key}")
+                break
+
+    # Only the environment under test is consulted. Reading the interpreter's own
+    # HOME would report the operator's real credentials as if the sandbox could
+    # see them, which is both wrong and unfalsifiable. preflight separately
+    # requires HOME to be set and to live inside the workspace.
+    homes = {Path(env.get("HOME") or root / "home"), root / "home"}
+    for home in homes:
+        for relative in config.get("sandbox_forbidden_credential_paths", []):
+            candidate = home / relative
+            try:
+                exists = candidate.exists()
+            except OSError:
+                exists = False
+            if exists:
+                problems.append(f"provider_credential_visible_in_sandbox:{relative}")
+
+    agent_socket = env.get("SSH_AUTH_SOCK")
+    if agent_socket and Path(agent_socket).exists():
+        problems.append("ssh_agent_socket_forwarded_into_sandbox")
+
+    return sorted(set(problems))
+
+
+def gateway_attestation(
+    root: Path, config: dict[str, Any], timeout: float = 15.0
+) -> tuple[dict[str, Any], list[str]]:
+    """Prove the gateway exists, answers, and refuses everything but inference.
+
+    Two of these checks are deliberately negative. A broker that *claims* to
+    expose no tools is worth nothing; a broker observed refusing a request that
+    carries a tool field, and refusing an unsupported request kind, is evidence.
+    """
+    problems: list[str] = []
+    info: dict[str, Any] = {}
+    socket_path = gateway_socket_path(root, config)
+    info["socket_path"] = str(socket_path)
+
+    try:
+        require_under(socket_path, root)
+    except BenchmarkError:
+        return info, ["inference_gateway_socket_outside_workspace"]
+
+    expected_socket = config["socket_path"]
+    if lexical_absolute(socket_path).as_posix() != expected_socket:
+        problems.append("inference_gateway_socket_path_not_canonical")
+    if not socket_path.exists():
+        return info, [*problems, "inference_gateway_socket_missing"]
+    if not socket_path.is_socket():
+        return info, [*problems, "inference_gateway_socket_is_not_a_socket"]
+
+    client_module = gateway_client_module()
+    client = client_module.InferenceGatewayClient(socket_path, timeout=timeout)
+    try:
+        health = client.health()
+    except client_module.GatewayClientError as exc:
+        return info, [*problems, f"inference_gateway_handshake_failed:{exc}"]
+
+    info["gateway"] = health.get("gateway")
+    info["provider"] = health.get("provider", {}).get("id")
+    info["network_policy"] = health.get("network_policy")
+
+    if health.get("credential_less_client") is not True:
+        problems.append("inference_gateway_requires_client_credentials")
+    if health.get("host_tools_exposed") is not False:
+        problems.append("inference_gateway_exposes_host_tools")
+    if health.get("exposed_tool_surface"):
+        problems.append("inference_gateway_exposes_a_tool_surface")
+    if sorted(health.get("capabilities", [])) != sorted(config["allowed_request_kinds"]):
+        problems.append("inference_gateway_capabilities_mismatch")
+
+    probes = (
+        (
+            "tool_field",
+            {
+                "schema_version": 1,
+                "kind": "inference.request",
+                "request_id": "preflight-tool-probe",
+                "messages": [{"role": "user", "content": "preflight probe"}],
+                "tools": [{"name": "shell", "description": "run a host command"}],
+            },
+        ),
+        (
+            "unsupported_kind",
+            {
+                "schema_version": 1,
+                "kind": "shell.exec",
+                "request_id": "preflight-kind-probe",
+                "argv": ["id"],
+            },
+        ),
+    )
+    refusals = {}
+    for label, payload in probes:
+        try:
+            response = client.raw_exchange(payload)
+        except client_module.GatewayClientError as exc:
+            problems.append(f"inference_gateway_probe_failed:{label}:{exc}")
+            continue
+        refused = (
+            response.get("kind") == "inference.error"
+            and response.get("error", {}).get("class") == "policy"
+        )
+        refusals[label] = refused
+        if not refused:
+            problems.append(f"inference_gateway_accepted_a_forbidden_request:{label}")
+    info["policy_probes"] = refusals
+
+    return info, problems
+
+
 def cmd_preflight(args: argparse.Namespace) -> int:
     root = workspace(args)
     required = (
         "run.json", "repo", "template", "work/root", "work/agents",
-        "raw", "results", "prompts/by-hash", "home", "tmp",
+        "raw", "results", "prompts/by-hash", "home", "tmp", "gateway",
     )
     missing = [name for name in required if not (root / name).exists()]
     problems: list[str] = []
@@ -1064,33 +1461,48 @@ def cmd_preflight(args: argparse.Namespace) -> int:
     if declared_sandbox_mode not in {"container", "chroot", "namespace", "external-sandbox"}:
         problems.append("sandbox_mode_not_isolating")
 
-    # The CLI does not create an OS/container security boundary itself. A trusted
-    # external runner must enforce the declared isolation and inject these two
-    # attestations into the already-sandboxed process. This prevents an ordinary
-    # unsandboxed invocation from passing readiness merely by naming a mode.
-    attested_mode = os.environ.get("QUIDRA_BENCHMARK_SANDBOX_ATTESTED")
-    attested_root = os.environ.get("QUIDRA_BENCHMARK_SANDBOX_ROOT")
-    if attested_mode != declared_sandbox_mode:
-        problems.append("sandbox_runner_attestation_missing_or_mode_mismatch")
-    if attested_root != str(root):
-        problems.append("sandbox_runner_root_attestation_missing_or_mismatch")
+    env = dict(os.environ)
+    observations = collect_isolation_observations(root)
 
-    worker_gateway = os.environ.get("QUIDRA_BENCHMARK_WORKER_GATEWAY_ATTESTED")
-    packet_local_tools = os.environ.get("QUIDRA_BENCHMARK_PACKET_WORKER_LOCAL_TOOLS")
-    sandbox_agent_launcher = os.environ.get(
-        "QUIDRA_BENCHMARK_SANDBOX_AGENT_LAUNCHER_ATTESTED"
+    # The isolation boundary is judged from the running process, not from a
+    # declaration. These checks are what makes the attestations below meaningful:
+    # the launcher may only set them after actually applying the restrictions,
+    # and a run that sets them without applying anything fails here.
+    problems.extend(isolation_problems(root, observations))
+
+    contract, contract_problems = launcher_contract_problems(
+        env.get(LAUNCHER_CONTRACT_ENV), observations, env
     )
-    if worker_gateway != "packet-gateway-v1":
+    problems.extend(contract_problems)
+
+    if env.get("QUIDRA_BENCHMARK_SANDBOX_ATTESTED") != declared_sandbox_mode:
+        problems.append("sandbox_runner_attestation_missing_or_mode_mismatch")
+    if env.get("QUIDRA_BENCHMARK_SANDBOX_ROOT") != str(root):
+        problems.append("sandbox_runner_root_attestation_missing_or_mismatch")
+    if env.get("QUIDRA_BENCHMARK_WORKER_GATEWAY_ATTESTED") != "packet-gateway-v1":
         problems.append("worker_gateway_attestation_missing_or_mismatch")
-    if packet_local_tools != "disabled":
+    if env.get("QUIDRA_BENCHMARK_PACKET_WORKER_LOCAL_TOOLS") != "disabled":
         problems.append("packet_worker_local_tools_not_disabled")
-    if sandbox_agent_launcher != "inside-sandbox-v1":
+    if env.get("QUIDRA_BENCHMARK_SANDBOX_AGENT_LAUNCHER_ATTESTED") != "inside-sandbox-v1":
         problems.append("sandbox_agent_launcher_attestation_missing_or_mismatch")
+
+    gateway_info: dict[str, Any] = {}
+    try:
+        gateway_cfg = gateway_config(root)
+    except (BenchmarkError, OSError, json.JSONDecodeError) as exc:
+        gateway_cfg = {}
+        problems.append(f"inference_gateway_config_invalid:{exc}")
+    if gateway_cfg:
+        problems.extend(credential_exposure_problems(root, gateway_cfg, env))
+        gateway_info, gateway_problems = gateway_attestation(
+            root, gateway_cfg, timeout=float(getattr(args, "gateway_timeout", 15.0))
+        )
+        problems.extend(gateway_problems)
 
     problems.extend(template_integrity_problems(root, run))
 
     for env_name in ("HOME", "TMPDIR", "PWD"):
-        value = os.environ.get(env_name)
+        value = env.get(env_name)
         if value:
             try:
                 require_under(Path(value), root)
@@ -1122,6 +1534,12 @@ def cmd_preflight(args: argparse.Namespace) -> int:
                 problems.append("primary_config_worker_allowed_modes_mismatch")
             if worker_iso.get("host_tool_capable_leaf_policy") != "forbidden":
                 problems.append("primary_config_host_tool_capable_leaf_policy_mismatch")
+            if worker_iso.get("inference_transport") != "credential-less-gateway-socket":
+                problems.append("primary_config_inference_transport_mismatch")
+            if worker_iso.get("gateway_protocol") != "quidra-inference-gateway-v1":
+                problems.append("primary_config_gateway_protocol_mismatch")
+            if worker_iso.get("sandbox_provider_credentials") != "forbidden":
+                problems.append("primary_config_sandbox_provider_credentials_mismatch")
         except Exception as exc:
             problems.append(f"primary_config_invalid:{exc}")
     if config.exists() and run:
@@ -1131,12 +1549,18 @@ def cmd_preflight(args: argparse.Namespace) -> int:
     result = {
         "ok": not problems,
         "problems": problems,
+        "observed_isolation": observations,
+        "launcher_contract": {
+            "present": bool(contract),
+            "contract": contract.get("contract"),
+            "image": contract.get("image"),
+        },
+        "inference_gateway": gateway_info,
         "checked_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
     }
     json_dump(root / "results" / "preflight.json", result)
     print(json.dumps(result, indent=2))
     return 0 if result["ok"] else 2
-
 
 
 def plan_counts(cfg: dict[str, Any], languages: list[str]) -> dict[str, Any]:
@@ -2664,16 +3088,22 @@ def collect_packet_only_inputs(
     return files, sections
 
 
-def cmd_task_apply(args: argparse.Namespace) -> int:
-    root = workspace(args)
-    agent_dir = require_under(root / "work" / "agents" / args.id, root)
+def apply_worker_response(
+    root: Path, agent_id: str, raw: bytes, extra: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Validate and materialize one packet-only Worker Response.
+
+    Shared by `task-apply` (response piped in from the outer runner) and
+    `task-infer` (response obtained through the credential-less gateway), so both
+    paths get identical traversal, size, duplicate and expected-output checks.
+    """
+    agent_dir = require_under(root / "work" / "agents" / agent_id, root)
     meta = json_load(agent_dir / "task.json")
     if meta.get("worker_mode") != "packet-only":
         raise BenchmarkError("task-apply is only valid for packet-only workers")
     cfg = worker_isolation_config(root)
     max_bytes = int(cfg.get("packet_only_max_response_bytes", 2097152))
     max_files = int(cfg.get("packet_only_max_response_files", 64))
-    raw = sys.stdin.buffer.read(max_bytes + 1)
     if len(raw) > max_bytes:
         raise BenchmarkError(
             f"packet-only worker response exceeds frozen limit {max_bytes}"
@@ -2688,7 +3118,7 @@ def cmd_task_apply(args: argparse.Namespace) -> int:
         raise BenchmarkError("packet-only worker response must be a JSON object")
     if response.get("schema_version") != 1:
         raise BenchmarkError("packet-only worker response schema_version must be 1")
-    if response.get("task_id") != args.id:
+    if response.get("task_id") != agent_id:
         raise BenchmarkError("packet-only worker response task_id mismatch")
     output_files = response.get("files")
     if not isinstance(output_files, list) or not output_files:
@@ -2757,13 +3187,99 @@ def cmd_task_apply(args: argparse.Namespace) -> int:
         })
     receipt = {
         "schema_version": 1,
-        "task_id": args.id,
+        "task_id": agent_id,
         "prompt_sha256": meta.get("prompt_sha256"),
         "response_sha256": sha256_bytes(raw),
         "files": receipt_files,
         "applied_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+        **(extra or {}),
     }
     json_dump(agent_dir / "worker_response.json", receipt)
+    return receipt
+
+
+def cmd_task_infer(args: argparse.Namespace) -> int:
+    """Render, infer through the credential-less gateway, and apply - in one step.
+
+    This is the packet-only half of the same contract the sandbox-agent runtime
+    uses. The outer runner no longer needs provider credentials of its own: it
+    renders the frozen packet, asks the trusted gateway over the shared socket,
+    and hands the reply straight to the same importer `task-apply` uses. The
+    meaning of render -> model -> apply is unchanged; only the credential
+    location is.
+    """
+    root = workspace(args)
+    agent_dir = require_under(root / "work" / "agents" / args.id, root)
+    meta = json_load(agent_dir / "task.json")
+    if meta.get("worker_mode") != "packet-only":
+        raise BenchmarkError(
+            "task-infer is only valid for packet-only workers; sandbox-agent units "
+            "run through scripts/sandbox_agent.py inside the sandbox"
+        )
+    packet = render_prompt_components(
+        meta["prompt_components"], meta["prompt_sha256"]
+    ).decode("utf-8")
+
+    config = gateway_config(root)
+    client_module = gateway_client_module()
+    socket_path = args.socket or str(gateway_socket_path(root, config))
+    client = client_module.InferenceGatewayClient(socket_path, timeout=float(args.timeout))
+    try:
+        health = client.health()
+        if health.get("host_tools_exposed"):
+            raise BenchmarkError(
+                "inference gateway reports an exposed host tool surface; refusing to "
+                "dispatch scored work through it"
+            )
+        response = client.complete(
+            [
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a packet-only benchmark worker. You have no local "
+                        "filesystem, shell, process, editor or host-application tools. "
+                        "Every permitted input is embedded in the Task Packet below. "
+                        "Reply with exactly one JSON Worker Response object and nothing "
+                        "else."
+                    ),
+                },
+                {"role": "user", "content": packet},
+            ],
+            task_id=args.id,
+            max_output_tokens=int(args.max_output_tokens),
+            network_allowed=bool(meta.get("network_allowed")),
+        )
+    except client_module.GatewayRefusal as exc:
+        raise BenchmarkError(f"inference gateway refused this Task Packet: {exc}") from exc
+    except client_module.GatewayClientError as exc:
+        raise BenchmarkError(f"inference transport failure: {exc}") from exc
+
+    completion = response["content"]
+    try:
+        worker_response = client_module.parse_model_json(completion)
+    except client_module.GatewayClientError as exc:
+        raise BenchmarkError(f"packet-only worker response is unusable: {exc}") from exc
+
+    raw = json.dumps(worker_response, sort_keys=True).encode("utf-8")
+    receipt = apply_worker_response(root, args.id, raw, extra={
+        "inference": {
+            "gateway": health.get("gateway"),
+            "provider": health.get("provider", {}).get("id"),
+            "network_allowed": bool(meta.get("network_allowed")),
+            "usage": response.get("usage", {}),
+            "completion_sha256": sha256_bytes(completion.encode("utf-8")),
+        },
+    })
+    print(json.dumps({"ok": True, **receipt}, indent=2))
+    return 0
+
+
+def cmd_task_apply(args: argparse.Namespace) -> int:
+    root = workspace(args)
+    cfg = worker_isolation_config(root)
+    max_bytes = int(cfg.get("packet_only_max_response_bytes", 2097152))
+    raw = sys.stdin.buffer.read(max_bytes + 1)
+    receipt = apply_worker_response(root, args.id, raw)
     print(json.dumps({"ok": True, **receipt}, indent=2))
     return 0
 
@@ -3153,6 +3669,43 @@ def cmd_command_result_check(args: argparse.Namespace) -> int:
     return 0
 
 
+def sandbox_agent_trace_problems(agent_dir: Path, agent_id: str) -> list[str]:
+    """Validate the audit trace scripts/sandbox_agent.py leaves behind."""
+    trace_path = agent_dir / "agent_trace.json"
+    if not trace_path.is_file():
+        return ["agent_trace.json is missing; the work unit did not run through "
+                "scripts/sandbox_agent.py inside the sandbox"]
+    try:
+        trace = json_load(trace_path)
+    except (OSError, json.JSONDecodeError) as exc:
+        return [f"agent_trace.json is unreadable: {exc}"]
+
+    problems: list[str] = []
+    if trace.get("schema_version") != 1:
+        problems.append("unsupported agent trace schema_version")
+    if trace.get("agent_id") != agent_id:
+        problems.append("agent trace belongs to a different agent")
+    if trace.get("worker_mode") != "sandbox-agent":
+        problems.append("agent trace does not record sandbox-agent mode")
+
+    task_path = agent_dir / "task.json"
+    if task_path.is_file():
+        expected = json_load(task_path).get("prompt_sha256")
+        if expected and trace.get("prompt_sha256") != expected:
+            problems.append("agent trace was produced from a different Task Packet")
+    if trace.get("stop_reason") != "final":
+        problems.append(f"agent run did not finish deliberately: {trace.get('stop_reason')!r}")
+    if trace.get("missing_outputs"):
+        problems.append("agent run left expected outputs missing")
+
+    gateway = trace.get("gateway") or {}
+    if gateway.get("credential_less_client") is not True:
+        problems.append("agent trace does not record a credential-less inference gateway")
+    if gateway.get("host_tools_exposed") is not False:
+        problems.append("agent trace records a gateway exposing host tools")
+    return problems
+
+
 def cmd_task_start(args: argparse.Namespace) -> int:
     root = workspace(args)
     unit = manifest_unit_by_id(root, args.id)
@@ -3254,6 +3807,16 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
     elif worker_mode == "sandbox-agent":
         if os.environ.get("QUIDRA_BENCHMARK_SANDBOX_AGENT_LAUNCHER_ATTESTED") != "inside-sandbox-v1":
             raise BenchmarkError("sandbox-agent task-finish requires the in-sandbox launcher attestation")
+        # The packet-only path proves its provenance with worker_response.json.
+        # The sandbox-agent path proves its own with the trace the in-sandbox
+        # runtime writes: same frozen packet, finished deliberately, and reached
+        # the model only through the credential-less gateway.
+        problems = sandbox_agent_trace_problems(agent_dir, agent_id)
+        if problems:
+            raise BenchmarkError(
+                "sandbox-agent task-finish requires a valid in-sandbox agent trace: "
+                + ", ".join(problems)
+            )
     else:
         raise BenchmarkError(f"unsupported worker_mode for task-finish: {worker_mode}")
     validation_ns = argparse.Namespace(workspace=str(root), id=agent_id)
@@ -4408,16 +4971,20 @@ PRIVACY_PATTERNS = {
 }
 
 
+def is_scannable_text(path: Path) -> bool:
+    return path.suffix.lower() in TEXT_SUFFIXES or path.name in TEXT_FILENAMES
+
+
 def iter_text_files(roots: Iterable[Path]) -> Iterable[Path]:
     for root in roots:
         if not root.exists():
             continue
         if root.is_file():
-            if root.suffix.lower() in TEXT_SUFFIXES:
+            if is_scannable_text(root):
                 yield root
             continue
         for path in root.rglob("*"):
-            if path.is_file() and path.suffix.lower() in TEXT_SUFFIXES:
+            if path.is_file() and is_scannable_text(path):
                 yield path
 
 
@@ -4636,8 +5203,13 @@ def build_parser() -> argparse.ArgumentParser:
     tcb.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     tcb.set_defaults(func=cmd_toolchain_blockers)
 
-    pre = sub.add_parser("preflight", help="validate workspace/config/environment invariants")
+    pre = sub.add_parser(
+        "preflight",
+        help="verify the observed sandbox, launcher contract, gateway handshake and "
+             "absence of provider credentials",
+    )
     pre.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
+    pre.add_argument("--gateway-timeout", type=float, default=15.0)
     pre.set_defaults(func=cmd_preflight)
 
     plan = sub.add_parser("plan", help="report frozen primary work and missing manifest coverage")
@@ -4763,6 +5335,17 @@ def build_parser() -> argparse.ArgumentParser:
     ta.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     ta.add_argument("--id", required=True)
     ta.set_defaults(func=cmd_task_apply)
+
+    ti = sub.add_parser(
+        "task-infer",
+        help="render a packet-only task, infer through the credential-less gateway, and apply",
+    )
+    ti.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
+    ti.add_argument("--id", required=True)
+    ti.add_argument("--socket")
+    ti.add_argument("--timeout", type=float, default=900.0)
+    ti.add_argument("--max-output-tokens", type=int, default=8192)
+    ti.set_defaults(func=cmd_task_infer)
 
     tv = sub.add_parser("task-validate", help="run the exact validator frozen in a Task Packet")
     tv.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))

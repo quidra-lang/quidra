@@ -1,14 +1,18 @@
 # Benchmark Execution Policy
 
-## 1. Fixed sandbox view and trusted outer orchestrator
+## 1. Fixed sandbox view, trusted gateway and outer orchestrator
 
-The trusted outer orchestrator may run on the host, but it is outside the scored worker population. Its authority is limited to bootstrap/cleanup, sandbox lifecycle, packet/response transport and launching explicitly sandbox-bound agents. It must not perform scored judgments or expose arbitrary host filesystem/shell/application tools to a scored leaf.
+The trusted outer orchestrator may run on the host, but it is outside the scored worker population. Its authority is limited to bootstrap/cleanup, sandbox lifecycle, running the inference gateway, packet/response transport and starting in-sandbox agent runtimes. It must not perform scored judgments or expose arbitrary host filesystem/shell/application tools to a scored leaf.
 
-All scored local processes operate against a real filesystem sandbox rooted at `/quidra-benchmark`. Host home directories, SSH material, credentials, unrelated projects, ignored files and untracked checkout content must not be visible.
+All scored local processes operate against a real filesystem sandbox rooted at `/quidra-benchmark`, created by `scripts/sandbox_launcher.py`. The scored container is non-root, uses `--network none`, drops all capabilities, sets `no-new-privileges`, runs on a read-only root filesystem, mounts `/quidra-benchmark/repo` and `/quidra-benchmark/template` read-only, and receives only `HOME`, `TMPDIR`, `PWD`, locale and the isolation attestations. Host home directories, SSH material, credentials, agent-platform configuration, unrelated projects, ignored files and untracked checkout content must not be visible.
 
-Two leaf modes are frozen in the manifest. `packet-only` is the default: the runner embeds all permitted local text inputs into the rendered packet, the LLM has no local filesystem/shell/process/editor/host-application tools, and outputs return only as structured JSON through `task-apply`. `sandbox-agent` is reserved for work requiring a larger local corpus or interactive local tools; its tool-capable agent process itself must run inside the attested sandbox and may never be a host-side tool-capable subagent.
+Provider credentials exist only outside the scored sandbox. `scripts/inference_gateway.py` runs on the trusted side, holds the run's API key, OAuth token or local agent session, and is the only process with provider network access. It serves a Unix domain socket shared with the scored container through a container-engine volume, which is what allows the scored side to have no network namespace at all. Passing `ANTHROPIC_API_KEY`, `CLAUDE_CODE_MESSAGING_TOKEN`, `~/.claude`, an SSH agent socket or any equivalent into the sandbox is forbidden, and widening the sensitive-environment checks to tolerate one is equally forbidden.
 
-The outer runner enforces the actual container/chroot/namespace boundary and injects matching sandbox and worker-runtime attestations. A bind mount or equivalent namespace mapping is acceptable; string substitution, a symlink without isolation, a host-side Claude Code/subagent with host tools, or falsified attestation is not. `preflight` rejects unattested/noncanonical sandboxes, missing worker-gateway/launcher attestations, packet workers whose local tools are not disabled, and sensitive host environment variables.
+The gateway is a pure model-inference broker. It accepts a health handshake and an inference request and refuses every other request kind, together with any field that could describe a tool, file, command, working directory, environment, endpoint or credential. It never exposes host filesystem, shell, repository or agent-platform tools to the model, and it strips host paths and credential-shaped text from anything it returns. Providers are pluggable behind one provider-agnostic request/response protocol, and a deterministic offline `fake` provider makes the whole path testable in CI without a provider account. Per-task network ceilings come from the trusted side, derived from the frozen manifest; a worker asking for more network than its task was granted is refused rather than silently downgraded.
+
+Two leaf modes are frozen in the manifest, and both reach a model only through that socket. `packet-only` is the default: the runner embeds all permitted local text inputs into the rendered packet, the worker has no local filesystem/shell/process/editor/host-application tools, and outputs return only as structured JSON. `sandbox-agent` is reserved for work requiring a larger local corpus or local tools; it runs through `scripts/sandbox_agent.py` inside the sandbox and may never be a host-side tool-capable subagent.
+
+`preflight` judges the running process, not its declarations. It requires an unprivileged uid, a loopback-only network namespace, an empty capability bounding set, `NoNewPrivs`, read-only snapshot and template mounts, no unexpected or host-home mounts, no provider credential in the environment or on disk, a live gateway socket that refuses forbidden requests when actually probed, and a launcher contract that agrees with every one of those observations. The launcher emits the `QUIDRA_BENCHMARK_*_ATTESTED` variables only after applying the corresponding restrictions, so an attestation records what was enforced; setting one without the restriction fails. A bind mount or equivalent namespace mapping is acceptable; string substitution, a symlink without isolation, a host-side subagent with host tools, or a forged attestation is not.
 
 ## 2. Current-template-only rule
 
@@ -40,9 +44,16 @@ The Language Quality micro suite is the concrete command-first model. A current-
 
 Agents are used only for tasks requiring judgment, model interaction, evidence interpretation, annotation, implementation or other work that cannot be made deterministic without changing the evaluation.
 
-Each agent work unit freezes `worker_mode` as either `packet-only` or `sandbox-agent`. Packet-only is preferred whenever the frozen readable inputs fit the embedding limits. `task-render` snapshots those permitted UTF-8 inputs, records hashes and embeds them in the self-contained prompt. The worker receives no local filesystem/shell/process/editor/host-application tools. If the task permits network access, provider/gateway retrieval may be used, but it must not expose host files or environment. The worker returns one JSON response; `task-apply` validates task identity, relative paths, file/byte limits and expected outputs before writing anything.
+Each agent work unit freezes `worker_mode` as either `packet-only` or `sandbox-agent`. Packet-only is preferred whenever the frozen readable inputs fit the embedding limits. `task-render` snapshots those permitted UTF-8 inputs, records hashes and embeds them in the self-contained prompt. The worker receives no local filesystem/shell/process/editor/host-application tools. `benchmark.py task-infer` renders the packet, asks the credential-less gateway and hands the reply to the same importer `task-apply` uses, which validates task identity, relative paths, file/byte limits and expected outputs before writing anything. `task-render` plus `task-apply` remain available when a response is produced outside the sandbox.
 
-Sandbox-agent mode is used only where the task needs a larger local corpus or interactive local tools. The agent runtime itself must be started inside `/quidra-benchmark`. Its reads remain limited to the packet's narrow sandbox paths and its writes to one agent directory. Host Read/Glob/Bash/editor/process access, host credentials and SSH sockets are forbidden.
+Sandbox-agent mode is used only where the task needs a larger local corpus or local tools. `scripts/sandbox_agent.py` runs inside `/quidra-benchmark` and enforces the packet in code rather than by instruction:
+
+- reads resolve only inside the Task Packet's declared read paths and the worker's own directory, with symlinks resolved so a planted link cannot widen them;
+- writes and subprocess working directories are confined to `/quidra-benchmark/work/agents/<agent-id>/`, and the runner-owned files in it are not writable by the worker;
+- subprocesses run with `shell=False` and an `argv[0]` drawn from the frozen allowlist in `config/sandbox_agent.json`;
+- turn count, read bytes, write bytes and subprocess output are bounded by that same frozen configuration.
+
+Every refusal is returned to the model as an observation and recorded in `agent_trace.json`, so a run that repeatedly tried to leave its sandbox is visible to an auditor instead of silently retried. `task-finish` requires that trace to name the same frozen packet, to have ended deliberately, to leave no expected output missing, and to record a credential-less gateway with no exposed host tool surface.
 
 A worker never needs the root conversation or a historical run. Independent scored LLM trials must not read one another's generations or repairs.
 
@@ -70,6 +81,8 @@ Ordinary Task Packets embed `methodology/worker_core.md`, only the selected sect
 
 Packet-only packets additionally embed the exact readable UTF-8 inputs with canonical sandbox paths and SHA-256 hashes. If that bundle exceeds the frozen file/byte limit, planning must narrow the packet or explicitly use sandbox-agent mode; the runner must not silently grant host filesystem access.
 
+Sandbox-agent packets are preceded by the runtime contract the in-sandbox agent loop enforces: the available actions, the declared read paths, the single writable directory, the subprocess allowlist and the turn budget. That text describes limits the runtime already applies; it is not the mechanism.
+
 Do not embed unrelated evaluation specifications or hidden parent conversation state.
 
 ## 8. Reuse and toolchain currency
@@ -94,13 +107,15 @@ A scoreable evaluation left without a ranking is an orchestration defect. A fail
 
 ## 11. Network and timing
 
-Network is disabled unless a Task Packet explicitly allows it. Do not browse during timing measurements.
+Network is disabled unless a Task Packet explicitly allows it, and the scored sandbox has no network namespace in any case: the only channel out of it is the gateway socket. The trusted side derives each task's ceiling from the frozen manifest and hands it to the gateway, which refuses a request that asks for more. When a task's ceiling is `disabled`, no network-capable model tooling is enabled on the provider side either. Do not browse during timing measurements.
 
 Timing warm-ups, repetitions, cache policy and recovery are frozen before measurement and applied symmetrically.
 
 ## 12. Privacy and retention
 
 Privacy scanning is required before dispatch, before finalization, and once more over the exact retained set before import. Keep machine-readable final results, exact prompts/hashes, run identity, required raw measurements/audits, leaf outputs, frozen manifest/ledger/plans and runner command results. Drop caches/intermediates, the evaluated source snapshot, template copy, temporary home/files, micro build products and personal/host-specific data.
+
+The gateway's per-request audit log records request identity, task identity, timing, usage and a response hash. It lives on the trusted side and is never written into the scored workspace or the retained set.
 
 After successful `finalize` and sandbox exit, only the trusted outer runner may expose a clean local `develop` checkout to `post-run`. The command reads the fixed physical `<source-repo>/.quidra-benchmark` staging directory, requires the checkout-local Git-private host sentinel outside that directory to match the finalized run identity, stages the retained set under `benchmark/<run-id>/`, verifies every retained file hash, atomically installs the run directory, revalidates the sentinel immediately before cleanup, and deletes the host staging directory followed by the sentinel only after verification succeeds. A failed import or sentinel mismatch never deletes the workspace. An abandoned run is removed with `discard-workspace --source-repo <checkout>`, which validates only the fixed workspace path and host-only sentinel contract and deliberately does not trust or require `run.json` or an absolute source path. Both operations remain valid if the checkout is moved or renamed.
 

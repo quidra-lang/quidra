@@ -10,11 +10,19 @@ This directory is the complete reusable input for a new benchmark run.
 - `config/evaluation_requirements.json` — mandatory Primary coverage IDs.
 - `config/work_plan_templates.json` — deterministic decomposition into leaf work.
 - `config/aggregation.json` — runner-owned score/ranking formulas.
+- `config/inference_gateway.json` — frozen credential-less inference protocol: socket path, accepted request kinds, refused request fields, size limits and the credential names/paths that must never appear inside the sandbox.
+- `config/sandbox_agent.json` — frozen sandbox-agent runtime limits: turn budget, read/write byte ceilings and the subprocess allowlist.
 - `methodology/worker_core.md` — compact leaf-worker rules.
 - `methodology/{semantic_compression,llm_learnability,language_quality,ecosystem,llm_proficiency}.md` — scientific evaluation specifications.
 - `methodology/execution_policy.md` — execution/recovery/isolation policy.
 - `methodology/orchestration.md` — root-only state-machine rules.
 - `scripts/benchmark.py` — deterministic orchestration CLI.
+- `scripts/inference_gateway.py` — trusted model-inference broker. Runs outside the scored sandbox, holds the only provider credential, and serves the Unix socket.
+- `scripts/gateway_client.py` — credential-less client used by scored code. Holds no key and has no fallback path.
+- `scripts/sandbox_agent.py` — in-sandbox agent runtime for `worker_mode=sandbox-agent`, with read/write/exec limits enforced in code.
+- `scripts/sandbox_launcher.py` — container launcher that creates the hardened sandbox, starts the gateway sidecar and emits the isolation attestations.
+- `scripts/synthetic_run.py` — offline end-to-end harness that drives both worker modes through a real gateway with the deterministic fake provider.
+- `runtime/Dockerfile`, `runtime/install_toolchains.sh`, `runtime/toolchains.json`, `runtime/verify_toolchains.py` — the reproducible ten-language Linux image and its pinned, build-time-verified toolchain identity.
 - `scripts/check_metadata.py` — template-maintenance check that every restatement of the evaluation IDs, display names and language set still agrees with `config/benchmark_metadata.json`.
 - `scripts/micro_measure.py` — runner-owned correctness/build/startup/timing/RSS/source/artifact measurement for the Language Quality startup + micro suite.
 - `programs/`, `fixtures/`, `validators/`, `workloads/`, `methodology-assets/` — reusable current-run inputs tracked directly in this template.
@@ -34,16 +42,42 @@ The active template is immutable during the frozen measurement window. Improveme
 
 Trusted host bootstrap runs `benchmark.py init --source-repo <source-repo> --sandbox-mode <mode>` and creates the physical staging directory `<source-repo>/.quidra-benchmark` from Git-tracked current source/template content. Init also writes a private host-only sentinel outside the staging directory.
 
-The trusted outer orchestrator may remain on the host, but it is not a scored worker. It may bootstrap/clean up the workspace, start the sandbox, transport rendered packets and responses, and launch sandbox-bound agent runtimes. It must never give a scored leaf arbitrary host Read/Glob/Bash/editor/process access.
+The trusted outer orchestrator may remain on the host, but it is not a scored worker. It may bootstrap/clean up the workspace, start the sandbox and the inference gateway, transport rendered packets and responses, and start sandbox-bound agent runtimes. It must never give a scored leaf arbitrary host Read/Glob/Bash/editor/process access, and it must never place a provider credential inside the sandbox.
 
-The outer runner maps the staging directory into the real filesystem sandbox as exactly `/quidra-benchmark`. All runner commands, validators, compilers and scored local processes execute against that canonical path. Path rewriting alone is not a sandbox.
+`scripts/sandbox_launcher.py` maps the staging directory into the real filesystem sandbox as exactly `/quidra-benchmark`. All runner commands, validators, compilers and scored local processes execute against that canonical path. Path rewriting alone is not a sandbox.
 
-Leaf work has two frozen modes:
+## Isolation topology
 
-- `packet-only` (default): `task-render` embeds every permitted local UTF-8 input into the Task Packet. The LLM runs without local filesystem, shell, process, editor or host-application tools. If network is permitted, only provider/gateway network retrieval may be exposed. The worker returns one JSON response containing relative output files; the outer runner pipes it to `benchmark.py task-apply --id <agent-id>` inside the sandbox.
-- `sandbox-agent`: used when a task genuinely needs a larger local corpus or interactive local tools. The agent process itself must be launched inside the attested `/quidra-benchmark` sandbox and may read only the packet's sandbox paths and write only its agent directory. Host credentials, SSH sockets and host home directories must not be mounted into it.
+    trusted side                         scored side
+    ------------                         -----------
+    gateway container                    scored container
+      provider credentials                 no credentials
+      network: provider egress             network: none
+      /gateway (shared volume) <--socket--> /quidra-benchmark/gateway
+                                           /quidra-benchmark          rw
+                                           /quidra-benchmark/repo     ro
+                                           /quidra-benchmark/template ro
 
-`preflight` requires the real sandbox attestation plus `packet-gateway-v1`, packet-local-tools-disabled and in-sandbox-agent-launcher attestations. It continues to reject HOME/TMPDIR/PWD outside the workspace and sensitive host environment variables.
+The scored container is non-root, uses `--network none`, drops all capabilities, sets `no-new-privileges`, runs on a read-only root filesystem, and receives `HOME=/quidra-benchmark/home`, `TMPDIR=/quidra-benchmark/tmp` and `PWD=/quidra-benchmark`. It inherits nothing from the launcher's environment. Host home directories, SSH agent sockets, provider tokens and agent-platform configuration are never mounted.
+
+The two containers share one Unix domain socket on a container-engine volume rather than a host bind mount, because a socket created by a macOS process inside a shared folder is not usable from inside a Colima or Docker Desktop VM. Provider egress belongs to the gateway alone.
+
+`scripts/inference_gateway.py` is a pure model-inference broker. It accepts a health handshake and an inference request and refuses every other request kind, along with any field that could describe a tool, file, command, endpoint or credential. Providers sit behind one provider-agnostic protocol: `fake` (deterministic and offline, used by CI), `exec` (a trusted local command, which is how an existing authenticated agent CLI session is reused without exposing it), and `anthropic-messages` (a direct provider call using gateway-only credentials). Per-task network ceilings are supplied by the trusted side from the frozen manifest; a worker asking for more than its task was granted is refused rather than downgraded.
+
+Leaf work has two frozen modes, and both reach a model only through that socket:
+
+- `packet-only` (default): `task-render` embeds every permitted local UTF-8 input into the Task Packet. The worker has no local filesystem, shell, process, editor or host-application tools. `benchmark.py task-infer` renders the packet, asks the gateway and hands the reply to the same importer `task-apply` uses; `task-render` plus `task-apply` remain available when the response is produced elsewhere.
+- `sandbox-agent`: used when a task genuinely needs a larger local corpus or local tools. `scripts/sandbox_agent.py` runs inside the sandbox and enforces its permissions in code: reads only the packet's declared paths, writes only `/quidra-benchmark/work/agents/<agent-id>/`, subprocesses with `shell=False`, an allowlisted `argv[0]` and a working directory inside that same agent directory. Every refusal is recorded in `agent_trace.json`, and `task-finish` requires a trace that matches the frozen packet and records a credential-less gateway.
+
+`preflight` verifies the running process rather than any declaration. It checks an unprivileged uid, a loopback-only network namespace, an empty capability bounding set, `NoNewPrivs`, read-only `repo` and `template` mounts, the absence of unexpected or host-home mounts, the absence of provider credentials in the environment and on disk, a live gateway socket that refuses forbidden requests when actually probed, and a launcher contract that agrees with all of it. Setting the attestation variables without applying the restrictions fails, and the sensitive-environment checks must not be widened to tolerate a credential.
+
+## Runtime image
+
+`runtime/Dockerfile` builds the reproducible Linux image in two stages. `base` carries the OS, Python and the native dependencies needed to build the Quidra compiler from the evaluated snapshot; `toolchains` adds the nine pinned comparison-language toolchains. `runtime/toolchains.json` is the single source of truth for those pins, and `runtime/verify_toolchains.py` runs at build time: if an upstream repository serves a different build than the pin names, the image fails to build rather than shipping an unrecorded toolchain into a measurement run. The observed fingerprints are written into the image at `/opt/quidra-benchmark/toolchains-observed.json`.
+
+The Quidra compiler is deliberately absent from the image. It is built during the run from `/quidra-benchmark/repo`, so the image cannot pin the thing under evaluation.
+
+These Linux toolchain versions are not expected to equal the fingerprints recorded in `reuse/catalog.json`, which were validated on a different operating system. That difference is resolved by the existing currency mechanism: `reuse-status` reports `AUDIT_REQUIRED` and the deterministic plan adds capability-currency audit work. Neither side is edited to make the numbers agree.
 
 On macOS, `init` by itself is not sufficient. If no container, VM, namespace-equivalent mechanism or other trusted isolation layer can present the staging directory as `/quidra-benchmark`, scored work must not start. Do not substitute a symlink or forged attestation.
 

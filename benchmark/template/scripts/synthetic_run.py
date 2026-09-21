@@ -1,0 +1,316 @@
+#!/usr/bin/env python3
+"""Drive a complete synthetic benchmark run through the real isolation plumbing.
+
+This is the harness CI uses to prove the runtime actually works end to end. It is
+not a scoring tool and produces no meaningful measurements: every model turn comes
+from the gateway's deterministic fake provider. What it does prove is that the
+paths a real run depends on are wired correctly -
+
+  * packet-only units reach a model only through `benchmark.py task-infer`, which
+    talks to the credential-less gateway socket and hands the reply to the same
+    importer `task-apply` uses;
+  * sandbox-agent units run through `scripts/sandbox_agent.py`, whose read, write
+    and exec limits are enforced in code;
+  * every worker subprocess is started with a stripped environment, so a run that
+    only succeeds because a credential happened to be exported fails here.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import time
+import uuid
+from typing import Any
+
+SCRIPTS_DIR = Path(__file__).resolve().parent
+CLI = SCRIPTS_DIR / "benchmark.py"
+GATEWAY = SCRIPTS_DIR / "inference_gateway.py"
+AGENT = SCRIPTS_DIR / "sandbox_agent.py"
+
+CREDENTIAL_ENV_NAMES = json.loads(
+    (SCRIPTS_DIR.parent / "config" / "inference_gateway.json").read_text(encoding="utf-8")
+)["sandbox_forbidden_credential_environment_names"]
+
+ATTESTATIONS = {
+    "QUIDRA_BENCHMARK_WORKER_GATEWAY_ATTESTED": "packet-gateway-v1",
+    "QUIDRA_BENCHMARK_PACKET_WORKER_LOCAL_TOOLS": "disabled",
+    "QUIDRA_BENCHMARK_SANDBOX_AGENT_LAUNCHER_ATTESTED": "inside-sandbox-v1",
+}
+
+
+class RunError(RuntimeError):
+    pass
+
+
+def worker_env(socket_path: Path) -> dict[str, str]:
+    """What a scored worker process is allowed to see."""
+    env = {
+        "PATH": os.environ.get("PATH", "/usr/bin:/bin"),
+        "HOME": "/nonexistent-worker-home",
+        "LANG": "C.UTF-8",
+        "LC_ALL": "C.UTF-8",
+        "TZ": "UTC",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "QUIDRA_BENCHMARK_INFERENCE_SOCKET": str(socket_path),
+    }
+    for name in CREDENTIAL_ENV_NAMES:
+        env.pop(name, None)
+    return env
+
+
+def runner_env() -> dict[str, str]:
+    return {**os.environ, **ATTESTATIONS}
+
+
+def run_cli(root: Path, *args: str) -> None:
+    completed = subprocess.run(
+        [sys.executable, str(CLI), *args, "--workspace", str(root)],
+        env=runner_env(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if completed.returncode != 0:
+        raise RunError(
+            f"benchmark.py {' '.join(args)} failed: {completed.stderr or completed.stdout}"
+        )
+
+
+def gateway_side_secret() -> str:
+    return "sk-" + uuid.uuid4().hex + uuid.uuid4().hex
+
+
+def write_task_policy(root: Path, destination: Path) -> Path:
+    """Derive each unit's network ceiling from the frozen manifest.
+
+    This has to happen on the trusted side. The gateway must never take a
+    worker's word for how much network its own task is allowed, or the ceiling
+    would be set by the thing it constrains.
+    """
+    manifest = json.loads(
+        (root / "work" / "root" / "manifest.json").read_text(encoding="utf-8")
+    )
+    tasks = {}
+    for unit in manifest.get("work_units", []):
+        agent_id = unit.get("assigned_agent_id")
+        if not agent_id:
+            continue
+        task_path = root / "work" / "agents" / agent_id / "task.json"
+        allowed = bool(unit.get("network_allowed"))
+        if task_path.is_file():
+            allowed = bool(json.loads(task_path.read_text(encoding="utf-8")).get(
+                "network_allowed"
+            ))
+        tasks[agent_id] = "allowed" if allowed else "disabled"
+    destination.write_text(
+        json.dumps({"schema_version": 1, "tasks": tasks}, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return destination
+
+
+def start_gateway(
+    socket_path: Path, script_path: Path, log_path: Path, task_policy: Path
+) -> subprocess.Popen:
+    script_path.write_text(json.dumps({"schema_version": 1}) + "\n", encoding="utf-8")
+    process = subprocess.Popen(
+        [
+            sys.executable, str(GATEWAY), "serve",
+            "--socket", str(socket_path),
+            "--template", str(SCRIPTS_DIR.parent),
+            "--provider", "fake",
+            "--fake-script", str(script_path),
+            "--network-policy", "disabled",
+            "--task-policy", str(task_policy),
+            "--log", str(log_path),
+        ],
+        # The gateway is the trusted side: it is the only process in this harness
+        # that would legitimately hold a provider credential. The value is minted
+        # at runtime so this file never itself contains a credential-shaped
+        # literal - the privacy gate scans the template and would rightly
+        # object to one.
+        env={**os.environ, "ANTHROPIC_API_KEY": gateway_side_secret()},
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            out, err = process.communicate(timeout=5)
+            raise RunError(f"inference gateway did not start: {err or out}")
+        if socket_path.is_socket():
+            return process
+        time.sleep(0.05)
+    process.kill()
+    raise RunError("inference gateway did not bind its socket in time")
+
+
+def unit_payload(unit: dict[str, Any], languages: list[str]) -> dict[str, Any]:
+    if unit.get("result_kind") == "audit":
+        return {
+            "schema_version": 1,
+            "evaluation": unit["evaluation"],
+            "audit_pass": True,
+            "evidence": {"synthetic": "deterministic harness audit"},
+        }
+    assigned = unit.get("assigned_languages") or languages
+    requirements: dict[str, Any] = {}
+    for requirement_id in unit.get("requirement_ids", []):
+        if requirement_id.startswith("gate.") or requirement_id.startswith("coverage."):
+            requirements[requirement_id] = True
+        else:
+            requirements[requirement_id] = {
+                language: float(90 - languages.index(language)) for language in assigned
+            }
+    return {
+        "schema_version": 1,
+        "evaluation": unit["evaluation"],
+        "requirements": requirements,
+        "evidence": {"synthetic": "deterministic harness evidence"},
+    }
+
+
+def script_for_queue(
+    queue: list[dict[str, Any]], units: dict[str, Any], languages: list[str]
+) -> dict[str, Any]:
+    """Turn-by-turn fake completions for every unit about to be dispatched."""
+    tasks: dict[str, list[str]] = {}
+    for task in queue:
+        unit = units[task["work_unit_id"]]
+        agent_id = task["agent_id"]
+        payload = json.dumps(unit_payload(unit, languages), indent=2) + "\n"
+        if task["worker_mode"] == "packet-only":
+            tasks[agent_id] = [json.dumps({
+                "schema_version": 1,
+                "task_id": agent_id,
+                "files": [{"path": "result.json", "content": payload}],
+            })]
+        else:
+            tasks[agent_id] = [
+                json.dumps({"action": "write_file", "path": "result.json", "content": payload}),
+                json.dumps({"action": "final", "summary": "wrote result.json"}),
+            ]
+    return {"schema_version": 1, "tasks": tasks}
+
+
+def dispatch(root: Path, task: dict[str, Any], socket_path: Path) -> None:
+    agent_id = task["agent_id"]
+    run_cli(root, "task-start", "--id", task["work_unit_id"])
+    if task["worker_mode"] == "packet-only":
+        argv = [
+            sys.executable, str(CLI), "task-infer",
+            "--workspace", str(root), "--id", agent_id,
+            "--socket", str(socket_path),
+        ]
+    else:
+        argv = [
+            sys.executable, str(AGENT),
+            "--workspace", str(root), "--id", agent_id,
+            "--socket", str(socket_path),
+        ]
+    completed = subprocess.run(
+        argv,
+        env=worker_env(socket_path),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if completed.returncode != 0:
+        raise RunError(
+            f"{task['worker_mode']} worker {agent_id} failed: "
+            f"{completed.stderr or completed.stdout}"
+        )
+    run_cli(root, "task-finish", "--id", task["work_unit_id"])
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--workspace", required=True)
+    parser.add_argument(
+        "--socket",
+        help="gateway socket path; defaults to <workspace>/gateway/inference.sock. "
+             "Override it when the workspace sits under a directory long enough to "
+             "exceed the AF_UNIX path limit.",
+    )
+    parser.add_argument("--max-iterations", type=int, default=100)
+    args = parser.parse_args()
+
+    root = Path(args.workspace).resolve()
+    languages = json.loads(
+        (root / "template" / "config" / "benchmark_metadata.json").read_text(encoding="utf-8")
+    )["languages"]
+
+    socket_path = Path(args.socket) if args.socket else root / "gateway" / "inference.sock"
+    socket_path.parent.mkdir(parents=True, exist_ok=True)
+    script_path = socket_path.parent / "fake_script.json"
+    log_path = socket_path.parent / "audit.jsonl"
+
+    # Task Packets are already frozen at this point, so their network ceilings can
+    # be derived once and handed to the gateway before any worker starts.
+    run_cli(root, "advance")
+    task_policy = write_task_policy(root, socket_path.parent / "task_policy.json")
+    gateway = start_gateway(socket_path, script_path, log_path, task_policy)
+    counts = {"packet-only": 0, "sandbox-agent": 0}
+    try:
+        for _ in range(args.max_iterations):
+            run_cli(root, "advance")
+            queue = json.loads(
+                (root / "results" / "dispatch_queue.json").read_text(encoding="utf-8")
+            )["tasks"]
+            if not queue:
+                ledger = json.loads(
+                    (root / "work" / "root" / "ledger.json").read_text(encoding="utf-8")
+                )
+                states = {unit["status"] for unit in ledger["units"].values()}
+                if states <= {"COMPLETE", "BLOCKED", "INVALID"}:
+                    break
+                raise RunError(f"empty dispatch queue with nonterminal states: {states}")
+
+            manifest = json.loads(
+                (root / "work" / "root" / "manifest.json").read_text(encoding="utf-8")
+            )
+            units = {unit["id"]: unit for unit in manifest["work_units"]}
+            script_path.write_text(
+                json.dumps(script_for_queue(queue, units, languages), indent=2) + "\n",
+                encoding="utf-8",
+            )
+            for task in queue:
+                dispatch(root, task, socket_path)
+                counts[task["worker_mode"]] += 1
+        else:
+            raise RunError("the synthetic run did not terminate")
+
+        run_cli(root, "advance")
+    finally:
+        gateway.terminate()
+        try:
+            gateway.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            gateway.kill()
+
+    audit_lines = (
+        log_path.read_text(encoding="utf-8").splitlines() if log_path.is_file() else []
+    )
+    summary = {
+        "ok": True,
+        "dispatched": counts,
+        "gateway_requests_brokered": len(audit_lines),
+    }
+    print(json.dumps(summary, indent=2))
+    if not counts["packet-only"] or not counts["sandbox-agent"]:
+        raise RunError(f"the run did not exercise both worker modes: {counts}")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except RunError as exc:
+        print(f"synthetic run error: {exc}", file=sys.stderr)
+        raise SystemExit(2)

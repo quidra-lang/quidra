@@ -6,11 +6,13 @@ on:
     paths:
       - "benchmark/master_prompt.md"
       - "benchmark/template/**"
+      - "tests/benchmark_isolation_tests.py"
       - ".github/workflows/benchmark-template.yml"
   pull_request:
     paths:
       - "benchmark/master_prompt.md"
       - "benchmark/template/**"
+      - "tests/benchmark_isolation_tests.py"
       - ".github/workflows/benchmark-template.yml"
 
 jobs:
@@ -26,6 +28,13 @@ jobs:
         run: |
           python -m py_compile benchmark/template/scripts/benchmark.py
           python -m py_compile benchmark/template/scripts/micro_measure.py
+          python -m py_compile benchmark/template/scripts/inference_gateway.py
+          python -m py_compile benchmark/template/scripts/gateway_client.py
+          python -m py_compile benchmark/template/scripts/sandbox_agent.py
+          python -m py_compile benchmark/template/scripts/sandbox_launcher.py
+          python -m py_compile benchmark/template/scripts/synthetic_run.py
+          python -m py_compile benchmark/template/runtime/verify_toolchains.py
+          bash -n benchmark/template/runtime/install_toolchains.sh
           python benchmark/template/scripts/check_metadata.py
           python benchmark/template/scripts/micro_measure.py --help >/dev/null
           python -m json.tool benchmark/template/config/benchmark_metadata.json >/dev/null
@@ -33,8 +42,16 @@ jobs:
           python -m json.tool benchmark/template/config/evaluation_requirements.json >/dev/null
           python -m json.tool benchmark/template/config/work_plan_templates.json >/dev/null
           python -m json.tool benchmark/template/config/aggregation.json >/dev/null
+          python -m json.tool benchmark/template/config/inference_gateway.json >/dev/null
+          python -m json.tool benchmark/template/config/sandbox_agent.json >/dev/null
+          python -m json.tool benchmark/template/runtime/toolchains.json >/dev/null
           python -m json.tool benchmark/template/reuse/catalog.json >/dev/null
           python benchmark/template/scripts/benchmark.py --help >/dev/null
+          python benchmark/template/scripts/inference_gateway.py --help >/dev/null
+          python benchmark/template/scripts/gateway_client.py --help >/dev/null
+          python benchmark/template/scripts/sandbox_agent.py --help >/dev/null
+          python benchmark/template/scripts/sandbox_launcher.py --help >/dev/null
+          python benchmark/template/scripts/sandbox_launcher.py contract >/dev/null
 
           python - <<'PY'
           from pathlib import Path
@@ -836,7 +853,96 @@ jobs:
           rm -rf "$REPO"
 
 
-      - name: Exercise full five-Primary synthetic completion
+      - name: Credential-less gateway and sandbox-agent isolation
+        run: python tests/benchmark_isolation_tests.py
+
+      - name: Attestation strings alone must not pass preflight
+        run: |
+          # The whole point of the rewritten preflight is that naming an
+          # isolation mode is not the same as being isolated. This step sets every
+          # attestation the launcher would set, on a plainly unisolated runner,
+          # and requires preflight to refuse anyway.
+          sudo mkdir -p /quidra-benchmark
+          sudo chown "$(id -u):$(id -g)" /quidra-benchmark
+          python - <<'PY'
+          from pathlib import Path
+          import importlib.util
+          import json
+          import shutil
+
+          spec = importlib.util.spec_from_file_location(
+              "benchmark_cli", "benchmark/template/scripts/benchmark.py"
+          )
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+
+          root = Path("/quidra-benchmark")
+          for directory in (
+              "work/root", "work/agents", "raw", "results", "prompts/by-hash",
+              "prompts/components/by-hash", "prompts/manifests", "home", "tmp",
+              "gateway", "repo",
+          ):
+              (root / directory).mkdir(parents=True, exist_ok=True)
+          shutil.copytree(
+              "benchmark/template", root / "template",
+              ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+              dirs_exist_ok=True,
+          )
+          master = Path("benchmark/master_prompt.md").read_bytes()
+          master_hash = module.sha256_bytes(master)
+          (root / "prompts" / "by-hash" / f"{master_hash}.md").write_bytes(master)
+          (root / "run.json").write_text(json.dumps({
+              "schema_version": 1,
+              "run_id": "unisolated-negative-check",
+              "workspace_root": "/quidra-benchmark",
+              "sandbox_mode": "container",
+              "evaluated": {"commit_sha": "synthetic"},
+              "master_prompt_sha256": master_hash,
+              "primary_config_sha256": module.sha256_file(
+                  root / "template" / "config" / "primary.json"
+              ),
+              "template_tree_sha256": module.sha256_tree(root / "template"),
+          }, indent=2) + "\n")
+          PY
+
+          set +e
+          env \
+            QUIDRA_BENCHMARK_SANDBOX_ATTESTED=container \
+            QUIDRA_BENCHMARK_SANDBOX_ROOT=/quidra-benchmark \
+            QUIDRA_BENCHMARK_WORKER_GATEWAY_ATTESTED=packet-gateway-v1 \
+            QUIDRA_BENCHMARK_PACKET_WORKER_LOCAL_TOOLS=disabled \
+            QUIDRA_BENCHMARK_SANDBOX_AGENT_LAUNCHER_ATTESTED=inside-sandbox-v1 \
+            QUIDRA_BENCHMARK_INFERENCE_SOCKET=/quidra-benchmark/gateway/inference.sock \
+            HOME=/quidra-benchmark/home TMPDIR=/quidra-benchmark/tmp PWD=/quidra-benchmark \
+            python benchmark/template/scripts/benchmark.py preflight \
+              --workspace /quidra-benchmark > "$RUNNER_TEMP/preflight-negative.json"
+          RC=$?
+          set -e
+          if [ "$RC" -eq 0 ]; then
+            echo "preflight passed on an unisolated host with forged attestations" >&2
+            exit 1
+          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("/quidra-benchmark/results/preflight.json").read_text())
+          problems = set(result["problems"])
+          assert not result["ok"], result
+          # Each of these is an observation of the running process, not a string
+          # anyone can set, so none of them can be satisfied by attestation alone.
+          for required in (
+              "launcher_contract_missing",
+              "inference_gateway_socket_missing",
+              "evaluated_repo_snapshot_must_be_mounted_read_only",
+              "frozen_template_must_be_mounted_read_only",
+          ):
+              assert required in problems, (required, sorted(problems))
+          assert any(p.startswith("sandbox_network_not_isolated:") for p in problems), problems
+          print(json.dumps(sorted(problems), indent=2))
+          PY
+          sudo rm -rf /quidra-benchmark
+
+      - name: Exercise full five-Primary synthetic completion through the gateway
         env:
           QUIDRA_BENCHMARK_WORKER_GATEWAY_ATTESTED: packet-gateway-v1
           QUIDRA_BENCHMARK_PACKET_WORKER_LOCAL_TOOLS: disabled
@@ -848,7 +954,7 @@ jobs:
           mkdir -p \
             "$TMP/work/root" "$TMP/work/agents" "$TMP/raw" "$TMP/results" \
             "$TMP/prompts/by-hash" "$TMP/prompts/components/by-hash" "$TMP/prompts/manifests" \
-            "$TMP/home" "$TMP/tmp" "$TMP/repo/docs"
+            "$TMP/home" "$TMP/tmp" "$TMP/gateway" "$TMP/repo/docs"
 
           python - <<'PY'
           from pathlib import Path
@@ -888,96 +994,72 @@ jobs:
           python benchmark/template/scripts/benchmark.py manifest-merge --workspace "$TMP"
           python benchmark/template/scripts/benchmark.py plan --workspace "$TMP" --strict
 
+          # Every model turn in this run - packet-only and sandbox-agent alike -
+          # crosses the credential-less gateway socket. The workers run with a
+          # stripped environment, so a run that only worked because a credential
+          # happened to be exported would fail here.
+          python benchmark/template/scripts/synthetic_run.py --workspace "$TMP" \
+            | tee "$TMP/synthetic_run.json"
+
           python - <<'PY'
           from pathlib import Path
           import json
-          import subprocess
-          import sys
 
           root = Path(".benchmark-template-e2e")
-          cli = Path("benchmark/template/scripts/benchmark.py")
-          languages = ["Quidra","Python","C++","Rust","Go","Java","TypeScript","Kotlin","Swift","Zig"]
+          summary = json.loads((root / "synthetic_run.json").read_text())
+          assert summary["dispatched"]["packet-only"] > 0, summary
+          assert summary["dispatched"]["sandbox-agent"] > 0, summary
+          assert summary["gateway_requests_brokered"] > 0, summary
 
-          def run(*args):
-              subprocess.run(
-                  [sys.executable, str(cli), *args, "--workspace", str(root)],
-                  check=True,
-              )
-
-          for _ in range(100):
-              run("advance")
-              queue = json.loads((root / "results/dispatch_queue.json").read_text())["tasks"]
-              if not queue:
-                  ledger = json.loads((root / "work/root/ledger.json").read_text())
-                  states = {u["status"] for u in ledger["units"].values()}
-                  if states <= {"COMPLETE", "BLOCKED", "INVALID"}:
-                      break
-                  raise AssertionError(f"empty queue with nonterminal states: {states}")
-
-              manifest = json.loads((root / "work/root/manifest.json").read_text())
-              units = {u["id"]: u for u in manifest["work_units"]}
-              for task in queue:
-                  uid = task["work_unit_id"]
-                  unit = units[uid]
-                  agent = unit["assigned_agent_id"]
-                  assigned = unit.get("assigned_languages") or languages
-                  if unit.get("result_kind") == "audit":
-                      payload = {
-                          "schema_version": 1,
-                          "evaluation": unit["evaluation"],
-                          "audit_pass": True,
-                          "evidence": {"ci": "synthetic full-primary audit"},
-                      }
-                  else:
-                      requirements = {}
-                      for rid in unit.get("requirement_ids", []):
-                          if rid.startswith("gate.") or rid.startswith("coverage."):
-                              requirements[rid] = True
-                          else:
-                              requirements[rid] = {
-                                  lang: float(90 - languages.index(lang))
-                                  for lang in assigned
-                              }
-                      payload = {
-                          "schema_version": 1,
-                          "evaluation": unit["evaluation"],
-                          "requirements": requirements,
-                          "evidence": {"ci": "synthetic full-primary evidence"},
-                      }
-                  run("task-start", "--id", uid)
-                  if unit.get("worker_mode", "packet-only") == "packet-only":
-                      response = json.dumps({
-                          "schema_version": 1,
-                          "task_id": agent,
-                          "files": [{
-                              "path": "result.json",
-                              "content": json.dumps(payload, indent=2) + "\n",
-                          }],
-                      }).encode()
-                      subprocess.run(
-                          [
-                              sys.executable, str(cli), "task-apply",
-                              "--id", agent, "--workspace", str(root),
-                          ],
-                          input=response,
-                          check=True,
-                      )
-                  else:
-                      d = root / "work/agents" / agent
-                      d.mkdir(parents=True, exist_ok=True)
-                      (d / "result.json").write_text(
-                          json.dumps(payload, indent=2) + "\n"
-                      )
-                  run("task-finish", "--id", uid)
-          else:
-              raise AssertionError("full synthetic benchmark did not terminate")
-
-          run("advance")
           status = json.loads((root / "results/primary_status.json").read_text())
           for name, ev in status["evaluations"].items():
               assert ev["status"] == "COMPLETE", (name, ev)
               assert len(ev["ranking"]) == 10, (name, ev)
               assert len(ev["scores"]) == 10, (name, ev)
+
+          manifest = json.loads((root / "work/root/manifest.json").read_text())
+          traces = 0
+          receipts = 0
+          for unit in manifest["work_units"]:
+              if unit.get("execution_kind", "agent") != "agent":
+                  continue
+              agent = root / "work/agents" / unit["assigned_agent_id"]
+              if unit.get("worker_mode") == "sandbox-agent":
+                  trace = json.loads((agent / "agent_trace.json").read_text())
+                  assert trace["stop_reason"] == "final", trace
+                  assert trace["gateway"]["credential_less_client"] is True, trace
+                  assert trace["gateway"]["host_tools_exposed"] is False, trace
+                  traces += 1
+              else:
+                  receipt = json.loads((agent / "worker_response.json").read_text())
+                  assert receipt["inference"]["gateway"] == "quidra-inference-gateway-v1", receipt
+                  receipts += 1
+          assert traces and receipts, (traces, receipts)
+
+          # The gateway holds a provider credential for the whole run. Nothing it
+          # brokered may carry that credential, or a host path, into an artifact
+          # the repository will keep.
+          retained = []
+          for relative in ("run.json", "results", "raw", "prompts", "work/agents",
+                          "work/root/manifest.json", "work/root/ledger.json",
+                          "work/root/plans", "work/root/commands"):
+              target = root / relative
+              if target.is_file():
+                  retained.append(target)
+              elif target.is_dir():
+                  retained.extend(p for p in target.rglob("*") if p.is_file())
+          import re
+          # A bare "sk-" substring also matches words like "task-apply", so the
+          # credential check uses the same shape the privacy gate uses.
+          credential = re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b")
+          for path in retained:
+              try:
+                  text = path.read_text()
+              except (UnicodeDecodeError, OSError):
+                  continue
+              assert not credential.search(text), str(path)
+              for forbidden in ("ANTHROPIC_API_KEY", "/home/runner", "/Users/"):
+                  assert forbidden not in text, (str(path), forbidden)
           PY
 
           python benchmark/template/scripts/benchmark.py ledger-reconcile --workspace "$TMP"
@@ -987,3 +1069,104 @@ jobs:
           test -f "$TMP/results/finalization.json"
 
           rm -rf "$TMP"
+
+  sandbox-container:
+    # The rest of this workflow proves the protocol and the permission logic.
+    # This job proves the boundary: a real container, a real shared-volume socket,
+    # and a preflight that only passes because the isolation is genuinely there.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the base runtime image
+        run: |
+          python benchmark/template/scripts/sandbox_launcher.py build-image \
+            --target base --image quidra-benchmark/runtime:ci-base
+          python benchmark/template/scripts/sandbox_launcher.py doctor \
+            --image quidra-benchmark/runtime:ci-base
+
+      - name: Stage the sandbox workspace
+        run: |
+          rm -rf .quidra-benchmark
+          git checkout -B develop "$GITHUB_SHA"
+          python benchmark/template/scripts/benchmark.py init \
+            --source-repo "$GITHUB_WORKSPACE" --sandbox-mode container
+          mkdir -p "$RUNNER_TEMP/fake"
+          cat > "$RUNNER_TEMP/fake/script.json" <<'JSON'
+          {"schema_version": 1, "default": "container smoke completion"}
+          JSON
+
+      - name: Preflight passes only inside the real hardened sandbox
+        run: |
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image quidra-benchmark/runtime:ci-base \
+            --provider fake --fake-script "$RUNNER_TEMP/fake/script.json" \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py preflight
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path(".quidra-benchmark/results/preflight.json").read_text())
+          assert result["ok"], result["problems"]
+          observed = result["observed_isolation"]
+          assert observed["euid"] != 0, observed
+          assert observed["network_interfaces"] == ["lo"], observed
+          assert observed["capability_bounding_set"].strip("0") == "", observed
+          assert observed["no_new_privileges"].strip() == "1", observed
+          assert observed["writable"] == {"repo": False, "template": False, "work": True}, observed
+          gateway = result["inference_gateway"]
+          assert gateway["socket_path"] == "/quidra-benchmark/gateway/inference.sock", gateway
+          assert gateway["policy_probes"] == {
+              "tool_field": True, "unsupported_kind": True
+          }, gateway
+          contract = result["launcher_contract"]
+          assert contract["present"] and contract["contract"] == "quidra-sandbox-launcher-v1", contract
+          PY
+
+      - name: A credential inside the sandbox must fail preflight
+        run: |
+          set +e
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image quidra-benchmark/runtime:ci-base \
+            --provider fake --fake-script "$RUNNER_TEMP/fake/script.json" \
+            -- sh -c 'ANTHROPIC_API_KEY=placeholder-value python3 /quidra-benchmark/template/scripts/benchmark.py preflight'
+          RC=$?
+          set -e
+          if [ "$RC" -eq 0 ]; then
+            echo "preflight passed with a provider credential inside the sandbox" >&2
+            exit 1
+          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path(".quidra-benchmark/results/preflight.json").read_text())
+          problems = set(result["problems"])
+          assert not result["ok"], result
+          assert "provider_credential_in_sandbox_environment:ANTHROPIC_API_KEY" in problems, problems
+          PY
+
+      - name: Writes outside the sandbox contract are refused by the kernel
+        run: |
+          set +e
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image quidra-benchmark/runtime:ci-base \
+            --provider fake --fake-script "$RUNNER_TEMP/fake/script.json" \
+            -- sh -c 'echo tampered > /quidra-benchmark/repo/tampered.txt'
+          RC=$?
+          set -e
+          if [ "$RC" -eq 0 ]; then
+            echo "the evaluated snapshot was writable from inside the sandbox" >&2
+            exit 1
+          fi
+          test ! -e .quidra-benchmark/repo/tampered.txt
+
+      - name: Discard the staging workspace
+        if: always()
+        run: |
+          python benchmark/template/scripts/benchmark.py discard-workspace \
+            --source-repo "$GITHUB_WORKSPACE" || true

@@ -25,7 +25,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # The native dependency list matches the repository's own Linux CI so the
 # evaluated snapshot builds here exactly as it does there.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl gnupg unzip xz-utils tar git make \
+      ca-certificates curl unzip xz-utils tar git make \
       python3 python3-venv \
       build-essential pkg-config ninja-build cmake \
       clang-${CLANG_MAJOR} lld-${CLANG_MAJOR} llvm-${CLANG_MAJOR}-dev llvm-${CLANG_MAJOR} \
@@ -72,6 +72,7 @@ ARG CLANG_MAJOR=18
 ARG RUST_PIN
 ARG GO_PIN
 ARG JAVA_PIN
+ARG JAVA_BUILD
 ARG KOTLIN_PIN
 ARG NODE_PIN
 ARG TYPESCRIPT_PIN

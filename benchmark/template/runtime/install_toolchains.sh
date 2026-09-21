@@ -6,13 +6,13 @@
 # image would measure the wrong commit.
 set -euo pipefail
 
-: "${RUST_PIN:?}" "${GO_PIN:?}" "${JAVA_PIN:?}" "${KOTLIN_PIN:?}"
+: "${RUST_PIN:?}" "${GO_PIN:?}" "${JAVA_PIN:?}" "${JAVA_BUILD:?}" "${KOTLIN_PIN:?}"
 : "${NODE_PIN:?}" "${TYPESCRIPT_PIN:?}" "${SWIFT_PIN:?}" "${ZIG_PIN:?}"
 
 ARCH="$(dpkg --print-architecture)"
 case "$ARCH" in
-  amd64) GNU_ARCH=x86_64; GO_ARCH=amd64; NODE_ARCH=x64; SWIFT_PLATFORM=ubuntu24.04 ;;
-  arm64) GNU_ARCH=aarch64; GO_ARCH=arm64; NODE_ARCH=arm64; SWIFT_PLATFORM=ubuntu24.04-aarch64 ;;
+  amd64) GNU_ARCH=x86_64; GO_ARCH=amd64; NODE_ARCH=x64; JDK_ARCH=x64; SWIFT_PLATFORM=ubuntu24.04 ;;
+  arm64) GNU_ARCH=aarch64; GO_ARCH=arm64; NODE_ARCH=arm64; JDK_ARCH=aarch64; SWIFT_PLATFORM=ubuntu24.04-aarch64 ;;
   *) echo "unsupported architecture: $ARCH" >&2; exit 1 ;;
 esac
 
@@ -53,17 +53,17 @@ tar -C /opt -xzf "$WORK/go.tgz"
 ln -sf /opt/go/bin/go /usr/local/bin/go
 ln -sf /opt/go/bin/gofmt /usr/local/bin/gofmt
 
-echo "==> Java ${JAVA_PIN} (Temurin)"
-fetch https://packages.adoptium.net/artifactory/api/gpg/key/public "$WORK/adoptium.asc"
-gpg --dearmor < "$WORK/adoptium.asc" > /usr/share/keyrings/adoptium.gpg
-echo "deb [signed-by=/usr/share/keyrings/adoptium.gpg] https://packages.adoptium.net/artifactory/deb noble main" \
-  > /etc/apt/sources.list.d/adoptium.list
-apt-get update
-apt-get install -y --no-install-recommends "temurin-${JAVA_PIN%%.*}-jdk"
-# The Temurin package name carries the architecture, so resolve the real home
-# from the installed binary and expose it at a stable path the image can pin.
-JAVA_HOME="$(dirname "$(dirname "$(readlink -f "$(command -v javac)")")")"
-ln -sfn "$JAVA_HOME" /opt/java
+echo "==> Java ${JAVA_PIN}+${JAVA_BUILD} (Temurin)"
+# Deliberately not the Adoptium apt repository: it already carries revisions
+# newer than this pin, and apt installs the newest, so the repository cannot
+# express a reproducible pin. The exact-build endpoint can.
+fetch "https://api.adoptium.net/v3/binary/version/jdk-${JAVA_PIN}%2B${JAVA_BUILD}/linux/${JDK_ARCH}/jdk/hotspot/normal/eclipse" \
+  "$WORK/jdk.tar.gz"
+mkdir -p /opt/java
+tar -C /opt/java --strip-components=1 -xzf "$WORK/jdk.tar.gz"
+for tool in java javac jar jlink jpackage; do
+  [ -x "/opt/java/bin/$tool" ] && ln -sf "/opt/java/bin/$tool" "/usr/local/bin/$tool"
+done
 
 echo "==> Kotlin ${KOTLIN_PIN}"
 fetch "https://github.com/JetBrains/kotlin/releases/download/v${KOTLIN_PIN}/kotlin-compiler-${KOTLIN_PIN}.zip" \

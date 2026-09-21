@@ -684,6 +684,7 @@ def test_gateway_container_keeps_credentials_on_the_trusted_side() -> None:
         network_policy="disabled",
         task_policy=None,
         credential_env={"ANTHROPIC_API_KEY": FAKE_PROVIDER_SECRET},
+        extra_mounts=[f"{Path.home()}/.claude:/home/agent/.claude:ro"],
     )
     joined = " ".join(argv)
     check(
@@ -701,6 +702,37 @@ def test_gateway_container_keeps_credentials_on_the_trusted_side() -> None:
     check(
         "gateway-volume:/gateway:rw" in argv,
         "the gateway container does not share the socket volume",
+    )
+    check(
+        any(".claude:/home/agent/.claude:ro" in item for item in argv),
+        "the gateway container did not receive its trusted-side agent session",
+    )
+
+    # The decisive property: a trusted-side mount must not be reachable from the
+    # scored side. The scored command line is built from the contract alone, so
+    # there is no path by which --gateway-mount could widen it.
+    contract = sandbox_launcher.launcher_contract(1000, 1000, "image:tag", "disabled")
+    scored = sandbox_launcher.scored_container_argv(
+        "docker",
+        image="image:tag",
+        staging=Path("/staging/.quidra-benchmark"),
+        gateway_mount="gateway-volume",
+        name="scored",
+        uid=1000,
+        gid=1000,
+        contract=contract,
+        interactive=False,
+        argv=["true"],
+    )
+    scored_mounts = [scored[i + 1] for i, item in enumerate(scored) if item == "--volume"]
+    for mount in scored_mounts:
+        check(
+            ".claude" not in mount and "/home/" not in mount.split(":")[0],
+            f"a trusted-side path reached the scored container: {mount}",
+        )
+    check(
+        len(scored_mounts) == 4,
+        f"the scored container's mounts are not the four fixed ones: {scored_mounts}",
     )
 
 
@@ -974,7 +1006,129 @@ def test_retained_artifacts_carry_no_secret_or_host_path() -> None:
 
 
 # --------------------------------------------------------------------------
-# 5. Configuration stays consistent with the code
+# 5. The exec provider keeps a local agent session on the trusted side
+# --------------------------------------------------------------------------
+
+
+def test_exec_provider_contract() -> None:
+    """A trusted local command is reachable as a provider, and only from there.
+
+    The exec provider is how an already-authenticated local agent CLI is reused
+    without letting scored work anywhere near its session. The stub stands in for
+    that CLI so the contract itself - conversation on stdin, assistant text on
+    stdout, credentials only in the gateway process - is tested offline.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td)
+        stub = tmp / "stub_cli.py"
+        stub.write_text(
+            "#!/usr/bin/env python3\n"
+            "import os, sys\n"
+            "conversation = sys.stdin.read()\n"
+            "# A real CLI answers from its own authenticated session; the stub\n"
+            "# reports what it received and whether it holds the credential.\n"
+            "sys.stdout.write(\n"
+            "    'turns=%d\\n' % conversation.count('<<<')\n"
+            "    + 'saw_packet=%s\\n' % ('yes' if 'TASK BODY' in conversation else 'no')\n"
+            "    + 'credential_present=%s\\n'\n"
+            "      % ('yes' if os.environ.get('ANTHROPIC_API_KEY') else 'no')\n"
+            ")\n",
+            encoding="utf-8",
+        )
+
+        provider = inference_gateway.ExecProvider(
+            [sys.executable, str(stub)], timeout=30, model="stub-cli"
+        )
+        check(provider.describe()["id"] == "exec", "exec provider misidentifies itself")
+        check(
+            provider.secrets() == [],
+            "the exec provider must not surface a credential of its own",
+        )
+
+        result = provider.complete({
+            "messages": [
+                {"role": "system", "content": "system rules"},
+                {"role": "user", "content": "TASK BODY"},
+            ],
+            "max_output_tokens": 256,
+            "temperature": 0.0,
+            "stop": None,
+            "network_allowed": False,
+        })
+        check("turns=2" in result["content"], f"stub did not receive the conversation: {result}")
+        check("saw_packet=yes" in result["content"], f"packet body was not passed: {result}")
+
+        # The credential the gateway holds is the local CLI's environment, which
+        # is exactly the trusted side. What matters is that scored work never has
+        # it - covered by the packet-only and sandbox-agent end-to-end tests.
+        os.environ["ANTHROPIC_API_KEY"] = FAKE_PROVIDER_SECRET
+        try:
+            trusted = provider.complete({
+                "messages": [{"role": "user", "content": "TASK BODY"}],
+                "max_output_tokens": 256, "temperature": None, "stop": None,
+                "network_allowed": False,
+            })
+        finally:
+            os.environ.pop("ANTHROPIC_API_KEY", None)
+        check(
+            "credential_present=yes" in trusted["content"],
+            "the exec provider did not run on the credential-holding side",
+        )
+
+        failing = tmp / "failing_cli.py"
+        failing.write_text(
+            "import sys\nsys.stderr.write('session expired\\n')\nsys.exit(3)\n",
+            encoding="utf-8",
+        )
+        broken = inference_gateway.ExecProvider([sys.executable, str(failing)], timeout=30)
+        try:
+            broken.complete({
+                "messages": [{"role": "user", "content": "x"}],
+                "max_output_tokens": 16, "temperature": None, "stop": None,
+                "network_allowed": False,
+            })
+        except inference_gateway.GatewayError as exc:
+            check(
+                "session expired" in str(exc),
+                f"a failing local CLI did not surface its own error: {exc}",
+            )
+        else:
+            check(False, "a failing local CLI was reported as a successful completion")
+
+
+def test_exec_provider_errors_reach_the_sandbox_scrubbed() -> None:
+    """A provider failure is an infrastructure error, with nothing sensitive in it."""
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td)
+        leaky = tmp / "leaky_cli.py"
+        leaky.write_text(
+            "import sys\n"
+            "sys.stderr.write('auth failed for key %s at %s\\n' %\n"
+            "                 (sys.argv[1], sys.argv[2]))\n"
+            "sys.exit(1)\n",
+            encoding="utf-8",
+        )
+        provider = inference_gateway.ExecProvider(
+            [sys.executable, str(leaky), FAKE_PROVIDER_SECRET, FAKE_HOST_PATH], timeout=30
+        )
+        try:
+            provider.complete({
+                "messages": [{"role": "user", "content": "x"}],
+                "max_output_tokens": 16, "temperature": None, "stop": None,
+                "network_allowed": False,
+            })
+        except inference_gateway.GatewayError as exc:
+            scrubbed = inference_gateway.scrub_outbound(str(exc), provider.secrets())
+            check(
+                FAKE_PROVIDER_SECRET not in scrubbed and FAKE_HOST_PATH not in scrubbed,
+                "a failing local CLI leaked its key or a host path toward the sandbox",
+            )
+        else:
+            check(False, "the leaky stub was expected to fail")
+
+
+# --------------------------------------------------------------------------
+# 6. Configuration stays consistent with the code
 # --------------------------------------------------------------------------
 
 

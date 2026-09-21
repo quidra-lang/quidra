@@ -68,10 +68,16 @@ and diagnosis, but a normal run does not need an LLM to sequence them.
 Before any scored work starts, the trusted side launches the sandbox and the gateway:
 
 ```bash
+sandbox_launcher.py selftest
 sandbox_launcher.py build-image
 sandbox_launcher.py run --source-repo <checkout> --provider <provider> \
   --task-policy <network-ceilings.json> -- benchmark.py prepare
 ```
+
+`selftest` proves on this machine that a container with no network can still
+reach the gateway socket on the shared volume. If it fails, scored work must not
+start: the sandbox would have no way to reach a model except one that breaks the
+credential boundary.
 
 The per-task network ceiling handed to the gateway is derived from the frozen manifest on the trusted side. The gateway never takes a worker's word for how much network its own task may use.
 

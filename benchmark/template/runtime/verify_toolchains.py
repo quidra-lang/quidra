@@ -29,7 +29,9 @@ CHECKS: dict[str, tuple[list[str], str, str]] = {
     "CMake": (["cmake", "--version"], "CMAKE_PIN", r"cmake version (\d+\.\d+\.\d+)"),
     "Rust": (["rustc", "--version"], "RUST_PIN", r"rustc (\d+\.\d+\.\d+)"),
     "Go": (["go", "version"], "GO_PIN", r"go(\d+\.\d+\.\d+)"),
-    "Java": (["javac", "-version"], "JAVA_PIN", r"javac (\d+\.\d+\.\d+)"),
+    # Java omits trailing zeros, so a .0 release reports "javac 26" rather than
+    # "javac 26.0.0". Accept both spellings and let the pin comparison decide.
+    "Java": (["javac", "-version"], "JAVA_PIN", r"javac (\d+(?:\.\d+\.\d+)?)"),
     "Kotlin": (["kotlinc", "-version"], "KOTLIN_PIN", r"kotlinc-jvm (\d+\.\d+\.\d+)"),
     "Node": (["node", "--version"], "NODE_PIN", r"v(\d+\.\d+\.\d+)"),
     "TypeScript": (["tsc", "--version"], "TYPESCRIPT_PIN", r"Version (\d+\.\d+\.\d+)"),

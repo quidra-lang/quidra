@@ -36,6 +36,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import shlex
 import shutil
 import subprocess
 import sys
@@ -204,6 +205,7 @@ def gateway_container_argv(
     network_policy: str,
     task_policy: Path | None,
     credential_env: dict[str, str],
+    extra_mounts: list[str] | None = None,
 ) -> list[str]:
     """Build the trusted gateway sidecar command line.
 
@@ -228,6 +230,11 @@ def gateway_container_argv(
         command += ["--volume", f"{fake_script.parent}:/fake:ro"]
     if task_policy is not None:
         command += ["--volume", f"{task_policy}:/policy/task_policy.json:ro"]
+    # Only ever applied to this container. An authenticated local agent CLI and
+    # its session directory belong on the credential side of the boundary; the
+    # scored container's mounts are fixed by the contract and cannot be extended.
+    for mount in extra_mounts or []:
+        command += ["--volume", mount]
     for key, value in credential_env.items():
         command += ["--env", f"{key}={value}"]
     command.append(image)
@@ -398,6 +405,137 @@ def wait_for_gateway(engine: str, container: str, volume_reader: list[str], time
     raise LauncherError(f"the trusted gateway socket did not appear within {timeout}s")
 
 
+def probe_staging_visibility(
+    engine: str, image: str, staging: Path, uid: int, gid: int
+) -> None:
+    """Confirm the container really sees the staging directory.
+
+    On macOS the engine runs in a VM that only shares configured host paths.
+    Colima shares $HOME by default, so a checkout elsewhere bind-mounts as an
+    empty directory and the run fails much later with a confusing error. Asking
+    the container what it can see is cheaper and more reliable than trying to
+    infer the VM's mount configuration.
+    """
+    probe = run_engine(
+        [
+            engine, "run", "--rm", "--network", "none",
+            "--user", f"{uid}:{gid}",
+            "--volume", f"{staging}:{CANONICAL_ROOT}:ro",
+            image,
+            "test", "-f", f"{CANONICAL_ROOT}/run.json",
+        ],
+        check=False,
+    )
+    if probe.returncode != 0:
+        raise LauncherError(
+            f"the container cannot see {staging}. The engine is running in a VM "
+            "that does not share this path. On Colima, either move the checkout "
+            "under your home directory or restart with the path shared, for "
+            f"example: colima start --mount '{staging.parent}:w'"
+        )
+
+
+def cmd_selftest(args: argparse.Namespace) -> int:
+    """Prove a --network none container can reach the gateway over the shared volume.
+
+    This is the one assumption the whole topology rests on and the one most
+    likely to differ between engines: a Unix socket created by the gateway
+    container has to be usable from a scored container that has no network at
+    all. It takes seconds and needs no staged workspace, so it is the first
+    thing to run on a new machine.
+    """
+    engine = require_engine(args.engine)
+    image = args.image or default_image()
+    token = uuid.uuid4().hex[:12]
+    volume = f"quidra-benchmark-selftest-{token}"
+    gateway_name = f"quidra-benchmark-selftest-gateway-{token}"
+    uid, gid = sandbox_user()
+    steps: list[dict[str, Any]] = []
+
+    def record(name: str, ok: bool, detail: str = "") -> None:
+        steps.append({"step": name, "ok": ok, "detail": detail})
+
+    started = False
+    try:
+        run_engine([engine, "volume", "create", volume])
+        run_engine([
+            engine, "run", "--rm", "--network", "none", "--user", "0:0",
+            "--volume", f"{volume}:/gateway", image,
+            "chown", f"{uid}:{gid}", "/gateway",
+        ])
+        record("shared volume created and owned by the sandbox account", True)
+
+        run_engine([
+            engine, "run", "--rm", "--detach", "--name", gateway_name,
+            "--user", f"{uid}:{gid}",
+            "--security-opt", "no-new-privileges", "--cap-drop", "ALL",
+            "--volume", f"{TEMPLATE_DIR}:/template:ro",
+            "--volume", f"{volume}:/gateway:rw",
+            "--env", "HOME=/tmp",
+            image,
+            "python3", "/template/scripts/inference_gateway.py", "serve",
+            "--socket", "/gateway/inference.sock",
+            "--template", "/template",
+            "--provider", "fake",
+            "--network-policy", "disabled",
+        ])
+        started = True
+        reader = [
+            engine, "run", "--rm", "--network", "none", "--user", f"{uid}:{gid}",
+            "--volume", f"{volume}:/gateway:ro", image,
+        ]
+        wait_for_gateway(engine, gateway_name, reader, float(args.timeout))
+        record("trusted gateway bound its socket on the shared volume", True)
+
+        # The decisive check: no network namespace at all, yet the handshake works.
+        handshake = run_engine(
+            [
+                engine, "run", "--rm", "--network", "none",
+                "--user", f"{uid}:{gid}",
+                "--security-opt", "no-new-privileges", "--cap-drop", "ALL",
+                "--read-only", "--tmpfs", "/tmp",
+                "--volume", f"{TEMPLATE_DIR}:/template:ro",
+                "--volume", f"{volume}:{GATEWAY_MOUNTPOINT}:rw",
+                "--env", "HOME=/tmp",
+                image,
+                "python3", "/template/scripts/gateway_client.py", "health",
+                "--socket", GATEWAY_SOCKET,
+            ],
+            check=False,
+        )
+        ok = handshake.returncode == 0 and "quidra-inference-gateway-v1" in handshake.stdout
+        record(
+            "a --network none container completed the credential-less handshake",
+            ok,
+            "" if ok else (handshake.stderr or handshake.stdout).strip()[-800:],
+        )
+    except LauncherError as exc:
+        record("selftest aborted", False, str(exc))
+    finally:
+        if started:
+            run_engine([engine, "stop", "--time", "5", gateway_name], check=False)
+            run_engine([engine, "rm", "--force", gateway_name], check=False)
+        run_engine([engine, "volume", "rm", "--force", volume], check=False)
+
+    passed = all(step["ok"] for step in steps) and len(steps) == 3
+    payload = {
+        "schema_version": 1,
+        "ok": passed,
+        "engine": args.engine,
+        "image": image,
+        "platform": sys.platform,
+        "steps": steps,
+    }
+    if not passed:
+        payload["note"] = (
+            "The scored sandbox reaches the model only through this socket. Until "
+            "this passes on the machine that will run the benchmark, scored work "
+            "must not start."
+        )
+    print(json.dumps(payload, indent=2))
+    return 0 if passed else 2
+
+
 def cmd_run(args: argparse.Namespace) -> int:
     engine = require_engine(args.engine)
     image = args.image or default_image()
@@ -450,10 +588,11 @@ def cmd_run(args: argparse.Namespace) -> int:
                 provider=args.provider,
                 model=args.model,
                 fake_script=fake_script,
-                exec_command=args.exec_command,
+                exec_command=shlex.split(args.exec_command) if args.exec_command else None,
                 network_policy=args.network_policy,
                 task_policy=Path(args.task_policy).resolve() if args.task_policy else None,
                 credential_env=collect_credential_env(args.provider),
+                extra_mounts=list(args.gateway_mount or []),
             )
             run_engine(command)
             started_gateway = True
@@ -464,6 +603,8 @@ def cmd_run(args: argparse.Namespace) -> int:
                 image,
             ]
             wait_for_gateway(engine, gateway_name, volume_reader, float(args.gateway_timeout))
+
+        probe_staging_visibility(engine, image, staging, uid, gid)
 
         scored = scored_container_argv(
             engine,
@@ -522,6 +663,15 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument("--target", choices=("base", "toolchains"))
     build.set_defaults(func=cmd_build_image)
 
+    selftest = sub.add_parser(
+        "selftest",
+        help="verify a --network none container can reach the gateway socket on this engine",
+    )
+    selftest.add_argument("--engine", default="docker")
+    selftest.add_argument("--image")
+    selftest.add_argument("--timeout", type=float, default=60.0)
+    selftest.set_defaults(func=cmd_selftest)
+
     run = sub.add_parser("run", help="run a command inside the scored sandbox")
     run.add_argument("--source-repo", required=True)
     run.add_argument("--engine", default="docker")
@@ -539,7 +689,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run.add_argument("--fake-script")
     run.add_argument("--model")
-    run.add_argument("--exec-command", nargs="*")
+    run.add_argument(
+        "--exec-command",
+        help="quoted command for --provider exec, run on the trusted side only, "
+             "e.g. \"claude -p --output-format text --disallowed-tools '*'\"",
+    )
+    run.add_argument(
+        "--gateway-mount",
+        action="append",
+        metavar="HOST:CONTAINER[:ro]",
+        help="extra read-only mount for the GATEWAY container only, for a local "
+             "agent CLI and its session; never applied to the scored container",
+    )
     run.add_argument("--network-policy", default="disabled", choices=("disabled", "allowed"))
     run.add_argument(
         "--task-policy",

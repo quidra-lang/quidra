@@ -270,9 +270,16 @@ def provider_smoke(
     )
 
     checks: list[dict[str, Any]] = []
+    calls: list[dict[str, Any]] = []
 
     def record(name: str, ok: bool, detail: Any = "") -> None:
         checks.append({"check": name, "ok": bool(ok), "detail": detail})
+
+    def record_call(label: str, response: dict[str, Any]) -> None:
+        # Per call, not just the total. An aggregate cannot distinguish a fixed
+        # per-request overhead from the cost of the frozen server-side tool, and
+        # that distinction is what decides whether the run's budget is sound.
+        calls.append({"call": label, "usage": response.get("usage", {})})
 
     try:
         deadline = time.monotonic() + 30
@@ -333,6 +340,7 @@ def provider_smoke(
             max_output_tokens=16,
             request_id=uuid.uuid4().hex,
         )
+        record_call("plain (no tools)", plain)
         record("the frozen request shape is accepted by the provider", bool(plain.get("content")))
         record(
             "the response carries usable text",
@@ -354,6 +362,7 @@ def provider_smoke(
             network_allowed=True,
             request_id=uuid.uuid4().hex,
         )
+        record_call("network-enabled (frozen web-search tool attached)", searched)
         record(
             "the network-enabled request shape is accepted by the provider",
             bool(searched.get("content")),
@@ -375,8 +384,22 @@ def provider_smoke(
         "ok": not failures,
         "model": model,
         "checks": checks,
+        "calls": calls,
         "spend": cost,
     }
+    if len(calls) == 2:
+        plain_in = int(calls[0]["usage"].get("input_tokens", 0) or 0)
+        tooled_in = int(calls[1]["usage"].get("input_tokens", 0) or 0)
+        payload["input_token_breakdown"] = {
+            "plain_request_input_tokens": plain_in,
+            "network_request_input_tokens": tooled_in,
+            "attributable_to_frozen_web_search_tool": tooled_in - plain_in,
+            "note": (
+                "The plain figure is the provider's floor for a near-empty prompt; "
+                "the difference is what attaching the frozen server-side tool costs. "
+                "Only the first applies to every scored request."
+            ),
+        }
     if failures:
         payload["failed_checks"] = failures
     return payload

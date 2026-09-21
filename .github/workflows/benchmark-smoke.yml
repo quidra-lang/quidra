@@ -67,6 +67,20 @@ jobs:
               if not check["ok"]:
                   print(f"      {check['detail']}")
 
+          for call in report.get("calls", []):
+              u = call["usage"]
+              print(
+                  f"      {call['call']}: {u.get('input_tokens')} in / "
+                  f"{u.get('output_tokens')} out"
+              )
+          breakdown = report.get("input_token_breakdown")
+          if breakdown:
+              print(
+                  f"\nper-request input floor: {breakdown['plain_request_input_tokens']} tokens; "
+                  f"frozen web-search tool adds "
+                  f"{breakdown['attributable_to_frozen_web_search_tool']}"
+              )
+
           spend = report["spend"]
           print(
               f"\nspend: ${spend['estimated_cost_usd']:.4f} over "

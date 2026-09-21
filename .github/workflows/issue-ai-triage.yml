@@ -1,6 +1,10 @@
 name: AI issue triage
 
 on:
+  push:
+    branches: [develop]
+    paths:
+      - ".github/workflows/issue-ai-triage.yml"
   issues:
     types: [opened]
   workflow_dispatch:
@@ -19,8 +23,50 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  smoke-test:
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out develop
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Build synthetic issue event
+        shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/smoke-issue.json" <<'EOF'
+          {
+            "issue": {
+              "number": 0,
+              "title": "Tensor comparison with mismatched shapes crashes instead of reporting an error",
+              "body": "On Linux x86_64 using the current develop build, comparing tensor<float32><3, 224, 224> with tensor<float32><3, 224, 225> using < causes a crash. I expected a shape mismatch diagnostic."
+            },
+            "repository": {
+              "full_name": "quidra-lang/quidra"
+            }
+          }
+          EOF
+          echo "QUIDRA_CONTEXT_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Call OpenAI and validate structured triage
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_ISSUE_TRIAGE_MODEL: ${{ vars.OPENAI_ISSUE_TRIAGE_MODEL }}
+          TRIAGE_CONTEXT_ROOT: ${{ github.workspace }}
+          TRIAGE_EVENT_PATH: ${{ runner.temp }}/smoke-issue.json
+          TRIAGE_OUTPUT: ${{ runner.temp }}/issue-triage.json
+          QUIDRA_CONTEXT_REF: develop
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/issue_triage.py
+          jq -e '.mode == "ai"' "$TRIAGE_OUTPUT"
+          jq '{mode, category, area, needs_info, labels}' "$TRIAGE_OUTPUT"
+
   triage:
-    if: ${{ github.event_name == 'workflow_dispatch' || !endsWith(github.actor, '[bot]') }}
+    if: ${{ github.event_name != 'push' && (github.event_name == 'workflow_dispatch' || !endsWith(github.actor, '[bot]')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

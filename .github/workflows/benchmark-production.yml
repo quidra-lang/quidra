@@ -24,7 +24,12 @@ jobs:
     env:
       BENCHMARK_IMAGE: quidra-benchmark/runtime:production
       BENCHMARK_MODEL: claude-sonnet-5
-      BENCHMARK_BUDGET_USD: "18.0"
+      # Sized against the token envelope benchmark.py plan reports for the frozen
+      # manifest, so the guard covers a complete run rather than stopping it
+      # partway. It remains a soft ceiling: the gateway refuses the next request
+      # once estimated spend reaches it, so it caps overspend, it does not
+      # authorize this much.
+      BENCHMARK_BUDGET_USD: "70.0"
 
     steps:
       - uses: actions/checkout@v4

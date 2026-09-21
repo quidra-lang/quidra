@@ -2648,7 +2648,7 @@ def collect_packet_only_inputs(
                     "narrow the Task Packet or use sandbox-agent mode"
                 )
             digest = sha256_bytes(data)
-            canonical = (root / relative).as_posix()
+            canonical = (CANONICAL_WORKSPACE / relative).as_posix()
             files.append({
                 "path": canonical,
                 "sha256": digest,

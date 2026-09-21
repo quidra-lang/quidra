@@ -199,6 +199,49 @@ def script_for_queue(
     return {"schema_version": 1, "tasks": tasks}
 
 
+def emit_fake_script(root: Path, output: Path) -> dict[str, Any]:
+    """Script every unit in the frozen manifest up front, in one file.
+
+    The per-queue scripting this harness normally does needs a driver that hands
+    control back between batches. production_run.py does not: it owns its own
+    loop, exactly as it will in a paid run. Writing the whole script in advance
+    lets that driver be exercised end to end against a provider that costs
+    nothing, which is otherwise the largest part of a run that never executes
+    until the run that costs money.
+    """
+    languages = json.loads(
+        (root / "template" / "config" / "benchmark_metadata.json").read_text(encoding="utf-8")
+    )["languages"]
+    manifest = json.loads(
+        (root / "work" / "root" / "manifest.json").read_text(encoding="utf-8")
+    )
+    tasks: dict[str, list[str]] = {}
+    for unit in manifest.get("work_units", []):
+        if unit.get("execution_kind", "agent") != "agent":
+            continue
+        agent_id = str(unit["assigned_agent_id"])
+        payload = json.dumps(unit_payload(unit, languages), indent=2) + "\n"
+        if unit.get("worker_mode", "packet-only") == "packet-only":
+            turns = [json.dumps({
+                "schema_version": 1,
+                "task_id": agent_id,
+                "files": [{"path": "result.json", "content": payload}],
+            })]
+        else:
+            turns = [
+                json.dumps({"action": "write_file", "path": "result.json",
+                            "content": payload}),
+                json.dumps({"action": "final", "summary": "wrote result.json"}),
+            ]
+        # A retry re-dispatches the same unit, so repeat each script enough times
+        # that a retried unit is answered rather than falling through.
+        tasks[agent_id] = turns * 4
+    script = {"schema_version": 1, "tasks": tasks}
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(script, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return {"scripted_agents": len(tasks), "output": str(output)}
+
+
 def dispatch(root: Path, task: dict[str, Any], socket_path: Path) -> None:
     agent_id = task["agent_id"]
     run_cli(root, "task-start", "--id", task["work_unit_id"])
@@ -239,9 +282,17 @@ def main() -> int:
              "exceed the AF_UNIX path limit.",
     )
     parser.add_argument("--max-iterations", type=int, default=100)
+    parser.add_argument(
+        "--emit-fake-script",
+        help="write a complete deterministic script for the frozen manifest and exit, "
+             "for driving production_run.py without a paid provider",
+    )
     args = parser.parse_args()
 
     root = Path(args.workspace).resolve()
+    if args.emit_fake_script:
+        print(json.dumps(emit_fake_script(root, Path(args.emit_fake_script)), indent=2))
+        return 0
     languages = json.loads(
         (root / "template" / "config" / "benchmark_metadata.json").read_text(encoding="utf-8")
     )["languages"]

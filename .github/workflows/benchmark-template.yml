@@ -1197,6 +1197,93 @@ jobs:
           fi
           test ! -e .quidra-benchmark/repo/tampered.txt
 
+      - name: The production driver completes a run inside the real sandbox
+        run: |
+          # production_run.py is the driver a paid run uses, and it is not the
+          # harness the rest of this workflow exercises: it owns its own loop,
+          # its own retry and blocker handling, and it calls preflight, so it can
+          # only run inside the real sandbox. Driving it here with the offline
+          # provider leaves the paid provider as the only part of a real run that
+          # a real run is the first to execute.
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image quidra-benchmark/runtime:ci-base \
+            --provider fake --fake-script "$RUNNER_TEMP/fake/script.json" \
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
+
+          # Script every unit up front: the driver never hands control back to
+          # let the script be extended mid-run, exactly as with a real provider.
+          python benchmark/template/scripts/synthetic_run.py \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --emit-fake-script "$RUNNER_TEMP/fake/script.json"
+
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image quidra-benchmark/runtime:ci-base \
+            --provider fake --fake-script "$RUNNER_TEMP/fake/script.json" \
+            --gateway-log-out "$RUNNER_TEMP/driver-audit.jsonl" \
+            -- python3 /quidra-benchmark/template/scripts/production_run.py run \
+               --workspace /quidra-benchmark
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path(".quidra-benchmark")
+          run = json.loads((root / "results/production_run.json").read_text())
+          assert run["ok"], run
+          assert run["dispatched_agent_attempts"] > 0, run
+
+          # The base image carries no comparison-language toolchains, so the
+          # evaluations that need them are legitimately blocked here. That is the
+          # contract worth asserting: every evaluation either publishes a full
+          # ranking or says exactly why it cannot, and nothing is left silently
+          # unfinished. The full image is covered by benchmark-runtime-image.
+          status = json.loads((root / "results/primary_status.json").read_text())
+          complete = []
+          for name, ev in status["evaluations"].items():
+              if ev["status"] == "COMPLETE":
+                  assert len(ev["ranking"]) == 10, (name, ev)
+                  complete.append(name)
+              else:
+                  assert ev["ranking"] is None, (name, ev)
+                  assert ev.get("blocker_class"), (name, ev)
+          assert complete, f"no evaluation completed: {status['evaluations']}"
+          assert (root / "results/finalization.json").is_file()
+
+          manifest = json.loads((root / "work/root/manifest.json").read_text())
+          modes = {
+              u.get("worker_mode")
+              for u in manifest["work_units"]
+              if u.get("execution_kind", "agent") == "agent"
+          }
+          assert modes == {"packet-only", "sandbox-agent"}, modes
+          print(json.dumps({
+              "dispatched": run["dispatched_agent_attempts"],
+              "worker_modes": sorted(modes),
+              "complete": sorted(complete),
+              "blocked": sorted(set(status["evaluations"]) - set(complete)),
+          }, indent=2))
+          PY
+
+      - name: The finished run imports into the repository
+        run: |
+          # post-run is the last thing a paid run does and the only step that
+          # writes into the checkout. It has been exercised against a synthetic
+          # directory; this is the first time it imports a run the driver
+          # actually produced.
+          python benchmark/template/scripts/benchmark.py post-run \
+            --source-repo "$GITHUB_WORKSPACE"
+          test ! -e .quidra-benchmark
+          RUN_DIR="$(ls -d benchmark/*/ | grep -v template | head -1)"
+          test -f "$RUN_DIR/import_manifest.json"
+          test -f "$RUN_DIR/results/finalization.json"
+          test ! -e "$RUN_DIR/repo"
+          test ! -e "$RUN_DIR/template"
+          echo "imported $RUN_DIR"
+          git checkout -- . 2>/dev/null || true
+          rm -rf "$RUN_DIR"
+
       - name: Discard the staging workspace
         if: always()
         run: |

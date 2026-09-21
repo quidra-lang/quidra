@@ -79,6 +79,13 @@ std::optional<PackageProject> read_package_project(
     project.distribution_name = required("name");
     project.import_name = required("import");
     project.display_name = required("display_name");
+    project.repository = required("repository");
+
+    if (!is_distribution_package_name(project.distribution_name)) {
+        throw std::runtime_error(
+            "project.toml package.name must be a lowercase distribution name "
+            "using letters, digits, '-' or '_': " + path.string());
+    }
 
     // project.toml is the source these were generated from, so a disagreement
     // means quidra.package was hand-edited and the two have drifted.
@@ -95,6 +102,20 @@ std::optional<PackageProject> read_package_project(
             " does not match quidra.package version " + manifest.version.str() +
             ": " + path.string());
     }
+    if (manifest.repository && *manifest.repository != project.repository) {
+        throw std::runtime_error(
+            "project.toml package.repository '" + project.repository +
+            "' does not match quidra.package repository '" +
+            *manifest.repository + "': " + path.string());
+    }
+    if (const auto* q = document->find("requires", "quidra")) {
+        const auto found = manifest.requirements.find("quidra");
+        if (found == manifest.requirements.end() || found->second.text != *q) {
+            throw std::runtime_error(
+                "project.toml requires.quidra does not match quidra.package: " +
+                path.string());
+        }
+    }
 
     if (const auto* abi = document->find("requires", "abi")) {
         project.abi_requirement = parse_component(*abi);
@@ -103,6 +124,30 @@ std::optional<PackageProject> read_package_project(
 }
 
 } // namespace
+
+bool is_distribution_package_name(std::string_view name) {
+    if (name.empty() || name.front() < 'a' || name.front() > 'z') return false;
+    for (const char ch : name) {
+        if (!((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') ||
+              ch == '-' || ch == '_')) return false;
+    }
+    return true;
+}
+
+std::string_view package_distribution_name(const PackageManifest& manifest) {
+    return manifest.project ? std::string_view(manifest.project->distribution_name)
+                            : std::string_view(manifest.name);
+}
+
+std::string_view package_import_name(const PackageManifest& manifest) {
+    return manifest.project ? std::string_view(manifest.project->import_name)
+                            : std::string_view(manifest.name);
+}
+
+std::string_view package_display_name(const PackageManifest& manifest) {
+    return manifest.project ? std::string_view(manifest.project->display_name)
+                            : package_distribution_name(manifest);
+}
 
 std::string SemanticVersion::str() const {
     return std::to_string(major) + "." + std::to_string(minor) + "." +

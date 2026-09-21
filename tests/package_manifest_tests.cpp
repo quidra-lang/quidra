@@ -103,6 +103,12 @@ int main() {
     assert(described.project->distribution_name == "quidra-sample");
     assert(described.project->import_name == "sample");
     assert(described.project->display_name == "Quidra Sample");
+    assert(described.project->repository == "https://github.com/example/sample");
+    assert(package_distribution_name(described) == "quidra-sample");
+    assert(package_import_name(described) == "sample");
+    assert(package_display_name(described) == "Quidra Sample");
+    assert(is_distribution_package_name("quidra-sample"));
+    assert(!is_distribution_package_name("Quidra Sample"));
     assert(described.project->abi_requirement &&
            *described.project->abi_requirement == 1);
 

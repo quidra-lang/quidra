@@ -30,6 +30,10 @@ bool valid_package_name(std::string_view name) {
     return is_importable_package_name(name);
 }
 
+bool valid_package_identity(std::string_view name) {
+    return valid_package_name(name) || is_distribution_package_name(name);
+}
+
 bool same_version(const SemanticVersion& left, const SemanticVersion& right) {
     return left.major == right.major && left.minor == right.minor &&
            left.patch == right.patch;
@@ -52,6 +56,60 @@ fs::path package_root() {
             "cannot determine user home for the Quidra package store");
     }
     return fs::path(*home) / ".quidra" / "packages";
+}
+
+struct InstalledPackage {
+    fs::path root;
+    std::string import_name;
+    std::optional<PackageManifest> manifest;
+};
+
+InstalledPackage find_installed_package(std::string_view identity) {
+    if (!valid_package_identity(identity)) {
+        throw std::runtime_error("invalid package name");
+    }
+    const auto store = package_root();
+    std::error_code error;
+    if (!fs::is_directory(store, error) || error) {
+        throw std::runtime_error(
+            "package is not installed: " + std::string(identity));
+    }
+
+    std::vector<InstalledPackage> matches;
+    for (const auto& entry : fs::directory_iterator(store)) {
+        if (!entry.is_directory()) continue;
+        const auto import_name = entry.path().filename().string();
+        error.clear();
+        if (import_name.empty() || import_name.front() == '.' ||
+            !fs::is_regular_file(entry.path() / "main.qui", error) || error) {
+            continue;
+        }
+
+        std::optional<PackageManifest> manifest;
+        try {
+            manifest = try_read_package_manifest(entry.path());
+        } catch (const std::exception&) {
+            if (import_name == identity) throw;
+            continue;
+        }
+        const auto distribution =
+            manifest ? package_distribution_name(*manifest)
+                     : std::string_view(import_name);
+        if (import_name == identity || distribution == identity) {
+            matches.push_back(
+                InstalledPackage{entry.path(), import_name, std::move(manifest)});
+        }
+    }
+
+    if (matches.empty()) {
+        throw std::runtime_error(
+            "package is not installed: " + std::string(identity));
+    }
+    if (matches.size() != 1) {
+        throw std::runtime_error(
+            "package identity is ambiguous: " + std::string(identity));
+    }
+    return std::move(matches.front());
 }
 
 std::string read_text_file(const fs::path& path) {
@@ -266,27 +324,38 @@ void require_package_dependencies(const PackageManifest& manifest) {
     for (const auto& [name, requirement] : manifest.requirements) {
         if (name == "quidra") continue;
 
-        if (!valid_package_name(name)) {
+        if (!valid_package_identity(name)) {
             throw std::runtime_error(
                 "invalid package dependency name in quidra.package: " +
                 name);
         }
 
-        const auto root = package_root() / name;
-        const auto dependency = try_read_package_manifest(root);
-        if (!dependency) {
+        InstalledPackage installed = [&]() {
+            try {
+                return find_installed_package(name);
+            } catch (const std::exception&) {
+                throw std::runtime_error(
+                    std::string(package_distribution_name(manifest)) + " " +
+                    manifest.version.str() +
+                    " requires package " + name + " " + requirement.text +
+                    "; install a compatible " + name + " release first");
+            }
+        }();
+        if (!installed.manifest) {
             throw std::runtime_error(
-                manifest.name + " " + manifest.version.str() +
-                " requires package " + name + " " + requirement.text +
-                "; install a compatible " + name + " release first");
+                std::string(package_distribution_name(manifest)) + " " +
+                manifest.version.str() +
+                " requires versioned package " + name + " " +
+                requirement.text);
         }
 
-        if (!requirement.matches(dependency->version)) {
+        if (!requirement.matches(installed.manifest->version)) {
             throw std::runtime_error(
-                manifest.name + " " + manifest.version.str() +
+                std::string(package_distribution_name(manifest)) + " " +
+                manifest.version.str() +
                 " requires package " + name + " " + requirement.text +
                 "; installed version is " +
-                dependency->version.str());
+                installed.manifest->version.str());
         }
     }
 }
@@ -531,7 +600,8 @@ std::vector<SemanticVersion> release_versions(
 
 struct RemoteSpec {
     std::string repository;
-    std::string expected_name;
+    std::string expected_import_name;
+    std::optional<std::string> expected_distribution_name;
     std::optional<SemanticVersion> requested_version;
 };
 
@@ -577,46 +647,76 @@ RemoteSpec parse_remote_spec(std::string spec) {
     }
 
     std::string repository;
+    std::string expected_import_name;
+    std::optional<std::string> expected_distribution_name;
+
     if (spec.find("://") != std::string::npos ||
         spec.starts_with("git@")) {
         repository = spec;
+        expected_import_name = repository_basename(spec);
     } else if (spec.find('/') != std::string::npos) {
         repository = "https://github.com/" + spec;
-        if (!repository.ends_with(".git")) {
-            repository += ".git";
+        if (!repository.ends_with(".git")) repository += ".git";
+        expected_import_name = repository_basename(spec);
+    } else if (spec.starts_with("quidra-")) {
+        if (!is_distribution_package_name(spec)) {
+            throw std::runtime_error(
+                "invalid distribution package name: " + spec);
         }
+        expected_import_name =
+            spec.substr(std::string("quidra-").size());
+        if (!valid_package_name(expected_import_name)) {
+            throw std::runtime_error(
+                "official Quidra distribution name must end in an "
+                "importable package identifier: " + spec);
+        }
+        expected_distribution_name = spec;
+        repository =
+            "https://github.com/quidra-lang/" +
+            expected_import_name + ".git";
     } else {
         if (!valid_package_name(spec)) {
             throw std::runtime_error(
-                "invalid package name: " + spec);
+                "bare third-party distribution names require "
+                "OWNER/REPOSITORY or a Git URL: " + spec);
         }
+        expected_import_name = spec;
         repository =
             "https://github.com/quidra-lang/" + spec + ".git";
     }
 
-    const auto expected_name = repository_basename(spec);
-    if (!valid_package_name(expected_name)) {
+    if (!valid_package_name(expected_import_name)) {
         throw std::runtime_error(
-            "repository name is not an importable Quidra package "
-            "name: " +
-            expected_name);
+            "repository name is not an importable Quidra package name: " +
+            expected_import_name);
     }
 
     return RemoteSpec{
-        repository, expected_name, requested};
+        repository, expected_import_name,
+        expected_distribution_name, requested};
 }
 
 void validate_release_manifest(
     const PackageManifest& manifest,
-    const std::string& expected_name,
+    const RemoteSpec& spec,
     const SemanticVersion& tag_version) {
     validate_manifest_name(manifest);
 
-    if (manifest.name != expected_name) {
+    if (package_import_name(manifest) != spec.expected_import_name) {
         throw std::runtime_error(
-            "release manifest name '" + manifest.name +
+            "release import name '" +
+            std::string(package_import_name(manifest)) +
             "' does not match repository package name '" +
-            expected_name + "'");
+            spec.expected_import_name + "'");
+    }
+    if (spec.expected_distribution_name &&
+        package_distribution_name(manifest) !=
+            *spec.expected_distribution_name) {
+        throw std::runtime_error(
+            "release distribution name '" +
+            std::string(package_distribution_name(manifest)) +
+            "' does not match requested package name '" +
+            *spec.expected_distribution_name + "'");
     }
 
     if (!same_version(manifest.version, tag_version)) {
@@ -680,7 +780,7 @@ void install_remote(std::string_view raw_spec) {
         auto manifest =
             read_package_manifest(source);
         validate_release_manifest(
-            manifest, spec.expected_name, version);
+            manifest, spec, version);
 
         const auto& quidra_requirement =
             require_quidra_requirement(manifest);
@@ -715,7 +815,10 @@ void install_remote(std::string_view raw_spec) {
 
     if (!selected_manifest || !selected_version) {
         std::string message =
-            "no release of " + spec.expected_name +
+            "no release of " +
+            (spec.expected_distribution_name
+                 ? *spec.expected_distribution_name
+                 : spec.expected_import_name) +
             " is compatible with Quidra " +
             std::string(compiler_version);
 
@@ -732,14 +835,20 @@ void install_remote(std::string_view raw_spec) {
         selected_source / "main.qui", {}, selected_source);
     hydrate_release_asset(*selected_manifest, selected_source);
 
-    publish_package(
-        selected_source, selected_manifest->name, true);
+    const std::string import_name(
+        package_import_name(*selected_manifest));
+    const std::string distribution_name(
+        package_distribution_name(*selected_manifest));
+    publish_package(selected_source, import_name, true);
 
     std::cout
-        << "installed " << selected_manifest->name
-        << " " << selected_manifest->version.str()
-        << " -> "
-        << (package_root() / selected_manifest->name).string()
+        << "installed " << distribution_name
+        << " " << selected_manifest->version.str();
+    if (distribution_name != import_name) {
+        std::cout << " (import " << import_name << ")";
+    }
+    std::cout
+        << " -> " << (package_root() / import_name).string()
         << "\n";
 }
 
@@ -760,14 +869,14 @@ void install_local(
         require_current_quidra(*manifest);
         require_package_dependencies(*manifest);
 
-        if (requested_name &&
-            *requested_name != manifest->name) {
+        const std::string import_name(
+            package_import_name(*manifest));
+        if (requested_name && *requested_name != import_name) {
             throw std::runtime_error(
-                "--name does not match quidra.package name '" +
-                manifest->name + "'");
+                "--name does not match package import name '" +
+                import_name + "'");
         }
-
-        name = manifest->name;
+        name = import_name;
     } else if (requested_name) {
         name = *requested_name;
     } else {
@@ -790,37 +899,39 @@ void install_local(
     publish_package(
         absolute, name, force);
 
-    std::cout << "installed " << name;
-    if (manifest) {
-        std::cout << " " << manifest->version.str();
+    const std::string distribution_name =
+        manifest
+            ? std::string(package_distribution_name(*manifest))
+            : name;
+    std::cout << "installed " << distribution_name;
+    if (manifest) std::cout << " " << manifest->version.str();
+    if (distribution_name != name) {
+        std::cout << " (import " << name << ")";
     }
     std::cout
         << " -> " << (package_root() / name).string()
         << "\n";
 }
 
-void remove_package(std::string_view name) {
-    if (!valid_package_name(name)) {
-        throw std::runtime_error("invalid package name");
-    }
+void remove_package(std::string_view identity) {
+    auto installed = find_installed_package(identity);
+    const std::string distribution_name =
+        installed.manifest
+            ? std::string(package_distribution_name(*installed.manifest))
+            : installed.import_name;
 
-    const auto target =
-        package_root() / std::string(name);
     std::error_code error;
-
-    if (!fs::is_directory(target, error) || error) {
-        throw std::runtime_error(
-            "package is not installed: " +
-            std::string(name));
-    }
-
-    fs::remove_all(target, error);
+    fs::remove_all(installed.root, error);
     if (error) {
         throw std::runtime_error(
             "cannot remove package: " + error.message());
     }
 
-    std::cout << "removed " << name << "\n";
+    std::cout << "removed " << distribution_name;
+    if (distribution_name != installed.import_name) {
+        std::cout << " (import " << installed.import_name << ")";
+    }
+    std::cout << "\n";
 }
 
 void list_packages() {
@@ -844,7 +955,13 @@ void list_packages() {
         auto line = name;
         if (const auto manifest =
                 try_read_package_manifest(entry.path())) {
-            line += " " + manifest->version.str();
+            const std::string distribution_name(
+                package_distribution_name(*manifest));
+            line = distribution_name + " " +
+                   manifest->version.str();
+            if (distribution_name != name) {
+                line += " (import " + name + ")";
+            }
         }
         lines.push_back(std::move(line));
     }
@@ -856,21 +973,21 @@ void list_packages() {
 }
 
 void package_info(std::string_view raw_name, bool json) {
-    if (!valid_package_name(raw_name)) {
-        throw std::runtime_error("invalid package name");
-    }
-    const std::string name(raw_name);
-    const auto root = package_root() / name;
-    std::error_code error;
-    if (!fs::is_directory(root, error) || error ||
-        !fs::is_regular_file(root / "main.qui", error) || error) {
-        throw std::runtime_error("package is not installed: " + name);
-    }
+    auto installed = find_installed_package(raw_name);
+    const auto& manifest = installed.manifest;
+    const std::string distribution_name =
+        manifest
+            ? std::string(package_distribution_name(*manifest))
+            : installed.import_name;
+    const std::string display_name =
+        manifest
+            ? std::string(package_display_name(*manifest))
+            : distribution_name;
 
-    const auto manifest = try_read_package_manifest(root);
     if (json) {
-        std::cout << "{\"name\":\""
-                  << json_escape(manifest ? manifest->name : name)
+        std::cout << "{\"name\":\"" << json_escape(distribution_name)
+                  << "\",\"import\":\"" << json_escape(installed.import_name)
+                  << "\",\"display_name\":\"" << json_escape(display_name)
                   << "\",\"version\":";
         if (manifest) std::cout << "\"" << manifest->version.str() << "\"";
         else std::cout << "null";
@@ -903,27 +1020,27 @@ void package_info(std::string_view raw_name, bool json) {
             }
         }
         std::cout << "},\"path\":\""
-                  << json_escape(root.string()) << "\"}\n";
+                  << json_escape(installed.root.string()) << "\"}\n";
         return;
     }
 
-    std::cout << "name = " << (manifest ? manifest->name : name) << "\n";
+    std::cout << "name = " << distribution_name << "\n";
+    std::cout << "import = " << installed.import_name << "\n";
+    std::cout << "display_name = " << display_name << "\n";
     if (manifest) {
         std::cout << "version = " << manifest->version.str() << "\n";
         if (manifest->description) std::cout << "description = " << *manifest->description << "\n";
         if (manifest->license) std::cout << "license = " << *manifest->license << "\n";
         if (manifest->homepage) std::cout << "homepage = " << *manifest->homepage << "\n";
         if (manifest->repository) std::cout << "repository = " << *manifest->repository << "\n";
-        for (const auto& [platform, url] : manifest->assets) {
+        for (const auto& [platform, url] : manifest->assets)
             std::cout << "asset." << platform << " = " << url << "\n";
-        }
-        for (const auto& [dependency, requirement] : manifest->requirements) {
+        for (const auto& [dependency, requirement] : manifest->requirements)
             std::cout << "requires." << dependency << " = " << requirement.text << "\n";
-        }
     } else {
         std::cout << "version = unversioned\n";
     }
-    std::cout << "path = " << root.string() << "\n";
+    std::cout << "path = " << installed.root.string() << "\n";
 }
 
 int lock_packages(

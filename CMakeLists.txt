@@ -331,6 +331,7 @@ if(BUILD_TESTING)
   if(UNIX)
     add_test(NAME quidra_cli COMMAND bash ${CMAKE_SOURCE_DIR}/tests/cli_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_package_names COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_name_tests.sh $<TARGET_FILE:quidra>)
+    add_test(NAME quidra_package_identity COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_identity_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_package_releases COMMAND bash ${CMAKE_SOURCE_DIR}/tests/package_release_tests.sh $<TARGET_FILE:quidra>)
     add_test(NAME quidra_stdlib COMMAND bash ${CMAKE_SOURCE_DIR}/tests/stdlib_tests.sh $<TARGET_FILE:quidra> ${CMAKE_SOURCE_DIR})
     add_test(NAME quidra_neural_foundation COMMAND bash ${CMAKE_SOURCE_DIR}/tests/neural_foundation_tests.sh $<TARGET_FILE:quidra>)
@@ -390,6 +391,7 @@ if(BUILD_TESTING)
     set_tests_properties(
       quidra_cli
       quidra_package_names
+      quidra_package_identity
       quidra_package_releases
       quidra_stdlib
       quidra_neural_foundation

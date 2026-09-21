@@ -270,10 +270,12 @@ std::optional<PackageLockEntries> read_package_lock(const fs::path& project_root
     if (!std::getline(input, line)) {
         throw std::runtime_error("quidra.lock is empty");
     }
-    const bool legacy = line == "quidra-lock-v1";
-    if (!legacy && line != "quidra-lock-v2") {
+    const bool legacy_v1 = line == "quidra-lock-v1";
+    const bool legacy_v2 = line == "quidra-lock-v2";
+    const bool current_v3 = line == "quidra-lock-v3";
+    if (!legacy_v1 && !legacy_v2 && !current_v3) {
         throw std::runtime_error(
-            "quidra.lock must begin with 'quidra-lock-v2'");
+            "quidra.lock must begin with a supported quidra-lock header");
     }
 
     PackageLockEntries entries;
@@ -283,25 +285,36 @@ std::optional<PackageLockEntries> read_package_lock(const fs::path& project_root
         if (line.empty()) continue;
 
         std::istringstream fields(line);
+        std::string distribution_name;
         std::string name;
         std::string version = "-";
         std::string digest;
         std::string extra;
-        if (legacy) {
+        if (legacy_v1) {
             if (!(fields >> name >> digest) || (fields >> extra)) {
                 throw std::runtime_error(
                     "invalid quidra.lock entry on line " +
                     std::to_string(line_number));
             }
-        } else {
+            distribution_name = name;
+        } else if (legacy_v2) {
             if (!(fields >> name >> version >> digest) || (fields >> extra)) {
+                throw std::runtime_error(
+                    "invalid quidra.lock entry on line " +
+                    std::to_string(line_number));
+            }
+            distribution_name = name;
+        } else {
+            if (!(fields >> distribution_name >> name >> version >> digest) ||
+                (fields >> extra)) {
                 throw std::runtime_error(
                     "invalid quidra.lock entry on line " +
                     std::to_string(line_number));
             }
         }
 
-        if (!valid_lock_name(name) || !valid_sha256(digest)) {
+        if (!valid_lock_name(distribution_name) || !valid_lock_name(name) ||
+            !valid_sha256(digest)) {
             throw std::runtime_error(
                 "invalid quidra.lock entry on line " +
                 std::to_string(line_number));
@@ -320,6 +333,7 @@ std::optional<PackageLockEntries> read_package_lock(const fs::path& project_root
                  .emplace(
                      name,
                      PackageLockEntry{
+                         std::move(distribution_name),
                          std::move(version), std::move(digest)})
                  .second) {
             throw std::runtime_error(
@@ -332,7 +346,7 @@ std::optional<PackageLockEntries> read_package_lock(const fs::path& project_root
 std::string package_lock_text(
     const std::map<std::string, fs::path>& packages) {
     std::ostringstream output;
-    output << "quidra-lock-v2\n";
+    output << "quidra-lock-v3\n";
 
     for (const auto& [name, main] : packages) {
         if (!valid_lock_name(name)) {
@@ -340,13 +354,25 @@ std::string package_lock_text(
                 "invalid package name in resolved dependency set");
         }
 
+        std::string distribution_name = name;
         std::string version = "-";
         if (const auto manifest =
                 try_read_package_manifest(main.parent_path())) {
             version = manifest->version.str();
+            distribution_name =
+                std::string(package_distribution_name(*manifest));
+            if (package_import_name(*manifest) != name) {
+                throw std::runtime_error(
+                    "resolved import name does not match package metadata");
+            }
+        }
+        if (!valid_lock_name(distribution_name)) {
+            throw std::runtime_error(
+                "invalid distribution name in resolved dependency set");
         }
 
         output
+            << distribution_name << ' '
             << name << ' '
             << version << ' '
             << package_tree_sha256(main) << '\n';

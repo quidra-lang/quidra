@@ -37,6 +37,7 @@ struct PackageProject {
     std::string distribution_name;
     std::string import_name;
     std::string display_name;
+    std::string repository;
     std::optional<unsigned long long> abi_requirement;
 };
 
@@ -54,6 +55,12 @@ struct PackageManifest {
 
 SemanticVersion parse_semantic_version(std::string_view text);
 VersionRequirement parse_version_requirement(std::string_view text);
+
+bool is_distribution_package_name(std::string_view name);
+std::string_view package_distribution_name(const PackageManifest& manifest);
+std::string_view package_import_name(const PackageManifest& manifest);
+std::string_view package_display_name(const PackageManifest& manifest);
+
 PackageManifest read_package_manifest(const std::filesystem::path& package_root);
 std::optional<PackageManifest> try_read_package_manifest(
     const std::filesystem::path& package_root);

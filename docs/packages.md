@@ -7,23 +7,25 @@ immutable release tags.
 ## Commands
 
 ```text
-quidra install dnn
-quidra install dnn@0.1.0
-quidra install owner/package
-quidra install https://github.com/owner/package.git@0.1.0
+quidra install quidra-dnn
+quidra install quidra-dnn@0.2.0
+quidra install owner/repository
+quidra install https://github.com/owner/repository.git@0.2.0
 quidra install ./local-package
-quidra remove dnn
+quidra remove quidra-dnn
 quidra list
-quidra package-info dnn
-quidra package-info dnn --json
+quidra package-info quidra-dnn
+quidra package-info quidra-dnn --json
 quidra package-path
 quidra lock program.qui
 quidra lock program.qui --check
 ```
 
-A bare package name such as `dnn` resolves to
-`https://github.com/quidra-lang/dnn.git`. An `owner/package` spelling resolves
-to the corresponding GitHub repository. An explicit Git URL is used as written.
+Official first-party distributions use the `quidra-` namespace. A bare name
+such as `quidra-dnn` resolves to `https://github.com/quidra-lang/dnn.git`;
+the suffix is the import/repository identifier. The old short spelling `dnn`
+remains accepted as a compatibility alias. Third-party packages use
+`owner/repository` or an explicit Git URL until a registry is introduced.
 
 Remote installation requires `git`. Quidra never installs from `main`,
 `develop`, `feature`, or another moving branch. It enumerates exact stable
@@ -111,14 +113,17 @@ at once:
 
 | Field | Meaning |
 | --- | --- |
-| `name` | distribution name, how the package is referred to as a product |
+| `name` | distribution/package-manager identity, e.g. `quidra-dnn` |
 | `import` | the identifier `import NAME` binds, and the installed directory name |
-| `display_name` | human-facing title |
+| `display_name` | human-facing title, e.g. `Quidra DNN` |
 | `repository` | where releases come from |
 
-`import` is the constrained one: it must be a valid Quidra identifier, so it
-cannot contain a hyphen, and it must equal `quidra.package`'s `name` and the
-repository basename.
+The distribution name is used by package-manager commands such as install,
+list, remove and package-info. The import name is the constrained one: it must
+be a valid Quidra identifier, so it cannot contain a hyphen, and it equals
+`quidra.package`'s legacy `name` plus the installed directory name. Keeping
+that legacy field as the import identifier lets older compilers continue to
+read new package releases.
 
 `requires.abi` cannot appear in `quidra.package`, because every `requires.<dep>`
 value there is parsed as a version range. It lives here instead, and it is an
@@ -148,22 +153,25 @@ unversioned. Existing packages are replaced by local installation only with
 The default installed source store is:
 
 ```text
-~/.quidra/packages/<name>/
+~/.quidra/packages/<import-name>/
 ```
 
 `quidra list` prints package versions when a manifest is present.
 `quidra package-path` prints the default store location.
 
-`quidra lock FILE.qui` writes `quidra.lock` version 2. Every direct or
-transitive package reached by the program's import graph is recorded as:
+`quidra lock FILE.qui` writes `quidra.lock` version 3. Every direct or
+transitive package reached by the program's import graph records both identities:
 
 ```text
-quidra-lock-v2
-dnn 0.1.0 <sha256>
-vision 0.1.0 <sha256>
+quidra-lock-v3
+quidra-dnn dnn 0.2.0 <sha256>
+quidra-vision vision 0.2.0 <sha256>
 ```
 
-An unversioned local development package uses `-` in the version column. The
+The columns are distribution name, import name, version and content hash.
+An unversioned local development package uses `-` in the version column.
+Version-1 and version-2 lockfiles remain readable for compatibility; rewriting
+the lockfile upgrades it to version 3. The
 SHA-256 covers the package's regular-file tree while deliberately excluding
 `.git` metadata. Compilation checks both the recorded version and content
 hash, so a lockfile identifies the exact package contents rather than merely a

@@ -2658,7 +2658,7 @@ def collect_packet_only_inputs(
                 f"task-input:{relative}",
                 "\n\n---\n\n"
                 f"## Embedded task input: {canonical}\n"
-                f"Source SHA-256: \`{digest}\`\n\n"
+                f"Source SHA-256: `{digest}`\n\n"
                 + content
             ))
     return files, sections

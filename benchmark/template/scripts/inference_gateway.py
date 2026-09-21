@@ -138,6 +138,16 @@ class Provider:
     def secrets(self) -> list[str]:
         return []
 
+    def provider_tool_policy(self) -> list[dict[str, Any]]:
+        """Provider-side tools this adapter may enable, as frozen on the trusted side.
+
+        The handshake reports this verbatim. A provider that quietly attaches a
+        tool while the gateway advertises none would make `preflight` record
+        evidence that is not true, which is the failure this whole boundary
+        exists to prevent.
+        """
+        return []
+
     def complete(self, request: dict[str, Any]) -> dict[str, Any]:
         raise NotImplementedError
 
@@ -361,6 +371,19 @@ class AnthropicMessagesProvider(Provider):
 
     def secrets(self) -> list[str]:
         return [self._api_key]
+
+    def provider_tool_policy(self) -> list[dict[str, Any]]:
+        if not self.web_search:
+            return []
+        return [{
+            "type": str(self.web_search["tool_type"]),
+            "name": "web_search",
+            "scope": "provider-side",
+            "enabled_for": "tasks whose frozen trusted policy grants network_allowed",
+            "max_uses_per_request": int(self.web_search["max_uses_per_request"]),
+            "selectable_by_sandbox": False,
+            "grants_host_access": False,
+        }]
 
     def _request_cost(self, usage: dict[str, Any]) -> float:
         if not self.pricing:
@@ -642,7 +665,12 @@ class GatewayState:
             "client_credentials_required": False,
             "credential_less_client": True,
             "host_tools_exposed": False,
-            "exposed_tool_surface": [],
+            # What the provider may enable on the trusted side, and what the
+            # sandbox may ask for. The second list is empty by construction:
+            # every tool-shaped request field is refused before a provider is
+            # ever reached.
+            "exposed_tool_surface": self.provider.provider_tool_policy(),
+            "sandbox_selectable_tools": [],
             "capabilities": list(self.config["allowed_request_kinds"]),
             "forbidden_request_fields": list(self.config["forbidden_request_fields"]),
             "max_request_bytes": int(self.config["max_request_bytes"]),

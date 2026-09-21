@@ -254,7 +254,8 @@ def test_gateway_brokers_inference_and_nothing_else() -> None:
             )
             check(
                 health.get("host_tools_exposed") is False
-                and health.get("exposed_tool_surface") == [],
+                and health.get("exposed_tool_surface") == []
+                and health.get("sandbox_selectable_tools") == [],
                 "gateway advertised a host tool surface",
             )
 
@@ -1003,6 +1004,96 @@ def test_retained_artifacts_carry_no_secret_or_host_path() -> None:
             os.environ.pop("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS", None)
         findings = json.loads((root / "results" / "privacy_check.json").read_text(encoding="utf-8"))
         check(rc == 0, f"the privacy gate rejected a clean run: {findings}")
+
+
+def test_declared_tool_surface_matches_what_the_provider_will_do() -> None:
+    """The handshake has to describe the provider that is actually running.
+
+    A network-enabled task may reach a provider-side retrieval tool the trusted
+    side froze in advance. That is allowed; claiming an empty surface while
+    attaching one is not, because preflight records the claim as evidence.
+    """
+    config = json.loads(
+        (TEMPLATE / "config" / "inference_gateway.json").read_text(encoding="utf-8")
+    )
+    os.environ["ANTHROPIC_API_KEY"] = FAKE_PROVIDER_SECRET
+    try:
+        provider = inference_gateway.AnthropicMessagesProvider(
+            "claude-sonnet-5",
+            timeout=30,
+            pricing=config["anthropic_pricing"]["claude-sonnet-5"],
+            web_search=config["anthropic_web_search"],
+        )
+    finally:
+        os.environ.pop("ANTHROPIC_API_KEY", None)
+
+    surface = provider.provider_tool_policy()
+    check(len(surface) == 1, f"the web-search policy was not declared: {surface}")
+    entry = surface[0]
+    check(
+        entry["type"] == config["anthropic_web_search"]["tool_type"],
+        f"declared tool type disagrees with the frozen config: {entry}",
+    )
+    check(
+        entry["selectable_by_sandbox"] is False and entry["grants_host_access"] is False,
+        f"the declared tool is not constrained: {entry}",
+    )
+
+    # A gateway carrying no web-search policy must declare nothing, and must
+    # refuse a network-enabled task rather than silently dropping the tool.
+    os.environ["ANTHROPIC_API_KEY"] = FAKE_PROVIDER_SECRET
+    try:
+        bare = inference_gateway.AnthropicMessagesProvider("claude-sonnet-5", timeout=30)
+    finally:
+        os.environ.pop("ANTHROPIC_API_KEY", None)
+    check(bare.provider_tool_policy() == [], "a provider with no policy declared a tool")
+
+    problems, recorded = benchmark.tool_surface_problems({
+        "sandbox_selectable_tools": [],
+        "exposed_tool_surface": surface,
+    })
+    check(problems == [], f"a properly declared provider tool was rejected: {problems}")
+    check(
+        recorded and recorded[0]["name"] == "web_search",
+        f"preflight did not record the declared tool for audit: {recorded}",
+    )
+
+    for label, health, expected in (
+        (
+            "sandbox-selectable",
+            {"sandbox_selectable_tools": ["bash"], "exposed_tool_surface": []},
+            "inference_gateway_lets_the_sandbox_select_tools",
+        ),
+        (
+            "undeclared",
+            {"sandbox_selectable_tools": []},
+            "inference_gateway_does_not_declare_its_tool_surface",
+        ),
+        (
+            "host access",
+            {
+                "sandbox_selectable_tools": [],
+                "exposed_tool_surface": [{
+                    "name": "shell", "scope": "provider-side",
+                    "selectable_by_sandbox": False, "grants_host_access": True,
+                }],
+            },
+            "inference_gateway_tool_grants_host_access:shell",
+        ),
+        (
+            "not provider-side",
+            {
+                "sandbox_selectable_tools": [],
+                "exposed_tool_surface": [{
+                    "name": "editor", "scope": "local",
+                    "selectable_by_sandbox": False, "grants_host_access": False,
+                }],
+            },
+            "inference_gateway_exposes_a_non_provider_tool:editor",
+        ),
+    ):
+        problems, _ = benchmark.tool_surface_problems(health)
+        check(expected in problems, f"{label} surface was accepted: {problems}")
 
 
 # --------------------------------------------------------------------------

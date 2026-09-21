@@ -14,6 +14,8 @@ Two leaf modes are frozen in the manifest, and both reach a model only through t
 
 `preflight` judges the running process, not its declarations. It requires an unprivileged uid, a loopback-only network namespace, an empty capability bounding set, `NoNewPrivs`, read-only snapshot and template mounts, no unexpected or host-home mounts, no provider credential in the environment or on disk, a live gateway socket that refuses forbidden requests when actually probed, and a launcher contract that agrees with every one of those observations. The launcher emits the `QUIDRA_BENCHMARK_*_ATTESTED` variables only after applying the corresponding restrictions, so an attestation records what was enforced; setting one without the restriction fails. A bind mount or equivalent namespace mapping is acceptable; string substitution, a symlink without isolation, a host-side subagent with host tools, or a forged attestation is not.
 
+The gateway declares the provider-side tools it may enable, and `preflight` records that declaration rather than demanding silence. A network-enabled task may reach a retrieval tool the trusted side froze in advance; what must stay true is that the sandbox cannot select or configure any tool and that nothing on the surface grants host access. A gateway that declared an empty surface while its provider attached a tool would turn this attestation into a claim nobody checked.
+
 ## 2. Current-template-only rule
 
 Every reusable input required by a new run is tracked directly under `benchmark/template/`.

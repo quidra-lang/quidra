@@ -1348,6 +1348,48 @@ def credential_exposure_problems(
     return sorted(set(problems))
 
 
+def tool_surface_problems(health: dict[str, Any]) -> tuple[list[str], list[dict[str, Any]]]:
+    """Judge what the gateway admits it may enable, rather than demanding silence.
+
+    An empty tool surface is no longer the right test. A network-enabled task may
+    legitimately reach a provider-side retrieval tool that the trusted side froze
+    in advance. What must stay true is narrower and more important: the sandbox
+    cannot select or configure any tool, and nothing on the surface grants host
+    access. A gateway that declares nothing while its provider attaches a tool
+    would make this attestation a lie, so the declaration is recorded here and
+    every entry has to justify itself.
+    """
+    problems: list[str] = []
+    if health.get("sandbox_selectable_tools"):
+        problems.append("inference_gateway_lets_the_sandbox_select_tools")
+
+    surface = health.get("exposed_tool_surface")
+    if surface is None:
+        return ["inference_gateway_does_not_declare_its_tool_surface"], []
+    if not isinstance(surface, list):
+        return ["inference_gateway_tool_surface_is_malformed"], []
+
+    recorded: list[dict[str, Any]] = []
+    for entry in surface:
+        if not isinstance(entry, dict):
+            problems.append("inference_gateway_tool_surface_is_malformed")
+            continue
+        name = str(entry.get("name") or entry.get("type") or "unnamed")
+        if entry.get("scope") != "provider-side":
+            problems.append(f"inference_gateway_exposes_a_non_provider_tool:{name}")
+        if entry.get("selectable_by_sandbox") is not False:
+            problems.append(f"inference_gateway_tool_is_sandbox_selectable:{name}")
+        if entry.get("grants_host_access") is not False:
+            problems.append(f"inference_gateway_tool_grants_host_access:{name}")
+        recorded.append({
+            "name": name,
+            "type": entry.get("type"),
+            "enabled_for": entry.get("enabled_for"),
+            "max_uses_per_request": entry.get("max_uses_per_request"),
+        })
+    return problems, recorded
+
+
 def gateway_attestation(
     root: Path, config: dict[str, Any], timeout: float = 15.0
 ) -> tuple[dict[str, Any], list[str]]:
@@ -1390,8 +1432,9 @@ def gateway_attestation(
         problems.append("inference_gateway_requires_client_credentials")
     if health.get("host_tools_exposed") is not False:
         problems.append("inference_gateway_exposes_host_tools")
-    if health.get("exposed_tool_surface"):
-        problems.append("inference_gateway_exposes_a_tool_surface")
+    surface_problems, surface = tool_surface_problems(health)
+    problems.extend(surface_problems)
+    info["provider_tool_surface"] = surface
     if sorted(health.get("capabilities", [])) != sorted(config["allowed_request_kinds"]):
         problems.append("inference_gateway_capabilities_mismatch")
 

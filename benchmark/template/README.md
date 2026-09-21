@@ -107,6 +107,8 @@ Leaf work has two frozen modes, and both reach a model only through that socket:
 
 `preflight` verifies the running process rather than any declaration. It checks an unprivileged uid, a loopback-only network namespace, an empty capability bounding set, `NoNewPrivs`, read-only `repo` and `template` mounts, the absence of unexpected or host-home mounts, the absence of provider credentials in the environment and on disk, a live gateway socket that refuses forbidden requests when actually probed, and a launcher contract that agrees with all of it. Setting the attestation variables without applying the restrictions fails, and the sensitive-environment checks must not be widened to tolerate a credential.
 
+The gateway declares the provider-side tools it may enable, and `preflight` records that declaration rather than demanding silence. A network-enabled task may reach a retrieval tool the trusted side froze in advance; what must stay true is that the sandbox cannot select or configure any tool and that nothing on the surface grants host access. A gateway that declared an empty surface while its provider attached a tool would turn this attestation into a claim nobody checked.
+
 ## Production benchmark trigger
 
 Paid inference is intentionally opt-in and develop-only. The

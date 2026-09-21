@@ -317,6 +317,10 @@ jobs:
           PY
 
       - name: Exercise deterministic runner
+        env:
+          QUIDRA_BENCHMARK_WORKER_GATEWAY_ATTESTED: packet-gateway-v1
+          QUIDRA_BENCHMARK_PACKET_WORKER_LOCAL_TOOLS: disabled
+          QUIDRA_BENCHMARK_SANDBOX_AGENT_LAUNCHER_ATTESTED: inside-sandbox-v1
         run: |
           TMP="$PWD/.benchmark-template-test"
           rm -rf "$TMP"
@@ -498,15 +502,23 @@ jobs:
           langs = ["Quidra","Python","C++","Rust","Go","Java","TypeScript","Kotlin","Swift","Zig"]
 
           def write(agent, evaluation, requirements):
-              d = root / "work" / "agents" / agent
-              d.mkdir(parents=True, exist_ok=True)
               payload = {
                   "schema_version": 1,
                   "evaluation": evaluation,
                   "requirements": requirements,
                   "evidence": {"ci": "synthetic normalized smoke evidence"},
               }
-              (d / "result.json").write_text(json.dumps(payload, indent=2) + "\n")
+              response = {
+                  "schema_version": 1,
+                  "task_id": agent,
+                  "files": [{
+                      "path": "result.json",
+                      "content": json.dumps(payload, indent=2) + "\n",
+                  }],
+              }
+              (root / "raw" / f"{agent}.response.json").write_text(
+                  json.dumps(response) + "\n"
+              )
 
           write("worker-sc-structure-gates--part-1", "semantic_compression", {
               "gate.capability_universe": True,
@@ -518,7 +530,9 @@ jobs:
           })
           PY
           for ID in sc-structure-gates--part-1 sc-structure-gates--part-2; do
+            AGENT="worker-$ID"
             python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id "$ID"
+            python benchmark/template/scripts/benchmark.py task-apply --workspace "$TMP" --id "$AGENT"               < "$TMP/raw/$AGENT.response.json"
             python benchmark/template/scripts/benchmark.py task-finish --workspace "$TMP" --id "$ID"
           done
           python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
@@ -532,14 +546,23 @@ jobs:
           scores = {name: 90 - i for i, name in enumerate(langs)}
 
           def write(agent, requirements):
-              d = root / "work" / "agents" / agent
-              d.mkdir(parents=True, exist_ok=True)
-              (d / "result.json").write_text(json.dumps({
+              payload = {
                   "schema_version": 1,
                   "evaluation": "semantic_compression",
                   "requirements": requirements,
                   "evidence": {"ci": "synthetic normalized smoke evidence"},
-              }, indent=2) + "\n")
+              }
+              response = {
+                  "schema_version": 1,
+                  "task_id": agent,
+                  "files": [{
+                      "path": "result.json",
+                      "content": json.dumps(payload, indent=2) + "\n",
+                  }],
+              }
+              (root / "raw" / f"{agent}.response.json").write_text(
+                  json.dumps(response) + "\n"
+              )
 
           write("worker-sc-metrics-local--part-1", {
               "metric.semantic_density": scores,
@@ -557,7 +580,9 @@ jobs:
           })
           PY
           for ID in sc-metrics-local--part-1 sc-metrics-local--part-2 sc-metrics-hidden-coverage--part-1 sc-metrics-hidden-coverage--part-2; do
+            AGENT="worker-$ID"
             python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id "$ID"
+            python benchmark/template/scripts/benchmark.py task-apply --workspace "$TMP" --id "$AGENT"               < "$TMP/raw/$AGENT.response.json"
             python benchmark/template/scripts/benchmark.py task-finish --workspace "$TMP" --id "$ID"
           done
           python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
@@ -566,16 +591,27 @@ jobs:
           from pathlib import Path
           import json
           root = Path(".benchmark-template-test")
-          d = root / "work" / "agents" / "worker-sc-comparability"
-          d.mkdir(parents=True, exist_ok=True)
-          (d / "result.json").write_text(json.dumps({
+          agent = "worker-sc-comparability"
+          payload = {
               "schema_version": 1,
               "evaluation": "semantic_compression",
               "requirements": {"gate.comparability_audit": True},
               "evidence": {"ci": "gate pass"},
-          }, indent=2) + "\n")
+          }
+          response = {
+              "schema_version": 1,
+              "task_id": agent,
+              "files": [{
+                  "path": "result.json",
+                  "content": json.dumps(payload, indent=2) + "\n",
+              }],
+          }
+          (root / "raw" / f"{agent}.response.json").write_text(
+              json.dumps(response) + "\n"
+          )
           PY
           python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id sc-comparability
+          python benchmark/template/scripts/benchmark.py task-apply --workspace "$TMP"             --id worker-sc-comparability < "$TMP/raw/worker-sc-comparability.response.json"
           python benchmark/template/scripts/benchmark.py task-finish --workspace "$TMP" --id sc-comparability
           python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
 
@@ -801,6 +837,10 @@ jobs:
 
 
       - name: Exercise full five-Primary synthetic completion
+        env:
+          QUIDRA_BENCHMARK_WORKER_GATEWAY_ATTESTED: packet-gateway-v1
+          QUIDRA_BENCHMARK_PACKET_WORKER_LOCAL_TOOLS: disabled
+          QUIDRA_BENCHMARK_SANDBOX_AGENT_LAUNCHER_ATTESTED: inside-sandbox-v1
         run: |
           export QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS=1
           TMP="$PWD/.benchmark-template-e2e"
@@ -904,10 +944,30 @@ jobs:
                           "requirements": requirements,
                           "evidence": {"ci": "synthetic full-primary evidence"},
                       }
-                  d = root / "work/agents" / agent
-                  d.mkdir(parents=True, exist_ok=True)
-                  (d / "result.json").write_text(json.dumps(payload, indent=2) + "\n")
                   run("task-start", "--id", uid)
+                  if unit.get("worker_mode", "packet-only") == "packet-only":
+                      response = json.dumps({
+                          "schema_version": 1,
+                          "task_id": agent,
+                          "files": [{
+                              "path": "result.json",
+                              "content": json.dumps(payload, indent=2) + "\n",
+                          }],
+                      }).encode()
+                      subprocess.run(
+                          [
+                              sys.executable, str(cli), "task-apply",
+                              "--id", agent, "--workspace", str(root),
+                          ],
+                          input=response,
+                          check=True,
+                      )
+                  else:
+                      d = root / "work/agents" / agent
+                      d.mkdir(parents=True, exist_ok=True)
+                      (d / "result.json").write_text(
+                          json.dumps(payload, indent=2) + "\n"
+                      )
                   run("task-finish", "--id", uid)
           else:
               raise AssertionError("full synthetic benchmark did not terminate")

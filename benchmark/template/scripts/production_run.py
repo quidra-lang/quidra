@@ -239,9 +239,15 @@ def provider_smoke(
     sock = workdir / "s.sock"
     policy_path = workdir / "task-policy.json"
     log_path = workdir / "audit.jsonl"
-    granted, refused = "smoke-network-task", "smoke-unknown-task"
+    # Every task the smoke will actually send must be named, exactly as the
+    # production policy names every agent it will dispatch. `refused` is left out
+    # on purpose: an unnamed task is what the refusal check needs.
+    plain, granted, refused = "smoke-plain", "smoke-network-task", "smoke-unknown-task"
     policy_path.write_text(
-        json.dumps({"schema_version": 1, "tasks": {granted: "allowed"}}) + "\n",
+        json.dumps({
+            "schema_version": 1,
+            "tasks": {plain: "disabled", granted: "allowed"},
+        }) + "\n",
         encoding="utf-8",
     )
 
@@ -323,7 +329,7 @@ def provider_smoke(
         # The first real call. Tiny prompt, tiny output cap.
         plain = client.complete(
             [{"role": "user", "content": "Reply with the single word: ready"}],
-            task_id="smoke-plain",
+            task_id=plain,
             max_output_tokens=16,
             request_id=uuid.uuid4().hex,
         )

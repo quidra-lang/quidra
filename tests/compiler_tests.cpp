@@ -281,8 +281,10 @@ static void string_input_ignores_package_lock() {
         {
             std::ofstream out(root / "quidra.lock", std::ios::binary);
             if (!out) throw std::runtime_error("cannot create temporary package lock");
-            out << "quidra-lock-v1\n"
-                << "dnn 0000000000000000000000000000000000000000000000000000000000000000\n";
+            // Deliberately invalid content proves the in-memory string APIs do
+            // not consult a project lockfile at all. This test is not a legacy
+            // lockfile compatibility fixture.
+            out << "not-a-valid-package-lock\n";
         }
         std::filesystem::current_path(root);
         (void)quidra::check("print(int(1))\n");

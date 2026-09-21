@@ -201,7 +201,8 @@ def check_lockfile_schema_ownership(project: dict) -> None:
         "tests/package_lock_tests.cpp",
     }
     legacy_offenders = []
-    for legacy in ("quidra-lock-v1", "quidra-lock-v2"):
+    for version in range(1, schema):
+        legacy = f"quidra-lock-v{version}"
         for root in roots:
             base = ROOT / root
             for path in sorted(p for p in base.rglob("*") if p.is_file()):

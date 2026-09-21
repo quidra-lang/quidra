@@ -1409,7 +1409,9 @@ private:
 
     fs::path logical_path(const std::string& target) const {
         fs::path relative = target;
-        if (relative.extension().empty()) relative += ".qui";
+        if (relative.extension().empty()) {
+            relative += std::string(source_extension);
+        }
         if (relative.is_absolute()) {
             frontend_error("IMPORT_PATH", "Logical module names resolve inside the command working directory.");
         }

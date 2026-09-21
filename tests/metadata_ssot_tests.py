@@ -132,6 +132,50 @@ def check_backend_names(project: dict) -> None:
     )
 
 
+def check_platform_targets(project: dict) -> None:
+    source = read(ROOT / "src" / "package_cli.cpp")
+    compiled = set(
+        re.findall(
+            r'return "((?:linux|macos|windows)-(?:x86_64|arm64))";',
+            source,
+        )
+    )
+    declared = set(project["platforms"]["targets"])
+    check(
+        compiled == declared,
+        f"package_cli.cpp platform ids {sorted(compiled)} but project.toml "
+        f"declares {sorted(declared)}",
+    )
+
+
+def check_source_extension_consumers(project: dict) -> None:
+    extension = project["project"]["extension"]
+    consumers = {
+        "include/quidra/import_path.hpp": read(
+            ROOT / "include" / "quidra" / "import_path.hpp"
+        ),
+        "src/frontend.cpp": read(ROOT / "src" / "frontend.cpp"),
+        "src/package_cli.cpp": read(ROOT / "src" / "package_cli.cpp"),
+    }
+    forbidden = (
+        f'extension() != "{extension}"',
+        f'extension() == "{extension}"',
+        f'+= "{extension}"',
+        f'/ "main{extension}"',
+    )
+    offenders = []
+    for name, text in consumers.items():
+        for literal in forbidden:
+            if literal in text:
+                offenders.append(f"{name}: {literal}")
+    check(
+        not offenders,
+        "machine-sensitive source/package paths must derive from project.toml "
+        "instead of spelling the extension/entrypoint directly:\n  "
+        + "\n  ".join(offenders),
+    )
+
+
 def check_installer_repository(project: dict) -> None:
     expected = project["repos"]["core"].removeprefix("https://github.com/")
     installer = read(ROOT / "scripts" / "install-ubuntu.sh")
@@ -217,6 +261,8 @@ def main() -> int:
     check_generated_files_are_current()
     check_build_dependencies(project)
     check_backend_names(project)
+    check_platform_targets(project)
+    check_source_extension_consumers(project)
     check_installer_repository(project)
     check_generated_header_placeholders()
     check_no_second_version_definition(project)

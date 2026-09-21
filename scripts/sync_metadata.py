@@ -56,6 +56,18 @@ def render_manifest(project: dict) -> str:
         )
     data.update(owned)
     data["gpu_backend_model"]["abi_version"] = project["compat"]["abi"]
+    package = project["package_manager"]
+    data["package_manager_model"] = {
+        "package_schema_version": project["compat"]["package_schema"],
+        "lockfile_schema_version": project["compat"]["lockfile_schema"],
+        "manifest_file": package["manifest_file"],
+        "project_file": package["project_file"],
+        "lock_file": package["lock_file"],
+        "entrypoint": package["entrypoint_stem"] + project["project"]["extension"],
+        "store_relative": package["store_relative"],
+        "official_distribution_prefix": package["official_distribution_prefix"],
+        "official_repository_base": package["official_repository_base"],
+    }
     return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 

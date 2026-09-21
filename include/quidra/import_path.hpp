@@ -1,6 +1,7 @@
 #pragma once
 
 #include "quidra/language.hpp"
+#include "quidra/project.hpp"
 
 #include <cstdlib>
 #include <filesystem>
@@ -90,7 +91,9 @@ inline ImportPathResolution resolve_local_import_path(
         base = ImportPathBase::CommandWorkingDirectory;
         const auto remainder = source.substr(2);
         if (remainder.empty()) {
-            throw std::invalid_argument("Project-root import path must name a .qui file.");
+            throw std::invalid_argument(
+                "Project-root import path must name a " +
+                std::string(source_extension) + " file.");
         }
         if (remainder.front() == '/' || remainder.front() == '\\') {
             throw std::invalid_argument(
@@ -115,8 +118,10 @@ inline ImportPathResolution resolve_local_import_path(
         relative = relative.lexically_normal();
     }
 
-    if (relative.extension() != ".qui") {
-        throw std::invalid_argument("Local import path must use the .qui extension.");
+    if (relative.extension() != source_extension) {
+        throw std::invalid_argument(
+            "Local import path must use the " +
+            std::string(source_extension) + " extension.");
     }
 
     const auto base_path =
@@ -137,7 +142,8 @@ inline std::optional<std::filesystem::path> resolve_installed_package_path(
         if (root.empty()) return std::nullopt;
         std::error_code error;
         const auto candidate =
-            (root / std::string(package_name) / "main.qui").lexically_normal();
+            (root / std::string(package_name) / package_entrypoint_filename())
+                .lexically_normal();
         if (std::filesystem::is_regular_file(candidate, error) && !error) return candidate;
         return std::nullopt;
     };
@@ -171,7 +177,9 @@ inline std::optional<std::filesystem::path> resolve_installed_package_path(
 #endif
     if (home) {
         if (auto resolved =
-                candidate_from_root(std::filesystem::path(*home) / ".quidra" / "packages")) {
+                candidate_from_root(
+                    std::filesystem::path(*home) /
+                    std::filesystem::path(std::string(package_store_relative)))) {
             return resolved;
         }
     }

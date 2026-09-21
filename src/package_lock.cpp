@@ -1,5 +1,6 @@
 #include "quidra/package_lock.hpp"
 #include "quidra/package_manifest.hpp"
+#include "quidra/project.hpp"
 
 #include <algorithm>
 #include <array>
@@ -197,13 +198,15 @@ bool valid_sha256(std::string_view value) {
 } // namespace
 
 fs::path package_lock_path(const fs::path& project_root) {
-    return fs::absolute(project_root).lexically_normal() / "quidra.lock";
+    return fs::absolute(project_root).lexically_normal() /
+           std::string(package_lock_filename);
 }
 
 std::string package_tree_sha256(const fs::path& package_main) {
     const auto main = fs::absolute(package_main).lexically_normal();
     std::error_code error;
-    if (!fs::is_regular_file(main, error) || error || main.filename() != "main.qui") {
+    if (!fs::is_regular_file(main, error) || error ||
+        main.filename() != package_entrypoint_filename()) {
         throw std::runtime_error("package hash requires a package main.qui file");
     }
     const auto root = main.parent_path();
@@ -272,8 +275,8 @@ std::optional<PackageLockEntries> read_package_lock(const fs::path& project_root
     }
     const bool legacy_v1 = line == "quidra-lock-v1";
     const bool legacy_v2 = line == "quidra-lock-v2";
-    const bool current_v3 = line == "quidra-lock-v3";
-    if (!legacy_v1 && !legacy_v2 && !current_v3) {
+    const bool current = line == current_lockfile_header();
+    if (!legacy_v1 && !legacy_v2 && !current) {
         throw std::runtime_error(
             "quidra.lock must begin with a supported quidra-lock header");
     }
@@ -346,7 +349,7 @@ std::optional<PackageLockEntries> read_package_lock(const fs::path& project_root
 std::string package_lock_text(
     const std::map<std::string, fs::path>& packages) {
     std::ostringstream output;
-    output << "quidra-lock-v3\n";
+    output << current_lockfile_header() << '\n';
 
     for (const auto& [name, main] : packages) {
         if (!valid_lock_name(name)) {

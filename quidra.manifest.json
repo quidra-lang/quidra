@@ -267,5 +267,16 @@
   "concurrency_model": "task.all accepts capture-free fn<void>()[] for effect-only work and fn<int>()[] / fn<float>()[] for ordered scalar results; task.all(operations, counter) accepts fn<void>(atomic.Counter)[] and explicitly passes independently owned handles to one shared sequentially-consistent atomic int64 cell; workers are bounded, every started operation is joined, result placement follows operation index independently of completion order, ordinary managed values are not implicitly shared, and detached tasks/cancellation remain unavailable",
   "atomic_model": "atomic.counter(initial) creates an explicit shared signed-64-bit synchronization resource; Counter copies share one atomic cell, load is sequentially consistent, add is a checked sequentially-consistent read-modify-write, and overflow fails rather than wrapping",
   "reference_cell_model": "ref.Cell<T> is the explicit opt-in reference-semantic container; ordinary copies retain one managed Cell allocation, value-field mutation is shared, same(other) compares allocation identity, and ordinary user classes keep independent value semantics",
-  "class_reuse_model": "explicit composition; a class contains only the fields and methods it declares; unions represent alternatives"
+  "class_reuse_model": "explicit composition; a class contains only the fields and methods it declares; unions represent alternatives",
+  "package_manager_model": {
+    "package_schema_version": 1,
+    "lockfile_schema_version": 3,
+    "manifest_file": "quidra.package",
+    "project_file": "project.toml",
+    "lock_file": "quidra.lock",
+    "entrypoint": "main.qui",
+    "store_relative": ".quidra/packages",
+    "official_distribution_prefix": "quidra-",
+    "official_repository_base": "https://github.com/quidra-lang/"
+  }
 }

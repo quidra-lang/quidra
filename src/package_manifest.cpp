@@ -1,6 +1,7 @@
 #include "quidra/package_manifest.hpp"
 
 #include "quidra/toml_subset.hpp"
+#include "quidra/project.hpp"
 
 #include <charconv>
 #include <cctype>
@@ -65,7 +66,8 @@ bool clause_matches(const VersionClause& clause, const SemanticVersion& version)
 
 std::optional<PackageProject> read_package_project(
     const fs::path& package_root, const PackageManifest& manifest) {
-    const auto path = package_root / "project.toml";
+    const auto path =
+        package_root / std::string(package_project_filename);
     const auto document = try_read_toml_subset(path);
     if (!document) return std::nullopt;
 
@@ -221,7 +223,8 @@ bool VersionRequirement::matches(const SemanticVersion& version) const {
 }
 
 PackageManifest read_package_manifest(const fs::path& package_root) {
-    const auto path = package_root / "quidra.package";
+    const auto path =
+        package_root / std::string(package_manifest_filename);
     std::ifstream input(path, std::ios::binary);
     if (!input) {
         throw std::runtime_error("package is missing quidra.package: " +
@@ -319,7 +322,8 @@ PackageManifest read_package_manifest(const fs::path& package_root) {
 std::optional<PackageManifest> try_read_package_manifest(
     const fs::path& package_root) {
     std::error_code error;
-    const auto path = package_root / "quidra.package";
+    const auto path =
+        package_root / std::string(package_manifest_filename);
     if (!fs::exists(path, error) && !error) return std::nullopt;
     if (error || !fs::is_regular_file(path, error) || error) {
         throw std::runtime_error(

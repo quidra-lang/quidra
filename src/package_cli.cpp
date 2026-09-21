@@ -55,7 +55,8 @@ fs::path package_root() {
         throw std::runtime_error(
             "cannot determine user home for the Quidra package store");
     }
-    return fs::path(*home) / ".quidra" / "packages";
+    return fs::path(*home) /
+           fs::path(std::string(package_store_relative));
 }
 
 struct InstalledPackage {
@@ -81,7 +82,9 @@ InstalledPackage find_installed_package(std::string_view identity) {
         const auto import_name = entry.path().filename().string();
         error.clear();
         if (import_name.empty() || import_name.front() == '.' ||
-            !fs::is_regular_file(entry.path() / "main.qui", error) || error) {
+            !fs::is_regular_file(
+                entry.path() / package_entrypoint_filename(), error) ||
+            error) {
             continue;
         }
 
@@ -196,9 +199,10 @@ void require_package_source(const fs::path& source) {
         throw std::runtime_error(
             "package source must be a directory: " + source.string());
     }
-    const auto main = source / "main.qui";
+    const auto main = source / package_entrypoint_filename();
     if (!fs::is_regular_file(main, error) || error) {
-        throw std::runtime_error("package source must contain main.qui");
+        throw std::runtime_error(
+            "package source must contain " + package_entrypoint_filename());
     }
 }
 
@@ -258,7 +262,8 @@ void publish_package(
 
     try {
         copy_package_tree(source, temporary);
-        if (!fs::is_regular_file(temporary / "main.qui")) {
+        if (!fs::is_regular_file(
+                temporary / package_entrypoint_filename())) {
             throw std::runtime_error("copied package lost main.qui");
         }
 
@@ -476,9 +481,11 @@ void validate_asset_archive_listing(std::string_view listing) {
                     "package asset archive contains an unsafe path");
             }
             if (first) {
-                if (part == ".git" || part == "main.qui" ||
-                    part == "quidra.package" || part == "project.toml" ||
-                    part == "quidra.lock") {
+                if (part == ".git" ||
+                    part == package_entrypoint_filename() ||
+                    part == package_manifest_filename ||
+                    part == package_project_filename ||
+                    part == package_lock_filename) {
                     throw std::runtime_error(
                         "package asset archive may not replace package identity files");
                 }
@@ -658,13 +665,13 @@ RemoteSpec parse_remote_spec(std::string spec) {
         repository = "https://github.com/" + spec;
         if (!repository.ends_with(".git")) repository += ".git";
         expected_import_name = repository_basename(spec);
-    } else if (spec.starts_with("quidra-")) {
+    } else if (spec.starts_with(official_distribution_prefix)) {
         if (!is_distribution_package_name(spec)) {
             throw std::runtime_error(
                 "invalid distribution package name: " + spec);
         }
         expected_import_name =
-            spec.substr(std::string("quidra-").size());
+            spec.substr(official_distribution_prefix.size());
         if (!valid_package_name(expected_import_name)) {
             throw std::runtime_error(
                 "official Quidra distribution name must end in an "
@@ -672,7 +679,7 @@ RemoteSpec parse_remote_spec(std::string spec) {
         }
         expected_distribution_name = spec;
         repository =
-            "https://github.com/quidra-lang/" +
+            std::string(official_repository_base) +
             expected_import_name + ".git";
     } else {
         if (!valid_package_name(spec)) {
@@ -682,7 +689,7 @@ RemoteSpec parse_remote_spec(std::string spec) {
         }
         expected_import_name = spec;
         repository =
-            "https://github.com/quidra-lang/" + spec + ".git";
+            std::string(official_repository_base) + spec + ".git";
     }
 
     if (!valid_package_name(expected_import_name)) {
@@ -832,7 +839,7 @@ void install_remote(std::string_view raw_spec) {
 
     require_package_dependencies(*selected_manifest);
     (void)check_file(
-        selected_source / "main.qui", {}, selected_source);
+        selected_source / package_entrypoint_filename(), {}, selected_source);
     hydrate_release_asset(*selected_manifest, selected_source);
 
     const std::string import_name(
@@ -894,7 +901,7 @@ void install_local(
     }
 
     (void)check_file(
-        absolute / "main.qui", {}, absolute);
+        absolute / package_entrypoint_filename(), {}, absolute);
 
     publish_package(
         absolute, name, force);
@@ -948,7 +955,7 @@ void list_packages() {
             entry.path().filename().string();
         if (name.empty() || name.front() == '.' ||
             !fs::is_regular_file(
-                entry.path() / "main.qui")) {
+                entry.path() / package_entrypoint_filename())) {
             continue;
         }
 
@@ -1050,7 +1057,7 @@ int lock_packages(
     std::error_code error;
 
     if (!fs::is_regular_file(absolute, error) ||
-        error || absolute.extension() != ".qui") {
+        error || absolute.extension() != source_extension) {
         throw std::runtime_error(
             "package lock requires an existing "
             ".qui root source file");

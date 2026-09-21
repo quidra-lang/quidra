@@ -24,6 +24,14 @@ quidra_project_value(tagline QUIDRA_TAGLINE)
 quidra_project_value(abi QUIDRA_ABI_VERSION)
 quidra_project_value(ir QUIDRA_IR_VERSION)
 quidra_project_value(package_schema QUIDRA_PACKAGE_SCHEMA_VERSION)
+quidra_project_value(lockfile_schema QUIDRA_LOCKFILE_SCHEMA_VERSION)
+quidra_project_value(manifest_file QUIDRA_PACKAGE_MANIFEST_FILE)
+quidra_project_value(project_file QUIDRA_PACKAGE_PROJECT_FILE)
+quidra_project_value(lock_file QUIDRA_PACKAGE_LOCK_FILE)
+quidra_project_value(entrypoint_stem QUIDRA_PACKAGE_ENTRYPOINT_STEM)
+quidra_project_value(store_relative QUIDRA_PACKAGE_STORE_RELATIVE)
+quidra_project_value(official_distribution_prefix QUIDRA_OFFICIAL_DISTRIBUTION_PREFIX)
+quidra_project_value(official_repository_base QUIDRA_OFFICIAL_REPOSITORY_BASE)
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/quidra.manifest.json" QUIDRA_MANIFEST_JSON)
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/docs/spec/grammar.ebnf" QUIDRA_GRAMMAR_EBNF)
@@ -317,6 +325,10 @@ if(BUILD_TESTING)
   target_link_libraries(quidra_package_manifest_tests PRIVATE quidra_core)
   add_test(NAME quidra_package_manifest_tests COMMAND quidra_package_manifest_tests)
 
+  add_executable(quidra_package_lock_tests tests/package_lock_tests.cpp)
+  target_link_libraries(quidra_package_lock_tests PRIVATE quidra_core)
+  add_test(NAME quidra_package_lock_tests COMMAND quidra_package_lock_tests)
+
   add_executable(quidra_runtime_string_tests tests/runtime_string_tests.cpp)
   target_link_libraries(quidra_runtime_string_tests PRIVATE quidra_runtime)
   add_test(NAME quidra_runtime_string_tests COMMAND quidra_runtime_string_tests)
@@ -380,6 +392,7 @@ if(BUILD_TESTING)
     quidra_parser_tests
     quidra_type_policy_tests
     quidra_package_manifest_tests
+    quidra_package_lock_tests
     quidra_runtime_string_tests
     quidra_process_portability
     quidra_documentation_examples

@@ -34,6 +34,18 @@ tagline = "Programming with maximum meaning per token."
 abi = 1
 ir = 1
 package_schema = 1
+lockfile_schema = 3
+
+# Package-manager layout and naming contracts. These are authored once here;
+# generated compiler constants and machine-readable metadata derive from them.
+[package_manager]
+manifest_file = "quidra.package"
+project_file = "project.toml"
+lock_file = "quidra.lock"
+entrypoint_stem = "main"
+store_relative = ".quidra/packages"
+official_distribution_prefix = "quidra-"
+official_repository_base = "https://github.com/quidra-lang/"
 
 [repos]
 core = "https://github.com/quidra-lang/quidra"

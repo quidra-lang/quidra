@@ -1075,6 +1075,18 @@ def cmd_preflight(args: argparse.Namespace) -> int:
     if attested_root != str(root):
         problems.append("sandbox_runner_root_attestation_missing_or_mismatch")
 
+    worker_gateway = os.environ.get("QUIDRA_BENCHMARK_WORKER_GATEWAY_ATTESTED")
+    packet_local_tools = os.environ.get("QUIDRA_BENCHMARK_PACKET_WORKER_LOCAL_TOOLS")
+    sandbox_agent_launcher = os.environ.get(
+        "QUIDRA_BENCHMARK_SANDBOX_AGENT_LAUNCHER_ATTESTED"
+    )
+    if worker_gateway != "packet-gateway-v1":
+        problems.append("worker_gateway_attestation_missing_or_mismatch")
+    if packet_local_tools != "disabled":
+        problems.append("packet_worker_local_tools_not_disabled")
+    if sandbox_agent_launcher != "inside-sandbox-v1":
+        problems.append("sandbox_agent_launcher_attestation_missing_or_mismatch")
+
     problems.extend(template_integrity_problems(root, run))
 
     for env_name in ("HOME", "TMPDIR", "PWD"):
@@ -1103,6 +1115,13 @@ def cmd_preflight(args: argparse.Namespace) -> int:
             allowed_prefix = primary_cfg.get("privacy", {}).get("allowed_absolute_path_prefix")
             if allowed_prefix != CANONICAL_WORKSPACE.as_posix() + "/":
                 problems.append("primary_config_allowed_path_prefix_mismatch")
+            worker_iso = primary_cfg.get("worker_isolation", {})
+            if worker_iso.get("default_mode") != "packet-only":
+                problems.append("primary_config_worker_default_mode_mismatch")
+            if set(worker_iso.get("allowed_modes", [])) != {"packet-only", "sandbox-agent"}:
+                problems.append("primary_config_worker_allowed_modes_mismatch")
+            if worker_iso.get("host_tool_capable_leaf_policy") != "forbidden":
+                problems.append("primary_config_host_tool_capable_leaf_policy_mismatch")
         except Exception as exc:
             problems.append(f"primary_config_invalid:{exc}")
     if config.exists() and run:
@@ -1433,6 +1452,19 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
         execution_kind = str(raw.get("execution_kind", "agent"))
         if execution_kind not in {"agent", "command"}:
             raise BenchmarkError(f"{uid}: execution_kind must be agent or command")
+        if execution_kind == "agent":
+            worker_mode = str(raw.get("worker_mode") or "packet-only")
+            if worker_mode not in {"packet-only", "sandbox-agent"}:
+                raise BenchmarkError(
+                    f"{uid}: worker_mode must be packet-only or sandbox-agent"
+                )
+        else:
+            configured_worker_mode = raw.get("worker_mode")
+            if configured_worker_mode not in (None, "runner-command"):
+                raise BenchmarkError(
+                    f"{uid}: command work may only use worker_mode=runner-command"
+                )
+            worker_mode = "runner-command"
         prompt_sections = raw.get("prompt_sections", [])
         if not isinstance(prompt_sections, list) or not all(isinstance(x, str) for x in prompt_sections):
             raise BenchmarkError(f"{uid}: prompt_sections must be a string array")
@@ -1514,6 +1546,7 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
             "max_output_tokens_per_call": output_tokens,
             "network_allowed": bool(raw.get("network_allowed", False)),
             "execution_kind": execution_kind,
+            "worker_mode": worker_mode,
             "prompt_sections": prompt_sections,
             "max_attempts": max_attempts,
             "result_kind": result_kind,
@@ -1742,6 +1775,7 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                 "evaluation": evaluation,
                 "phase": "readiness",
                 "execution_kind": "agent",
+                "worker_mode": "packet-only",
                 "result_kind": "audit",
                 "goal": (
                     f"Audit reusable artifact {artifact_id} against the current toolchain/capability "
@@ -1903,6 +1937,11 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                     "evaluation": evaluation,
                     "phase": raw["phase"],
                     "execution_kind": execution_kind,
+                    "worker_mode": (
+                        str(raw.get("worker_mode") or "packet-only")
+                        if execution_kind == "agent"
+                        else "runner-command"
+                    ),
                     "result_kind": result_kind,
                     "runner_action": raw.get("runner_action"),
                     "goal": goal,
@@ -1953,6 +1992,7 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
             "evaluation": evaluation,
             "phase": "aggregation",
             "execution_kind": "command",
+            "worker_mode": "runner-command",
             "result_kind": "aggregate",
             "runner_action": "aggregate-primary",
             "goal": f"Mechanically aggregate {evaluation} and generate its language ranking.",
@@ -2060,6 +2100,7 @@ def cmd_tasks_create(args: argparse.Namespace) -> int:
                     or task_meta.get("requirement_ids") != unit.get("requirement_ids", [])
                     or task_meta.get("prompt_sections") != unit.get("prompt_sections", [])
                     or task_meta.get("assigned_languages", []) != assigned_languages
+                    or task_meta.get("worker_mode") != unit.get("worker_mode", "packet-only")
                     or task_meta.get("expected_outputs") != expected_outputs
                     or task_meta.get("validation_command") != unit.get("validator_command")
                     or bool(task_meta.get("network_allowed")) != bool(unit.get("network_allowed", False))
@@ -2092,6 +2133,7 @@ def cmd_tasks_create(args: argparse.Namespace) -> int:
             section=unit.get("prompt_sections", []),
             requirement_id=unit.get("requirement_ids", []),
             language=assigned_languages,
+            worker_mode=unit.get("worker_mode", "packet-only"),
         )
         cmd_task_create(ns)
         created.append({
@@ -2209,6 +2251,9 @@ def cmd_manifest_merge(args: argparse.Namespace) -> int:
                 "network_allowed": bool(raw.get("network_allowed", False)),
                 "validator_command": validator,
                 "execution_kind": execution_kind,
+                "worker_mode": str(raw.get("worker_mode") or (
+                    "packet-only" if execution_kind == "agent" else "runner-command"
+                )),
                 "prompt_sections": prompt_sections,
                 "max_attempts": max_attempts,
                 "result_kind": result_kind,
@@ -2543,6 +2588,186 @@ def extract_markdown_sections(content: str, selectors: list[str]) -> str:
     return "\n\n".join(chunks) + "\n"
 
 
+
+def worker_isolation_config(root: Path) -> dict[str, Any]:
+    cfg = json_load(root / "template" / "config" / "primary.json")
+    worker = cfg.get("worker_isolation", {})
+    if not isinstance(worker, dict):
+        raise BenchmarkError("primary worker_isolation config must be an object")
+    return worker
+
+
+def collect_packet_only_inputs(
+    root: Path, read_paths: list[str]
+) -> tuple[list[dict[str, Any]], list[tuple[str, str]]]:
+    cfg = worker_isolation_config(root)
+    max_files = int(cfg.get("packet_only_max_embedded_files", 256))
+    max_bytes = int(cfg.get("packet_only_max_embedded_bytes", 1048576))
+    files: list[dict[str, Any]] = []
+    sections: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    total_bytes = 0
+    for raw in read_paths:
+        source = require_under(Path(raw), root)
+        if source.is_symlink():
+            raise BenchmarkError(f"packet-only input may not be a symlink: {source}")
+        if source.is_file():
+            candidates = [source]
+        elif source.is_dir():
+            candidates = sorted(
+                path for path in source.rglob("*")
+                if path.is_file() and not path.is_symlink()
+            )
+        else:
+            raise BenchmarkError(f"packet-only input is missing: {source}")
+        for path in candidates:
+            path = require_under(path, root)
+            relative = path.relative_to(root).as_posix()
+            if relative in seen:
+                continue
+            data = path.read_bytes()
+            if b"\x00" in data:
+                raise BenchmarkError(
+                    f"packet-only input is binary and cannot be embedded: {path}"
+                )
+            try:
+                content = data.decode("utf-8")
+            except UnicodeDecodeError as exc:
+                raise BenchmarkError(
+                    f"packet-only input is not UTF-8 text: {path}"
+                ) from exc
+            seen.add(relative)
+            total_bytes += len(data)
+            if len(seen) > max_files:
+                raise BenchmarkError(
+                    f"packet-only input file count exceeds frozen limit {max_files}"
+                )
+            if total_bytes > max_bytes:
+                raise BenchmarkError(
+                    f"packet-only input bytes exceed frozen limit {max_bytes}; "
+                    "narrow the Task Packet or use sandbox-agent mode"
+                )
+            digest = sha256_bytes(data)
+            canonical = (root / relative).as_posix()
+            files.append({
+                "path": canonical,
+                "sha256": digest,
+                "bytes": len(data),
+            })
+            sections.append((
+                f"task-input:{relative}",
+                "\n\n---\n\n"
+                f"## Embedded task input: {canonical}\n"
+                f"Source SHA-256: \`{digest}\`\n\n"
+                + content
+            ))
+    return files, sections
+
+
+def cmd_task_apply(args: argparse.Namespace) -> int:
+    root = workspace(args)
+    agent_dir = require_under(root / "work" / "agents" / args.id, root)
+    meta = json_load(agent_dir / "task.json")
+    if meta.get("worker_mode") != "packet-only":
+        raise BenchmarkError("task-apply is only valid for packet-only workers")
+    cfg = worker_isolation_config(root)
+    max_bytes = int(cfg.get("packet_only_max_response_bytes", 2097152))
+    max_files = int(cfg.get("packet_only_max_response_files", 64))
+    raw = sys.stdin.buffer.read(max_bytes + 1)
+    if len(raw) > max_bytes:
+        raise BenchmarkError(
+            f"packet-only worker response exceeds frozen limit {max_bytes}"
+        )
+    try:
+        response = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise BenchmarkError(
+            f"packet-only worker response is not valid UTF-8 JSON: {exc}"
+        ) from exc
+    if not isinstance(response, dict):
+        raise BenchmarkError("packet-only worker response must be a JSON object")
+    if response.get("schema_version") != 1:
+        raise BenchmarkError("packet-only worker response schema_version must be 1")
+    if response.get("task_id") != args.id:
+        raise BenchmarkError("packet-only worker response task_id mismatch")
+    output_files = response.get("files")
+    if not isinstance(output_files, list) or not output_files:
+        raise BenchmarkError(
+            "packet-only worker response files must be a non-empty array"
+        )
+    if len(output_files) > max_files:
+        raise BenchmarkError(
+            f"packet-only worker response file count exceeds frozen limit {max_files}"
+        )
+    seen: set[str] = set()
+    staged: list[tuple[Path, bytes, str]] = []
+    total_output_bytes = 0
+    for entry in output_files:
+        if not isinstance(entry, dict):
+            raise BenchmarkError(
+                "packet-only worker response file entries must be objects"
+            )
+        rel_text = str(entry.get("path") or "")
+        rel = PurePosixPath(rel_text)
+        if (
+            not rel_text
+            or rel.is_absolute()
+            or rel_text in {"task.json", "validation.json", "worker_response.json"}
+            or any(part in {"", ".", ".."} for part in rel.parts)
+        ):
+            raise BenchmarkError(f"invalid packet-only output path: {rel_text!r}")
+        if rel_text in seen:
+            raise BenchmarkError(f"duplicate packet-only output path: {rel_text}")
+        content = entry.get("content")
+        if not isinstance(content, str):
+            raise BenchmarkError(
+                f"packet-only output content must be UTF-8 text: {rel_text}"
+            )
+        data = content.encode("utf-8")
+        total_output_bytes += len(data)
+        if total_output_bytes > max_bytes:
+            raise BenchmarkError(
+                f"packet-only output bytes exceed frozen limit {max_bytes}"
+            )
+        dest = require_under(agent_dir.joinpath(*rel.parts), agent_dir)
+        if dest.exists():
+            raise BenchmarkError(f"packet-only output already exists: {dest}")
+        seen.add(rel_text)
+        staged.append((dest, data, rel_text))
+    expected_relative = []
+    for expected in meta.get("expected_outputs", []):
+        expected_path = require_under(Path(expected), agent_dir)
+        expected_relative.append(
+            expected_path.relative_to(agent_dir).as_posix()
+        )
+    missing_expected = sorted(set(expected_relative) - seen)
+    if missing_expected:
+        raise BenchmarkError(
+            "packet-only worker response omitted expected outputs: "
+            + ", ".join(missing_expected)
+        )
+    receipt_files = []
+    for dest, data, rel_text in staged:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(data)
+        receipt_files.append({
+            "path": rel_text,
+            "sha256": sha256_bytes(data),
+            "bytes": len(data),
+        })
+    receipt = {
+        "schema_version": 1,
+        "task_id": args.id,
+        "prompt_sha256": meta.get("prompt_sha256"),
+        "response_sha256": sha256_bytes(raw),
+        "files": receipt_files,
+        "applied_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+    }
+    json_dump(agent_dir / "worker_response.json", receipt)
+    print(json.dumps({"ok": True, **receipt}, indent=2))
+    return 0
+
+
 def cmd_task_render(args: argparse.Namespace) -> int:
     root = workspace(args)
     agent_dir = require_under(root / "work" / "agents" / args.id, root)
@@ -2580,6 +2805,13 @@ def cmd_task_create(args: argparse.Namespace) -> int:
     requirement_ids = list(getattr(args, "requirement_id", []) or [])
     prompt_sections = list(getattr(args, "section", []) or [])
     assigned_languages = list(getattr(args, "language", []) or [])
+    worker_mode = str(getattr(args, "worker_mode", None) or "packet-only")
+    if worker_mode not in {"packet-only", "sandbox-agent"}:
+        raise BenchmarkError("worker_mode must be packet-only or sandbox-agent")
+    packet_inputs: list[dict[str, Any]] = []
+    packet_input_sections: list[tuple[str, str]] = []
+    if worker_mode == "packet-only":
+        packet_inputs, packet_input_sections = collect_packet_only_inputs(root, reads)
     if args.evaluation:
         methodology = root / "template" / "methodology"
         core_path = methodology / "worker_core.md"
@@ -2639,6 +2871,19 @@ def cmd_task_create(args: argparse.Namespace) -> int:
             + requirements_content
         ))
 
+    if worker_mode == "packet-only":
+        isolation_block = f"""- Worker mode: packet-only
+- Local filesystem, shell, process, editor, IDE, and host-application tools: forbidden
+- All permitted local source inputs are embedded in this packet.
+- Provider-level network retrieval: {'allowed' if args.network else 'disabled'}
+- Return exactly one JSON Worker Response; do not write files directly.
+- Worker Response schema: {{"schema_version":1,"task_id":"{args.id}","files":[{{"path":"result.json","content":"<UTF-8 text>"}}]}}"""
+    else:
+        isolation_block = """- Worker mode: sandbox-agent
+- The tool-capable agent process itself must run inside the attested /quidra-benchmark sandbox.
+- Host-side Read/Glob/Bash/editor/process tools are forbidden for the leaf.
+- Do not mount or forward host credentials, SSH agent sockets, or host home directories."""
+
     packet = f"""# Task Packet: {args.id}
 
 Evaluation: {args.evaluation or 'non-primary-support-task'}
@@ -2668,10 +2913,14 @@ Goal: {args.goal}
 - Network: {'allowed' if args.network else 'disabled'}
 - Further delegation depth remaining: {depth}
 
+## Worker isolation
+""" + isolation_block + f"""
+
 ## Rules
-- This packet plus the listed readable files is the complete task context.
+- This packet plus its embedded inputs (packet-only) or listed sandbox paths (sandbox-agent) is the complete task context.
 - Do not depend on the parent conversation or hidden context.
-- Do not write outside the writable path.
+- In packet-only mode, do not invoke local filesystem/shell/process/editor/application tools; return files only through the Worker Response JSON.
+- In sandbox-agent mode, do not write outside the writable path and do not access paths outside the listed readable paths.
 - Do not read sibling agent outputs unless explicitly listed above.
 - Preserve machine-readable evidence required by the methodology.
 - Use commands for mechanical work when a reusable command exists.
@@ -2679,13 +2928,15 @@ Goal: {args.goal}
 - Do not mark the task COMPLETE unless the validation command succeeds.
 - For a primary-evaluation task, the compact worker rules, selected methodology sections, assigned requirement IDs, and frozen primary configuration embedded below are authoritative.
 - Do not read historical benchmark run directories.
-- Write the standard summary to result.json in your writable directory.
+- Packet-only workers return result.json through the Worker Response; sandbox-agent workers write result.json in the writable directory.
 - A child agent must receive its own persisted self-contained Task Packet. Do not pass implicit parent conversation state.
 """
     packet = render_workspace_paths(packet, root)
     components = [store_prompt_component(root, packet, "task")]
     for name, section in embedded_sections:
         components.append(store_prompt_component(root, section, f"embedded:{name}"))
+    for name, packet_input in packet_input_sections:
+        components.append(store_prompt_component(root, packet_input, name))
     rendered = b"".join(Path(c["path"]).read_bytes() for c in components)
     prompt_hash = sha256_bytes(rendered)
 
@@ -2696,7 +2947,9 @@ Goal: {args.goal}
         "goal": args.goal,
         "evaluation": args.evaluation,
         "assigned_languages": assigned_languages,
+        "worker_mode": worker_mode,
         "embedded_inputs": embedded_inputs,
+        "packet_inputs": packet_inputs,
         "read_paths": reads,
         "write_path": write,
         "expected_outputs": outputs,
@@ -2914,6 +3167,17 @@ def cmd_task_start(args: argparse.Namespace) -> int:
     ledger = json_load(root / "work" / "root" / "ledger.json")
     if ledger.get("units", {}).get(args.id, {}).get("status", "PENDING") != "PENDING":
         raise BenchmarkError(f"task-start requires PENDING unit: {args.id}")
+    worker_mode = str(unit.get("worker_mode") or "packet-only")
+    if worker_mode == "packet-only":
+        if os.environ.get("QUIDRA_BENCHMARK_WORKER_GATEWAY_ATTESTED") != "packet-gateway-v1":
+            raise BenchmarkError("packet-only dispatch requires the attested worker gateway")
+        if os.environ.get("QUIDRA_BENCHMARK_PACKET_WORKER_LOCAL_TOOLS") != "disabled":
+            raise BenchmarkError("packet-only dispatch requires local worker tools to be disabled")
+    elif worker_mode == "sandbox-agent":
+        if os.environ.get("QUIDRA_BENCHMARK_SANDBOX_AGENT_LAUNCHER_ATTESTED") != "inside-sandbox-v1":
+            raise BenchmarkError("sandbox-agent dispatch requires the in-sandbox launcher")
+    else:
+        raise BenchmarkError(f"unsupported worker_mode for task-start: {worker_mode}")
     ns = argparse.Namespace(
         workspace=str(root), id=args.id, status="RUNNING", evidence=[],
         validation_result=None, blocker=None, blocker_class=None,
@@ -2982,6 +3246,16 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
     state = ledger["units"][args.id]
     if state.get("status") != "RUNNING":
         raise BenchmarkError(f"task-finish requires RUNNING unit: {args.id}")
+    worker_mode = str(unit.get("worker_mode") or "packet-only")
+    agent_dir = root / "work" / "agents" / agent_id
+    if worker_mode == "packet-only":
+        if not (agent_dir / "worker_response.json").is_file():
+            raise BenchmarkError("packet-only task-finish requires task-apply before validation")
+    elif worker_mode == "sandbox-agent":
+        if os.environ.get("QUIDRA_BENCHMARK_SANDBOX_AGENT_LAUNCHER_ATTESTED") != "inside-sandbox-v1":
+            raise BenchmarkError("sandbox-agent task-finish requires the in-sandbox launcher attestation")
+    else:
+        raise BenchmarkError(f"unsupported worker_mode for task-finish: {worker_mode}")
     validation_ns = argparse.Namespace(workspace=str(root), id=agent_id)
     rc = cmd_task_validate(validation_ns)
     if rc == 0:
@@ -3593,6 +3867,8 @@ def cmd_advance(args: argparse.Namespace) -> int:
                 "agent_id": agent_id,
                 "task_path": str(task_path),
                 "prompt_sha256": json_load(task_path).get("prompt_sha256"),
+                "worker_mode": unit.get("worker_mode", "packet-only"),
+                "requires_task_apply": unit.get("worker_mode", "packet-only") == "packet-only",
                 "attempts": int(state.get("attempts", 0)),
                 "max_attempts": int(state.get("max_attempts", 3)),
             })
@@ -4470,6 +4746,7 @@ def build_parser() -> argparse.ArgumentParser:
     tc.add_argument("--section", action="append", default=[])
     tc.add_argument("--requirement-id", action="append", default=[])
     tc.add_argument("--language", action="append", default=[])
+    tc.add_argument("--worker-mode", choices=("packet-only", "sandbox-agent"), default="packet-only")
     tc.set_defaults(func=cmd_task_create)
 
     ps = sub.add_parser("prompt-save", help="content-address and preserve an exact scored/delegated prompt")
@@ -4481,6 +4758,11 @@ def build_parser() -> argparse.ArgumentParser:
     tr.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     tr.add_argument("--id", required=True)
     tr.set_defaults(func=cmd_task_render)
+
+    ta = sub.add_parser("task-apply", help="import a packet-only worker JSON response from stdin")
+    ta.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
+    ta.add_argument("--id", required=True)
+    ta.set_defaults(func=cmd_task_apply)
 
     tv = sub.add_parser("task-validate", help="run the exact validator frozen in a Task Packet")
     tv.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))

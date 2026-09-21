@@ -22,7 +22,8 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of sc-structure-gates; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of sc-structure-gates; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "sc-structure-gates--part-2",
@@ -42,7 +43,8 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of sc-structure-gates; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of sc-structure-gates; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "sc-metrics-local--part-1",
@@ -66,7 +68,8 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "sc-metrics-local--part-2",
@@ -89,7 +92,8 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "sc-metrics-hidden-coverage--part-1",
@@ -113,7 +117,8 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "sc-metrics-hidden-coverage--part-2",
@@ -136,7 +141,8 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "sc-comparability",
@@ -158,7 +164,8 @@
             "repo/docs",
             "template/methodology-assets/semantic_compression"
           ],
-          "network_allowed": false
+          "network_allowed": false,
+          "worker_mode": "packet-only"
         }
       ]
     },
@@ -182,7 +189,8 @@
             "repo/docs"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of learnability-gates; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of learnability-gates; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "learnability-gates--part-2",
@@ -201,7 +209,8 @@
             "repo/docs"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of learnability-gates; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of learnability-gates; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "learnability-i1-i2",
@@ -226,7 +235,8 @@
           "estimated_input_tokens_per_call": 6000,
           "max_output_tokens_per_call": 4000,
           "split_by_language": true,
-          "llm_budget_formula": "learnability_conditions"
+          "llm_budget_formula": "learnability_conditions",
+          "worker_mode": "packet-only"
         },
         {
           "id": "learnability-i3-i4",
@@ -251,7 +261,8 @@
           "estimated_input_tokens_per_call": 6000,
           "max_output_tokens_per_call": 4000,
           "split_by_language": true,
-          "llm_budget_formula": "learnability_conditions"
+          "llm_budget_formula": "learnability_conditions",
+          "worker_mode": "packet-only"
         },
         {
           "id": "learnability-i5-i6",
@@ -276,7 +287,8 @@
           "estimated_input_tokens_per_call": 6000,
           "max_output_tokens_per_call": 4000,
           "split_by_language": true,
-          "llm_budget_formula": "learnability_conditions"
+          "llm_budget_formula": "learnability_conditions",
+          "worker_mode": "packet-only"
         }
       ]
     },
@@ -301,7 +313,8 @@
             "template/methodology-assets/language_quality",
             "template/methodology-assets/scoring"
           ],
-          "network_allowed": false
+          "network_allowed": false,
+          "worker_mode": "sandbox-agent"
         },
         {
           "id": "lq-qudra-representation",
@@ -325,7 +338,8 @@
             "template/workloads/micro.md",
             "template/config/quidra_representation_schema.json"
           ],
-          "network_allowed": false
+          "network_allowed": false,
+          "worker_mode": "packet-only"
         },
         {
           "id": "lq-qudra-micro-authoring-a",
@@ -354,7 +368,8 @@
             "template/validators/micro/check_micro.py",
             "template/config/quidra_representation_schema.json"
           ],
-          "network_allowed": false
+          "network_allowed": false,
+          "worker_mode": "packet-only"
         },
         {
           "id": "lq-qudra-micro-authoring-b",
@@ -383,7 +398,8 @@
             "template/validators/micro/check_micro.py",
             "template/config/quidra_representation_schema.json"
           ],
-          "network_allowed": false
+          "network_allowed": false,
+          "worker_mode": "packet-only"
         },
         {
           "id": "lq-qudra-micro-authoring-c",
@@ -412,7 +428,8 @@
             "template/validators/micro/check_micro.py",
             "template/config/quidra_representation_schema.json"
           ],
-          "network_allowed": false
+          "network_allowed": false,
+          "worker_mode": "packet-only"
         },
         {
           "id": "lq-qudra-micro-authoring-d",
@@ -441,7 +458,8 @@
             "template/validators/micro/check_micro.py",
             "template/config/quidra_representation_schema.json"
           ],
-          "network_allowed": false
+          "network_allowed": false,
+          "worker_mode": "packet-only"
         },
         {
           "id": "lq-micro-mechanical",
@@ -476,7 +494,8 @@
           ],
           "network_allowed": false,
           "max_attempts": 3,
-          "goal": "Mechanically build, validate, execute, measure and normalize the frozen micro-suite performance/resource metrics plus ordinary-program Startup Latency for all 10 languages. Source Code Size is the mean of per-workload normalized source-byte measurements over MB-01..MB-11. Quidra sources come only from the four current-run authoring shards after the separate current-commit representation freeze; comparison-language sources come from the current reusable template."
+          "goal": "Mechanically build, validate, execute, measure and normalize the frozen micro-suite performance/resource metrics plus ordinary-program Startup Latency for all 10 languages. Source Code Size is the mean of per-workload normalized source-byte measurements over MB-01..MB-11. Quidra sources come only from the four current-run authoring shards after the separate current-commit representation freeze; comparison-language sources come from the current reusable template.",
+          "worker_mode": "runner-command"
         },
         {
           "id": "lq-language-development--part-1",
@@ -499,7 +518,8 @@
             "template/workloads"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf.",
+          "worker_mode": "sandbox-agent"
         },
         {
           "id": "lq-language-development--part-2",
@@ -522,7 +542,8 @@
             "template/workloads"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf.",
+          "worker_mode": "sandbox-agent"
         },
         {
           "id": "lq-language-development--part-3",
@@ -545,7 +566,8 @@
             "template/workloads"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf.",
+          "worker_mode": "sandbox-agent"
         },
         {
           "id": "lq-language-development--part-4",
@@ -568,7 +590,8 @@
             "template/workloads"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf.",
+          "worker_mode": "sandbox-agent"
         },
         {
           "id": "lq-safety--part-1",
@@ -594,7 +617,8 @@
             "template/methodology-assets/scoring"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf.",
+          "worker_mode": "sandbox-agent"
         },
         {
           "id": "lq-safety--part-2",
@@ -620,7 +644,8 @@
             "template/methodology-assets/scoring"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf.",
+          "worker_mode": "sandbox-agent"
         },
         {
           "id": "lq-safety--part-3",
@@ -646,7 +671,8 @@
             "template/methodology-assets/scoring"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf.",
+          "worker_mode": "sandbox-agent"
         },
         {
           "id": "lq-safety--part-4",
@@ -672,7 +698,8 @@
             "template/methodology-assets/scoring"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf.",
+          "worker_mode": "sandbox-agent"
         },
         {
           "id": "lq-safety--part-5",
@@ -697,7 +724,8 @@
             "template/methodology-assets/scoring"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf.",
+          "worker_mode": "sandbox-agent"
         }
       ]
     },
@@ -719,7 +747,8 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-gates; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of ecosystem-gates; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "ecosystem-gates--part-2",
@@ -736,7 +765,8 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-gates; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of ecosystem-gates; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "ecosystem-external--part-1",
@@ -757,7 +787,8 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-external; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of ecosystem-external; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "ecosystem-external--part-2",
@@ -778,7 +809,8 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-external; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of ecosystem-external; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "ecosystem-external--part-3",
@@ -798,7 +830,8 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-external; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of ecosystem-external; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "ecosystem-tooling--part-1",
@@ -819,7 +852,8 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "ecosystem-tooling--part-2",
@@ -840,7 +874,8 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "ecosystem-tooling--part-3",
@@ -861,7 +896,8 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "ecosystem-tooling--part-4",
@@ -882,7 +918,8 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         },
         {
           "id": "ecosystem-tooling--part-5",
@@ -903,7 +940,8 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only"
         }
       ]
     },
@@ -928,7 +966,8 @@
             "template/fixtures"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of proficiency-gates; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of proficiency-gates; only these requirement IDs belong to this leaf.",
+          "worker_mode": "sandbox-agent"
         },
         {
           "id": "proficiency-gates--part-2",
@@ -948,7 +987,8 @@
             "template/fixtures"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of proficiency-gates; only these requirement IDs belong to this leaf."
+          "goal_hint": "Narrow shard of proficiency-gates; only these requirement IDs belong to this leaf.",
+          "worker_mode": "sandbox-agent"
         },
         {
           "id": "proficiency-trials",
@@ -995,7 +1035,8 @@
           "estimated_input_tokens_per_call": 7000,
           "max_output_tokens_per_call": 5000,
           "split_by_language": true,
-          "llm_budget_formula": "proficiency_primary_cells"
+          "llm_budget_formula": "proficiency_primary_cells",
+          "worker_mode": "sandbox-agent"
         }
       ]
     }

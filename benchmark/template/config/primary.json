@@ -100,5 +100,23 @@
     "max_requirement_ids_per_multi_language_agent": 2,
     "missing_toolchain_policy": "record_infrastructure_blockers_and_continue_other_primary_evaluations",
     "max_quidra_workloads_per_authoring_leaf": 3
+  },
+  "worker_isolation": {
+    "default_mode": "packet-only",
+    "allowed_modes": [
+      "packet-only",
+      "sandbox-agent"
+    ],
+    "host_tool_capable_leaf_policy": "forbidden",
+    "packet_only_local_tools": "disabled",
+    "packet_only_input_transport": "self-contained-task-packet",
+    "packet_only_output_transport": "structured-worker-response-v1-via-task-apply",
+    "packet_only_max_embedded_files": 256,
+    "packet_only_max_embedded_bytes": 1048576,
+    "packet_only_max_response_files": 64,
+    "packet_only_max_response_bytes": 2097152,
+    "sandbox_agent_runtime": "process-must-run-inside-attested-sandbox",
+    "sandbox_agent_host_credentials": "forbidden",
+    "network_policy": "provider-or-sandbox-network-only-never-host-filesystem"
   }
 }

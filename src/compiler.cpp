@@ -1,4 +1,5 @@
 #include "quidra/compiler.hpp"
+#include "quidra/project.hpp"
 #include "quidra/frontend.hpp"
 #include "quidra/lexer.hpp"
 #include "quidra/llvm_backend.hpp"
@@ -30,7 +31,7 @@ ResolvedProgram resolve_source(std::string_view source, CompileOptions options) 
     // Standard namespaces are wired up by the module loader, so string input must
     // go through it too; otherwise `math.sqrt(...)` and friends never resolve here.
     return load_program_with_root_source(
-        std::filesystem::path("<memory>.qui"), source,
+        std::filesystem::path(source_filename("<memory>")), source,
         std::filesystem::current_path(), options.max_errors,
         /*enforce_package_lock=*/false);
 }

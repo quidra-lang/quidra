@@ -72,7 +72,8 @@ public:
             const auto nonce =
                 (static_cast<unsigned long long>(rd()) << 32U) ^ rd() ^ now ^ attempt;
             source_ = fs::current_path() /
-                (".quidra-repl-" + std::to_string(nonce) + ".qui");
+                source_filename(
+                    ".quidra-repl-" + std::to_string(nonce));
             std::error_code ec;
             if (!fs::exists(source_, ec)) break;
             source_.clear();

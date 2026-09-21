@@ -241,6 +241,33 @@ def check_package_store_ownership(project: dict) -> None:
     )
 
 
+def check_no_source_extension_literals(project: dict) -> None:
+    extension = re.escape(project["project"]["extension"])
+    pattern = re.compile(
+        r'"[^"\n]*' + extension + r'(?![A-Za-z0-9_])[^"\n]*"'
+    )
+    offenders = []
+    for root in ("src", "include"):
+        base = ROOT / root
+        for path in sorted(p for p in base.rglob("*") if p.is_file()):
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (UnicodeDecodeError, OSError):
+                continue
+            for number, line in enumerate(text.splitlines(), start=1):
+                if pattern.search(line):
+                    offenders.append(
+                        f"{path.relative_to(ROOT).as_posix()}:{number}: "
+                        f"{line.strip()}"
+                    )
+    check(
+        not offenders,
+        "source extension is handwritten in implementation string literals; "
+        "derive it from project.toml/source_extension instead:\n  "
+        + "\n  ".join(offenders),
+    )
+
+
 def check_installer_repository(project: dict) -> None:
     expected = project["repos"]["core"].removeprefix("https://github.com/")
     installer = read(ROOT / "scripts" / "install-ubuntu.sh")
@@ -330,6 +357,7 @@ def main() -> int:
     check_source_extension_consumers(project)
     check_lockfile_schema_ownership(project)
     check_package_store_ownership(project)
+    check_no_source_extension_literals(project)
     check_installer_repository(project)
     check_generated_header_placeholders()
     check_no_second_version_definition(project)

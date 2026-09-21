@@ -58,7 +58,8 @@ void write_file_atomic(const fs::path& path, const std::string& text) {
     const auto original_permissions = fs::status(path).permissions();
     std::random_device rd;
     const auto temp = path.parent_path() /
-        ("." + path.filename().string() + ".qui-tmp-" + std::to_string(rd()) + ".tmp");
+        ("." + path.filename().string() + ".source-tmp-" +
+         std::to_string(rd()) + ".tmp");
     try {
         write_file(temp, text);
         std::error_code ec;
@@ -86,7 +87,9 @@ void write_file_atomic(const fs::path& path, const std::string& text) {
 void validate_patched_file(const fs::path& path, std::string_view source) {
     std::random_device rd;
     const auto temp = path.parent_path() /
-        ("." + path.stem().string() + ".patch-check-" + std::to_string(rd()) + ".qui");
+        quidra::source_filename(
+            "." + path.stem().string() + ".patch-check-" +
+            std::to_string(rd()));
     try {
         write_file(temp, std::string(source));
         (void)quidra::check_file(temp, {}, fs::current_path());
@@ -124,7 +127,10 @@ std::string json_escape(const std::string& s) {
 void require_qui_source(const fs::path& path) {
     if (path.extension() != quidra::source_extension) {
         throw std::runtime_error(
-            "Quidra source files use the .qui extension: " + path.string());
+            std::string(quidra::language_name) +
+            " source files use the " +
+            std::string(quidra::source_extension) +
+            " extension: " + path.string());
     }
 }
 
@@ -213,38 +219,41 @@ std::string description_json() {
 }
 
 void usage(std::ostream& out) {
+    const std::string cli(quidra::cli_name);
+    const std::string source = "FILE" + std::string(quidra::source_extension);
     out << quidra::language_name << " " << quidra::compiler_version << "\n"
         << "usage:\n"
-        << "  quidra                            start REPL when stdin is a TTY\n"
-        << "  quidra repl                       start REPL explicitly\n"
-        << "  quidra lsp                        start Language Server Protocol server on stdio\n"
-        << "  quidra install PACKAGE[@VERSION] install latest compatible tagged package release\n"
-        << "  quidra remove NAME                remove an installed package\n"
-        << "  quidra list                       list installed packages and versions\n"
-        << "  quidra package-info NAME [--json] show installed package metadata\n"
-        << "  quidra lock FILE.qui [--check]    write or verify quidra.lock\n"
-        << "  quidra package-path               print the default package store path\n"
-        << "  quidra gpu                        list supported GPU devices and backends\n"
-        << "  quidra info                       print CPU/GPU backend information\n"
-        << "  quidra FILE.qui [ARGS...]         AOT compile/link and run with program arguments\n"
-        << "  quidra run FILE.qui [--link FILE] [-- ARGS...]\n"
+        << "  " << cli << "                            start REPL when stdin is a TTY\n"
+        << "  " << cli << " repl                       start REPL explicitly\n"
+        << "  " << cli << " lsp                        start Language Server Protocol server on stdio\n"
+        << "  " << cli << " install PACKAGE[@VERSION] install latest compatible tagged package release\n"
+        << "  " << cli << " remove NAME                remove an installed package\n"
+        << "  " << cli << " list                       list installed packages and versions\n"
+        << "  " << cli << " package-info NAME [--json] show installed package metadata\n"
+        << "  " << cli << " lock " << source << " [--check]    write or verify "
+        << quidra::package_lock_filename << "\n"
+        << "  " << cli << " package-path               print the default package store path\n"
+        << "  " << cli << " gpu                        list supported GPU devices and backends\n"
+        << "  " << cli << " info                       print CPU/GPU backend information\n"
+        << "  " << cli << " " << source << " [ARGS...]         AOT compile/link and run with program arguments\n"
+        << "  " << cli << " run " << source << " [--link FILE] [-- ARGS...]\n"
         << "                                      compile and run; --link is repeatable\n"
-        << "  quidra check FILE.qui [--json] [--max-errors N]\n"
+        << "  " << cli << " check " << source << " [--json] [--max-errors N]\n"
         << "                                      type-check without building\n"
-        << "  quidra build FILE.qui [-o FILE] [--debug] [--link FILE] [--max-errors N]\n"
+        << "  " << cli << " build " << source << " [-o FILE] [--debug] [--link FILE] [--max-errors N]\n"
         << "                                      build native executable; --link is repeatable\n"
-        << "  quidra debug FILE.qui [--link FILE] [-- ARGS...]\n"
+        << "  " << cli << " debug " << source << " [--link FILE] [-- ARGS...]\n"
         << "                                      build with debug symbols and launch lldb/gdb\n"
-        << "  quidra fmt FILE.qui [--check]     format source; --check only verifies canonical form\n"
-        << "  quidra ir FILE.qui                print typed Quidra IR\n"
-        << "  quidra llvm FILE.qui              print generated LLVM IR\n"
-        << "  quidra inspect FILE.qui [--no-source] [--no-effects] [--kind KIND] [--depth N]\n"
+        << "  " << cli << " fmt " << source << " [--check]     format source; --check only verifies canonical form\n"
+        << "  " << cli << " ir " << source << "                print typed Quidra IR\n"
+        << "  " << cli << " llvm " << source << "              print generated LLVM IR\n"
+        << "  " << cli << " inspect " << source << " [--no-source] [--no-effects] [--kind KIND] [--depth N]\n"
         << "                                      print filtered typed source nodes as JSON\n"
-        << "  quidra patch FILE.qui PATCH.json [--write]\n"
+        << "  " << cli << " patch " << source << " PATCH.json [--write]\n"
         << "                                      validate/apply a revision-safe structural patch\n"
-        << "  quidra describe [grammar|patch-schema|llm]\n"
+        << "  " << cli << " describe [grammar|patch-schema|llm]\n"
         << "                                      print machine-readable language/tooling contracts\n"
-        << "  quidra --version                   print compiler version\n";
+        << "  " << cli << " --version                   print compiler version\n";
 }
 
 void print_diagnostics(const fs::path& input, const std::vector<quidra::Diagnostic>& diagnostics,
@@ -512,7 +521,12 @@ int main(int argc, char** argv) {
         }
 
         if (command == "patch") {
-            if (argc != 4 && argc != 5) throw std::runtime_error("usage: quidra patch FILE.qui PATCH.json [--write]");
+            if (argc != 4 && argc != 5) {
+                throw std::runtime_error(
+                    "usage: " + std::string(quidra::cli_name) +
+                    " patch FILE" + std::string(quidra::source_extension) +
+                    " PATCH.json [--write]");
+            }
             const bool write = argc == 5 && std::string(argv[4]) == "--write";
             if (argc == 5 && !write) throw std::runtime_error("unknown patch option: " + std::string(argv[4]));
             const auto source = read_file(input);

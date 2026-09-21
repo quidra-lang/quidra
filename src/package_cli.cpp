@@ -264,7 +264,8 @@ void publish_package(
         copy_package_tree(source, temporary);
         if (!fs::is_regular_file(
                 temporary / package_entrypoint_filename())) {
-            throw std::runtime_error("copied package lost main.qui");
+            throw std::runtime_error(
+                "copied package lost " + package_entrypoint_filename());
         }
 
         const bool had_target = fs::exists(target);
@@ -1060,7 +1061,7 @@ int lock_packages(
         error || absolute.extension() != source_extension) {
         throw std::runtime_error(
             "package lock requires an existing "
-            ".qui root source file");
+            std::string(source_extension) + " root source file");
     }
 
     const auto cwd = fs::current_path();
@@ -1094,17 +1095,19 @@ bool looks_like_local_path(std::string_view source) {
 }
 
 void usage() {
+    const std::string cli(cli_name);
+    const std::string source = "FILE" + std::string(source_extension);
     std::cerr
         << "usage:\n"
-        << "  quidra install PACKAGE[@VERSION]\n"
-        << "  quidra install OWNER/PACKAGE[@VERSION]\n"
-        << "  quidra install GIT_URL[@VERSION]\n"
-        << "  quidra install DIR [--name NAME] [--force]\n"
-        << "  quidra lock FILE.qui [--check]\n"
-        << "  quidra remove NAME\n"
-        << "  quidra list\n"
-        << "  quidra package-info NAME [--json]\n"
-        << "  quidra package-path\n";
+        << "  " << cli << " install PACKAGE[@VERSION]\n"
+        << "  " << cli << " install OWNER/PACKAGE[@VERSION]\n"
+        << "  " << cli << " install GIT_URL[@VERSION]\n"
+        << "  " << cli << " install DIR [--name NAME] [--force]\n"
+        << "  " << cli << " lock " << source << " [--check]\n"
+        << "  " << cli << " remove NAME\n"
+        << "  " << cli << " list\n"
+        << "  " << cli << " package-info NAME [--json]\n"
+        << "  " << cli << " package-path\n";
 }
 
 } // namespace
@@ -1167,7 +1170,8 @@ int run_package_cli(int argc, char** argv) {
         if (command == "lock") {
             if (argc < 2 || argc > 3) {
                 throw std::runtime_error(
-                    "lock expects FILE.qui and optional --check");
+                    "lock expects FILE" + std::string(source_extension) +
+                    " and optional --check");
             }
 
             bool check_only = false;

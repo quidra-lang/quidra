@@ -40,9 +40,15 @@ Any leaf with local filesystem, shell, editor, compiler or process tools uses `w
 
 The evaluated source is `/quidra-benchmark/repo`; the immutable current template is `/quidra-benchmark/template`. `preflight` verifies the observed process rather than any declaration: unprivileged uid, a loopback-only network namespace, an empty capability bounding set, `NoNewPrivs`, read-only snapshot and template mounts, no unexpected mounts, no provider credential in the environment or on disk, a live gateway socket that refuses forbidden requests when probed, and a launcher contract that matches all of it. Setting the attestation variables without applying the restrictions fails.
 
-## 4. Command-first lifecycle
+## 4. Starting a run, and the command-first lifecycle
 
-Trusted host bootstrap and sandbox mapping happen before this prompt is used. From this point onward, mechanical and scored work belongs to the sandbox CLI, not to an LLM:
+A real run is started by the `benchmark-production` GitHub Actions workflow on `develop`, which listens for a push that changes `benchmark/.run-production`. Updating that marker is the request to run, and nothing else triggers paid inference. Start one only after the benchmark infrastructure's own CI is green, and compare the workflow's soft spend guard against the token envelope `benchmark.py plan` reports for the frozen manifest: a guard below that envelope stops the run partway and records the remainder as blocked rather than overspending.
+
+Do not start a run on a workstation that is also doing other work. The Language Quality micro suite measures wall-clock time, build time, startup latency and peak RSS on the host it runs on, and `scripts/micro_measure.py` owns the frozen contention limit: it refuses to measure while the one-minute load average is at or above that limit, waits, retries, and finally records `host_contention_unresolved` instead of publishing a contended number. A container runtime takes its memory from that same machine. A loaded or memory-constrained host therefore does not produce worse results; it produces an infrastructure blocker. The four evaluations that do not depend on host timing are unaffected by the measurement host, so a contended run can still complete them.
+
+A shared CI runner is an acceptable measurement host for a comparative ranking, because every language is measured on the same host in the same session and noise is not aimed at any one of them. It is not an acceptable source of absolute performance figures. Publishing those requires a quiet, dedicated Linux host; the launcher behaves identically there, so only the venue changes.
+
+The rest of this section is what happens inside the sandbox once a run has started. Trusted host bootstrap and sandbox mapping happen before this prompt is used. From this point onward, mechanical and scored work belongs to the sandbox CLI, not to an LLM:
 
 ```bash
 python3 /quidra-benchmark/template/scripts/benchmark.py <command>

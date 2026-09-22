@@ -179,7 +179,7 @@ A certified measurement may be reused only when its fingerprint matches exactly.
 
 Quidra is the changing target, and a unit containing Quidra is keyed by the versions the evaluated snapshot declares in `project.toml` (`version` and `language_version`) in addition to the exact Task Packet: it is a cache HIT only while neither has changed. Quidra benchmark program source comes from the evaluated snapshot under `tests/benchmark/quidra`, is re-audited for that target commit, and never enters the reusable comparison-program catalog.
 
-Stable comparison-language measurements use a stable epoch. Ecosystem measurements use a UTC-month epoch because external packages, tools, adoption and public knowledge can change even when a language version does not.
+Stable comparison-language measurements use a stable epoch. Ecosystem measurements use a declared epoch (`declared_epochs.ecosystem` in `template/config/cache_policy.json`) because external packages, tools, adoption and public knowledge can change even when a language version does not: the operator changes that value when the outside world should be measured again, and every ecosystem record then misses.
 
 Exact scored prompts are content-addressed. New prompt components/manifests are promoted into `benchmark/template/prompts/` only after finalization; future identical prompts reuse those canonical bytes instead of storing another copy.
 

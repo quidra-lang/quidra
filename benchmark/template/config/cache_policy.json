@@ -29,7 +29,11 @@
     "llm_learnability": "stable",
     "language_quality": "stable",
     "llm_proficiency": "stable",
-    "ecosystem": "utc-month"
+    "ecosystem": "declared"
+  },
+  "declared_epochs": {
+    "ecosystem": "2026-09",
+    "note": "Set by a person, like a toolchain pin. Ecosystem measures external packages, tools and public knowledge, which change even when a language version does not; rather than expiring every ecosystem record at each calendar month, the operator changes this value when the outside world should be measured again. Records carry the value in their key, so changing it makes every ecosystem record a MISS. 2026-09 keeps the records certified in September 2026 valid."
   },
   "promotion": {
     "require_complete_unit": true,

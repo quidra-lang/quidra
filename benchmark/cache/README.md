@@ -13,8 +13,9 @@ declares in project.toml (`version` and `language_version`) and by the exact Tas
 Packet, which embeds the snapshot's docs: a Quidra record is reused only while
 neither has changed, so a run in which a comparison language failed no longer
 discards Quidra's own completed measurements.
-Ecosystem evidence uses a UTC-month epoch because external ecosystem facts change
-without a language version change.
+Ecosystem evidence uses a declared epoch (`declared_epochs.ecosystem` in the cache
+policy) because external ecosystem facts change without a language version change;
+the operator changes that value when they should be measured again.
 
 Workers never receive this directory as a readable path. Cache hydration is a
 trusted runner operation, and every hydrated result is passed through the current

@@ -3331,6 +3331,18 @@ def cache_epoch(root: Path, evaluation: str) -> str:
     mode = str((policy.get("epochs") or {}).get(evaluation, "stable"))
     if mode == "stable":
         return "stable"
+    if mode == "declared":
+        # The epoch is a value a person sets, like a toolchain pin: records stay
+        # valid until someone decides the outside world has changed enough to
+        # measure it again. A calendar epoch expired every ecosystem record at
+        # each month boundary, which re-bought about fifty dollars of
+        # measurements that nothing had changed.
+        declared = (policy.get("declared_epochs") or {}).get(evaluation)
+        if not isinstance(declared, str) or not declared.strip():
+            raise BenchmarkError(
+                f"cache epoch for {evaluation} is 'declared' but declared_epochs names no value"
+            )
+        return declared.strip()
     if mode == "utc-month":
         run = json_load(root / "run.json")
         raw = str(run.get("created_at_utc") or "")

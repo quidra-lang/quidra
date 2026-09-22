@@ -457,6 +457,23 @@ def main() -> None:
         readable.write_bytes(original_bytes)
         assert benchmark.cache_fingerprint(root, unit, task)[0] == original_fingerprint
 
+        # The ecosystem epoch is declared by a person, not by the calendar: the
+        # key carries the declared value, so records survive a month boundary
+        # and miss only when the operator changes the value.
+        assert benchmark.cache_epoch(root, "ecosystem") == "2026-09"
+        assert benchmark.cache_epoch(root, "semantic_compression") == "stable"
+        policy_path = root / "template/config/cache_policy.json"
+        policy_bytes = policy_path.read_bytes()
+        policy = benchmark.json_load(policy_path)
+        policy["declared_epochs"]["ecosystem"] = "2026-12"
+        benchmark.json_dump(policy_path, policy)
+        assert benchmark.cache_fingerprint(root, unit, task)[0] != original_fingerprint, (
+            "changing the declared ecosystem epoch must change the key"
+        )
+        # Restore the exact bytes: the template tree hash is part of run integrity.
+        policy_path.write_bytes(policy_bytes)
+        assert benchmark.cache_fingerprint(root, unit, task)[0] == original_fingerprint
+
         installed = install_cache_record(root, unit, task)
         assert installed == original_fingerprint
 

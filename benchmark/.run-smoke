@@ -6,6 +6,6 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-22T05:07:13Z
-reason: re-run after fixing the shadowed task id in provider_smoke; the gateway and runner changes since b7559d3 are still unverified
+requested_at_utc: 2026-09-22T11:09:58Z
+reason: smoke before the third production run; proves the gateway and runner fixes since 62bb50a (cd1ad56, f026a94), including the thinking-disabled orchestration call, against the live provider
 model: claude-sonnet-5

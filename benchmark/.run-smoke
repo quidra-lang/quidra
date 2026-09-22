@@ -6,6 +6,6 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-21T19:20:00Z
-reason: verify the paid request shape after the trial runtime, pause_turn resume and cap changes
+requested_at_utc: 2026-09-22T05:03:11Z
+reason: verify the paid request shape after the first-run fixes to the gateway, sandbox agent and production runner (e11f1bf and later)
 model: claude-sonnet-5

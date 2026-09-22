@@ -4563,15 +4563,24 @@ def previous_attempt_feedback(root: Path, agent_id: str, limit: int = 1500) -> s
     attempts = sorted((root / "work" / "attempts" / unit_id).glob("attempt-*/attempt.json"))
     if not attempts:
         return None
-    try:
-        latest = json_load(attempts[-1])
-    except (OSError, json.JSONDecodeError):
+    # Every earlier rejection, not only the last one. A unit rehearsed after
+    # the third paid run fixed the first attempt's fault on the second attempt
+    # and reintroduced it on the third, because each retry saw only the
+    # rejection immediately before it.
+    lines: list[str] = []
+    for path in attempts:
+        try:
+            archived = json_load(path)
+        except (OSError, json.JSONDecodeError):
+            continue
+        detail = str(archived.get("detail") or "").strip()
+        if not detail:
+            detail = f"archived as {archived.get('reason')}"
+        detail = re.sub(r"/quidra-benchmark/work/agents/[^\s/]+/", "", detail)
+        lines.append(f"attempt {archived.get('attempt')}: {detail[:limit]}")
+    if not lines:
         return None
-    detail = str(latest.get("detail") or "").strip()
-    if not detail:
-        return f"attempt {latest.get('attempt')} was archived as {latest.get('reason')}"
-    detail = re.sub(r"/quidra-benchmark/work/agents/[^\s/]+/", "", detail)
-    return detail[:limit]
+    return "\n".join(lines)
 
 
 def _validation_detail(agent_dir: Path, limit: int = 1500) -> str:

@@ -2685,6 +2685,87 @@ def test_a_rehearsal_dispatches_only_its_named_units_and_stops_when_they_are_ter
         )
 
 
+def test_a_worker_may_run_what_it_built_and_is_told_every_earlier_rejection() -> None:
+    """Two things the second rehearsal showed a compiled-language unit needs.
+
+    An executable the worker compiled inside its own directory must be
+    runnable by relative path (a relative path used to resolve against the
+    workspace root and be refused, forcing a python wrapper that hid the real
+    toolchain invocation from the trace); anything outside that directory or
+    reached through a symlink stays refused. And a retried worker must be told
+    every earlier rejection, not only the last one, or it fixes them in turns.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td)
+        root = make_workspace(tmp)
+        agent_id = "worker-builder-agent"
+        agent_dir = create_task(root, agent_id, "sandbox-agent")
+        (agent_dir / "fixtures").mkdir()
+        tool = agent_dir / "fixtures" / "check"
+        tool.write_text("#!/usr/bin/env python3\nprint('built tool ran')\n", encoding="utf-8")
+        tool.chmod(0o755)
+        (agent_dir / "escape-bin").symlink_to(root / "work" / "root")
+        payload = {"schema_version": 1, "evaluation": "semantic_compression",
+                   "requirements": {"gate.example": True}, "evidence": {"source": "builder test"}}
+        script = {
+            "schema_version": 1,
+            "sequence": [
+                json.dumps({"action": "run", "argv": ["fixtures/check"]}),
+                json.dumps({"action": "run", "argv": ["./fixtures/check", "arg"]}),
+                json.dumps({"action": "run", "argv": ["escape-bin/x"]}),
+                json.dumps({"action": "run", "argv": ["../../root/manifest.json"]}),
+                json.dumps({"action": "write_file", "path": "result.json",
+                            "content": json.dumps(payload) + "\n"}),
+                json.dumps({"action": "final", "summary": "done"}),
+            ],
+        }
+        with Gateway(root / "gateway", script=script) as gw:
+            completed = subprocess.run(
+                [sys.executable, str(SCRIPTS / "sandbox_agent.py"),
+                 "--workspace", str(root), "--id", agent_id, "--socket", str(gw.socket_path)],
+                env=sandbox_side_env(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            )
+        check(completed.returncode == 0, f"the agent did not finish: {completed.stderr or completed.stdout}")
+        trace = json.loads((agent_dir / "agent_trace.json").read_text(encoding="utf-8"))
+        by_turn = {int(e["turn"]): e for e in trace["trace"]}
+        first = by_turn[1]["observation"]
+        check(
+            first.get("ok") is True and "built tool ran" in str(first.get("stdout", "")),
+            f"a worker-built executable could not be run by relative path: {first}",
+        )
+        check(by_turn[2]["observation"].get("ok") is True, f"a ./-relative path was refused: {by_turn[2]}")
+        check(
+            "symlink" in str(by_turn[3]["observation"].get("denied", ""))
+            or "not in the frozen allowlist" in str(by_turn[3]["observation"].get("denied", "")),
+            f"a symlink out of the worker directory was not refused: {by_turn[3]}",
+        )
+        check(
+            "not in the frozen allowlist" in str(by_turn[4]["observation"].get("denied", "")),
+            f"a path outside the worker directory was not refused: {by_turn[4]}",
+        )
+
+        # Feedback carries every archived rejection, in order.
+        unit_id = None
+        for unit in json.loads((root / "work" / "root" / "manifest.json").read_text(encoding="utf-8")).get("work_units", []) if (root / "work" / "root" / "manifest.json").is_file() else []:
+            if unit.get("assigned_agent_id") == agent_id:
+                unit_id = unit["id"]
+        if unit_id is None:
+            unit_id = "builder-unit"
+            benchmark.json_dump(root / "work" / "root" / "manifest.json", {
+                "schema_version": 1,
+                "work_units": [{"id": unit_id, "assigned_agent_id": agent_id}],
+            })
+        for n, detail in ((1, "no successful C++ toolchain invocation"), (2, "expected languages ['C++']")):
+            benchmark.json_dump(root / "work" / "attempts" / unit_id / f"attempt-0{n}" / "attempt.json",
+                                {"schema_version": 1, "attempt": n, "detail": detail, "reason": "validation-failed-retry"})
+        feedback = benchmark.previous_attempt_feedback(root, agent_id) or ""
+        check(
+            "attempt 1: no successful C++ toolchain invocation" in feedback
+            and "attempt 2: expected languages ['C++']" in feedback,
+            f"the retry feedback lost an earlier rejection: {feedback!r}",
+        )
+
+
 def main() -> int:
     tests = [value for name, value in sorted(globals().items()) if name.startswith("test_")]
     for test in tests:

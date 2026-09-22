@@ -116,7 +116,7 @@ benchmark.py task-finish --id <work-unit-id>
 benchmark.py advance
 ```
 
-The runtime enforces the packet's read paths, confines writes and subprocess working directories to `/quidra-benchmark/work/agents/<agent-id>/`, runs subprocesses with `shell=False` and an allowlisted `argv[0]`, and records every refusal in `agent_trace.json`. `task-finish` requires that trace to match the frozen packet and to record a credential-less gateway.
+The runtime enforces the packet's read paths, confines writes and subprocess working directories to `/quidra-benchmark/work/agents/<agent-id>/`, runs subprocesses with `shell=False` and an `argv[0]` that is allowlisted or an executable the worker built inside its own directory, and records every refusal in `agent_trace.json`. `task-finish` requires that trace to match the frozen packet and to record a credential-less gateway.
 
 Long-running workers periodically call:
 

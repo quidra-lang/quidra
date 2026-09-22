@@ -14,7 +14,8 @@ model to behave:
     credential-less gateway socket;
   * reads are confined to the Task Packet's declared read paths, writes and
     subprocess working directories to `/quidra-benchmark/work/agents/<agent-id>/`,
-    and subprocesses run with `shell=False` and an allowlisted argv[0].
+    and subprocesses run with `shell=False` and an argv[0] that is allowlisted
+    or an executable the worker built inside its own directory.
 
 Every refusal is returned to the model as an observation *and* recorded in
 `agent_trace.json`, so a run that repeatedly tried to escape its sandbox is
@@ -175,14 +176,27 @@ class Permissions:
         prefixes = list(self.config.get("exec_allowed_absolute_prefixes", []))
 
         if "/" in program:
-            absolute = benchmark.lexical_absolute(Path(program))
-            if not any(absolute.as_posix().startswith(prefix) for prefix in prefixes):
+            # A relative program path names something the worker built in its
+            # own directory, exactly as write_file and cwd are resolved there.
+            candidate = Path(program)
+            absolute = benchmark.lexical_absolute(
+                candidate if candidate.is_absolute() else self.agent_dir / candidate
+            )
+            in_prefix = any(absolute.as_posix().startswith(prefix) for prefix in prefixes)
+            # An executable the worker compiled inside its own directory may be
+            # run directly. Refusing it only forced the model through a python
+            # wrapper that spawned the same binary, and hid the language's real
+            # toolchain invocations from the trace that certifies them.
+            in_own_dir = _is_within(absolute, self.agent_dir)
+            if not (in_prefix or in_own_dir):
                 raise AgentDenied(
                     f"executable path is not in the frozen allowlist: {program}"
                 )
             if not _is_within(absolute, self.root):
                 raise AgentDenied(f"executable escapes the sandbox workspace: {program}")
-            if not os.access(absolute, os.X_OK):
+            if absolute.is_symlink():
+                raise AgentDenied(f"refusing to run through a symlink: {program}")
+            if not absolute.is_file() or not os.access(absolute, os.X_OK):
                 raise AgentDenied(f"executable is missing or not executable: {program}")
             return [str(absolute), *argv[1:]]
 
@@ -627,6 +641,26 @@ decide which trials to repair. Trial completions are capped at
 back empty is reported with `ok:false` and counts as a failed attempt for that
 trial. Budget for this unit: {trials.budget} trial calls in total ({trials.used}
 used); a batch larger than the remaining budget is denied before any call.
+"""
+        languages = [str(x) for x in (task.get("assigned_languages") or [])]
+        programs = sorted({
+            program
+            for language in languages
+            for program in benchmark.LANGUAGE_TOOLCHAIN_PROGRAMS.get(language, ())
+        })
+        if languages:
+            trial_block += f"""
+Two rules the validator applies to this unit's result, stated here because a
+retry that learns them one at a time costs a whole attempt each:
+
+- Toolchain evidence: before the first trial_start, invoke the assigned
+  language's own toolchain directly as the program of a `run` action and have
+  it exit 0 (accepted programs: {", ".join(programs) or "the language's compiler or runtime"}).
+  A compile or run performed inside a helper script does not count: the
+  validator reads the trace's `run` actions, not what a script did. Executables
+  you build inside your own directory may then be run directly by relative path.
+- Assigned languages only: every requirement value in result.json carries exactly
+  the assigned language set ({", ".join(languages)}) and no other language.
 """
         if str(task.get("evaluation") or "") == "llm_learnability":
             trial_block += """

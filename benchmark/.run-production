@@ -14,8 +14,8 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-22T15:40:32Z
-reason: rehearsal 2b on 8328cdd: the same learnability C++ unit that rehearsal 2 left BLOCKED on the two validator rules; the runtime contract now states them, retries see every earlier rejection, and a worker may run executables it built
+requested_at_utc: 2026-09-22T15:52:04Z
+reason: Language Quality scoped run on 12df6b0 after rehearsals 1, 2 and 2b: every LQ agent unit is certified in the cache, so this pays nothing and exercises the Linux mechanical measurement (Swift Glibc and Zig -lc fixes) and the LQ aggregation on real data; guard 1.0 USD
 model: claude-sonnet-5
-units: learnability-i1-i2--c
 budget_usd: 1.0
+evaluation: language_quality

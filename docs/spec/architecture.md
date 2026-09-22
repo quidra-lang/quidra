@@ -93,7 +93,7 @@ Sanitizer development builds propagate AddressSanitizer/UndefinedBehaviorSanitiz
 
 ## Future work
 
-External-resource effects, concurrency, optional vendor accelerator libraries, broader real-hardware GPU coverage, contracts and verification evidence, a mature standard library/package distribution model, WASM, self-hosting, richer class polymorphism, and further runtime ownership/copy-elision optimizations remain development areas. Tensor copy-on-write and explicit CPU/GPU placement/transfer boundaries are already implemented as semantic/runtime contracts. Features should add meaningful intent, preserve clear static contracts, and be validated against real human and LLM editing tasks.
+Broader external-resource effect modeling, broader structured-concurrency capabilities, optional vendor accelerator libraries, broader real-hardware GPU coverage, contracts and verification evidence, a mature standard library/package distribution model, self-hosting, and further runtime ownership/copy-elision optimizations remain development areas. The WebAssembly frontend and bounded `task.all` concurrency are already implemented; class reuse remains explicit composition rather than a planned inheritance or dynamic-dispatch hierarchy. Tensor copy-on-write and explicit CPU/GPU placement/transfer boundaries are already implemented as semantic/runtime contracts. Features should add meaningful intent, preserve clear static contracts, and be validated against real human and LLM editing tasks.
 
 
 ## C FFI boundary

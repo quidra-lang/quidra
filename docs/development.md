@@ -23,10 +23,9 @@ The normal repository has two permanent branches:
 - `develop` is the integration branch for the next release.
 
 Temporary work branches may exist, but they are not release sources and are not
-installation targets. The current historical `feature` branch is an
-exceptional integration branch for the present development cycle. Work on it
-must be intentionally merged into `develop` before normal development and
-release continue. Do not tag or publish `feature` directly.
+installation targets. Any temporary integration work must be merged into
+`develop` before normal development and release continue. Do not tag or
+publish a temporary branch directly.
 
 Do not delete and recreate `develop` after a release. It remains the
 long-lived development branch.
@@ -107,8 +106,8 @@ in order.
    release work. Inspect their actual difference. Never overwrite newer remote
    work with an older checkout or remembered SHA.
 2. Confirm that all work intended for the release is already present in
-   `develop`. A temporary branch such as the exceptional `feature` branch
-   must have been merged into `develop` before this point.
+   `develop`. Any temporary integration branch must have been merged into
+   `develop` before this point.
 3. Determine the release version from the actual compatibility/feature delta.
    Set it in `project.toml`, which is the one place a version is authored, then
    run `python3 scripts/sync_metadata.py` and commit what it regenerates. CLI

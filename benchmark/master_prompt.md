@@ -141,11 +141,11 @@ After the scored sandbox has exited, the trusted outer runner imports only compa
 
 The runner owns planning, dependency release, retries, state transitions, validation dispatch, repeatable measurement, score aggregation, ranking, consistency checks and finalization.
 
-For Language Quality micro workloads, Quidra source authoring and measurement are deliberately separate. One narrow leaf freezes the evaluated commit's required Quidra representations/APIs, then four independent authoring leaves create only three fresh `.qui` programs each from the current Quidra documentation plus the frozen language-neutral workload/validator. No such leaf may read historical Quidra benchmark programs or reusable comparison-language implementations. After validation, the runner builds the Quidra compiler from the evaluated snapshot and mechanically owns correctness runs, compilation, timing, peak RSS, artifact sizing, diagnostic source-byte collection, normalization and requirement-level result emission for the metrics the frozen micro methodology explicitly owns.
+For Language Quality micro workloads, Quidra source belongs to the evaluated snapshot under `tests/benchmark/quidra`. The deterministic current-commit gate rebuilds the evaluated compiler and mechanically re-audits those snapshot-owned programs against the frozen workloads, oracles and representation pins before measurement. No scored leaf authors replacement Quidra benchmark source or reads historical Quidra benchmark programs. After that gate passes, the runner mechanically owns correctness runs, compilation, timing, peak RSS, artifact sizing, diagnostic source-byte collection, normalization and requirement-level result emission for the metrics the frozen micro methodology explicitly owns.
 
 Leaf workers handle only tasks that require language/evidence/model judgment. Every manifest unit freezes a worker mode. Packet-only leaves receive embedded permitted inputs and return files only through the structured response importer; sandbox-agent leaves receive narrow sandbox read paths and one sandbox writable directory, enforced in code by the in-sandbox runtime. Both receive exact requirement IDs, compact worker rules, selected methodology sections, frozen Primary configuration, exact validator and network permission, and both reach a model only through the credential-less gateway socket. No scored leaf is a host-side tool-capable subagent.
 
-A multi-language leaf may own at most the frozen runner limit of Primary requirement IDs (currently 3). Larger bundles are rejected mechanically. The only exception is a leaf expanded to exactly one assigned language when several metrics intentionally derive from the same isolated trial history; splitting that history would duplicate scored trials and change the experiment.
+A multi-language leaf may own at most `runner.max_requirement_ids_per_multi_language_agent` from the frozen Primary configuration. Larger bundles are rejected mechanically. Larger bundles are rejected mechanically. The only exception is a leaf expanded to exactly one assigned language when several metrics intentionally derive from the same isolated trial history; splitting that history would duplicate scored trials and change the experiment.
 
 Workers never need this root prompt, the parent conversation, another evaluation specification, sibling output, or a historical run.
 
@@ -175,9 +175,9 @@ The benchmark has three deliberately separate layers:
 2. **Certified cache** — validated comparison-language measurement results under `benchmark/cache/`, keyed by a complete benchmark-input fingerprint.
 3. **Run summary** — only compact run identity, Primary scores/rankings, blockers, cache provenance and overview under `benchmark/<run-id>/`.
 
-A certified measurement may be reused only when its fingerprint matches exactly. The fingerprint includes the exact Task Packet SHA-256, assigned language set, provider/model, frozen sampling state, relevant toolchain versions, validator/workload inputs, worker/network policy, runtime-toolchain manifest and cache epoch. A cache HIT is revalidated by the current runner before it becomes COMPLETE; a MISS executes normally and may be promoted only after the whole Primary evaluation finalizes successfully.
+A certified measurement may be reused only when its fingerprint matches exactly. The fingerprint includes the exact Task Packet SHA-256, assigned language set, provider/model, frozen sampling state, relevant toolchain versions, validator/workload inputs, worker/network policy, runtime-toolchain manifest and cache epoch. A cache HIT is revalidated by the current runner before it becomes COMPLETE. A MISS executes normally; an eligible non-Quidra unit may be checkpointed independently once that unit is COMPLETE, its current validator is PASS, and any evaluation-specific cache certification succeeds. Overall Primary finalization is not required for that checkpoint.
 
-Quidra is the changing target. Any unit containing Quidra is always a cache MISS. Quidra benchmark program source remains run-specific and never enters the reusable comparison-program catalog.
+Quidra is the changing target. Any unit containing Quidra is always a cache MISS. Quidra benchmark program source comes from the evaluated snapshot under `tests/benchmark/quidra`, is re-audited for that target commit, and never enters the reusable comparison-program catalog.
 
 Stable comparison-language measurements use a stable epoch. Ecosystem measurements use a UTC-month epoch because external packages, tools, adoption and public knowledge can change even when a language version does not.
 
@@ -187,9 +187,9 @@ Frozen facts fully derivable from the current template/manifest are still revali
 
 ## 9. Frozen measurement window
 
-The manifest/ledger freeze begins at `manifest-merge` and ends after `finalize`. During that interval, do not commit/push benchmark/template changes or alter the evaluated snapshot.
+The manifest/ledger freeze begins at `manifest-merge` and lasts until the scored sandbox exits. A successful run normally exits after `finalize`; a budget, provider, or wall-clock checkpoint ends that run's frozen window when the sandbox exits. During the frozen interval, do not commit/push benchmark/template changes or alter the evaluated snapshot.
 
-Template maintenance happens before freeze or after finalization.
+Template maintenance happens before freeze or after the scored sandbox has exited.
 
 ## 10. Retention and privacy
 

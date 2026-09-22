@@ -93,7 +93,7 @@ match doubled(true)
 
 Run `quidra check source.qui --json` for diagnostics, then `quidra run source.qui` to check native behavior. `quidra inspect` exposes source structure; prefer `--no-source`, `--no-effects`, `--kind KIND`, and `--depth N` when a task needs only a compact subset. Nodes include `parent_id` and `depth`, so callers do not need to reconstruct hierarchy from spans. `quidra patch` applies revision/hash-checked changes using the schema in `patch-schema.md`. Check both intended results and error paths. Preserve the explicit write contracts and fixed shapes when modifying code.
 
-The current core includes fixed-width numeric types, strict implicit conversions and practical explicit casts, numeric `Type.parse`, scalar `.string()`, `print`/`write`/`input`, packed mutable `bin` with explicit `file.read_bin` / `file.write_bin` binary I/O, initialized/uninitialized arrays, dense tensors with slicing/COW/broadcasting, `stats.mean`, vector/matrix `linear.matmul`, `image` image I/O, file modules with explicit namespaces, monomorphized generics with unambiguous function/method type inference, partially initialized user-defined classes, field defaults, field-level definite initialization, class/array/bin value equality, safe storage addresses, rebindable explicit references, fields and methods, unions, and explicit class composition.
+The current core includes fixed-width numeric types, no implicit representation-changing numeric conversion and practical explicit casts, numeric `Type.parse`, scalar `.string()`, `print`/`write`/`input`, packed mutable `bin` with explicit `file.read_bin` / `file.write_bin` binary I/O, initialized/uninitialized arrays, dense tensors with slicing/COW/broadcasting, `stats.mean`, vector/matrix `linear.matmul`, `image` image I/O, file modules with explicit namespaces, monomorphized generics with unambiguous function/method type inference, partially initialized user-defined classes, field defaults, field-level definite initialization, class/array/bin value equality, safe storage addresses, rebindable explicit references, fields and methods, unions, and explicit class composition.
 
 ## Output and tensor initialization
 
@@ -105,7 +105,7 @@ The current core includes fixed-width numeric types, strict implicit conversions
 
 For writable named arguments write `&name = &value`; positional writable arguments remain `&value`.
 
-Implicit numeric conversion is lossless-only. Explicit integer-to-float and float-to-float conversion may round; integer narrowing is range checked. Do not generically cast float to integer: choose `math.trunc`, `math.round`, `math.floor`, or `math.ceil`.
+Already-typed numeric values never change representation implicitly, even when the conversion would be lossless. Numeric literals may materialize directly in a unique compatible numeric context. Explicit integer-to-float and float-to-float conversion may round; integer narrowing is range checked. Do not generically cast float to integer: choose `math.trunc`, `math.round`, `math.floor`, or `math.ceil`.
 
 54. Neural scalar arithmetic uses the neural element dtype. Numeric literals may be used directly only when the literal value is exactly representable in that dtype; otherwise cast explicitly to the intended floating type.
 

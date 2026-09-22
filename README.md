@@ -768,7 +768,7 @@ The static checker rejects, among other things:
 - invalid field initialization paths,
 - attempts to write, rebind, or regain write authority through const access paths,
 - reference type mismatches,
-- implicit lossy numeric conversions,
+- implicit representation-changing numeric conversions,
 - incomplete union matches,
 - use of partially initialized class values where fully initialized values are required,
 - import cycles and namespace collisions,
@@ -825,7 +825,7 @@ The current implementation includes:
 - definite-initialization analysis for bindings, fields, arrays, and tensors,
 - receiver and reference-parameter effect summaries, including read-only `const T &` paths,
 - unions, exhaustive matching, and explicit `error` propagation,
-- fixed-width numeric checking with strict implicit conversion, range-checked explicit integer casts, and explicit fixed-width bitwise semantics,
+- fixed-width numeric checking with no implicit representation-changing conversion, range-checked explicit integer casts, and explicit fixed-width bitwise semantics,
 - partially initialized classes, explicit composition, and value equality,
 - explicit safe storage references with pinned substorage lifetime,
 - monotonic bare-name resolution and always-visible standard namespaces,
@@ -979,13 +979,13 @@ Results are limited to ABI-stable scalar values or `void`. Scalar/bool parameter
 quidra
 quidra repl
 quidra lsp
-quidra install dnn
-quidra install dnn@0.1.0
+quidra install quidra-dnn
+quidra install quidra-dnn@<release-version>
 quidra install ./my-package
-quidra remove dnn
+quidra remove quidra-dnn
 quidra list
-quidra package-info dnn
-quidra package-info dnn --json
+quidra package-info quidra-dnn
+quidra package-info quidra-dnn --json
 quidra lock program.qui
 quidra lock program.qui --check
 quidra package-path
@@ -1009,9 +1009,11 @@ quidra describe
 ```
 
 Released packages are installed from immutable `vMAJOR.MINOR.PATCH` tags, never
-from `main`, `develop`, or another moving branch. A bare first-party package
-name such as `dnn` resolves to `quidra-lang/dnn`; with no version written,
-Quidra chooses the newest released tag compatible with the running compiler.
+from `main`, `develop`, or another moving branch. A canonical first-party
+distribution name such as `quidra-dnn` resolves to `quidra-lang/dnn`; with no
+version written, Quidra chooses the newest released tag compatible with the
+running compiler. The legacy short spelling `dnn` remains accepted as a
+compatibility alias.
 `quidra.package` records the package version and its
 `requires.quidra`/package dependency ranges. Local directory installation and
 `QUIDRA_PACKAGE_PATH` remain available for development.

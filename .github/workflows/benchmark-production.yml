@@ -144,7 +144,7 @@ jobs:
 
       - name: Run paid production benchmark
         id: paid_benchmark
-        timeout-minutes: 300
+        timeout-minutes: 330
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
@@ -163,7 +163,7 @@ jobs:
             --gateway-log-out "$RUNNER_TEMP/gateway-audit.jsonl" \
             -- python3 /quidra-benchmark/template/scripts/production_run.py run \
                --workspace /quidra-benchmark \
-               --max-wall-seconds 15300 \
+               --max-wall-seconds 18900 \
                --concurrency "$BENCHMARK_CONCURRENCY" \
                "${scope_args[@]}"
 

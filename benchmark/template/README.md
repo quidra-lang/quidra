@@ -35,9 +35,9 @@ A new run must not read an older run directory. Past runs contain results/audit 
 
 Measurements, scores, prior LLM generations, repair histories and run-specific environment data do not belong here.
 
-Comparison-language benchmark sources may be reusable template assets after the frozen currency audit. Quidra program sources are different: they are never reusable across evaluated commits and therefore do not live in the reusable program catalog. Where a workload needs Quidra source (currently the Language Quality micro suite), one current-run leaf freezes the required Quidra representations/APIs and four source-authoring leaves each own exactly three workloads. Those leaves use only the evaluated snapshot documentation plus the frozen language-neutral workload/validator; none may read reusable comparison-language programs or historical Quidra benchmark source. The runner then builds the evaluated Quidra compiler from `/quidra-benchmark/repo`, validates those fresh files, and owns repeatable measurement and normalization.
+Comparison-language benchmark sources may be reusable template assets after the frozen currency audit. Quidra program sources are different: they live with the compiler in the evaluated snapshot under `tests/benchmark/quidra`, are re-audited mechanically against every evaluated commit, and never come from the reusable comparison-program catalog or a historical run. The runner builds the evaluated Quidra compiler from `/quidra-benchmark/repo`, validates those snapshot-owned files against the frozen workload/oracle and representation pins, and owns repeatable measurement and normalization. No scored leaf authors replacement Quidra benchmark programs during the run.
 
-The active template is immutable during the frozen measurement window. After finalization, the trusted outer runner may promote only content-addressed prompt components/manifests and certified non-Quidra result-cache records into their canonical stores. All other template changes require an explicit maintenance commit; a scored run never rewrites its own methodology, workloads, validators, or reusable source catalog.
+The active template is immutable during the frozen measurement window. Content-addressed prompt components/manifests are promoted only after successful finalization. Certified non-Quidra result-cache records are independent: after the scored sandbox exits, any COMPLETE unit with a current-validator PASS and the required cache certification may be checkpointed even when the overall Primary evaluation is still partial. All other template changes require an explicit maintenance commit; a scored run never rewrites its own methodology, workloads, validators, or reusable source catalog.
 
 ## Workspace
 
@@ -134,9 +134,10 @@ container remains credential-less and network-isolated.
 
 The run freezes Claude Sonnet 5 pricing in the template snapshot ($2/M input
 tokens, $10/M output tokens) and includes Anthropic web-search charges for only
-the work units whose trusted frozen policy permits live network evidence. A
-trusted-side soft budget of $18 is applied by default. Once reported spend has
-reached that limit, the gateway refuses to start another paid request. Token
+the work units whose trusted frozen policy permits live network evidence. The
+trusted-side soft budget is defined once by `BENCHMARK_BUDGET_USD` in the
+production workflow. Once reported spend has reached that configured limit, the
+gateway refuses to start another paid request. Token
 usage, web-search count and estimated cost are retained in a redacted audit log.
 
 The workflow performs deterministic preparation with the offline fake provider

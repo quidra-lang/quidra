@@ -93,7 +93,7 @@ Comparison-language reusable sources live in `template/programs/`; shared fixtur
 
 `reuse-status` compares the current toolchain fingerprint to the recorded validation fingerprint. Changed toolchains generate explicit capability-currency audit work units in the deterministic plan. Quidra program sources are never reused across evaluated commits.
 
-When current-run Quidra program authoring is required, that worker may read the evaluated Quidra documentation and the language-neutral workload/validator, but not historical Quidra programs or reusable comparison-language source. Its output stays under the current run's agent directory. Measurements, timings, scores and scored LLM outputs are never reused.
+When current-run Quidra program authoring is required, that worker may read the evaluated Quidra documentation and the language-neutral workload/validator, but not historical Quidra programs or reusable comparison-language source. Its output stays under the current run's agent directory. Quidra program outputs and any Quidra-containing measurements, timings, scores or scored LLM outputs are never reused across evaluated commits; only eligible non-Quidra comparison-language judgment measurements may be restored through the certified cache contract above.
 
 ## 9. Primary-first budget
 

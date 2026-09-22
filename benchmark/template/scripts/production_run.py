@@ -55,7 +55,12 @@ def run_cli(root: Path, *args: str, check: bool = True) -> subprocess.CompletedP
     return completed
 
 
-def write_policy(root: Path, output: Path, model: str | None = None) -> dict[str, Any]:
+def write_policy(
+    root: Path,
+    output: Path,
+    model: str | None = None,
+    evaluation: str | None = None,
+) -> dict[str, Any]:
     benchmark.assert_template_integrity(root)
     manifest_path = root / "work" / "root" / "manifest.json"
     if not manifest_path.is_file():
@@ -83,6 +88,8 @@ def write_policy(root: Path, output: Path, model: str | None = None) -> dict[str
     budgets: dict[str, float] = {}
     skipped_complete: list[str] = []
     for unit in manifest.get("work_units", []):
+        if evaluation is not None and unit.get("evaluation") != evaluation:
+            continue
         if unit.get("execution_kind", "agent") != "agent":
             continue
         uid = str(unit.get("id") or "")
@@ -257,10 +264,19 @@ def dispatch_one(root: Path, task: dict[str, Any], units: dict[str, dict[str, An
 
 
 def run_production(
-    root: Path, max_iterations: int, max_wall_seconds: float = 0.0
+    root: Path,
+    max_iterations: int,
+    max_wall_seconds: float = 0.0,
+    evaluation: str | None = None,
 ) -> dict[str, Any]:
+    if evaluation is not None and evaluation not in benchmark.PRIMARY_NAMES:
+        raise ProductionRunError(f"unknown Primary evaluation: {evaluation}")
+
+    scope_args: tuple[str, ...] = (
+        ("--evaluation", evaluation) if evaluation is not None else ()
+    )
     run_cli(root, "preflight")
-    run_cli(root, "prepare")
+    run_cli(root, "prepare", *scope_args)
 
     started = time.monotonic()
     dispatched = 0
@@ -275,29 +291,43 @@ def run_production(
             "schema_version": 1,
             "ok": True,
             "reason": "wall-clock-checkpoint",
+            "evaluation": evaluation or "all",
             "elapsed_seconds": round(elapsed, 3),
             "dispatched_agent_attempts": dispatched,
         }
         benchmark.json_dump(root / "results" / "production_checkpoint.json", payload)
         raise ProductionRunError(
-            "production wall-clock checkpoint reached; stopping cleanly before "
-            "the GitHub Actions hard timeout so COMPLETE+PASS units can be certified"
+            "production wall-clock checkpoint reached; stopping before the GitHub "
+            "Actions hard timeout so COMPLETE+PASS units can be certified"
         )
 
     for _ in range(max_iterations):
         wall_checkpoint_if_due()
-        run_cli(root, "advance")
+        run_cli(root, "advance", *scope_args)
         queue = json_load(root / "results" / "dispatch_queue.json").get("tasks", [])
+        units = manifest_units(root)
+        if evaluation is not None:
+            queue = [
+                task for task in queue
+                if units[str(task["work_unit_id"])].get("evaluation") == evaluation
+            ]
         if not queue:
             ledger = json_load(root / "work" / "root" / "ledger.json")
-            states = {str(v.get("status", "PENDING")) for v in ledger["units"].values()}
+            relevant = [
+                unit for unit in units.values()
+                if evaluation is None or unit.get("evaluation") == evaluation
+            ]
+            states = {
+                str(ledger["units"][str(unit["id"])].get("status", "PENDING"))
+                for unit in relevant
+            }
             if states <= {"COMPLETE", "BLOCKED", "INVALID"}:
                 break
             raise ProductionRunError(
-                f"dispatch queue is empty while ledger is nonterminal: {sorted(states)}"
+                f"dispatch queue is empty while selected ledger scope is nonterminal: "
+                f"{sorted(states)}"
             )
 
-        units = manifest_units(root)
         for task in queue:
             wall_checkpoint_if_due()
             dispatch_one(root, task, units)
@@ -307,13 +337,22 @@ def run_production(
             f"production benchmark exceeded {max_iterations} runner iterations"
         )
 
-    run_cli(root, "advance")
-    run_cli(root, "finalize")
+    run_cli(root, "advance", *scope_args)
+    finalized = False
+    finalization: str | None = None
+    if evaluation is None:
+        run_cli(root, "finalize")
+        finalized = True
+        finalization = str(root / "results" / "finalization.json")
+
     payload = {
         "schema_version": 1,
         "ok": True,
+        "evaluation": evaluation or "all",
+        "scope_terminal": True,
+        "finalized": finalized,
         "dispatched_agent_attempts": dispatched,
-        "finalization": str(root / "results" / "finalization.json"),
+        "finalization": finalization,
     }
     benchmark.json_dump(root / "results" / "production_run.json", payload)
     return payload
@@ -631,10 +670,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="model whose frozen prices size the per-task spend ceilings; without it "
              "every ceiling is the configured floor",
     )
+    policy.add_argument("--evaluation", choices=benchmark.PRIMARY_NAMES)
 
     run = sub.add_parser("run", help="drive the prepared scored run to finalization")
     run.add_argument("--workspace", default="/quidra-benchmark")
     run.add_argument("--max-iterations", type=int, default=200)
+    run.add_argument("--evaluation", choices=benchmark.PRIMARY_NAMES)
     run.add_argument(
         "--max-wall-seconds",
         type=float,
@@ -663,7 +704,10 @@ def main() -> int:
     args = build_parser().parse_args()
     if args.command == "policy":
         payload = write_policy(
-            Path(args.workspace).resolve(), Path(args.output).resolve(), args.model
+            Path(args.workspace).resolve(),
+            Path(args.output).resolve(),
+            args.model,
+            args.evaluation,
         )
     elif args.command == "provider-smoke":
         payload = provider_smoke(
@@ -685,6 +729,7 @@ def main() -> int:
             Path(args.workspace).resolve(),
             int(args.max_iterations),
             float(args.max_wall_seconds),
+            args.evaluation,
         )
     else:
         payload = build_cost_report(Path(args.log).resolve())

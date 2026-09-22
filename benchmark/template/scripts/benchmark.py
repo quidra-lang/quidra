@@ -3406,12 +3406,14 @@ def _write_cache_status(root: Path, status: dict[str, Any]) -> None:
     json_dump(root / "results" / "cache_status.json", status)
 
 
-def hydrate_certified_cache(root: Path) -> int:
+def hydrate_certified_cache(root: Path, evaluation: str | None = None) -> int:
     manifest = json_load(root / "work" / "root" / "manifest.json")
     ledger = json_load(root / "work" / "root" / "ledger.json")
     status = _cache_status(root)
     hits = 0
     for unit in manifest.get("work_units", []):
+        if evaluation is not None and unit.get("evaluation") != evaluation:
+            continue
         uid = str(unit["id"])
         state = ledger.get("units", {}).get(uid, {})
         if state.get("status", "PENDING") != "PENDING":
@@ -5335,6 +5337,7 @@ def propagate_dependency_blockers(root: Path) -> list[str]:
 
 def cmd_advance(args: argparse.Namespace) -> int:
     root = workspace(args)
+    evaluation_filter = getattr(args, "evaluation", None)
     assert_template_integrity(root)
     cmd_reclaim_stale(argparse.Namespace(workspace=str(root)))
     propagate_dependency_blockers(root)
@@ -5345,6 +5348,8 @@ def cmd_advance(args: argparse.Namespace) -> int:
         manifest = json_load(root / "work" / "root" / "manifest.json")
         ledger = json_load(root / "work" / "root" / "ledger.json")
         for unit in manifest.get("work_units", []):
+            if evaluation_filter is not None and unit.get("evaluation") != evaluation_filter:
+                continue
             if unit.get("execution_kind") != "command" or not command_unit_ready(unit, ledger):
                 continue
             uid = unit["id"]
@@ -5461,9 +5466,9 @@ def cmd_advance(args: argparse.Namespace) -> int:
             break
 
     cmd_tasks_create(argparse.Namespace(
-        workspace=str(root), evaluation=None, parent=None, depth=1
+        workspace=str(root), evaluation=evaluation_filter, parent=None, depth=1
     ))
-    cache_hits = hydrate_certified_cache(root)
+    cache_hits = hydrate_certified_cache(root, evaluation_filter)
     if cache_hits:
         # Cache completions may unlock integrity/aggregation commands or another
         # dependency layer. Re-enter the state machine before emitting a queue.
@@ -5473,6 +5478,8 @@ def cmd_advance(args: argparse.Namespace) -> int:
     ledger = json_load(root / "work" / "root" / "ledger.json")
     queue = []
     for unit in manifest.get("work_units", []):
+        if evaluation_filter is not None and unit.get("evaluation") != evaluation_filter:
+            continue
         if unit.get("execution_kind", "agent") != "agent":
             continue
         state = ledger.get("units", {}).get(unit["id"], {})
@@ -5601,15 +5608,18 @@ def cmd_toolchain_blockers(args: argparse.Namespace) -> int:
 
 
 def cmd_prepare(args: argparse.Namespace) -> int:
-    """Run every deterministic pre-dispatch step and emit the first dispatch queue."""
+    """Run deterministic pre-dispatch steps and emit the requested Primary queue."""
     root = workspace(args)
+    evaluation_filter = getattr(args, "evaluation", None)
     manifest_path = root / "work" / "root" / "manifest.json"
 
     if manifest_path.is_file():
         rc = cmd_plan(argparse.Namespace(workspace=str(root), strict=True))
         if rc != 0:
             return rc
-        return cmd_advance(argparse.Namespace(workspace=str(root)))
+        return cmd_advance(argparse.Namespace(
+            workspace=str(root), evaluation=evaluation_filter
+        ))
 
     steps = [
         ("preflight", cmd_preflight, argparse.Namespace(workspace=str(root))),
@@ -5628,7 +5638,9 @@ def cmd_prepare(args: argparse.Namespace) -> int:
             raise BenchmarkError(f"prepare stopped at {name} with exit code {rc}")
         completed.append(name)
 
-    rc = cmd_advance(argparse.Namespace(workspace=str(root)))
+    rc = cmd_advance(argparse.Namespace(
+        workspace=str(root), evaluation=evaluation_filter
+    ))
     if rc != 0:
         return rc
     payload = {
@@ -6219,8 +6231,39 @@ def cache_certification_for_unit(
         "primary_complete": primary_complete,
     }
     evaluation = str(unit.get("evaluation") or "")
+
     if evaluation == "llm_learnability":
+        trace_path = agent_dir / "agent_trace.json"
+        if not trace_path.is_file():
+            raise BenchmarkError(
+                f"{unit['id']}: learnability cache promotion requires agent_trace.json"
+            )
+        trace = json_load(trace_path)
+        problems = list(validate_learnability_attestations(agent_dir))
+        actions = list(trace.get("trace", []))
+        first_trial = next(
+            (int(x.get("turn", 0)) for x in actions if x.get("action") == "trial_start"),
+            None,
+        )
+        if first_trial is None:
+            problems.append("no scored trial_start was preserved")
+        else:
+            for filename in ("learnability_preflight.json", "learnability_leakage.json"):
+                wrote_before = any(
+                    x.get("action") == "write_file"
+                    and str((x.get("observation") or {}).get("path", "")).endswith("/" + filename)
+                    and int(x.get("turn", 0)) < first_trial
+                    for x in actions
+                )
+                if not wrote_before:
+                    problems.append(f"{filename} was not preserved before first trial_start")
+        if problems:
+            raise BenchmarkError(
+                f"{unit['id']}: learnability cache promotion failed integrity: "
+                + "; ".join(problems)
+            )
         certification["learnability_integrity"] = True
+
     if evaluation == "llm_proficiency":
         trace_path = agent_dir / "agent_trace.json"
         if not trace_path.is_file():
@@ -6232,13 +6275,18 @@ def cache_certification_for_unit(
         provider = gateway.get("provider")
         model = gateway.get("model")
         sampling = trace.get("sampling")
+        problems: list[str] = []
         if not provider or not model or not isinstance(sampling, dict):
+            problems.append("model signature is incomplete")
+        if gateway.get("credential_less_client") is not True:
+            problems.append("trial client was not credential-less")
+        if gateway.get("host_tools_exposed") is not False:
+            problems.append("host tool surface was exposed")
+        problems.extend(_preserved_trial_problems(agent_dir, trace))
+        if problems:
             raise BenchmarkError(
-                f"{unit['id']}: proficiency cache promotion lacks model signature"
-            )
-        if _preserved_trial_problems(agent_dir, trace):
-            raise BenchmarkError(
-                f"{unit['id']}: proficiency cache promotion failed trial preservation"
+                f"{unit['id']}: proficiency cache promotion failed integrity: "
+                + "; ".join(problems)
             )
         certification["proficiency_integrity"] = True
         certification["configuration_signature"] = json.dumps({
@@ -6698,10 +6746,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     adv = sub.add_parser("advance", help="advance the runner state machine and emit the agent dispatch queue")
     adv.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
+    adv.add_argument("--evaluation", choices=PRIMARY_NAMES)
     adv.set_defaults(func=cmd_advance)
 
-    prep = sub.add_parser("prepare", help="run all deterministic pre-dispatch steps and emit the first queue")
+    prep = sub.add_parser("prepare", help="run deterministic pre-dispatch steps and emit the requested Primary queue")
     prep.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
+    prep.add_argument("--evaluation", choices=PRIMARY_NAMES)
     prep.set_defaults(func=cmd_prepare)
 
     pcx = sub.add_parser("plan-check", help="validate one planning agent work_plan.json")

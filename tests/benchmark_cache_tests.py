@@ -372,6 +372,9 @@ def main() -> None:
         promoted = benchmark.json_load(promoted_record)
         assert promoted["certification"]["unit_complete"] is True
         assert promoted["certification"]["primary_complete"] is False
+        policy_cfg = benchmark.cache_policy(root)["promotion"]
+        assert policy_cfg["require_complete_primary_evaluation"] is False
+        assert policy_cfg["checkpoint_completed_units"] is True
 
         prompt_promotion = benchmark.promote_prompt_store(source, root)
         assert prompt_promotion["components"] > 0, prompt_promotion

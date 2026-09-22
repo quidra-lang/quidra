@@ -50,10 +50,18 @@ jobs:
             echo "::error::Repository secret ANTHROPIC_API_KEY is not configured."
             exit 1
           }
+          evaluation="$(sed -n 's/^evaluation:[[:space:]]*//p' benchmark/.run-production | tail -n 1 | xargs)"
+          [ -n "$evaluation" ] || evaluation="all"
+          case "$evaluation" in
+            all|semantic_compression|llm_learnability|language_quality|ecosystem|llm_proficiency) ;;
+            *) echo "::error::Invalid benchmark evaluation in benchmark/.run-production: $evaluation"; exit 1 ;;
+          esac
           short_sha="$(git rev-parse --short=7 HEAD)"
           run_id="$(date -u +%F)-${short_sha}-gh${GITHUB_RUN_NUMBER}"
           echo "RUN_ID=$run_id" >> "$GITHUB_ENV"
           echo "EVALUATED_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "BENCHMARK_EVALUATION=$evaluation" >> "$GITHUB_ENV"
+          echo "paid benchmark scope: $evaluation"
 
       - name: Prove the paid request shape before spending on the run
         env:
@@ -106,18 +114,27 @@ jobs:
 
       - name: Deterministic preparation without paid inference
         run: |
+          scope_args=()
+          if [ "$BENCHMARK_EVALUATION" != "all" ]; then
+            scope_args=(--evaluation "$BENCHMARK_EVALUATION")
+          fi
           python benchmark/template/scripts/sandbox_launcher.py run \
             --source-repo "$GITHUB_WORKSPACE" \
             --image "$BENCHMARK_IMAGE" \
             --provider fake \
-            -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare
+            -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare "${scope_args[@]}"
 
       - name: Freeze trusted task network policy and spend ceilings
         run: |
+          scope_args=()
+          if [ "$BENCHMARK_EVALUATION" != "all" ]; then
+            scope_args=(--evaluation "$BENCHMARK_EVALUATION")
+          fi
           python benchmark/template/scripts/production_run.py policy \
             --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
             --model "$BENCHMARK_MODEL" \
-            --output "$RUNNER_TEMP/task-policy.json"
+            --output "$RUNNER_TEMP/task-policy.json" \
+            "${scope_args[@]}"
 
       - name: Run paid production benchmark
         id: paid_benchmark
@@ -125,6 +142,10 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
+          scope_args=()
+          if [ "$BENCHMARK_EVALUATION" != "all" ]; then
+            scope_args=(--evaluation "$BENCHMARK_EVALUATION")
+          fi
           python benchmark/template/scripts/sandbox_launcher.py run \
             --source-repo "$GITHUB_WORKSPACE" \
             --image "$BENCHMARK_IMAGE" \
@@ -136,7 +157,8 @@ jobs:
             --gateway-log-out "$RUNNER_TEMP/gateway-audit.jsonl" \
             -- python3 /quidra-benchmark/template/scripts/production_run.py run \
                --workspace /quidra-benchmark \
-               --max-wall-seconds 15300
+               --max-wall-seconds 15300 \
+               "${scope_args[@]}"
 
       - name: Record API usage and estimated cost
         if: always()
@@ -223,7 +245,7 @@ jobs:
           echo "CHECKPOINT_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Import the finished run
-        if: success()
+        if: success() && env.BENCHMARK_EVALUATION == 'all'
         run: |
           # Always produce benchmark/$RUN_ID once the paid step succeeded, so the
           # artifact step below preserves the full retained set even when the
@@ -233,7 +255,7 @@ jobs:
           test -f "benchmark/$RUN_ID/import_manifest.json"
 
       - name: Push the result when develop has not moved
-        if: success()
+        if: success() && env.BENCHMARK_EVALUATION == 'all'
         run: |
           git fetch origin develop
           if [ "$DEVELOP_MOVED_DURING_RUN" = "1" ]; then

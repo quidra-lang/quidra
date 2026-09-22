@@ -16,6 +16,8 @@ on:
       - "benchmark/master_prompt.md"
       - "benchmark/template/**"
       - "tests/benchmark_isolation_tests.py"
+      - "tests/benchmark_cache_tests.py"
+      - "benchmark/cache/**"
       - ".github/workflows/benchmark-template.yml"
 
 jobs:

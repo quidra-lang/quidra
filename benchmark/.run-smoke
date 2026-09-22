@@ -6,6 +6,7 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-22T14:38:52Z
-reason: smoke after the run-3 fixes on bab2fb4; the anthropic adapter now streams tool-less requests (SSE) and the ceiling is 65536, so this is the first live contact of the streaming path before any rehearsal
+requested_at_utc: 2026-09-22T16:00:55Z
+reason: prefix-cache probe on 7c9efc4: a real semantic-compression input is sent twice under different Task Packet headers through the shared-inputs-first split; the second send must read the shared prefix from the prompt cache before any run relies on that saving
 model: claude-sonnet-5
+probe: sc-prefix-cache

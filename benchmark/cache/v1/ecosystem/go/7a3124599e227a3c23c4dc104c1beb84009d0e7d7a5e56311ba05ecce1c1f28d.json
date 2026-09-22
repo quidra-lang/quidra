@@ -1,0 +1,212 @@
+{
+  "assigned_languages": [
+    "Go"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "7a3124599e227a3c23c4dc104c1beb84009d0e7d7a5e56311ba05ecce1c1f28d",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Go"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "77179d9e867d35464a82f65e57e67b562f940d2c486c9b38e48bf1d8aa6e09f5",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.core_tooling_availability_quality",
+      "metric.package_dependency_management_quality"
+    ],
+    "runtime_toolchain_pins": {
+      "Go": {
+        "GO_PIN": "1.26.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Go": "1.26.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-ecosystem-tooling--part-1--go",
+    "work_unit_id": "ecosystem-tooling--part-1--go",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "77179d9e867d35464a82f65e57e67b562f940d2c486c9b38e48bf1d8aa6e09f5",
+    "run_id": "2026-09-22-62bb50a-gh2",
+    "work_unit_id": "ecosystem-tooling--part-1--go"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "limitations": "This worker was assigned only the Go language shard; scores for other languages are produced by sibling workers under the same frozen rubric definitions reproduced here. Raw popularity/index-count indicators were used only as one declared, caveated input within D5 of the package-management metric, not as a standalone proxy for either metric.",
+      "methodology_note": "Frozen rubric defined before scoring; identical dimension weights are intended to apply unchanged to all 10 languages. This work unit measures only the Go-assigned cells. Each metric decomposes into 5 equally-weighted (0-20) dimensions summing to a 0-100 normalized score. Snapshot date: 2026-09-22.",
+      "metric.core_tooling_availability_quality": {
+        "citations": [
+          {
+            "claim": "Go ships a single official toolchain with an active, frequent release/patch cadence including recent security and bug-fix point releases.",
+            "dimension": "D1",
+            "support": "go1.27.1 (released 2026-09-01) includes fixes to cgo, the compiler, the runtime, the go fix command, and the database/sql, debug/elf, encoding/json, net/http, os, simd, and simd/archsimd packages. Go 1.26.0 is a major release of Go."
+          },
+          {
+            "claim": "Go 1.26 was a major, on-schedule release continuing the standard six-month cadence.",
+            "dimension": "D1",
+            "support": "The latest Go release, version 1.26, arrives in February 2026, six months after Go 1.25."
+          },
+          {
+            "claim": "go vet is Go's official, built-in static analyzer.",
+            "dimension": "D3",
+            "support": "go vet is Go's official static analyzer. It examines code for suspicious constructs that are likely bugs."
+          },
+          {
+            "claim": "go fix (rewritten in Go 1.26) builds on the same official analysis framework as go vet, extending first-party static-analysis tooling.",
+            "dimension": "D3",
+            "support": "The rewritten go fix command builds atop the exact same Go analysis framework as go vet."
+          },
+          {
+            "claim": "golangci-lint is the de facto standard third-party meta-linter, bundling 100+ linters with parallel execution and caching, widely used in professional CI pipelines.",
+            "dimension": "D3",
+            "support": "It runs over 100 linters together with parallel execution + result caching, and you can centrally manage \u201cwhich ones to enable\u201d using a configuration file like .golangci.yml."
+          },
+          {
+            "claim": "staticcheck is regarded as the gold standard of third-party Go static analysis, in long-term active maintenance.",
+            "dimension": "D3",
+            "support": "staticcheck represents the gold standard of Go static analysis."
+          },
+          {
+            "claim": "pprof and trace are built-in official profiling tools distributed with the Go toolchain.",
+            "dimension": "D5",
+            "support": "go vet \u00b7 golangci-lint \u00b7 staticcheck \u00b7 godoc \u00b7 pkgsite \u00b7 delve \u00b7 pprof \u00b7 stringer \u00b7 mockgen \u00b7 gopls \u00b7 goimports"
+          },
+          {
+            "claim": "Delve, the standard Go debugger, is a third-party tool (installed via go install) that integrates with mainstream editors.",
+            "dimension": "D5",
+            "support": "Delve integrates with VS Code's debug panel, so you can set breakpoints and inspect state visually without touching the CLI."
+          }
+        ],
+        "dimension_scores": {
+          "D1": 20,
+          "D2": 20,
+          "D3": 18,
+          "D4": 19,
+          "D5": 17
+        },
+        "go_score": 94,
+        "rubric": [
+          "D1 (0-20): Official compiler/build toolchain availability, cross-platform support, release/versioning discipline",
+          "D2 (0-20): Official code formatter shipped with the toolchain",
+          "D3 (0-20): Static analysis / linting: built-in analyzer plus maturity of the surrounding linter ecosystem",
+          "D4 (0-20): Test runner integration (unit tests, benchmarks, coverage, race detection) built into the toolchain",
+          "D5 (0-20): Debugger and profiler product maturity (first- or third-party, IDE integration)"
+        ],
+        "scoring_rationale": "Go scores near-ceiling because build/format/vet/test/profiling are first-party and bundled in a single `go` command with a disciplined, frequent release/patch cadence (D1=20). gofmt is a universally adopted official formatter (D2=20, well-established, no counter-evidence found). D3 is capped below 20 because deep static analysis beyond go vet (staticcheck, golangci-lint) is mature but third-party rather than bundled. D4 is capped slightly below 20 because `go test` is built-in and highly capable but some advanced assertion/mocking ergonomics still rely on third-party libraries. D5 is capped further because the standard debugger (Delve) is third-party, even though profiling (pprof/trace) is first-party and excellent."
+      },
+      "metric.package_dependency_management_quality": {
+        "citations": [
+          {
+            "claim": "Go modules, managed via the built-in go mod tooling, are the official first-party dependency management system.",
+            "dimension": "D1",
+            "support": "The Go module system was introduced in Go 1.11 and is the official dependency management solution for Go."
+          },
+          {
+            "claim": "Since Go 1.13 the go command authenticates every downloaded module by default against an auditable, tamper-evident checksum database.",
+            "dimension": "D2",
+            "support": "Since Go 1.13, the go command by default downloads and authenticates modules using the Go checksum database."
+          },
+          {
+            "claim": "The checksum database is built on a Merkle-tree transparent log designed to make tampering detectable, and the go command verifies inclusion/consistency proofs before trusting go.sum entries.",
+            "dimension": "D2",
+            "support": "The checksum database is served by sum.golang.org, and is built on a Transparent Log (or \u201cMerkle tree\u201d) of hashes backed by Trillian."
+          },
+          {
+            "claim": "go.sum plus the checksum database is explicitly designed to guarantee repeatable builds and detect unexpected or malicious changes.",
+            "dimension": "D2",
+            "support": "The go command tries to authenticate every downloaded module, checking that the bits downloaded for a specific module version today match bits downloaded yesterday."
+          },
+          {
+            "claim": "Google's Go team operates official production-grade module mirror, index, and checksum services underpinning the default dependency workflow.",
+            "dimension": "D3",
+            "support": "The Go team is providing the following services run by Google: a module mirror for accelerating Go module downloads, an index for discovering new modules, and a global go.sum database for authenticating module content."
+          },
+          {
+            "claim": "pkg.go.dev, the official package documentation/discovery site, sources its data directly from the official module proxy.",
+            "dimension": "D3",
+            "support": "Data for the site is downloaded from proxy.golang.org."
+          },
+          {
+            "claim": "Go 1.18 introduced first-party multi-module workspaces (go.work) allowing simultaneous local development across modules without publishing intermediate versions or replace directives.",
+            "dimension": "D4",
+            "support": "Go 1.18 introduced workspaces to solve exactly this problem."
+          },
+          {
+            "claim": "Workspace-aware vendoring (go work vendor) extends single-module vendoring to multi-module workspaces for reproducible, network-independent builds.",
+            "dimension": "D4",
+            "support": "The go work vendor command creates a vendor directory that includes all dependencies required by every module in the workspace."
+          },
+          {
+            "claim": "Interaction between per-module vendoring and workspace vendoring has documented rough edges/ambiguities that required explicit design proposals to resolve.",
+            "dimension": "D4",
+            "support": "We originally didn't support vendoring of a workspace to simplify the implementation of workspaces, but there's recently been demand by users of vendoring who want to workspaces"
+          },
+          {
+            "claim": "pkg.go.dev indexes public modules fetched through the official proxy and exposes importer/consumer graphs, aiding ecosystem discoverability.",
+            "dimension": "D5",
+            "support": "For public modules, it indexes which packages import a given package and shows an importer list."
+          },
+          {
+            "claim": "This discoverability proxy has a stated limitation: it only covers public modules reachable through the public proxy, not private or internally-hosted modules.",
+            "dimension": "D5",
+            "support": "The limitation is sharp: pkg.go.dev only indexes public modules fetched through the public Go module proxy at proxy.golang.org."
+          }
+        ],
+        "dimension_scores": {
+          "D1": 20,
+          "D2": 20,
+          "D3": 19,
+          "D4": 18,
+          "D5": 17
+        },
+        "go_score": 94,
+        "rubric": [
+          "D1 (0-20): Native/official package manager integrated into the toolchain",
+          "D2 (0-20): Reproducibility and integrity verification (lockfile-equivalent, checksums)",
+          "D3 (0-20): Official registry/proxy infrastructure availability and reliability",
+          "D4 (0-20): Workspace/monorepo/private-module and vendoring support",
+          "D5 (0-20): Declared ecosystem-activity proxy (public module discoverability via the official index), used only as one input alongside the other four dimensions, with stated limitations"
+        ],
+        "scoring_rationale": "Go scores near-ceiling because module management is fully first-party and integrated into the `go` command with no separate installation (D1=20), and reproducibility/integrity is enforced by default via go.sum plus an independently auditable, cryptographically tamper-evident checksum database since Go 1.13 (D2=20). D3 is capped slightly below 20 because reliability of the official proxy/index/checksum trio is well documented but represents centralized Google-operated infrastructure rather than a fully decentralized guarantee. D4 is capped further because multi-module workspace support (go.work, introduced Go 1.18) and workspace vendoring are functional and actively maintained but have documented edge-case friction between per-module and per-workspace vendoring. D5 uses the declared proxy-index discoverability signal only as one of five dimensions, explicitly noting its public-module-only limitation rather than treating it as a standalone popularity metric."
+      },
+      "retrieval_route": "web_search tool, official go.dev documentation/release notes, go.dev wiki CodeTools page, Go module proxy/checksum documentation (proxy.golang.org, sum.golang.org), and third-party tooling guides cross-checked against official sources",
+      "snapshot_date": "2026-09-22"
+    },
+    "requirements": {
+      "metric.core_tooling_availability_quality": {
+        "Go": 94
+      },
+      "metric.package_dependency_management_quality": {
+        "Go": 94
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "f3cb2bd0ea1ed81ec6fea8f6b1592191f762e29574739f9c0cb4cbc106d70b5d",
+  "schema_version": 1
+}

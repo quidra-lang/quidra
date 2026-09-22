@@ -1,0 +1,196 @@
+{
+  "assigned_languages": [
+    "Swift"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "4690ba88c6712e396cbea76222a94a71c3bab8d48e54776510a6f09a92274525",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Swift"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "fc54dbf32e2d0010370b05e99ccb3e58fe679ec3159ba209bd71469e162f20bc",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.third_party_tool_availability",
+      "metric.production_adoption_deployment_evidence"
+    ],
+    "runtime_toolchain_pins": {
+      "Swift": {
+        "SWIFT_PIN": "6.2.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Swift": "6.2.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-ecosystem-external--part-2--swift",
+    "work_unit_id": "ecosystem-external--part-2--swift",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "fc54dbf32e2d0010370b05e99ccb3e58fe679ec3159ba209bd71469e162f20bc",
+    "run_id": "2026-09-22-62bb50a-gh2",
+    "work_unit_id": "ecosystem-external--part-2--swift"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "methodology_notes": {
+        "consistency": "Same retrieval route (general web search), same examination depth (multiple independent sources per metric), and same proxy-usage discipline (raw popularity numbers used only as declared, accompanied evidence, never standalone) as required for cross-language comparability.",
+        "weighting": "These two metrics are components of the External Ecosystem / Adoption category (50% of Ecosystem Score) per ecosystem.md; this worker unit reports only the two assigned metrics for Swift and does not compute category or overall Ecosystem Score, which is runner-calculated."
+      },
+      "metric.production_adoption_deployment_evidence": {
+        "findings": [
+          {
+            "cite_idx": "17-8,17-9",
+            "domain": "Primary (Apple platform apps) production adoption",
+            "evidence": "Apple is perhaps the biggest company that uses Swift. This language is their primary tool for building apps for Mac, iOS, the Apple Watch, and Apple TV."
+          },
+          {
+            "cite_idx": "16-3",
+            "domain": "Aggregate deployment breadth (industry usage database)",
+            "evidence": "We have data on 56,674 companies and users that use Swift.",
+            "limitation": "Declared as a breadth proxy from a commercial technology-detection aggregator; not verified per-company and used only alongside named case evidence, not standalone."
+          },
+          {
+            "additional_detail": "The application is around 30,000 lines of code and builds in around 10 minutes, using Xcode for coding and debugging. The database is AWS Aurora MySQL, Redis is used for ephemeral data, and the application is deployed to a small four-node Kubernetes cluster.",
+            "cite_idx": "21-16",
+            "cite_idx_2": "21-6,21-7",
+            "domain": "Secondary domain: server-side production migration",
+            "evidence": "Cultured Code, the developer of a popular personal task manager for Apple platforms, has documented the replacement of a Python 2 application running on Google App Engine with Swift running on Kubernetes, hosted by AWS."
+          },
+          {
+            "cite_idx": "21-14",
+            "cite_idx_2": "21-13",
+            "context": "The language is in principle suitable for server-side work as well, but the momentum behind server-side Swift has been weak.",
+            "domain": "Server-side ecosystem maturity / risk signal",
+            "evidence": "IBM, an early enthusiast for the idea, abandoned its Kitura Swift framework in 2019."
+          },
+          {
+            "cite_idx": "11-10",
+            "domain": "Adoption scale / specialist-skill context",
+            "evidence": "Only 5.7% of professional developers report using Swift regularly, according to the 2025 Stack Overflow Developer Survey.",
+            "interpretation": "Indicates Swift usage is concentrated (Apple-platform specialist niche) rather than broad general-purpose usage, which is a limitation on the breadth (though not depth) of production evidence."
+          },
+          {
+            "cite_idx": "36-2",
+            "domain": "Package-index-as-production-infrastructure",
+            "evidence": "The project is open-source and written in Swift using Vapor.",
+            "note": "The Swift Package Index itself, now backed by Apple, is a running production Swift/Vapor service, serving as a self-referential deployment example within the ecosystem."
+          }
+        ],
+        "language": "Swift",
+        "predeclared_sampling": {
+          "retrieval_route": "web_search against independent case studies, aggregator databases (TheirStack), and technical press (devclass, InfoQ)",
+          "selection_rule": "Evidence collected across two predeclared production domains for symmetry with other languages: (1) primary/client application domain evidence (the domain the language was designed for), and (2) a secondary/expansion domain (server-side), each backed by named organizations or an externally observable aggregator, collected via the same retrieval route and depth as other assigned languages.",
+          "snapshot_time": "2026-09-22"
+        },
+        "rationale_for_score": "Swift has overwhelming, unambiguous production deployment evidence as the dominant language for the entire Apple first-party and third-party app ecosystem (iOS/macOS/watchOS/tvOS), including Apple's own products. This is an extremely large-scale, verifiable production footprint. Secondary-domain (server-side) production evidence exists (Vapor/SwiftNIO, documented company migrations) but is comparatively narrower and includes a documented high-profile framework abandonment (IBM Kitura), and overall developer population using Swift day-to-day is a small share of all professional developers. The score reflects very strong depth of production adoption in its core domain offset by narrower breadth outside that domain.",
+        "score_0_100": 83
+      },
+      "metric.third_party_tool_availability": {
+        "findings": [
+          {
+            "category": "Official IDE",
+            "note": "First-party Apple IDE with integrated build, debug, profiling (Instruments), and SwiftUI preview tooling; the default and dominant development environment for Swift on Apple platforms.",
+            "tool": "Xcode"
+          },
+          {
+            "additional": "Editor breadth beyond Xcode/VS Code is documented directly by the project.",
+            "category": "Language Server (cross-editor)",
+            "citation": "The SourceKit-LSP server is included with the Swift toolchain.",
+            "cite_idx": "2-1",
+            "cite_idx_2": "7-4",
+            "tool": "sourcekit-lsp"
+          },
+          {
+            "category": "Official formatter",
+            "citation": "swift-format provides the formatting technology for SourceKit-LSP and the building blocks for doing code formatting transformations.",
+            "cite_idx": "5-1",
+            "tool": "swift-format"
+          },
+          {
+            "category": "Community linter (de-facto standard)",
+            "citation": "SwiftLint integrates naturally into Xcode and modern development workflows, and has become one of the most widely adopted tools for enforcing Swift coding standards.",
+            "cite_idx": "42-9",
+            "cite_idx_2": "39-1",
+            "popularity_proxy": "SwiftLint with 12.9K GitHub stars and 1.5K forks on GitHub has adopted (declared as a proxy indicator only, not a standalone score input).",
+            "tool": "SwiftLint"
+          },
+          {
+            "category": "Version manager",
+            "citation": "Install swiftly (Swift version manager)",
+            "cite_idx": "9-3",
+            "tool": "swiftly"
+          },
+          {
+            "category": "Editor plugin ecosystem (3rd party, non-Apple editors)",
+            "citation": "A comprehensive, modular Neovim plugin for Swift development with LSP, build tools, formatting, linting, and integrated LLDB debugger",
+            "cite_idx": "9-1",
+            "tool": "swift.nvim (Neovim)"
+          },
+          {
+            "category": "Package discovery / registry tooling",
+            "citation": "Indexing metadata from 11,842 packages packages.",
+            "cite_idx": "35-2",
+            "cite_idx_2": "30-6",
+            "note_apple_backing": "Today, Swift Package Index announced that it has joined Apple and continues its mission",
+            "tool": "Swift Package Index"
+          },
+          {
+            "category": "Package managers (multiple, incl. legacy)",
+            "citation": "Third-party package managers (Mint, Tuist): Mint adds 1.8 s overhead per mint run invocation due to SwiftPM wrapper layering.",
+            "cite_idx": "4-6",
+            "tools": "SwiftPM (official), CocoaPods, Carthage (long-standing third-party dependency managers), Mint (tool installer)"
+          }
+        ],
+        "language": "Swift",
+        "limitations": [
+          "Tooling is heavily macOS/Xcode-centric; Linux and other-platform tooling (VS Code + sourcekit-lsp, Docker toolchains) exists but is documented as secondary/rougher, e.g. higher cold-start latency and extra RAM for non-Xcode setups per one technical comparison.",
+          "Raw GitHub star counts (e.g. SwiftLint's ~12.9K stars) are used only as a declared, consistently-collected proxy alongside qualitative adoption evidence, not as a standalone score.",
+          "SourceKit-LSP itself notes ongoing rough edges: 'SourceKit-LSP is still in early development, so you may run into rough edges with any of the features.'"
+        ],
+        "predeclared_sampling": {
+          "retrieval_route": "web_search (general web) against official swift.org/GitHub project pages and independent technical write-ups",
+          "selection_rule": "For each tool category (IDE/editor integration, LSP, formatter, linter, debugger, package manager, version manager, CI/CD packaging), select the tool that is either (a) officially shipped/maintained by Apple/swiftlang, or (b) the de-facto community-standard tool most commonly referenced in official Swift.org documentation and package ecosystem write-ups. Candidate universe considered: Xcode, sourcekit-lsp, swift-format, SwiftFormat, SwiftLint, LLDB, SwiftPM, CocoaPods, Carthage, swiftly, Mint, Swift Package Index, VS Code Swift extension, swift.nvim.",
+          "snapshot_time": "2026-09-22"
+        },
+        "rationale_for_score": "Swift has a complete, largely first-party tool chain (IDE, LSP, formatter, linter, debugger, package manager, version manager) plus a mature, Apple-backed package discovery service and widely-adopted third-party quality tools (SwiftLint, SwiftFormat). This is comparable to top-tier ecosystems, but cross-platform (non-Apple OS) tooling maturity and editor-agnostic experience lag slightly behind languages designed cross-platform from inception, justifying a strong but not maximal score.",
+        "score_0_100": 87
+      }
+    },
+    "requirements": {
+      "metric.production_adoption_deployment_evidence": {
+        "Swift": 83
+      },
+      "metric.third_party_tool_availability": {
+        "Swift": 87
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "c86c3a7ba2ea9b3bc309b70934ce3880f063012b542bc588e73b5d2ab2627a2d",
+  "schema_version": 1
+}

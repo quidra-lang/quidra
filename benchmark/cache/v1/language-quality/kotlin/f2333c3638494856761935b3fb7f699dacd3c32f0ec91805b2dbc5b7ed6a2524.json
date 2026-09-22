@@ -1,0 +1,108 @@
+{
+  "assigned_languages": [
+    "Kotlin"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "f2333c3638494856761935b3fb7f699dacd3c32f0ec91805b2dbc5b7ed6a2524",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Kotlin"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "8ed876ef10873f4fab3ff0d896bd146d660c81b8fdf675b168789044d7a99d67",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/programs/kotlin/adversarial": "de5b117e0810d3665550f22b97f7718ed622fcd3d140269208a07dfe63cf3212",
+      "template/programs/kotlin/micro": "114ff79a792311f46b64a6ea97eb88183ec526fa18c34e40bbdf03992e85029f",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.functionality_expressiveness",
+      "metric.diagnostics"
+    ],
+    "runtime_toolchain_pins": {
+      "Kotlin": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1",
+        "KOTLIN_PIN": "2.3.21"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Kotlin": "2.3.21"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "cc718e9dda3eb349812f0feb507c9aa5cfd219333521a3548263e0c924d4b2c7",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-lq-language-development--part-2--kotlin",
+    "work_unit_id": "lq-language-development--part-2--kotlin",
+    "worker_mode": "sandbox-agent"
+  },
+  "provenance": {
+    "prompt_sha256": "8ed876ef10873f4fab3ff0d896bd146d660c81b8fdf675b168789044d7a99d67",
+    "run_id": "2026-09-22-62bb50a-gh2",
+    "work_unit_id": "lq-language-development--part-2--kotlin"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "metric.diagnostics": {
+        "method": "Compiled a deliberately corrupted adversarial program (ADV-22b.kt, containing malformed token sequence 'prin@#$tln(...)') with kotlinc 2.3.21 and captured raw compiler diagnostics.",
+        "observations": [
+          "Compiler reports precise file:line:column locations for each syntax error and includes a source-line caret/underline pointing at the offending token, matching modern compiler diagnostic UX (similar to rustc/clang style).",
+          "Errors are descriptive ('Expecting an element', 'Unexpected tokens') and actionable, though it does not suggest an automatic fix (e.g. no 'did you mean println?' style suggestion) since the corruption changes the identifier entirely.",
+          "Kotlin/IntelliJ tooling (not exercised here due to sandbox constraints) additionally provides real-time inline diagnostics, quick-fixes, and null-safety warnings at edit time; only the batch kotlinc CLI diagnostics were captured in this sandboxed evidence run.",
+          "Runtime diagnostics: Kotlin surfaces JVM exceptions (NullPointerException, ClassCastException, ArithmeticException) with stack traces including originating file/line via the JVM, but does not include Kotlin-specific static safety guarantees at runtime beyond what the JVM offers (e.g., Kotlin null-safety is a compile-time-only guarantee, not enforced by the runtime type system, so unsafe interop with Java can still produce NPEs)."
+        ],
+        "raw_compiler_output": "adv22b.kt:5:10: error: syntax error: Expecting an element.\n    prin@#$tln(\"OBS=V:\" + v)\n         ^\nadv22b.kt:5:11: error: syntax error: Unexpected tokens (use ';' to separate expressions on the same line).\n    prin@#$tln(\"OBS=V:\" + v)\n          ^^^^^^^^^^^^^^^^^^\n",
+        "score_basis": "Scored 82/100: clear, precise compiler diagnostics with location and caret info, good for CLI batch compilation; lacks compiler-suggested auto-fixes and Kotlin null-safety is not runtime-enforced against Java interop boundaries, slightly below top-tier diagnostics (e.g. Rust's suggestion-rich borrow/type errors)."
+      },
+      "metric.functionality_expressiveness": {
+        "limitations": [
+          "No native pattern-matching on positional data beyond destructuring declarations (component1/component2); less expressive than Rust/Scala full pattern matching with guards on nested structures.",
+          "Generics use type erasure (JVM), limiting reified generic expressiveness without inline reified fun workarounds."
+        ],
+        "method": "Qualitative review of Kotlin adversarial/micro corpus programs plus language feature survey.",
+        "observations": [
+          "Kotlin supports null-safety types, data classes, sealed classes, extension functions, coroutines, higher-order functions, lambdas with trailing-lambda syntax, smart casts, and operator overloading, giving high expressiveness for common algorithmic and data-processing tasks.",
+          "Interop with the full Java standard library and JVM ecosystem provides broad functional coverage (collections, generics with variance, reflection) without needing external native libraries.",
+          "Numeric semantics are explicit (Int/Long/Double are distinct, no implicit narrowing) as observed in ADV-01_C.kt (explicit a.toInt() narrowing conversion required); this makes intent explicit but requires slightly more boilerplate than dynamically-typed languages for numeric conversions.",
+          "Sealed classes + when expressions give exhaustive pattern-matching comparable to algebraic data types, though without full deep destructuring pattern matching such as Rust's match on nested enums.",
+          "Coroutines (structured concurrency) are a first-class, idiomatic expressiveness feature exceeding raw thread/callback based languages."
+        ],
+        "score_basis": "Scored 88/100: strong modern expressiveness (null safety, coroutines, extension functions, data/sealed classes) offset by JVM generic erasure and less powerful pattern matching than some peers."
+      },
+      "toolchain": {
+        "kotlinc_version": "kotlinc-jvm 2.3.21 (JRE 26.0.1+8)"
+      }
+    },
+    "requirements": {
+      "metric.diagnostics": {
+        "Kotlin": 82
+      },
+      "metric.functionality_expressiveness": {
+        "Kotlin": 88
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "4dd5ae49b666b41cedb3bbe0ec67f1fe7c1f34b7c8f400fbd1973d3d20c8337a",
+  "schema_version": 1
+}

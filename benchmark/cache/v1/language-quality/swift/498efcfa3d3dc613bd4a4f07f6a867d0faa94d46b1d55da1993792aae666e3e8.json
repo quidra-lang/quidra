@@ -1,0 +1,100 @@
+{
+  "assigned_languages": [
+    "Swift"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "498efcfa3d3dc613bd4a4f07f6a867d0faa94d46b1d55da1993792aae666e3e8",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Swift"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "3720ae773d0047d369571eb00c82480e20da3a22d771fec992a88b618385d8f2",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/programs/swift/adversarial": "e6478e41203eeec1c4dfb94a66c0007553a3c294c5b6a98ceb89a37b42ac75c6",
+      "template/programs/swift/micro": "f1f78aa33a7c8a4d7e08c4e6bbf5e45ab76e437d515300b5143b3acb0669ab87",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.dependency_simplicity",
+      "metric.portability_design_platform_neutrality"
+    ],
+    "runtime_toolchain_pins": {
+      "Swift": {
+        "SWIFT_PIN": "6.2.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Swift": "6.2.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "cc718e9dda3eb349812f0feb507c9aa5cfd219333521a3548263e0c924d4b2c7",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-lq-language-development--part-3--swift",
+    "work_unit_id": "lq-language-development--part-3--swift",
+    "worker_mode": "sandbox-agent"
+  },
+  "provenance": {
+    "prompt_sha256": "3720ae773d0047d369571eb00c82480e20da3a22d771fec992a88b618385d8f2",
+    "run_id": "2026-09-22-62bb50a-gh2",
+    "work_unit_id": "lq-language-development--part-3--swift"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "metric.dependency_simplicity": {
+        "description": "Assessment of language-level dependency semantics for Swift: how the language itself expresses and resolves module/package dependencies, independent of package-manager maturity (which is Ecosystem).",
+        "observations": [
+          "Swift has a first-class module system (`import Module`) with no header files, no preprocessor-based inclusion, and no implicit global namespace pollution, unlike C/C++.",
+          "Access control (`public`/`internal`/`fileprivate`/`private`) and module boundaries are enforced by the compiler, giving strong, simple dependency isolation semantics at the language level.",
+          "Standard library and Foundation are cleanly separated; a pure Swift program (as in the micro benchmark set, e.g. mb00.swift-mb11.swift) can be written using only the Swift standard library with zero external dependencies, and this is idiomatic, not exceptional.",
+          "Swift Package Manager's manifest (Package.swift) is itself written in Swift, so dependency declarations are type-checked language constructs rather than an ad hoc external DSL -- a language-level dependency-simplicity property distinct from the ecosystem's package registry maturity.",
+          "However, on non-Apple platforms Swift's dependency on the Swift runtime and (for many programs) Foundation/Dispatch introduces platform-conditional imports (`#if canImport(Foundation)`), adding minor complexity not present in a language with a fully platform-independent standard library.",
+          "Reviewed micro benchmark sources (mb01-mb11) import only `Foundation` or no external module, consistent with low intrinsic dependency surface for typical numeric/string workloads."
+        ],
+        "score_rationale": "Scored 78/100: strong module system and language-native manifest reduce dependency complexity considerably versus C/C++, but conditional-import patterns needed for full cross-platform Foundation parity and the coupling to the Swift runtime prevent a top score."
+      },
+      "metric.portability_design_platform_neutrality": {
+        "description": "Assessment of Swift's language design portability: is the language specification and core semantics platform-neutral, separate from realized platform support breadth (an Ecosystem concern).",
+        "observations": [
+          "Swift's core language (types, generics, protocols, concurrency model with async/await, ARC memory model) is specified without platform-specific semantics and is implemented via LLVM, enabling in principle cross-platform code generation.",
+          "In practice, large parts of the standard runtime experience (Objective-C interop, many Foundation behaviors, availability annotations like @available(iOS ...)) are historically tied to Apple platforms, and the language itself carries first-class syntax (`@available`, `#if os(iOS)`) whose most common use cases are Apple-platform-specific -- this is a language design choice that embeds platform-conditional constructs directly into source rather than isolating them at a build-config layer.",
+          "ABI stability (frozen since Swift 5) was designed primarily around Apple's platform ABI; on Linux/Windows the ABI story is separate and less unified, reflecting platform-coupled design decisions rather than a neutral single ABI target.",
+          "Value types, protocol-oriented programming, and ARC do not fundamentally depend on any given OS, so the core computational language is neutral; the coupling appears mainly at the interop/runtime-library boundary (Objective-C bridging, Foundation) rather than in core syntax/semantics.",
+          "Micro benchmark programs use only core language features and Foundation, and would compile with the open-source Swift toolchain on Linux with at most minor conditional-import adjustments, supporting a moderate but not full platform-neutrality rating."
+        ],
+        "score_rationale": "Scored 55/100: the core type system/generics/ARC/concurrency model is platform-neutral in design, but first-class language surface (availability attributes, historic Objective-C interop assumptions, Apple-centric ABI stabilization) embeds platform-specific concerns into the language itself more than platform-neutral peers (e.g. Go, Rust), limiting the score to mid-range."
+      }
+    },
+    "requirements": {
+      "metric.dependency_simplicity": {
+        "Swift": 78
+      },
+      "metric.portability_design_platform_neutrality": {
+        "Swift": 55
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "03e34c1f219e1b6ed6350420404e3c482d049af6f9d6ef13af1938b8214f7a52",
+  "schema_version": 1
+}

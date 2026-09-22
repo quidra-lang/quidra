@@ -14,8 +14,8 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-22T15:14:54Z
-reason: rehearsal 2 after rehearsal 1 completed (go SC packet, 36401 output tokens, streamed for 360 s): one real sandbox-agent learnability unit that run 3 ended on its first action turn at the 8192 cap; proves batched actions, recoverable truncation, refused early final and the 16384 trial cap under a one-dollar guard
+requested_at_utc: 2026-09-22T15:40:32Z
+reason: rehearsal 2b on 8328cdd: the same learnability C++ unit that rehearsal 2 left BLOCKED on the two validator rules; the runtime contract now states them, retries see every earlier rejection, and a worker may run executables it built
 model: claude-sonnet-5
 units: learnability-i1-i2--c
 budget_usd: 1.0

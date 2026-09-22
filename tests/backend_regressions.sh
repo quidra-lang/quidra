@@ -62,7 +62,7 @@ void go()
     string[] buffer = []
     for i in range(0, 3)
         state = (state * 48271) % 2147483647
-        string[] fields = [i.string(), " ", state.string(), enter]
+        string[] fields = [i.string(), " ", state.string(), ENTER]
         string line = fields.join("")
         buffer = buffer.append(line)
     string joined = buffer.join("|")

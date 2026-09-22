@@ -1495,6 +1495,19 @@ void Checker::check_type_extent_expressions(const TypeName& source) {
 }
 
 
+namespace {
+
+std::string unknown_name_message(const std::string& name) {
+    std::string message = "Unknown name '" + name + "'.";
+    const auto renamed = renamed_text_constant(name);
+    if (!renamed.empty()) {
+        message += " The built-in text constant is spelled '" + std::string(renamed) + "'.";
+    }
+    return message;
+}
+
+} // namespace
+
 Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value,
                               const Type* expected) {
     Type type = simple(TypeKind::Void);
@@ -1567,7 +1580,7 @@ Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value
             }
             const auto* field = find_field(current_class_, node->name);
             if (!field) {
-                error("UNKNOWN_NAME", "Unknown name '" + node->name + "'.", expression.span);
+                error("UNKNOWN_NAME", unknown_name_message(node->name), expression.span);
             }
             if (field->is_private && current_class_ != field->owner) {
                 error("PRIVATE_MEMBER",
@@ -1581,7 +1594,7 @@ Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value
             type = field->type;
             field_accesses_[&expression] = FieldAccessInfo{field->owner, field->index, field->type};
         } else {
-            error("UNKNOWN_NAME", "Unknown name '" + node->name + "'.", expression.span);
+            error("UNKNOWN_NAME", unknown_name_message(node->name), expression.span);
         }
     
     return type;

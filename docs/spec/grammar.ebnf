@@ -2,7 +2,7 @@
    Bracketed newlines are insignificant. String backslashes are literal;
    physical CRLF inside a string literal is normalized to LF, so checkout
    line-ending style does not change string data. Control characters use
-   enter, tab, home, quote, backspace, page, vtab, and bell. *)
+   ENTER, TAB, HOME, QUOTE, BACKSPACE, PAGE, VTAB, and BELL. *)
 
 program          = { NEWLINE | import_decl | extern_decl | cli_decl | enum_decl | class_decl | function | statement }, EOF ;
 

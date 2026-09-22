@@ -506,10 +506,10 @@ Strings are immutable values. Repetition uses `string.repeat(value, n)`, where `
 string name = "Quidra"
 string repeated = string.repeat("a", 6)
 print("Hello, {name}")
-print("first{enter}second")
+print("first{ENTER}second")
 ```
 
-Backslash is literal rather than an escape introducer. Named immutable values such as `enter`, `tab`, `home`, and `quote` represent control characters.
+Backslash is literal rather than an escape introducer. Named immutable values such as `ENTER`, `TAB`, `HOME`, and `QUOTE` represent control characters.
 
 Immutable backing storage may be shared internally because that sharing cannot change observable value semantics. For the same reason, `text = text + piece` in a loop is linear overall rather than quadratic: when the target is the sole owner of its storage, the append reuses it with geometric growth instead of copying the accumulated prefix each time.
 
@@ -935,7 +935,7 @@ Run `quidra` with no arguments from a terminal to start the native REPL. REPL su
 
 ```text
 $ quidra
-Quidra 0.2.1
+Quidra 0.3.0
 >>> 1 + 2
 3
 >>> int x = 5
@@ -1152,7 +1152,7 @@ Keys/elements are currently fixed-width integer types, `bigint`, `bool`, or `str
 `json` exposes immutable parsed values without collapsing JSON `null` into Quidra `none`:
 
 ```quidra
-string source = "{{" + quote + "name" + quote + ":" + quote + "Quidra" + quote + "," + quote + "items" + quote + ":[1,2]}}"
+string source = "{{" + QUOTE + "name" + QUOTE + ":" + QUOTE + "Quidra" + QUOTE + "," + QUOTE + "items" + QUOTE + ":[1,2]}}"
 auto parsed = json.parse(source)
 match parsed
     json.Value root

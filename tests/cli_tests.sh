@@ -898,14 +898,14 @@ file_tree_expected=$(printf 'true\nfalse\n2\n5')
 
 cat > "$TMP/string-controls.qui" <<'QUI'
 print("literal:\n\t\r\b\f\v\a\u3042")
-print("A{tab}B")
-print("A{enter}B")
-print("A{home}B")
-print("{quote}A{quote}")
-print("x{backspace}y")
-print("x{page}y")
-print("x{vtab}y")
-print("x{bell}y")
+print("A{TAB}B")
+print("A{ENTER}B")
+print("A{HOME}B")
+print("{QUOTE}A{QUOTE}")
+print("x{BACKSPACE}y")
+print("x{PAGE}y")
+print("x{VTAB}y")
+print("x{BELL}y")
 print("nested {error("ok")}")
 QUI
 $QUIDRA run "$TMP/string-controls.qui" > "$TMP/string-controls.out"

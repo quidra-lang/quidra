@@ -37,7 +37,7 @@ Result workload()
         file.Handle writer = file.create(name)
         for i in range(n)
             int v = g.next_int()
-            string record = "{i} {v}{enter}"
+            string record = "{i} {v}{ENTER}"
             writer.write(record)
             nbytes = nbytes + len(record)
         writer.flush()

@@ -25,13 +25,13 @@ with tempfile.TemporaryDirectory(prefix="quidra process ") as temporary:
         helper_text = str(helper)
         command = (
             'string command = '
-            f'"{{quote}}{helper_text}{{quote}} '
-            '{quote}{output_path}{quote}"'
+            f'"{{QUOTE}}{helper_text}{{QUOTE}} '
+            '{QUOTE}{output_path}{QUOTE}"'
         )
     else:
         command = (
             'string command = "printf shell-ok > '
-            '{quote}{output_path}{quote}"'
+            '{QUOTE}{output_path}{QUOTE}"'
         )
 
     source = root / "process-portability.qui"

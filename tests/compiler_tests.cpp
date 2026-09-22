@@ -412,14 +412,14 @@ walk_array(&values)
  // Hot string/parse patterns keep their source semantics while lowering to
  // allocation-light native operations.
  ir_contains(R"(for i in range(0, 2)
-    string[] fields = [i.string(), " ", enter]
+    string[] fields = [i.string(), " ", ENTER]
     string line = fields.join("")
     print(line)
 )", "string.build");
  llvm_contains(R"(string content = ""
 int written = 0
 for i in range(0, 2)
-    string[] fields = [i.string(), " ", i.string(), enter]
+    string[] fields = [i.string(), " ", i.string(), ENTER]
     string line = fields.join("")
     content = content + line
     written += len(line)
@@ -428,7 +428,7 @@ print(written)
  ir_contains(R"(string content = ""
 int written = 0
 for i in range(0, 2)
-    string[] fields = [i.string(), " ", i.string(), enter]
+    string[] fields = [i.string(), " ", i.string(), ENTER]
     string line = fields.join("")
     content = content + line
     written += len(line)
@@ -437,7 +437,7 @@ print(written)
  llvm_contains(R"(string content = ""
 int written = 0
 for i in range(0, 2)
-    string[] fields = [i.string(), " ", i.string(), enter]
+    string[] fields = [i.string(), " ", i.string(), ENTER]
     string line = fields.join("")
     content = content + line
     written += len(line)
@@ -446,7 +446,7 @@ print(written)
  llvm_contains(R"(string content = ""
 int written = 0
 for i in range(0, 2)
-    string[] fields = [i.string(), " ", i.string(), enter]
+    string[] fields = [i.string(), " ", i.string(), ENTER]
     string line = fields.join("")
     content = content + line
     written += len(line)
@@ -455,14 +455,14 @@ print(written)
  llvm_not_contains(R"(string content = ""
 int written = 0
 for i in range(0, 2)
-    string[] fields = [i.string(), " ", i.string(), enter]
+    string[] fields = [i.string(), " ", i.string(), ENTER]
     string line = fields.join("")
     content = content + line
     written += len(line)
 print(written)
 )", "call i64 @quidra_string_build_append_last_length");
  llvm_contains(R"(for i in range(0, 2)
-    string[] fields = [i.string(), " ", enter]
+    string[] fields = [i.string(), " ", ENTER]
     string line = fields.join("")
     print(line)
 )", "@quidra_string_build");
@@ -962,8 +962,8 @@ print(f())
 )",
  R"(auto path = "C:\Users\data\image.png"
 auto raw = "\n\t\r\b\f\v\a\u3042"
-auto controls = enter + tab + home + quote + backspace + page + vtab + bell
-string separator = tab
+auto controls = ENTER + TAB + HOME + QUOTE + BACKSPACE + PAGE + VTAB + BELL
+string separator = TAB
 print("A{separator}B")
 print("nested {error("ok")}")
 )",
@@ -1671,11 +1671,11 @@ print(outer.inner.y)
  "auto x = 9223372036854775808\n", "auto x = []\n", "auto x = range(3)\n",
  "int8 x = 128\n", "uint8 x = -1\n", "int8 x = int8(300)\n",
  "bin x = bin(2, fill = 0)\n", "bin x = bin.fill(-1, 0)\n", "bin x = bin.fill(2, 2)\n", "string x = string(2, fill = \"a\")\n", "string x = string.repeat(\"a\", -1)\n",
- "string tab = \"x\"\n", "void f(string enter)\n    return\n",
+ "string TAB = \"x\"\n", "void f(string ENTER)\n    return\n",
  "int x = 1\nif true\n    int x = 2\n", "int x = 1\nint x = 2\n",
  "class A\n    int x\n    int x\n",
  "class A\n    int x\n    void set(int x)\n        return\n",
- "class A\n    int tab\n",
+ "class A\n    int TAB\n",
  "class A\n    int x\nA a = A(x = 1)\nA &b = a\n",
  "class A\n    int x\n    int y\nA a = A(x = 1)\nprint(a.y)\n",
  "class Counter\n    int value\n    void increment()\n        value = value + 1\nCounter c = Counter()\nc.increment()\n",
@@ -2365,6 +2365,20 @@ values[0] = partial
 )", "UNINITIALIZED_ARGUMENT");
  bad_code("class A\n    int x\nA a = A(x = 1)\nprint(a.y)\n", "UNKNOWN_MEMBER");
  bad_code("print(missing)\n", "UNKNOWN_NAME");
+ // The text constants are capitals only; the former lowercase spellings are
+ // plain unknown names, with the diagnostic naming the constant meant.
+ bad_code("string s = tab\n", "UNKNOWN_NAME");
+ (void)quidra::compile("string tab = \"x\"\nstring enter = tab\nprint(enter)\n");
+ bad_code("string s = \"A{enter}B\"\n", "UNKNOWN_NAME");
+ {
+     bool hinted = false;
+     try { (void)quidra::compile("string s = backspace\n"); }
+     catch (const quidra::CompileErrors& errors) {
+         for (const auto& d : errors.diagnostics())
+             if (d.code == "UNKNOWN_NAME" && d.message.find("spelled 'BACKSPACE'") != std::string::npos) hinted = true;
+     }
+     if (!hinted) { std::cerr << "lowercase text constant did not name BACKSPACE\n"; std::exit(1); }
+ }
  bad_code("Missing value\n", "UNKNOWN_TYPE");
  bad_code("float value = 1.0e9999\n", "FLOAT_RANGE");
  bad_code("import math\n", "STANDARD_NAMESPACE_IMPORT");
@@ -2492,7 +2506,7 @@ tensor<float32><2, _> known = erase(tensor.zeros<float32>([2, 2]))
  bad_code("tensor<float32><2, 2> value = tensor.ones<float32>([2, 2])\nauto bad = value[0, 0, 0]\n", "INDEX_ARITY");
  bad_code("tensor<float32> value = tensor.ones<float32>([2, 2])\nfloat32 bad = linear.dot(value, value)\n", "TYPE_MISMATCH");
  bad_code("tensor<float32> value = tensor.ones<float32>([2])\nauto bad = linear.matmul(value, value)\n", "TYPE_MISMATCH");
- bad_code("tensor<uint8><2, _> value = tensor.zeros<uint8>([2, 2])\nauto result = image.write(home, value)\n", "TYPE_MISMATCH");
+ bad_code("tensor<uint8><2, _> value = tensor.zeros<uint8>([2, 2])\nauto result = image.write(HOME, value)\n", "TYPE_MISMATCH");
 
  // Shape-pattern match cases select only exact-rank compatible tensor alternatives.
  good(R"(void classify(tensor<float32><3, 4> | tensor<float32><1, 4> value)
@@ -2679,7 +2693,7 @@ int &alias = &x
 int other = 1
 print(&x)
 write(&x)
-write(enter)
+write(ENTER)
 print(&alias)
 bool same = &x == &alias
 bool different = &x != &other

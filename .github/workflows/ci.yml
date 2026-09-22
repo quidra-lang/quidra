@@ -295,7 +295,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "binary expression run failed with exit code $LASTEXITCODE" }
           if (($binary -join "`n").Trim() -ne "64") { throw "binary expression smoke failed: $binary" }
           Set-Content -Path build/json-smoke.qui -Value @'
-          string source = "{{" + quote + "name" + quote + ":" + quote + "Quidra" + quote + "," + quote + "items" + quote + ":[1,2]}}"
+          string source = "{{" + QUOTE + "name" + QUOTE + ":" + QUOTE + "Quidra" + QUOTE + "," + QUOTE + "items" + QUOTE + ":[1,2]}}"
           auto parsed = json.parse(source)
           match parsed
               json.Value root

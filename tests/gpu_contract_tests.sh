@@ -30,13 +30,11 @@ time.Instant default_start = time.now()
 time.Duration default_elapsed = time.since(default_start)
 print(default_elapsed.seconds() >= 0.0)
 
-time.Instant async_start
-async_start.sync = false
+time.Instant async_start = time.now(sync = false)
 time.Duration async_elapsed = time.since(async_start, sync = false)
 print(async_elapsed.seconds() >= 0.0)
 
-time.Instant synced_start
-synced_start.sync = true
+time.Instant synced_start = time.now(sync = true)
 time.Duration synced_elapsed = time.since(synced_start, sync = true)
 print(synced_elapsed.seconds() >= 0.0)
 QUI
@@ -150,8 +148,7 @@ cat > "$TMP/time-async-does-not-sync.qui" <<'QUI'
 tensor<float32> used_gpu = tensor.ones<float32>([1], gpu = 0)
 time.Instant default_start = time.now()
 time.Duration default_elapsed = time.since(default_start)
-time.Instant explicit_start
-explicit_start.sync = false
+time.Instant explicit_start = time.now(sync = false)
 time.Duration explicit_elapsed = time.since(explicit_start, sync = false)
 print(default_elapsed.seconds() >= 0.0 and explicit_elapsed.seconds() >= 0.0)
 QUI
@@ -164,8 +161,7 @@ fi
 
 cat > "$TMP/time-now-syncs-when-requested.qui" <<'QUI'
 tensor<float32> used_gpu = tensor.ones<float32>([1], gpu = 0)
-time.Instant synchronized
-synchronized.sync = true
+time.Instant synchronized = time.now(sync = true)
 print("unreachable")
 QUI
 set +e
@@ -179,8 +175,7 @@ fi
 grep -Fq "test-only fake GPU synchronization failure" "$TMP/time-now-syncs-when-requested.err"
 
 cat > "$TMP/time-since-syncs-when-requested.qui" <<'QUI'
-time.Instant start
-start.sync = false
+time.Instant start = time.now(sync = false)
 tensor<float32> used_gpu = tensor.ones<float32>([1], gpu = 0)
 time.Duration synchronized = time.since(start, sync = true)
 print(synchronized.seconds())
@@ -197,8 +192,7 @@ grep -Fq "test-only fake GPU synchronization failure" "$TMP/time-since-syncs-whe
 
 cat > "$TMP/time-sync-used-devices-only.qui" <<'QUI'
 tensor<float32> used_gpu = tensor.ones<float32>([1], gpu = 0)
-time.Instant start
-start.sync = true
+time.Instant start = time.now(sync = true)
 time.Duration elapsed = time.since(start, sync = true)
 print(elapsed.seconds() >= 0.0)
 QUI

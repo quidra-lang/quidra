@@ -2585,7 +2585,7 @@ match captured
 print(k)
 QUI
 scan_output="$(printf '40\n2 1.5\nAda,36\n7 seven\n' | $QUIDRA run "$TMP/scan-format.qui")"
-[[ "$scan_output" == "$(printf '42\n1.5\nAda:36\nscan found unexpected input after the format: \" seven\"\n0')" ]]
+[[ "$scan_output" == "$(printf '42\n1.5\nAda:36\nscan could not read int from \"7 seven\"\n0')" ]]
 set +e
 scan_fail_output="$(printf 'abc\n' | $QUIDRA run "$TMP/scan-format.qui" 2>&1)"
 scan_fail_rc=$?

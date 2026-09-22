@@ -1,6 +1,0 @@
-{
-  "exit_code": 0,
-  "stderr": "",
-  "stdout": "{\n  \"ok\": true,\n  \"agent_id\": \"worker-ecosystem-gates--part-1\",\n  \"result\": \"/quidra-benchmark/work/agents/worker-ecosystem-gates--part-1/result.json\"\n}\n",
-  "validated_at_utc": "2026-09-21T19:41:52.988159+00:00"
-}

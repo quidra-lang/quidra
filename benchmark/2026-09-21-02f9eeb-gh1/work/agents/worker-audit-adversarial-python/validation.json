@@ -1,6 +1,0 @@
-{
-  "exit_code": 0,
-  "stderr": "",
-  "stdout": "{\n  \"ok\": true,\n  \"agent_id\": \"worker-audit-adversarial-python\",\n  \"result\": \"/quidra-benchmark/work/agents/worker-audit-adversarial-python/result.json\"\n}\n",
-  "validated_at_utc": "2026-09-21T19:27:07.580027+00:00"
-}

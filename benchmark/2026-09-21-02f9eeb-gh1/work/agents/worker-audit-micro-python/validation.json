@@ -1,6 +1,0 @@
-{
-  "exit_code": 0,
-  "stderr": "",
-  "stdout": "{\n  \"ok\": true,\n  \"agent_id\": \"worker-audit-micro-python\",\n  \"result\": \"/quidra-benchmark/work/agents/worker-audit-micro-python/result.json\"\n}\n",
-  "validated_at_utc": "2026-09-21T19:23:12.425223+00:00"
-}

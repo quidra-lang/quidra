@@ -7,6 +7,7 @@ import argparse
 import importlib.util
 import json
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 
@@ -25,6 +26,7 @@ def load(name: str, path: Path):
 
 
 benchmark = load("benchmark_cache_cli", SCRIPTS / "benchmark.py")
+sys.modules["benchmark"] = benchmark
 production = load("benchmark_cache_production", SCRIPTS / "production_run.py")
 
 

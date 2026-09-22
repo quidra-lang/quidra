@@ -305,6 +305,49 @@ def main() -> None:
         assert policy["cache"]["paid_task_count"] == 0
         assert policy["cache"]["units_skipped_as_complete"] == [unit["id"]]
 
+        # A finalized trusted outer runner promotes both the certified result
+        # and the exact content-addressed prompt into canonical stores.
+        source = Path(td) / "source"
+        (source / "benchmark/cache").mkdir(parents=True)
+        (source / "benchmark/template/prompts/components/by-hash").mkdir(parents=True)
+        (source / "benchmark/template/prompts/manifests/by-hash").mkdir(parents=True)
+        benchmark.json_dump(
+            root / "results/primary_status.json",
+            {
+                "schema_version": 1,
+                "evaluations": {
+                    "ecosystem": {
+                        "status": "COMPLETE",
+                        "scoreable": True,
+                        "scores": {"Python": 88.0},
+                        "ranking": [{"language": "Python", "score": 88.0}],
+                        "blockers": [],
+                    }
+                },
+            },
+        )
+        cache_promotion = benchmark.promote_certified_cache(source, root)
+        assert cache_promotion["promoted"] == 1, cache_promotion
+        promoted_record = source / "benchmark/cache" / cache_promotion["records"][0]["path"]
+        assert promoted_record.is_file()
+
+        prompt_promotion = benchmark.promote_prompt_store(source, root)
+        assert prompt_promotion["components"] > 0, prompt_promotion
+        assert prompt_promotion["manifests"] == 1, prompt_promotion
+        canonical_manifest = (
+            source / "benchmark/template/prompts/manifests/by-hash"
+            / f"{task['prompt_sha256']}.json"
+        )
+        canonical = benchmark.json_load(canonical_manifest)
+        assert canonical["prompt_sha256"] == task["prompt_sha256"]
+        assert "agent_id" not in canonical
+        assert "evaluation" not in canonical
+
+        # Promotion is content-addressed and idempotent.
+        assert benchmark.promote_certified_cache(source, root)["promoted"] == 0
+        second_prompts = benchmark.promote_prompt_store(source, root)
+        assert second_prompts == {"components": 0, "manifests": 0}, second_prompts
+
     print("certified benchmark cache contract: ok")
 
 

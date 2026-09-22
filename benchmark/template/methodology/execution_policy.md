@@ -18,7 +18,7 @@ The gateway declares the provider-side tools it may enable, and `preflight` reco
 
 ## 2. Current-template-only rule
 
-Every reusable input required by a new run is tracked directly under `benchmark/template/`.
+Every reusable source, prompt, fixture, validator, workload and methodology input required by a new run is tracked directly under `benchmark/template/`. Reusable measurements are separate and may enter only through the certified cache under `benchmark/cache/`.
 
 New runs must not read previous benchmark directories, old methodology snapshots, or ad-hoc prior scores/generations/repair histories. Historical run directories are output/audit material only. The sole exception for prior measurements is the explicit certified cache under `benchmark/cache/`, which the trusted runner may hydrate only after a complete input-fingerprint match and current-validator revalidation. Workers never receive the cache as a readable path.
 

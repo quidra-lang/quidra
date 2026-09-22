@@ -31,7 +31,7 @@ This directory is the complete reusable input for a new benchmark run.
 
 ## No historical-run dependency
 
-A new run must not read an older run directory. Past runs contain results/audit history only. If an asset is reusable, it belongs directly in this template.
+A new run must not read an older run directory. Past runs contain results/audit history only. Reusable source, prompt, fixture, validator, workload and methodology inputs belong directly in this template; reusable measurements may enter only through the explicit certified cache under `benchmark/cache/`.
 
 Measurements, scores, prior LLM generations, repair histories and run-specific environment data do not belong here.
 

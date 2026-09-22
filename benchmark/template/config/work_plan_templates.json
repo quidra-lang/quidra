@@ -113,7 +113,8 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_by_language": true
+          "split_by_language": true,
+          "packet_layout": "shared-inputs-first"
         },
         {
           "id": "sc-metrics-local--part-3",
@@ -140,7 +141,8 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_by_language": true
+          "split_by_language": true,
+          "packet_layout": "shared-inputs-first"
         },
         {
           "id": "sc-metrics-local--part-2",
@@ -167,7 +169,8 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_by_language": true
+          "split_by_language": true,
+          "packet_layout": "shared-inputs-first"
         },
         {
           "id": "sc-metrics-hidden-coverage--part-1",
@@ -194,7 +197,8 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_by_language": true
+          "split_by_language": true,
+          "packet_layout": "shared-inputs-first"
         },
         {
           "id": "sc-metrics-hidden-coverage--part-3",
@@ -221,7 +225,8 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_by_language": true
+          "split_by_language": true,
+          "packet_layout": "shared-inputs-first"
         },
         {
           "id": "sc-metrics-hidden-coverage--part-2",
@@ -248,7 +253,8 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_by_language": true
+          "split_by_language": true,
+          "packet_layout": "shared-inputs-first"
         },
         {
           "id": "sc-comparability",
@@ -273,7 +279,8 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "worker_mode": "packet-only"
+          "worker_mode": "packet-only",
+          "packet_layout": "shared-inputs-first"
         }
       ]
     },

@@ -538,7 +538,8 @@ def run_production(
 
 
 def provider_smoke(
-    model: str, template: Path, budget_usd: float, timeout: float
+    model: str, template: Path, budget_usd: float, timeout: float,
+    prefix_probe: Path | None = None,
 ) -> dict[str, Any]:
     """Spend a few cents proving the paid path works before spending the rest.
 
@@ -745,6 +746,36 @@ def provider_smoke(
             int((second.get("usage") or {}).get("cache_read_input_tokens", 0) or 0) > 0,
             {"first": first.get("usage"), "second": second.get("usage")},
         )
+
+        if prefix_probe is not None:
+            # A packet in the shared-inputs-first layout is one user message:
+            # the inputs every sibling unit shares, then a per-unit header. The
+            # trusted adapter splits it at the header and marks the shared part
+            # as the cache breakpoint. Two packets that share the inputs but
+            # differ in their header must therefore write the prefix once and
+            # read it the second time. This is the only way to know before a
+            # paid run whether that saving is real; it costs one write of the
+            # probe text plus one read, well under a dollar.
+            shared = prefix_probe.read_text(encoding="utf-8")
+            tail = "\n\n## Rules\n- Reply with the single word: ready\n"
+            probe_a = client.complete(
+                [{"role": "user", "content": shared + "\n# Task Packet: smoke-probe-a\n" + tail}],
+                task_id=plain_task, max_output_tokens=16, request_id=uuid.uuid4().hex,
+            )
+            probe_b = client.complete(
+                [{"role": "user", "content": shared + "\n# Task Packet: smoke-probe-b\n" + tail}],
+                task_id=plain_task, max_output_tokens=16, request_id=uuid.uuid4().hex,
+            )
+            record_call("prefix probe, first packet (writes the shared inputs)", probe_a)
+            record_call("prefix probe, sibling packet (should read them)", probe_b)
+            written = int((probe_a.get("usage") or {}).get("cache_creation_input_tokens", 0) or 0)
+            read = int((probe_b.get("usage") or {}).get("cache_read_input_tokens", 0) or 0)
+            record(
+                "a sibling packet reads the shared inputs from the prompt cache",
+                written > 0 and read >= int(0.8 * written),
+                {"first": probe_a.get("usage"), "second": probe_b.get("usage"),
+                 "probe_text": str(prefix_probe)},
+            )
     finally:
         process.terminate()
         try:
@@ -889,6 +920,11 @@ def build_parser() -> argparse.ArgumentParser:
     smoke.add_argument("--budget-usd", type=float, default=0.50)
     smoke.add_argument("--timeout", type=float, default=180.0)
     smoke.add_argument("--output")
+    smoke.add_argument(
+        "--prefix-probe-text",
+        help="a large text file to send twice under different Task Packet headers, "
+             "proving the shared-inputs-first cache breakpoint on the live provider",
+    )
 
     cost = sub.add_parser("cost-report", help="summarize the trusted gateway audit log")
     cost.add_argument("--log", required=True)
@@ -911,6 +947,7 @@ def main() -> int:
         payload = provider_smoke(
             args.model, Path(args.template).resolve(),
             float(args.budget_usd), float(args.timeout),
+            Path(args.prefix_probe_text).resolve() if args.prefix_probe_text else None,
         )
         if args.output:
             Path(args.output).write_text(

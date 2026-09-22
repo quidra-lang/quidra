@@ -44,10 +44,27 @@ jobs:
             echo "::error::Repository secret ANTHROPIC_API_KEY is not configured."
             exit 1
           }
+          # `probe: sc-prefix-cache` in the marker adds one paid probe: a real
+          # semantic-compression input (about 90k tokens) is sent twice under
+          # different Task Packet headers, and the second send must read the
+          # shared prefix from the prompt cache. It costs about thirty cents.
+          probe="$(sed -n 's/^probe:[[:space:]]*//p' benchmark/.run-smoke | tail -n 1 | xargs)"
+          probe_args=()
+          budget="0.50"
+          limit="0.10"
+          if [ "$probe" = "sc-prefix-cache" ]; then
+            probe_args=(--prefix-probe-text benchmark/template/methodology-assets/semantic_compression/semantic_site_matrix.json)
+            budget="1.0"
+            limit="1.0"
+          elif [ -n "$probe" ]; then
+            echo "::error::unknown smoke probe: $probe"; exit 1
+          fi
+          echo "SMOKE_SPEND_LIMIT=$limit" >> "$GITHUB_ENV"
           python benchmark/template/scripts/production_run.py provider-smoke \
             --model "$BENCHMARK_MODEL" \
-            --budget-usd 0.50 \
-            --output "$RUNNER_TEMP/provider-smoke.json"
+            --budget-usd "$budget" \
+            --output "$RUNNER_TEMP/provider-smoke.json" \
+            "${probe_args[@]}"
 
       - name: Report what it checked and what it cost
         if: always()
@@ -89,7 +106,8 @@ jobs:
               f"{spend['web_search_requests']} searches)"
           )
           # A smoke test that somehow cost real money is itself a finding.
-          assert spend["estimated_cost_usd"] < 0.10, "the smoke test spent too much"
+          limit = float(os.environ.get("SMOKE_SPEND_LIMIT", "0.10"))
+          assert spend["estimated_cost_usd"] < limit, f"the smoke test spent too much (limit {limit})"
           assert report["ok"], report.get("failed_checks")
           PY
 

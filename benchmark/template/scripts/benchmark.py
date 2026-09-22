@@ -109,6 +109,16 @@ TOOLCHAIN_ENVIRONMENT_PASSTHROUGH = (
 #: language's toolchain actually compiled or executed something. A learnability
 #: unit attests fixtures_compile_and_run=true; this is the mechanical check that
 #: the attestation is backed by a real invocation rather than a string matcher.
+#: How a Task Packet's components are ordered. `task-first` is the original
+#: layout. `shared-inputs-first` renders the embedded inputs every sibling
+#: unit shares before the per-unit header, and the trusted gateway places a
+#: prompt-cache breakpoint where the header begins.
+PACKET_LAYOUTS = ("task-first", "shared-inputs-first")
+
+#: The line that opens every Task Packet's per-unit header. In the
+#: shared-inputs-first layout it marks where the shared prefix ends.
+PACKET_HEADER_MARKER = "# Task Packet: "
+
 LANGUAGE_TOOLCHAIN_PROGRAMS = {
     "Python": ("python3",),
     "C++": ("c++", "g++", "clang++", "cc", "gcc", "clang"),
@@ -2752,6 +2762,7 @@ def cmd_tasks_create(args: argparse.Namespace) -> int:
             requirement_id=unit.get("requirement_ids", []),
             language=assigned_languages,
             worker_mode=unit.get("worker_mode", "packet-only"),
+            layout=unit.get("packet_layout", "task-first"),
         )
         cmd_task_create(ns)
         created.append({
@@ -4170,11 +4181,32 @@ Goal: {args.goal}
 - A child agent must receive its own persisted self-contained Task Packet. Do not pass implicit parent conversation state.
 """
     packet = render_workspace_paths(packet, root)
-    components = [store_prompt_component(root, packet, "task")]
-    for name, section in embedded_sections:
-        components.append(store_prompt_component(root, section, f"embedded:{name}"))
-    for name, packet_input in packet_input_sections:
-        components.append(store_prompt_component(root, packet_input, name))
+    layout = str(getattr(args, "layout", None) or "task-first")
+    if layout not in PACKET_LAYOUTS:
+        raise BenchmarkError(f"unsupported packet layout: {layout}")
+    task_component = store_prompt_component(root, packet, "task")
+    embedded_components = [
+        (name, store_prompt_component(root, section, f"embedded:{name}"))
+        for name, section in embedded_sections
+    ]
+    input_components = [
+        store_prompt_component(root, packet_input, name)
+        for name, packet_input in packet_input_sections
+    ]
+    if layout == "shared-inputs-first":
+        # Everything identical across the units that share these inputs comes
+        # first, so the trusted gateway can cache it once for all of them; the
+        # per-unit header and its requirement list follow. Section 8 of the
+        # master prompt records why: a semantic-compression packet carries
+        # about 180k tokens of the same methodology assets for every language,
+        # and with the language-specific header first none of it was ever read
+        # from the cache. The rendered bytes are a permutation of the
+        # task-first layout; nothing is added or removed.
+        shared = [c for name, c in embedded_components if name != "assigned_requirements.json"]
+        tail = [c for name, c in embedded_components if name == "assigned_requirements.json"]
+        components = [*shared, *input_components, task_component, *tail]
+    else:
+        components = [task_component, *(c for _, c in embedded_components), *input_components]
     rendered = b"".join(Path(c["path"]).read_bytes() for c in components)
     prompt_hash = sha256_bytes(rendered)
 
@@ -4198,6 +4230,7 @@ Goal: {args.goal}
         "prompt_sections": prompt_sections,
         "prompt_sha256": prompt_hash,
         "prompt_components": components,
+        "packet_layout": layout,
         "rendered_bytes": len(rendered),
     }
     prompt_manifest = root / "prompts" / "manifests" / f"{args.id}.json"
@@ -7399,6 +7432,12 @@ def build_parser() -> argparse.ArgumentParser:
     tc.add_argument("--requirement-id", action="append", default=[])
     tc.add_argument("--language", action="append", default=[])
     tc.add_argument("--worker-mode", choices=("packet-only", "sandbox-agent"), default="packet-only")
+    tc.add_argument(
+        "--layout", choices=PACKET_LAYOUTS, default="task-first",
+        help="component order of the rendered packet; shared-inputs-first puts the "
+             "inputs every sibling unit shares before the per-unit header so the "
+             "trusted gateway can cache them once",
+    )
     tc.set_defaults(func=cmd_task_create)
 
     ps = sub.add_parser("prompt-save", help="content-address and preserve an exact scored/delegated prompt")

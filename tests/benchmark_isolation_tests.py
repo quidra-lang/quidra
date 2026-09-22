@@ -2766,6 +2766,89 @@ def test_a_worker_may_run_what_it_built_and_is_told_every_earlier_rejection() ->
         )
 
 
+def test_shared_inputs_first_packets_cache_their_shared_prefix() -> None:
+    """The inputs sibling packets share are rendered first and cached once.
+
+    A semantic-compression packet carries about 180k tokens of the same
+    methodology assets for every language; with the per-unit header first,
+    the third paid run wrote them once per packet and never read them. In the
+    shared-inputs-first layout the rendered bytes are a permutation of the
+    task-first layout - nothing added, nothing removed - the header opens the
+    tail, and the trusted adapter splits the message there so the breakpoint
+    sits at the end of the shared part.
+    """
+    import argparse
+    import contextlib
+    import io
+
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        (root / "repo" / "docs" / "allowed.md").write_text("shared doc\n" * 50, encoding="utf-8")
+        components_by_layout = {}
+        for layout in ("task-first", "shared-inputs-first"):
+            agent_id = f"worker-layout-{layout}"
+            with contextlib.redirect_stdout(io.StringIO()):
+                benchmark.cmd_task_create(argparse.Namespace(
+                    workspace=str(root), id=agent_id, parent=None, evaluation=None,
+                    goal="layout test", read=[str(root / "repo" / "docs")], write=None,
+                    output=[str(root / "work" / "agents" / agent_id / "result.json")],
+                    validate="true", network=False, depth=0, section=[], requirement_id=[],
+                    language=[], worker_mode="packet-only", layout=layout,
+                ))
+            task = json.loads((root / "work" / "agents" / agent_id / "task.json").read_text("utf-8"))
+            rendered = benchmark.render_prompt_components(task["prompt_components"], task["prompt_sha256"])
+            components_by_layout[layout] = (task["prompt_components"], rendered, task)
+        first_components, first_bytes, _ = components_by_layout["task-first"]
+        shared_components, shared_bytes, shared_task = components_by_layout["shared-inputs-first"]
+        first_kinds = [c["kind"] for c in first_components]
+        shared_kinds = [c["kind"] for c in shared_components]
+        check(first_kinds[0] == "task", f"task-first no longer starts with the header: {first_kinds}")
+        check(
+            shared_kinds[-1] == "task" and shared_kinds[0].startswith("task-input:"),
+            f"shared-inputs-first did not put the inputs first and the header last: {shared_kinds}",
+        )
+        check(sorted(first_kinds) == sorted(shared_kinds), "a layout changed the set of components")
+        # The same shared components, byte for byte; only the per-unit header
+        # (which names the agent) differs between the two tasks.
+        check(
+            sorted(c["sha256"] for c in first_components if c["kind"] != "task")
+            == sorted(c["sha256"] for c in shared_components if c["kind"] != "task"),
+            "a layout changed the bytes of a shared component",
+        )
+        check(shared_task.get("packet_layout") == "shared-inputs-first", "the layout was not recorded")
+        text = shared_bytes.decode("utf-8")
+        cut = text.find(inference_gateway.PACKET_HEADER_MARKER)
+        check(cut > 0, "the shared-inputs-first packet does not carry the header marker after its inputs")
+
+        marker = {"type": "ephemeral"}
+        blocks = inference_gateway.split_cached_user_content(text, marker)
+        check(
+            len(blocks) == 2 and "cache_control" in blocks[0] and "cache_control" not in blocks[1]
+            and blocks[0]["text"] + blocks[1]["text"] == text
+            and blocks[1]["text"].startswith("\n# Task Packet: "),
+            f"the adapter did not split the packet at its header: {[b.get('text', '')[:40] for b in blocks]}",
+        )
+        plain = inference_gateway.split_cached_user_content("# Task Packet: x\nheader first", marker)
+        check(
+            len(plain) == 1 and "cache_control" in plain[0],
+            f"a task-first packet was split: {plain}",
+        )
+
+        # End to end through the adapter's request builder.
+        provider = _anthropic_provider()
+        http = _ScriptedHTTP([
+            {"content": [{"type": "text", "text": "ready"}], "stop_reason": "end_turn", "usage": {}},
+        ])
+        provider._open = http
+        provider.complete(_validated_request(messages=[{"role": "user", "content": text}]))
+        content = http.payloads[0]["messages"][-1]["content"]
+        check(
+            isinstance(content, list) and len(content) == 2 and "cache_control" in content[0]
+            and content[0]["text"] + content[1]["text"] == text,
+            f"the request did not carry the split blocks: {type(content)} {len(content) if isinstance(content, list) else ''}",
+        )
+
+
 def main() -> int:
     tests = [value for name, value in sorted(globals().items()) if name.startswith("test_")]
     for test in tests:

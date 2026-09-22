@@ -787,11 +787,9 @@ class AnthropicMessagesProvider(Provider):
                 if turns[index]["role"] == "user":
                     turns[index] = {
                         "role": "user",
-                        "content": [{
-                            "type": "text",
-                            "text": turns[index]["content"],
-                            "cache_control": dict(cache_marker),
-                        }],
+                        "content": split_cached_user_content(
+                            str(turns[index]["content"]), dict(cache_marker)
+                        ),
                     }
                     break
         # No temperature/top_p/top_k: this model family removed them and rejects a
@@ -840,6 +838,33 @@ class AnthropicMessagesProvider(Provider):
             "tool_use_refusals": int(outcome.get("tool_use_refusals", 0)),
             "empty_completion_retries": empty_retries,
         }
+
+
+#: The line that opens a Task Packet's per-unit header. A packet rendered in
+#: the shared-inputs-first layout carries every input its sibling units share
+#: before this line; the trusted side puts the cache breakpoint there.
+PACKET_HEADER_MARKER = "\n# Task Packet: "
+
+
+def split_cached_user_content(text: str, cache_marker: dict[str, Any]) -> list[dict[str, Any]]:
+    """The last user message as content blocks with the cache breakpoint placed.
+
+    A message that is one whole Task Packet in the shared-inputs-first layout
+    becomes two text blocks: the shared inputs, marked as the breakpoint, and
+    the per-unit header after it. Every sibling unit then reads the shared
+    prefix at the cache rate instead of writing it again - about 180k tokens
+    per semantic-compression packet, which the third paid run wrote once per
+    language and never read. The model receives exactly the same bytes, in the
+    same order, as one turn. Any other message keeps the single-block form
+    with the breakpoint on its end, as before.
+    """
+    cut = text.find(PACKET_HEADER_MARKER)
+    if cut <= 0:
+        return [{"type": "text", "text": text, "cache_control": dict(cache_marker)}]
+    return [
+        {"type": "text", "text": text[:cut], "cache_control": dict(cache_marker)},
+        {"type": "text", "text": text[cut:]},
+    ]
 
 
 def render_conversation(messages: list[dict[str, str]]) -> str:

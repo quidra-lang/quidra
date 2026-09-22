@@ -3270,7 +3270,7 @@ def cache_fingerprint_payload(
         "schema_version": 1,
         "cache_schema_version": 1,
         "evaluation": unit.get("evaluation"),
-        "work_unit_base": str(unit.get("id", "")).split("--", 1)[0],
+        "work_unit_id": str(unit.get("id", "")),
         "requirement_ids": list(unit.get("requirement_ids", [])),
         "assigned_languages": assigned,
         "exact_task_packet_sha256": task.get("prompt_sha256"),

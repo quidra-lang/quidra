@@ -114,7 +114,7 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "sc-metrics-local--part-2",
@@ -141,7 +141,7 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "sc-metrics-hidden-coverage--part-1",
@@ -169,7 +169,7 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "sc-metrics-hidden-coverage--part-2",
@@ -196,7 +196,7 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "sc-comparability",
@@ -564,7 +564,7 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf.",
           "worker_mode": "sandbox-agent",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "lq-language-development--part-2",
@@ -589,7 +589,7 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf.",
           "worker_mode": "sandbox-agent",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "lq-language-development--part-3",
@@ -614,7 +614,7 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf.",
           "worker_mode": "sandbox-agent",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "lq-language-development--part-4",
@@ -639,7 +639,7 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf.",
           "worker_mode": "sandbox-agent",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "lq-safety--part-1",
@@ -667,7 +667,7 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf.",
           "worker_mode": "sandbox-agent",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "lq-safety--part-2",
@@ -695,7 +695,7 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf.",
           "worker_mode": "sandbox-agent",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "lq-safety--part-3",
@@ -723,7 +723,7 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf.",
           "worker_mode": "sandbox-agent",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "lq-safety--part-4",
@@ -751,7 +751,7 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf.",
           "worker_mode": "sandbox-agent",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "lq-safety--part-5",
@@ -778,7 +778,7 @@
           "network_allowed": false,
           "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf.",
           "worker_mode": "sandbox-agent",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         }
       ]
     },
@@ -845,7 +845,7 @@
           "network_allowed": true,
           "goal_hint": "Narrow shard of ecosystem-external; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "ecosystem-external--part-2",
@@ -868,7 +868,7 @@
           "network_allowed": true,
           "goal_hint": "Narrow shard of ecosystem-external; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "ecosystem-external--part-3",
@@ -890,7 +890,7 @@
           "network_allowed": true,
           "goal_hint": "Narrow shard of ecosystem-external; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "ecosystem-tooling--part-1",
@@ -913,7 +913,7 @@
           "network_allowed": true,
           "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "ecosystem-tooling--part-2",
@@ -936,7 +936,7 @@
           "network_allowed": true,
           "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "ecosystem-tooling--part-3",
@@ -959,7 +959,7 @@
           "network_allowed": true,
           "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "ecosystem-tooling--part-4",
@@ -982,7 +982,7 @@
           "network_allowed": true,
           "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         },
         {
           "id": "ecosystem-tooling--part-5",
@@ -1005,7 +1005,7 @@
           "network_allowed": true,
           "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
-          "split_mode": "target_vs_comparison"
+          "split_by_language": true
         }
       ]
     },

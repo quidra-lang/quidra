@@ -145,7 +145,7 @@ For Language Quality micro workloads, Quidra source belongs to the evaluated sna
 
 Leaf workers handle only tasks that require language/evidence/model judgment. Every manifest unit freezes a worker mode. Packet-only leaves receive embedded permitted inputs and return files only through the structured response importer; sandbox-agent leaves receive narrow sandbox read paths and one sandbox writable directory, enforced in code by the in-sandbox runtime. Both receive exact requirement IDs, compact worker rules, selected methodology sections, frozen Primary configuration, exact validator and network permission, and both reach a model only through the credential-less gateway socket. No scored leaf is a host-side tool-capable subagent.
 
-A multi-language leaf may own at most `runner.max_requirement_ids_per_multi_language_agent` from the frozen Primary configuration. Larger bundles are rejected mechanically. Larger bundles are rejected mechanically. The only exception is a leaf expanded to exactly one assigned language when several metrics intentionally derive from the same isolated trial history; splitting that history would duplicate scored trials and change the experiment.
+A multi-language leaf may own at most `runner.max_requirement_ids_per_multi_language_agent` from the frozen Primary configuration. Larger bundles are rejected mechanically. The only exception is a leaf expanded to exactly one assigned language when several metrics intentionally derive from the same isolated trial history; splitting that history would duplicate scored trials and change the experiment.
 
 Workers never need this root prompt, the parent conversation, another evaluation specification, sibling output, or a historical run.
 

@@ -4486,6 +4486,22 @@ def learnability_toolchain_evidence_problems(
     return problems
 
 
+def toolchain_evidence_required(root: Path) -> bool:
+    """Whether a trial unit must show its toolchain actually ran.
+
+    Always, in a real run at the canonical workspace root. The synthetic CI
+    harness drives the runtime on a host with no comparison toolchains and no
+    built Quidra compiler, under the same explicit escape hatch that lets it
+    use synthetic runner commands; there the scripted agent's version probe is
+    denied and the check would fail every unit for reasons unrelated to what
+    CI proves. The hatch never applies at /quidra-benchmark.
+    """
+    return not (
+        lexical_absolute(root) != lexical_absolute(CANONICAL_WORKSPACE)
+        and os.environ.get("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS") == "1"
+    )
+
+
 def is_trial_unit(unit: dict[str, Any]) -> bool:
     evaluation = str(unit.get("evaluation") or "")
     if unit.get("execution_kind", "agent") != "agent":
@@ -4537,7 +4553,8 @@ def trial_unit_problems(
                     "learnability preflight reports that the assigned toolchain cannot "
                     f"compile and run fixtures inside the sandbox: {first}"
                 )
-        problems.extend(learnability_toolchain_evidence_problems(unit, trace))
+        if toolchain_evidence_required(agent_dir.parent.parent.parent):
+            problems.extend(learnability_toolchain_evidence_problems(unit, trace))
     elif evaluation == "llm_proficiency":
         problems.extend(_preserved_trial_problems(agent_dir, trace))
     return infrastructure, problems
@@ -5423,9 +5440,10 @@ def run_learnability_integrity(root: Path, unit: dict[str, Any]) -> None:
             continue
         local = validate_learnability_attestations(agent_dir)
         problems.extend(f"{uid}: {p}" for p in local)
-        problems.extend(
-            f"{uid}: {p}" for p in learnability_toolchain_evidence_problems(trial_unit, trace)
-        )
+        if toolchain_evidence_required(root):
+            problems.extend(
+                f"{uid}: {p}" for p in learnability_toolchain_evidence_problems(trial_unit, trace)
+            )
         actions = list(trace.get("trace", []))
         first_trial = next(
             (int(x.get("turn", 0)) for x in actions if x.get("action") == "trial_start"),
@@ -6552,7 +6570,8 @@ def cache_certification_for_unit(
                 )
                 if not wrote_before:
                     problems.append(f"{filename} was not preserved before first trial_start")
-        problems.extend(learnability_toolchain_evidence_problems(unit, trace))
+        if toolchain_evidence_required(root):
+            problems.extend(learnability_toolchain_evidence_problems(unit, trace))
         if problems:
             raise BenchmarkError(
                 f"{unit['id']}: learnability cache promotion failed integrity: "

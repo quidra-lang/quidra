@@ -176,6 +176,20 @@ def unit_payload(unit: dict[str, Any], languages: list[str]) -> dict[str, Any]:
     }
 
 
+TOOLCHAIN_VERSION_PROBES = {
+    "Python": ("python3", "--version"),
+    "C++": ("c++", "--version"),
+    "Rust": ("rustc", "--version"),
+    "Go": ("go", "version"),
+    "Java": ("javac", "-version"),
+    "Kotlin": ("kotlinc", "-version"),
+    "TypeScript": ("tsc", "--version"),
+    "Swift": ("swift", "--version"),
+    "Zig": ("zig", "version"),
+    "Quidra": ("quidra", "--version"),
+}
+
+
 def sandbox_turns(unit: dict[str, Any], payload: str) -> list[str]:
     turns: list[str] = []
     if unit.get("evaluation") == "llm_learnability" and int(unit.get("max_llm_calls", 0) or 0) > 0:
@@ -206,6 +220,16 @@ def sandbox_turns(unit: dict[str, Any], payload: str) -> list[str]:
             json.dumps({"action": "write_file", "path": "learnability_leakage.json",
                         "content": json.dumps(leakage, indent=2) + "\n"}),
         ])
+    if unit.get("evaluation") == "llm_learnability" and int(unit.get("max_llm_calls", 0) or 0) > 0:
+        # A trial unit must show its assigned toolchain actually ran: a real
+        # agent compiles fixtures, the scripted one asks for the version. In
+        # the sandbox this resolves through the same PATH a real agent gets
+        # (the Quidra build included); on a host without the toolchain it is
+        # denied, and the synthetic escape hatch waives the check there.
+        for language in unit.get("assigned_languages") or []:
+            probe = TOOLCHAIN_VERSION_PROBES.get(str(language))
+            if probe:
+                turns.append(json.dumps({"action": "run", "argv": list(probe)}))
     if int(unit.get("max_llm_calls", 0) or 0) > 0:
         turns.extend([
             json.dumps({"action": "trial_start", "trial_id": "synthetic-t1",

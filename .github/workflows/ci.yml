@@ -65,6 +65,14 @@ jobs:
         run: cmake --build build --parallel
       - name: Tests
         run: ctest --test-dir build --output-on-failure --parallel 4
+      - name: Benchmark programs stay current with the compiler
+        if: matrix.compiler == 'clang' && matrix.standard == 20
+        run: |
+          # The Quidra side of the Language Quality benchmark lives in
+          # tests/benchmark/quidra and is measured by the compiler built from
+          # this tree, so a language change that breaks or invalidates one of
+          # those programs must fail the commit that made it.
+          tests/benchmark_programs.sh build/quidra
       - name: Package smoke
         if: matrix.compiler == 'gcc'
         run: |

@@ -384,13 +384,15 @@ def provider_smoke(
     policy_path = workdir / "task-policy.json"
     log_path = workdir / "audit.jsonl"
     # Every task the smoke will actually send must be named, exactly as the
-    # production policy names every agent it will dispatch. `refused` is left out
-    # on purpose: an unnamed task is what the refusal check needs.
-    plain, granted, refused = "smoke-plain", "smoke-network-task", "smoke-unknown-task"
+    # production policy names every agent it will dispatch. `unknown_task` is left
+    # out on purpose: an unnamed task is what the refusal check needs.
+    plain_task, network_task, unknown_task = (
+        "smoke-plain", "smoke-network-task", "smoke-unknown-task"
+    )
     policy_path.write_text(
         json.dumps({
             "schema_version": 1,
-            "tasks": {plain: "disabled", granted: "allowed"},
+            "tasks": {plain_task: "disabled", network_task: "allowed"},
         }) + "\n",
         encoding="utf-8",
     )
@@ -460,12 +462,12 @@ def provider_smoke(
         for name, payload in (
             ("a task absent from the frozen policy is refused", {
                 "schema_version": 1, "kind": "inference.request",
-                "request_id": "smoke-unknown", "task_id": refused,
+                "request_id": "smoke-unknown", "task_id": unknown_task,
                 "messages": [{"role": "user", "content": "x"}],
             }),
             ("a sandbox-supplied temperature is refused", {
                 "schema_version": 1, "kind": "inference.request",
-                "request_id": "smoke-temp", "task_id": granted,
+                "request_id": "smoke-temp", "task_id": network_task,
                 "messages": [{"role": "user", "content": "x"}], "temperature": 0.0,
             }),
         ):
@@ -480,7 +482,7 @@ def provider_smoke(
         # The first real call. Tiny prompt, tiny output cap.
         plain = client.complete(
             [{"role": "user", "content": "Reply with the single word: ready"}],
-            task_id=plain,
+            task_id=plain_task,
             max_output_tokens=16,
             request_id=uuid.uuid4().hex,
         )
@@ -501,7 +503,7 @@ def provider_smoke(
         # carries the frozen server-side tool and is otherwise never sent.
         searched = client.complete(
             [{"role": "user", "content": "Reply with the single word: ready"}],
-            task_id=granted,
+            task_id=network_task,
             max_output_tokens=16,
             network_allowed=True,
             request_id=uuid.uuid4().hex,
@@ -518,7 +520,7 @@ def provider_smoke(
         # because every sandbox-agent action turn in the run will carry it.
         orchestration = client.complete(
             [{"role": "user", "content": "Reply with the single word: ready"}],
-            task_id=plain,
+            task_id=plain_task,
             max_output_tokens=16,
             purpose="orchestration",
             request_id=uuid.uuid4().hex,
@@ -545,11 +547,11 @@ def provider_smoke(
             {"role": "user", "content": "Reply with the single word: ready"},
         ]
         first = client.complete(
-            cached_messages, task_id=plain, max_output_tokens=16,
+            cached_messages, task_id=plain_task, max_output_tokens=16,
             request_id=uuid.uuid4().hex,
         )
         second = client.complete(
-            cached_messages, task_id=plain, max_output_tokens=16,
+            cached_messages, task_id=plain_task, max_output_tokens=16,
             request_id=uuid.uuid4().hex,
         )
         record_call("cache probe, first send", first)

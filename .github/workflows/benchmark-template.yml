@@ -504,8 +504,8 @@ jobs:
           python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
 
           test -f "$TMP/results/dispatch_queue.json"
-          grep -q '"agent_id": "worker-sc-metrics-local--part-1"' "$TMP/results/dispatch_queue.json"
-          python benchmark/template/scripts/benchmark.py task-render             --workspace "$TMP" --id worker-sc-metrics-local--part-1 > "$TMP/rendered-task.md"
+          grep -q '"agent_id": "worker-sc-metrics-local--part-1--quidra"' "$TMP/results/dispatch_queue.json"
+          python benchmark/template/scripts/benchmark.py task-render             --workspace "$TMP" --id worker-sc-metrics-local--part-1--quidra > "$TMP/rendered-task.md"
           grep -q "Embedded input: worker_core.md" "$TMP/rendered-task.md"
           grep -q "Semantic Density" "$TMP/rendered-task.md"
           grep -q "/quidra-benchmark" "$TMP/rendered-task.md"

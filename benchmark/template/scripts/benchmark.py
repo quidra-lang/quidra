@@ -4503,7 +4503,7 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
                 "unknown_semantic_fact_refs": sorted(fact_refs - facts),
                 "recipe_languages": sorted(recipes),
                 "toolchain_recipe_copies_match": recipes == frozen_recipes,
-                "quidra_interpreter_recipe_absent": "interpreter_run" not in (recipes.get("Quidra") or {}),
+                "quidra_native_only_recipe": set((recipes.get("Quidra") or {}).keys()) == {"build", "run"},
             })
         elif rid == "coverage.all_frozen_probes":
             asset = json_load(

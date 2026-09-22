@@ -636,6 +636,7 @@ def test_scored_container_command_is_hardened() -> None:
         "/staging/.quidra-benchmark:/quidra-benchmark:rw",
         "/staging/.quidra-benchmark/repo:/quidra-benchmark/repo:ro",
         "/staging/.quidra-benchmark/template:/quidra-benchmark/template:ro",
+        "/staging/.quidra-benchmark/cache:/quidra-benchmark/cache:ro",
         "gateway-volume:/quidra-benchmark/gateway:rw",
     ):
         check(expected in argv, f"the scored container is missing the mount {expected}")
@@ -737,8 +738,8 @@ def test_gateway_container_keeps_credentials_on_the_trusted_side() -> None:
             f"a trusted-side path reached the scored container: {mount}",
         )
     check(
-        len(scored_mounts) == 4,
-        f"the scored container's mounts are not the four fixed ones: {scored_mounts}",
+        len(scored_mounts) == 5,
+        f"the scored container's mounts are not the five fixed ones: {scored_mounts}",
     )
 
 

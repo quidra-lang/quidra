@@ -6253,7 +6253,8 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     manifest_path = root / "work" / "root" / "manifest.json"
     ledger_path = root / "work" / "root" / "ledger.json"
     status_path = root / "results" / "primary_status.json"
-    if not (manifest_path.is_file() and ledger_path.is_file()):
+    policy_path = root / "template" / "config" / "cache_policy.json"
+    if not (manifest_path.is_file() and ledger_path.is_file() and policy_path.is_file()):
         return {"promoted": 0, "reused": 0, "records": []}
 
     promotion_policy = cache_policy(root).get("promotion") or {}

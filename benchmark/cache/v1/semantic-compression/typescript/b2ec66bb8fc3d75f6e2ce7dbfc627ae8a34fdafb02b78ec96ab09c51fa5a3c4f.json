@@ -1,0 +1,543 @@
+{
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "b2ec66bb8fc3d75f6e2ce7dbfc627ae8a34fdafb02b78ec96ab09c51fa5a3c4f",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "TypeScript"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "876db15d8ada0b140eb39edc47adc255e063a38d8ff221f9c3db95f0562edc17",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.capability_coverage"
+    ],
+    "runtime_toolchain_pins": {
+      "TypeScript": {
+        "NODE_PIN": "24.2.0",
+        "TYPESCRIPT_PIN": "7.0.2"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "TypeScript": "tsc 7.0.2; node 24.2.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-sc-metrics-hidden-coverage--part-2--typescript",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--typescript",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "876db15d8ada0b140eb39edc47adc255e063a38d8ff221f9c3db95f0562edc17",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--typescript"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "metric.capability_coverage": {
+        "TypeScript": {
+          "aggregate_score": 86.36,
+          "aggregate_score_exact_fraction": "76/88",
+          "basis_note": "Capability Coverage C is computed on the full fixed 88-point denominator per capability_universe.json capability_coverage.formula, independent of the common-basis/all-fragments distinction used for metrics A-D; this figure is not affected by which other languages have fragments for a given probe.",
+          "counts": {
+            "FULL": 36,
+            "NONE": 4,
+            "PARTIAL": 4,
+            "total_probes": 44
+          },
+          "denominator": 88,
+          "denominator_frozen": true,
+          "family_breakdown": {
+            "1. value and storage declaration": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "10. explicit and implicit type conversion": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "11. indexing and slicing": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "12. nullable / optional values": {
+              "coverage_pct": 75.0,
+              "denominator": 4,
+              "numerator": 3
+            },
+            "13. errors, failure values, exceptions, and propagation": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "14. alternatives / sum / variant types and dispatch over alternatives": {
+              "coverage_pct": 100.0,
+              "denominator": 6,
+              "numerator": 6
+            },
+            "15. generics / parametric polymorphism": {
+              "coverage_pct": 83.33,
+              "denominator": 6,
+              "numerator": 5
+            },
+            "16. collections and iteration": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics": {
+              "coverage_pct": 75.0,
+              "denominator": 4,
+              "numerator": 3
+            },
+            "18. modules, imports, and dependency boundaries": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "19. concurrency / asynchronous execution where the language supports it": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "2. initialization and potentially uninitialized state": {
+              "coverage_pct": 75.0,
+              "denominator": 4,
+              "numerator": 3
+            },
+            "20. FFI / interoperability boundaries": {
+              "coverage_pct": 0.0,
+              "denominator": 4,
+              "numerator": 0
+            },
+            "3. mutation": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "4. aliasing, references, borrowing, addressing, and dereferencing where applicable": {
+              "coverage_pct": 66.67,
+              "denominator": 6,
+              "numerator": 4
+            },
+            "5. function calls and argument-passing semantics": {
+              "coverage_pct": 66.67,
+              "denominator": 6,
+              "numerator": 4
+            },
+            "6. return-value semantics": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "7. arithmetic operators": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "8. integer overflow, division-by-zero, and other numeric edge behavior": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            },
+            "9. equality, ordering, and comparison": {
+              "coverage_pct": 100.0,
+              "denominator": 4,
+              "numerator": 4
+            }
+          },
+          "family_breakdown_sum_check": {
+            "matches_fixed_denominator": true,
+            "matches_total_numerator": true,
+            "sum_of_family_denominators": 88,
+            "sum_of_family_numerators": 76
+          },
+          "formula": "C = 100 * (sum over 44 probes of capability_points * support_factor) / 88",
+          "gate_scope_note": "This worker produced evidence only for requirement metric.capability_coverage, language TypeScript, per the assigned Task Packet. No aggregate primary score or ranking is computed here; aggregation/ranking is runner-only per primary.json.",
+          "na_policy_compliance": "No probe was marked N/A. All 4 NONE results (F04.P1, F05.P2, F20.P1, F20.P2) carry a written justification citing the specific language/runtime rule or documentation making the capability unavailable under the frozen recipe, per NA-2/NA-6. All 4 capability points for each NONE probe remain in the denominator.",
+          "numerator_raw_points": 76,
+          "per_probe_support": {
+            "F01.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "const n = 7; return n;",
+              "notes": "Immutable const local binding, no reassignment, returned as function result.",
+              "support": "FULL"
+            },
+            "F01.P2": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "let counter: bigint = 0n; const LIMIT: bigint = 100n;",
+              "notes": "bigint chosen over number because number cannot represent the full 64-bit signed range (safe-integer limit 2^53-1); bigint is a documented distinct TS/JS numeric type meeting the range requirement. let vs const gives the required mutable/immutable distinction.",
+              "support": "FULL"
+            },
+            "F02.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "let v: number; if (cond) { v = 5; } else { v = 9; } return v;",
+              "notes": "TypeScript definite-assignment control-flow analysis accepts this under --strict because both branches assign v before use.",
+              "support": "FULL"
+            },
+            "F02.P2": {
+              "applicable_letters": [
+                "P-a"
+              ],
+              "awarded": 1,
+              "capability_points": 2,
+              "fragment_summary": "const buf = new Uint8Array(16); buf[0] = 1; const x = buf[0]; return x;",
+              "notes": "JS/TS TypedArray storage is always zero-initialized per ECMA-262; no documented mechanism yields genuinely uninitialized bulk storage. R9-named substitution (default-initialized buffer) used per canonical_task's own exception, drops the 'uninitialized' sub-requirement -> PARTIAL under P-a.",
+              "support": "PARTIAL"
+            },
+            "F03.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "x += 1;",
+              "notes": "In-place compound assignment.",
+              "support": "FULL"
+            },
+            "F03.P2": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "xs[1] = 42;",
+              "notes": "In-place element mutation through existing array binding.",
+              "support": "FULL"
+            },
+            "F04.P1": {
+              "awarded": 0,
+              "capability_points": 2,
+              "citation": "ECMA-262 primitive value semantics: numbers are passed and bound by value; JS/TS has no address-of, pointer, ref, or inout mechanism giving two names write access to one scalar's storage in the same scope.",
+              "n_reason": "N-1",
+              "notes": "Wrapping the scalar in an object would change the value/storage kind being denoted and is not a named R9 substitution for this probe; canonical_task instructs NONE with reason when unavailable.",
+              "support": "NONE"
+            },
+            "F04.P2": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "const window: ReadonlyArray<number> = xs; return window[0];",
+              "notes": "TypeScript ReadonlyArray/readonly modifier is a documented, standard, non-copying compile-time view over an existing array; --strict is the frozen recipe posture recognizing this type-level guarantee (typescript_strict_clause).",
+              "support": "FULL"
+            },
+            "F04.P3": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "class Obj{id:number;constructor(id:number){this.id=id;}} const first=new Obj(5); const arr=[first]; const second=arr[0]; const same = first === second; return same;",
+              "notes": "JS/TS `===` on non-primitive operands is reference-identity comparison per ECMA-262, distinct from structural/value equality.",
+              "support": "FULL"
+            },
+            "F05.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "f(x); return x[0];",
+              "notes": "Ordinary bare call site; no sigil/marker exists in JS/TS call syntax regardless of aliasing outcome.",
+              "support": "FULL"
+            },
+            "F05.P2": {
+              "awarded": 0,
+              "capability_points": 2,
+              "citation": "No JS/TS mechanism (ref/inout/pointer/address-of) lets a callee write a caller's scalar local variable; canonical_task explicitly forbids a mutable-object-wrapper substitute from counting as FULL.",
+              "n_reason": "N-1",
+              "notes": "Consistent with F04.P1: JS/TS scalars are always passed by value.",
+              "support": "NONE"
+            },
+            "F05.P3": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "const neg = (a: number): number => k - a; const ys = xs.map(neg); return ys[0];",
+              "notes": "Arrow function captures enclosing k by closure; Array.prototype.map applies neg by name.",
+              "support": "FULL"
+            },
+            "F06.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "function mid(xs: number[]): number { return xs[1]; } const y = mid(xs); return y;",
+              "notes": "Element type is primitive number; return is a value copy by language rule.",
+              "support": "FULL"
+            },
+            "F06.P2": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "function divmod2(a:number,b:number):[number,number]{return [Math.trunc(a/b), a % b];} const [q,r]=divmod2(a,b); return q+r;",
+              "notes": "Tuple type + array destructuring is the standard TS multi-result idiom.",
+              "support": "FULL"
+            },
+            "F07.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "const r = a * b + c;",
+              "notes": "Ordinary operator precedence, no redundant parens.",
+              "support": "FULL"
+            },
+            "F07.P2": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "const q = Math.trunc(a / b); const m = a % b; const d = a / b;",
+              "notes": "number is already IEEE-754 double so d needs no conversion; Math.trunc gives truncating integer division; % gives remainder with sign of dividend.",
+              "support": "FULL"
+            },
+            "F08.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "const m = 2147483647; const o = (m + 1) | 0;",
+              "notes": "Rung (ii) wrapping: bitwise `|0` invokes ECMA-262 ToInt32, a documented, deterministic 32-bit wraparound conversion; rung (i) checked-optional op does not exist in JS/TS.",
+              "support": "FULL"
+            },
+            "F08.P2": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "const q = b === 0 ? 0 : Math.trunc(a / b);",
+              "notes": "Rung (ii) explicit local guard on b===0, since rung (i) checked-division-to-optional does not exist and the plain operator does not trap.",
+              "support": "FULL"
+            },
+            "F09.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "const eq = s1 === s2;",
+              "notes": "JS strings are primitive values; === compares contents, not object identity, per ECMA-262 Strict Equality Comparison.",
+              "support": "FULL"
+            },
+            "F09.P2": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "xs.sort((a,b) => b - a); const lt = a < b;",
+              "notes": "Array.prototype.sort mutates in place; explicit descending comparator supplied by value.",
+              "support": "FULL"
+            },
+            "F10.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "const small: number = Number(BigInt.asIntN(32, big));",
+              "notes": "Rung (ii): BigInt.asIntN(32,_) is a documented standard wrapping narrowing of a 64-bit-capable bigint to signed 32-bit range; no checked-optional rung (i) exists.",
+              "support": "FULL"
+            },
+            "F10.P2": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "const sum = i + d;",
+              "notes": "TS unifies int/float under `number` (IEEE-754 double); no conversion is written or performed because none is required by the language.",
+              "support": "FULL"
+            },
+            "F11.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "const e = xs[i]; return e;",
+              "notes": "Ordinary array indexing never traps; out-of-range yields `undefined` at runtime (a documented ECMA-262 behavior), which is the primary measured form.",
+              "support": "FULL"
+            },
+            "F11.P2": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "const part = xs.slice(1,4); return part[0];",
+              "notes": "Array.prototype.slice is the standard sub-range operation; it copies elements (documented), so part is independent storage.",
+              "support": "FULL"
+            },
+            "F12.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "let o: number | undefined = undefined; const n: number = o ?? 0; return n;",
+              "notes": "Union-with-undefined is TS's standard optionality encoding; `??` is the standard nullish-coalescing fallback form.",
+              "support": "FULL"
+            },
+            "F12.P2": {
+              "applicable_letters": [
+                "P-a"
+              ],
+              "awarded": 1,
+              "capability_points": 2,
+              "fragment_summary": "function h(x:number):number{return x+1;} let p: number|undefined; if (o !== undefined) { p = h(o); } else { p = undefined; } const result = p !== undefined ? p : 0;",
+              "notes": "JS/TS standard library has no Option/Maybe map/chain operation over a T|undefined union; canonical_task names this probe's substitution explicitly (R9 list). Explicit conditional used, dropping the 'without explicit if' requirement -> PARTIAL under P-a.",
+              "support": "PARTIAL"
+            },
+            "F13.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "function parseTwice(s:string):number { const n=Number(s); if (Number.isNaN(n)) throw new Error('bad'); return n*2; }",
+              "notes": "Explicit throw on the standard conversion's failure signal (NaN), propagated unhandled to the caller; idiomatic JS/TS failure-signaling pattern given the absence of a checked parse.",
+              "support": "FULL"
+            },
+            "F13.P2": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "const parsed = Number(s); const n = Number.isNaN(parsed) ? 0 : parsed; return n;",
+              "notes": "If-error form is the language's normal local-handling idiom given Number()'s NaN failure signal.",
+              "support": "FULL"
+            },
+            "F14.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "type Shape = {kind:'circle', r:number} | {kind:'rect', w:number, h:number}; const s: Shape = {kind:'circle', r:2.0};",
+              "notes": "Discriminated union type alias is closed: no external code can add a member to this specific union declaration.",
+              "support": "FULL"
+            },
+            "F14.P2": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "switch(s.kind){case 'circle': return Math.PI*s.r*s.r; case 'rect': return s.w*s.h;}",
+              "notes": "TS control-flow narrowing over a discriminated union reduces the residual type to `never` only when all members are covered; an omitted case is a genuine compile error ('not all code paths return a value'), i.e. documented exhaustiveness checking.",
+              "support": "FULL"
+            },
+            "F14.P3": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "shapes.ts: interface Shape{area():number;} class Circle implements Shape{...} class Rect implements Shape{...}; app.ts: class Tri implements Shape{...}; const s: Shape = new Tri(...); return s.area();",
+              "notes": "Interface+class extensibility across ES module files is TS's standard open-polymorphism mechanism; multi-unit recipe unchanged per toolchain_binding.multi_unit_recipes (TS already follows module imports).",
+              "support": "FULL"
+            },
+            "F15.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "function head<T>(xs:T[]):T { return xs[0]; } const a = head([4,5,6]); const b = head(['p','q']); return String(a)+b;",
+              "notes": "Single generic function reused at two instantiations with a statically recoverable T->T result relationship.",
+              "support": "FULL"
+            },
+            "F15.P2": {
+              "applicable_letters": [
+                "P-a"
+              ],
+              "awarded": 1,
+              "capability_points": 2,
+              "fragment_summary": "function max_of<T extends number>(a:T,b:T):T { return a > b ? a : b; } const m = max_of(3,5); return m;",
+              "notes": "TS/JS ships no standard ordering abstraction (no Comparable/Ord trait) usable as a declaration-site generic bound; substituted a concrete `extends number` bound per the canonical_task's own named exception for this probe (R9 list) -> PARTIAL under P-a.",
+              "support": "PARTIAL"
+            },
+            "F15.P3": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "interface Named{tag():string;} class A implements Named{tag(){return 'a';}} class B implements Named{tag(){return 'b';}} const items: Named[]=[new A(), new B()]; return items[0].tag();",
+              "notes": "Heterogeneous array typed by an abstract interface with virtual-method dispatch at runtime.",
+              "support": "FULL"
+            },
+            "F16.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "const xs: number[] = [1,2,3]; const total = xs.reduce((a,b)=>a+b, 0); return total;",
+              "notes": "Array.prototype.reduce is the standard sum/fold operation.",
+              "support": "FULL"
+            },
+            "F16.P2": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "const mp = new Map<string,number>([['a',1]]); let total=0; for (const [,v] of mp) total+=v; const miss = mp.get('b') ?? 0; return total+miss;",
+              "notes": "ECMA-262 Map guarantees insertion-order iteration (documented); Map.prototype.get returns undefined on miss, handled via `??`.",
+              "support": "FULL"
+            },
+            "F17.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "function readAll():number{ const fd=fs.openSync('data.txt','r'); try { const text=fs.readFileSync(fd,'utf8'); return Buffer.byteLength(text); } finally { fs.closeSync(fd); } }",
+              "notes": "try/finally is JS/TS's normal deterministic scoped-cleanup idiom; the finally block executes on every exit path including the failure path.",
+              "support": "FULL"
+            },
+            "F17.P2": {
+              "applicable_letters": [
+                "P-a"
+              ],
+              "awarded": 1,
+              "capability_points": 2,
+              "fragment_summary": "class Handle{id:number; constructor(id:number){this.id=id;} dispose(){released++;}} let released=0; { const h=new Handle(1); try{} finally{ h.dispose(); } } return released;",
+              "notes": "JS/TS has no deterministic garbage-collector-driven end-of-lifetime hook (FinalizationRegistry is explicitly documented as non-deterministic and unsuitable for reliance); used the R9-named nearest standard construct (explicit dispose invoked by a scoped try/finally) -> PARTIAL under P-a.",
+              "support": "PARTIAL"
+            },
+            "F18.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "console.log('x');",
+              "notes": "Global console facility requires no import declaration in Node; satisfies canonical_task's 'nothing if available without one' clause.",
+              "support": "FULL"
+            },
+            "F18.P2": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "util.ts: export function pub_add(a:number,b:number){return a+b+secret();} function secret(){return 1;}  main.ts: import {pub_add} from './util.js'; return pub_add(2,3);",
+              "notes": "ES module export lists enforce the visibility boundary at the language level; non-exported bindings are inaccessible from other modules. Multi-unit recipe unchanged per toolchain_binding.",
+              "support": "FULL"
+            },
+            "F19.P1": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "async function main(){ const p1=(async()=>20)(); const p2=(async()=>22)(); const [a,b]=await Promise.all([p1,p2]); return a+b; }",
+              "notes": "async/await + Promise.all is the standard built-in concurrency facility; single-threaded cooperative async explicitly counts per canonical_task.",
+              "support": "FULL"
+            },
+            "F19.P2": {
+              "awarded": 2,
+              "capability_points": 2,
+              "fragment_summary": "let counter=0; async function incr(){ for(let i=0;i<1000;i++) counter++; } async function main(){ await Promise.all([incr(), incr()]); return counter; }",
+              "notes": "No await occurs inside either loop, so each async function body runs to completion without interleaving under ECMA-262's documented run-to-completion (Jobs) semantics; this is a normative language guarantee, not an empirical accident, so the result is deterministically 2000 on every run (verification: 20/20 consecutive runs observed at 2000).",
+              "support": "FULL"
+            },
+            "F20.P1": {
+              "awarded": 0,
+              "capability_points": 2,
+              "citation": "Node.js/TypeScript ship no built-in FFI mechanism callable without either a third-party package (e.g. node-ffi-napi) or a separately built native addon (node-gyp/N-API), both of which are outside the frozen tsc/node recipe and violate R7.",
+              "n_reason": "N-1/N-2",
+              "notes": "No documented standard mechanism meets the baseline_condition.",
+              "support": "NONE"
+            },
+            "F20.P2": {
+              "awarded": 0,
+              "capability_points": 2,
+              "citation": "The frozen recipe (`tsc ...; node FILE.js`) produces JS source run by the Node VM, not a compiled artifact with a platform symbol table; there is no unmangled, nm-visible external symbol to produce.",
+              "n_reason": "N-1",
+              "nm_evidence": "no compiled artifact under the frozen recipe",
+              "notes": "Per capability_universe.json support_rubric N-4/adjudication guidance, this is a NONE with justification, not an N/A under NA-5.",
+              "support": "NONE"
+            }
+          },
+          "r9_named_substitutions_used": [
+            "F02.P2",
+            "F12.P2",
+            "F15.P2",
+            "F17.P2"
+          ],
+          "support_factor_map": {
+            "FULL": 1,
+            "NONE": 0,
+            "PARTIAL": 0.5
+          },
+          "support_rubric_applied": "capability_universe.json support_rubric levels/observable_criteria, deterministic_tie_break question, applied identically to TypeScript for all 44 fixed probes.",
+          "toolchain_recipe_used": {
+            "build": "tsc --strict --target es2022 --module nodenext FILE.ts",
+            "multi_unit_probes": "F18.P2 and F14.P3 use the unchanged single-file-equivalent recipe: TypeScript's frozen recipe already follows module imports, per toolchain_binding.multi_unit_recipes.",
+            "run": "node FILE.js"
+          }
+        }
+      }
+    },
+    "requirements": {
+      "metric.capability_coverage": {
+        "TypeScript": 86.36
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "72c4ec0d01b9f65157b3a8e1df8472db20a6168b47814b52d9ffb4895ee09781",
+  "schema_version": 1
+}

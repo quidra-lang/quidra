@@ -1,0 +1,571 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "9dfc06a277a996f9c6664d76648493b01493be6c6711c9885d57acf7d5244708",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "86d82d9be2a812057d2da4ac75c4e84e0f6db41ca5d35c7f680ba324051d10e8",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.capability_coverage"
+    ],
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-sc-metrics-hidden-coverage--part-2--rust",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--rust",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "86d82d9be2a812057d2da4ac75c4e84e0f6db41ca5d35c7f680ba324051d10e8",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--rust"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "metric.capability_coverage": {
+        "C_value": 98.8636363636,
+        "C_value_rounded": 98.86,
+        "assigned_scope_note": "This result covers only the assigned language Rust for requirement metric.capability_coverage, as required by the language-sharded task packet. The runner is responsible for merging this shard with the other nine language shards before aggregation.",
+        "common_basis_note": "This worker reports Capability Coverage only, computed on the full fixed 88-point denominator per capability_universe.json capability_coverage section, independent of the A-D common-basis fragment set used for Semantic Density/Determinacy/Locality/Hidden-Cost metrics (out of scope for this requirement).",
+        "denominator": 88,
+        "denominator_source": "capability_universe.json capability_coverage.denominator (frozen, 2 points x 44 probes)",
+        "family_awarded_sum_check": 87,
+        "family_breakdown": [
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "1. value and storage declaration"
+          },
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "2. initialization and potentially uninitialized state"
+          },
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "3. mutation"
+          },
+          {
+            "awarded": 6.0,
+            "coverage_pct": 100.0,
+            "denominator": 6,
+            "family": "4. aliasing, references, borrowing, addressing, dereferencing"
+          },
+          {
+            "awarded": 5.0,
+            "coverage_pct": 83.33,
+            "denominator": 6,
+            "family": "5. function calls and argument-passing semantics"
+          },
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "6. return-value semantics"
+          },
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "7. arithmetic operators"
+          },
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "8. integer overflow, division-by-zero, numeric edge behavior"
+          },
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "9. equality, ordering, and comparison"
+          },
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "10. explicit and implicit type conversion"
+          },
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "11. indexing and slicing"
+          },
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "12. nullable / optional values"
+          },
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "13. errors, failure values, exceptions, and propagation"
+          },
+          {
+            "awarded": 6.0,
+            "coverage_pct": 100.0,
+            "denominator": 6,
+            "family": "14. alternatives / sum / variant types and dispatch"
+          },
+          {
+            "awarded": 6.0,
+            "coverage_pct": 100.0,
+            "denominator": 6,
+            "family": "15. generics / parametric polymorphism"
+          },
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "16. collections and iteration"
+          },
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "17. resource management, ownership, lifetime, destruction"
+          },
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "18. modules, imports, and dependency boundaries"
+          },
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "19. concurrency / asynchronous execution"
+          },
+          {
+            "awarded": 4.0,
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "family": "20. FFI / interoperability boundaries"
+          }
+        ],
+        "family_denominator_sum_check": 88,
+        "formula": "C = 100 * (sum over 44 probes of capability_points * support_factor) / 88",
+        "language": "Rust",
+        "na_policy_compliance": "No probe was scored N/A. Every probe received FULL or PARTIAL for Rust; no NONE occurred. Rule NA-2/NA-6 (full capability_points remain in the denominator regardless of support level) is satisfied trivially since Rust supports every probe to at least PARTIAL degree in this fixed universe.",
+        "numerator_formula": "43 probes at FULL (support_factor 1, 2 pts each = 86) + 1 probe (F05.P1) at PARTIAL (support_factor 0.5, 2 pts * 0.5 = 1) = 87",
+        "numerator_raw": 87,
+        "per_probe_results": [
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "1. value and storage declaration",
+            "fragment_summary": "let n: i32 = 7; ... return n; (non-reassignable binding via `let`)",
+            "probe_id": "F01.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "1. value and storage declaration",
+            "fragment_summary": "static mut COUNTER: i64 = 0; const LIMIT: i64 = 100; (documented facilities; static mut requires its normal unsafe opt-in marker per F-6, which does not disqualify FULL)",
+            "probe_id": "F01.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "2. initialization and potentially uninitialized state",
+            "fragment_summary": "let v: i32; if cond { v = 5; } else { v = 9; } return v; -- Rust definite-assignment analysis accepts this",
+            "probe_id": "F02.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "2. initialization and potentially uninitialized state",
+            "fragment_summary": "[MaybeUninit<u8>;16] via std::mem::MaybeUninit, write via .write(), read via unsafe assume_init_read() -- standard, documented genuinely-uninitialized mechanism",
+            "probe_id": "F02.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "3. mutation",
+            "fragment_summary": "x += 1;",
+            "probe_id": "F03.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "3. mutation",
+            "fragment_summary": "xs[1] = 42; via Vec IndexMut",
+            "probe_id": "F03.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "4. aliasing/references/borrowing",
+            "fragment_summary": "let port: &mut i32 = &mut slot; *port = 9; return slot;",
+            "probe_id": "F04.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "4. aliasing/references/borrowing",
+            "fragment_summary": "let window: &[i32] = &xs; -- non-copying read-only slice view",
+            "probe_id": "F04.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "4. aliasing/references/borrowing",
+            "fragment_summary": "Rc<RefCell<Struct>> routed through a one-element Vec and read back; identity tested via Rc::ptr_eq (standard reference-identity operation distinct from value equality)",
+            "probe_id": "F04.P3",
+            "support": "FULL"
+          },
+          {
+            "awarded": 1.0,
+            "capability_points": 2,
+            "family": "5. function calls and argument-passing",
+            "justification": "Rust ownership/move semantics make the literal canonical_task unsatisfiable: if f takes the growable sequence type (Vec<i32>) by value at a truly bare call site f(x) with no sigil, x is moved and a post-call read of x will not compile (E0382 use of moved value). Preserving post-call readability of x while keeping f's parameter the plain owning form requires a substituted weaker mechanism (e.g. f(x.clone()) ) that drops the 'no extra modifier at the argument position' sub-requirement -- P-a. This is a genuine, documented Rust ownership rule, not an instrument defect; the language's own move semantics are the cause.",
+            "p_letters": [
+              "P-a"
+            ],
+            "probe_id": "F05.P1",
+            "support": "PARTIAL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "5. function calls and argument-passing",
+            "fragment_summary": "fn put(cell: &mut i32) { *cell = 12; } put(&mut cell); -- Rust's canonical explicit writable-alias passing form",
+            "probe_id": "F05.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "5. function calls and argument-passing",
+            "fragment_summary": "let neg = |a: i32| k - a; xs.iter().map(neg)... -- closure capturing k, passed by name to standard Iterator::map",
+            "probe_id": "F05.P3",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "6. return-value semantics",
+            "fragment_summary": "fn mid(xs: Vec<i32>) -> i32 { xs[1] } let y = mid(xs); return y;",
+            "probe_id": "F06.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "6. return-value semantics",
+            "fragment_summary": "fn divmod2(a: i32, b: i32) -> (i32, i32) { (a / b, a % b) } let (q, r) = divmod2(a, b); return q + r;",
+            "probe_id": "F06.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "7. arithmetic operators",
+            "fragment_summary": "let r = a * b + c;",
+            "probe_id": "F07.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "7. arithmetic operators",
+            "fragment_summary": "let q = a / b; let m = a % b; let d = a as f64 / b as f64;",
+            "probe_id": "F07.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "8. integer overflow / numeric edge behavior",
+            "fragment_summary": "let m: i32 = i32::MAX; let o = m.checked_add(1).unwrap_or(0); -- rung (i) checked op",
+            "probe_id": "F08.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "8. integer overflow / numeric edge behavior",
+            "fragment_summary": "let q = a.checked_div(b).unwrap_or(0); -- rung (i) checked op",
+            "probe_id": "F08.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "9. equality/ordering/comparison",
+            "fragment_summary": "let eq = s1 == s2; -- String/&str PartialEq is content comparison",
+            "probe_id": "F09.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "9. equality/ordering/comparison",
+            "fragment_summary": "xs.sort_by(|a,b| b.cmp(a)); let lt = a < b; -- explicit descending comparator, in-place sort",
+            "probe_id": "F09.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "10. explicit/implicit type conversion",
+            "fragment_summary": "let small: i32 = i32::try_from(big).unwrap_or(0); -- rung (i) checked conversion",
+            "probe_id": "F10.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "10. explicit/implicit type conversion",
+            "fragment_summary": "let sum = i as f64 + d; -- explicit `as` conversion required, no implicit numeric conversion in Rust",
+            "probe_id": "F10.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "11. indexing and slicing",
+            "fragment_summary": "let e = xs[i]; return e; -- ordinary indexed read panics on out-of-range, documented behavior",
+            "probe_id": "F11.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "11. indexing and slicing",
+            "fragment_summary": "let part = &xs[1..4]; -- slice shares storage, no copy",
+            "probe_id": "F11.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "12. nullable/optional values",
+            "fragment_summary": "let o: Option<i32> = None; let n = o.unwrap_or(0);",
+            "probe_id": "F12.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "12. nullable/optional values",
+            "fragment_summary": "let h = |x: i32| x + 1; let p = o.map(h); let n = p.unwrap_or(0); -- Option::map standard optional-aware chaining",
+            "probe_id": "F12.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "13. errors/failure/propagation",
+            "fragment_summary": "fn parse_twice(s: &str) -> Result<i32, ParseIntError> { let n: i32 = s.parse()?; Ok(n * 2) } -- ? operator propagates",
+            "probe_id": "F13.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "13. errors/failure/propagation",
+            "fragment_summary": "let n = s.parse::<i32>().unwrap_or(0); -- local handling with fallback",
+            "probe_id": "F13.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "14. alternatives/sum types/dispatch",
+            "fragment_summary": "enum Shape { Circle { r: f64 }, Rect { w: f64, h: f64 } } let s: Shape = Shape::Circle { r: 2.0 }; -- closed enum, no third-party addition possible",
+            "probe_id": "F14.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "14. alternatives/sum types/dispatch",
+            "fragment_summary": "match s { Shape::Circle{r} => 3.141592653589793*r*r, Shape::Rect{w,h} => w*h } -- compiler-enforced exhaustiveness, no default arm needed",
+            "probe_id": "F14.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "14. alternatives/sum types/dispatch",
+            "fragment_summary": "trait Shape { fn area(&self) -> f64; } implemented for Circle/Rect in `shapes` unit; Tri implements Shape in a separate unit (orphan rule permits foreign trait for local type); dispatch through Box<dyn Shape>. Built under multi_unit_recipe: 'unchanged -- the frozen recipe already follows mod/path module references'",
+            "probe_id": "F14.P3",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "15. generics/parametric polymorphism",
+            "fragment_summary": "fn head<T>(xs: Vec<T>) -> T { xs.into_iter().next().unwrap() } -- monomorphized, statically recovers T for i32 and String",
+            "probe_id": "F15.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "15. generics/parametric polymorphism",
+            "fragment_summary": "fn max_of<T: PartialOrd>(a: T, b: T) -> T { if a > b { a } else { b } } -- declaration-site trait bound constraint",
+            "probe_id": "F15.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "15. generics/parametric polymorphism",
+            "fragment_summary": "trait Named { fn tag(&self) -> String; } let items: Vec<Box<dyn Named>> = vec![Box::new(A), Box::new(B)]; items[0].tag(); -- runtime trait-object dispatch",
+            "probe_id": "F15.P3",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "16. collections and iteration",
+            "fragment_summary": "let xs = vec![1,2,3]; let total: i32 = xs.iter().sum();",
+            "probe_id": "F16.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "16. collections and iteration",
+            "fragment_summary": "HashMap::new(); insert; values().sum(); get('b').copied().unwrap_or(0); -- HashMap iteration order documented as unspecified",
+            "probe_id": "F16.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "17. resource management/lifetime/destruction",
+            "fragment_summary": "fn read_all() -> io::Result<usize> { let mut f = File::open(\"data.txt\")?; ... } -- Drop/RAII guarantees close on every exit path including error via ?",
+            "probe_id": "F17.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "17. resource management/lifetime/destruction",
+            "fragment_summary": "struct Handle { id: i32 } impl Drop for Handle { fn drop(&mut self) { unsafe { RELEASED += 1; } } } -- deterministic, exactly-once end-of-lifetime hook",
+            "probe_id": "F17.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "18. modules/imports/dependency boundaries",
+            "fragment_summary": "println!(\"x\"); -- part of std prelude, no explicit import required",
+            "probe_id": "F18.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "18. modules/imports/dependency boundaries",
+            "fragment_summary": "mod util { pub fn pub_add(a: i32, b: i32) -> i32 { a + b + secret() } fn secret() -> i32 { 1 } } util::pub_add(2,3); -- pub/private enforced module boundary; multi_unit_recipe unchanged for Rust",
+            "probe_id": "F18.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "19. concurrency/asynchronous execution",
+            "fragment_summary": "let t1 = thread::spawn(|| 20); let t2 = thread::spawn(|| 22); let sum = t1.join().unwrap() + t2.join().unwrap(); -- std::thread, no external runtime needed",
+            "probe_id": "F19.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "19. concurrency/asynchronous execution",
+            "fragment_summary": "Arc<AtomicI64> with fetch_add(1, Ordering::SeqCst) from two spawned threads, joined; documented atomic read-modify-write guarantees race-freedom",
+            "probe_id": "F19.P2",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "20. FFI/interoperability boundaries",
+            "fragment_summary": "extern \"C\" { fn abs(x: i32) -> i32; } unsafe { abs(-3) } -- built-in FFI, links default platform libc, no third-party crate",
+            "probe_id": "F20.P1",
+            "support": "FULL"
+          },
+          {
+            "awarded": 2.0,
+            "capability_points": 2,
+            "family": "20. FFI/interoperability boundaries",
+            "fragment_summary": "#[no_mangle] pub extern \"C\" fn add2(a: i32, b: i32) -> i32 { a + b } -- stable unmangled C-ABI export, verifiable via nm",
+            "probe_id": "F20.P2",
+            "support": "FULL"
+          }
+        ],
+        "support_rubric_applied": "capability_universe.json support_rubric (FULL=1.0, PARTIAL=0.5, NONE=0.0); tie-break rule: does the fragment observably deliver every explicitly numbered sub-requirement, under the frozen recipe, with only documented standard features?",
+        "toolchain_recipe_used": {
+          "build": "rustc -O -C debug-assertions=on FILE.rs -o BIN",
+          "citation": "capability_universe.json toolchain_binding.recipes.Rust; safety_mode_clause pins Rust to optimized CHECKED mode (overflow checks on).",
+          "run": "./BIN"
+        }
+      }
+    },
+    "requirements": {
+      "metric.capability_coverage": {
+        "Rust": 98.86
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "e84e77c6615269d412df8d1ba083a0edcc8a410eac637b733fe22c7da1d25506",
+  "schema_version": 1
+}

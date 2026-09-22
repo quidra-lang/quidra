@@ -1,0 +1,111 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "1e5635c41cf2dd78376564e2afbb70d8650a88444d616d3ca86cf854cae9c5cc",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "91881d861fc0335258e5946089134f3956cb4c103c87e3c798cc59326dc3fc30",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "metric.community_public_knowledge_availability"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-ecosystem-external--part-3--java",
+    "work_unit_id": "ecosystem-external--part-3--java",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "91881d861fc0335258e5946089134f3956cb4c103c87e3c798cc59326dc3fc30",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "ecosystem-external--part-3--java"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.community_public_knowledge_availability": {
+        "indicators": [
+          {
+            "additional_context": "Java is also historically one of the top 8 most-discussed topics on the platform by tag frequency (JavaScript, Java, C#, PHP, Android, Python, jQuery, HTML), reflecting an enormous accumulated public Q&A knowledge base.",
+            "citation": "JavaScript is the most-tagged language with 2.52M questions, followed by Python (2.18M), Java (1.92M), C# (1.64M), and PHP (1.45M).",
+            "indicator": "Stack Overflow tag question volume / rank",
+            "limitation": "Raw SO tag counts are a partial proxy: newer/faster-growing tags (e.g., Python, TypeScript) are gaining share and per-quarter pageview leaderboards have shifted away from Java toward Python/JS/Git-related questions since ~2018-2020, so absolute volume overstates current-day relative mindshare growth even though it still reflects an enormous historical and ongoing archive.",
+            "raw_value": "Java has ~1.92M tagged questions, the third-most of any language tag"
+          },
+          {
+            "citation": "r/java is a Reddit community with 405,736 members.",
+            "indicator": "Dedicated public discussion community (Reddit)",
+            "limitation": "Subreddit membership counts are a raw popularity indicator and are not used alone; they are combined with the other two indicator families.",
+            "raw_value": "r/java has 405,736 members, active continuously since 2008 (18 years)"
+          },
+          {
+            "additional_detail": "The Java Language Specification (JLS) is a formal document that defines the syntax and semantics of the Java programming language.",
+            "citation": "The Java Tutorials are practical guides for programmers who want to use the Java programming language to create applications.",
+            "indicator": "Official vendor documentation & learning ecosystem",
+            "raw_value": "Oracle maintains the Java Language Specification (JLS), the Java Tutorials, dev.java, and the Javadoc API-doc generator/toolchain as first-party public knowledge resources",
+            "supporting_detail": "Dev.java: The Destination for Java Developers contains hundreds of tutorials, news, and videos from the experts.",
+            "tooling_detail": "Javadoc is an API documentation generator for the Java programming language, owned by Oracle, generating documentation directly from source code across the whole ecosystem."
+          },
+          {
+            "additional_supporting_detail": "Devoxx (formerly named JavaPolis) is a developers community conference series created in 2001... organized by the Belgian Java User Group (BeJUG).",
+            "citation": "Java User Groups (JUGs) exist on almost every continent and are free to join; find yours at dev.java/community/jugs.",
+            "indicator": "Recurring public community events and organizations",
+            "largest_jug_detail": "SouJava recognized around the world as the largest JUG with 40000 members.",
+            "raw_value": "Global network of volunteer Java User Groups (JUGs), long-running vendor and community conferences (JavaOne since 1996, Devoxx since 2001, DevNexus, Java Day), and a formal Java Champions recognition program",
+            "session_recording_detail": "Devoxx is a series of global, community-driven Java and JVM conferences... now runs events across the US, UK, France, Morocco, Poland, and Ukraine.",
+            "supporting_detail": "JavaOne is Oracle's flagship Java developer conference, running since 1996."
+          }
+        ],
+        "language": "Java",
+        "limitations_of_proxies_used": "Stack Overflow tag counts and subreddit subscriber counts are raw popularity/volume indicators; per methodology they are not used standalone but combined with qualitative documentation-completeness and community-infrastructure evidence collected via the same retrieval route and depth that would be applied to every other language in this metric.",
+        "normalization": "0-100 scale, 100 = broadest/deepest possible public knowledge availability across official docs, Q&A archives, and community/event infrastructure combined; Java scored 96/100 reflecting near-maximal, multi-channel, long-standing public knowledge availability with a small deduction for relatively slower growth in newest-content share versus a few faster-growing peers.",
+        "predeclared_sampling_rule": "Before evidence collection, three language-neutral, externally observable indicator families were fixed for every language in this metric: (1) Stack Overflow tag question-volume rank, a standardized cross-language activity/knowledge-repository proxy; (2) size and activity of the single largest general-purpose language-dedicated public discussion forum (subreddit) as a proxy for informal community knowledge exchange; (3) completeness/official status of the vendor-maintained public documentation and learning ecosystem (language spec, official tutorials, API-doc tooling) plus the existence of recurring public in-person/virtual community events (user groups, conferences). These three families are combined qualitatively into the normalized score; raw counts (SO question counts, subreddit subscriber counts) are recorded as declared evidence only and not used as a standalone proxy, per methodology.",
+        "retrieval_route": "Public web search (provider-brokered) against aggregated Stack Overflow statistics reports, Wikipedia, Reddit community-analytics mirror (reddapi.dev), Oracle/dev.java official documentation pages, and third-party Java-community guides (Lightrun, JetBrains blog, Wikipedia Devoxx/SouJava articles).",
+        "score_rationale": "Java exhibits an exceptionally deep and broad publicly available knowledge base across all three predeclared indicator families: it is among the top handful of languages by cumulative Stack Overflow Q&A volume, it sustains one of the largest single-language-dedicated public subreddits with 18 years of continuous activity, its vendor (Oracle) maintains a complete and actively updated public documentation stack (JLS, Java Tutorials, dev.java, Javadoc tooling), and it is unusual among languages in supporting a mature worldwide network of volunteer user groups plus multiple long-running (decades-old) global conferences and a formal community-recognition program (Java Champions). The score is set just below the maximum because current-quarter attention/pageview leaderboards on Stack Overflow show Java's share of *newest* activity has receded relative to Python/JavaScript, indicating knowledge-base growth has slowed even though the absolute stock of public knowledge remains among the largest and most institutionally supported of any language.",
+        "snapshot_time": "2026-09-22"
+      }
+    },
+    "requirements": {
+      "metric.community_public_knowledge_availability": {
+        "Java": 96
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "49cc29e19914366672f37b8c03af97722a8aa21546bb43b3c59626c57c493f8e",
+  "schema_version": 1
+}

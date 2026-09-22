@@ -1,0 +1,519 @@
+{
+  "assigned_languages": [
+    "Zig"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "2ad9b783969cb2ffc9eaa55efcec9450428bab874071b0b8672297705b458c7f",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Zig"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "9201912b3d78a19548adba72b10e4559b2e899e5af5144b0911a7d76b9413e66",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.capability_coverage"
+    ],
+    "runtime_toolchain_pins": {
+      "Zig": {
+        "ZIG_PIN": "0.16.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Zig": "0.16.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-sc-metrics-hidden-coverage--part-2--zig",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--zig",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "9201912b3d78a19548adba72b10e4559b2e899e5af5144b0911a7d76b9413e66",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-2--zig"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "metric.capability_coverage": {
+        "aggregate_score": 93.18,
+        "denominator": 88,
+        "denominator_frozen": true,
+        "formula": "C = 100 * (sum over 44 probes of capability_points(=2) * support_factor) / 88",
+        "full_count": 39,
+        "language": "Zig",
+        "methodology_note": "This packet-only worker could not execute the frozen build/run recipe or the 20-run empirical verification required for F19.P2; support levels below are assigned from documented Zig language/std-library specification and the R6/R9/rubric tie-break question ('does the fragment observably deliver every numbered sub-requirement using only documented standard features'), consistent with pre_measurement_validation V1 intent but without an execution harness in this environment. This is recorded as a methodological limitation of the coverage evidence, not as a finding that changes the fixed 88-point denominator.",
+        "none_count": 1,
+        "numerator_points_earned": 82,
+        "partial_count": 4,
+        "per_family": {
+          "1. value and storage declaration": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "earned": 4
+          },
+          "10. explicit and implicit type conversion": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "earned": 4
+          },
+          "11. indexing and slicing": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "earned": 4
+          },
+          "12. nullable / optional values": {
+            "coverage_pct": 75.0,
+            "denominator": 4,
+            "earned": 3
+          },
+          "13. errors, failure values, exceptions, and propagation": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "earned": 4
+          },
+          "14. alternatives / sum / variant types and dispatch over alternatives": {
+            "coverage_pct": 100.0,
+            "denominator": 6,
+            "earned": 6
+          },
+          "15. generics / parametric polymorphism": {
+            "coverage_pct": 83.33,
+            "denominator": 6,
+            "earned": 5
+          },
+          "16. collections and iteration": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "earned": 4
+          },
+          "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics": {
+            "coverage_pct": 75.0,
+            "denominator": 4,
+            "earned": 3
+          },
+          "18. modules, imports, and dependency boundaries": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "earned": 4
+          },
+          "19. concurrency / asynchronous execution where the language supports it": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "earned": 4
+          },
+          "2. initialization and potentially uninitialized state": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "earned": 4
+          },
+          "20. FFI / interoperability boundaries": {
+            "coverage_pct": 75.0,
+            "denominator": 4,
+            "earned": 3
+          },
+          "3. mutation": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "earned": 4
+          },
+          "4. aliasing, references, borrowing, addressing, and dereferencing where applicable": {
+            "coverage_pct": 100.0,
+            "denominator": 6,
+            "earned": 6
+          },
+          "5. function calls and argument-passing semantics": {
+            "coverage_pct": 66.67,
+            "denominator": 6,
+            "earned": 4
+          },
+          "6. return-value semantics": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "earned": 4
+          },
+          "7. arithmetic operators": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "earned": 4
+          },
+          "8. integer overflow, division-by-zero, and other numeric edge behavior": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "earned": 4
+          },
+          "9. equality, ordering, and comparison": {
+            "coverage_pct": 100.0,
+            "denominator": 4,
+            "earned": 4
+          }
+        },
+        "per_probe": {
+          "F01.P1": {
+            "citation": "Zig Language Reference, 'Variables' (const bindings).",
+            "factor": 1,
+            "mechanism": "const n: i32 = 7; return n;",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F01.P2": {
+            "citation": "Zig Language Reference, 'Variables' / 'Container Level Variables'.",
+            "factor": 1,
+            "mechanism": "top-level `var counter: i64 = 0;` and `const LIMIT: i64 = 100;`.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F02.P1": {
+            "citation": "Zig Language Reference, 'undefined'.",
+            "factor": 1,
+            "mechanism": "`var v: i32 = undefined;` then both branches assign before the final read.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F02.P2": {
+            "citation": "Zig Language Reference, 'undefined', arrays.",
+            "factor": 1,
+            "mechanism": "`var buf: [16]u8 = undefined;` gives genuinely uninitialized storage (not zero-filled).",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F03.P1": {
+            "citation": "Zig Language Reference, 'Operators' (compound assignment), 'Undefined Behavior' (overflow).",
+            "factor": 1,
+            "mechanism": "`x += 1;` compound assignment; ReleaseSafe traps on signed overflow.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F03.P2": {
+            "citation": "Zig std.ArrayList docs; slice indexing assignment.",
+            "factor": 1,
+            "mechanism": "`xs.items[1] = 42;` in-place slice element write on ArrayList(i32).",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F04.P1": {
+            "citation": "Zig Language Reference, 'Pointers'.",
+            "factor": 1,
+            "mechanism": "`var slot: i32 = 4; const port = &slot; port.* = 9; return slot;`",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F04.P2": {
+            "citation": "Zig Language Reference, 'Slices'.",
+            "factor": 1,
+            "mechanism": "`const window: []const i32 = xs.items[0..];` non-copying read-only slice view.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F04.P3": {
+            "citation": "Zig Language Reference, 'Pointers'/'Operators' (== on pointers compares addresses).",
+            "factor": 1,
+            "mechanism": "Pointer stored/retrieved through a one-element array; `first == second` compares addresses (reference identity).",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F05.P1": {
+            "citation": "Zig Language Reference, 'Functions' (pass-by-value semantics of aggregate types).",
+            "factor": 1,
+            "mechanism": "`f(x)` bare call passing an ArrayList(i32) by value (struct copy shares the underlying items buffer).",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F05.P2": {
+            "citation": "Zig Language Reference, 'Pointers', 'Functions'.",
+            "factor": 1,
+            "mechanism": "`fn put(cell: *i32) void { cell.* = 12; }` called as `put(&cell);`.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F05.P3": {
+            "citation": "Zig Language Reference, 'Functions': Zig functions are not closures and cannot capture surrounding runtime state; community and core-team documentation confirm no closure support is planned for runtime captures.",
+            "factor": 0,
+            "justification": "Zig has no closures: a function defined inside another function cannot capture a runtime local (such as `k`) from the enclosing scope; only compile-time-known values can be threaded through as extra generic/comptime parameters, which is not what the canonical_task requires. The probe's own rubric (N-4) lists F05.P3 among probes where the canonical_task directs that no fragment be written if the mechanism is absent.",
+            "n_reason": "N-1/N-4",
+            "points": 0,
+            "support": "NONE"
+          },
+          "F06.P1": {
+            "citation": "Zig std.ArrayList docs.",
+            "factor": 1,
+            "mechanism": "`fn mid(xs: ArrayList(i32)) i32 { return xs.items[1]; }`",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F06.P2": {
+            "citation": "Zig Language Reference, 'struct', anonymous struct literals.",
+            "factor": 1,
+            "mechanism": "Anonymous struct return `struct{q:i32,r:i32}` via `.{ .q=..., .r=... }`, then field access at call site.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F07.P1": {
+            "citation": "Zig Language Reference, 'Operators'.",
+            "factor": 1,
+            "mechanism": "`const r = a * b + c;` ordinary operators, ReleaseSafe-checked.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F07.P2": {
+            "citation": "Zig Language Reference, 'Builtin Functions' (@divTrunc, @divFloor, @rem, @mod, @floatFromInt).",
+            "factor": 1,
+            "mechanism": "`@divTrunc(a,b)`, `@rem(a,b)` (Zig disallows the plain `/`/`%` on signed ints without an explicit builtin to disambiguate rounding), and float division via `@as(f64,@floatFromInt(a)) / @as(f64,b)`.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F08.P1": {
+            "citation": "Zig std.math docs (`add`, `maxInt`).",
+            "factor": 1,
+            "mechanism": "`std.math.add(i32, m, 1) catch 0;` \u2014 checked op returning an error union (rung i).",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F08.P2": {
+            "citation": "Zig std.math docs (`divTrunc`).",
+            "factor": 1,
+            "mechanism": "`std.math.divTrunc(i32, a, b) catch 0;` checked division returning an error union (rung i).",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F09.P1": {
+            "citation": "Zig std.mem docs (`eql`).",
+            "factor": 1,
+            "mechanism": "`std.mem.eql(u8, s1, s2)` \u2014 byte-content comparison; slices are not comparable with `==`.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F09.P2": {
+            "citation": "Zig std.mem/std.sort docs.",
+            "factor": 1,
+            "mechanism": "`std.mem.sort(i32, xs.items, {}, descLessThan)` in-place sort with an explicit descending comparator; `const lt = a < b;`",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F10.P1": {
+            "citation": "Zig std.math docs (`cast`).",
+            "factor": 1,
+            "mechanism": "`std.math.cast(i32, big) orelse 0;` \u2014 checked narrowing returning `?i32` (rung i).",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F10.P2": {
+            "citation": "Zig Language Reference, 'Implicit Casts' / 'Builtin Functions' (@floatFromInt).",
+            "factor": 1,
+            "mechanism": "`@as(f64, @floatFromInt(i)) + d;` \u2014 Zig requires an explicit conversion builtin for mixed int/float arithmetic (no implicit conversion).",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F11.P1": {
+            "citation": "Zig Language Reference, 'Undefined Behavior' (index out of bounds is safety-checked in Debug/ReleaseSafe).",
+            "factor": 1,
+            "mechanism": "`xs[i]` \u2014 bounds-checked, panics/traps on out-of-range under the frozen ReleaseSafe recipe.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F11.P2": {
+            "citation": "Zig Language Reference, 'Slices'.",
+            "factor": 1,
+            "mechanism": "`const part = xs[1..4];` slice shares the original backing memory, no copy.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F12.P1": {
+            "citation": "Zig Language Reference, 'Optionals'.",
+            "factor": 1,
+            "mechanism": "`var o: ?i32 = null; const n: i32 = o orelse 0;`",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F12.P2": {
+            "applicable_letters": [
+              "P-a"
+            ],
+            "citation": "Zig Language Reference, 'Optionals' (orelse, if (optional) |x| ... else ...; no chaining/map operation documented).",
+            "factor": 0.5,
+            "justification": "Zig's Optional type has no standard map/chain/safe-call operation; the only optional-aware constructs are `orelse` and if-capture, both of which require an explicit conditional form to apply a transformation function. Per the probe's own named substitution (R9), the explicit conditional is written instead and scored PARTIAL.",
+            "points": 1,
+            "support": "PARTIAL"
+          },
+          "F13.P1": {
+            "citation": "Zig Language Reference, 'Errors'; std.fmt.parseInt docs.",
+            "factor": 1,
+            "mechanism": "`fn parseTwice(s: []const u8) !i32 { const v = try std.fmt.parseInt(i32, s, 10); return v * 2; }`",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F13.P2": {
+            "citation": "Zig Language Reference, 'Errors' (catch).",
+            "factor": 1,
+            "mechanism": "`const n = std.fmt.parseInt(i32, s, 10) catch 0;`",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F14.P1": {
+            "citation": "Zig Language Reference, 'union(enum)'.",
+            "factor": 1,
+            "mechanism": "`const Shape = union(enum) { Circle: struct{r:f64}, Rect: struct{w:f64,h:f64} };` \u2014 closed tagged union.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F14.P2": {
+            "citation": "Zig Language Reference, 'switch'.",
+            "factor": 1,
+            "mechanism": "Exhaustive `switch (s) { .Circle => |c| ..., .Rect => |r| ... }` with no else arm; compiler enforces exhaustiveness.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F14.P3": {
+            "citation": "Zig std.mem.Allocator source as the documented reference implementation of the vtable/interface idiom.",
+            "factor": 1,
+            "mechanism": "Interface via the standard vtable idiom (struct holding `*anyopaque` context + fn-pointer table), the same pattern used throughout Zig std (e.g. Allocator, Writer); a separate unit defines `Tri` and its own vtable instance without editing the `shapes` unit.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F15.P1": {
+            "citation": "Zig Language Reference, 'Generic Data Structures' / comptime type parameters.",
+            "factor": 1,
+            "mechanism": "`fn head(comptime T: type, xs: []const T) T { return xs[0]; }` instantiated at `i32` and `[]const u8`; result type is T, not erased.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F15.P2": {
+            "applicable_letters": [
+              "P-a"
+            ],
+            "citation": "Zig Language Reference, 'comptime' / generic functions (duck-typed, no formal constraint system).",
+            "factor": 0.5,
+            "justification": "Zig comptime generics have no declaration-site trait/bound/concept syntax; `max_of(comptime T: type, a: T, b: T) T { return if (a > b) a else b; }` is unconstrained at the declaration and only fails to compile at instantiation if T does not support `>`. This matches the named substitution and is scored PARTIAL; misuse is diagnosed at the call/instantiation site, not the declaration.",
+            "points": 1,
+            "support": "PARTIAL"
+          },
+          "F15.P3": {
+            "citation": "Zig std library vtable idiom (Allocator/Writer pattern).",
+            "factor": 1,
+            "mechanism": "Same vtable/interface idiom as F14.P3: a `[2]Named` array holds one `A` and one `B` behind the common `Named` interface value, with `items[0].tag()` dispatched at runtime through the stored function pointer.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F16.P1": {
+            "citation": "Zig std.ArrayList docs; canonical_task text of F16.P1.",
+            "factor": 1,
+            "mechanism": "`var xs = std.ArrayList(i32).init(allocator);` with three `append` calls; explicit `for (xs.items) |v| total += v;` loop (canonical_task explicitly permits explicit iteration where the stdlib has no sum/fold).",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F16.P2": {
+            "citation": "Zig std.StringHashMap / std.HashMap docs.",
+            "factor": 1,
+            "mechanism": "`std.StringHashMap(i32)`; entry iteration via `.iterator()`/`.next()`; `mp.get(\"b\") orelse 0;` for the absent-key fallback.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F17.P1": {
+            "citation": "Zig Language Reference, 'defer'.",
+            "factor": 1,
+            "mechanism": "`const file = try std.fs.cwd().openFile(...); defer file.close(); const text = try file.readToEndAlloc(...); return text.len;` \u2014 `defer` runs on every exit path including the error path from `try`.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F17.P2": {
+            "applicable_letters": [
+              "P-a"
+            ],
+            "citation": "Zig std library convention (ArrayList.deinit, HashMap.deinit, etc.) \u2014 invocation is always explicit, never automatic.",
+            "factor": 0.5,
+            "justification": "Zig has no automatic/deterministic destructor invoked by the compiler at end-of-scope; `deinit()` is a documented naming CONVENTION that the caller must invoke explicitly, normally via `defer h.deinit();` at the usage site. This is the named substitution for F17.P2 ('an explicit close/dispose invoked by a scoped construct') and is scored PARTIAL.",
+            "points": 1,
+            "support": "PARTIAL"
+          },
+          "F18.P1": {
+            "citation": "Zig std.io docs.",
+            "factor": 1,
+            "mechanism": "`const std = @import(\"std\"); const stdout = std.io.getStdOut().writer(); try stdout.print(\"x\\n\", .{});`",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F18.P2": {
+            "citation": "Zig Language Reference, 'pub'/visibility; toolchain_binding.multi_unit_recipes.",
+            "factor": 1,
+            "mechanism": "`util.zig` with `pub fn pub_add` and file-private `fn secret`; `secret` is inaccessible outside the file (Zig's unit-of-visibility is the file); called from `main.zig` via `@import(\"util.zig\").pub_add(2,3)`. Frozen recipe note: Zig 'unchanged \u2014 already follows @import references' (toolchain_binding.multi_unit_recipes).",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F19.P1": {
+            "citation": "Zig std.Thread docs.",
+            "factor": 1,
+            "mechanism": "`const t1 = try std.Thread.spawn(.{}, computeA, .{}); const t2 = try std.Thread.spawn(.{}, computeB, .{}); t1.join(); t2.join(); const sum = a_result + b_result;` \u2014 std.Thread is the shipped concurrency facility (async/await was removed from the compiler; threads remain the standard mechanism).",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F19.P2": {
+            "citation": "Zig std.atomic docs; Zig Language Reference on atomic builtins (@atomicRmw).",
+            "factor": 1,
+            "mechanism": "Two `std.Thread`s each increment a shared `std.atomic.Value(i64)` 1000 times via `.fetchAdd(1, .seq_cst)`, then join; documented atomic RMW guarantees race freedom. Empirical 20-run verification could not be executed in this packet-only worker (no execution environment); recorded as a methodology-evidence limitation, not a downgrade of the documented capability.",
+            "points": 2,
+            "support": "FULL"
+          },
+          "F20.P1": {
+            "applicable_letters": [
+              "P-b"
+            ],
+            "citation": "Zig build system documentation on `-lc` / linking against libc for `extern` C declarations.",
+            "factor": 0.5,
+            "justification": "`extern fn abs(x: c_int) c_int;` calling libc's `abs` requires linking libc; the frozen single-file recipe `zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN` does not link libc by default, so an additional `-lc` flag (or `.link_libc = true`) beyond the frozen recipe is required. The flag ships with the frozen toolchain (no external download), matching P-b.",
+            "points": 1,
+            "support": "PARTIAL"
+          },
+          "F20.P2": {
+            "citation": "Zig Language Reference, 'export'.",
+            "factor": 1,
+            "mechanism": "`export fn add2(a: c_int, b: c_int) c_int { return a + b; }` \u2014 `export` gives C ABI and a stable, unmangled symbol name equal to the identifier.",
+            "points": 2,
+            "support": "FULL"
+          }
+        },
+        "sum_check": {
+          "matches_numerator": true,
+          "matches_numerator_family_basis": true,
+          "sum_of_per_family_earned": 82,
+          "sum_of_per_probe_points": 82
+        },
+        "toolchain_recipe_used": {
+          "build": "zig build-exe -OReleaseSafe FILE.zig -femit-bin=BIN",
+          "run": "./BIN",
+          "safety_mode_note": "ReleaseSafe pins signed-overflow trapping and bounds-checked indexing per toolchain_binding.safety_mode_clause; this is the frozen recipe, not a P-b deviation."
+        }
+      }
+    },
+    "requirements": {
+      "metric.capability_coverage": {
+        "Zig": 93.18
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "9b4a7d24aa2274dc1d22058022d21d26f7d2145e14f10be96864f0d19b196d1e",
+  "schema_version": 1
+}

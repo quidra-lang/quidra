@@ -1,0 +1,113 @@
+{
+  "assigned_languages": [
+    "C++"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "0009d5c5dffab3c4f305c0696c5eead53bbe333f8c096ad956e1b412a364295d",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "0786f4cbf257adb795114f38e7f9d0c29fbdd4af48c1714e42dddfb2e3f7da17",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/programs/cpp/adversarial": "73217bc7fa600c7fc828119058c0a5b7be3aa9609d7d949e82a0c030d3b24847",
+      "template/programs/cpp/micro": "76763990610389edc81c881c40ecd9c7731cdfa1dbf05153e9c79876407167e2",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.functionality_expressiveness",
+      "metric.diagnostics"
+    ],
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "cc718e9dda3eb349812f0feb507c9aa5cfd219333521a3548263e0c924d4b2c7",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-lq-language-development--part-2--c",
+    "work_unit_id": "lq-language-development--part-2--c",
+    "worker_mode": "sandbox-agent"
+  },
+  "provenance": {
+    "prompt_sha256": "0786f4cbf257adb795114f38e7f9d0c29fbdd4af48c1714e42dddfb2e3f7da17",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "lq-language-development--part-2--c"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "metric.diagnostics": {
+        "method": "Compiled selected adversarial C++ programs with g++ (C++20, -Wall -Wextra, and -Wconversion) inside the sandbox and captured raw compiler diagnostic text as evidence.",
+        "raw_score_basis": "58/100",
+        "summary": "C++ compiler diagnostics (GCC) are excellent for syntax errors (precise location, caret, contextual notes) but structurally weak for silent semantic hazards like integer narrowing, which require opt-in flags and remain non-fatal warnings even when enabled. No mandatory sound type/borrow checking exists at the language level (unlike Rust) to catch this class of bug at compile time by default. Score set to 58/100 reflecting strong syntactic diagnostics offset by weak default detection of a broad class of real-world numeric correctness bugs.",
+        "trials": [
+          {
+            "assessment": "Diagnostics are precise (line/column caret), include a helpful note pointing back to the unmatched brace, and separately flag unused-variable/statement-has-no-effect. Good syntax-error locality and secondary notes, but cascading errors from one truncation point produced two separate error messages requiring correlation by the reader.",
+            "command": "g++ -std=c++20 -Wall -Wextra -c adv22a.cpp -o adv22a.o",
+            "exit_code": 1,
+            "program": "adversarial/ADV-22a_single.cpp (truncated/malformed statement)",
+            "stderr_excerpt": "adv22a.cpp:7:14: error: expected ';' at end of input ... adv22a.cpp:7:14: error: expected '}' at end of input ... note: to match this '{' ... warning: statement has no effect [-Wunused-value] ... warning: unused variable 'v' [-Wunused-variable]"
+          },
+          {
+            "assessment": "A real silent-truncation defect (implicit narrowing conversion of INT64_MAX into int32_t) is NOT diagnosed by the default warning set (-Wall -Wextra); it only surfaces with the non-default -Wconversion flag, and even then only as a warning, not an error, so the unsafe program compiles cleanly by default and misbehaves at runtime. This is a systemic weak point: C++'s implicit conversions are diagnosed opt-in rather than by default, unlike languages that reject or warn on such narrowing unconditionally.",
+            "command_default": "g++ -std=c++20 -Wall -Wextra -c adv01.cpp -o adv01.o",
+            "command_with_conversion_flag": "g++ -std=c++20 -Wall -Wextra -Wconversion -c adv01.cpp -o adv01.o",
+            "exit_code_default": 0,
+            "exit_code_with_flag": 0,
+            "program": "adversarial/ADV-01_C.cpp (int64_t -> int32_t narrowing, real correctness bug)",
+            "stderr_default": "(no diagnostic emitted for the narrowing conversion under -Wall -Wextra)",
+            "stderr_with_flag": "adv01.cpp:7:22: warning: conversion from 'int64_t' {aka 'long int'} to 'int32_t' {aka 'int'} may change value [-Wconversion]"
+          }
+        ]
+      },
+      "metric.functionality_expressiveness": {
+        "method": "Qualitative assessment of C++20 language feature coverage exercised against the assigned adversarial/micro corpus (templates, RAII, operator overloading, constexpr, concepts, std:: containers/algorithms, exception handling, multi-paradigm support via lambdas).",
+        "observations": [
+          "Corpus (template/programs/cpp/adversarial, .../micro) exercises integer overflow/narrowing (ADV-01), UB edge cases, recursion depth (ADV-21 variants), and malformed-syntax negative cases (ADV-22a/b), showing the language supports low-level numeric control needed for systems-level expressiveness.",
+          "C++ offers rich expressiveness: templates/generics with concepts, operator overloading, RAII-based resource management, multiple inheritance, lambdas/closures, coroutines (C++20), constexpr metaprogramming, and a large standard library (algorithm, ranges, containers).",
+          "Weaknesses versus more modern languages: no native sum types/pattern matching (workarounds via std::variant + std::visit are verbose), manual memory-safety discipline required (raw pointers, lifetime bugs still expressible), macro preprocessor is a blunt, non-hygienic metaprogramming tool, and template error surfaces (pre-concepts) are historically very verbose (mitigated but not eliminated by C++20 concepts).",
+          "Score reflects a mature, extremely expressive but syntactically heavy language with excellent low-level control paired with only partial adoption of modern type-safety idioms (variant/optional exist but are opt-in, not default)."
+        ],
+        "raw_score_basis": "78/100: full marks would require first-class sum types/pattern matching and eliminate macro-based metaprogramming; strong marks for generics, RAII, operator overloading, large stdlib, multi-paradigm support."
+      }
+    },
+    "requirements": {
+      "metric.diagnostics": {
+        "C++": 58
+      },
+      "metric.functionality_expressiveness": {
+        "C++": 78
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "8e3abd25bc017468ff50413a84ed7aa9a1831d766e8ba55fdeef88de61661fa3",
+  "schema_version": 1
+}

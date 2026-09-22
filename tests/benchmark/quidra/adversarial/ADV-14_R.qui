@@ -1,12 +1,11 @@
 print("ADV-START")
 io.flush()
 string read_input_line()
-    string | none | error line = input()
-    match line
-        string text
-            return text
-        none
-            process.exit(2)
+    string line = ""
+    void | error read = scan(&line)
+    match read
+        void
+            return line
         error problem
             process.exit(2)
 int scale(int value)

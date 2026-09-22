@@ -68,6 +68,11 @@ struct ClassTypeInfo {
     std::vector<ClassFieldType> fields;
     std::unordered_map<std::string, std::string> methods;
     std::unordered_map<std::string, std::string> private_methods;
+    // Internal function names of the class's construct(...) members, in
+    // declaration order. A constructor is an ordinary function whose result is
+    // the class (or the class joined with error); its receiver is a local.
+    std::vector<std::string> constructors;
+    std::unordered_set<std::string> private_constructors;
 };
 
 struct FieldAccessInfo {
@@ -84,6 +89,14 @@ struct EnumConstructionInfo {
     Type type;
     int tag{};
     Type payload_type{Type::simple(TypeKind::Void)};
+};
+
+// A scan(...) call after checking: the literal text between input targets and
+// the storage each target names. literals has one more entry than targets.
+struct ScanFormat {
+    std::vector<std::string> literals;
+    std::vector<const Expr*> targets;
+    std::vector<Type> target_types;
 };
 
 struct CheckedProgram {
@@ -103,6 +116,7 @@ struct CheckedProgram {
     std::unordered_set<const Expr*> bounds_proven;
     std::unordered_set<const Expr*> fail_fast_expressions;
     std::unordered_map<const Expr*, std::unordered_set<std::string>> class_expr_initialized_paths;
+    std::unordered_map<const Expr*, ScanFormat> scan_formats;
 };
 
 class Checker {
@@ -155,6 +169,18 @@ private:
     std::size_t stmt_depth_{};
     bool explicit_numeric_literal_context_{};
     std::string current_class_;
+    // Checker-internal name of every class member body, constructors included.
+    std::unordered_map<const FunctionDecl*, std::string> method_internal_names_;
+    // True while checking a construct(...) body: receiver fields start out
+    // uninitialized (except defaults), reads of them are errors rather than
+    // requirements, and const fields may be assigned once.
+    bool in_constructor_{};
+    std::size_t constructor_block_depth_{};
+    std::unordered_map<const Expr*, ScanFormat> scan_formats_;
+    // The expression whose error cannot continue past it: a statement's
+    // expression (fail-fast) or the operand of try (propagation). scan uses
+    // it to decide whether its targets are initialized afterwards.
+    const Expr* error_terminating_expr_{};
 
     Type resolve_type(const TypeName& type, bool allow_auto = false);
     void check_type_extent_expressions(const TypeName& source);
@@ -193,6 +219,15 @@ private:
         const FunctionParameterType* parameter{};
         SourceSpan span{};
     };
+    bool check_call_arguments(const Expr& expression, const std::vector<CallArg>& args,
+                              const FunctionType& function,
+                              std::vector<PendingReferenceEffect>& pending);
+    Type check_class_construction(const Expr& expression, const CallExpr& node,
+                                  const std::string& class_name);
+    std::unordered_set<std::string> default_initialized_paths(const std::string& class_name) const;
+    FunctionType* begin_member_body(const ClassDecl& class_decl, const FunctionDecl& method);
+    void finish_member_body(const ClassDecl& class_decl, const FunctionDecl& method,
+                            FunctionType& signature, bool report);
     void apply_current_method_summary(const FunctionType& signature, const std::string& prefix = {});
     void apply_method_effects(const Expr& receiver, const FunctionType& signature, SourceSpan span);
     void mark_storage_initialized(const Expr& expr);

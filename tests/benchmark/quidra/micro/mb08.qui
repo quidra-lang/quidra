@@ -11,6 +11,9 @@ cli args
 class Lcg
     int state
 
+    construct(int seed)
+        state = seed
+
     int next_int()
         state = (48271 * state) % 2147483647
         return state
@@ -33,7 +36,7 @@ Result workload()
     int nw = 200000
     int rounds = 20
     int q = 1000000007
-    Lcg g = Lcg(state = 20268917)
+    Lcg g = Lcg(20268917)
 
     string[] words = []
     for w in range(nw)
@@ -91,7 +94,12 @@ Result workload()
         acc = (acc * 31 + h3) % q
         acc = (acc * 31 + cnt_ab) % q
         acc = (acc * 31 + cnt_w) % q
-    return Result(acc = acc, length = n, cnt_ab = cnt_ab, cnt_w = cnt_w)
+    Result result
+    result.acc = acc
+    result.length = n
+    result.cnt_ab = cnt_ab
+    result.cnt_w = cnt_w
+    return result
 
 Result timed(int index)
     time.Instant start = time.now()

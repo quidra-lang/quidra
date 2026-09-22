@@ -133,7 +133,7 @@ Deterministic runtime safety failures terminate with status `101`. They include:
 - a zero `range` step;
 - call depth exceeding the native safety limit before host stack exhaustion.
 
-An explicit `error("message")` is instead a typed value. Numeric `Type.parse(text)` returns `error` for invalid or out-of-range text. `input()` returns `none` for EOF and `error` for input failure.
+An explicit `error("message")` is instead a typed value. Numeric `Type.parse(text)` returns `error` for invalid or out-of-range text. `scan(...)` returns `error` for end of input, invalid text, or input that does not match its format, and `print`, `write`, and `io.flush` return `error` for an output failure; an expression statement that discards such an error fails fast.
 
 Floating-point exceptional values follow IEEE-754 behavior. Runtime text is canonicalized to `nan`, `inf`, and `-inf`.
 

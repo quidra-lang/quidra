@@ -351,6 +351,13 @@ Program Parser::parse() {
     while (!at(TokenKind::Eof)) {
         try {
             if (at(TokenKind::KwImport)) p.imports.push_back(import_decl());
+            else if (at(TokenKind::KwPublic)) {
+                consume(TokenKind::KwPublic, "Expected public.");
+                if (!at(TokenKind::KwImport)) error(peek(), "public is only valid as 'public import'.");
+                auto declaration = import_decl();
+                declaration.is_public = true;
+                p.imports.push_back(std::move(declaration));
+            }
             else if (at(TokenKind::Identifier) && peek().text == "extern") p.functions.push_back(external_function_decl());
             else if (looks_like_cli_decl()) cli_decl(p);
             else if (at(TokenKind::KwEnum)) p.enums.push_back(enum_decl());
@@ -762,10 +769,20 @@ ClassDecl Parser::class_decl() {
     while (!at(TokenKind::Dedent) && !at(TokenKind::Eof)) {
         if (at(TokenKind::KwClass)) error(peek(), "Nested classes are prohibited.");
         if (at(TokenKind::KwImport)) error(peek(), "import is only valid at top level.");
+        if (at(TokenKind::KwPublic)) error(peek(), "public is only valid as 'public import' at top level.");
         const bool is_private = match(TokenKind::KwPrivate);
-        if (looks_like_declaration(true)) {
+        if (at(TokenKind::Identifier) && peek().text == "construct" &&
+            peek(1).kind == TokenKind::LParen) {
+            auto constructor = constructor_decl(name.text, type_parameters);
+            constructor.is_private = is_private;
+            methods.push_back(std::move(constructor));
+        } else if (looks_like_declaration(true)) {
             auto method = function_decl();
             method.is_private = is_private;
+            if (method.name == "construct") {
+                method.is_constructor = true;
+                method.constructor_typed = true;
+            }
             methods.push_back(std::move(method));
         } else if (looks_like_declaration(false)) {
             const auto field_start = is_private ? previous().span.start : peek().span.start;
@@ -809,6 +826,45 @@ FunctionDecl Parser::function_decl() {
                         std::move(type_constraints)};
 }
 
+
+// `construct(...)` inside a class body. The member has no spelled return type:
+// it constructs the enclosing class, so the parser fills that type in, with the
+// class's own type parameters as arguments so a generic class instantiates it
+// like any other member.
+FunctionDecl Parser::constructor_decl(const std::string& class_name,
+                                      const std::vector<std::string>& type_parameters) {
+    const auto start = peek().span.start;
+    const auto name = consume(TokenKind::Identifier, "Expected construct.");
+    TypeName result;
+    result.name = class_name;
+    result.span = name.span;
+    for (const auto& parameter : type_parameters) {
+        TypeName argument;
+        argument.name = parameter;
+        argument.span = name.span;
+        result.arguments.push_back(std::move(argument));
+    }
+    consume(TokenKind::LParen, "Expected '(' after construct.");
+    std::vector<Parameter> params;
+    while (!at(TokenKind::RParen)) {
+        const bool is_const = match(TokenKind::KwConst);
+        auto type = type_name();
+        const bool write = match(TokenKind::Ampersand);
+        const auto p = consume(TokenKind::Identifier, "Expected parameter name.");
+        ExprPtr value;
+        if (match(TokenKind::Assign)) value = expression();
+        params.push_back(Parameter{p.text, std::move(type), write, p.span, std::move(value), is_const});
+        if (!match(TokenKind::Comma)) break;
+    }
+    consume(TokenKind::RParen, "Expected ')'.");
+    end_statement("constructor signature");
+    auto body = block_until(false);
+    const auto end = previous().span.end;
+    FunctionDecl declaration{name.text, {}, std::move(params), std::move(result), std::move(body),
+                             {start, end}, false, {}, std::nullopt, {}};
+    declaration.is_constructor = true;
+    return declaration;
+}
 
 FunctionDecl Parser::external_function_decl() {
     const auto start=consume(TokenKind::Identifier,"Expected extern.").span.start;
@@ -873,6 +929,7 @@ StmtPtr Parser::statement() {
     if (at(TokenKind::KwFor)) return for_stmt();
     if (at(TokenKind::KwMatch)) return match_stmt();
     if (at(TokenKind::KwImport)) error(peek(), "import is only valid at top level.");
+    if (at(TokenKind::KwPublic)) error(peek(), "public is only valid as 'public import' at top level.");
     if (at(TokenKind::KwClass) || at(TokenKind::KwEnum))
         error(peek(),"class and enum are only valid at declaration boundaries.");
     if (looks_like_declaration(false)) return binding_stmt();
@@ -1144,13 +1201,33 @@ ExprPtr Parser::string_expression(const Token& token) {
                 if (c=='(') ++paren; else if (c==')') --paren; else if (c=='[') ++bracket; else if (c==']') --bracket;
                 else if (c==':' && paren==0 && bracket==0) { colon = k; break; }
             }
-            const auto expression_text = colon == std::string_view::npos ? inner : inner.substr(0, colon);
+            auto expression_text = colon == std::string_view::npos ? inner : inner.substr(0, colon);
             if (trim(expression_text).empty()) error(token, "String interpolation cannot be empty.");
-            const auto base = string_content_position(token, expression_start);
+            // `{&name}` is an input target: where scan("...") stores what it
+            // reads. It is an ordinary storage expression behind the `&`.
+            const auto ampersand = expression_text.find('&');
+            const bool scan_target =
+                ampersand != std::string_view::npos && trim(expression_text.substr(0, ampersand)).empty();
+            if (scan_target && colon != std::string_view::npos) {
+                error(token, "An input target {&name} takes no format.");
+            }
+            std::size_t nested_start = expression_start;
+            if (scan_target) {
+                nested_start = expression_start + ampersand + 1;
+                expression_text = expression_text.substr(ampersand + 1);
+                if (trim(expression_text).empty()) error(token, "An input target is written {&name}.");
+            }
+            const auto base = string_content_position(token, nested_start);
             try {
                 Parser nested(Lexer(std::string(expression_text)).scan(), max_errors_);
                 auto nested_expression = nested.inline_expression();
                 relocate_expr(*nested_expression, base);
+                if (scan_target) {
+                    auto target = std::make_unique<Expr>();
+                    target->span = nested_expression->span;
+                    target->data = UnaryExpr{"scan&", std::move(nested_expression)};
+                    nested_expression = std::move(target);
+                }
                 expressions.push_back(std::move(nested_expression));
             } catch (const CompileError& nested_error) {
                 auto diagnostic = nested_error.diagnostic();

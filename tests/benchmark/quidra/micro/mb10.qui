@@ -11,6 +11,9 @@ cli args
 class Lcg
     int state
 
+    construct(int seed)
+        state = seed
+
     int next_int()
         state = (48271 * state) % 2147483647
         return state
@@ -25,7 +28,7 @@ class Result
 Result workload()
     int n = 1000000
     int rounds = 3
-    Lcg g = Lcg(state = 20270917)
+    Lcg g = Lcg(20270917)
     int sum_v = 0
     int chk = 0
     int nbytes = 0
@@ -65,7 +68,12 @@ Result workload()
                     process.exit(3)
         reader.close()
 
-    return Result(sum_v = sum_v, chk = chk, nbytes = nbytes, lines = lines)
+    Result result
+    result.sum_v = sum_v
+    result.chk = chk
+    result.nbytes = nbytes
+    result.lines = lines
+    return result
 
 Result timed(int index)
     time.Instant start = time.now()

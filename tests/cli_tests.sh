@@ -55,8 +55,10 @@ assert x["c_ffi"] is True
 assert x["debug_build"] is True
 for name in ["int8","int16","int32","int64 (= int)","uint8","uint16","uint32","uint64","bigint","float32","float64 (= float)","bigreal","bin"]:
     assert name in x["current_types"], name
-for name in ["print","write","input","range","array","len","abs","sqrt","min","max","error"]:
+for name in ["print","write","scan","range","array","len","tensor","error"]:
     assert name in x["current_builtins"], name
+for name in ["input","abs","sqrt","min","max"]:
+    assert name not in x["current_builtins"], name
 assert x["standard_modules"] == ["math","io","cli","file","environment","test","time","gpu","task","atomic","ref","random","process","map","set","json","http","stats","linear","signal","image","video","tensor","neural"]
 assert x["array_growth_model"].startswith("append(value)")
 assert "Unicode code-point" in x["string_operation_model"]
@@ -369,17 +371,17 @@ tmp = pathlib.Path(sys.argv[2])
 uri = (tmp / "lsp-member-resolution.qui").as_uri()
 source = (
     "class Left\n"
-    "    int value\n"
+    "    int value = 10\n"
     "    int score()\n"
     "        return value\n"
     "\n"
     "class Right\n"
-    "    int value\n"
+    "    int value = 20\n"
     "    int score()\n"
     "        return value + 1\n"
     "\n"
-    "Left left = Left(value = 10)\n"
-    "Right right = Right(value = 20)\n"
+    "Left left\n"
+    "Right right\n"
     "print(left.score())\n"
     "print(right.score())\n"
 )
@@ -452,7 +454,7 @@ source=(
     "    private void close()\n"
     "        return\n"
     "\n"
-    "Secret item = Secret()\n"
+    "Secret item\n"
     "item.\n"
 )
 inside_source=(
@@ -530,7 +532,7 @@ source=(
     "    int read()\n"
     "        return reveal()\n"
     "\n"
-    "Vault vault = Vault()\n"
+    "Vault vault\n"
 )
 messages=[
     {"jsonrpc":"2.0","id":1,"method":"initialize","params":{"rootUri":tmp.as_uri()}},
@@ -1126,49 +1128,55 @@ class ArrayPoint
     int x
     int y
 
+    construct(int x_value, int y_value)
+        x = x_value
+        y = y_value
+
 class ArrayChild
     int x
     int y
+
+    construct(int x_value, int y_value)
+        x = x_value
+        y = y_value
 
 class ArrayHolder
     ArrayChild child
     int[] tags
 
+    construct(ArrayChild child_value, int[] tags_value)
+        child = child_value
+        tags = tags_value
+
 ArrayPoint[] left = [
-    ArrayPoint(x = 1, y = 2),
-    ArrayPoint(x = 3, y = 4),
+    ArrayPoint(1, 2),
+    ArrayPoint(3, 4),
 ]
 ArrayPoint[] right = left
 print(left == right)
-right[1] = ArrayPoint(x = 3, y = 5)
+right[1] = ArrayPoint(3, 5)
 print(left != right)
 
-ArrayPoint[1] fixed_left = [ArrayPoint(x = 9, y = 10)]
-ArrayPoint[1] fixed_right = [ArrayPoint(x = 9, y = 10)]
+ArrayPoint[1] fixed_left = [ArrayPoint(9, 10)]
+ArrayPoint[1] fixed_right = [ArrayPoint(9, 10)]
 print(fixed_left == fixed_right)
 
-ArrayChild[] child_left = [ArrayChild(x = 11, y = 12)]
-ArrayChild[] child_right = [ArrayChild(x = 11, y = 12)]
+ArrayChild[] child_left = [ArrayChild(11, 12)]
+ArrayChild[] child_right = [ArrayChild(11, 12)]
 print(child_left == child_right)
 test.equal(child_left, child_right)
 
 ArrayHolder[] nested_left = [
-    ArrayHolder(
-        child = ArrayChild(x = 13, y = 14),
-        tags = [15, 16],
-    ),
+    ArrayHolder(ArrayChild(13, 14), [15, 16]),
 ]
 ArrayHolder[] nested_right = [
-    ArrayHolder(
-        child = ArrayChild(x = 13, y = 17),
-        tags = [15, 16],
-    ),
+    ArrayHolder(ArrayChild(13, 17), [15, 16]),
 ]
 print(nested_left != nested_right)
 
 ArrayChild[][] matrix_left = [
-    [ArrayChild(x = 18, y = 19)],
-    [ArrayChild(x = 20, y = 21)],
+    [ArrayChild(18, 19)],
+    [ArrayChild(20, 21)],
 ]
 ArrayChild[][] matrix_right = matrix_left
 print(matrix_left == matrix_right)
@@ -1342,6 +1350,9 @@ class LinearKernel
 class RbfKernel
     float gamma = 1.0
 
+    construct(float gamma_value)
+        gamma = gamma_value
+
     float apply(float value)
         return value * gamma
 
@@ -1359,7 +1370,7 @@ void mutate(LinearKernel | RbfKernel kernel)
         RbfKernel rbf
             rbf.gamma = 9.0
 
-LinearKernel | RbfKernel kernel = RbfKernel(gamma = 2.0)
+LinearKernel | RbfKernel kernel = RbfKernel(2.0)
 print(evaluate(kernel, 3.0))
 mutate(kernel)
 print(evaluate(kernel, 3.0))
@@ -1808,11 +1819,14 @@ void initialize_x_one_branch(Box &box, bool flag)
     if flag
         box.inner.x = 1
 
-Box box = Box(inner = Inner())
+Inner empty
+Box box
+box.inner = empty
 initialize_x(&box)
 print(box.inner.x)
 
-Box both = Box(inner = Inner())
+Box both
+both.inner = empty
 initialize_x_both(&both, true)
 print(both.inner.x)
 QUI
@@ -1853,7 +1867,9 @@ void initialize_x_one_branch(Box &box, bool flag)
     if flag
         box.inner.x = 1
 
-Box box = Box(inner = Inner())
+Inner empty
+Box box
+box.inner = empty
 initialize_x_one_branch(&box, false)
 print(box.inner.x)
 QUI
@@ -1891,15 +1907,15 @@ void maybe_y(bool enabled, Pair &pair)
     if enabled
         pair.y = 9
 
-Pair direct = Pair()
+Pair direct
 set_x(&direct)
 print(read_x(&direct))
 
-Pair through_method = Pair()
+Pair through_method
 initialize_through_method(&through_method)
 print(read_x(&through_method))
 
-Pair branched = Pair()
+Pair branched
 choose_x(true, &branched)
 print(read_x(&branched))
 QUI
@@ -1940,6 +1956,13 @@ class Point
     int x
     int y
 
+    construct(int x_value)
+        x = x_value
+
+    construct(int x_value, int y_value)
+        x = x_value
+        y = y_value
+
 class Counter
     int value
 
@@ -1975,27 +1998,27 @@ print(values[0])
 first = 9
 print(values[0])
 
-Point p = Point(x = 1)
+Point p = Point(1)
 int &field = &p.y
 field = 5
 print(p.y)
 
 int &old_x = &p.x
-p = Point(x = 10, y = 20)
+p = Point(10, 20)
 print(old_x)
 print(p.x)
 
 Point &whole = &p
-p = Point(x = 30, y = 40)
+p = Point(30, 40)
 print(whole.x)
 
-Point partial = Point(x = 7)
+Point partial = Point(7)
 Point copy = partial
 copy.y = 6
 print(copy.x)
 print(copy.y)
 
-Counter counter = Counter()
+Counter counter
 counter.reset()
 counter.increment()
 print(counter.value)
@@ -2034,7 +2057,7 @@ set -e
 grep -q 'SHADOWING' "$TMP/import-shadow.json"
 
 cat > "$TMP/import-builtin-shadow.qui" <<'QUI'
-import input = plotting
+import scan = plotting
 QUI
 set +e
 "$QUIDRA" check "$TMP/import-builtin-shadow.qui" --json > "$TMP/import-builtin-shadow.json"
@@ -2056,6 +2079,10 @@ class Point
     int x
     int y
 
+    construct(int x_value, int y_value)
+        x = x_value
+        y = y_value
+
 int sum(Point point)
     return util.bump(point.x + point.y)
 QUI
@@ -2063,6 +2090,9 @@ QUI
 cat > "$TMP/project/shared.qui" <<'QUI'
 class Box<T>
     T value
+
+    construct(T initial)
+        value = initial
 
     T get()
         return value
@@ -2085,9 +2115,9 @@ import geo = "./geometry.qui"
 import shared = "@/shared.qui"
 import m = "@/math.qui"
 
-geo.Point point = geo.Point(x = 2, y = 3)
-shared.Box<int> box = shared.Box<int>(value = 7)
-shared.GenericEcho echo = shared.GenericEcho()
+geo.Point point = geo.Point(2, 3)
+shared.Box<int> box = shared.Box<int>(7)
+shared.GenericEcho echo
 
 print(geo.sum(point))
 print(box.get())
@@ -2108,7 +2138,7 @@ class Echo
 
 int sample = 7
 int inferred = identity(sample)
-Echo instance = Echo()
+Echo instance
 int method_inferred = instance.echo(sample)
 print(inferred)
 print(method_inferred)
@@ -2244,8 +2274,11 @@ cat > "$TMP/class-init-summary.qui" <<'QUI'
 class Model
     float bb
 
+    construct(float bb_value)
+        bb = bb_value
+
 Model build()
-    return Model(bb = 2.0)
+    return Model(2.0)
 
 class Data
     float[] ys
@@ -2258,7 +2291,9 @@ class Holder
         return data.ys[0]
 
 Model model = build()
-Holder holder = Holder(data = Data())
+Data empty
+Holder holder
+holder.data = empty
 print(model.bb)
 print(holder.first())
 QUI
@@ -2315,11 +2350,11 @@ cat > "$TMP/builtins.qui" <<'QUI'
 int[] values = [1, 2, 3]
 print(len(values))
 print(float(3))
-print(abs(int(-5)))
-print(abs(float(-2.5)))
-print(sqrt(float(9.0)))
-print(min(int(4), 2))
-print(max(int(4), 2))
+print(math.abs(int(-5)))
+print(math.abs(float(-2.5)))
+print(math.sqrt(float(9.0)))
+print(math.min(int(4), 2))
+print(math.max(int(4), 2))
 QUI
 [[ "$($QUIDRA run "$TMP/builtins.qui")" == $'3\n3.0\n5\n2.5\n3.0\n2\n4' ]]
 
@@ -2399,7 +2434,13 @@ class Mixed
     float32 c
     uint8 d
 
-Mixed value = Mixed(a = 7, b = 500, c = 1.5, d = 9)
+    construct(int8 a_value, uint16 b_value, float32 c_value, uint8 d_value)
+        a = a_value
+        b = b_value
+        c = c_value
+        d = d_value
+
+Mixed value = Mixed(7, 500, 1.5, 9)
 int8 &a = &value.a
 uint16 &b = &value.b
 float32 &c = &value.c
@@ -2501,24 +2542,67 @@ parse_output="$($QUIDRA run "$TMP/parse.qui")"
 [[ "$parse_output" == "$(printf '123\n1.5\nnumeric parse failed')" ]]
 
 cat > "$TMP/input.qui" <<'QUI'
-auto line = input()
-match line
-    string value
-        print(value)
-    none
-        print("eof")
+string line = ""
+void | error read = scan(&line)
+match read
+    void
+        print(line)
     error e
         print(e)
 QUI
-input_output="$(printf 'hello\n' | $QUIDRA run "$TMP/input.qui")"
-[[ "$input_output" == "hello" ]]
+input_output="$(printf 'hello world\n' | $QUIDRA run "$TMP/input.qui")"
+[[ "$input_output" == "hello world" ]]
 eof_output="$($QUIDRA run "$TMP/input.qui" < /dev/null)"
-[[ "$eof_output" == "eof" ]]
+[[ "$eof_output" == "scan reached the end of input" ]]
 
 invalid_input_output="$(python3 -c 'import sys; sys.stdout.buffer.write(b"\xff\n")' | "$QUIDRA" run "$TMP/input.qui")"
 [[ "$invalid_input_output" == "input failed" ]]
 nul_input_output="$(python3 -c 'import sys; sys.stdout.buffer.write(b"A\x00B\n")' | "$QUIDRA" run "$TMP/input.qui")"
 [[ "$nul_input_output" == "input failed" ]]
+
+# scan(&n) is scan("{&n}"); a format splits the line at its literal text and
+# parses each target by its type. As a statement, an error fails fast and the
+# targets are initialized afterwards; a captured error leaves them untouched.
+cat > "$TMP/scan-format.qui" <<'QUI'
+int n
+scan(&n)
+int a
+float b
+scan("{&a} {&b}")
+string name
+int age
+scan("{&name},{&age}")
+print(n + a)
+print(b)
+print("{name}:{age}")
+int k = 0
+void | error captured = scan("{&k}")
+match captured
+    void
+        print("unexpected")
+    error problem
+        print(problem)
+print(k)
+QUI
+scan_output="$(printf '40\n2 1.5\nAda,36\n7 seven\n' | $QUIDRA run "$TMP/scan-format.qui")"
+[[ "$scan_output" == "$(printf '42\n1.5\nAda:36\nscan found unexpected input after the format: \" seven\"\n0')" ]]
+set +e
+scan_fail_output="$(printf 'abc\n' | $QUIDRA run "$TMP/scan-format.qui" 2>&1)"
+scan_fail_rc=$?
+set -e
+[[ "$scan_fail_rc" -eq 101 ]]
+[[ "$scan_fail_output" == *'scan could not read int from "abc"'* ]]
+
+cat > "$TMP/scan-captured-uninitialized.qui" <<'QUI'
+int n
+void | error r = scan(&n)
+QUI
+set +e
+"$QUIDRA" check "$TMP/scan-captured-uninitialized.qui" --json > "$TMP/scan-captured.json"
+scan_captured_rc=$?
+set -e
+[[ "$scan_captured_rc" -ne 0 ]]
+grep -q 'UNINITIALIZED' "$TMP/scan-captured.json"
 
 cat > "$TMP/cli-text.qui" <<'QUI'
 cli args
@@ -2718,8 +2802,10 @@ int square(int value)
 square(6)
 class Box
     int value
+    construct(int value_value)
+        value = value_value
 
-Box box = Box(value = 9)
+Box box = Box(9)
 box.value
 T identity<T>(T value)
     return value
@@ -2729,7 +2815,7 @@ int[] repl_values = [1, 2, 3]
 repl_values
 bin.fill(3, 1)
 box
-Box partial = Box()
+Box partial
 partial
 none
 "hello"
@@ -3076,7 +3162,7 @@ class Cell
         print(value)
         later = 1
 
-Cell cell = Cell()
+Cell cell
 cell.read_before_initialize(&cell.value)
 QUI
 set +e
@@ -3090,11 +3176,17 @@ cat > "$TMP/receiver-alias-postcondition.qui" <<'QUI'
 class State
     int value
 
+    construct(int value_value)
+        value = value_value
+
+    construct()
+        return
+
     void initialize_then_replace(State &other)
         value = 1
         other = State()
 
-State state = State(value = 0)
+State state = State(0)
 state.initialize_then_replace(&state)
 print(state.value)
 QUI
@@ -3167,7 +3259,11 @@ class Item
     const int id
     int value
 
-Item item = Item(id = 3, value = 4)
+    construct(int id_value, int value_value)
+        id = id_value
+        value = value_value
+
+Item item = Item(3, 4)
 print(item.id)
 QUI
 const_values_output=$("$QUIDRA" run "$TMP/const-values.qui")
@@ -3189,7 +3285,10 @@ cat > "$TMP/const-field-write.qui" <<'QUI'
 class Item
     const int id
 
-Item item = Item(id = 1)
+    construct(int id_value)
+        id = id_value
+
+Item item = Item(1)
 item.id = 2
 QUI
 set +e
@@ -3246,13 +3345,16 @@ cat > "$TMP/const-method-read.qui" <<'QUI'
 class Counter
     int value
 
+    construct(int value_value)
+        value = value_value
+
     int get()
         return value
 
     void increment()
         value += 1
 
-const Counter counter = Counter(value = 4)
+const Counter counter = Counter(4)
 print(counter.get())
 QUI
 [[ "$("$QUIDRA" run "$TMP/const-method-read.qui")" == "4" ]]
@@ -3261,10 +3363,13 @@ cat > "$TMP/const-method-write.qui" <<'QUI'
 class Counter
     int value
 
+    construct(int value_value)
+        value = value_value
+
     void increment()
         value += 1
 
-const Counter counter = Counter(value = 4)
+const Counter counter = Counter(4)
 counter.increment()
 QUI
 set +e
@@ -3279,7 +3384,10 @@ class Item
     const int id
     int value
 
-Item item = Item(value = 4)
+    construct(int value_value)
+        value = value_value
+
+Item item = Item(4)
 QUI
 set +e
 "$QUIDRA" check "$TMP/const-field-missing.qui" --json > "$TMP/const-field-missing.json"
@@ -3479,8 +3587,8 @@ import sys
 open(sys.argv[1] + '/nest-eager.qui', 'w').write('int x = 1' + ' + 1' * 1599 + '\n')
 open(sys.argv[1] + '/nest-shortcircuit.qui', 'w').write('bool b = true\nbool c = b' + ' and b' * 900 + '\n')
 open(sys.argv[1] + '/nest-postfix.qui', 'w').write(
-    'class P\n    int v\n\n    P grow()\n        return P(v = v + 1)\n\n'
-    'P p = P(v = 1)\nP q = p' + '.grow()' * 600 + '\n')
+    'class P\n    int v\n\n    construct(int start)\n        v = start\n\n    P grow()\n        return P(v + 1)\n\n'
+    'P p = P(1)\nP q = p' + '.grow()' * 600 + '\n')
 open(sys.argv[1] + '/nest-statements.qui', 'w').write(
     'void f()\n' + ''.join(' ' * (4 * (i + 1)) + 'if true\n' for i in range(300))
     + ' ' * (4 * 301) + 'print(\"x\")\n')

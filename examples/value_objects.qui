@@ -2,6 +2,12 @@ class Point
     int x = 1
     int y = 2
 
+    construct()
+        return
+
+    construct(int first)
+        x = first
+
     int sum()
         return x + y
 
@@ -12,9 +18,9 @@ class ShiftedPoint
     int sum()
         return point.sum() + offset
 
-Point a = Point()
-Point b = Point(x = 1)
-ShiftedPoint shifted = ShiftedPoint()
+Point a
+Point b = Point(1)
+ShiftedPoint shifted
 
 int[] left = [1, 2, 3]
 int[] right = [1, 2, 3]

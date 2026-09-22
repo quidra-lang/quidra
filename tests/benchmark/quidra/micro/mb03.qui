@@ -24,7 +24,12 @@ Result workload()
         s_xor = s_xor XOR x
         s_mul = (s_mul * 33 + (x % 97)) % 1000003
         s_div = s_div + x / 1000
-    return Result(s_add = s_add, s_xor = s_xor, s_mul = s_mul, s_div = s_div)
+    Result result
+    result.s_add = s_add
+    result.s_xor = s_xor
+    result.s_mul = s_mul
+    result.s_div = s_div
+    return result
 
 Result timed(int index)
     time.Instant start = time.now()

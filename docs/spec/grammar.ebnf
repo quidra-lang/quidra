@@ -1,4 +1,4 @@
-(* Quidra 0.1. INDENT/DEDENT use four spaces per level.
+(* Quidra 0.2. INDENT/DEDENT use four spaces per level.
    Bracketed newlines are insignificant. String backslashes are literal;
    physical CRLF inside a string literal is normalized to LF, so checkout
    line-ending style does not change string data. Control characters use
@@ -6,7 +6,7 @@
 
 program          = { NEWLINE | import_decl | extern_decl | cli_decl | enum_decl | class_decl | function | statement }, EOF ;
 
-import_decl      = "import", identifier,
+import_decl      = [ "public" ], "import", identifier,
                    [ "=", ( string | identifier ) ], statement_end ;
 
 extern_decl      = "extern", type, identifier, "(", [ parameters ], ")",
@@ -25,7 +25,8 @@ enum_variant     = identifier, [ "(", type, ")" ], statement_end ;
 
 class_decl       = "class", identifier, [ type_parameters ], NEWLINE, INDENT,
                    class_member, { class_member | NEWLINE }, DEDENT ;
-class_member     = [ "private" ], ( field | function ) ;
+class_member     = [ "private" ], ( field | constructor | function ) ;
+constructor      = [ type, "|", "error" ], "construct", "(", [ parameters ], ")", suite ;
 field            = [ "const" ], type, identifier, [ "=", expression ], statement_end ;
 
 function         = type, identifier, [ type_parameters ],
@@ -136,10 +137,17 @@ statement_end    = NEWLINE | EOF ;
      function to it requires the complete explicit function-value context and an exact
      by-value signature; extern functions, reference-parameter functions, and bound
      methods do not implicitly become function values;
-   - class construction is named; fields may have defaults or remain uninitialized;
-   - class members are public by default. private is a class-member-only prefix; private
-     fields remain valid named-construction inputs, while private access is restricted
-     to methods declared by the owning class;
+   - `T(...)` is a constructor call of class T: it runs one of the class's `construct`
+     members, chosen by the call's shape and then by argument types, and an ambiguous call
+     is invalid. `construct(...)` names no type; a fallible one is spelled
+     `T | error construct(...)`. A class-typed declaration without an initializer creates
+     the value with its field defaults; fields may remain uninitialized until assigned;
+   - class members are public by default. private is a class-member-only prefix, valid on
+     constructors too; private access is restricted to methods declared by the owning class;
+   - a string literal placeholder `{&storage}` is an input target and is valid only as
+     the format of scan(...); print, write, io.flush and scan return void | error, and an
+     expression statement whose value can be error fails fast on error;
+   - `public import` re-exports the imported alias as a nested namespace of the module;
    - safe address targets, exhaustive cases, field-level initialization, fixed shapes,
      argument ordering, value equality, and
      no-shadowing are checked statically.

@@ -1,4 +1,4 @@
-# Quidra Language 0.1
+# Quidra Language 0.2
 
 ## Source structure
 
@@ -79,7 +79,7 @@ else
 print(x)
 ```
 
-A declaration without an initializer leaves a scalar or ordinary aggregate binding uninitialized. Fixed arrays are the storage-oriented exception: their storage exists immediately, while initialization is tracked per element. Runtime-sized `array(n)` values use the same per-element model. Reading an element that has not been initialized is rejected at runtime; whole-array operations require the participating elements to be initialized. Whole-value assignment establishes the destination value. All continuing branches must establish ordinary binding initialization before a subsequent read; branches that return do not contribute to the merge. A loop may execute zero times, so assignment only within a loop does not establish initialization after it.
+A declaration without an initializer leaves a scalar or ordinary aggregate binding uninitialized. Fixed arrays and class values are the storage-oriented exceptions. A fixed array's storage exists immediately, while initialization is tracked per element. A class-typed declaration such as `Point point` creates the value with its declared field defaults; every other field is uninitialized until assigned, and initialization is tracked per field exactly as for a constructed value. Standard-library value types that user code cannot construct, such as file handles and random generators, stay uninitialized until the library supplies a value. Runtime-sized `array(n)` values use the same per-element model. Reading an element that has not been initialized is rejected at runtime; whole-array operations require the participating elements to be initialized. Whole-value assignment establishes the destination value. All continuing branches must establish ordinary binding initialization before a subsequent read; branches that return do not contribute to the merge. A loop may execute zero times, so assignment only within a loop does not establish initialization after it.
 
 `auto x = expression` infers a static storable type. `auto x` is invalid. Assignments preserve the declared or inferred type. Compound assignments `+=`, `-=`, `*=`, `/=`, and `%=` are available when the corresponding binary operator is valid. The assignment target is evaluated exactly once, so an expression such as `values[next(&index)] += 1` does not repeat the index computation or its side effects.
 
@@ -105,7 +105,7 @@ Required parameters precede default parameters. A default is evaluated for each 
 
 A `void` function can fall through or execute bare `return`. A non-void result must be produced on every normally continuing path. `return void` can explicitly select a void alternative of a union. `return` itself carries control-flow information.
 
-When a function or method returns a class value, the checker records the field paths that are definitely initialized on every normal return. Multiple returns contribute the intersection of those paths, including nested paths such as `data.ys`. Callers receive that summary, so a factory returning `Point(x = 1)` makes `x` readable while `y` remains statically uninitialized. These summaries are solved interprocedurally to a fixed point, so declaration order does not change the result.
+When a function or method returns a class value, the checker records the field paths that are definitely initialized on every normal return. Multiple returns contribute the intersection of those paths, including nested paths such as `data.ys`. Callers receive that summary, so a factory whose returned `Point` has only `x` assigned makes `x` readable while `y` remains statically uninitialized. A constructor is summarized the same way: the fields it definitely initializes on every completion are the fields a caller may read. These summaries are solved interprocedurally to a fixed point, so declaration order does not change the result.
 
 ## Text and dynamic array operations
 
@@ -141,7 +141,7 @@ A quoted local path that does not begin with `@/` resolves from the importing fi
 
 Standard namespaces are always visible and cannot be imported or aliased. For example, use `math.sqrt(...)`, `file.read(...)`, or `tensor.zeros<T>(...)` directly; `import math` and `import m = math` are errors. The standard namespaces are reserved so later declarations cannot change what those qualified references mean.
 
-An unquoted non-standard target denotes an installed package, for example `import plotting` or `import plot = plotting`. Package resolution never falls back to a same-named source file in the working directory. Local source modules use quoted paths only. Imported declarations are accessed through their alias, for example `geometry.Point`. A module's own imports are private implementation namespaces rather than automatic re-exports.
+An unquoted non-standard target denotes an installed package, for example `import plotting` or `import plot = plotting`. Package resolution never falls back to a same-named source file in the working directory. Local source modules use quoted paths only. Imported declarations are accessed through their alias, for example `geometry.Point`. A module's own imports are private implementation namespaces rather than automatic re-exports. A module re-exports one deliberately with `public import mode = "./mode.qui"`: an importer of that module then reaches the target's declarations as a nested namespace, `dnn.mode.fast()`, and the namespace itself is not a value.
 
 Import aliases cannot collide with another import alias or a class/function declared in the same file. Import cycles are compile-time errors. Nested imports are supported and retain independent namespaces.
 
@@ -164,10 +164,11 @@ class Convert
 Generic class instantiation remains explicit. Function and method type arguments may be omitted when every generic parameter is uniquely determined from the call arguments:
 
 ```quidra
-Box<int> box = Box<int>(value = 7)
+Box<int> box
+box.value = 7
 int[] values = [1, 2, 3]
 int first_value = first(values)
-Convert convert = Convert()
+Convert convert
 int sample = 5
 int same = convert.identity(sample)
 ```
@@ -257,17 +258,43 @@ class Config
     string endpoint
 ```
 
-Construction uses the class name with named field initializers. A constructor call may explicitly initialize all, some, or none of the fields:
+A class value comes into existence in one of two ways. A declaration without an initializer creates the value with its declared defaults, and fields are then assigned one by one:
 
 ```quidra
-Point complete = Point(x = 3.0, y = 4.0)
-Point partial = Point(x = 3.0)
-Point empty = Point()
+Point point
+point.x = 3.0
+point.y = 4.0
 
-Config config = Config(endpoint = "server")
+Config config
+config.endpoint = "server"
 ```
 
-An explicit field initializer overrides that field's declared default. Omitted defaults are evaluated afresh for each construction in field declaration order, after explicit construction expressions have been evaluated in source order. This gives mutable defaults independent storage for each instance. An omitted field without a default remains uninitialized rather than becoming zero, false, empty, or none.
+A constructor call `T(...)` runs a `construct` member of `T`. A class may declare any number of `construct` members, and they are distinguished by their parameters. Inside the body the implicit receiver is the value under construction: its fields with defaults are already initialized, every other field is uninitialized, and assigning a field initializes it. The constructor completes with a bare `return` or by reaching the end of its body; the receiver is its result.
+
+```quidra
+class Point
+    float x
+    float y = 0.0
+
+    construct(float px, float py)
+        x = px
+        y = py
+
+    construct(float both)
+        x = both
+        y = both
+
+Point complete = Point(3.0, 4.0)
+Point diagonal = Point(both = 5.0)
+```
+
+`T(...)` is always a constructor call of class `T`; there is no other spelling of construction, and `Point()` is valid only when the class declares a `construct()` with no parameters. Arguments follow the ordinary call rules: positional arguments precede named arguments, names are the constructor's parameter names, and defaults apply. A constructor is chosen by its parameters, first by the shape of the call (argument count, names, and reference forms) and then, when several constructors fit that shape, by the argument types; a bare numeric literal has no type of its own at that point and must be cast explicitly. A call that fits no constructor, or more than one, is a compile-time error. A parameter cannot share a field's name, because a bare name inside the body always means the field.
+
+A constructor that can fail is declared `T | error construct(...)`. It may `return error(...)`, and it must initialize every field on every completion because the value enters a union. `T x = T(...)` then applies the ordinary fail-fast rule at the consumption site, `auto x = T(...)` keeps the `T | error` type, and `try T(...)` propagates the error from the enclosing function instead of terminating.
+
+Defaults are evaluated afresh for each construction and each declaration, in field declaration order, before a constructor body runs. This gives mutable defaults independent storage for each instance. A field without a default remains uninitialized rather than becoming zero, false, empty, or none, and reading it is a compile-time error, in a constructor body as everywhere else.
+
+A `const` field without a default is initialized by exactly one assignment directly in the constructor body, not inside a branch or loop, and every constructor must initialize it; a class with such a field cannot be declared without a constructor call. A constructor may be marked `private`; it is then callable only inside the class.
 
 Members are public by default. A field or method may be prefixed with `private`:
 
@@ -279,11 +306,11 @@ class Counter
         value = value + 1
 ```
 
-A private field may be read, written, or addressed only from a method declared by that field's declaring class. The same declaring class may access the private field on another instance of itself. Named construction is intentionally different from member access: a private field may still be supplied by name, such as `Counter(value = 1)`, so factory functions can create values with hidden internal state.
+A private field may be read, written, or addressed only from a method declared by that field's declaring class, and a constructor is such a method: hidden internal state is established by the constructor that the class declares.
 
 A private method may be called only from a method declared by that method's declaring class, including through another instance of that same class.
 
-Field-default expressions are checked outside an instance receiver context: they cannot read sibling fields or caller-local bindings. Duplicate, unknown, positional, or writable field initializers are compile-time errors. Reading an uninitialized field is a compile-time error. Assigning a field initializes it. Initialization is tracked per field and through nested class fields.
+Field-default expressions are checked outside an instance receiver context: they cannot read sibling fields or caller-local bindings. Reading an uninitialized field is a compile-time error. Assigning a field initializes it. Initialization is tracked per field and through nested class fields.
 
 Methods use the same function syntax and access fields directly. Quidra has no source-level `self` or `this`; an implicit receiver supplies member access. A method may call another visible method directly or through an explicit object expression. The checker infers which receiver fields a method must read before writing and which fields are definitely initialized on normal return.
 
@@ -297,17 +324,18 @@ class Counter
     void increment()
         value = value + 1
 
-Counter counter = Counter()
+Counter counter
 counter.reset()
 counter.increment()
 ```
 
-Calling `increment()` directly on `Counter()` is invalid because `value` would be read before initialization. `reset()` requires no prior value and establishes `value`. Initialization effects use full nested field paths. Method summaries distinguish definitely initialized paths from receiver paths that may be written or invalidated: assigning `data.ys` initializes exactly that substorage, while replacing a class field with a partial value removes any old nested initialization facts that the replacement no longer guarantees. Conditional replacement is handled conservatively, and a later definite write can repair an invalidated path.
+Calling `increment()` directly on a freshly declared `Counter` is invalid because `value` would be read before initialization. `reset()` requires no prior value and establishes `value`. Initialization effects use full nested field paths. Method summaries distinguish definitely initialized paths from receiver paths that may be written or invalidated: assigning `data.ys` initializes exactly that substorage, while replacing a class field with a partial value removes any old nested initialization facts that the replacement no longer guarantees. Conditional replacement is handled conservatively, and a later definite write can repair an invalidated path.
 
 Ordinary class bindings have deep value semantics. Copying a class value produces independent nested class, array, and union storage and preserves field-initialization state:
 
 ```quidra
-Point a = Point(x = 1.0)
+Point a
+a.x = 1.0
 Point b = a
 b.y = 2.0
 ```
@@ -368,7 +396,8 @@ A reference binding may point at a binding, field, or array element:
 int[] values = [1, 2, 3]
 int &first = &values[0]
 
-Point point = Point(x = 1.0)
+Point point
+point.x = 1.0
 float &x = &point.x
 ```
 
@@ -381,7 +410,7 @@ alias = 7
 print(value)
 ```
 
-Reading `alias` before the write would be an uninitialized-read error. A `const T &` reference instead requires initialized storage at formation because that path cannot initialize the target. Temporary values such as `&5` or `&Point()` are not valid address targets. References are not storable inside class fields or arrays.
+Reading `alias` before the write would be an uninitialized-read error. A `const T &` reference instead requires initialized storage at formation because that path cannot initialize the target. Temporary values such as `&5` or `&Point(1.0, 2.0)` are not valid address targets. References are not storable inside class fields or arrays.
 
 A writable reference can be rebound explicitly. A const reference cannot be rebound:
 
@@ -485,6 +514,13 @@ that site. This rule removes only the distinguished `error` alternative:
 ordinary unions are never implicitly narrowed, so `int | float` cannot flow
 to `float` without explicit handling.
 
+An expression statement discards its value. An error is not a value to
+discard: when the statement's expression can be `error`, the same fail-fast
+handling applies, so `file.write(path, text)` or `scan(&n)` written as a
+statement terminates the program on failure. Binding the result, as in
+`void | error saved = file.write(path, text)`, keeps the error for explicit
+handling.
+
 `try` requires an expression whose union includes `error`, inside a function
 that can return that error. On error it returns the same error from the current
 function. Otherwise its type is the input union with `error` removed,
@@ -515,9 +551,11 @@ Fixed-width integers additionally support `AND`, `OR`, `XOR`, unary `NOT`, `<<`,
 
 Explicit numeric casts use the destination type directly: `int8(value)`, `uint32(value)`, or `float32(value)`. Integer-to-integer casts are allowed only when the runtime value is in the destination range; an out-of-range conversion fails deterministically and never wraps or clamps. Integer-to-float and float-to-float casts are explicit practical conversions and may use the destination IEEE-754 rounding. Generic float-to-integer casts are forbidden because they hide a rounding choice; use `math.trunc`, `math.round`, `math.floor`, or `math.ceil` instead.
 
-Numeric types expose `Type.parse(text) -> T | error`. Scalar values expose `.string()` for their standard textual form. Parsing is interpretation of text and is distinct from casting. `abs` accepts numeric values, `sqrt` accepts floating-point values, and `min`/`max` require two values of the same numeric type.
+Numeric types expose `Type.parse(text) -> T | error`. Scalar values expose `.string()` for their standard textual form. Parsing is interpretation of text and is distinct from casting. Mathematical functions live in the `math` namespace only: `math.abs` accepts numeric values, `math.sqrt` accepts floating-point values, and `math.min`/`math.max` require two values of the same numeric type. There are no bare spellings of these names, so `abs`, `sqrt`, `min`, and `max` are ordinary identifiers.
 
-`print(value)` writes a scalar followed by a newline; `write(value)` writes without adding a newline. `input()` returns `string | none | error`: a valid UTF-8 line without embedded NUL produces a string with the trailing LF removed, EOF produces `none`, and an input or text-validation failure produces `error`. Runtime `string` values are always valid UTF-8 text and cannot contain embedded NUL; raw binary data belongs in `bin`.
+`print(value)` writes a scalar followed by a newline; `write(value)` writes without adding a newline. Both return `void | error`, as does `io.flush()`: an output failure such as a closed pipe is reported as `error`, and because the usual spelling is a statement, that error fails fast.
+
+`scan(...)` is the one input operation. It reads one line of standard input, without the trailing LF, and stores what it reads into the targets named by its format; its result is `void | error`. `scan(&n)` reads a single value and is the short form of `scan("{&n}")`. A format is a string literal whose placeholders `{&target}` name writable storage of numeric or `string` type; every other character of the format must appear in the input at that position. Each target takes the input up to the next literal text of the format, or to the end of the line for the last target, and that text is converted with the same rules as `T.parse`; a `string` target takes the text as it is. So `scan("{&n} {&m}")` reads two numbers separated by one space, `scan("{&name},{&age}")` reads a name up to the comma and then an age, and `scan(&line)` into a `string` takes the whole line. Two placeholders need literal text between them, and input left over after the format is an error, as are end of input, invalid UTF-8 or embedded NUL, and text that does not parse as the target's type. A target is definitely initialized after a `scan` statement or a `try scan(...)`, because the error cannot continue past either; when the result is bound instead, as in `void | error read = scan(&line)`, the targets must already be initialized, and on failure they keep their values. Runtime `string` values are always valid UTF-8 text and cannot contain embedded NUL; raw binary data belongs in `bin`.
 
 Integer division or remainder whose divisor is statically known to be zero is a compile-time error. Otherwise integer overflow at every integer width, dynamically determined integer division/remainder by zero, array and bin bounds failures, invalid allocation sizes, out-of-range explicit integer casts, zero range steps, and exceeding the native call-depth safety limit are deterministic runtime errors with exit status 101. The call-depth guard fails before host stack exhaustion rather than allowing a segmentation fault. Floating-point exceptional values follow the corresponding IEEE-754 binary32 or binary64 behavior. Text formatting is canonical: NaN is `nan`, positive infinity is `inf`, and negative infinity is `-inf`.
 

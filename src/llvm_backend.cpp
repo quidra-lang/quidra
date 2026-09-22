@@ -664,6 +664,27 @@ struct FunctionEmitter {
             << ", ptr " << drop_callback(type) << ")\n";
     }
 
+    // The void | error result of print, write and io.flush: `status` is a
+    // nonzero i32 when the stream has failed.
+    void emit_output_result(ir::ValueId out_id, const Type& result_type, const std::string& status) {
+        values[out_id]=result_type;
+        const auto result=value(out_id),failed=temp("output.failed");
+        const auto error_label=unique_label("output.error"),ok_label=unique_label("output.ok"),done_label=unique_label("output.done");
+        out<<"  "<<result<<" = call ptr @quidra_alloc(i64 16)\n";
+        out<<"  "<<failed<<" = icmp ne i32 "<<status<<", 0\n";
+        out<<"  br i1 "<<failed<<", label %"<<error_label<<", label %"<<ok_label<<"\n";
+        out<<ok_label<<":\n";
+        out<<"  store i64 "<<case_index(result_type,Type::simple(TypeKind::Void))<<", ptr "<<result<<"\n";
+        out<<"  br label %"<<done_label<<"\n";
+        out<<error_label<<":\n";
+        out<<"  store i64 "<<case_index(result_type,Type::simple(TypeKind::Error))<<", ptr "<<result<<"\n";
+        const auto payload=temp("output.error.payload");
+        out<<"  "<<payload<<" = getelementptr inbounds i8, ptr "<<result<<", i64 8\n";
+        out<<"  store ptr @.err.output, ptr "<<payload<<"\n";
+        out<<"  br label %"<<done_label<<"\n";
+        out<<done_label<<":\n";
+    }
+
     void cleanup_owned_values() {
         for (const auto& [name, _] : references) {
             const auto address = temp("cleanup.ref");
@@ -2385,7 +2406,9 @@ struct FunctionEmitter {
             out<<"  call void @quidra_cli_finish()\n";
         }
         if constexpr(std::is_same_v<T,ir::IoFlush>){
-            out<<"  call void @quidra_io_flush()\n";
+            const auto status=temp("flush.status");
+            out<<"  "<<status<<" = call i32 @quidra_io_flush()\n";
+            emit_output_result(n.out,n.result_type,status);
         }
         if constexpr(std::is_same_v<T,ir::FileOpen>){
             values[n.out]=n.result_type;
@@ -3779,6 +3802,9 @@ struct FunctionEmitter {
                 if(newline)out<<"  call i32 @puts(ptr "<<value(n.value)<<")\n";else out<<"  call i32 (ptr, ...) @printf(ptr @.fmt.string.write, ptr "<<value(n.value)<<")\n";
             }
             out<<"  br label %"<<done_label<<"\n"<<done_label<<":\n";
+            const auto status=temp("output.status");
+            out<<"  "<<status<<" = call i32 @quidra_output_status()\n";
+            emit_output_result(n.out,n.result_type,status);
         }
         if constexpr(std::is_same_v<T,ir::ReplDisplay>){
             const auto begin=pool.intern("__QUIDRA_REPL_RESULT_BEGIN_6D8F2C__");
@@ -4828,7 +4854,8 @@ declare double @quidra_cli_parse_float(ptr)
 declare ptr @quidra_cli_parse_bigint(ptr)
 declare ptr @quidra_cli_parse_bigreal(ptr)
 declare i1 @quidra_cli_parse_bool(ptr)
-declare void @quidra_io_flush()
+declare i32 @quidra_io_flush()
+declare i32 @quidra_output_status()
 declare ptr @quidra_file_open_raw(ptr)
 declare ptr @quidra_file_create_raw(ptr)
 declare ptr @quidra_file_append_raw(ptr)
@@ -5432,6 +5459,7 @@ out<<"@.code.shape = private unnamed_addr constant [15 x i8] c\"SHAPE_MISMATCH\\
 out<<"@.err.parse = private unnamed_addr constant [21 x i8] c\"numeric parse failed\\00\"\n";
 out<<"@.err.utf8 = private unnamed_addr constant [19 x i8] c\"invalid UTF-8 text\\00\"\n";
 out<<"@.err.input = private unnamed_addr constant [13 x i8] c\"input failed\\00\"\n";
+out<<"@.err.output = private unnamed_addr constant [14 x i8] c\"output failed\\00\"\n";
 out<<"@.err.json.type = private unnamed_addr constant [33 x i8] c\"JSON value has incompatible kind\\00\"\n";
 out<<"@.err.file = private unnamed_addr constant [22 x i8] c\"file operation failed\\00\"\n";
 out<<"@.code.time.sleep = private unnamed_addr constant [23 x i8] c\"INVALID_SLEEP_DURATION\\00\"\n@.msg.time.sleep = private unnamed_addr constant [23 x i8] c\"invalid sleep duration\\00\"\n";
@@ -5478,7 +5506,14 @@ if(debug_info&&!primary_source.empty()) {
         const auto file=debug_files.at(f.source_file);
         std::string display=f.entrypoint?"<top-level>":f.name;
         constexpr std::string_view method_prefix="$method.";
+        constexpr std::string_view constructor_prefix="$construct.";
         if(display.rfind(method_prefix,0)==0) display.erase(0,method_prefix.size());
+        else if(display.rfind(constructor_prefix,0)==0){
+            // "$construct.Point.0" is shown as "Point.construct".
+            display.erase(0,constructor_prefix.size());
+            const auto dot=display.rfind('.');
+            if(dot!=std::string::npos) display=display.substr(0,dot)+".construct";
+        }
         const auto linkage=f.entrypoint?"main":mangle(f.name);
         out<<"!"<<*debug_subprograms[i]
            <<" = distinct !DISubprogram(name: \""<<escape_metadata(display)

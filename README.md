@@ -191,7 +191,7 @@ class Point
     int x
     int y
 
-Point point = Point()
+Point point
 point.x = 10
 // point.y is still uninitialized
 ```
@@ -532,14 +532,21 @@ class Point
     float x
     float y = 0.0
 
+    construct(float px, float py)
+        x = px
+        y = py
+
     float length_squared()
         return x * x + y * y
 
-Point point = Point(x = 3.0)
+Point point = Point(3.0, 4.0)
 print(point.length_squared())
+
+Point origin
+origin.x = 0.0
 ```
 
-Fields and methods use one `class` construct. Methods access fields directly; there is no `self` or `this` syntax. Members are public by default; prefix a field or method with `private` to restrict access to methods of that class.
+Fields and methods use one `class` construct. Methods access fields directly; there is no `self` or `this` syntax. A class may declare several `construct` members, distinguished by their parameters; `T(...)` always runs one of them, and a call that fits none or more than one is rejected. A declaration without an initializer creates the value with its field defaults so fields can be assigned one at a time. A constructor that can fail is spelled `Point | error construct(...)`; `Point p = Point(...)` then fails fast on error and `try Point(...)` propagates it. Members are public by default; prefix a field, method, or constructor with `private` to restrict access to methods of that class.
 
 ```quidra
 class Counter
@@ -552,9 +559,9 @@ class Counter
         increment_raw()
 ```
 
-Private fields cannot be read, written, or addressed outside their declaring class. They may still be supplied during named construction so factory functions can initialize hidden state. Private methods cannot be called outside their declaring class.
+Private fields cannot be read, written, or addressed outside their declaring class; a constructor initializes hidden state. Private methods cannot be called outside their declaring class.
 
-Construction is named by field. Fields may remain uninitialized when no value/default is supplied, and the checker tracks that state field by field.
+Fields may remain uninitialized when no assignment or default supplies them, and the checker tracks that state field by field.
 
 Class equality is value equality and requires compared fields to be definitely initialized.
 
@@ -574,10 +581,10 @@ import geometry = "./geometry.qui"
 import shared = "@/shared.qui"
 import plot = plotting
 
-geometry.Point point = geometry.Point(x = 2, y = 3)
+geometry.Point point = geometry.Point(2, 3)
 ```
 
-Relative quoted paths resolve from the importing file. `@/` resolves from the command working directory. Installed packages never silently fall back to a same-named file in the working directory.
+Relative quoted paths resolve from the importing file. `@/` resolves from the command working directory. Installed packages never silently fall back to a same-named file in the working directory. A module's own imports stay private unless it writes `public import mode = "./mode.qui"`, which re-exports the target as a nested namespace such as `dnn.mode.fast()`.
 
 Imported modules contain declarations only. Executable top-level statements belong to the root program. Import cycles are rejected.
 
@@ -587,13 +594,16 @@ Imported modules contain declarations only. Executable top-level statements belo
 class Box<T>
     T value
 
+    construct(T initial)
+        value = initial
+
     T get()
         return value
 
 T first<T>(T[] values)
     return values[0]
 
-Box<int> box = Box<int>(value = 7)
+Box<int> box = Box<int>(7)
 print(first<int>([4, 5]))
 ```
 
@@ -627,10 +637,15 @@ Blocks use four-space indentation. Conditions are `bool`; numeric truthiness is 
 print("line")
 write("prompt: ")
 
-string | none | error line = input()
+string line
+scan(&line)
+
+int n
+int m
+scan("{&n} {&m}")
 ```
 
-`print` appends a newline. `write` does not. `input()` returns a line, `none` at EOF, or `error` for an input failure.
+`print` appends a newline. `write` does not. Both return `void | error`, so an output failure fails fast when the call is a statement. `scan` reads one line: `scan(&x)` reads a single value into `x`, and a format such as `"{&name},{&age}"` splits the line at its literal text and parses each `{&target}` by the target's type; a `string` target takes the text as it is. End of input, invalid text, and leftover input are `error`, which fails fast for a statement and can be handled through `void | error read = scan(...)`.
 
 ## Text, arrays, and conditional chains
 
@@ -724,9 +739,8 @@ fields.
 class Scale
     neural.Parameter<float32> value
 
-Scale model = Scale(
-    value = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
-)
+Scale model
+model.value = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
 neural<float32> prediction = model.value.track() * float32(2)
 neural<float32> loss = neural.mean(prediction * prediction)
 neural.Gradients gradients = neural.grad(loss)
@@ -750,9 +764,12 @@ through a normal package import:
 ```quidra
 import dnn
 
-dnn.LinearLayer | error layer = dnn.Linear(features_in = 2, features_out = 1)
-dnn.AdamOptimizer | error optimizer = dnn.Adam()
+dnn.Linear layer = dnn.Linear(2, 1)
+dnn.Adam optimizer = dnn.Adam()
+dnn.mode.deterministic()
 ```
+
+Layers and optimizers are classes with constructors that can fail, so `dnn.Linear(2, 1)` fails fast on an invalid shape and `try dnn.Linear(2, 1)` propagates the error. `dnn.mode.fast()` and `dnn.mode.deterministic()` select the execution mode.
 
 Model and training state use one typed, non-executable `.quistate` format through
 `neural.save(...)` and `neural.load(...)`. Saving uses atomic replacement. Loading requires exact nominal root types,
@@ -1053,7 +1070,7 @@ import plot = plotting
 
 The reserved standard namespaces are `math`, `io`, `cli`, `file`, `environment`, `test`, `time`, `gpu`, `task`, `atomic`, `ref`, `random`, `process`, `map`, `set`, `json`, `http`, `stats`, `linear`, `signal`, `image`, `video`, `tensor`, and `neural`. Only referenced standard implementations are linked into a program. Boolean logic is spelled `and`, `or`, and `not`.
 
-`math` provides `pi`, `e`, `sin`, `cos`, `tan`, `log`, `exp`, `pow`, `trunc`, `round`, `floor`, `ceil`, `is_finite`, and namespaced access to `abs`, `sqrt`, `min`, and `max`. `io.flush()` explicitly flushes standard output. `atomic.counter(initial)` creates an explicit shared `atomic.Counter` with checked atomic `add` and `load` operations for structured task sharing. `ref.Cell<T>` is the explicit opt-in reference-semantic container: copies retain one managed allocation, `.value` is shared, and `.same()` compares allocation identity.
+`math` provides `pi`, `e`, `abs`, `sqrt`, `min`, `max`, `sin`, `cos`, `tan`, `log`, `exp`, `pow`, `trunc`, `round`, `floor`, `ceil`, and `is_finite`; these functions have no bare spellings. `io.flush()` explicitly flushes standard output and returns `void | error`. `atomic.counter(initial)` creates an explicit shared `atomic.Counter` with checked atomic `add` and `load` operations for structured task sharing. `ref.Cell<T>` is the explicit opt-in reference-semantic container: copies retain one managed allocation, `.value` is shared, and `.same()` compares allocation identity.
 
 `task.all(operations)` runs capture-free task functions with bounded workers and waits for all of them to finish. Integer- and floating-result task arrays return results in operation order; the counter overload is the explicit shared-state form.
 

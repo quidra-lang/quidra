@@ -979,13 +979,17 @@ print("nested {error("ok")}")
     int get()
         return value
 
-PrivateCounter counter = PrivateCounter()
+PrivateCounter counter
 counter.increment()
 print(counter.get())
 )",
  R"(class Point
     int x
     int y
+
+    construct(int x_value, int y_value)
+        x = x_value
+        y = y_value
 
     int sum()
         return x + y
@@ -994,6 +998,10 @@ class LabeledPoint
     Point point
     string label
 
+    construct(Point point_value, string label_value)
+        point = point_value
+        label = label_value
+
     int sum()
         return point.sum()
 
@@ -1001,20 +1009,27 @@ class OffsetPoint
     Point point
     int offset
 
+    construct(Point point_value, int offset_value)
+        point = point_value
+        offset = offset_value
+
     int sum()
         return point.sum() + offset
 
 class Box
     Point point
 
-Point a = Point(x = 1, y = 2)
+    construct(Point point_value)
+        point = point_value
+
+Point a = Point(1, 2)
 Point b = a
 b.x = 9
 Point &alias = &a
 alias.y = 5
-LabeledPoint labeled = LabeledPoint(point = Point(x = 3, y = 4), label = "p")
-OffsetPoint offset = OffsetPoint(point = Point(x = 3, y = 4), offset = 10)
-Box box = Box(point = a)
+LabeledPoint labeled = LabeledPoint(Point(3, 4), "p")
+OffsetPoint offset = OffsetPoint(Point(3, 4), 10)
+Box box = Box(a)
 Box copy = box
 copy.point.x = 99
 print(a.sum())
@@ -1051,7 +1066,7 @@ print(c)
     int x
     int y
 
-PartialPoint p = PartialPoint()
+PartialPoint p
 p.x = 1
 print(p.x)
 PartialPoint q = p
@@ -1076,7 +1091,7 @@ print(x)
     void increment()
         value = value + 1
 
-ResetCounter counter = ResetCounter()
+ResetCounter counter
 counter.reset()
 counter.increment()
 print(counter.value)
@@ -1085,7 +1100,10 @@ print(counter.value)
     int x
     int y
 
-RefPoint p = RefPoint(x = 1)
+    construct(int x_value)
+        x = x_value
+
+RefPoint p = RefPoint(1)
 int &field = &p.y
 field = 5
 print(p.y)
@@ -1101,6 +1119,12 @@ print(values[0])
     int x = 1
     int y = 2
 
+    construct()
+        return
+
+    construct(int x_value)
+        x = x_value
+
     int sum()
         return x + y
 
@@ -1111,13 +1135,13 @@ class DefaultOffset
     int sum()
         return point.sum() + offset
 
-DefaultPoint a = DefaultPoint()
-DefaultPoint b = DefaultPoint(x = 1)
+DefaultPoint a
+DefaultPoint b = DefaultPoint(1)
 bool same = a == b
 int[] left = [1, 2, 3]
 int[] right = [1, 2, 3]
 bool arrays_same = left == right
-DefaultOffset shifted = DefaultOffset()
+DefaultOffset shifted
 print(a.sum())
 print(shifted.sum())
 print(same)
@@ -1127,13 +1151,17 @@ print(arrays_same)
     int x
     int y
 
+    construct(int x_value, int y_value)
+        x = x_value
+        y = y_value
+
 ArrayEqualityPoint[] left = [
-    ArrayEqualityPoint(x = 1, y = 2),
-    ArrayEqualityPoint(x = 3, y = 4),
+    ArrayEqualityPoint(1, 2),
+    ArrayEqualityPoint(3, 4),
 ]
 ArrayEqualityPoint[] right = left
 bool same = left == right
-right[1] = ArrayEqualityPoint(x = 3, y = 5)
+right[1] = ArrayEqualityPoint(3, 5)
 bool different = left != right
 print(same)
 print(different)
@@ -1141,13 +1169,16 @@ print(different)
  R"(class DefaultBag
     int[] values = [1]
 
-DefaultBag a = DefaultBag()
-DefaultBag b = DefaultBag()
+DefaultBag a
+DefaultBag b
 a.values[0] = 9
 print(b.values[0])
 )",
  R"(class Box<T>
     T value
+
+    construct(T value_value)
+        value = value_value
 
     T get()
         return value
@@ -1155,12 +1186,15 @@ print(b.values[0])
 T first<T>(T[] values)
     return values[0]
 
-Box<int> box = Box<int>(value = 7)
+Box<int> box = Box<int>(7)
 print(box.get())
 print(first<int>([4, 5]))
 )",
  R"(class GenericBase<T>
     T value
+
+    construct(T value_value)
+        value = value_value
 
     T read()
         return value
@@ -1168,38 +1202,48 @@ print(first<int>([4, 5]))
 class GenericHolder<T>
     GenericBase<T> base
 
+    construct(GenericBase<T> base_value)
+        base = base_value
+
     T read()
         return base.read()
 
-GenericHolder<int> child = GenericHolder<int>(base = GenericBase<int>(value = 9))
+GenericHolder<int> child = GenericHolder<int>(GenericBase<int>(9))
 print(child.read())
 )",
  R"(class GenericMethod
     T identity<T>(T value)
         return value
 
-GenericMethod g = GenericMethod()
+GenericMethod g
 print(g.identity<int>(8))
 )",
  R"(class GenericParent
+
+    construct()
+        return
     T echo<T>(T value)
         return value
 
 class GenericChild
     GenericParent parent
 
+    construct(GenericParent parent_value)
+        parent = parent_value
+
     T echo<T>(T value)
         return parent.echo<T>(value)
 
-GenericChild child = GenericChild(parent = GenericParent())
+GenericChild child = GenericChild(GenericParent())
 print(child.echo<int>(11))
 )",
  R"(class NestedBox<T>
     T value
 
-NestedBox<NestedBox<int>> outer = NestedBox<NestedBox<int>>(
-    value = NestedBox<int>(value = 12),
-)
+    construct(T value_value)
+        value = value_value
+
+NestedBox<NestedBox<int>> outer = NestedBox<NestedBox<int>>(NestedBox<int>(12))
 print(outer.value.value)
 )",
  R"(class OneArgMethod
@@ -1210,7 +1254,7 @@ class TwoArgMethod
     T choose<T, U>(T value, U ignored)
         return value
 
-OneArgMethod one = OneArgMethod()
+OneArgMethod one
 print(one.choose<int>(13))
 )",
  R"(class GoodGenericMethod
@@ -1221,14 +1265,20 @@ class UnusedGenericMethod
     T route<T>(T value)
         return value + 1
 
-GoodGenericMethod good = GoodGenericMethod()
+GoodGenericMethod good
 print(good.route<string>("ok"))
 )",
  R"(class GenericRouter
+
+    construct()
+        return
     T pass<T>(T value)
         return value
 
 class RouterFactory
+
+    construct()
+        return
     GenericRouter make()
         return GenericRouter()
 
@@ -1251,8 +1301,11 @@ print(use_router())
  R"(class ReturnModel
     float bb
 
+    construct(float bb_value)
+        bb = bb_value
+
 ReturnModel build_model()
-    return ReturnModel(bb = 2.0)
+    return ReturnModel(2.0)
 
 ReturnModel model = build_model()
 print(model.bb)
@@ -1261,10 +1314,17 @@ print(model.bb)
     int x
     int y
 
+    construct(int x_value, int y_value)
+        x = x_value
+        y = y_value
+
+    construct(int x_value)
+        x = x_value
+
 ReturnPoint choose_point(bool full)
     if full
-        return ReturnPoint(x = 1, y = 2)
-    return ReturnPoint(x = 3)
+        return ReturnPoint(1, 2)
+    return ReturnPoint(3)
 
 ReturnPoint point = choose_point(true)
 print(point.x)
@@ -1272,11 +1332,14 @@ print(point.x)
  R"(class ForwardProduct
     int value
 
+    construct(int value_value)
+        value = value_value
+
 ForwardProduct outer_build()
     return inner_build()
 
 ForwardProduct inner_build()
-    return ForwardProduct(value = 8)
+    return ForwardProduct(8)
 
 ForwardProduct forward = outer_build()
 print(forward.value)
@@ -1284,14 +1347,17 @@ print(forward.value)
  R"(class MethodProduct
     int value
 
+    construct(int value_value)
+        value = value_value
+
 class MethodFactory
     MethodProduct outer()
         return inner()
 
     MethodProduct inner()
-        return MethodProduct(value = 9)
+        return MethodProduct(9)
 
-MethodFactory factory = MethodFactory()
+MethodFactory factory
 MethodProduct product = factory.outer()
 print(product.value)
 )",
@@ -1308,7 +1374,9 @@ class NestedOwner
     void initialize()
         data.ys = [4.0]
 
-NestedOwner owner = NestedOwner(data = NestedData())
+NestedData empty
+NestedOwner owner
+owner.data = empty
 print(owner.first())
 owner.initialize()
 print(owner.data.ys[0])
@@ -1317,13 +1385,23 @@ print(owner.data.ys[0])
     int x
     int y
 
+    construct(int x_value)
+        x = x_value
+
+    construct(int x_value, int y_value)
+        x = x_value
+        y = y_value
+
 class ReplaceOuter
     ReplaceInner inner
 
-    void reset()
-        inner = ReplaceInner(x = 5)
+    construct(ReplaceInner inner_value)
+        inner = inner_value
 
-ReplaceOuter outer = ReplaceOuter(inner = ReplaceInner(x = 1, y = 2))
+    void reset()
+        inner = ReplaceInner(5)
+
+ReplaceOuter outer = ReplaceOuter(ReplaceInner(1, 2))
 outer.reset()
 print(outer.inner.x)
 )",
@@ -1331,14 +1409,24 @@ print(outer.inner.x)
     int x
     int y
 
+    construct(int x_value)
+        x = x_value
+
+    construct(int x_value, int y_value)
+        x = x_value
+        y = y_value
+
 class ConditionalOuter
     ConditionalInner inner
 
+    construct(ConditionalInner inner_value)
+        inner = inner_value
+
     void maybe_reset(bool replace)
         if replace
-            inner = ConditionalInner(x = 5)
+            inner = ConditionalInner(5)
 
-ConditionalOuter outer = ConditionalOuter(inner = ConditionalInner(x = 1, y = 2))
+ConditionalOuter outer = ConditionalOuter(ConditionalInner(1, 2))
 outer.maybe_reset(false)
 print(outer.inner.x)
 )",
@@ -1346,14 +1434,24 @@ print(outer.inner.x)
     int x
     int y
 
+    construct(int x_value)
+        x = x_value
+
+    construct(int x_value, int y_value)
+        x = x_value
+        y = y_value
+
 class RepairOuter
     RepairInner inner
 
+    construct(RepairInner inner_value)
+        inner = inner_value
+
     void reset()
-        inner = RepairInner(x = 5)
+        inner = RepairInner(5)
         inner.y = 6
 
-RepairOuter outer = RepairOuter(inner = RepairInner(x = 1, y = 2))
+RepairOuter outer = RepairOuter(RepairInner(1, 2))
 outer.reset()
 print(outer.inner.y)
 )",
@@ -1492,10 +1590,14 @@ print(sum)
     int a
     int b
 
+    construct(int a_value, int b_value)
+        a = a_value
+        b = b_value
+
 Pair | error make_pair(bool ok)
     if not ok
         return error("bad")
-    return Pair(a = 2, b = 3)
+    return Pair(2, 3)
 
 int | error pair_sum(bool ok)
     Pair pair = try make_pair(ok)
@@ -1622,8 +1724,11 @@ tensor<float32><3, _, _> | error narrowed = loaded
     int x
     int y
 
+    construct(int x_value)
+        x = x_value
+
 PartialReturn make_partial()
-    return PartialReturn(x = 1)
+    return PartialReturn(1)
 
 PartialReturn p = make_partial()
 print(p.y)
@@ -1632,13 +1737,23 @@ print(p.y)
     int x
     int y
 
+    construct(int x_value)
+        x = x_value
+
+    construct(int x_value, int y_value)
+        x = x_value
+        y = y_value
+
 class ReplaceOuterBad
     ReplaceInnerBad inner
 
-    void reset()
-        inner = ReplaceInnerBad(x = 5)
+    construct(ReplaceInnerBad inner_value)
+        inner = inner_value
 
-ReplaceOuterBad outer = ReplaceOuterBad(inner = ReplaceInnerBad(x = 1, y = 2))
+    void reset()
+        inner = ReplaceInnerBad(5)
+
+ReplaceOuterBad outer = ReplaceOuterBad(ReplaceInnerBad(1, 2))
 outer.reset()
 print(outer.inner.y)
 )",
@@ -1646,14 +1761,24 @@ print(outer.inner.y)
     int x
     int y
 
+    construct(int x_value)
+        x = x_value
+
+    construct(int x_value, int y_value)
+        x = x_value
+        y = y_value
+
 class ConditionalOuterBad
     ConditionalInnerBad inner
 
+    construct(ConditionalInnerBad inner_value)
+        inner = inner_value
+
     void maybe_reset(bool replace)
         if replace
-            inner = ConditionalInnerBad(x = 5)
+            inner = ConditionalInnerBad(5)
 
-ConditionalOuterBad outer = ConditionalOuterBad(inner = ConditionalInnerBad(x = 1, y = 2))
+ConditionalOuterBad outer = ConditionalOuterBad(ConditionalInnerBad(1, 2))
 outer.maybe_reset(false)
 print(outer.inner.y)
 )",
@@ -1676,8 +1801,8 @@ print(outer.inner.y)
  "class A\n    int x\n    int x\n",
  "class A\n    int x\n    void set(int x)\n        return\n",
  "class A\n    int TAB\n",
- "class A\n    int x\nA a = A(x = 1)\nA &b = a\n",
- "class A\n    int x\n    int y\nA a = A(x = 1)\nprint(a.y)\n",
+ "class A\n    int x\n    construct(int start)\n        x = start\nA a = A(1)\nA &b = a\n",
+ "class A\n    int x\n    int y\n    construct(int start)\n        x = start\nA a = A(1)\nprint(a.y)\n",
  "class Counter\n    int value\n    void increment()\n        value = value + 1\nCounter c = Counter()\nc.increment()\n",
  "int x\nint &y = &x\nprint(y)\n",
  "int a = 1\nint b = 2\nint &r = &a\nr = &b\n",
@@ -1687,8 +1812,11 @@ print(outer.inner.y)
     int x
     int y
 
-EqPartial a = EqPartial(x = 1)
-EqPartial b = EqPartial(x = 1)
+    construct(int x_value)
+        x = x_value
+
+EqPartial a = EqPartial(1)
+EqPartial b = EqPartial(1)
 bool same = a == b
 )",
  R"(import x = "./x.qui"
@@ -1714,6 +1842,9 @@ print(super + override)
     int unused = 0
 class Rbf
     float gamma = 1.0
+
+    construct()
+        return
 float apply(Linear | Rbf kernel)
     match kernel
         Linear
@@ -1725,7 +1856,10 @@ print(apply(Rbf()))
  bad_code(R"(class Partial
     int x
     int y
-Partial value = Partial(x = 1)
+
+    construct(int x_value)
+        x = x_value
+Partial value = Partial(1)
 Partial | none maybe = value
 )", "UNINITIALIZED_UNION_PAYLOAD");
  good(R"(class LocalReset
@@ -1733,7 +1867,7 @@ Partial | none maybe = value
     void reset()
         value = 0
 void run()
-    LocalReset item = LocalReset()
+    LocalReset item
     item.reset()
     print(item.value)
 run()
@@ -1745,7 +1879,7 @@ run()
             return error("bad")
         values = array(count, fill = 0.0)
         return
-EarlyReceiver item = EarlyReceiver()
+EarlyReceiver item
 auto result = item.initialize(-1)
 print(item.values[0])
 )", "UNINITIALIZED");
@@ -1755,7 +1889,7 @@ print(item.values[0])
         if not ok
             return
         value = 1
-EarlyUnit item = EarlyUnit()
+EarlyUnit item
 item.reset(false)
 print(item.value)
 )", "UNINITIALIZED");
@@ -1804,7 +1938,7 @@ initialize_then_read_writable(&value, &value)
         value = 1
         print(observation)
 
-AliasReceiver item = AliasReceiver()
+AliasReceiver item
 item.initialize_then_read(&item.value)
 )", "UNINITIALIZED");
 
@@ -1828,17 +1962,23 @@ int &writer = &view
  bad_code(R"(class ConstNested
     int[] values
 
-const ConstNested item = ConstNested(values = [1, 2])
+    construct(int[] values_value)
+        values = values_value
+
+const ConstNested item = ConstNested([1, 2])
 item.values[0] = 3
 )", "WRITE_CAPABILITY");
 
  bad_code(R"(class ConstMethod
     int value
 
+    construct(int value_value)
+        value = value_value
+
     void change_value()
         value = 2
 
-const ConstMethod item = ConstMethod(value = 1)
+const ConstMethod item = ConstMethod(1)
 item.change_value()
 )", "WRITE_CAPABILITY");
 
@@ -2005,27 +2145,30 @@ print(combine(1, first = 2))
  bad_code("int[2] values = [1]\n", "ARRAY_SHAPE");
  bad_code(R"(class Secret
     private int value = 1
-Secret secret = Secret()
+Secret secret
 print(secret.value)
 )", "PRIVATE_MEMBER");
  good(R"(class Secret
     private int value
-Secret secret = Secret(value = 1)
+
+    construct(int value_value)
+        value = value_value
+Secret secret = Secret(1)
 )");
  bad_code(R"(class Secret
     private void hidden()
         return
-Secret secret = Secret()
+Secret secret
 secret.hidden()
 )", "PRIVATE_MEMBER");
  bad_code(R"(class Secret
     private int value = 1
-Secret secret = Secret()
+Secret secret
 secret.value = 2
 )", "PRIVATE_MEMBER");
  bad_code(R"(class Secret
     private int value = 1
-Secret secret = Secret()
+Secret secret
 int &alias = &secret.value
 )", "PRIVATE_MEMBER");
  good(R"(class Secret
@@ -2050,19 +2193,22 @@ int &alias = &secret.value
 )");
  bad_code(R"(class Box<T>
     private T value
-Box<int> box = Box<int>(value = 1)
+
+    construct(T value_value)
+        value = value_value
+Box<int> box = Box<int>(1)
 print(box.value)
 )", "PRIVATE_MEMBER");
  bad_code(R"(class Box<T>
     private void hidden()
         return
-Box<int> box = Box<int>()
+Box<int> box
 box.hidden()
 )", "PRIVATE_MEMBER");
  bad_code(R"(class Secret
     private T echo<T>(T value)
         return value
-Secret secret = Secret()
+Secret secret
 print(secret.echo<int>(1))
 )", "PRIVATE_MEMBER");
  bad_code("class Secret\n    private private int value\n", "PARSE_ERROR");
@@ -2072,19 +2218,25 @@ print(secret.echo<int>(1))
     int read_other(SecretRef other)
         const int &alias = &other.value
         return alias
-SecretRef a = SecretRef()
-SecretRef b = SecretRef()
+SecretRef a
+SecretRef b
 print(a.read_other(b))
 )");
  good(R"(class PrivateInit
     private int value
+
+    construct(int value_value)
+        value = value_value
     int read()
         return value
-PrivateInit item = PrivateInit(value = 9)
+PrivateInit item = PrivateInit(9)
 print(item.read())
 )");
  bad_code(R"(class PrivateInit
     private int value
+
+    construct(int start)
+        value = start
 PrivateInit item = PrivateInit(other = 9)
 )", "ARGUMENT_MISMATCH");
  bad_code("class A\n    int x\nclass A\n    int y\n", "DUPLICATE_NAME");
@@ -2233,7 +2385,10 @@ print(square<float32>(float32(3.0)))
 )");
  good(R"(class Box<T: equatable>
     T value
-Box<string> box = Box<string>(value = "ok")
+
+    construct(T value_value)
+        value = value_value
+Box<string> box = Box<string>("ok")
 print(box.value)
 )");
  bad_code(R"(class CallbackHolder
@@ -2311,7 +2466,7 @@ print(result)
  bad_code("class ReservedNamespaceField\n    int math\n", "SHADOWING");
  bad_code("class ReservedNamespaceMethod\n    int tensor()\n        return 1\n", "SHADOWING");
  
- bad_code("int input = 1\n", "SHADOWING");
+ bad_code("int scan = 1\n", "SHADOWING");
  bad_code("int len = 1\n", "SHADOWING");
  bad_code("void use(int print)\n    return\n", "SHADOWING");
   bad_code("range(3)\n", "RANGE_CONTEXT");
@@ -2325,45 +2480,63 @@ int use()
  bad_code(R"(class P
     int x
     int y
+
+    construct(int x_value)
+        x = x_value
 int read_y(P value)
     return value.y
-P value = P(x = 1)
+P value = P(1)
 print(read_y(value))
 )", "UNINITIALIZED_ARGUMENT");
  bad_code(R"(class P
     int x
     int y
-P a = P(x = 1)
-P b = P(x = 1)
+
+    construct(int x_value)
+        x = x_value
+P a = P(1)
+P b = P(1)
 bool same = a == b
 )", "UNINITIALIZED_FIELD_EQUALITY");
  bad_code(R"(class ArrayPartialLiteral
     int x
     int y
-ArrayPartialLiteral partial = ArrayPartialLiteral(x = 1)
+
+    construct(int x_value)
+        x = x_value
+ArrayPartialLiteral partial = ArrayPartialLiteral(1)
 ArrayPartialLiteral[] values = [partial]
 )", "UNINITIALIZED_ARGUMENT");
  bad_code(R"(class ArrayPartialFill
     int x
     int y
-ArrayPartialFill partial = ArrayPartialFill(x = 1)
+
+    construct(int x_value)
+        x = x_value
+ArrayPartialFill partial = ArrayPartialFill(1)
 ArrayPartialFill[] values = array(2, fill = partial)
 )", "UNINITIALIZED_ARGUMENT");
  bad_code(R"(class ArrayPartialAppend
     int x
     int y
-ArrayPartialAppend partial = ArrayPartialAppend(x = 1)
+
+    construct(int x_value)
+        x = x_value
+ArrayPartialAppend partial = ArrayPartialAppend(1)
 ArrayPartialAppend[] values = []
 values = values.append(partial)
 )", "UNINITIALIZED_ARGUMENT");
  bad_code(R"(class ArrayPartialAssign
     int x
     int y
-ArrayPartialAssign partial = ArrayPartialAssign(x = 1)
+
+    construct(int x_value)
+        x = x_value
+ArrayPartialAssign partial = ArrayPartialAssign(1)
 ArrayPartialAssign[] values = array(1)
 values[0] = partial
 )", "UNINITIALIZED_ARGUMENT");
- bad_code("class A\n    int x\nA a = A(x = 1)\nprint(a.y)\n", "UNKNOWN_MEMBER");
+ bad_code("class A\n    int x\n    construct(int start)\n        x = start\nA a = A(1)\nprint(a.y)\n", "UNKNOWN_MEMBER");
  bad_code("print(missing)\n", "UNKNOWN_NAME");
  // The text constants are capitals only; the former lowercase spellings are
  // plain unknown names, with the diagnostic naming the constant meant.
@@ -2412,7 +2585,7 @@ bool same = a == 1
  bad_code("Missing<int> value\n", "UNKNOWN_GENERIC");
  bad_code(R"(class A
     int x = 0
-A value = A()
+A value
 print(value.missing<int>(1))
 )", "UNKNOWN_GENERIC_METHOD");
  bad_code("int[] values = [1]\nvalues.missing<int>()\n", "GENERIC_RECEIVER");
@@ -2742,8 +2915,8 @@ print(x)
  bad_code(shortcircuit, "NESTING_DEPTH");
 
  // The cheapest crash shape: 600 links segfaulted in 4,284 bytes.
- std::string postfix = "class P\n    int v\n\n    P grow()\n        return P(v = v + 1)\n\n"
-                       "P p = P(v = 1)\nP q = p";
+ std::string postfix = "class P\n    int v\n\n    construct(int start)\n        v = start\n\n    P grow()\n        return P(v + 1)\n\n"
+                       "P p = P(1)\nP q = p";
  for (int i = 0; i < 100; ++i) postfix += ".grow()";
  postfix += "\n";
  bad_code(postfix, "NESTING_DEPTH");

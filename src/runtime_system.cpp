@@ -25,10 +25,17 @@ extern "C" void quidra_test_assert(bool condition) {
     std::fprintf(stderr,"Quidra test assertion failed\n");
     std::exit(1);
 }
-extern "C" void quidra_io_flush() {
-    if (std::fflush(stdout) == 0) return;
-    std::fprintf(stderr, "Quidra runtime error[IO_FLUSH]: cannot flush stdout\n");
-    std::exit(101);
+// io.flush() returns void | error: 0 here is success, anything else becomes
+// the error alternative, which fails fast when the statement discards it.
+extern "C" int quidra_io_flush() {
+    if (std::fflush(stdout) == 0 && !std::ferror(stdout)) return 0;
+    return 1;
+}
+// print and write report the standard output stream's error state after
+// writing. The flag is sticky, so a failed write is never silently lost: the
+// next output statement, or io.flush(), reports it.
+extern "C" int quidra_output_status() {
+    return std::ferror(stdout) ? 1 : 0;
 }
 extern "C" double quidra_time_now(bool sync) {
     if (sync) {

@@ -139,6 +139,12 @@ struct FunctionDecl {
     std::optional<std::string> external_symbol;
     // Empty string means unconstrained. Entries align with type_parameters.
     std::vector<std::string> type_constraints;
+    // A class member named `construct`. Its return type is the class itself,
+    // filled in by the parser for the bare `construct(...)` spelling, or the
+    // class joined with `error` when the writer spelled `T | error construct`.
+    bool is_constructor{};
+    // True when the writer spelled a return type before `construct`.
+    bool constructor_typed{};
 };
 
 struct FieldDecl {
@@ -178,6 +184,9 @@ struct ImportDecl {
     std::string alias;
     std::string target;
     bool local_path{};
+    // `public import`: the alias is re-exported, so an importer of this
+    // module reaches the target's declarations as `module.alias.name`.
+    bool is_public{};
     SourceSpan span{};
 };
 

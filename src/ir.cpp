@@ -1695,6 +1695,223 @@ struct Lowerer {
         return converted;
     }
 
+    // scan(...): read one line, walk it against the format, and store each
+    // parsed field into its target. The result is void | error; on error no
+    // target is written after the failing point, and the ones before it hold
+    // what was parsed.
+    ValueId lower_scan(const Expr& e){
+        const auto& format=checked.scan_formats.at(&e);
+        const auto result_type=checked.raw_types.at(&e);
+        const auto error_type=Type::simple(TypeKind::Error);
+        const auto string_type=Type::simple(TypeKind::String);
+        const auto int_type=Type::simple(TypeKind::Int);
+        const auto bool_type=Type::simple(TypeKind::Bool);
+        const auto none_type=Type::simple(TypeKind::None);
+        const auto line_type=Type::union_of({string_type,none_type,error_type});
+        const auto found_type=Type::union_of({int_type,none_type});
+        const auto result_name=hidden("scan.result");locals[result_name]=result_type;
+        const auto rest_name=hidden("scan.rest");locals[rest_name]=string_type;
+        const auto done=label("scan.done");
+        const auto codepoints=[](const std::string& text){
+            long long count=0;
+            for(const unsigned char c:text) if((c&0xC0)!=0x80) ++count;
+            return count;
+        };
+        const auto quoted=[](const std::string& text){
+            std::string out="\"";
+            for(const char c:text){ if(c=='"') out+="\"\""; else out.push_back(c); }
+            return out+"\"";
+        };
+        // Stores an error result and leaves for the join. The current block
+        // must not be used afterwards.
+        const auto fail_with=[&](ValueId message){
+            auto wrapped=fresh();
+            block->instructions.push_back(VariantMake{wrapped,case_index(result_type,error_type),message,result_type,error_type});
+            block->instructions.push_back(StoreLocal{result_name,wrapped,result_type,true});
+            block->instructions.push_back(Jump{done});
+        };
+        const auto fail=[&](const std::string& message){
+            auto text=fresh();
+            block->instructions.push_back(ConstantString{text,message});
+            fail_with(text);
+        };
+        const auto load_rest=[&](){
+            auto out=fresh();
+            block->instructions.push_back(LoadLocal{out,rest_name,string_type});
+            return out;
+        };
+        const auto rest_length=[&](ValueId rest){
+            auto out=fresh();
+            block->instructions.push_back(StringLength{out,rest});
+            return out;
+        };
+
+        // 1. One line of input.
+        auto raw=fresh();
+        block->instructions.push_back(Input{raw,line_type});
+        auto tag=fresh();
+        block->instructions.push_back(VariantTag{tag,raw});
+        {
+            auto error_index=const_int(case_index(line_type,error_type)),is_error=fresh();
+            block->instructions.push_back(Binary{is_error,"==",tag,error_index,int_type,bool_type});
+            const auto on_error=label("scan.input_error"),check_none=label("scan.check_none");
+            block->instructions.push_back(Branch{is_error,on_error,check_none});
+            block=&add_block(on_error);
+            auto problem=fresh();
+            block->instructions.push_back(VariantPayload{problem,raw,error_type});
+            auto kept=copy_value(problem,error_type);
+            block->instructions.push_back(Release{raw,line_type});
+            fail_with(kept);
+            block=&add_block(check_none);
+        }
+        {
+            auto none_index=const_int(case_index(line_type,none_type)),is_none=fresh();
+            block->instructions.push_back(Binary{is_none,"==",tag,none_index,int_type,bool_type});
+            const auto on_eof=label("scan.eof"),on_text=label("scan.text");
+            block->instructions.push_back(Branch{is_none,on_eof,on_text});
+            block=&add_block(on_eof);
+            block->instructions.push_back(Release{raw,line_type});
+            fail("scan reached the end of input");
+            block=&add_block(on_text);
+            auto text=fresh();
+            block->instructions.push_back(VariantPayload{text,raw,string_type});
+            auto owned=copy_value(text,string_type);
+            block->instructions.push_back(Release{raw,line_type});
+            block->instructions.push_back(StoreLocal{rest_name,owned,string_type});
+        }
+
+        // 2. Literal text before the first target must begin the line.
+        const auto expect_literal=[&](const std::string& literal){
+            if(literal.empty()) return;
+            auto rest=load_rest(),needle=fresh(),ok=fresh();
+            block->instructions.push_back(ConstantString{needle,literal});
+            block->instructions.push_back(StringStartsWith{ok,rest,needle});
+            const auto matched=label("scan.literal.ok"),missing=label("scan.literal.missing");
+            block->instructions.push_back(Branch{ok,matched,missing});
+            block=&add_block(missing);
+            fail("scan expected "+quoted(literal)+" in the input");
+            block=&add_block(matched);
+            auto start=const_int(codepoints(literal)),end=rest_length(rest),sliced=fresh();
+            block->instructions.push_back(StringSlice{sliced,rest,start,end});
+            block->instructions.push_back(StoreLocal{rest_name,sliced,string_type});
+        };
+        expect_literal(format.literals.front());
+
+        // 3. Each target takes the text up to the next literal (or the end).
+        for(std::size_t i=0;i<format.targets.size();++i){
+            const auto& delimiter=format.literals[i+1];
+            const auto& target_type=format.target_types[i];
+            auto rest=load_rest();
+            ValueId field=0;
+            if(delimiter.empty()){
+                auto zero=const_int(0),end=rest_length(rest);
+                field=fresh();
+                block->instructions.push_back(StringSlice{field,rest,zero,end});
+                auto empty=fresh();
+                block->instructions.push_back(ConstantString{empty,""});
+                block->instructions.push_back(StoreLocal{rest_name,empty,string_type});
+            }else{
+                auto needle=fresh(),found=fresh();
+                block->instructions.push_back(ConstantString{needle,delimiter});
+                block->instructions.push_back(StringFind{found,rest,needle,found_type});
+                auto found_tag=fresh();
+                block->instructions.push_back(VariantTag{found_tag,found});
+                auto none_index=const_int(case_index(found_type,none_type)),missing=fresh();
+                block->instructions.push_back(Binary{missing,"==",found_tag,none_index,int_type,bool_type});
+                const auto absent=label("scan.delimiter.missing"),present=label("scan.delimiter.found");
+                block->instructions.push_back(Branch{missing,absent,present});
+                block=&add_block(absent);
+                block->instructions.push_back(Release{found,found_type});
+                fail("scan expected "+quoted(delimiter)+" in the input");
+                block=&add_block(present);
+                auto index=fresh();
+                block->instructions.push_back(VariantPayload{index,found,int_type});
+                block->instructions.push_back(Release{found,found_type});
+                auto zero=const_int(0);
+                field=fresh();
+                block->instructions.push_back(StringSlice{field,rest,zero,index});
+                auto width=const_int(codepoints(delimiter)),after=fresh();
+                block->instructions.push_back(Binary{after,"+",index,width,int_type,int_type});
+                auto end=rest_length(rest),remaining=fresh();
+                block->instructions.push_back(StringSlice{remaining,rest,after,end});
+                block->instructions.push_back(StoreLocal{rest_name,remaining,string_type});
+            }
+            auto address=address_of(*format.targets[i],true);
+            if(target_type.kind==TypeKind::String){
+                block->instructions.push_back(StoreAddress{address,field,string_type});
+                continue;
+            }
+            const auto parsed_type=Type::union_of({target_type,error_type});
+            auto parsed=fresh();
+            block->instructions.push_back(ParseNumber{parsed,field,target_type,parsed_type});
+            auto parsed_tag=fresh();
+            block->instructions.push_back(VariantTag{parsed_tag,parsed});
+            auto error_index=const_int(case_index(parsed_type,error_type)),is_error=fresh();
+            block->instructions.push_back(Binary{is_error,"==",parsed_tag,error_index,int_type,bool_type});
+            const auto bad=label("scan.parse.error"),good=label("scan.parse.ok");
+            block->instructions.push_back(Branch{is_error,bad,good});
+            block=&add_block(bad);
+            block->instructions.push_back(Release{parsed,parsed_type});
+            {
+                auto head=fresh(),tail=fresh(),message=fresh();
+                block->instructions.push_back(ConstantString{head,"scan could not read "+type_name(target_type)+" from \""});
+                block->instructions.push_back(ConstantString{tail,"\""});
+                block->instructions.push_back(StringConcat{message,{head,field,tail}});
+                block->instructions.push_back(Release{field,string_type});
+                fail_with(message);
+            }
+            block=&add_block(good);
+            block->instructions.push_back(Release{field,string_type});
+            auto value=fresh();
+            block->instructions.push_back(VariantPayload{value,parsed,target_type});
+            block->instructions.push_back(Release{parsed,parsed_type});
+            block->instructions.push_back(StoreAddress{address,value,target_type});
+        }
+
+        // 4. Nothing may remain after the format.
+        {
+            auto rest=load_rest(),empty=fresh();
+            block->instructions.push_back(StringEmpty{empty,rest});
+            const auto complete=label("scan.complete"),trailing=label("scan.trailing");
+            block->instructions.push_back(Branch{empty,complete,trailing});
+            block=&add_block(trailing);
+            auto head=fresh(),tail=fresh(),message=fresh();
+            block->instructions.push_back(ConstantString{head,"scan found unexpected input after the format: \""});
+            block->instructions.push_back(ConstantString{tail,"\""});
+            block->instructions.push_back(StringConcat{message,{head,rest,tail}});
+            fail_with(message);
+            block=&add_block(complete);
+            auto ok=fresh();
+            block->instructions.push_back(VariantMake{ok,case_index(result_type,Type::simple(TypeKind::Void)),0,result_type,Type::simple(TypeKind::Void)});
+            block->instructions.push_back(StoreLocal{result_name,ok,result_type,true});
+            block->instructions.push_back(Jump{done});
+        }
+        block=&add_block(done);
+        auto out=fresh();
+        block->instructions.push_back(LoadLocal{out,result_name,result_type});
+        return out;
+    }
+
+    // A fresh class value with every declared default evaluated and every
+    // other field uninitialized: what `Point point` and a constructor's
+    // receiver start from.
+    ValueId make_class_with_defaults(const std::string& class_name){
+        const auto& info=checked.classes.at(class_name);
+        std::vector<std::optional<ValueId>> fields(info.fields.size());
+        for(const auto& field:info.fields){
+            if(!field.default_value)continue;
+            fields[field.index]=destination_value(*field.default_value,field.type);
+        }
+        auto out=fresh();
+        block->instructions.push_back(ClassMake{out,Type::class_type(class_name),std::move(fields)});
+        return out;
+    }
+
+    // Set while lowering a construct(...) body: `return` without a value and
+    // falling off the end both return the receiver, and an error return
+    // releases it first.
+    bool in_constructor{};
+
     ValueId receiver_value() {
         auto out=fresh();
         const auto type=Type::class_type(current_class);
@@ -2922,21 +3139,19 @@ struct Lowerer {
             };
             switch(*resolution.builtin){
                 case BuiltinCallable::Print: {
-                    auto v=expr(*n.args[0].value);
-                    block->instructions.push_back(Print{v,type_of(*n.args[0].value)});
+                    auto v=expr(*n.args[0].value),out=fresh();
+                    block->instructions.push_back(Print{v,type_of(*n.args[0].value),out,checked.raw_types.at(&e)});
                     release_arg(0,v);
-                    return 0;
+                    return out;
                 }
                 case BuiltinCallable::Write: {
-                    auto v=expr(*n.args[0].value);
-                    block->instructions.push_back(Write{v,type_of(*n.args[0].value)});
+                    auto v=expr(*n.args[0].value),out=fresh();
+                    block->instructions.push_back(Write{v,type_of(*n.args[0].value),out,checked.raw_types.at(&e)});
                     release_arg(0,v);
-                    return 0;
-                }
-                case BuiltinCallable::Input: {
-                    auto out=fresh();
-                    block->instructions.push_back(Input{out,checked.raw_types.at(&e)});
                     return out;
+                }
+                case BuiltinCallable::Scan: {
+                    return lower_scan(e);
                 }
                 case BuiltinCallable::Exit: {
                     auto v=expr(*n.args[0].value);
@@ -3330,9 +3545,11 @@ struct Lowerer {
                     release_arg(1,exponent);
                     return out;
                 }
-                case BuiltinCallable::IoFlush:
-                    block->instructions.push_back(IoFlush{});
-                    return 0;
+                case BuiltinCallable::IoFlush: {
+                    auto out=fresh();
+                    block->instructions.push_back(IoFlush{out,checked.raw_types.at(&e)});
+                    return out;
+                }
                 case BuiltinCallable::CliArgument: {
                     auto name=expr(*n.args[0].value),index=expr(*n.args[1].value),out=fresh();
                     block->instructions.push_back(CliArgument{out,name,index,checked.raw_types.at(&e)});
@@ -5266,6 +5483,13 @@ struct Lowerer {
                 if(!captured.empty()) array_constraints[ir_name]=captured;
             }
 
+            if(!n->value && t.kind==TypeKind::Class &&
+               class_storage_established_at_declaration(t.class_name)){
+                auto v=make_class_with_defaults(t.class_name);
+                block->instructions.push_back(StoreLocal{ir_name,v,t});
+                invalidate_length_relation(n->name);
+                return;
+            }
             if(n->value){
                 const bool array_full =
                     t.kind == TypeKind::Array &&
@@ -5709,6 +5933,18 @@ struct Lowerer {
             return;
         }
         if(const auto* n=std::get_if<ReturnStmt>(&s.data)){
+            if(in_constructor){
+                if(std::holds_alternative<VoidExpr>(n->value->data)){
+                    return_receiver();
+                    return;
+                }
+                // An error return: the receiver never reaches a caller.
+                auto receiver=receiver_value();
+                block->instructions.push_back(Release{receiver,Type::class_type(current_class)});
+                auto v=destination_value(*n->value,fn->result);
+                block->instructions.push_back(Return{v,fn->result});
+                return;
+            }
             auto v=destination_value(*n->value,fn->result);
             if(!return_shaped_constraints.empty()){
                 emit_shaped_constraint(
@@ -5722,6 +5958,23 @@ struct Lowerer {
             return;
         }
         if(const auto* n=std::get_if<ExprStmt>(&s.data)){
+            const auto residual_is_void=[&](){
+                const auto& source=checked.raw_types.at(n->value.get());
+                if(source.kind!=TypeKind::Union) return false;
+                for(const auto& current:source.cases)
+                    if(current.kind!=TypeKind::Error && current.kind!=TypeKind::Void) return false;
+                return true;
+            };
+            if((n->value.get()!=repl_expression || residual_is_void()) &&
+               checked.fail_fast_expressions.contains(n->value.get())){
+                // The statement discards its value, but an error is not a
+                // value to discard: the program fails here.
+                auto value=raw_expr(*n->value);
+                const auto source=checked.raw_types.at(n->value.get());
+                consume_fail_fast(value,source,Type::simple(TypeKind::Void),
+                                  expression_owns_result(*n->value),s.span);
+                return;
+            }
             auto value=expr(*n->value);
             const auto type=type_of(*n->value);
             if(n->value.get()==repl_expression && type.kind!=TypeKind::Void && type.kind!=TypeKind::Never){
@@ -5981,6 +6234,46 @@ struct Lowerer {
         current_class.clear();
     }
 
+    // The receiver of a constructor is a local, not a parameter: the body
+    // starts from the class's defaults, initializes fields, and the value is
+    // returned (moved, never copied) when the body completes.
+    void return_receiver(){
+        auto receiver=receiver_value();
+        const auto self=Type::class_type(current_class);
+        auto v=convert(receiver,self,fn->result);
+        block->instructions.push_back(Return{v,fn->result});
+    }
+
+    void lower_constructor(const std::string& class_name,const FunctionDecl& source,const std::string& internal){
+        const auto& sig=checked.functions.at(internal);Function out;out.name=internal;
+        out.source_file=source.source_file;
+        out.source_line=static_cast<std::uint32_t>(source.span.start.line);
+        out.source_column=static_cast<std::uint32_t>(source.span.start.column);
+        out.result=sig.result;
+        for(std::size_t i=0;i<sig.parameters.size();++i){const auto& p=sig.parameters[i];out.parameters.push_back(Parameter{
+            p.name, p.type, p.writable, parameter_is_borrowed(internal,i), p.is_const});}
+        current_class=class_name;begin_function(std::move(out));
+        const auto self=Type::class_type(class_name);
+        locals["$receiver"]=self;
+        local_names["$receiver"]="$receiver";
+        block->instructions.push_back(DeclareLocal{"$receiver",self,"$receiver",
+            static_cast<std::uint32_t>(source.span.start.line),
+            static_cast<std::uint32_t>(source.span.start.column)});
+        auto made=make_class_with_defaults(class_name);
+        // Borrowed: the local does not own the value, so function exit does not
+        // release what the caller now holds.
+        block->instructions.push_back(StoreLocal{"$receiver",made,self,true});
+        in_constructor=true;
+        prepare_integer_range_facts(source.body);
+        cache_reference_array_initialization(sig, source.body);
+        cache_reference_array_bounds(sig, source.body);
+        capture_signature_constraints(source,0);
+        lower_loop_statement_sequence(source.body);
+        if(!terminated()) return_receiver();
+        in_constructor=false;
+        current_class.clear();
+    }
+
     void lower_main(const std::vector<StmtPtr>& statements) {
         Function out;
         out.name = "$entry";
@@ -6148,7 +6441,7 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,CliOption>)out<<"%"<<n.out<<" = cli.option %"<<n.name;
     if constexpr(std::is_same_v<T,CliFlag>)out<<"%"<<n.out<<" = cli.flag %"<<n.name;
     if constexpr(std::is_same_v<T,CliFinish>)out<<"cli.finish";
-    if constexpr(std::is_same_v<T,IoFlush>)out<<"io.flush";
+    if constexpr(std::is_same_v<T,IoFlush>)out<<"%"<<n.out<<" = io.flush : "<<type_name(n.result_type);
     if constexpr(std::is_same_v<T,FileOpen>)out<<"%"<<n.out<<" = file.open %"<<n.path;
     if constexpr(std::is_same_v<T,FileCreate>)out<<"%"<<n.out<<" = file.create %"<<n.path;
     if constexpr(std::is_same_v<T,FileAppend>)out<<"%"<<n.out<<" = file.append %"<<n.path;
@@ -6253,8 +6546,8 @@ if constexpr(std::is_same_v<T,NeuralLoad>)out<<"neural.load leaves="<<n.targets.
     if constexpr(std::is_same_v<T,VariantMake>)out<<"%"<<n.out<<" = variant "<<n.tag;
     if constexpr(std::is_same_v<T,VariantTag>)out<<"%"<<n.out<<" = variant.tag %"<<n.container;
     if constexpr(std::is_same_v<T,VariantPayload>)out<<"%"<<n.out<<" = variant.payload %"<<n.container;
-    if constexpr(std::is_same_v<T,Print>)out<<"print %"<<n.value<<" : "<<type_name(n.type);
-    if constexpr(std::is_same_v<T,Write>)out<<"write %"<<n.value<<" : "<<type_name(n.type);
+    if constexpr(std::is_same_v<T,Print>)out<<"%"<<n.out<<" = print %"<<n.value<<" : "<<type_name(n.type);
+    if constexpr(std::is_same_v<T,Write>)out<<"%"<<n.out<<" = write %"<<n.value<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,ReplDisplay>)out<<"repl.display %"<<n.value<<" : "<<type_name(n.type);
     if constexpr(std::is_same_v<T,ReplReplayMode>)out<<"repl.replay "<<(n.active?"on":"off");
     if constexpr(std::is_same_v<T,Input>)out<<"%"<<n.out<<" = input";
@@ -6275,7 +6568,18 @@ Module lower(
     Lowerer l(checked, repl_expression, replay_prefix_bytes);
     for(const auto& [name,info]:checked.classes){ClassLayout layout;layout.name=name;for(const auto& field:info.fields){layout.field_names.push_back(field.name);layout.fields.push_back(field.type);}l.module.classes.push_back(std::move(layout));}
     for(const auto&f:checked.program.functions)l.lower_function(f);
-    for(const auto&c:checked.program.classes)for(const auto&m:c.methods){const auto internal="$method."+c.name+"."+m.name;if(checked.functions.contains(internal))l.lower_method(c.name,m);}
+    for(const auto&c:checked.program.classes){
+        std::size_t constructors=0;
+        for(const auto&m:c.methods){
+            if(m.is_constructor){
+                const auto internal="$construct."+c.name+"."+std::to_string(constructors++);
+                if(checked.functions.contains(internal))l.lower_constructor(c.name,m,internal);
+                continue;
+            }
+            const auto internal="$method."+c.name+"."+m.name;
+            if(checked.functions.contains(internal))l.lower_method(c.name,m);
+        }
+    }
     l.lower_main(checked.program.statements);return std::move(l.module);
 }
 std::string dump(const Module& module){std::ostringstream out;out<<"quidra-ir "<<ir_version<<"\n";for(const auto&c:module.classes){out<<"class "<<c.name<<"\n";}for(const auto&fn:module.functions){out<<"function "<<fn.name<<"(";for(std::size_t i=0;i<fn.parameters.size();++i){if(i)out<<", ";const auto&p=fn.parameters[i];if(p.is_const)out<<"const ";out<<type_name(p.type)<<" "<<(p.writable?"&":"")<<p.name;}out<<") -> "<<type_name(fn.result);if(fn.external_symbol)out<<" = \""<<*fn.external_symbol<<"\"";out<<"\n";for(const auto&b:fn.blocks){out<<b.label<<":\n";for(const auto&i:b.instructions){if(std::holds_alternative<SourceLocation>(i))continue;out<<"  "<<instr_text(i)<<"\n";}}out<<"end\n";}return out.str();}

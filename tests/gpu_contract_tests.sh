@@ -30,11 +30,13 @@ time.Instant default_start = time.now()
 time.Duration default_elapsed = time.since(default_start)
 print(default_elapsed.seconds() >= 0.0)
 
-time.Instant async_start = time.now(sync = false)
+time.Instant async_start
+async_start.sync = false
 time.Duration async_elapsed = time.since(async_start, sync = false)
 print(async_elapsed.seconds() >= 0.0)
 
-time.Instant synced_start = time.now(sync = true)
+time.Instant synced_start
+synced_start.sync = true
 time.Duration synced_elapsed = time.since(synced_start, sync = true)
 print(synced_elapsed.seconds() >= 0.0)
 QUI
@@ -148,7 +150,8 @@ cat > "$TMP/time-async-does-not-sync.qui" <<'QUI'
 tensor<float32> used_gpu = tensor.ones<float32>([1], gpu = 0)
 time.Instant default_start = time.now()
 time.Duration default_elapsed = time.since(default_start)
-time.Instant explicit_start = time.now(sync = false)
+time.Instant explicit_start
+explicit_start.sync = false
 time.Duration explicit_elapsed = time.since(explicit_start, sync = false)
 print(default_elapsed.seconds() >= 0.0 and explicit_elapsed.seconds() >= 0.0)
 QUI
@@ -161,7 +164,8 @@ fi
 
 cat > "$TMP/time-now-syncs-when-requested.qui" <<'QUI'
 tensor<float32> used_gpu = tensor.ones<float32>([1], gpu = 0)
-time.Instant synchronized = time.now(sync = true)
+time.Instant synchronized
+synchronized.sync = true
 print("unreachable")
 QUI
 set +e
@@ -175,7 +179,8 @@ fi
 grep -Fq "test-only fake GPU synchronization failure" "$TMP/time-now-syncs-when-requested.err"
 
 cat > "$TMP/time-since-syncs-when-requested.qui" <<'QUI'
-time.Instant start = time.now(sync = false)
+time.Instant start
+start.sync = false
 tensor<float32> used_gpu = tensor.ones<float32>([1], gpu = 0)
 time.Duration synchronized = time.since(start, sync = true)
 print(synchronized.seconds())
@@ -192,7 +197,8 @@ grep -Fq "test-only fake GPU synchronization failure" "$TMP/time-since-syncs-whe
 
 cat > "$TMP/time-sync-used-devices-only.qui" <<'QUI'
 tensor<float32> used_gpu = tensor.ones<float32>([1], gpu = 0)
-time.Instant start = time.now(sync = true)
+time.Instant start
+start.sync = true
 time.Duration elapsed = time.since(start, sync = true)
 print(elapsed.seconds() >= 0.0)
 QUI
@@ -524,11 +530,8 @@ cat > "$TMP/gpu-autograd-fanin.qui" <<'QUI'
 class Model
     neural.Parameter<float32> value
 
-Model model = Model(
-    value = neural.Parameter<float32>(
-        value = tensor.ones<float32>([1], gpu = 0)
-    )
-)
+Model model
+model.value = neural.Parameter<float32>( value = tensor.ones<float32>([1], gpu = 0) )
 neural<float32> first_track = model.value.track()
 neural<float32> second_track = model.value.track()
 neural<float32> first = first_track * first_track
@@ -549,14 +552,9 @@ class DivModel
     neural.Parameter<float32> left
     neural.Parameter<float32> right
 
-DivModel model = DivModel(
-    left = neural.Parameter<float32>(
-        value = tensor.ones<float32>([1], gpu = 0) * float32(2)
-    ),
-    right = neural.Parameter<float32>(
-        value = tensor.ones<float32>([1], gpu = 0) * float32(4)
-    )
-)
+DivModel model
+model.left = neural.Parameter<float32>( value = tensor.ones<float32>([1], gpu = 0) * float32(2) )
+model.right = neural.Parameter<float32>( value = tensor.ones<float32>([1], gpu = 0) * float32(4) )
 neural<float32> quotient = model.left.track() / model.right.track()
 neural<float32> loss = neural.mean(quotient)
 neural.Gradients gradients = neural.grad(loss)
@@ -578,11 +576,8 @@ cat > "$TMP/gpu-autograd-scalar.qui" <<'QUI'
 class ScalarModel
     neural.Parameter<float32> value
 
-ScalarModel model = ScalarModel(
-    value = neural.Parameter<float32>(
-        value = tensor.ones<float32>([1], gpu = 0) * float32(2)
-    )
-)
+ScalarModel model
+model.value = neural.Parameter<float32>( value = tensor.ones<float32>([1], gpu = 0) * float32(2) )
 neural<float32> x = model.value.track()
 neural<float32> transformed = (float32(5) - x * float32(3)) / float32(2)
 neural<float32> reciprocal = float32(8) / x

@@ -9,6 +9,9 @@ cli args
 class Lcg
     int state
 
+    construct(int seed)
+        state = seed
+
     int next_int()
         state = (48271 * state) % 2147483647
         return state
@@ -30,7 +33,7 @@ Result workload()
     int km = 500009
     int sm = 100003
     int q = 1000000007
-    Lcg g = Lcg(state = 20271917)
+    Lcg g = Lcg(20271917)
     int[] keys = array(n, fill = 0)
     for i in range(n)
         keys[i] = g.next_int()
@@ -102,7 +105,16 @@ Result workload()
         acc = (acc * 31 + size3) % q
         acc = (acc * 31 + lsum) % q
 
-    return Result(acc = acc, size1 = size1, found = found, vsum = vsum, mchk = mchk, size2 = size2, size3 = size3, lsum = lsum)
+    Result result
+    result.acc = acc
+    result.size1 = size1
+    result.found = found
+    result.vsum = vsum
+    result.mchk = mchk
+    result.size2 = size2
+    result.size3 = size3
+    result.lsum = lsum
+    return result
 
 Result timed(int index)
     time.Instant start = time.now()

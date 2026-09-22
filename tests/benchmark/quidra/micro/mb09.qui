@@ -9,6 +9,9 @@ cli args
 class Lcg
     int state
 
+    construct(int seed)
+        state = seed
+
     int next_int()
         state = (48271 * state) % 2147483647
         return state
@@ -32,7 +35,7 @@ Result workload()
     int rounds = 30
     float count = 2000000.0
     float scale = 0.64
-    Lcg g = Lcg(state = 20269917)
+    Lcg g = Lcg(20269917)
     float[] x = array(n, fill = 0.0)
     float[] y = array(n, fill = 0.0)
     for i in range(n)
@@ -105,7 +108,16 @@ Result workload()
         for b in range(64)
             hist_chk = hist_chk + (b + 1) * hist[b]
 
-    return Result(mean = mean, var = var, sd = sd, mn = mn, mx = mx, mad = mad, pearson = pearson, hist_chk = hist_chk)
+    Result result
+    result.mean = mean
+    result.var = var
+    result.sd = sd
+    result.mn = mn
+    result.mx = mx
+    result.mad = mad
+    result.pearson = pearson
+    result.hist_chk = hist_chk
+    return result
 
 Result timed(int index)
     time.Instant start = time.now()

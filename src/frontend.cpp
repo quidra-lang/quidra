@@ -19,6 +19,7 @@
 #include <iomanip>
 #include <limits>
 #include <map>
+#include <memory>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -65,7 +66,28 @@ struct Exports {
     std::unordered_map<std::string, std::string> enums;
     std::unordered_map<std::string, std::string> functions;
     std::unordered_map<std::string, std::string> values;
+    // `public import alias = ...` re-exports the target under `alias`, so an
+    // importer reaches its declarations as `module.alias.name`.
+    std::unordered_map<std::string, std::shared_ptr<Exports>> namespaces;
 };
+
+// Follows `a.b.c` through re-exported namespaces. Returns the innermost
+// namespace and leaves the unresolved tail (a declaration name, possibly with
+// an enum variant) in `rest`.
+const Exports* descend_namespaces(const Exports& root, const std::string& path, std::string& rest) {
+    const Exports* current = &root;
+    std::string remaining = path;
+    while (true) {
+        const auto dot = remaining.find('.');
+        const auto head = dot == std::string::npos ? remaining : remaining.substr(0, dot);
+        const auto next = current->namespaces.find(head);
+        if (next == current->namespaces.end() || dot == std::string::npos) break;
+        current = next->second.get();
+        remaining = remaining.substr(dot + 1);
+    }
+    rest = remaining;
+    return current;
+}
 
 Exports standard_exports(const std::string& module, SourceSpan span) {
     if (!is_standard_module(module)) {
@@ -840,31 +862,33 @@ void rename_type(
     if (type.name.find('.') != std::string::npos) {
         const auto head = first_segment(type.name);
         if (const auto it = imports.find(head); it != imports.end()) {
-            const auto suffix = suffix_after_first(type.name);
-            if (suffix.empty()) {
+            const auto full_suffix = suffix_after_first(type.name);
+            if (full_suffix.empty()) {
                 frontend_error("UNKNOWN_TYPE", "Imported module alias cannot be used as a type.", type.span);
             }
-            if (const auto cls = it->second.exports.classes.find(suffix);
-                cls != it->second.exports.classes.end()) {
+            std::string suffix;
+            const Exports& module = *descend_namespaces(it->second.exports, full_suffix, suffix);
+            if (const auto cls = module.classes.find(suffix);
+                cls != module.classes.end()) {
                 type.name = cls->second;
                 return;
             }
-            if (const auto en = it->second.exports.enums.find(suffix);
-                en != it->second.exports.enums.end()) {
+            if (const auto en = module.enums.find(suffix);
+                en != module.enums.end()) {
                 type.name = en->second;
                 return;
             }
             const auto dot = suffix.find('.');
             if (dot != std::string::npos) {
                 const auto enum_name = suffix.substr(0, dot);
-                if (const auto en = it->second.exports.enums.find(enum_name);
-                    en != it->second.exports.enums.end()) {
+                if (const auto en = module.enums.find(enum_name);
+                    en != module.enums.end()) {
                     type.name = en->second + suffix.substr(dot);
                     return;
                 }
             }
             frontend_error("UNKNOWN_TYPE",
-                           "Module '" + head + "' has no exported type '" + suffix + "'.",
+                           "Module '" + head + "' has no exported type '" + full_suffix + "'.",
                            type.span);
         }
         const auto dot = type.name.find('.');
@@ -876,6 +900,29 @@ void rename_type(
     if (local_classes.contains(type.name)) {
         type.name = qualify(ns, type.name);
     }
+}
+
+// The namespace an expression such as `dnn` or `dnn.mode` names, if any:
+// an import alias followed by re-exported aliases.
+const Exports* expression_namespace(
+    const Expr& expression,
+    const std::unordered_map<std::string, ImportBinding>& imports,
+    std::string& spelling) {
+    if (const auto* name = std::get_if<NameExpr>(&expression.data)) {
+        const auto import = imports.find(name->name);
+        if (import == imports.end()) return nullptr;
+        spelling = name->name;
+        return &import->second.exports;
+    }
+    if (const auto* member = std::get_if<MemberExpr>(&expression.data)) {
+        const auto* base = expression_namespace(*member->base, imports, spelling);
+        if (!base) return nullptr;
+        const auto nested = base->namespaces.find(member->name);
+        if (nested == base->namespaces.end()) return nullptr;
+        spelling += "." + member->name;
+        return nested->second.get();
+    }
+    return nullptr;
 }
 
 void rename_expr(
@@ -928,24 +975,31 @@ void rename_expr(
         return;
     }
     if (auto* node = std::get_if<MemberExpr>(&expression.data)) {
-        if (auto* base = std::get_if<NameExpr>(&node->base->data)) {
-            if (const auto import = imports.find(base->name); import != imports.end()) {
-                if (const auto value = import->second.exports.values.find(node->name);
-                    value != import->second.exports.values.end()) {
-                    expression.data = NameExpr{value->second};
-                    return;
-                }
-                if (const auto function = import->second.exports.functions.find(node->name);
-                    function != import->second.exports.functions.end()) {
-                    expression.data = NameExpr{function->second};
-                    return;
-                }
-                if (const auto en = import->second.exports.enums.find(node->name);
-                    en != import->second.exports.enums.end()) {
-                    expression.data = NameExpr{en->second};
-                    return;
-                }
+        std::string module_spelling;
+        if (const auto* module = expression_namespace(*node->base, imports, module_spelling)) {
+            if (const auto value = module->values.find(node->name);
+                value != module->values.end()) {
+                expression.data = NameExpr{value->second};
+                return;
             }
+            if (const auto function = module->functions.find(node->name);
+                function != module->functions.end()) {
+                expression.data = NameExpr{function->second};
+                return;
+            }
+            if (const auto en = module->enums.find(node->name);
+                en != module->enums.end()) {
+                expression.data = NameExpr{en->second};
+                return;
+            }
+            if (module->namespaces.contains(node->name)) {
+                frontend_error("NAMESPACE_VALUE",
+                               "'" + module_spelling + "." + node->name +
+                                   "' is a namespace, not a value.",
+                               expression.span);
+            }
+        }
+        if (auto* base = std::get_if<NameExpr>(&node->base->data)) {
             if (local_classes.contains(base->name)) base->name = qualify(ns, base->name);
         }
         rename_expr(*node->base, ns, local_classes, local_functions, imports, type_parameters);
@@ -976,23 +1030,24 @@ void rename_expr(
     }
     if (auto* node = std::get_if<MethodCallExpr>(&expression.data)) {
         auto* receiver_name = std::get_if<NameExpr>(&node->receiver->data);
-        if (receiver_name) {
-            if (const auto import = imports.find(receiver_name->name); import != imports.end()) {
+        std::string module_spelling;
+        if (const auto* module = expression_namespace(*node->receiver, imports, module_spelling)) {
+            {
                 for (auto& type_argument : node->type_arguments) {
                     rename_type(type_argument, ns, local_classes, imports, type_parameters);
                 }
                 rename_call_args(node->args, ns, local_classes, local_functions, imports, type_parameters);
 
                 std::string callee;
-                if (const auto fn = import->second.exports.functions.find(node->method);
-                    fn != import->second.exports.functions.end()) {
+                if (const auto fn = module->functions.find(node->method);
+                    fn != module->functions.end()) {
                     callee = fn->second;
-                } else if (const auto cls = import->second.exports.classes.find(node->method);
-                           cls != import->second.exports.classes.end()) {
+                } else if (const auto cls = module->classes.find(node->method);
+                           cls != module->classes.end()) {
                     callee = cls->second;
                 } else {
                     frontend_error("UNKNOWN_MODULE_MEMBER",
-                                   "Module '" + receiver_name->name + "' has no exported callable '" +
+                                   "Module '" + module_spelling + "' has no exported callable '" +
                                        node->method + "'.",
                                    expression.span);
                 }
@@ -1571,6 +1626,9 @@ private:
                 record_package(import_decl.target, *package_path, import_decl.span);
                 const auto child_ns = qualify(ns, import_decl.alias);
                 auto child_exports = load_file(*package_path, child_ns, false, merged);
+                if (import_decl.is_public) {
+                    exports.namespaces[import_decl.alias] = std::make_shared<Exports>(child_exports);
+                }
                 imports.emplace(
                     import_decl.alias, ImportBinding{child_ns, std::move(child_exports)});
                 continue;
@@ -1587,6 +1645,9 @@ private:
 
             const auto child_ns = qualify(ns, import_decl.alias);
             auto child_exports = load_file(target, child_ns, false, merged);
+            if (import_decl.is_public) {
+                exports.namespaces[import_decl.alias] = std::make_shared<Exports>(child_exports);
+            }
             imports.emplace(import_decl.alias, ImportBinding{child_ns, std::move(child_exports)});
         }
         stack_.pop_back();
@@ -2058,6 +2119,62 @@ private:
         }
     }
 
+    // `construct(...)` members. The bare spelling names no type, because the
+    // constructor produces the enclosing class; `T | error construct(...)` is
+    // the one spelled form, for a constructor that can fail. Overloads must
+    // differ in their parameter types, so a call can always name one of them.
+    void validate_constructor(
+        const ClassDecl& class_decl, const FunctionDecl& method,
+        std::vector<std::string>& signatures) const {
+        TypeName self;
+        self.name = class_decl.name;
+        for (const auto& parameter : class_decl.type_parameters) {
+            TypeName argument;
+            argument.name = parameter;
+            self.arguments.push_back(std::move(argument));
+        }
+        const auto self_spelling = canonical_type(self);
+        TypeName fallible;
+        fallible.name = "union";
+        fallible.arguments.push_back(clone_type(self));
+        TypeName error_type;
+        error_type.name = "error";
+        fallible.arguments.push_back(std::move(error_type));
+        const auto declared = canonical_type(method.return_type);
+        if (method.constructor_typed && declared == self_spelling) {
+            frontend_error("CONSTRUCTOR_SIGNATURE",
+                           "construct does not name its own type; write construct(...) for a constructor of '" +
+                               class_decl.name + "', or '" + self_spelling +
+                               " | error construct(...)' for one that can fail.",
+                           method.span);
+        }
+        if (method.constructor_typed && declared != canonical_type(fallible)) {
+            frontend_error("CONSTRUCTOR_SIGNATURE",
+                           "A constructor of '" + class_decl.name + "' is spelled construct(...) or '" +
+                               self_spelling + " | error construct(...)'; it cannot return '" + declared + "'.",
+                           method.span);
+        }
+        if (!method.type_parameters.empty()) {
+            frontend_error("CONSTRUCTOR_SIGNATURE",
+                           "Constructors take the class's type parameters and cannot declare their own.",
+                           method.span);
+        }
+        std::string signature;
+        for (const auto& parameter : method.parameters) {
+            if (!signature.empty()) signature += ", ";
+            if (parameter.is_const) signature += "const ";
+            signature += canonical_type(parameter.type);
+            if (parameter.writable) signature += " &";
+        }
+        if (std::find(signatures.begin(), signatures.end(), signature) != signatures.end()) {
+            frontend_error("DUPLICATE_NAME",
+                           "Class '" + class_decl.name + "' already declares construct(" + signature +
+                               "); overloads must differ in their parameter types.",
+                           method.span);
+        }
+        signatures.push_back(std::move(signature));
+    }
+
     void validate_declarations() const {
         std::unordered_set<std::string> declaration_names;
         for (const auto& enum_decl : source_.enums) {
@@ -2125,7 +2242,12 @@ private:
                                    field.span);
                 }
             }
+            std::vector<std::string> constructor_signatures;
             for (const auto& method : class_decl.methods) {
+                if (method.is_constructor) {
+                    validate_constructor(class_decl, method, constructor_signatures);
+                    continue;
+                }
                 if (!standard_generated && is_reserved_value_name(method.name)) {
                     frontend_error("SHADOWING",
                                    "Class method name '" + method.name + "' is reserved.",
@@ -3034,6 +3156,8 @@ private:
             out.return_type = materialize_type(source.return_type, substitution, deferred);
             out.span = source.span;
             out.is_private = source.is_private;
+            out.is_constructor = source.is_constructor;
+            out.constructor_typed = source.constructor_typed;
             out.type_parameters = source.type_parameters;
             out.external_symbol = source.external_symbol;
             out.type_constraints = source.type_constraints;

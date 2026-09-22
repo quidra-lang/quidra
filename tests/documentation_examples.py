@@ -63,18 +63,19 @@ def prelude(path: Path, code: str) -> str:
             return LOOKUP
     if rel == "docs/spec/language.md":
         stripped = code.lstrip()
-        if stripped.startswith("Box<int> box ="):
+        if stripped.startswith("Box<int> box"):
             return GENERIC
-        if stripped.startswith("Point complete ="):
+        if stripped.startswith("Point point") and "Config config" in code:
             return POINT + CONFIG
-        if stripped.startswith("Point a =") or "Point point = Point(" in code:
+        if stripped.startswith("Point a") or "Point point\n" in code:
             return POINT
     return ""
 
 
 def fixtures(directory: Path) -> None:
     (directory / "geometry.qui").write_text(
-        "class Point\n    int x\n    int y\n", encoding="utf-8"
+        "class Point\n    int x\n    int y\n\n    construct(int px, int py)\n        x = px\n        y = py\n",
+        encoding="utf-8",
     )
     (directory / "local.qui").write_text(
         "int local_value()\n    return 1\n", encoding="utf-8"
@@ -98,19 +99,24 @@ def fixtures(directory: Path) -> None:
     dnn = packages / "dnn"
     dnn.mkdir()
     (dnn / "main.qui").write_text(
-        """class LinearLayer
+        """public import mode = "./mode.qui"
+
+class Linear
     int marker = 0
 
-class AdamOptimizer
+    Linear | error construct(int features_in, int features_out)
+        marker = features_in + features_out
+
+class Adam
     int marker = 0
 
-LinearLayer | error Linear(int features_in, int features_out)
-    return LinearLayer()
-
-AdamOptimizer | error Adam()
-    return AdamOptimizer()
+    Adam | error construct()
+        marker = 1
 """,
         encoding="utf-8",
+    )
+    (dnn / "mode.qui").write_text(
+        "void fast()\n    return\n\nvoid deterministic()\n    return\n", encoding="utf-8"
     )
 
 

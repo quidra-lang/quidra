@@ -51,6 +51,8 @@ private:
     EnumDecl enum_decl();
     ClassDecl class_decl();
     FunctionDecl function_decl();
+    FunctionDecl constructor_decl(const std::string& class_name,
+                                  const std::vector<std::string>& type_parameters);
     FunctionDecl external_function_decl();
     std::vector<StmtPtr> block_until(bool allow_else);
     StmtPtr statement();

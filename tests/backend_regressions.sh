@@ -211,9 +211,13 @@ class Pair
     int a
     int b
 
+    construct(int a_value, int b_value)
+        a = a_value
+        b = b_value
+
 Pair | error make(bool ok)
     if ok
-        return Pair(a = 2, b = 3)
+        return Pair(2, 3)
     return error("bad")
 
 int | error sum(bool ok)

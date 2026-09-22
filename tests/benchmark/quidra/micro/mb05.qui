@@ -9,6 +9,9 @@ cli args
 class Lcg
     int state
 
+    construct(int seed)
+        state = seed
+
     int next_int()
         state = (48271 * state) % 2147483647
         return state
@@ -20,7 +23,7 @@ class Lcg
 float workload()
     int n = 2000000
     int rounds = 400
-    Lcg g = Lcg(state = 20265917)
+    Lcg g = Lcg(20265917)
     float[] x = array(n, fill = 0.0)
     float[] y = array(n, fill = 0.0)
     for i in range(n)

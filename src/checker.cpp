@@ -1589,6 +1589,11 @@ Type Checker::check_name_expr(const Expr& expression, const NameExpr& node_value
                       expression.span);
             }
             if (!current_receiver_effect_.initializes.contains(node->name)) {
+                if (in_constructor_) {
+                    error("UNINITIALIZED",
+                          "Field '" + node->name + "' is read before the constructor initializes it.",
+                          expression.span);
+                }
                 current_receiver_effect_.required.insert(node->name);
             }
             type = field->type;
@@ -1651,6 +1656,11 @@ Type Checker::check_member_expr(const Expr& expression, const MemberExpr& node_v
             if (const auto receiver_base = current_receiver_path(*node->base)) {
                 const auto full = *receiver_base + "." + node->name;
                 if (!current_receiver_effect_.initializes.contains(full)) {
+                    if (in_constructor_) {
+                        error("UNINITIALIZED",
+                              "Field '" + full + "' is read before the constructor initializes it.",
+                              expression.span);
+                    }
                     current_receiver_effect_.required.insert(full);
                 }
             } else if (reference_base) {
@@ -2682,12 +2692,79 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
             call_resolutions_[&expression] =
                 CallResolution{CallKind::Builtin, name, builtin, simple(TypeKind::Void)};
             switch (builtin) {
-                case BuiltinCallable::Input: {
-                    if (!node->args.empty()) {
-                        error("ARGUMENT_MISMATCH", "input takes no arguments.", expression.span);
+                case BuiltinCallable::Scan: {
+                    // scan(&n) reads one value; scan("{&n} {&m}") reads a line
+                    // against a format whose literal text must match the input.
+                    if (node->args.size() != 1 || node->args[0].name) {
+                        error("ARGUMENT_MISMATCH",
+                              "scan takes one argument: an input target such as scan(&n), or a format string such as scan(\"{&n} {&m}\").",
+                              expression.span);
                     }
-                    type = Type::union_of({
-                        simple(TypeKind::String), simple(TypeKind::None), simple(TypeKind::Error)});
+                    const auto& argument = node->args[0];
+                    ScanFormat format;
+                    if (argument.writable) {
+                        format.literals = {"", ""};
+                        format.targets.push_back(argument.value.get());
+                    } else if (const auto* text = std::get_if<StringTemplateExpr>(&argument.value->data)) {
+                        format.literals = text->literals;
+                        for (std::size_t i = 0; i < text->expressions.size(); ++i) {
+                            const auto* placeholder = std::get_if<UnaryExpr>(&text->expressions[i]->data);
+                            if (!placeholder || placeholder->op != "scan&") {
+                                error("ARGUMENT_MISMATCH",
+                                      "scan format placeholders are input targets written {&name}.",
+                                      text->expressions[i]->span);
+                            }
+                            if (i > 0 && text->literals[i].empty()) {
+                                error("ARGUMENT_MISMATCH",
+                                      "Two input targets need literal text between them so scan can split the input.",
+                                      text->expressions[i]->span);
+                            }
+                            format.targets.push_back(placeholder->operand.get());
+                        }
+                    } else if (std::holds_alternative<StringExpr>(argument.value->data)) {
+                        error("ARGUMENT_MISMATCH",
+                              "scan format names no input target; write {&name} where a value is read.",
+                              argument.span);
+                    } else {
+                        error("ARGUMENT_MISMATCH",
+                              "scan takes an input target such as scan(&n) or a format string literal such as scan(\"{&n} {&m}\").",
+                              argument.span);
+                    }
+                    const bool terminating = error_terminating_expr_ == &expression;
+                    bool any_poison = false;
+                    for (const auto* target : format.targets) {
+                        if (!stable_writable_storage(*target)) {
+                            error("WRITE_CAPABILITY", "scan targets require storage with write authority.",
+                                  target->span);
+                        }
+                        if (const auto path = writable_storage_path(*target)) {
+                            if (narrowed_.contains(path->first) || borrowed_.contains(path->first)) {
+                                error("WRITE_CAPABILITY",
+                                      "scan targets require unnarrowed, unborrowed storage.",
+                                      target->span);
+                            }
+                        }
+                        auto actual = check_address_target(*target);
+                        any_poison |= poisoned(actual);
+                        if (!poisoned(actual) && !is_numeric(actual) && actual.kind != TypeKind::String) {
+                            error("TYPE_MISMATCH",
+                                  "scan reads numeric and string targets; this target has type '" +
+                                      type_name(actual) + "'.",
+                                  target->span);
+                        }
+                        format.target_types.push_back(actual);
+                        if (terminating) {
+                            mark_storage_initialized(*target);
+                        } else if (!storage_initialized(*target)) {
+                            error("UNINITIALIZED",
+                                  "A scan whose error is handled leaves its targets unchanged on failure, so this target must be initialized first; as a statement or under try, scan initializes it.",
+                                  target->span);
+                        }
+                    }
+                    type = any_poison
+                        ? simple(TypeKind::Invalid)
+                        : Type::union_of({simple(TypeKind::Void), simple(TypeKind::Error)});
+                    if (!any_poison) scan_formats_[&expression] = std::move(format);
                     break;
                 }
                 case BuiltinCallable::Print:
@@ -2700,7 +2777,9 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                         argument.kind != TypeKind::Address) {
                         error("TYPE_MISMATCH", name + " requires a scalar or address.", expression.span);
                     }
-                    type = poisoned(argument) ? simple(TypeKind::Invalid) : simple(TypeKind::Void);
+                    type = poisoned(argument)
+                        ? simple(TypeKind::Invalid)
+                        : Type::union_of({simple(TypeKind::Void), simple(TypeKind::Error)});
                     break;
                 }
                 case BuiltinCallable::Exit: {
@@ -2904,7 +2983,7 @@ Type Checker::check_builtin_call_expr(const Expr& expression,
                     if (!node->args.empty()) {
                         error("ARGUMENT_MISMATCH", "io.flush takes no arguments.", expression.span);
                     }
-                    type = simple(TypeKind::Void);
+                    type = Type::union_of({simple(TypeKind::Void), simple(TypeKind::Error)});
                     break;
                 }
                 case BuiltinCallable::CliArgument: {
@@ -5065,6 +5144,15 @@ Type Checker::check_call_expr(const Expr& expression,
                           expression.span);
                 }
             }
+            if (!any_poison && in_constructor_) {
+                for (const auto& path : function.receiver_effect.required) {
+                    if (path.empty() || current_receiver_effect_.initializes.contains(path)) continue;
+                    error("UNINITIALIZED",
+                          "Method '" + name + "' reads field '" + path +
+                              "', which the constructor has not initialized yet.",
+                          expression.span);
+                }
+            }
             if (!any_poison) {
                 finish_call_effects(
                     function, pending_reference_effects,
@@ -5228,7 +5316,14 @@ Type Checker::check_call_expr(const Expr& expression,
                 : Type::array(*element);
             call_resolutions_[&expression] =
                 CallResolution{CallKind::NumericCast, name, std::nullopt, type};
+        } else if (classes_.contains(name) && name.front() != '$' &&
+                   name.rfind("__quidra_gc__std_", 0) != 0) {
+            type = check_class_construction(expression, *node, name);
         } else if (classes_.contains(name)) {
+            // Standard-library value types keep their language-provided
+            // construction forms, such as map.Map<K, V>() and
+            // neural.Parameter<T>(value = tensor); compiler-generated records
+            // such as the cli argument class are built the same way.
             call_resolutions_[&expression] =
                 CallResolution{CallKind::Constructor, name, std::nullopt, Type::class_type(name)};
             if (name.rfind("$std.", 0) == 0) {
@@ -5291,12 +5386,338 @@ Type Checker::check_call_expr(const Expr& expression,
             const auto& function = functions_.at(name);
             call_resolutions_[&expression] =
                 CallResolution{CallKind::Function, name, std::nullopt, function.result};
+            std::vector<PendingReferenceEffect> pending_reference_effects;
+            const bool any_poison =
+                check_call_arguments(expression, node->args, function, pending_reference_effects);
+            if (!any_poison) {
+                finish_call_effects(function, pending_reference_effects);
+            }
+            type = any_poison ? simple(TypeKind::Invalid) : function.result;
+            if (!any_poison && type.kind == TypeKind::Class) {
+                class_expr_initialized_paths_[&expression] = function.return_initialized_fields;
+            }
+        }
+
+    return type;
+}
+
+std::unordered_set<std::string> Checker::default_initialized_paths(const std::string& class_name) const {
+    std::unordered_set<std::string> paths;
+    const auto it = classes_.find(class_name);
+    if (it == classes_.end()) return paths;
+    for (const auto& field : it->second.fields) {
+        if (!field.default_value) continue;
+        paths.insert(field.name);
+        if (field.type.kind == TypeKind::Class) {
+            // A class-typed default must be fully initialized (checked where
+            // defaults are checked), so every nested path is established.
+            for (const auto& nested : complete_class_paths(field.type)) {
+                paths.insert(field.name + "." + nested);
+            }
+        }
+    }
+    return paths;
+}
+
+// Prepares the flow state for checking one class member body. Returns the
+// member's signature, or nullptr when the member was not registered (an
+// earlier error). Constructors start with the receiver's default-initialized
+// fields and no receiver parameter.
+FunctionType* Checker::begin_member_body(const ClassDecl& class_decl, const FunctionDecl& method) {
+    const auto internal_it = method_internal_names_.find(&method);
+    if (internal_it == method_internal_names_.end() ||
+        !functions_.contains(internal_it->second)) {
+        return nullptr;
+    }
+    variables_.clear();
+    reference_roots_.clear();
+    reference_paths_.clear();
+    unknown_reference_targets_.clear();
+    initialized_.clear();
+    const_bindings_.clear();
+    const_integer_values_.clear();
+    class_initialized_paths_.clear();
+    reset_current_effect_state();
+
+    auto& signature = functions_.at(internal_it->second);
+    for (std::size_t i = method.is_constructor ? 0 : 1; i < signature.parameters.size(); ++i) {
+        const auto& parameter = signature.parameters[i];
+        variables_[parameter.name] = parameter.type;
+        if (parameter.is_const) const_bindings_.insert(parameter.name);
+        if (parameter.writable) {
+            current_reference_parameters_.insert(parameter.name);
+            if (parameter.is_const) current_reference_effects_[parameter.name].required.insert("");
+        } else {
+            initialized_.insert(parameter.name);
+            if (parameter.type.kind == TypeKind::Class) {
+                class_initialized_paths_[parameter.name] = complete_class_paths(parameter.type);
+            }
+        }
+    }
+    current_return_ = signature.result;
+    current_class_ = class_decl.name;
+    in_function_ = true;
+    in_constructor_ = method.is_constructor;
+    constructor_block_depth_ = 0;
+    if (method.is_constructor) {
+        current_receiver_effect_.initializes = default_initialized_paths(class_decl.name);
+    }
+    return &signature;
+}
+
+void Checker::finish_member_body(const ClassDecl& class_decl, const FunctionDecl& method,
+                                 FunctionType& signature, bool report) {
+    const bool falls_through = !block_always_terminates(method.body);
+    signature.no_normal_return = !block_contains_return(method.body) && !falls_through;
+    finalize_receiver_effects(signature, falls_through);
+    finalize_reference_effects(signature, falls_through);
+    if (!method.is_constructor) {
+        signature.return_initialized_fields =
+            signature.result.kind == TypeKind::Class && current_return_summary_seen_
+                ? current_return_initialized_
+                : std::unordered_set<std::string>{};
+        return;
+    }
+
+    // A constructor's result is its receiver, so the fields it definitely
+    // initializes on every normal exit are the fields a caller may read.
+    const auto required = signature.receiver_effect.required;
+    signature.receiver_effect.required.clear();
+    signature.return_initialized_fields = signature.receiver_effect.initializes;
+    in_constructor_ = false;
+    if (!report) return;
+
+    const auto& guaranteed = signature.return_initialized_fields;
+    for (const auto& path : required) {
+        if (path.empty()) continue;
+        try {
+            error("UNINITIALIZED",
+                  "Constructor of '" + class_decl.name + "' reads field '" + path +
+                      "' before initializing it.",
+                  method.span);
+        } catch (const CompileError& compile_error) {
+            record(compile_error);
+        }
+    }
+    for (const auto& field : classes_.at(class_decl.name).fields) {
+        if (guaranteed.contains(field.name)) continue;
+        if (field.is_const) {
+            try {
+                error("CONST_INITIALIZATION",
+                      "const field '" + field.name + "' must be initialized by every constructor of '" +
+                          class_decl.name + "'.",
+                      method.span);
+            } catch (const CompileError& compile_error) {
+                record(compile_error);
+            }
+        } else if (signature.result.kind == TypeKind::Union) {
+            try {
+                error("UNINITIALIZED_UNION_PAYLOAD",
+                      "A constructor that can fail completes with every field initialized; '" +
+                          field.name + "' may be uninitialized when this one completes.",
+                      method.span);
+            } catch (const CompileError& compile_error) {
+                record(compile_error);
+            }
+        }
+    }
+    if (signature.result.kind == TypeKind::Union) {
+        // Nested class fields must be complete too: the value enters a union.
+        const auto complete = complete_class_paths(Type::class_type(class_decl.name));
+        for (const auto& path : complete) {
+            if (guaranteed.contains(path)) continue;
+            const auto dot = path.find('.');
+            if (dot == std::string::npos) continue;  // reported above
+            if (!guaranteed.contains(path.substr(0, dot))) continue;  // reported above
+            try {
+                error("UNINITIALIZED_UNION_PAYLOAD",
+                      "A constructor that can fail completes with every field initialized; '" +
+                          path + "' may be uninitialized when this one completes.",
+                      method.span);
+            } catch (const CompileError& compile_error) {
+                record(compile_error);
+            }
+            break;
+        }
+    }
+}
+
+// `T(...)` for a user class: pick the construct(...) member the arguments
+// name, first by shape (count, names, reference form, defaults) and then, when
+// several fit the shape, by the argument types. More than one fit is an error;
+// the writer names or casts an argument so exactly one applies.
+Type Checker::check_class_construction(const Expr& expression, const CallExpr& node,
+                                       const std::string& class_name) {
+    const auto& info = classes_.at(class_name);
+    if (info.constructors.empty()) {
+        error("NO_CONSTRUCTOR",
+              "Class '" + class_name + "' declares no constructor. Declare '" + class_name +
+                  " value' and assign its fields, or add construct(...) to the class.",
+              expression.span);
+    }
+
+    // Binds arguments to parameters by shape. Returns the parameter index of
+    // each argument, or nothing when the shape does not fit.
+    const auto bind_shape = [&](const FunctionType& candidate)
+        -> std::optional<std::vector<std::size_t>> {
+        std::vector<std::size_t> targets;
+        std::vector<bool> filled(candidate.parameters.size());
+        std::size_t positional = 0;
+        bool named = false;
+        for (const auto& argument : node.args) {
+            std::size_t target = 0;
+            if (argument.name) {
+                named = true;
+                const auto it = std::find_if(
+                    candidate.parameters.begin(), candidate.parameters.end(),
+                    [&](const auto& parameter) { return parameter.name == *argument.name; });
+                if (it == candidate.parameters.end()) return std::nullopt;
+                target = static_cast<std::size_t>(it - candidate.parameters.begin());
+            } else {
+                if (named || positional >= filled.size()) return std::nullopt;
+                target = positional++;
+            }
+            if (filled[target]) return std::nullopt;
+            if (argument.writable != candidate.parameters[target].writable) return std::nullopt;
+            filled[target] = true;
+            targets.push_back(target);
+        }
+        for (std::size_t i = 0; i < filled.size(); ++i) {
+            if (!filled[i] && !candidate.parameters[i].default_value) return std::nullopt;
+        }
+        return targets;
+    };
+    const auto describe = [&](const std::string& internal) {
+        std::string text = "construct(";
+        const auto& candidate = functions_.at(internal);
+        for (std::size_t i = 0; i < candidate.parameters.size(); ++i) {
+            const auto& parameter = candidate.parameters[i];
+            if (i) text += ", ";
+            if (parameter.is_const) text += "const ";
+            text += type_name(parameter.type);
+            text += parameter.writable ? " &" : " ";
+            text += parameter.name;
+            if (parameter.default_value) text += " = ...";
+        }
+        return text + ")";
+    };
+    const auto describe_all = [&](const std::vector<std::string>& internals) {
+        std::string text;
+        for (const auto& internal : internals) {
+            if (!text.empty()) text += ", ";
+            text += describe(internal);
+        }
+        return text;
+    };
+
+    std::vector<std::string> by_shape;
+    for (const auto& internal : info.constructors) {
+        if (bind_shape(functions_.at(internal))) by_shape.push_back(internal);
+    }
+    if (by_shape.empty()) {
+        error("ARGUMENT_MISMATCH",
+              "No constructor of '" + class_name + "' accepts these arguments; the class declares " +
+                  describe_all(info.constructors) + ".",
+              expression.span);
+    }
+
+    std::string chosen;
+    if (by_shape.size() == 1) {
+        chosen = by_shape.front();
+    } else {
+        // Several constructors fit the shape, so the argument types decide.
+        // Each argument is typed on its own here; a literal that needs a type
+        // context is ambiguous at this point and is cast explicitly.
+        for (const auto& argument : node.args) {
+            const Expr* literal = argument.value.get();
+            if (const auto* negated = std::get_if<UnaryExpr>(&literal->data);
+                negated && negated->op == "-") {
+                literal = negated->operand.get();
+            }
+            if (std::holds_alternative<IntegerExpr>(literal->data) ||
+                std::holds_alternative<FloatExpr>(literal->data)) {
+                error("AMBIGUOUS_CONSTRUCTOR",
+                      "Several constructors of '" + class_name + "' fit this call (" +
+                          describe_all(by_shape) +
+                          "), so a bare numeric literal cannot choose between them; write it with an explicit type, such as int(1) or float(1.0).",
+                      argument.span);
+            }
+        }
+        std::vector<Type> actual;
+        for (const auto& argument : node.args) {
+            actual.push_back(argument.writable ? check_address_target(*argument.value)
+                                               : check_expr(*argument.value));
+        }
+        const auto accepts = [&](const Type& value, const Type& parameter, bool writable) {
+            if (poisoned(value)) return true;
+            if (writable) return value == parameter;
+            if (assignable(value, parameter)) return true;
+            if (value.kind == TypeKind::Union && value.union_name.empty()) {
+                std::vector<Type> non_error;
+                for (const auto& current : value.cases) {
+                    if (current.kind != TypeKind::Error) non_error.push_back(current);
+                }
+                if (non_error.size() < value.cases.size() && !non_error.empty()) {
+                    return assignable(Type::union_of(std::move(non_error)), parameter);
+                }
+            }
+            return false;
+        };
+        std::vector<std::string> by_type;
+        for (const auto& internal : by_shape) {
+            const auto& candidate = functions_.at(internal);
+            const auto targets = *bind_shape(candidate);
+            bool fits = true;
+            for (std::size_t i = 0; i < targets.size() && fits; ++i) {
+                fits = accepts(actual[i], candidate.parameters[targets[i]].type, node.args[i].writable);
+            }
+            if (fits) by_type.push_back(internal);
+        }
+        if (by_type.empty()) {
+            error("TYPE_MISMATCH",
+                  "No constructor of '" + class_name + "' accepts arguments of these types; candidates: " +
+                      describe_all(by_shape) + ".",
+                  expression.span);
+        }
+        if (by_type.size() > 1) {
+            error("AMBIGUOUS_CONSTRUCTOR",
+                  "Constructor call of '" + class_name + "' fits more than one construct: " +
+                      describe_all(by_type) + ". Name or cast the arguments so exactly one applies.",
+                  expression.span);
+        }
+        chosen = by_type.front();
+    }
+
+    if (info.private_constructors.contains(chosen) && current_class_ != class_name) {
+        error("PRIVATE_MEMBER",
+              "Constructor " + describe(chosen) + " of '" + class_name +
+                  "' is private and only callable inside the class.",
+              expression.span);
+    }
+
+    const auto& function = functions_.at(chosen);
+    call_resolutions_[&expression] =
+        CallResolution{CallKind::Function, chosen, std::nullopt, function.result};
+    std::vector<PendingReferenceEffect> pending;
+    const bool any_poison = check_call_arguments(expression, node.args, function, pending);
+    if (!any_poison) finish_call_effects(function, pending);
+    if (any_poison) return simple(TypeKind::Invalid);
+    class_expr_initialized_paths_[&expression] = function.return_initialized_fields;
+    return function.result;
+}
+
+// Binds a call's arguments to a signature's parameters by position and name,
+// checks each argument against its parameter, and collects the reference
+// effects to apply once the call is accepted. Shared by function calls and
+// constructor calls, whose signatures carry no receiver parameter.
+bool Checker::check_call_arguments(const Expr& expression, const std::vector<CallArg>& args,
+                                   const FunctionType& function,
+                                   std::vector<PendingReferenceEffect>& pending) {
             std::vector<bool> filled(function.parameters.size());
             std::size_t positional = 0;
             bool any_poison = false;
-            std::vector<PendingReferenceEffect> pending_reference_effects;
 
-            for (const auto& argument : node->args) {
+            for (const auto& argument : args) {
                 std::size_t target = 0;
                 if (argument.name) {
                     const auto it = std::find_if(
@@ -5352,7 +5773,7 @@ Type Checker::check_call_expr(const Expr& expression,
                             error("TYPE_MISMATCH", "Reference arguments require identical declared types.", argument.span);
                         }
                         if (!poisoned(actual)) {
-                            pending_reference_effects.push_back(
+                            pending.push_back(
                                 PendingReferenceEffect{argument.value.get(), &parameter, argument.span});
                         }
                     } else {
@@ -5374,16 +5795,7 @@ Type Checker::check_call_expr(const Expr& expression,
                           expression.span);
                 }
             }
-            if (!any_poison) {
-                finish_call_effects(function, pending_reference_effects);
-            }
-            type = any_poison ? simple(TypeKind::Invalid) : function.result;
-            if (!any_poison && type.kind == TypeKind::Class) {
-                class_expr_initialized_paths_[&expression] = function.return_initialized_fields;
-            }
-        }
-
-    return type;
+    return any_poison;
 }
 
 Type Checker::check_expr(const Expr& expression, const Type* expected) {
@@ -5563,6 +5975,11 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
     } else if (const auto* node = std::get_if<IndexExpr>(&expression.data)) {
         type = check_index_expr(expression, *node);
     } else if (const auto* node = std::get_if<UnaryExpr>(&expression.data)) {
+        if (node->op == "scan&") {
+            error("SCAN_TARGET",
+                  "'{&name}' names an input target and is only valid inside a scan format.",
+                  expression.span);
+        }
         if (node->op == "&") {
             (void)check_address_target(*node->operand, false);
             type = simple(TypeKind::Address);
@@ -5859,6 +6276,7 @@ Type Checker::check_expr(const Expr& expression, const Type* expected) {
     } else if (const auto* node = std::get_if<TryExpr>(&expression.data)) {
         const auto error_type = simple(TypeKind::Error);
         Type source;
+        error_terminating_expr_ = node->value.get();
         if (expected) {
             const auto operand_expected = Type::union_of({*expected, error_type});
             source = check_expr(*node->value, &operand_expected);
@@ -6093,6 +6511,21 @@ void Checker::check_binding_stmt(const Stmt& statement, const BindingStmt& node)
             if (!paths.empty()) {
                 class_initialized_paths_[node.name] = paths;
             }
+        } else if (type.kind == TypeKind::Class &&
+                   class_storage_established_at_declaration(type.class_name)) {
+            // `Point point` creates the value with its declared defaults. Each
+            // other field stays uninitialized until assigned, and reads are
+            // checked per field like any other class value.
+            for (const auto& field : classes_.at(type.class_name).fields) {
+                if (field.is_const && !field.default_value) {
+                    error("CONST_INITIALIZATION",
+                          "const field '" + field.name + "' of '" + type_name(type) +
+                              "' has no default, so the value must come from a constructor.",
+                          statement.span);
+                }
+            }
+            initialized_.insert(node.name);
+            class_initialized_paths_[node.name] = default_initialized_paths(type.class_name);
         } else if (type.kind == TypeKind::Array &&
                    (type.length >= 0 ||
                     (type.length == -2 &&
@@ -6155,7 +6588,39 @@ void Checker::check_rebind_stmt(const Stmt& statement, const RebindStmt& node) {
 
 void Checker::check_assign_stmt(const Stmt& statement, const AssignStmt& node) {
         if (const_access_path(*node.target)) {
-            error("WRITE_CAPABILITY", "Cannot write through a const access path.", statement.span);
+            // A constructor assigns each const field of its own class once, by a
+            // statement directly in its body, so the value is fixed by the time
+            // the constructor completes.
+            bool constructor_const_initialization = false;
+            if (in_constructor_) {
+                if (const auto* name = std::get_if<NameExpr>(&node.target->data);
+                    name && !variables_.contains(name->name)) {
+                    if (const auto* field = find_field(current_class_, name->name);
+                        field && field->is_const) {
+                        if (constructor_block_depth_ != 1) {
+                            error("CONST_INITIALIZATION",
+                                  "const field '" + name->name +
+                                      "' must be assigned by a statement directly in the constructor body, not inside a branch or loop.",
+                                  statement.span);
+                        }
+                        if (current_receiver_effect_.initializes.contains(name->name)) {
+                            error("CONST_INITIALIZATION",
+                                  "const field '" + name->name +
+                                      "' is already initialized; a const field is assigned once.",
+                                  statement.span);
+                        }
+                        if (!node.compound_op.empty()) {
+                            error("CONST_INITIALIZATION",
+                                  "const field '" + name->name + "' is initialized by plain assignment.",
+                                  statement.span);
+                        }
+                        constructor_const_initialization = true;
+                    }
+                }
+            }
+            if (!constructor_const_initialization) {
+                error("WRITE_CAPABILITY", "Cannot write through a const access path.", statement.span);
+            }
         }
         if (const auto* indexed = std::get_if<IndexExpr>(&node.target->data)) {
             const auto base_type = check_expr(*indexed->base);
@@ -6367,6 +6832,32 @@ void Checker::check_return_stmt(const Stmt& statement, const ReturnStmt& node) {
         if (current_return_.kind == TypeKind::Never) {
             error("TYPE_MISMATCH", "never functions cannot return.", statement.span);
         }
+        if (in_constructor_) {
+            // A constructor completes by returning without a value: the receiver
+            // is the result. The only value it may return is an error, and only
+            // when it is declared `T | error construct`. An error return produces
+            // no value, so it does not count toward the fields the receiver has
+            // when construction completes.
+            if (std::holds_alternative<VoidExpr>(node.value->data)) {
+                record_effect_exit();
+                return;
+            }
+            if (current_return_.kind != TypeKind::Union) {
+                error("CONSTRUCTOR_RETURN",
+                      "A constructor completes with a bare return; declare it '" +
+                          type_name(current_return_) +
+                          " | error construct(...)' if it must be able to return an error.",
+                      statement.span);
+            }
+            const auto error_type = simple(TypeKind::Error);
+            const auto value = check_expr(*node.value, &error_type);
+            if (!poisoned(value) && value.kind != TypeKind::Error) {
+                error("CONSTRUCTOR_RETURN",
+                      "A constructor completes with a bare return; the receiver is its result, so the only value it can return is an error.",
+                      statement.span);
+            }
+            return;
+        }
         check_expr(*node.value, &current_return_);
         if (current_return_.kind == TypeKind::Class) {
             const auto paths = initialized_paths_for_expr(*node.value);
@@ -6386,9 +6877,17 @@ void Checker::check_return_stmt(const Stmt& statement, const ReturnStmt& node) {
 }
 
 void Checker::check_expression_stmt(const Stmt& statement, const ExprStmt& node) {
+        error_terminating_expr_ = node.value.get();
         auto type = check_expr(*node.value);
+        error_terminating_expr_ = nullptr;
         if (type.kind == TypeKind::Range) {
             error("RANGE_CONTEXT", "range is only a for iterable.", statement.span);
+        }
+        // A statement discards its value. An error is not a value to discard:
+        // the consumption-site rule applies, and the program fails here.
+        if (type.kind == TypeKind::Union && type.union_name.empty() &&
+            case_index(type, simple(TypeKind::Error)) >= 0) {
+            fail_fast_expressions_.insert(node.value.get());
         }
         return;
 }
@@ -6989,6 +7488,11 @@ void Checker::check_block(const std::vector<StmtPtr>& body) {
     nesting::DepthGuard guard(
         stmt_depth_, nesting::max_statement_depth,
         body.empty() ? SourceSpan{} : body.front()->span, "Block");
+    struct ConstructorDepth {
+        std::size_t& depth;
+        explicit ConstructorDepth(std::size_t& value) : depth(value) { ++depth; }
+        ~ConstructorDepth() { --depth; }
+    } constructor_depth(constructor_block_depth_);
     // Valid code is the hot path. Snapshot flow state once per block and only
     // create a new checkpoint after a recovered diagnostic. If a statement
     // fails, restore the latest checkpoint and replay only the statements since
@@ -7293,15 +7797,17 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
 
             std::unordered_set<std::string> own_methods;
             for (auto& method : declaration.methods) {
-                if ((!standard_generated && is_reserved_value_name(method.name)) ||
-                    class_names_.contains(method.name) || enum_types_.contains(method.name) || method.name == "main") {
-                    error("DUPLICATE_NAME", "Method name is reserved or conflicts with a class/entry point.", method.span);
-                }
-                if (!own_methods.insert(method.name).second) {
-                    error("DUPLICATE_NAME", "Duplicate method name.", method.span);
-                }
-                if (std::any_of(info.fields.begin(), info.fields.end(), [&](const auto& field) { return field.name == method.name; })) {
-                    error("SHADOWING", "Method name conflicts with a field.", method.span);
+                if (!method.is_constructor) {
+                    if ((!standard_generated && is_reserved_value_name(method.name)) ||
+                        class_names_.contains(method.name) || enum_types_.contains(method.name) || method.name == "main") {
+                        error("DUPLICATE_NAME", "Method name is reserved or conflicts with a class/entry point.", method.span);
+                    }
+                    if (!own_methods.insert(method.name).second) {
+                        error("DUPLICATE_NAME", "Duplicate method name.", method.span);
+                    }
+                    if (std::any_of(info.fields.begin(), info.fields.end(), [&](const auto& field) { return field.name == method.name; })) {
+                        error("SHADOWING", "Method name conflicts with a field.", method.span);
+                    }
                 }
 
                 FunctionType public_signature;
@@ -7337,6 +7843,18 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                         {parameter.name, parameter_type, parameter.writable, parameter.default_value.get(), parameter.is_const});
                 }
 
+                if (method.is_constructor) {
+                    // The receiver of a constructor is a local of its body, so
+                    // the signature carries only the written parameters.
+                    const auto internal_name =
+                        "$construct." + declaration.name + "." + std::to_string(info.constructors.size());
+                    functions_[internal_name] = std::move(public_signature);
+                    info.constructors.push_back(internal_name);
+                    if (method.is_private) info.private_constructors.insert(internal_name);
+                    method_internal_names_[&method] = internal_name;
+                    continue;
+                }
+
                 const auto internal_name = "$method." + declaration.name + "." + method.name;
                 FunctionType internal_signature;
                 internal_signature.result = public_signature.result;
@@ -7347,6 +7865,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                                                      public_signature.parameters.end());
                 functions_[internal_name] = std::move(internal_signature);
                 info.methods[method.name] = internal_name;
+                method_internal_names_[&method] = internal_name;
                 if (method.is_private) info.private_methods[method.name] = declaration.name;
                 else info.private_methods.erase(method.name);
             }
@@ -7546,11 +8065,10 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     for (auto& class_decl : program.classes) {
         if (!classes_.contains(class_decl.name)) continue;
         for (auto& method : class_decl.methods) {
-            const auto method_it = classes_.at(class_decl.name).methods.find(method.name);
-            if (method_it == classes_.at(class_decl.name).methods.end()) continue;
-            const auto expected_internal = "$method." + class_decl.name + "." + method.name;
-            if (method_it->second != expected_internal || !functions_.contains(expected_internal)) continue;
-            auto& signature = functions_.at(expected_internal);
+            const auto internal_it = method_internal_names_.find(&method);
+            if (internal_it == method_internal_names_.end() ||
+                !functions_.contains(internal_it->second)) continue;
+            auto& signature = functions_.at(internal_it->second);
             variables_.clear();
             reference_roots_.clear();
             reference_paths_.clear();
@@ -7560,7 +8078,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     const_integer_values_.clear();
             current_class_.clear();
             in_function_ = false;
-            for (std::size_t i = 1; i < signature.parameters.size(); ++i) {
+            for (std::size_t i = method.is_constructor ? 0 : 1; i < signature.parameters.size(); ++i) {
                 auto& parameter = signature.parameters[i];
                 if (!parameter.default_value) continue;
                 try {
@@ -7663,55 +8181,10 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
             for (auto& class_decl : program.classes) {
                 if (!classes_.contains(class_decl.name)) continue;
                 for (auto& method : class_decl.methods) {
-                    const auto internal_name =
-                        "$method." + class_decl.name + "." + method.name;
-                    if (!functions_.contains(internal_name)) continue;
-                    const auto method_it = classes_.at(class_decl.name).methods.find(method.name);
-                    if (method_it == classes_.at(class_decl.name).methods.end() ||
-                        method_it->second != internal_name) {
-                        continue;
-                    }
-
-                    variables_.clear();
-                    reference_roots_.clear();
-                    reference_paths_.clear();
-                    unknown_reference_targets_.clear();
-                    initialized_.clear();
-                    const_bindings_.clear();
-    const_integer_values_.clear();
-                    class_initialized_paths_.clear();
-                    reset_current_effect_state();
-
-                    auto& signature = functions_.at(internal_name);
-                    for (std::size_t i = 1; i < signature.parameters.size(); ++i) {
-                        const auto& parameter = signature.parameters[i];
-                        variables_[parameter.name] = parameter.type;
-                        if (parameter.is_const) const_bindings_.insert(parameter.name);
-                        if (parameter.writable) {
-                            current_reference_parameters_.insert(parameter.name);
-                            if (parameter.is_const) current_reference_effects_[parameter.name].required.insert("");
-                        } else {
-                            initialized_.insert(parameter.name);
-                            if (parameter.type.kind == TypeKind::Class) {
-                                class_initialized_paths_[parameter.name] =
-                                    complete_class_paths(parameter.type);
-                            }
-                        }
-                    }
-
-                    current_return_ = signature.result;
-                    current_class_ = class_decl.name;
-                    in_function_ = true;
+                    auto* signature = begin_member_body(class_decl, method);
+                    if (!signature) continue;
                     check_block(method.body);
-                    signature.no_normal_return =
-                        !block_contains_return(method.body) &&
-                        block_always_terminates(method.body);
-                    finalize_receiver_effects(signature, !block_always_terminates(method.body));
-                    finalize_reference_effects(signature, !block_always_terminates(method.body));
-                    signature.return_initialized_fields =
-                        signature.result.kind == TypeKind::Class && current_return_summary_seen_
-                            ? current_return_initialized_
-                            : std::unordered_set<std::string>{};
+                    finish_member_body(class_decl, method, *signature, false);
                 }
             }
 
@@ -7797,38 +8270,8 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
     for (auto& class_decl : program.classes) {
         if (!classes_.contains(class_decl.name)) continue;
         for (auto& method : class_decl.methods) {
-            const auto internal_name = "$method." + class_decl.name + "." + method.name;
-            if (!functions_.contains(internal_name)) continue;
-            if (classes_.at(class_decl.name).methods.at(method.name) != internal_name) continue;
-
-            variables_.clear();
-            reference_roots_.clear();
-            reference_paths_.clear();
-            unknown_reference_targets_.clear();
-            initialized_.clear();
-            const_bindings_.clear();
-    const_integer_values_.clear();
-            class_initialized_paths_.clear();
-            reset_current_effect_state();
-
-            auto& signature = functions_.at(internal_name);
-            for (std::size_t i = 1; i < signature.parameters.size(); ++i) {
-                const auto& parameter = signature.parameters[i];
-                variables_[parameter.name] = parameter.type;
-                if (parameter.is_const) const_bindings_.insert(parameter.name);
-                if (parameter.writable) {
-                    current_reference_parameters_.insert(parameter.name);
-                    if (parameter.is_const) current_reference_effects_[parameter.name].required.insert("");
-                } else {
-                    initialized_.insert(parameter.name);
-                    if (parameter.type.kind == TypeKind::Class) {
-                        class_initialized_paths_[parameter.name] = complete_class_paths(parameter.type);
-                    }
-                }
-            }
-            current_return_ = signature.result;
-            current_class_ = class_decl.name;
-            in_function_ = true;
+            auto* signature = begin_member_body(class_decl, method);
+            if (!signature) continue;
             try {
                 for (const auto& parameter : method.parameters) {
                     check_type_extent_expressions(parameter.type);
@@ -7838,13 +8281,9 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                 record(compile_error);
             }
             check_block(method.body);
-            finalize_receiver_effects(signature, !block_always_terminates(method.body));
-            finalize_reference_effects(signature, !block_always_terminates(method.body));
-            signature.return_initialized_fields =
-                signature.result.kind == TypeKind::Class && current_return_summary_seen_
-                    ? current_return_initialized_
-                    : std::unordered_set<std::string>{};
-            if (signature.result.kind != TypeKind::Void && !block_always_terminates(method.body)) {
+            finish_member_body(class_decl, method, *signature, true);
+            if (!method.is_constructor && signature->result.kind != TypeKind::Void &&
+                !block_always_terminates(method.body)) {
                 try {
                     error("MISSING_RETURN", "Method can reach its end without a return.", method.span);
                 } catch (const CompileError& compile_error) {
@@ -7877,7 +8316,7 @@ CheckedProgram Checker::check(ConcreteProgram concrete) {
                           field_accesses_, method_calls_, call_resolutions_, function_references_,
                           binding_types_, case_types_, case_tags_, enum_constructions_,
                           bounds_proven_, fail_fast_expressions_,
-                          class_expr_initialized_paths_};
+                          class_expr_initialized_paths_, scan_formats_};
 }
 
 } // namespace quidra

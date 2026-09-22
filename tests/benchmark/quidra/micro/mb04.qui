@@ -9,6 +9,9 @@ cli args
 class Lcg
     int state
 
+    construct(int seed)
+        state = seed
+
     int next_int()
         state = (48271 * state) % 2147483647
         return state
@@ -26,7 +29,7 @@ class Result
 Result workload()
     int m = 4000
     int rounds = 75000
-    Lcg g = Lcg(state = 20264917)
+    Lcg g = Lcg(20264917)
     float[] a = array(m, fill = 0.0)
     float[] b = array(m, fill = 0.0)
     for i in range(m)
@@ -46,7 +49,12 @@ Result workload()
             s2 = s2 + x / (y + 2.0)
             s3 = s3 + math.sqrt(x * x + y * y)
             s4 = s4 + (x - y) * (x - y)
-    return Result(s1 = s1, s2 = s2, s3 = s3, s4 = s4)
+    Result result
+    result.s1 = s1
+    result.s2 = s2
+    result.s3 = s3
+    result.s4 = s4
+    return result
 
 Result timed(int index)
     time.Instant start = time.now()

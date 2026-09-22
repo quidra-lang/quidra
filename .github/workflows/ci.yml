@@ -343,11 +343,8 @@ jobs:
           class WindowsNeuralModel
               neural.Parameter<float32> weight
 
-          WindowsNeuralModel model = WindowsNeuralModel(
-              weight = neural.Parameter<float32>(
-                  value = tensor.ones<float32>([1])
-              )
-          )
+          WindowsNeuralModel model
+          model.weight = neural.Parameter<float32>(value = tensor.ones<float32>([1]))
 
           neural<float32> first_prediction = model.weight.track()
           neural<float32> first_loss = neural.mean(

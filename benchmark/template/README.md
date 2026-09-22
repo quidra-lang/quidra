@@ -37,7 +37,7 @@ Measurements, scores, prior LLM generations, repair histories and run-specific e
 
 Comparison-language benchmark sources may be reusable template assets after the frozen currency audit. Quidra program sources are different: they are never reusable across evaluated commits and therefore do not live in the reusable program catalog. Where a workload needs Quidra source (currently the Language Quality micro suite), one current-run leaf freezes the required Quidra representations/APIs and four source-authoring leaves each own exactly three workloads. Those leaves use only the evaluated snapshot documentation plus the frozen language-neutral workload/validator; none may read reusable comparison-language programs or historical Quidra benchmark source. The runner then builds the evaluated Quidra compiler from `/quidra-benchmark/repo`, validates those fresh files, and owns repeatable measurement and normalization.
 
-The active template is immutable during the frozen measurement window. Improvements discovered during a run go to `results/template-candidate/` and are promoted only outside that window after validation/privacy review.
+The active template is immutable during the frozen measurement window. After finalization, the trusted outer runner may promote only content-addressed prompt components/manifests and certified non-Quidra result-cache records into their canonical stores. All other template changes require an explicit maintenance commit; a scored run never rewrites its own methodology, workloads, validators, or reusable source catalog.
 
 ## Workspace
 

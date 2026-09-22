@@ -12,17 +12,10 @@
 # window is frozen from manifest-merge to finalize, and a moved develop turns
 # the result into a workflow artifact instead of a commit.
 #
-# Optional fields, one per line after the comments:
-#   evaluation: <primary_id>      dispatch one Primary evaluation only
-#   units: <id>[, <id>...]        rehearse exactly these work units through the real
-#                                 image, gateway and provider, then stop without
-#                                 finalizing; completed units are checkpointed like
-#                                 any other, so nothing spent on them is lost
-#   budget_usd: <number>          soft spend guard; a rehearsal's guard must be
-#                                 within (0, 1.0] and defaults to 1.0
-#
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-22T11:10:54Z
-reason: third production run; smoke passed on c7d3d07, benchmark-template CI is green on 0b7692e and ci/native-performance on f026a94, the local benchmark programs audit passed, and the 72 certified cache records checkpointed from 62bb50a are available for hydration
+requested_at_utc: 2026-09-22T14:59:02Z
+reason: rehearsal 1 after the run-3 fixes on f5ab2a5: one real semantic-compression packet (locality, Go) that run 3 cut off at 32768 tokens, through the streaming gateway at the 65536 ceiling, under a one-dollar guard; proves the packet path before any paid run
 model: claude-sonnet-5
+units: sc-metrics-local--part-2--go
+budget_usd: 1.0

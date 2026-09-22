@@ -10,9 +10,10 @@ A new run may use only:
 
 - the evaluated Quidra snapshot;
 - `benchmark/master_prompt.md`;
-- the current `benchmark/template/`.
+- the current `benchmark/template/`;
+- the explicit certified measurement cache under `benchmark/cache/`.
 
-Past run directories are output/audit artifacts only. They are never inputs to a new run. The template therefore contains every reusable source, fixture, validator, workload and configuration needed for bootstrap.
+Past run directories are output/audit artifacts only. They are never inputs to a new run. Reusable source, fixture, validator, workload and prompt inputs live in the template; reusable measurements may enter only through the certified cache and only after an exact fingerprint match plus current-validator revalidation.
 
 ## 2. Five independent Primary evaluations
 
@@ -38,7 +39,7 @@ Scored work reaches a model only through that socket, with no credential of its 
 
 Any leaf with local filesystem, shell, editor, compiler or process tools uses `worker_mode=sandbox-agent` and runs through the in-sandbox agent runtime. A host-side Claude Code subagent with host tools is not a valid scored leaf. The default leaf mode is `packet-only`: its permitted local UTF-8 inputs are embedded in the rendered Task Packet, it has no local tools at all, and it returns only a structured Worker Response consumed by `benchmark.py task-apply`.
 
-The evaluated source is `/quidra-benchmark/repo`; the immutable current template is `/quidra-benchmark/template`. `preflight` verifies the observed process rather than any declaration: unprivileged uid, a loopback-only network namespace, an empty capability bounding set, `NoNewPrivs`, read-only snapshot and template mounts, no unexpected mounts, no provider credential in the environment or on disk, a live gateway socket that refuses forbidden requests when probed, and a launcher contract that matches all of it. Setting the attestation variables without applying the restrictions fails.
+The evaluated source is `/quidra-benchmark/repo`; the immutable current template is `/quidra-benchmark/template`; the certified cache is mounted separately at `/quidra-benchmark/cache` read-only and is never listed as a worker read path. `preflight` verifies the observed process rather than any declaration: unprivileged uid, a loopback-only network namespace, an empty capability bounding set, `NoNewPrivs`, read-only snapshot, template and certified-cache mounts, no unexpected mounts, no provider credential in the environment or on disk, a live gateway socket that refuses forbidden requests when probed, and a launcher contract that matches all of it. Setting the attestation variables without applying the restrictions fails.
 
 ## 4. Starting a run, and the command-first lifecycle
 

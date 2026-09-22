@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "policy": "All reusable benchmark assets required by a new run are tracked directly under benchmark/template. New runs must not read prior run directories. Reuse applies only to source/harness/fixture assets; every run rebuilds, executes, validates, and remeasures them. Quidra program sources are never reused across target commits. Git object SHA-1 values are derived mechanically from the evaluated repository HEAD during init and frozen into reuse/materialized.json; they are not duplicated manually in this catalog.",
+  "policy": "Reusable source/harness/fixture assets required by a new run are tracked directly under benchmark/template. New runs must not read prior run directories. This catalog governs reusable source assets only; it does not govern certified measurement reuse. Measurement reuse, when eligible, is handled exclusively by benchmark/cache under the exact-fingerprint policy in template/config/cache_policy.json. Quidra program sources are never reused across target commits. Git object SHA-1 values are derived mechanically from the evaluated repository HEAD during init and frozen into reuse/materialized.json; they are not duplicated manually in this catalog.",
   "artifacts": [
     {
       "id": "micro-cpp",

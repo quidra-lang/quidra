@@ -20,9 +20,9 @@ The gateway declares the provider-side tools it may enable, and `preflight` reco
 
 Every reusable input required by a new run is tracked directly under `benchmark/template/`.
 
-New runs must not read previous benchmark directories, previous scores, prior LLM generations, prior repair histories, or old methodology snapshots. Historical runs are output/audit material only.
+New runs must not read previous benchmark directories, old methodology snapshots, or ad-hoc prior scores/generations/repair histories. Historical run directories are output/audit material only. The sole exception for prior measurements is the explicit certified cache under `benchmark/cache/`, which the trusted runner may hydrate only after a complete input-fingerprint match and current-validator revalidation. Workers never receive the cache as a readable path.
 
-Reusable source/harness/fixture assets may be copied from the current template into the sandbox. Every run rebuilds, executes, validates and remeasures them.
+Reusable source/harness/fixture assets may be copied from the current template into the sandbox. Source reuse alone does not imply measurement reuse: mechanical measurements are re-executed where required, while eligible comparison-language judgment measurements may be satisfied by a certified cache HIT.
 
 ## 3. Command-driven execution
 

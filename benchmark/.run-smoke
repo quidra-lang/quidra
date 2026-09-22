@@ -6,6 +6,6 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-22T11:09:58Z
-reason: smoke before the third production run; proves the gateway and runner fixes since 62bb50a (cd1ad56, f026a94), including the thinking-disabled orchestration call, against the live provider
+requested_at_utc: 2026-09-22T14:38:52Z
+reason: smoke after the run-3 fixes on bab2fb4; the anthropic adapter now streams tool-less requests (SSE) and the ceiling is 65536, so this is the first live contact of the streaming path before any rehearsal
 model: claude-sonnet-5

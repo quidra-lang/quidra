@@ -6044,6 +6044,289 @@ def cmd_finalize(args: argparse.Namespace) -> int:
     return 0
 
 
+
+def _copy_if_new(source_file: Path, destination: Path) -> bool:
+    data = source_file.read_bytes()
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists():
+        if destination.read_bytes() != data:
+            raise BenchmarkError(f"content-addressed destination collision: {destination}")
+        return False
+    destination.write_bytes(data)
+    return True
+
+
+def promote_prompt_store(source: Path, root: Path) -> dict[str, Any]:
+    promoted_components = 0
+    promoted_manifests = 0
+    manifests_root = root / "prompts" / "manifests"
+    canonical_components = (
+        source / "benchmark" / "template" / "prompts" / "components" / "by-hash"
+    )
+    canonical_manifests = (
+        source / "benchmark" / "template" / "prompts" / "manifests" / "by-hash"
+    )
+    if not manifests_root.is_dir():
+        return {"components": 0, "manifests": 0}
+
+    for manifest_path in sorted(manifests_root.glob("*.json")):
+        manifest = json_load(manifest_path)
+        prompt_hash = str(manifest.get("prompt_sha256") or "")
+        if not re.fullmatch(r"[0-9a-f]{64}", prompt_hash):
+            raise BenchmarkError(f"invalid prompt SHA-256 in {manifest_path}")
+        compact_components = []
+        for component in manifest.get("components", []):
+            digest = str(component.get("sha256") or "")
+            if not re.fullmatch(r"[0-9a-f]{64}", digest):
+                raise BenchmarkError(f"invalid component SHA-256 in {manifest_path}")
+            component_path = Path(str(component.get("path") or ""))
+            if not component_path.is_file():
+                raise BenchmarkError(f"prompt component is missing: {component_path}")
+            if sha256_file(component_path) != digest:
+                raise BenchmarkError(f"prompt component hash mismatch: {component_path}")
+            if _copy_if_new(
+                component_path, canonical_components / f"{digest}.md"
+            ):
+                promoted_components += 1
+            compact_components.append({
+                "kind": component.get("kind"),
+                "sha256": digest,
+                "bytes": int(component.get("bytes", component_path.stat().st_size)),
+            })
+        compact = {
+            "schema_version": 1,
+            "prompt_sha256": prompt_hash,
+            "evaluation": manifest.get("evaluation"),
+            "agent_id": manifest.get("agent_id"),
+            "rendered_bytes": manifest.get("rendered_bytes"),
+            "components": compact_components,
+        }
+        payload = (
+            json.dumps(compact, indent=2, sort_keys=True) + "\n"
+        ).encode("utf-8")
+        destination = canonical_manifests / f"{prompt_hash}.json"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if destination.exists():
+            if destination.read_bytes() != payload:
+                raise BenchmarkError(
+                    f"prompt manifest hash collision/inconsistent metadata: {prompt_hash}"
+                )
+        else:
+            destination.write_bytes(payload)
+            promoted_manifests += 1
+    return {
+        "components": promoted_components,
+        "manifests": promoted_manifests,
+    }
+
+
+def cache_certification_for_unit(
+    root: Path, unit: dict[str, Any], agent_dir: Path
+) -> dict[str, Any]:
+    certification: dict[str, Any] = {
+        "validator_pass": True,
+        "primary_complete": True,
+    }
+    evaluation = str(unit.get("evaluation") or "")
+    if evaluation == "llm_learnability":
+        certification["learnability_integrity"] = True
+    if evaluation == "llm_proficiency":
+        trace_path = agent_dir / "agent_trace.json"
+        if not trace_path.is_file():
+            raise BenchmarkError(
+                f"{unit['id']}: proficiency cache promotion requires agent_trace.json"
+            )
+        trace = json_load(trace_path)
+        gateway = trace.get("gateway") or {}
+        provider = gateway.get("provider")
+        model = gateway.get("model")
+        sampling = trace.get("sampling")
+        if not provider or not model or not isinstance(sampling, dict):
+            raise BenchmarkError(
+                f"{unit['id']}: proficiency cache promotion lacks model signature"
+            )
+        if _preserved_trial_problems(agent_dir, trace):
+            raise BenchmarkError(
+                f"{unit['id']}: proficiency cache promotion failed trial preservation"
+            )
+        certification["proficiency_integrity"] = True
+        certification["configuration_signature"] = json.dumps({
+            "provider": provider,
+            "model": model,
+            "sampling": sampling,
+        }, sort_keys=True)
+    return certification
+
+
+def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
+    manifest_path = root / "work" / "root" / "manifest.json"
+    ledger_path = root / "work" / "root" / "ledger.json"
+    status_path = root / "results" / "primary_status.json"
+    if not (manifest_path.is_file() and ledger_path.is_file() and status_path.is_file()):
+        return {"promoted": 0, "reused": 0, "records": []}
+
+    manifest = json_load(manifest_path)
+    ledger = json_load(ledger_path)
+    primary = json_load(status_path).get("evaluations") or {}
+    records: list[dict[str, Any]] = []
+    promoted = 0
+    reused = 0
+
+    for unit in manifest.get("work_units", []):
+        if not cache_eligible_unit(root, unit):
+            continue
+        if (primary.get(unit.get("evaluation")) or {}).get("status") != "COMPLETE":
+            continue
+        if (ledger.get("units", {}).get(unit["id"], {}) or {}).get("status") != "COMPLETE":
+            continue
+        agent_dir = root / "work" / "agents" / str(unit["assigned_agent_id"])
+        task_path = agent_dir / "task.json"
+        result_path = agent_dir / "result.json"
+        if not (task_path.is_file() and result_path.is_file()):
+            continue
+        task = json_load(task_path)
+        pair = cache_fingerprint(root, unit, task)
+        if pair is None:
+            continue
+        fingerprint, payload = pair
+        result = json_load(result_path)
+        result_raw = json.dumps(
+            result, sort_keys=True, separators=(",", ":")
+        ).encode("utf-8")
+        receipt_path = agent_dir / "cache_receipt.json"
+        if receipt_path.is_file():
+            certification = (json_load(receipt_path).get("certification") or {})
+            reused += 1
+        else:
+            certification = cache_certification_for_unit(root, unit, agent_dir)
+        record = {
+            "schema_version": 1,
+            "fingerprint": fingerprint,
+            "fingerprint_payload": payload,
+            "evaluation": unit.get("evaluation"),
+            "assigned_languages": list(unit.get("assigned_languages", [])),
+            "result": result,
+            "result_sha256": sha256_bytes(result_raw),
+            "certification": certification,
+            "provenance": {
+                "run_id": json_load(root / "run.json").get("run_id"),
+                "work_unit_id": unit.get("id"),
+                "prompt_sha256": task.get("prompt_sha256"),
+            },
+        }
+        relative = cache_record_relative(unit, fingerprint)
+        destination = source / "benchmark" / "cache" / relative
+        encoded = (json.dumps(record, indent=2, sort_keys=True) + "\n").encode("utf-8")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        if destination.exists():
+            existing = json.loads(destination.read_text(encoding="utf-8"))
+            if (
+                existing.get("fingerprint") != fingerprint
+                or existing.get("result_sha256") != record["result_sha256"]
+            ):
+                raise BenchmarkError(
+                    f"certified cache collision for {fingerprint}: {destination}"
+                )
+        else:
+            destination.write_bytes(encoded)
+            promoted += 1
+        records.append({
+            "work_unit_id": unit.get("id"),
+            "fingerprint": fingerprint,
+            "path": str(relative.as_posix()),
+            "assigned_languages": list(unit.get("assigned_languages", [])),
+        })
+    return {"promoted": promoted, "reused": reused, "records": records}
+
+
+def compact_run_files(
+    staging: Path,
+    root: Path,
+    run: dict[str, Any],
+    cache_promotion: dict[str, Any],
+    prompt_promotion: dict[str, Any],
+) -> dict[str, str]:
+    primary = (
+        json_load(root / "results" / "primary_status.json")
+        if (root / "results" / "primary_status.json").is_file()
+        else {"evaluations": {}}
+    )
+    cache_status = (
+        json_load(root / "results" / "cache_status.json")
+        if (root / "results" / "cache_status.json").is_file()
+        else {"schema_version": 1, "enabled": False, "hits": {}, "misses": {}}
+    )
+    toolchains = (
+        json_load(root / "results" / "toolchains.json")
+        if (root / "results" / "toolchains.json").is_file()
+        else {"toolchains": {}}
+    )
+    evaluations = primary.get("evaluations") or {}
+    summary = {
+        "schema_version": 1,
+        "run_id": run.get("run_id"),
+        "evaluated": {
+            "commit_sha": (run.get("evaluated") or {}).get("commit_sha"),
+            "compiler_version": (run.get("evaluated") or {}).get("compiler_version"),
+        },
+        "primary_evaluations": {
+            name: {
+                "status": value.get("status"),
+                "score": value.get("score"),
+                "ranking": value.get("ranking"),
+                "blockers": value.get("blockers", []),
+            }
+            for name, value in evaluations.items()
+        },
+        "cache": {
+            "hit_count": int(cache_status.get("hit_count", 0) or 0),
+            "miss_count": int(cache_status.get("miss_count", 0) or 0),
+            "promoted_records": int(cache_promotion.get("promoted", 0) or 0),
+        },
+        "raw_evidence": {
+            "committed_to_git": False,
+            "workflow_artifact_retention_days": 30,
+        },
+    }
+    rankings = {
+        "schema_version": 1,
+        "run_id": run.get("run_id"),
+        "rankings": {
+            name: value.get("ranking")
+            for name, value in evaluations.items()
+        },
+    }
+    provenance = {
+        "schema_version": 1,
+        "run_id": run.get("run_id"),
+        "master_prompt_sha256": run.get("master_prompt_sha256"),
+        "primary_config_sha256": run.get("primary_config_sha256"),
+        "template_tree_sha256": run.get("template_tree_sha256"),
+        "cache_tree_sha256_at_start": run.get("cache_tree_sha256"),
+        "inference_identity": run.get("inference_identity"),
+        "toolchains": {
+            language: row.get("canonical")
+            for language, row in (toolchains.get("toolchains") or {}).items()
+            if row.get("canonical")
+        },
+        "prompt_promotion": prompt_promotion,
+        "cache_promotion": cache_promotion,
+    }
+    files = {
+        "summary.json": summary,
+        "rankings.json": rankings,
+        "cache_usage.json": cache_status,
+        "provenance.json": provenance,
+    }
+    for name, payload in files.items():
+        json_dump(staging / name, payload)
+
+    hashes: dict[str, str] = {}
+    for file in sorted(p for p in staging.rglob("*") if p.is_file()):
+        hashes[file.relative_to(staging).as_posix()] = sha256_file(file)
+    return hashes
+
+
 def cmd_post_run(args: argparse.Namespace) -> int:
     source = Path(args.source_repo).resolve()
     if not source.is_dir():
@@ -6097,17 +6380,18 @@ def cmd_post_run(args: argparse.Namespace) -> int:
     if destination.exists():
         raise BenchmarkError(f"run destination already exists: {destination}")
 
+    # Promote only after finalization so current-run workers can never observe
+    # material produced by the run they are scoring.
+    prompt_promotion = promote_prompt_store(source, root)
+    cache_promotion = promote_certified_cache(source, root)
+
     staging = benchmark_dir / f".{run_id}.importing"
     if staging.exists():
         shutil.rmtree(staging)
     staging.mkdir(parents=True)
-
-    expected_hashes = retained_file_hashes(root)
-    copied_hashes = copy_retained_run(root, staging)
-    if copied_hashes != expected_hashes:
-        shutil.rmtree(staging, ignore_errors=True)
-        raise BenchmarkError("retained artifact hash verification failed during import")
-
+    expected_hashes = compact_run_files(
+        staging, root, run, cache_promotion, prompt_promotion
+    )
     import_manifest = {
         "schema_version": 1,
         "run_id": run_id,
@@ -6115,13 +6399,19 @@ def cmd_post_run(args: argparse.Namespace) -> int:
         "imported_into_develop_commit": meta["commit_sha"],
         "retained_file_count": len(expected_hashes),
         "retained_files_sha256": expected_hashes,
+        "retention_policy": "compact-summary-only",
     }
     json_dump(staging / "import_manifest.json", import_manifest)
     os.replace(staging, destination)
 
-    if retained_file_hashes(destination) != expected_hashes:
+    observed = {
+        p.relative_to(destination).as_posix(): sha256_file(p)
+        for p in sorted(destination.rglob("*"))
+        if p.is_file() and p.name != "import_manifest.json"
+    }
+    if observed != expected_hashes:
         raise BenchmarkError(
-            f"repository import exists but post-rename verification failed: {destination}"
+            f"compact repository import verification failed: {destination}"
         )
 
     try:
@@ -6137,6 +6427,8 @@ def cmd_post_run(args: argparse.Namespace) -> int:
         "run_id": run_id,
         "destination": str(destination),
         "retained_file_count": len(expected_hashes),
+        "cache_promoted": cache_promotion.get("promoted", 0),
+        "prompt_components_promoted": prompt_promotion.get("components", 0),
         "workspace_deleted": True,
     }
     print(json.dumps(result, indent=2))

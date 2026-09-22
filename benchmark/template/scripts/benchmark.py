@@ -1950,7 +1950,7 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
             if phase == "aggregation":
                 if runner_action not in (None, "aggregate-primary"):
                     raise BenchmarkError(f"{uid}: aggregation command has invalid runner_action")
-            elif runner_action not in {"micro-measure"}:
+            elif runner_action not in {"micro-measure", "static-coverage", "learnability-integrity", "proficiency-integrity"}:
                 raise BenchmarkError(
                     f"{uid}: command work requires an approved runner_action"
                 )
@@ -3945,6 +3945,15 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
     validation_ns = argparse.Namespace(workspace=str(root), id=agent_id)
     rc = cmd_task_validate(validation_ns)
     if rc == 0:
+        failed_gates = failed_gate_requirements(root, unit)
+        if failed_gates:
+            ns = argparse.Namespace(
+                workspace=str(root), id=args.id, status="BLOCKED",
+                evidence=unit.get("evidence_paths", []), validation_result="PASS",
+                blocker="required gate failed: " + ", ".join(failed_gates),
+                blocker_class="scientific",
+            )
+            return cmd_ledger_update(ns)
         ns = argparse.Namespace(
             workspace=str(root), id=args.id, status="COMPLETE",
             evidence=unit.get("evidence_paths", []), validation_result="PASS",
@@ -4373,6 +4382,273 @@ def cmd_primary_status_derive(args: argparse.Namespace) -> int:
     return 0
 
 
+
+LEARNABILITY_PREFLIGHT_FIELDS = (
+    "fixtures_compile_and_run",
+    "harness_conventions_satisfied",
+    "validator_positive_control_passed",
+    "validator_negative_control_passed",
+)
+LEARNABILITY_LEAKAGE_FIELDS = (
+    "exact_solution_absent",
+    "expected_output_not_leaked",
+    "isomorphic_example_absent",
+    "withheld_mapping_absent",
+    "validator_answer_absent",
+    "metadata_leak_absent",
+    "planted_leak_positive_control_passed",
+)
+
+
+def validate_learnability_attestations(agent_dir: Path) -> list[str]:
+    problems: list[str] = []
+    specs = (
+        ("learnability_preflight.json", LEARNABILITY_PREFLIGHT_FIELDS),
+        ("learnability_leakage.json", LEARNABILITY_LEAKAGE_FIELDS),
+    )
+    for filename, fields in specs:
+        path = agent_dir / filename
+        if not path.is_file():
+            problems.append(f"{filename} is missing")
+            continue
+        try:
+            payload = json_load(path)
+        except (OSError, json.JSONDecodeError) as exc:
+            problems.append(f"{filename} is unreadable: {exc}")
+            continue
+        if payload.get("schema_version") != 1:
+            problems.append(f"{filename} has unsupported schema_version")
+        if payload.get("passed") is not True:
+            problems.append(f"{filename} does not attest passed=true")
+        for field in fields:
+            if payload.get(field) is not True:
+                problems.append(f"{filename} does not attest {field}=true")
+        evidence = payload.get("evidence")
+        if not isinstance(evidence, list) or not evidence:
+            problems.append(f"{filename} requires non-empty evidence")
+    return problems
+
+
+def _command_result_path(root: Path, unit: dict[str, Any]) -> Path:
+    evidence = list(unit.get("evidence_paths", []))
+    if len(evidence) != 1:
+        raise BenchmarkError(f"{unit['id']}: command requirement unit needs one result path")
+    return Path(evidence[0])
+
+
+def _write_command_requirements(
+    root: Path, unit: dict[str, Any], requirements: dict[str, Any], evidence: dict[str, Any]
+) -> None:
+    json_dump(_command_result_path(root, unit), {
+        "schema_version": 1,
+        "evaluation": unit["evaluation"],
+        "requirements": requirements,
+        "evidence": evidence,
+    })
+
+
+def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
+    metadata = json_load(root / "template" / "config" / "benchmark_metadata.json")
+    languages = list(metadata.get("languages", []))
+    fixed_10 = (
+        len(languages) == 10
+        and len(set(languages)) == 10
+        and metadata.get("evaluated_target_language") == "Quidra"
+        and "Quidra" in languages
+    )
+    requirements: dict[str, Any] = {}
+    evidence: dict[str, Any] = {
+        "languages": languages,
+        "language_count": len(languages),
+    }
+    for rid in unit.get("requirement_ids", []):
+        if rid == "coverage.all_10_languages":
+            requirements[rid] = fixed_10
+        elif rid == "coverage.all_frozen_probes":
+            asset = json_load(
+                root / "template" / "methodology-assets" / "semantic_compression"
+                / "capability_universe.json"
+            )
+            probes = list(asset.get("probes", []))
+            probe_ids = [str(p.get("probe_id", "")) for p in probes]
+            families = {str(p.get("family", "")) for p in probes}
+            asset_languages = list(asset.get("fixed_comparison_languages", []))
+            ok = (
+                bool(asset.get("frozen"))
+                and int(asset.get("probe_count", -1)) == len(probes)
+                and int(asset.get("family_count", -1)) == len(families)
+                and len(probes) > 0
+                and all(probe_ids)
+                and len(probe_ids) == len(set(probe_ids))
+                and asset_languages == languages
+            )
+            requirements[rid] = ok
+            evidence.update({
+                "probe_count": len(probes),
+                "unique_probe_count": len(set(probe_ids)),
+                "family_count": len(families),
+                "asset_language_order_matches": asset_languages == languages,
+            })
+        else:
+            raise BenchmarkError(f"{unit['id']}: unsupported static coverage requirement {rid}")
+    _write_command_requirements(root, unit, requirements, evidence)
+
+
+def _trial_trace_units(root: Path, evaluation: str) -> list[tuple[dict[str, Any], Path, dict[str, Any]]]:
+    manifest = json_load(root / "work" / "root" / "manifest.json")
+    ledger = json_load(root / "work" / "root" / "ledger.json")
+    rows: list[tuple[dict[str, Any], Path, dict[str, Any]]] = []
+    for unit in manifest.get("work_units", []):
+        if unit.get("evaluation") != evaluation or unit.get("execution_kind") != "agent":
+            continue
+        reqs = list(unit.get("requirement_ids", []))
+        if evaluation == "llm_learnability":
+            relevant = any(str(r).startswith("condition.") for r in reqs)
+        else:
+            relevant = str(unit.get("id", "")).startswith("proficiency-trials--")
+        if not relevant:
+            continue
+        state = ledger.get("units", {}).get(unit["id"], {})
+        if state.get("status") != "COMPLETE":
+            raise BenchmarkError(f"{unit['id']}: integrity audit requires COMPLETE trial work")
+        agent_dir = root / "work" / "agents" / str(unit["assigned_agent_id"])
+        trace_path = agent_dir / "agent_trace.json"
+        if not trace_path.is_file():
+            raise BenchmarkError(f"{unit['id']}: agent_trace.json is missing")
+        rows.append((unit, agent_dir, json_load(trace_path)))
+    if not rows:
+        raise BenchmarkError(f"{evaluation}: no completed trial shards found for integrity audit")
+    return rows
+
+
+def run_learnability_integrity(root: Path, unit: dict[str, Any]) -> None:
+    problems: list[str] = []
+    audited: list[str] = []
+    for trial_unit, agent_dir, trace in _trial_trace_units(root, "llm_learnability"):
+        uid = str(trial_unit["id"])
+        audited.append(uid)
+        local = validate_learnability_attestations(agent_dir)
+        problems.extend(f"{uid}: {p}" for p in local)
+        actions = list(trace.get("trace", []))
+        first_trial = next(
+            (int(x.get("turn", 0)) for x in actions if x.get("action") == "trial_start"),
+            None,
+        )
+        if first_trial is None:
+            problems.append(f"{uid}: no scored trial_start was preserved")
+            continue
+        for filename in ("learnability_preflight.json", "learnability_leakage.json"):
+            wrote_before = any(
+                x.get("action") == "write_file"
+                and str((x.get("observation") or {}).get("path", "")).endswith("/" + filename)
+                and int(x.get("turn", 0)) < first_trial
+                for x in actions
+            )
+            if not wrote_before:
+                problems.append(f"{uid}: {filename} was not preserved before first trial_start")
+    passed = not problems
+    _write_command_requirements(
+        root, unit,
+        {
+            "gate.infrastructure_preflight": passed,
+            "gate.reference_pack_leakage": passed,
+        },
+        {"audited_units": audited, "problems": problems},
+    )
+
+
+def _preserved_trial_problems(agent_dir: Path, trace: dict[str, Any]) -> list[str]:
+    problems: list[str] = []
+    trials = ((trace.get("trials") or {}).get("trials") or {})
+    if not isinstance(trials, dict) or not trials:
+        return ["no scored trial records were preserved"]
+    for trial_id, summary in trials.items():
+        calls = (summary or {}).get("calls") or []
+        if not calls:
+            problems.append(f"{trial_id}: no calls preserved")
+            continue
+        for call in calls:
+            for kind in ("prompt", "completion"):
+                text_value = call.get(kind)
+                rel = call.get(f"{kind}_path")
+                digest = call.get(f"{kind}_sha256")
+                if not isinstance(text_value, str) or not isinstance(rel, str) or not isinstance(digest, str):
+                    problems.append(f"{trial_id}: incomplete {kind} preservation metadata")
+                    continue
+                try:
+                    path = require_under(agent_dir / rel, agent_dir)
+                except BenchmarkError as exc:
+                    problems.append(f"{trial_id}: invalid {kind} path: {exc}")
+                    continue
+                if not path.is_file():
+                    problems.append(f"{trial_id}: preserved {kind} file is missing")
+                    continue
+                data = path.read_bytes()
+                if sha256_bytes(data) != digest:
+                    problems.append(f"{trial_id}: preserved {kind} hash mismatch")
+                if data.decode("utf-8", "replace") != text_value:
+                    problems.append(f"{trial_id}: preserved {kind} text mismatch")
+    return problems
+
+
+def run_proficiency_integrity(root: Path, unit: dict[str, Any]) -> None:
+    problems: list[str] = []
+    signatures: set[str] = set()
+    audited: list[str] = []
+    for trial_unit, agent_dir, trace in _trial_trace_units(root, "llm_proficiency"):
+        uid = str(trial_unit["id"])
+        audited.append(uid)
+        gateway = trace.get("gateway") or {}
+        provider = gateway.get("provider")
+        model = gateway.get("model")
+        sampling = trace.get("sampling")
+        if not provider or not model or not isinstance(sampling, dict):
+            problems.append(f"{uid}: provider/model/sampling trace is incomplete")
+        else:
+            signatures.add(json.dumps({
+                "provider": provider,
+                "model": model,
+                "sampling": sampling,
+            }, sort_keys=True))
+        if gateway.get("credential_less_client") is not True:
+            problems.append(f"{uid}: trial client was not credential-less")
+        if gateway.get("host_tools_exposed") is not False:
+            problems.append(f"{uid}: host tool surface was exposed")
+        problems.extend(f"{uid}: {p}" for p in _preserved_trial_problems(agent_dir, trace))
+    fixed = len(signatures) == 1 and not any("provider/model/sampling" in p for p in problems)
+    preserved = not any(
+        "preserv" in p or "trial records" in p or "hash mismatch" in p or "text mismatch" in p
+        for p in problems
+    )
+    _write_command_requirements(
+        root, unit,
+        {
+            "gate.fixed_model_configuration": fixed,
+            "gate.prompt_preservation": preserved,
+        },
+        {
+            "audited_units": audited,
+            "configuration_signature_count": len(signatures),
+            "problems": problems,
+        },
+    )
+
+
+def failed_gate_requirements(root: Path, unit: dict[str, Any]) -> list[str]:
+    req_ids = [
+        str(r) for r in unit.get("requirement_ids", [])
+        if str(r).startswith("gate.") or str(r).startswith("coverage.")
+    ]
+    if not req_ids or unit.get("result_kind") != "requirements":
+        return []
+    if unit.get("execution_kind") == "command":
+        path = _command_result_path(root, unit)
+    else:
+        path = root / "work" / "agents" / str(unit["assigned_agent_id"]) / "result.json"
+    result = json_load(path)
+    req = result.get("requirements") or {}
+    return [rid for rid in req_ids if req.get(rid) is not True]
+
 def command_unit_ready(unit: dict[str, Any], ledger: dict[str, Any]) -> bool:
     state = ledger.get("units", {}).get(unit["id"], {})
     if state.get("status", "PENDING") != "PENDING":
@@ -4459,6 +4735,27 @@ def cmd_advance(args: argparse.Namespace) -> int:
                         workspace=str(root), evaluation=unit["evaluation"],
                         file=unit["evidence_paths"][0],
                     ))
+                elif action == "static-coverage":
+                    run_static_coverage(root, unit)
+                    check_rc = cmd_command_result_check(
+                        argparse.Namespace(workspace=str(root), id=uid)
+                    )
+                    if check_rc != 0:
+                        raise BenchmarkError("static coverage result validation failed")
+                elif action == "learnability-integrity":
+                    run_learnability_integrity(root, unit)
+                    check_rc = cmd_command_result_check(
+                        argparse.Namespace(workspace=str(root), id=uid)
+                    )
+                    if check_rc != 0:
+                        raise BenchmarkError("learnability integrity result validation failed")
+                elif action == "proficiency-integrity":
+                    run_proficiency_integrity(root, unit)
+                    check_rc = cmd_command_result_check(
+                        argparse.Namespace(workspace=str(root), id=uid)
+                    )
+                    if check_rc != 0:
+                        raise BenchmarkError("proficiency integrity result validation failed")
                 elif action == "micro-measure":
                     script = root / "template" / "scripts" / "micro_measure.py"
                     p = subprocess.run(
@@ -4485,11 +4782,20 @@ def cmd_advance(args: argparse.Namespace) -> int:
                     raise BenchmarkError(
                         f"unsupported runner command action for {uid}: {action!r}"
                     )
-                cmd_ledger_update(argparse.Namespace(
-                    workspace=str(root), id=uid, status="COMPLETE",
-                    evidence=unit.get("evidence_paths", []), validation_result="PASS",
-                    blocker=None, blocker_class=None,
-                ))
+                failed_gates = failed_gate_requirements(root, unit)
+                if failed_gates:
+                    cmd_ledger_update(argparse.Namespace(
+                        workspace=str(root), id=uid, status="BLOCKED",
+                        evidence=unit.get("evidence_paths", []), validation_result="PASS",
+                        blocker="required gate failed: " + ", ".join(failed_gates),
+                        blocker_class="scientific",
+                    ))
+                else:
+                    cmd_ledger_update(argparse.Namespace(
+                        workspace=str(root), id=uid, status="COMPLETE",
+                        evidence=unit.get("evidence_paths", []), validation_result="PASS",
+                        blocker=None, blocker_class=None,
+                    ))
             except (BenchmarkError, OSError, ValueError, KeyError) as exc:
                 latest = json_load(root / "work" / "root" / "ledger.json")
                 state = latest.get("units", {}).get(uid, {})

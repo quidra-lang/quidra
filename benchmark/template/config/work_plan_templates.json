@@ -5,15 +5,13 @@
     "semantic_compression": {
       "units": [
         {
-          "id": "sc-structure-gates--part-1",
+          "id": "sc-structure-gates--part-1a",
           "phase": "readiness",
           "requirement_ids": [
-            "gate.capability_universe",
-            "gate.semantic_site_matrix"
+            "gate.capability_universe"
           ],
           "dependencies": [],
           "prompt_sections": [
-            "### 6.1.1A Mandatory semantic-site matrix",
             "### 6.1.2 Fixed language-neutral capability universe",
             "### 6.1.7 Fairness and audit requirements"
           ],
@@ -22,20 +20,20 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of sc-structure-gates; only these requirement IDs belong to this leaf.",
+          "goal_hint": "Validate only the frozen language-neutral capability universe gate. Keep the result compact; detailed frozen data already lives in methodology-assets.",
           "worker_mode": "packet-only"
         },
         {
-          "id": "sc-structure-gates--part-2",
+          "id": "sc-structure-gates--part-1b",
           "phase": "readiness",
           "requirement_ids": [
-            "gate.matrix_validator",
-            "coverage.all_frozen_probes"
+            "gate.semantic_site_matrix"
           ],
-          "dependencies": [],
+          "dependencies": [
+            "sc-structure-gates--part-1a"
+          ],
           "prompt_sections": [
             "### 6.1.1A Mandatory semantic-site matrix",
-            "### 6.1.2 Fixed language-neutral capability universe",
             "### 6.1.7 Fairness and audit requirements"
           ],
           "read_paths": [
@@ -43,8 +41,48 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of sc-structure-gates; only these requirement IDs belong to this leaf.",
+          "goal_hint": "Validate only the semantic-site-matrix definition. Do not reproduce the full matrix in result.json; cite compact evidence and return the boolean gate.",
           "worker_mode": "packet-only"
+        },
+        {
+          "id": "sc-structure-gates--part-2a",
+          "phase": "readiness",
+          "requirement_ids": [
+            "gate.matrix_validator"
+          ],
+          "dependencies": [
+            "sc-structure-gates--part-1b"
+          ],
+          "prompt_sections": [
+            "### 6.1.1A Mandatory semantic-site matrix",
+            "### 6.1.7 Fairness and audit requirements"
+          ],
+          "read_paths": [
+            "repo/docs",
+            "template/methodology-assets/semantic_compression"
+          ],
+          "network_allowed": false,
+          "goal_hint": "Validate only the matrix-validator contract and its negative-self-test requirement. Keep evidence compact.",
+          "worker_mode": "packet-only"
+        },
+        {
+          "id": "sc-coverage",
+          "phase": "readiness",
+          "execution_kind": "command",
+          "result_kind": "requirements",
+          "runner_action": "static-coverage",
+          "requirement_ids": [
+            "coverage.all_frozen_probes"
+          ],
+          "dependencies": [],
+          "prompt_sections": [],
+          "read_paths": [
+            "template/methodology-assets/semantic_compression"
+          ],
+          "network_allowed": false,
+          "max_attempts": 1,
+          "goal": "Mechanically verify the frozen Semantic Compression probe universe and fixed language coverage.",
+          "worker_mode": "runner-command"
         },
         {
           "id": "sc-metrics-local--part-1",
@@ -54,14 +92,16 @@
             "metric.semantic_determinacy"
           ],
           "dependencies": [
-            "sc-structure-gates--part-1",
-            "sc-structure-gates--part-2"
+            "sc-structure-gates--part-1a",
+            "sc-structure-gates--part-1b",
+            "sc-structure-gates--part-2a",
+            "sc-coverage"
           ],
           "prompt_sections": [
             "### 6.1.3 Semantic facts inventory",
-            "#### A. Semantic Density \u2014 20% of quality score",
-            "#### B. Semantic Determinacy \u2014 25% of quality score",
-            "#### C. Semantic Locality \u2014 20% of quality score"
+            "#### A. Semantic Density — 20% of quality score",
+            "#### B. Semantic Determinacy — 25% of quality score",
+            "#### C. Semantic Locality — 20% of quality score"
           ],
           "read_paths": [
             "repo/docs",
@@ -78,14 +118,16 @@
             "metric.semantic_locality"
           ],
           "dependencies": [
-            "sc-structure-gates--part-1",
-            "sc-structure-gates--part-2"
+            "sc-structure-gates--part-1a",
+            "sc-structure-gates--part-1b",
+            "sc-structure-gates--part-2a",
+            "sc-coverage"
           ],
           "prompt_sections": [
             "### 6.1.3 Semantic facts inventory",
-            "#### A. Semantic Density \u2014 20% of quality score",
-            "#### B. Semantic Determinacy \u2014 25% of quality score",
-            "#### C. Semantic Locality \u2014 20% of quality score"
+            "#### A. Semantic Density — 20% of quality score",
+            "#### B. Semantic Determinacy — 25% of quality score",
+            "#### C. Semantic Locality — 20% of quality score"
           ],
           "read_paths": [
             "repo/docs",
@@ -103,12 +145,14 @@
             "metric.capability_efficiency"
           ],
           "dependencies": [
-            "sc-structure-gates--part-1",
-            "sc-structure-gates--part-2"
+            "sc-structure-gates--part-1a",
+            "sc-structure-gates--part-1b",
+            "sc-structure-gates--part-2a",
+            "sc-coverage"
           ],
           "prompt_sections": [
-            "#### D. Hidden Semantic Cost \u2014 20% of quality score",
-            "#### E. Capability Efficiency \u2014 15% of quality score",
+            "#### D. Hidden Semantic Cost — 20% of quality score",
+            "#### E. Capability Efficiency — 15% of quality score",
             "### 6.1.5 Capability Coverage",
             "# 20. Semantic Regularity Evidence for Semantic Compression"
           ],
@@ -127,12 +171,14 @@
             "metric.capability_coverage"
           ],
           "dependencies": [
-            "sc-structure-gates--part-1",
-            "sc-structure-gates--part-2"
+            "sc-structure-gates--part-1a",
+            "sc-structure-gates--part-1b",
+            "sc-structure-gates--part-2a",
+            "sc-coverage"
           ],
           "prompt_sections": [
-            "#### D. Hidden Semantic Cost \u2014 20% of quality score",
-            "#### E. Capability Efficiency \u2014 15% of quality score",
+            "#### D. Hidden Semantic Cost — 20% of quality score",
+            "#### E. Capability Efficiency — 15% of quality score",
             "### 6.1.5 Capability Coverage",
             "# 20. Semantic Regularity Evidence for Semantic Compression"
           ],
@@ -172,45 +218,21 @@
     "llm_learnability": {
       "units": [
         {
-          "id": "learnability-gates--part-1",
+          "id": "learnability-coverage",
           "phase": "readiness",
-          "requirement_ids": [
-            "gate.infrastructure_preflight",
-            "gate.reference_pack_leakage"
-          ],
-          "dependencies": [],
-          "prompt_sections": [
-            "## 6.2 Fixed LLM Execution Configuration",
-            "## 10.2 Common controls",
-            "## 10.3 Controlled random lexicalization",
-            "## 10.4 Reversible transformation requirement"
-          ],
-          "read_paths": [
-            "repo/docs"
-          ],
-          "network_allowed": false,
-          "goal_hint": "Narrow shard of learnability-gates; only these requirement IDs belong to this leaf.",
-          "worker_mode": "packet-only"
-        },
-        {
-          "id": "learnability-gates--part-2",
-          "phase": "readiness",
+          "execution_kind": "command",
+          "result_kind": "requirements",
+          "runner_action": "static-coverage",
           "requirement_ids": [
             "coverage.all_10_languages"
           ],
           "dependencies": [],
-          "prompt_sections": [
-            "## 6.2 Fixed LLM Execution Configuration",
-            "## 10.2 Common controls",
-            "## 10.3 Controlled random lexicalization",
-            "## 10.4 Reversible transformation requirement"
-          ],
-          "read_paths": [
-            "repo/docs"
-          ],
+          "prompt_sections": [],
+          "read_paths": [],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of learnability-gates; only these requirement IDs belong to this leaf.",
-          "worker_mode": "packet-only"
+          "max_attempts": 1,
+          "goal": "Mechanically verify that the fixed Learnability comparison set is exactly the frozen 10-language set.",
+          "worker_mode": "runner-command"
         },
         {
           "id": "learnability-i1-i2",
@@ -220,12 +242,11 @@
             "condition.i2_vocabulary_anonymization"
           ],
           "dependencies": [
-            "learnability-gates--part-1",
-            "learnability-gates--part-2"
+            "learnability-coverage"
           ],
           "prompt_sections": [
-            "### I1. Keyword Anonymization \u2014 20%",
-            "### I2. Vocabulary Anonymization \u2014 20%",
+            "### I1. Keyword Anonymization — 20%",
+            "### I2. Vocabulary Anonymization — 20%",
             "## 10.6 Scoring"
           ],
           "read_paths": [
@@ -246,12 +267,11 @@
             "condition.i4_novel_rule_generalization"
           ],
           "dependencies": [
-            "learnability-gates--part-1",
-            "learnability-gates--part-2"
+            "learnability-coverage"
           ],
           "prompt_sections": [
-            "### I3. Structural Surface Perturbation \u2014 15%",
-            "### I4. Novel-rule Generalization \u2014 20%",
+            "### I3. Structural Surface Perturbation — 15%",
+            "### I4. Novel-rule Generalization — 20%",
             "## 10.6 Scoring"
           ],
           "read_paths": [
@@ -272,12 +292,11 @@
             "condition.i6_prior_conflict_resistance"
           ],
           "dependencies": [
-            "learnability-gates--part-1",
-            "learnability-gates--part-2"
+            "learnability-coverage"
           ],
           "prompt_sections": [
-            "### I5. Held-out Rule Composition \u2014 15%",
-            "### I6. Prior-conflict Resistance \u2014 10%",
+            "### I5. Held-out Rule Composition — 15%",
+            "### I6. Prior-conflict Resistance — 10%",
             "## 10.6 Scoring"
           ],
           "read_paths": [
@@ -289,6 +308,28 @@
           "split_by_language": true,
           "llm_budget_formula": "learnability_conditions",
           "worker_mode": "sandbox-agent"
+        },
+        {
+          "id": "learnability-integrity",
+          "phase": "measurement",
+          "execution_kind": "command",
+          "result_kind": "requirements",
+          "runner_action": "learnability-integrity",
+          "requirement_ids": [
+            "gate.infrastructure_preflight",
+            "gate.reference_pack_leakage"
+          ],
+          "dependencies": [
+            "learnability-i1-i2",
+            "learnability-i3-i4",
+            "learnability-i5-i6"
+          ],
+          "prompt_sections": [],
+          "read_paths": [],
+          "network_allowed": false,
+          "max_attempts": 1,
+          "goal": "Mechanically verify that every Learnability language shard completed required preflight/leakage attestations before its first scored trial.",
+          "worker_mode": "runner-command"
         }
       ]
     },
@@ -301,20 +342,15 @@
             "coverage.all_10_languages"
           ],
           "dependencies": [],
-          "prompt_sections": [
-            "# 7. Language Quality Evaluation Fairness",
-            "# 8. Language Quality Score Metrics"
-          ],
-          "read_paths": [
-            "repo/docs",
-            "template/programs",
-            "template/fixtures",
-            "template/workloads",
-            "template/methodology-assets/language_quality",
-            "template/methodology-assets/scoring"
-          ],
+          "prompt_sections": [],
+          "read_paths": [],
           "network_allowed": false,
-          "worker_mode": "sandbox-agent"
+          "worker_mode": "runner-command",
+          "execution_kind": "command",
+          "result_kind": "requirements",
+          "runner_action": "static-coverage",
+          "max_attempts": 1,
+          "goal": "Mechanically verify that Language Quality uses exactly the frozen 10-language comparison set."
         },
         {
           "id": "lq-qudra-representation",
@@ -751,22 +787,22 @@
           "worker_mode": "packet-only"
         },
         {
-          "id": "ecosystem-gates--part-2",
+          "id": "ecosystem-coverage",
           "phase": "readiness",
           "requirement_ids": [
             "coverage.all_10_languages"
           ],
           "dependencies": [],
-          "prompt_sections": [
-            "## 8.2 Ecosystem Evaluation",
-            "### Predeclared sampling"
-          ],
-          "read_paths": [
-            "repo/docs"
-          ],
-          "network_allowed": true,
+          "prompt_sections": [],
+          "read_paths": [],
+          "network_allowed": false,
           "goal_hint": "Narrow shard of ecosystem-gates; only these requirement IDs belong to this leaf.",
-          "worker_mode": "packet-only"
+          "worker_mode": "runner-command",
+          "execution_kind": "command",
+          "result_kind": "requirements",
+          "runner_action": "static-coverage",
+          "max_attempts": 1,
+          "goal": "Mechanically verify that Ecosystem uses exactly the frozen 10-language comparison set."
         },
         {
           "id": "ecosystem-external--part-1",
@@ -777,7 +813,7 @@
           ],
           "dependencies": [
             "ecosystem-gates--part-1",
-            "ecosystem-gates--part-2"
+            "ecosystem-coverage"
           ],
           "prompt_sections": [
             "### A. External Ecosystem / Adoption",
@@ -799,7 +835,7 @@
           ],
           "dependencies": [
             "ecosystem-gates--part-1",
-            "ecosystem-gates--part-2"
+            "ecosystem-coverage"
           ],
           "prompt_sections": [
             "### A. External Ecosystem / Adoption",
@@ -820,7 +856,7 @@
           ],
           "dependencies": [
             "ecosystem-gates--part-1",
-            "ecosystem-gates--part-2"
+            "ecosystem-coverage"
           ],
           "prompt_sections": [
             "### A. External Ecosystem / Adoption",
@@ -842,7 +878,7 @@
           ],
           "dependencies": [
             "ecosystem-gates--part-1",
-            "ecosystem-gates--part-2"
+            "ecosystem-coverage"
           ],
           "prompt_sections": [
             "### B. Toolchain / Developer Ecosystem Maturity",
@@ -864,7 +900,7 @@
           ],
           "dependencies": [
             "ecosystem-gates--part-1",
-            "ecosystem-gates--part-2"
+            "ecosystem-coverage"
           ],
           "prompt_sections": [
             "### B. Toolchain / Developer Ecosystem Maturity",
@@ -886,7 +922,7 @@
           ],
           "dependencies": [
             "ecosystem-gates--part-1",
-            "ecosystem-gates--part-2"
+            "ecosystem-coverage"
           ],
           "prompt_sections": [
             "### B. Toolchain / Developer Ecosystem Maturity",
@@ -908,7 +944,7 @@
           ],
           "dependencies": [
             "ecosystem-gates--part-1",
-            "ecosystem-gates--part-2"
+            "ecosystem-coverage"
           ],
           "prompt_sections": [
             "### B. Toolchain / Developer Ecosystem Maturity",
@@ -930,7 +966,7 @@
           ],
           "dependencies": [
             "ecosystem-gates--part-1",
-            "ecosystem-gates--part-2"
+            "ecosystem-coverage"
           ],
           "prompt_sections": [
             "### B. Toolchain / Developer Ecosystem Maturity",
@@ -948,47 +984,21 @@
     "llm_proficiency": {
       "units": [
         {
-          "id": "proficiency-gates--part-1",
+          "id": "proficiency-coverage",
           "phase": "readiness",
-          "requirement_ids": [
-            "gate.fixed_model_configuration",
-            "gate.prompt_preservation"
-          ],
-          "dependencies": [],
-          "prompt_sections": [
-            "## 6.2 Fixed LLM Execution Configuration",
-            "# 23. Complete Preservation of LLM Trials",
-            "# 24. Prompt Preservation"
-          ],
-          "read_paths": [
-            "repo/docs",
-            "template/workloads",
-            "template/fixtures"
-          ],
-          "network_allowed": false,
-          "goal_hint": "Narrow shard of proficiency-gates; only these requirement IDs belong to this leaf.",
-          "worker_mode": "sandbox-agent"
-        },
-        {
-          "id": "proficiency-gates--part-2",
-          "phase": "readiness",
+          "execution_kind": "command",
+          "result_kind": "requirements",
+          "runner_action": "static-coverage",
           "requirement_ids": [
             "coverage.all_10_languages"
           ],
           "dependencies": [],
-          "prompt_sections": [
-            "## 6.2 Fixed LLM Execution Configuration",
-            "# 23. Complete Preservation of LLM Trials",
-            "# 24. Prompt Preservation"
-          ],
-          "read_paths": [
-            "repo/docs",
-            "template/workloads",
-            "template/fixtures"
-          ],
+          "prompt_sections": [],
+          "read_paths": [],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of proficiency-gates; only these requirement IDs belong to this leaf.",
-          "worker_mode": "sandbox-agent"
+          "max_attempts": 1,
+          "goal": "Mechanically verify that Proficiency uses exactly the frozen 10-language comparison set.",
+          "worker_mode": "runner-command"
         },
         {
           "id": "proficiency-trials",
@@ -1014,8 +1024,7 @@
             "metric.generated_code_compile_performance"
           ],
           "dependencies": [
-            "proficiency-gates--part-1",
-            "proficiency-gates--part-2"
+            "proficiency-coverage"
           ],
           "prompt_sections": [
             "# 9. LLM Proficiency Evaluation",
@@ -1037,6 +1046,26 @@
           "split_by_language": true,
           "llm_budget_formula": "proficiency_primary_cells",
           "worker_mode": "sandbox-agent"
+        },
+        {
+          "id": "proficiency-integrity",
+          "phase": "measurement",
+          "execution_kind": "command",
+          "result_kind": "requirements",
+          "runner_action": "proficiency-integrity",
+          "requirement_ids": [
+            "gate.fixed_model_configuration",
+            "gate.prompt_preservation"
+          ],
+          "dependencies": [
+            "proficiency-trials"
+          ],
+          "prompt_sections": [],
+          "read_paths": [],
+          "network_allowed": false,
+          "max_attempts": 1,
+          "goal": "Mechanically verify fixed provider/model/sampling configuration and verbatim prompt/completion preservation across every Proficiency shard.",
+          "worker_mode": "runner-command"
         }
       ]
     }

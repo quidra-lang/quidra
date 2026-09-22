@@ -176,6 +176,49 @@ def unit_payload(unit: dict[str, Any], languages: list[str]) -> dict[str, Any]:
     }
 
 
+def sandbox_turns(unit: dict[str, Any], payload: str) -> list[str]:
+    turns: list[str] = []
+    if unit.get("evaluation") == "llm_learnability" and int(unit.get("max_llm_calls", 0) or 0) > 0:
+        preflight = {
+            "schema_version": 1,
+            "passed": True,
+            "fixtures_compile_and_run": True,
+            "harness_conventions_satisfied": True,
+            "validator_positive_control_passed": True,
+            "validator_negative_control_passed": True,
+            "evidence": ["synthetic preflight control"],
+        }
+        leakage = {
+            "schema_version": 1,
+            "passed": True,
+            "exact_solution_absent": True,
+            "expected_output_not_leaked": True,
+            "isomorphic_example_absent": True,
+            "withheld_mapping_absent": True,
+            "validator_answer_absent": True,
+            "metadata_leak_absent": True,
+            "planted_leak_positive_control_passed": True,
+            "evidence": ["synthetic planted-leak control"],
+        }
+        turns.extend([
+            json.dumps({"action": "write_file", "path": "learnability_preflight.json",
+                        "content": json.dumps(preflight, indent=2) + "\n"}),
+            json.dumps({"action": "write_file", "path": "learnability_leakage.json",
+                        "content": json.dumps(leakage, indent=2) + "\n"}),
+        ])
+    if int(unit.get("max_llm_calls", 0) or 0) > 0:
+        turns.extend([
+            json.dumps({"action": "trial_start", "trial_id": "synthetic-t1",
+                        "prompt": "Return a short synthetic benchmark completion."}),
+            "synthetic trial completion",
+        ])
+    turns.extend([
+        json.dumps({"action": "write_file", "path": "result.json", "content": payload}),
+        json.dumps({"action": "final", "summary": "wrote result.json"}),
+    ])
+    return turns
+
+
 def script_for_queue(
     queue: list[dict[str, Any]], units: dict[str, Any], languages: list[str]
 ) -> dict[str, Any]:
@@ -192,10 +235,7 @@ def script_for_queue(
                 "files": [{"path": "result.json", "content": payload}],
             })]
         else:
-            tasks[agent_id] = [
-                json.dumps({"action": "write_file", "path": "result.json", "content": payload}),
-                json.dumps({"action": "final", "summary": "wrote result.json"}),
-            ]
+            tasks[agent_id] = sandbox_turns(unit, payload)
     return {"schema_version": 1, "tasks": tasks}
 
 
@@ -228,11 +268,7 @@ def emit_fake_script(root: Path, output: Path) -> dict[str, Any]:
                 "files": [{"path": "result.json", "content": payload}],
             })]
         else:
-            turns = [
-                json.dumps({"action": "write_file", "path": "result.json",
-                            "content": payload}),
-                json.dumps({"action": "final", "summary": "wrote result.json"}),
-            ]
+            turns = sandbox_turns(unit, payload)
         # A retry re-dispatches the same unit, so repeat each script enough times
         # that a retried unit is answered rather than falling through.
         tasks[agent_id] = turns * 4

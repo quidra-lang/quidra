@@ -168,6 +168,8 @@ If those conditions are not met, the evaluation is PARTIAL/WITHDRAWN/NOT_EXECUTE
 
 Reusable comparison-language source/harness/fixtures live directly under `benchmark/template/`. Reuse never means reusing measurements, scores or LLM generations. Every run rebuilds/checks, executes, validates and measures again.
 
+Frozen facts that are fully derivable from the current template/manifest (for example fixed-language coverage or frozen probe coverage) are revalidated mechanically by runner command units and must not consume an LLM call. LLM workers are reserved for judgments that cannot be reduced to those deterministic checks. This reuses stable benchmark assets, not old benchmark outcomes.
+
 Quidra is the changing target. Quidra benchmark program source is run-specific: it must be authored or re-audited against the evaluated commit and must never enter the reusable program catalog.
 
 ## 9. Frozen measurement window

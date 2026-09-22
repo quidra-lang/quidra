@@ -332,6 +332,8 @@ class Trials:
                  max_output_tokens: int) -> None:
         self.client = client
         self.agent_id = agent_id
+        self.agent_dir = root / "work" / "agents" / agent_id
+        self.evaluation = str(task.get("evaluation") or "")
         self.network_allowed = bool(task.get("network_allowed"))
         self.max_output_tokens = max_output_tokens
         self.budget = 0
@@ -481,6 +483,13 @@ class Trials:
         return {k: v for k, v in observation.items() if k != "completion"}
 
     def start(self, action: dict[str, Any]) -> dict[str, Any]:
+        if self.evaluation == "llm_learnability" and self.used == 0:
+            problems = benchmark.validate_learnability_attestations(self.agent_dir)
+            if problems:
+                raise AgentDenied(
+                    "Learnability scored trials are locked until preflight and leakage "
+                    "attestations pass: " + "; ".join(problems)
+                )
         if self.budget <= 0:
             raise AgentDenied("this unit has no trial budget; trial actions are not available")
         if "trials" in action:
@@ -595,6 +604,24 @@ decide which trials to repair. Trial completions are capped at
 back empty is reported with `ok:false` and counts as a failed attempt for that
 trial. Budget for this unit: {trials.budget} trial calls in total ({trials.used}
 used); a batch larger than the remaining budget is denied before any call.
+"""
+        if str(task.get("evaluation") or "") == "llm_learnability":
+            trial_block += """
+Before the FIRST trial_start in this unit, you MUST perform and preserve the
+Learnability infrastructure/leakage checks in your writable directory:
+
+- learnability_preflight.json: schema_version=1, passed=true, every boolean
+  fixtures_compile_and_run, harness_conventions_satisfied,
+  validator_positive_control_passed, validator_negative_control_passed=true,
+  plus a non-empty evidence array.
+- learnability_leakage.json: schema_version=1, passed=true, every boolean
+  exact_solution_absent, expected_output_not_leaked, isomorphic_example_absent,
+  withheld_mapping_absent, validator_answer_absent, metadata_leak_absent,
+  planted_leak_positive_control_passed=true, plus a non-empty evidence array.
+
+The runtime checks these files and refuses trial_start until they pass. Perform
+the real checks first; these files are attestations of evidence, not substitutes
+for the checks.
 """
     return f"""# Sandbox agent runtime contract
 
@@ -827,6 +854,7 @@ def run_agent(args: argparse.Namespace) -> int:
         "gateway": {
             "protocol": health.get("gateway"),
             "provider": health.get("provider", {}).get("id"),
+            "model": health.get("provider", {}).get("model"),
             "credential_less_client": health.get("credential_less_client"),
             "host_tools_exposed": health.get("host_tools_exposed"),
             "network_policy": health.get("network_policy"),

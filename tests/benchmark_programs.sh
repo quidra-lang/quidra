@@ -23,6 +23,9 @@ if [ ! -x "$QUIDRA" ]; then
   echo "quidra compiler not found at $QUIDRA (build the tree first)" >&2
   exit 1
 fi
+# The audit runs the compiler from scratch directories, so a relative path
+# such as build/quidra must be resolved before the working directory moves.
+QUIDRA="$(cd "$(dirname "$QUIDRA")" && pwd)/$(basename "$QUIDRA")"
 
 fail=0
 note() { printf '%s\n' "$*"; }

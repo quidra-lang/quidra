@@ -1363,10 +1363,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--language", action="append", default=None,
         help="restrict to one language (repeatable); default: every comparison language",
     )
+    check_p.add_argument(
+        "--run", action="store_true",
+        help="also run each program once and check its output against the frozen oracle",
+    )
     return p
 
 
-def build_check(root: Path, languages: list[str] | None = None) -> int:
+def build_check(root: Path, languages: list[str] | None = None, run: bool = False) -> int:
     """Compile every comparison-language micro program once, without measuring.
 
     The third paid run was the first to reach the mechanical measurement, and
@@ -1374,7 +1378,9 @@ def build_check(root: Path, languages: list[str] | None = None) -> int:
     the whole Language Quality evaluation was blocked on a build nothing had
     tried before paying. This is that try, for the runtime image's CI: every
     program is copied into the workspace and built exactly as `measure` builds
-    it, and any failure is reported with the compiler's message.
+    it, and any failure is reported with the compiler's message. With `run`,
+    each program is also executed once and its output checked against the
+    frozen oracle, so a Linux-only runtime difference is found for free too.
     """
     chosen = list(languages or [language for language in CONFIGS if language != "Quidra"])
     unknown = [language for language in chosen if language not in CONFIGS]
@@ -1383,13 +1389,22 @@ def build_check(root: Path, languages: list[str] | None = None) -> int:
     report: dict[str, Any] = {"schema_version": 1, "ok": True, "built": [], "failed": []}
     # The build environment points TMPDIR at the workspace's own tmp directory.
     (root / "tmp").mkdir(exist_ok=True)
+    expected = expected_outputs(root) if run else {}
+    checker = checker_module(root) if run else None
     for language in chosen:
         for workload in [STARTUP_WORKLOAD, *WORKLOADS]:
             try:
                 cell = prepare_cell(root, language, workload, Path("quidra"))
                 build_once(root, cell)
+                if run:
+                    result = run_once(root, cell)
+                    require_ok(result, f"run {language} {workload}")
+                    if workload == STARTUP_WORKLOAD:
+                        validate_startup_output(result["stdout"])
+                    else:
+                        validate_output(checker, expected[workload], result["stdout"])
                 report["built"].append(f"{language}/{workload}")
-            except (MeasureError, OSError, subprocess.SubprocessError) as exc:
+            except (MeasureError, OSError, ValueError, subprocess.SubprocessError) as exc:
                 report["ok"] = False
                 report["failed"].append({
                     "language": language, "workload": workload, "error": str(exc)[:2000],
@@ -1416,7 +1431,7 @@ def main() -> int:
         if args.command == "build-target":
             return build_target(root)
         if args.command == "build-check":
-            return build_check(root, args.language)
+            return build_check(root, args.language, bool(args.run))
         raise MeasureError(f"unknown command: {args.command}")
     except (MeasureError, OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
         print(f"micro measure error: {exc}", file=sys.stderr)

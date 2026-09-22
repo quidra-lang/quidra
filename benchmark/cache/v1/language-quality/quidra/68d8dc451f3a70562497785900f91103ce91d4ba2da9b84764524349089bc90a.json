@@ -1,0 +1,119 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "68d8dc451f3a70562497785900f91103ce91d4ba2da9b84764524349089bc90a",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "8d6a213cbf616f69a5b1c16787a2f2ceb5d13615f1c1b0178ebe256314455a3f",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "language_version": "0.1",
+      "version": "0.2.1"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs": "afb9ca0a2199e5b4cf4afc93e71da2db1910b069f157eac8ac9b0bc2e3aaae60",
+      "template/programs": "baec000cc0602afbbd18ffd3776c2d948dcc14890a649a37c1c834858bc24c3e",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.functionality_expressiveness",
+      "metric.diagnostics"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "cc718e9dda3eb349812f0feb507c9aa5cfd219333521a3548263e0c924d4b2c7",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-lq-language-development--part-2--quidra",
+    "work_unit_id": "lq-language-development--part-2--quidra",
+    "worker_mode": "sandbox-agent"
+  },
+  "provenance": {
+    "prompt_sha256": "8d6a213cbf616f69a5b1c16787a2f2ceb5d13615f1c1b0178ebe256314455a3f",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "lq-language-development--part-2--quidra"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "diagnostics": {
+        "limitations": [
+          "Some cascading parse errors after a single root syntax mistake still pointed at a later, unrelated line rather than the true origin, requiring the human to infer causation; a best-in-class compiler would either suppress all cascades or point precisely at the first divergence.",
+          "No column-range or code-frame/snippet rendering was observed in stderr output (only file:line:col plus message), unlike diagnostics with squiggle underlines or suggested-fix spans found in mature compilers (e.g. Rust, Swift, TypeScript, Clang)."
+        ],
+        "normalization_rationale": "Scored 78/100: strong structured error codes, precise and actionable messages in the common cases, first-class JSON/LSP/inspect/patch tooling hooks for diagnostics-as-data, and error-flood suppression, offset by no source-code-frame rendering and some cascading-error attribution imprecision observed empirically.",
+        "observations": [
+          "Errors carry a machine-readable code (e.g. LEX_ERROR, PARSE_ERROR, UNKNOWN_TYPE, UNKNOWN_NAME, RESERVED_MAIN, TYPE_MISMATCH) plus file:line:col location and a plain-English message in every observed case.",
+          "Observed TYPE_MISMATCH message was specific and actionable: it stated exactly which types are supported for optional CLI arguments (string, int, float, bigint, bigreal, bool) rather than a generic type-error dump, directly indicating the fix.",
+          "RESERVED_MAIN message (function name main is reserved) was clear and immediately actionable, at the cost of surprising a user coming from C-family languages that permit an ordinary main function.",
+          "The compiler deduplicates and caps repeated errors, printing Further diagnostics suppressed after 20 identical downstream parse errors caused by a single root-cause syntax mistake, avoiding an unbounded error flood while still surfacing the first, most useful instances.",
+          "quidra check FILE.qui --json exists as a documented machine-readable diagnostics channel intended for tool and IDE integration (per quidra describe llm), and an LSP server (quidra lsp) ships with the compiler, indicating diagnostics are designed for both humans and tooling from the outset.",
+          "quidra inspect exposes per-node inferred_type, authority, and effects fields, giving deep structural introspection beyond typical stderr diagnostics, useful for tooling-level debuggability.",
+          "quidra patch FILE.qui PATCH.json supports structural, revision-safe patches referencing diagnostic node ids, an explicit compiler-native repair workflow not commonly exposed by mainstream compilers CLIs."
+        ]
+      },
+      "functionality_expressiveness": {
+        "limitations": [
+          "No first-class closures with captures; the function-value type is explicitly capture-free, and extern or reference-parameter functions cannot become function values, which is less expressive than mainstream languages with full closures (Python, Rust, Kotlin, Swift, TypeScript).",
+          "No union or sum-type-style generic algebraic data types beyond enum_decl with single-field payload variants observed in the grammar; richer pattern-matching-oriented ADTs found in Rust/Kotlin/Swift are not evidenced."
+        ],
+        "normalization_rationale": "Scored 70/100: substantial and somewhat novel expressiveness (native tensor/neural types with shape contracts, first-class CLI declarations, safety-scoped address model, arbitrary precision literal families) offset by the absence of general closures with captures and by rough edges discovered empirically (implicit reserved-name collision with main, silent no-output when the primary function is not wired through the cli entrypoint).",
+        "observations": [
+          "Quidra supports first-class generics with constraint kinds (numeric, integer, floating, ordered, equatable), monomorphized before static checking.",
+          "Native tensor<T><D0,D1,...> and neural<...> types with exact-rank shape contracts and compile-time-captured extents are built into the language, giving domain-specific expressiveness for numerical/ML workloads beyond general-purpose peers.",
+          "Algebraic-ish data modeling via enum_decl with payload types and exhaustive match statements (match_stmt requires exhaustive cases, checked statically).",
+          "CLI argument declarations are a first-class top-level construct (cli_decl) with typed argument/option/flag sources and default expressions, reducing boilerplate versus hand-rolled arg parsing in most compared languages.",
+          "Reference/address model is distinguished from ordinary pointers: ampersand produces a safe storage address; raw address is observable only via print/write, and address values do not support arithmetic or dereference, giving safety-oriented low-level introspection without unsafe pointer arithmetic.",
+          "Named arguments and named construction are supported uniformly for both function calls and class field initialization.",
+          "No implicit truthy/falsy coercion; only and/or/not operate on bool while AND/OR/XOR/NOT/shift operate on fixed-width integers, avoiding a common class of accidental-coercion bugs while keeping full bitwise expressiveness.",
+          "Const-correctness is a first-class binding modifier for both values and references, similar in spirit to C++ const but applied more uniformly across the grammar.",
+          "Practical friction observed while authoring test programs: a plain top-level function acting as an entry point had to be renamed away from the reserved name main, and produced no visible process output unless invoked through the generated CLI runner, indicating the language pushes users toward the cli_decl/entrypoint convention rather than a conventional bare main function.",
+          "Bigint/bigreal are distinguished as arbitrary-precision numeric families usable directly in numeric-literal contexts without library types, which is more expressive out of the box than most compiled peers (C++, Rust, Go, Swift, Zig all require a library or crate for arbitrary precision)."
+        ]
+      },
+      "tooling_probed": [
+        "quidra --help",
+        "quidra describe grammar",
+        "quidra describe llm",
+        "quidra run",
+        "quidra check"
+      ]
+    },
+    "requirements": {
+      "metric.diagnostics": {
+        "Quidra": 78
+      },
+      "metric.functionality_expressiveness": {
+        "Quidra": 70
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "14c2d87ca5bf3b275347efea9613bf66feeb441fe5c753d234bc86c91bd8730a",
+  "schema_version": 1
+}

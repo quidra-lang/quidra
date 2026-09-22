@@ -8,7 +8,11 @@ input fingerprint and it matches exactly. The fingerprint includes the exact Tas
 Packet, model/provider, frozen sampling policy, relevant toolchain versions,
 validator/workload inputs and the cache epoch.
 
-Quidra-containing work is never cached because Quidra is the changing target.
+Quidra-containing work is cached too, keyed by the versions the evaluated snapshot
+declares in project.toml (`version` and `language_version`) and by the exact Task
+Packet, which embeds the snapshot's docs: a Quidra record is reused only while
+neither has changed, so a run in which a comparison language failed no longer
+discards Quidra's own completed measurements.
 Ecosystem evidence uses a UTC-month epoch because external ecosystem facts change
 without a language version change.
 

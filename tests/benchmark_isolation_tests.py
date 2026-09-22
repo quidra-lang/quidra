@@ -2565,6 +2565,59 @@ def test_sandbox_agent_batches_actions_and_recovers_from_truncation_and_early_fi
         )
 
 
+def test_privacy_gate_reads_sandbox_authored_temp_paths_as_code_not_leaks() -> None:
+    """A `/tmp/...` literal a worker wrote into its own script is not a host path.
+
+    The scored sandbox mounts no host directory, so nothing it writes can carry
+    one. The third paid run's finalize failed - and its completed Ecosystem
+    ranking went unpublished - on `/tmp/_perfbin` inside a perf script one
+    agent wrote. Home-directory paths and e-mail addresses stay findings
+    everywhere, and temp paths stay findings outside sandbox-authored files.
+    """
+    import argparse
+    import contextlib
+    import io
+
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        agent_dir = create_task(root, "worker-perf-agent", "sandbox-agent")
+        (agent_dir / "perf_test.py").write_text(
+            "subprocess.run(['c++', '-O2', src, '-o', '/tmp/_perfbin'])\n", encoding="utf-8"
+        )
+        (root / "raw").mkdir(exist_ok=True)
+        (root / "raw" / "worker-x.response.json").write_text(
+            '{"note": "wrote /workspace/out.txt"}\n', encoding="utf-8"
+        )
+        # The synthetic workspace itself lives under the host temp directory,
+        # which the gate allows only in synthetic mode, exactly as CI runs it.
+        os.environ["QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS"] = "1"
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                rc = benchmark.cmd_privacy_check(argparse.Namespace(workspace=str(root)))
+        finally:
+            os.environ.pop("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS", None)
+        findings = json.loads((root / "results" / "privacy_check.json").read_text(encoding="utf-8"))
+        check(rc == 0, f"a temp-path literal in sandbox-authored text was reported: {findings}")
+
+        (agent_dir / "notes.md").write_text("see /Users/someone/secret.txt\n", encoding="utf-8")
+        (root / "results" / "stray.json").write_text('{"p": "/tmp/tmpabc123/x"}\n', encoding="utf-8")
+        os.environ["QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS"] = "1"
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                rc = benchmark.cmd_privacy_check(argparse.Namespace(workspace=str(root)))
+        finally:
+            os.environ.pop("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS", None)
+        findings = json.loads((root / "results" / "privacy_check.json").read_text(encoding="utf-8"))
+        kinds = sorted((f["file"], f["kind"]) for f in findings["findings"])
+        check(
+            rc != 0 and kinds == [
+                ("results/stray.json", "host_temp_path"),
+                ("work/agents/worker-perf-agent/notes.md", "unix_home"),
+            ],
+            f"the privacy gate lost a real finding or kept a false one: {kinds}",
+        )
+
+
 def main() -> int:
     tests = [value for name, value in sorted(globals().items()) if name.startswith("test_")]
     for test in tests:

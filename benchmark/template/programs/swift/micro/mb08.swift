@@ -1,5 +1,9 @@
 // MB-08 - Strings: build a word text, then five character-level passes per round.
+#if canImport(Darwin)
 import Darwin  // fflush(stdout) for the section 5.2 ITER lines
+#else
+import Glibc   // the same fflush(stdout) on Linux, where the benchmark runs
+#endif
 
 /// Lehmer / MINSTD generator, frozen for every language in the suite.
 struct Lcg {

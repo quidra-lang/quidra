@@ -1,0 +1,109 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "language_quality",
+  "fingerprint": "4bc510d9ba066d4b50311023483e51f99bc332d102578bd92053476c9bea8ab8",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "language_quality",
+    "exact_task_packet_sha256": "d401068e2f7af1a676e5fed99e857c95a083df61da116df34899bfd12b5878ad",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "language_version": "0.1",
+      "version": "0.2.1"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs": "afb9ca0a2199e5b4cf4afc93e71da2db1910b069f157eac8ac9b0bc2e3aaae60",
+      "template/programs": "baec000cc0602afbbd18ffd3776c2d948dcc14890a649a37c1c834858bc24c3e",
+      "template/workloads": "d42264403a71a1b6980e33e88df4a7472e9890485be0969c4375b96cacf23898"
+    },
+    "requirement_ids": [
+      "metric.dependency_simplicity",
+      "metric.portability_design_platform_neutrality"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "cc718e9dda3eb349812f0feb507c9aa5cfd219333521a3548263e0c924d4b2c7",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-lq-language-development--part-3--quidra",
+    "work_unit_id": "lq-language-development--part-3--quidra",
+    "worker_mode": "sandbox-agent"
+  },
+  "provenance": {
+    "prompt_sha256": "d401068e2f7af1a676e5fed99e857c95a083df61da116df34899bfd12b5878ad",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "lq-language-development--part-3--quidra"
+  },
+  "result": {
+    "evaluation": "language_quality",
+    "evidence": {
+      "methodology_notes": "Per language_quality.md, dependency-manager package-corpus maturity and realized CI/platform breadth belong to Ecosystem, not Language Quality; excluded here. Only assigned language (Quidra) and assigned requirement IDs scored in this shard.",
+      "metric.dependency_simplicity": {
+        "normalization_rationale": "Scored on minimal external tooling for dependency resolution, absence of arbitrary code execution during install, simplicity of version constraint language, completeness/transparency of dependency graph via lockfile, and protection against manifest drift. Quidra scores well above median due to no install-time scripts, flat conjunctive version ranges, and a hashed two-identity lockfile covering the whole transitive closure. Points deducted for reliance on external processes (git, curl/tar) and no documented compiled/binary dependency-graph caching.",
+        "raw_observations": [
+          "Quidra packages are plain source packages with a single main.qui entrypoint; released packages add a quidra.package manifest (docs/packages.md).",
+          "Install only from immutable vMAJOR.MINOR.PATCH release tags, never from moving branches; an explicit version must exist as an exact tag or install fails (docs/packages.md).",
+          "No install script execution, eliminating a class of transitive build-time side effects common in npm/pip/cargo ecosystems.",
+          "Version ranges are simple conjunctive SemVer terms (=,<,<=,>,>=); lockfile format upgrades (v1->v2->v3) remain backward-readable.",
+          "quidra.lock records distribution and import identity plus a content SHA-256 hash per package, covering the full transitive import graph deterministically in one flat file.",
+          "Asset-backed installs add an opt-in second dependency vector requiring curl and tar; installer inspects archives and rejects path traversal or replacement of protected files.",
+          "quidra.package recognizes a closed key set; an unknown key is a hard error, preventing manifest-format drift. Supplementary metadata lives in optional project.toml.",
+          "requires.quidra is mandatory for released packages; requires.abi is a separate exact-match field rather than a range.",
+          "Remote installation requires git as an external tool, and asset installs require curl/tar."
+        ],
+        "score_formula": "100 - 8(external_process_dependency) - 8(no_native_binary_caching) - 6(asset_variant_second_dependency_class) = 78"
+      },
+      "metric.portability_design_platform_neutrality": {
+        "normalization_rationale": "Scored on whether platform variability is modeled as declarative data vs scattered conditionals, first-class multi-platform package-artifact support, multi-OS/compiler toolchain design intent, and evidence of a genuine compiler-level cross-compilation/target abstraction (distinct from realized CI breadth, which is Ecosystem). Quidra shows strong declarative centralization and a clean per-platform asset mechanism. It scores below a language with an explicit mature cross-compilation target model because available docs show only CI-level OS coverage, not compiler target abstraction.",
+        "raw_observations": [
+          "project.toml is the single source of truth for supported operating systems/targets and the backend id/display/kind table, i.e. platform support is declared data rather than scattered ifdef logic (docs/development.md).",
+          "Release checks require Linux, macOS, and Windows CI plus GCC and Clang release builds, indicating the reference toolchain targets multi-OS, multi-compiler portability from the outset.",
+          "Packages declare platform-specific optional binary assets via asset.<platform> keys with an asset.default fallback, giving the package format first-class declarative multi-platform artifact support (docs/packages.md).",
+          "Backend design is an id/display/kind table driven from project.toml, implying device/target backends are modeled uniformly.",
+          "Version/ABI/IR/package-schema numbers are centrally tracked in project.toml and mechanically checked for consistency, supporting platform-neutral tooling.",
+          "No evidence in readable docs of a formalized target-triple/cross-compilation model comparable to Go's GOOS/GOARCH or Zig's cross-compilation-by-default; documented breadth is at CI-matrix level (an Ecosystem concern) rather than compiler-level target abstraction."
+        ],
+        "score_formula": "100 - 16(no_confirmed_cross_compilation_target_model) - 10(ci_breadth_only_partially_separable_from_ecosystem) = 74"
+      },
+      "sources": [
+        "/quidra-benchmark/repo/docs/packages.md",
+        "/quidra-benchmark/repo/docs/development.md"
+      ]
+    },
+    "requirements": {
+      "metric.dependency_simplicity": {
+        "Quidra": 78
+      },
+      "metric.portability_design_platform_neutrality": {
+        "Quidra": 74
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "b9cc856566eea0cf19c9346026fe38448f639e55fcd01bd703fd79d1b96a7bd6",
+  "schema_version": 1
+}

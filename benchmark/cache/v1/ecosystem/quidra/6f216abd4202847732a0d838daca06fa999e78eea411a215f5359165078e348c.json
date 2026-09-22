@@ -1,0 +1,176 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "6f216abd4202847732a0d838daca06fa999e78eea411a215f5359165078e348c",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "a746e1ec4fce199e2fda9182b07c6507e24c54429675cfcac0a4bc8436b82264",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "language_version": "0.1",
+      "version": "0.2.1"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs": "afb9ca0a2199e5b4cf4afc93e71da2db1910b069f157eac8ac9b0bc2e3aaae60"
+    },
+    "requirement_ids": [
+      "metric.third_party_library_availability_domain_coverage",
+      "metric.package_ecosystem_activity_maintenance"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-ecosystem-external--part-1--quidra",
+    "work_unit_id": "ecosystem-external--part-1--quidra",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "a746e1ec4fce199e2fda9182b07c6507e24c54429675cfcac0a4bc8436b82264",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "ecosystem-external--part-1--quidra"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "general_context": {
+        "citations": [
+          {
+            "quote": "A native programming language for humans and LLMs \u2014 less ceremony, less ambiguity, maximum meaning per token.",
+            "source": "https://github.com/quidra-lang/quidra"
+          }
+        ],
+        "limitations_of_proxies_used": "GitHub star/fork counts and release counts are used only as declared, consistently-collected supplementary signals alongside the qualitative package-population evidence, per the methodology's restriction against using raw popularity indicators as a standalone proxy.",
+        "subject_identity": "Quidra is a real (recently created) open-source project at github.com/quidra-lang/quidra, described as a statically typed native language for humans and LLMs, distinct from the fictional-sounding internal spec docs which describe an actual implemented compiler/runtime."
+      },
+      "metric.package_ecosystem_activity_maintenance": {
+        "citations": [
+          {
+            "quote": "Fork 0 \u00b7 Star 0 \u00b7 Latest \u00b7 Latest \u00b7 Compare \u00b7 Filter",
+            "source": "https://github.com/quidra-lang/quidra/releases/tag/v0.3.1"
+          },
+          {
+            "quote": "Fork 0 \u00b7 Star 0 \u00b7 Latest \u00b7 Latest \u00b7 Compare \u00b7 Filter",
+            "source": "https://github.com/quidra-lang/dnn/releases/tag/v0.1.0"
+          },
+          {
+            "quote": "@koba-jon made their first contribution in #1",
+            "source": "https://github.com/quidra-lang/dnn/releases/tag/v0.1.0"
+          },
+          {
+            "quote": "Targets released Quidra v0.2.0 via requires.quidra = >=0.2.0 <0.3.0, adds the permanent develop/main release procedure",
+            "source": "https://github.com/quidra-lang/dnn/pull/2"
+          },
+          {
+            "quote": "Continuously test the released vision and dnn packages against Quidra changes before they land in develop/main",
+            "source": "https://github.com/quidra-lang/quidra/pull/4"
+          }
+        ],
+        "findings": [
+          "Core repo quidra-lang/quidra has 4 tagged releases (v0.1.0, v0.2.0, v0.3.0, v0.3.1) all within a 4-day window (Sep 16-20, 2026).",
+          "quidra-lang/dnn has 2 tagged releases (v0.1.0, v0.2.0) within the same short window, each declaring an explicit requires.quidra compatibility range against a specific core release tag.",
+          "quidra-lang/vision similarly released v0.1.0 targeting the same core release tag with an explicit requires.quidra range.",
+          "The core repo runs first-party package compatibility CI so that core changes are continuously validated against dnn and vision.",
+          "All three repositories (quidra, dnn, vision) show 0 GitHub stars and 0 forks, and the dnn repository's own release notes list koba-jon as making 'their first contribution' -- i.e. a single-contributor project with no external community activity observed."
+        ],
+        "language": "Quidra",
+        "predeclared_sampling": {
+          "retrieval_route": "web_search (provider gateway) against github.com repository/release/PR pages, snapshot time 2026-09-22",
+          "selection_rule": "For the same frozen population of 2 packages (quidra-dnn, vision) plus the core `quidra` repository itself, record release cadence, contributor count, and community engagement signals (stars/forks) as declared consistent proxies, with their limitations noted per Section on raw popularity indicators."
+        },
+        "score_rationale": "There is genuine, disciplined recent maintenance activity (multiple semantic-versioned releases, explicit cross-package compatibility ranges, dedicated compatibility CI, atomic release-tag discipline matching docs/development.md) which prevents a score of zero. However the entire visible ecosystem is a single-contributor effort with zero external stars/forks/contributors and only 2 downstream packages total, so this is scored low to reflect genuine but extremely narrow, unproven, single-maintainer maintenance activity rather than a broad actively-maintained package ecosystem."
+      },
+      "metric.third_party_library_availability_domain_coverage": {
+        "citations": [
+          {
+            "quote": "vision is Quidra's first-party tensor image-processing package.",
+            "source": "https://github.com/quidra-lang/vision"
+          },
+          {
+            "quote": "dnn is Quidra's first-party deep-neural-network package.",
+            "source": "https://github.com/quidra-lang/dnn"
+          },
+          {
+            "quote": "Continuously test the released vision and dnn packages against Quidra changes before they land in develop/main, so core changes cannot silently break first-party packages.",
+            "source": "https://github.com/quidra-lang/quidra/pull/4"
+          }
+        ],
+        "findings": [
+          "Only two packages exist in the entire discoverable Quidra ecosystem: quidra-dnn and vision.",
+          "Both packages are authored by the same single core-team contributor as the compiler itself (koba-jon), not by an independent third party.",
+          "No independent/community (non quidra-lang org) package repository was found for any domain via targeted search.",
+          "docs/packages.md documents the install mechanism itself (`quidra install owner/repository`) but the only concretely named distributions anywhere in the docs are the two first-party ones."
+        ],
+        "language": "Quidra",
+        "predeclared_sampling": {
+          "candidate_universe": "docs/packages.md and docs/spec/language.md name exactly two first-party distributions: `quidra-dnn` (resolves to github.com/quidra-lang/dnn) and the vision package (github.com/quidra-lang/vision). No package registry/index exists (installation is by exact Git release tag only), so the candidate universe was cross-checked with web search for any independent (non quidra-lang org) repository declaring a `quidra.package` / `requires.quidra` manifest.",
+          "domain_checklist": [
+            "web/HTTP server framework",
+            "database/ORM client",
+            "testing framework (beyond built-in test.check/test.equal)",
+            "serialization beyond JSON (e.g. YAML/Protobuf/MessagePack)",
+            "CLI argument-parsing framework (beyond built-in cli block)",
+            "logging framework",
+            "GUI/TUI toolkit",
+            "machine learning / DNN",
+            "image / computer vision processing",
+            "async task-queue or actor concurrency framework",
+            "cryptography library",
+            "regex library"
+          ],
+          "domains_with_any_installable_package_found": [
+            "machine learning / DNN",
+            "image / computer vision processing"
+          ],
+          "queries_used": [
+            "Quidra programming language quidra-lang github",
+            "\"quidra\" package quidra-dnn quidra-vision",
+            "\"import\" quidra package github -quidra-lang \"requires.quidra\"",
+            "github.com/quidra-lang/quidra contributors forks stars",
+            "quidra-lang dnn github stars forks contributors"
+          ],
+          "retrieval_route": "web_search (provider gateway), snapshot time 2026-09-22",
+          "selection_rule": "Freeze the complete, deterministic population of Quidra packages discoverable through the language's own documented installation contract (docs/packages.md / docs/spec/language.md 'Package management'), i.e. every distribution reachable via `quidra install <name>` under the official `quidra-` namespace, plus any independently discoverable third-party `owner/repository` package referenced from the same docs or found via targeted web search for 'quidra' package repositories outside the quidra-lang GitHub organization."
+        },
+        "score_rationale": "Only 2 of 12 predeclared common ecosystem domains have any installable Quidra package at all, and even those two are first-party (single core maintainer) rather than genuinely independent third-party libraries; no package registry, discovery index, or community-authored package was found for any domain (web, database, testing, serialization, CLI, logging, GUI, concurrency, crypto, regex). This is treated as low-but-nonzero real evidence per Section 26 (absent coverage in a metric intentionally testing it is scored low, not N/A)."
+      }
+    },
+    "requirements": {
+      "metric.package_ecosystem_activity_maintenance": {
+        "Quidra": 13
+      },
+      "metric.third_party_library_availability_domain_coverage": {
+        "Quidra": 4
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "4336335aaf962e86cac1dbc349ab4a2ab562b365893b16d7ab6c292cca6506a9",
+  "schema_version": 1
+}

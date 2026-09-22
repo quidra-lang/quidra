@@ -92,7 +92,33 @@
           "id": "sc-metrics-local--part-1",
           "phase": "measurement",
           "requirement_ids": [
-            "metric.semantic_density",
+            "metric.semantic_density"
+          ],
+          "dependencies": [
+            "sc-structure-gates--part-1a",
+            "sc-structure-gates--part-1b",
+            "sc-structure-gates--part-2a",
+            "sc-coverage"
+          ],
+          "prompt_sections": [
+            "### 6.1.3 Semantic facts inventory",
+            "#### A. Semantic Density — 20% of quality score",
+            "#### B. Semantic Determinacy — 25% of quality score",
+            "#### C. Semantic Locality — 20% of quality score"
+          ],
+          "read_paths": [
+            "repo/docs",
+            "template/methodology-assets/semantic_compression"
+          ],
+          "network_allowed": false,
+          "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only",
+          "split_by_language": true
+        },
+        {
+          "id": "sc-metrics-local--part-3",
+          "phase": "measurement",
+          "requirement_ids": [
             "metric.semantic_determinacy"
           ],
           "dependencies": [
@@ -147,7 +173,33 @@
           "id": "sc-metrics-hidden-coverage--part-1",
           "phase": "measurement",
           "requirement_ids": [
-            "metric.hidden_semantic_cost",
+            "metric.hidden_semantic_cost"
+          ],
+          "dependencies": [
+            "sc-structure-gates--part-1a",
+            "sc-structure-gates--part-1b",
+            "sc-structure-gates--part-2a",
+            "sc-coverage"
+          ],
+          "prompt_sections": [
+            "#### D. Hidden Semantic Cost — 20% of quality score",
+            "#### E. Capability Efficiency — 15% of quality score",
+            "### 6.1.5 Capability Coverage",
+            "# 20. Semantic Regularity Evidence for Semantic Compression"
+          ],
+          "read_paths": [
+            "repo/docs",
+            "template/methodology-assets/semantic_compression"
+          ],
+          "network_allowed": false,
+          "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf.",
+          "worker_mode": "packet-only",
+          "split_by_language": true
+        },
+        {
+          "id": "sc-metrics-hidden-coverage--part-3",
+          "phase": "measurement",
+          "requirement_ids": [
             "metric.capability_efficiency"
           ],
           "dependencies": [
@@ -208,7 +260,9 @@
             "sc-metrics-local--part-1",
             "sc-metrics-local--part-2",
             "sc-metrics-hidden-coverage--part-1",
-            "sc-metrics-hidden-coverage--part-2"
+            "sc-metrics-hidden-coverage--part-2",
+            "sc-metrics-local--part-3",
+            "sc-metrics-hidden-coverage--part-3"
           ],
           "prompt_sections": [
             "### 6.1.1A Mandatory semantic-site matrix",

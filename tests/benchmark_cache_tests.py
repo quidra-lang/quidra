@@ -352,7 +352,29 @@ def assert_scored_cap_governs_reuse(root: Path, unit: dict, task: dict) -> None:
     assert "cut off" in str(problem(annotated, trial_unit))
 
 
+def assert_accepted_trial_start_marks_the_scored_boundary() -> None:
+    """A trial_start the runtime refused is not the first scored trial.
+
+    The third paid run's promotion rejected three learnability units whose
+    first trial_start was denied for missing attestations; the agent wrote
+    them next and started again, exactly as the runtime demands.
+    """
+    denied = {"action": "trial_start", "turn": 7,
+              "observation": {"ok": False, "denied": "Learnability scored trials are locked until ..."}}
+    write = {"action": "write_file", "turn": 10, "observation": {"ok": True, "path": "x/learnability_preflight.json"}}
+    accepted = {"action": "trial_start", "turn": 12, "observation": {"ok": True, "trials": []}}
+    failed_trial = {"action": "trial_start", "turn": 12,
+                    "observation": {"ok": False, "incomplete": "empty", "trial_id": "i1-t1"}}
+    assert benchmark.first_accepted_trial_index([denied, write, accepted]) == 2
+    assert benchmark.first_accepted_trial_index([denied, write, failed_trial]) == 2, (
+        "a trial that ran but failed is still a scored start"
+    )
+    assert benchmark.first_accepted_trial_index([denied, write]) is None
+    assert benchmark.first_accepted_trial_index([]) is None
+
+
 def main() -> None:
+    assert_accepted_trial_start_marks_the_scored_boundary()
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
         assert_language_scoped_program_reads(root)
@@ -383,9 +405,26 @@ def main() -> None:
         original_fingerprint = original[0]
         assert benchmark.cache_eligible_unit(root, unit)
 
-        # Quidra can never be certified/reused.
+        # Quidra is cacheable, keyed by the versions its snapshot declares.
         quidra = {**unit, "assigned_languages": ["Quidra"]}
-        assert not benchmark.cache_eligible_unit(root, quidra)
+        assert benchmark.cache_eligible_unit(root, quidra)
+        (root / "repo" / "project.toml").write_text(
+            'name = "Quidra"\nversion = "0.2.1"\nlanguage_version = "0.1"\n', encoding="utf-8"
+        )
+        quidra_pair = benchmark.cache_fingerprint(root, quidra, task)
+        assert quidra_pair is not None, "a Quidra unit produced no cache key"
+        assert quidra_pair[1]["quidra_target"] == {"version": "0.2.1", "language_version": "0.1"}
+        assert "quidra_target" not in original[1], "a comparison unit carried a Quidra identity"
+        (root / "repo" / "project.toml").write_text(
+            'name = "Quidra"\nversion = "0.2.2"\nlanguage_version = "0.1"\n', encoding="utf-8"
+        )
+        assert benchmark.cache_fingerprint(root, quidra, task)[0] != quidra_pair[0], (
+            "bumping the Quidra version must change the key"
+        )
+        (root / "repo" / "project.toml").write_text(
+            'name = "Quidra"\nversion = "0.2.1"\nlanguage_version = "0.1"\n', encoding="utf-8"
+        )
+        assert benchmark.cache_fingerprint(root, quidra, task)[0] == quidra_pair[0]
 
         # Every material execution input that matters must invalidate reuse.
         run = benchmark.json_load(root / "run.json")

@@ -592,17 +592,21 @@ jobs:
           bases = {
               "sc-metrics-local--part-1": {
                   "metric.semantic_density": scores,
-                  "metric.semantic_determinacy": scores,
               },
               "sc-metrics-local--part-2": {
                   "metric.semantic_locality": scores,
               },
+              "sc-metrics-local--part-3": {
+                  "metric.semantic_determinacy": scores,
+              },
               "sc-metrics-hidden-coverage--part-1": {
                   "metric.hidden_semantic_cost": scores,
-                  "metric.capability_efficiency": scores,
               },
               "sc-metrics-hidden-coverage--part-2": {
                   "metric.capability_coverage": scores,
+              },
+              "sc-metrics-hidden-coverage--part-3": {
+                  "metric.capability_efficiency": scores,
               },
           }
           slug = {
@@ -616,7 +620,7 @@ jobs:
                       split(requirements, [language]),
                   )
           PY
-          for BASE in sc-metrics-local--part-1 sc-metrics-local--part-2 sc-metrics-hidden-coverage--part-1 sc-metrics-hidden-coverage--part-2; do
+          for BASE in sc-metrics-local--part-1 sc-metrics-local--part-2 sc-metrics-local--part-3 sc-metrics-hidden-coverage--part-1 sc-metrics-hidden-coverage--part-2 sc-metrics-hidden-coverage--part-3; do
             for SUFFIX in quidra python c rust go java typescript kotlin swift zig; do
               ID="$BASE--$SUFFIX"
               AGENT="worker-$ID"

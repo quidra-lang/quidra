@@ -735,8 +735,14 @@ def run_agent(args: argparse.Namespace) -> int:
     # unit's scored output cap: that cap is sized for one trial completion, and
     # an action turn that has to reason about a whole packet first needs room the
     # scored cap does not give it.
+    # The cap lives in the runtime configuration (sandbox_agent.json) rather
+    # than in primary.json: primary.json is embedded in every Task Packet and
+    # hashed into every certified-cache key, so raising the cap there would
+    # have invalidated every cached measurement. The isolation block is only a
+    # fallback for older workspaces.
     orchestration_cap = int(
-        isolation.get("orchestration_max_output_tokens", args.max_output_tokens)
+        config.get("orchestration_max_output_tokens")
+        or isolation.get("orchestration_max_output_tokens", args.max_output_tokens)
         or args.max_output_tokens
     )
     # Every turn adds two messages; the gateway refuses a conversation longer than

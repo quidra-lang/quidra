@@ -1351,7 +1351,48 @@ def build_parser() -> argparse.ArgumentParser:
         help="build the evaluated Quidra compiler into the workspace before scored work needs it",
     )
     build_p.add_argument("--workspace", required=True)
+    check_p = sub.add_parser(
+        "build-check",
+        help="compile every comparison-language micro program once, without measuring",
+    )
+    check_p.add_argument("--workspace", required=True)
+    check_p.add_argument(
+        "--language", action="append", default=None,
+        help="restrict to one language (repeatable); default: every comparison language",
+    )
     return p
+
+
+def build_check(root: Path, languages: list[str] | None = None) -> int:
+    """Compile every comparison-language micro program once, without measuring.
+
+    The third paid run was the first to reach the mechanical measurement, and
+    it found the Swift programs importing Darwin, which no Linux toolchain has;
+    the whole Language Quality evaluation was blocked on a build nothing had
+    tried before paying. This is that try, for the runtime image's CI: every
+    program is copied into the workspace and built exactly as `measure` builds
+    it, and any failure is reported with the compiler's message.
+    """
+    chosen = list(languages or [language for language in CONFIGS if language != "Quidra"])
+    unknown = [language for language in chosen if language not in CONFIGS]
+    if unknown:
+        raise MeasureError(f"unknown language(s): {', '.join(unknown)}")
+    report: dict[str, Any] = {"schema_version": 1, "ok": True, "built": [], "failed": []}
+    # The build environment points TMPDIR at the workspace's own tmp directory.
+    (root / "tmp").mkdir(exist_ok=True)
+    for language in chosen:
+        for workload in [STARTUP_WORKLOAD, *WORKLOADS]:
+            try:
+                cell = prepare_cell(root, language, workload, Path("quidra"))
+                build_once(root, cell)
+                report["built"].append(f"{language}/{workload}")
+            except (MeasureError, OSError, subprocess.SubprocessError) as exc:
+                report["ok"] = False
+                report["failed"].append({
+                    "language": language, "workload": workload, "error": str(exc)[:2000],
+                })
+    print(json.dumps(report, indent=2))
+    return 0 if report["ok"] else 1
 
 
 def build_target(root: Path) -> int:
@@ -1371,6 +1412,8 @@ def main() -> int:
             return measure(root, args.unit_id)
         if args.command == "build-target":
             return build_target(root)
+        if args.command == "build-check":
+            return build_check(root, args.language)
         raise MeasureError(f"unknown command: {args.command}")
     except (MeasureError, OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
         print(f"micro measure error: {exc}", file=sys.stderr)

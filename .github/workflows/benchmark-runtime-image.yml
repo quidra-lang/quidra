@@ -14,10 +14,14 @@ on:
     branches: [develop]
     paths:
       - "benchmark/template/runtime/**"
+      - "benchmark/template/programs/**"
+      - "benchmark/template/scripts/micro_measure.py"
       - ".github/workflows/benchmark-runtime-image.yml"
   pull_request:
     paths:
       - "benchmark/template/runtime/**"
+      - "benchmark/template/programs/**"
+      - "benchmark/template/scripts/micro_measure.py"
       - ".github/workflows/benchmark-runtime-image.yml"
 
 jobs:
@@ -110,6 +114,20 @@ jobs:
               indent=2, sort_keys=True,
           ))
           PY
+
+      - name: Every comparison-language micro program builds inside the image
+        run: |
+          # The comparison programs were validated on macOS. The third paid run
+          # was the first thing to compile them on Linux and found the Swift
+          # suite importing Darwin, which blocked Language Quality after the
+          # paid work was done. This builds all 108 programs the way measure
+          # does, for free, before any run depends on them.
+          python benchmark/template/scripts/sandbox_launcher.py run \
+            --source-repo "$GITHUB_WORKSPACE" \
+            --image quidra-benchmark/runtime:ci-full \
+            --provider fake --fake-script "$RUNNER_TEMP/fake/script.json" \
+            -- python3 /quidra-benchmark/template/scripts/micro_measure.py \
+               build-check --workspace /quidra-benchmark
 
       - name: The image records what it actually installed
         run: |

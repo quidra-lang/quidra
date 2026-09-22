@@ -3293,15 +3293,37 @@ def cache_policy(root: Path) -> dict[str, Any]:
 
 def cache_eligible_unit(root: Path, unit: dict[str, Any]) -> bool:
     assigned = list(unit.get("assigned_languages", []) or [])
-    policy = cache_policy(root)
-    target = str(policy.get("target_language") or "Quidra")
     return (
         unit.get("execution_kind", "agent") == "agent"
         and unit.get("result_kind", "requirements") == "requirements"
         and unit.get("phase") == "measurement"
         and bool(assigned)
-        and target not in assigned
     )
+
+
+def quidra_target_identity(root: Path) -> dict[str, str]:
+    """The evaluated Quidra's declared versions, from the snapshot's project.toml.
+
+    A unit that measures Quidra used to be a cache MISS on every run because
+    Quidra is the changing target. Three paid runs showed the other side of
+    that rule: when a comparison language failed, Quidra's own completed
+    measurements were paid for again although nothing about Quidra had
+    changed. The record is now keyed by the versions the snapshot declares
+    (`version` and `language_version` in project.toml) and by the exact Task
+    Packet, which embeds the snapshot's docs. Bumping either version, or
+    changing the docs a packet embeds, is what makes Quidra "new" to the cache.
+    """
+    path = root / "repo" / "project.toml"
+    if not path.is_file():
+        raise BenchmarkError(f"evaluated snapshot has no project.toml: {path}")
+    text = path.read_text(encoding="utf-8")
+    identity: dict[str, str] = {}
+    for key in ("version", "language_version"):
+        match = re.search(rf'^{key} = "([^"]*)"$', text, re.M)
+        if not match:
+            raise BenchmarkError(f"project.toml does not declare {key} exactly once")
+        identity[key] = match.group(1)
+    return identity
 
 
 def cache_epoch(root: Path, evaluation: str) -> str:
@@ -3387,8 +3409,13 @@ def cache_fingerprint_payload(
     toolchain_report = json_load(root / "results" / "toolchains.json")
     toolchains = toolchain_report.get("toolchains") or {}
     assigned = list(unit.get("assigned_languages", []) or [])
+    target = str(cache_policy(root).get("target_language") or "Quidra")
     selected_toolchains: dict[str, str] = {}
     for language in assigned:
+        if language == target:
+            # The target is built from the snapshot, not installed from a pin;
+            # its identity enters the key below instead of a toolchain row.
+            continue
         row = toolchains.get(language) or {}
         canonical = row.get("canonical")
         if not canonical:
@@ -3435,6 +3462,8 @@ def cache_fingerprint_payload(
         "runtime_toolchain_pins": selected_pins,
         "cache_epoch": cache_epoch(root, str(unit.get("evaluation"))),
     }
+    if target in assigned:
+        payload["quidra_target"] = quidra_target_identity(root)
     return payload
 
 
@@ -4353,6 +4382,27 @@ def cmd_command_result_check(args: argparse.Namespace) -> int:
             raise BenchmarkError(f"unsupported command requirement type: {rid}")
     print(json.dumps({"ok": True, "work_unit_id": args.id, "result": str(result_path)}, indent=2))
     return 0
+
+
+def first_accepted_trial_index(actions: list[dict[str, Any]]) -> int | None:
+    """Position of the first trial_start the runtime accepted, in trace order.
+
+    The runtime locks learnability trials until the preflight and leakage
+    attestations pass, and answers an early trial_start with a denial. Such a
+    denied start is not a scored trial: the model wrote the attestations after
+    it and started again. Measuring "before the first trial" from the denied
+    attempt, as the third paid run's promotion did, rejected three units whose
+    trials were in fact locked until the attestations passed. Trace order is
+    used rather than turn numbers because one turn may carry several actions.
+    """
+    for index, entry in enumerate(actions):
+        if entry.get("action") != "trial_start":
+            continue
+        observation = entry.get("observation") or {}
+        if observation.get("denied"):
+            continue
+        return index
+    return None
 
 
 def sandbox_agent_trace_problems(agent_dir: Path, agent_id: str) -> list[str]:
@@ -5525,22 +5575,11 @@ def run_learnability_integrity(root: Path, unit: dict[str, Any]) -> None:
                 f"{uid}: {p}" for p in learnability_toolchain_evidence_problems(trial_unit, trace)
             )
         actions = list(trace.get("trace", []))
-        first_trial = next(
-            (int(x.get("turn", 0)) for x in actions if x.get("action") == "trial_start"),
-            None,
-        )
-        if first_trial is None:
-            problems.append(f"{uid}: no scored trial_start was preserved")
+        # An accepted trial_start proves the runtime's attestation gate passed
+        # before any scored trial ran; the files' content is checked above.
+        if first_accepted_trial_index(actions) is None:
+            problems.append(f"{uid}: no scored trial_start was accepted by the runtime")
             continue
-        for filename in ("learnability_preflight.json", "learnability_leakage.json"):
-            wrote_before = any(
-                x.get("action") == "write_file"
-                and str((x.get("observation") or {}).get("path", "")).endswith("/" + filename)
-                and int(x.get("turn", 0)) < first_trial
-                for x in actions
-            )
-            if not wrote_before:
-                problems.append(f"{uid}: {filename} was not preserved before first trial_start")
     passed = not problems
     _write_command_requirements(
         root, unit,
@@ -6462,6 +6501,16 @@ def iter_text_files(roots: Iterable[Path]) -> Iterable[Path]:
                 yield path
 
 
+#: Retained paths whose text is authored inside the scored sandbox: worker
+#: directories and packet-only worker responses. The sandbox mounts no host
+#: directory, so a temp-directory literal there (a tmp or workspace path in a
+#: script) is something the model wrote into its own code, not a host temp
+#: path that leaked in. The third paid run's finalize failed on exactly such a
+#: compile-output path inside a perf script one agent wrote. Home-directory,
+#: e-mail and credential patterns still apply to these files.
+SANDBOX_AUTHORED_PREFIXES = ("work/agents/", "raw/")
+
+
 def cmd_privacy_check(args: argparse.Namespace) -> int:
     root = workspace(args)
     findings = []
@@ -6471,7 +6520,10 @@ def cmd_privacy_check(args: argparse.Namespace) -> int:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
+        relative = path.relative_to(root).as_posix()
         for kind, pattern in PRIVACY_PATTERNS.items():
+            if kind == "host_temp_path" and relative.startswith(SANDBOX_AUTHORED_PREFIXES):
+                continue
             m = pattern.search(text)
             if m and not privacy_match_is_safe(kind, m.group(0), root):
                 findings.append({
@@ -6634,22 +6686,11 @@ def cache_certification_for_unit(
         trace = json_load(trace_path)
         problems = list(validate_learnability_attestations(agent_dir))
         actions = list(trace.get("trace", []))
-        first_trial = next(
-            (int(x.get("turn", 0)) for x in actions if x.get("action") == "trial_start"),
-            None,
-        )
-        if first_trial is None:
-            problems.append("no scored trial_start was preserved")
-        else:
-            for filename in ("learnability_preflight.json", "learnability_leakage.json"):
-                wrote_before = any(
-                    x.get("action") == "write_file"
-                    and str((x.get("observation") or {}).get("path", "")).endswith("/" + filename)
-                    and int(x.get("turn", 0)) < first_trial
-                    for x in actions
-                )
-                if not wrote_before:
-                    problems.append(f"{filename} was not preserved before first trial_start")
+        # An accepted trial_start proves the runtime's attestation gate passed
+        # before any scored trial ran; validate_learnability_attestations above
+        # checks what the files say now.
+        if first_accepted_trial_index(actions) is None:
+            problems.append("no scored trial_start was accepted by the runtime")
         if toolchain_evidence_required(root):
             problems.extend(learnability_toolchain_evidence_problems(unit, trace))
         if problems:
@@ -6756,6 +6797,61 @@ def annotate_cache_cap_evidence(
         "annotated": annotated,
         "skipped": skipped,
     }
+
+
+def promote_from_evidence(source: Path, evidence: Path, snapshot: str) -> dict[str, Any]:
+    """Promote the certifiable units of a run that never finalized.
+
+    A run that stops before `finalize` - on the wall clock, the budget, or as
+    the third paid run did on a privacy false positive - still leaves every
+    completed unit's result, packet and trace in its retained workspace
+    evidence. The workflow checkpoints what it can, but a later policy change
+    (Quidra units becoming cacheable, a promotion rule corrected) can make more
+    of that paid work certifiable. This stages the evaluated snapshot's
+    template and repository next to the evidence exactly as the sandbox saw
+    them and runs the ordinary promotion against it; every record it writes
+    carries the fingerprint a fresh run of the same snapshot would compute.
+    """
+    if not (evidence / "run.json").is_file() or not (evidence / "work" / "root" / "manifest.json").is_file():
+        raise BenchmarkError(f"evidence directory is not a retained workspace: {evidence}")
+    for relative, archive_path, strip in (
+        ("template", "benchmark/template", 2),
+        ("repo", "", 0),
+    ):
+        destination = evidence / relative
+        if destination.exists():
+            continue
+        destination.mkdir(parents=True)
+        argv = ["git", "archive", "--format=tar", snapshot]
+        if archive_path:
+            argv += ["--", archive_path]
+        archive = subprocess.run(argv, cwd=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if archive.returncode != 0:
+            raise BenchmarkError(
+                f"git archive {snapshot} failed: {archive.stderr.decode('utf-8', 'replace')[:400]}"
+            )
+        extract = subprocess.run(
+            ["tar", "-x", "-C", str(destination), f"--strip-components={strip}"],
+            input=archive.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        )
+        if extract.returncode != 0:
+            raise BenchmarkError(
+                f"extracting {relative} failed: {extract.stderr.decode('utf-8', 'replace')[:400]}"
+            )
+    summary = promote_certified_cache(source, evidence)
+    summary["snapshot"] = snapshot
+    summary["evidence"] = str(evidence)
+    return summary
+
+
+def cmd_cache_promote_evidence(args: argparse.Namespace) -> int:
+    source = Path(args.source_repo).resolve()
+    evidence = Path(args.evidence).resolve()
+    if not (source / "benchmark" / "cache").is_dir():
+        raise BenchmarkError(f"source repository has no certified cache: {source}")
+    summary = promote_from_evidence(source, evidence, str(args.snapshot))
+    print(json.dumps(summary, indent=2))
+    return 0
 
 
 def cmd_cache_annotate_caps(args: argparse.Namespace) -> int:
@@ -7355,6 +7451,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     annotate.add_argument("--force", action="store_true", help="rewrite existing evidence")
     annotate.set_defaults(func=cmd_cache_annotate_caps)
+
+    promote = sub.add_parser(
+        "cache-promote-evidence",
+        help="promote the certifiable units of a run that never finalized, from its "
+             "retained workspace evidence and the evaluated snapshot",
+    )
+    promote.add_argument("--source-repo", required=True)
+    promote.add_argument("--evidence", required=True, help="extracted workspace-evidence.tgz")
+    promote.add_argument("--snapshot", required=True, help="the evaluated commit (git revision)")
+    promote.set_defaults(func=cmd_cache_promote_evidence)
 
     post = sub.add_parser(
         "post-run",

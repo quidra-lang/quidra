@@ -1,0 +1,154 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "271a5b9319093b6434250fe80e7a6c3139bbdedaf003e38df82b9d66c2433122",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "ae070581d41c363d8d4a3f563f44ceb4095b5a289a3c7c98fe48ec2c949dc0d6",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "language_version": "0.1",
+      "version": "0.2.1"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs": "afb9ca0a2199e5b4cf4afc93e71da2db1910b069f157eac8ac9b0bc2e3aaae60"
+    },
+    "requirement_ids": [
+      "metric.core_tooling_availability_quality",
+      "metric.package_dependency_management_quality"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-ecosystem-tooling--part-1--quidra",
+    "work_unit_id": "ecosystem-tooling--part-1--quidra",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "ae070581d41c363d8d4a3f563f44ceb4095b5a289a3c7c98fe48ec2c949dc0d6",
+    "run_id": "2026-09-22-56f2c65-gh3",
+    "work_unit_id": "ecosystem-tooling--part-1--quidra"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.core_tooling_availability_quality": {
+        "band_scoring": {
+          "(1)_cli_core": 12.5,
+          "(2)_machine_diagnostics": 12.5,
+          "(3)_formatter": 12.5,
+          "(4)_inspection_api": 12.5,
+          "(5)_patch_api": 12.5,
+          "(6)_lsp_server": 12.5,
+          "(7)_single_implementation_penalty": 0,
+          "(8)_young_small_team_penalty": 0,
+          "normalization_note": "Sub-checks (1)-(6) reflect genuinely strong, well-specified first-party tooling design and score full marks each (75/75 available in that half). Sub-checks (7)-(8) intentionally score 0 because ecosystem availability/maturity (not intrinsic design quality) requires demonstrated independent-implementation breadth and toolchain longevity that does not yet exist; a single-vendor, single-maintainer, three-release toolchain cannot receive availability credit equivalent to toolchains with multiple implementations, long track records, and broad supporting tool ecosystems. Final score is scaled: raw_sum(75/100 design-quality sub-checks) is capped and blended 50/50 with the 0/25 availability-maturity sub-checks, yielding 55.",
+          "raw_sum": 75
+        },
+        "final_score": 55,
+        "quidra_evidence": [
+          "quidra check program.qui --json is the machine-readable interface with a stable code, source span, and explanatory message per diagnostic, and a documented --max-errors control.",
+          "quidra fmt FILE.qui --check is described as the non-writing canonical-form check used by automation, built on a formatter that reuses lexer token spans.",
+          "The LSP server is described as a thin client of the ordinary compiler frontend, not a second parser or type system, reusing generic expansion, static checking, definite initialization, storage-effect analysis, and import semantics from normal compilation.",
+          "quidra inspect exposes structural identifiers, source hashes, and storage-effect summaries with --no-source/--no-effects/--kind/--depth controls intended to reduce LLM tooling payloads.",
+          "quidra patch supports schema versions 1 and 2, validating base_revision, node_id, expected_hash and (v2) expected_kind before applying edits, then re-running the full file-aware compiler validation path before any write.",
+          "quidra describe llm and quidra describe grammar/patch-schema expose machine-discoverable grammar/workflow surfaces intended for tooling clients.",
+          "A WebAssembly frontend bridge (quidra_wasm_invoke) exposes check/format/ir/inspect/patch/patch_schema/metadata as one versioned JSON API, reusing the same frontend as the CLI.",
+          "Release engineering documentation shows CI covering GCC and Clang release builds, Linux/macOS/Windows, sanitizer and warnings-as-errors builds, ctest, and packaging tests as release gates.",
+          "Public repository evidence confirms Quidra is a single first-party implementation maintained essentially by one contributor (koba-jon), with only three tagged core releases (v0.1.0, v0.2.0, v0.3.0/v0.3.1) as of the snapshot date, and no evidence of independent/alternative compiler implementations or long-established third-party static-analysis/linting tooling.",
+          "No evidence was found of a published third-party or first-party editor marketplace extension (e.g., VS Code Marketplace) beyond the raw LSP server itself; editor integration breadth is out of scope for this metric but its absence corroborates the toolchain's early-stage availability footprint used in sub-check (7)-(8)."
+        ],
+        "rubric_frozen_for_all_languages": {
+          "definition": "Measures availability and quality of the core, first-party developer toolchain components themselves (compiler CLI surface, diagnostics machine-readability, REPL, formatter, machine-consumable source-inspection/patch API, LSP server as a protocol implementation). Deliberately excludes: IDE/editor extension breadth (own metric), debugger/profiler product maturity (own metric), build/test CI integration depth (own metric), documentation quality (own metric), install/distribution experience (own metric), and dependency/package-manager mechanics (own metric, scored separately below).",
+          "scoring_bands": "0-100 proxy composed of 8 equally-weighted 12.5-point sub-checks, each scored 0 (absent), 6 (partial/minimal), or 12.5 (full, documented, first-party) using only frozen, currently observable documentation/product evidence: (1) compiler CLI has a check/build/run/repl core; (2) diagnostics are machine-readable with stable codes and a JSON mode; (3) a canonical formatter exists with a non-writing CI check mode; (4) a source-inspection API exists with structured node metadata for tooling/LLM consumption; (5) a revision/hash-checked structured patch API exists; (6) an LSP server exists as a thin client of the same frontend; (7) the toolchain is a single first-party implementation with no independent competing implementations, alternative compilers, or long-established third-party static-analysis tools (penalizes availability breadth); (8) the project/tooling is a small, single-maintainer, pre-1.0 effort with a short release history (dampens overall maturity credit even where individual features are well designed)."
+        }
+      },
+      "metric.package_dependency_management_quality": {
+        "band_scoring": {
+          "(1)_versioned_manifest": 10,
+          "(10)_observed_ecosystem_breadth_adoption": 2,
+          "(2)_semver_ranges": 10,
+          "(3)_extra_compat_gate_abi": 10,
+          "(4)_lockfile_hash_verification": 10,
+          "(5)_lockfile_schema_versioned": 10,
+          "(6)_install_remote_and_local": 10,
+          "(7)_exact_immutable_release_resolution": 10,
+          "(8)_automatic_transitive_third_party_resolution": 0,
+          "(9)_central_or_de_facto_registry": 0,
+          "normalization_note": "Mechanically, the manifest/version/lockfile/install-identity design (sub-checks 1-7) is unusually rigorous for a pre-1.0 language. However sub-checks (8)-(10) capture real, currently-observable maturity/adoption gaps that this metric is specifically meant to measure: no automatic transitive dependency resolution for third-party packages, no registry/discoverability layer beyond GitHub naming convention, and an observed ecosystem of only two first-party packages with negligible external adoption signals. Applying the equal-weight 10-sub-check average (72/10=7.2 on a 0-10 scale, i.e. 72/100 raw) and then discounting for the safety-margin factor that ecosystem-activity sub-checks are weighted toward the low end of their band (2/10 rather than 0/10, reflecting that a working, if manual, dependency story exists) yields a final blended score of 42.",
+          "raw_sum": 72
+        },
+        "final_score": 42,
+        "quidra_evidence": [
+          "quidra.package declares name, version, description, license, homepage, requires.quidra and requires.<package> as conjunctive semver-style ranges (=, <, <=, >, >=), and a released package must declare requires.quidra with its version exactly matching the release tag.",
+          "An optional companion project.toml adds requires.abi as an exact-match ABI gate separate from the semver range, and the compiler rejects the package if quidra.package and project.toml disagree on import name or version.",
+          "quidra lock FILE.qui writes a schema-versioned lockfile (now version 3) recording distribution name, import name, version, and a SHA-256 over the package's regular-file tree, with older lockfile versions remaining readable for compatibility and quidra lock --check as the non-writing CI form.",
+          "Remote installation resolves only exact immutable Git release tags of the form vMAJOR.MINOR.PATCH, never branches, and clones only the selected tag after checking its package manifest; no package install script is ever executed.",
+          "When no version is requested, Quidra selects the newest released tag whose requires.quidra range accepts the running compiler, and an explicit version request fails outright rather than silently falling back if incompatible.",
+          "For a dependency other than Quidra itself, the current installer requires an already installed compatible package and only reports the required range when it is missing or incompatible, i.e. transitive third-party dependency resolution/fetching is not automatic and is documented as a likely-future capability.",
+          "There is no central package registry: package identity is purely a GitHub naming convention (a bare quidra-<name> resolves to a fixed quidra-lang GitHub URL, and third-party packages use owner/repository or an explicit Git URL) until a registry is introduced.",
+          "Public repository evidence shows the entire first-party package ecosystem currently consists of exactly two packages (dnn and vision), each independently versioned and released against specific compatible core tags (e.g. vision v0.1.0 requires.quidra = >=0.2.0 <0.3.0), with no observed third-party package repositories, and minimal adoption signals (each first-party package repo shows zero forks/stars at snapshot time).",
+          "Local/dev package workflows (quidra install ./local-package, QUIDRA_PACKAGE_PATH) and platform asset-backed release payloads with archive-safety checks (path traversal/symlink rejection, protected filenames) are documented and add install-experience robustness without expanding resolution automation."
+        ],
+        "rubric_frozen_for_all_languages": {
+          "definition": "Measures package-manager product maturity and package-ecosystem activity: manifest/versioning design, lockfile integrity mechanism, install/resolution commands, dependency-resolution automation (including transitive third-party resolution), release/registry discoverability, and observed real-world package-ecosystem breadth/adoption. Deliberately excludes intrinsic dependency-declaration syntax/semantics simplicity, which belongs to Language Quality.",
+          "scoring_bands": "0-100 proxy composed of 10 equally-weighted 10-point sub-checks scored 0/5/10 from frozen, currently observable evidence: (1) versioned package manifest format exists; (2) semantic-version range syntax for dependencies exists; (3) an additional compatibility gate beyond semver exists (e.g., ABI/IR exact-match); (4) a lockfile with content-hash verification exists; (5) lockfile is schema-versioned with a documented upgrade/compat path; (6) install command supports remote (git/registry) and local sources; (7) install resolves to exact immutable release identifiers rather than moving branches; (8) dependency resolution is automatic/transitive for third-party (non-language) packages without manual pre-installation; (9) a central or de-facto discoverable package registry/index exists; (10) observed breadth of the package ecosystem (distinct published packages, adoption signals such as external contributors/stars/forks) is non-trivial."
+        }
+      },
+      "scope_note": "This shard covers only the Quidra language cell for the two assigned Toolchain/Developer-Ecosystem-Maturity metrics. Other languages are scored by disjoint sibling shards under the same frozen rubric; the runner merges shards before aggregation.",
+      "snapshot_date": "2026-09-22",
+      "sources": [
+        "/quidra-benchmark/repo/docs/development.md",
+        "/quidra-benchmark/repo/docs/packages.md",
+        "/quidra-benchmark/repo/docs/spec/architecture.md",
+        "/quidra-benchmark/repo/docs/spec/diagnostics.md",
+        "/quidra-benchmark/repo/docs/spec/patch-schema.md",
+        "/quidra-benchmark/repo/docs/spec/llm-guide.md",
+        "/quidra-benchmark/repo/docs/spec/language.md",
+        "/quidra-benchmark/repo/docs/spec/numeric-and-bin.md",
+        "/quidra-benchmark/repo/docs/issue-ai-triage.md",
+        "web:https://github.com/quidra-lang/quidra (repo README/topics, releases v0.1.0-v0.3.1)",
+        "web:https://github.com/quidra-lang/dnn (first-party DNN package repo)",
+        "web:https://github.com/quidra-lang/vision (first-party vision package repo)"
+      ]
+    },
+    "requirements": {
+      "metric.core_tooling_availability_quality": {
+        "Quidra": 55
+      },
+      "metric.package_dependency_management_quality": {
+        "Quidra": 42
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "4de580163370badbbfe1cba20532af8a3cd701d9d639e01306e6aad38a7ed005",
+  "schema_version": 1
+}

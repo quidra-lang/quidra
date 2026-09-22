@@ -177,7 +177,7 @@ The benchmark has three deliberately separate layers:
 
 A certified measurement may be reused only when its fingerprint matches exactly. The fingerprint includes the exact Task Packet SHA-256, assigned language set, provider/model, frozen sampling state, relevant toolchain versions, validator/workload inputs, worker/network policy, runtime-toolchain manifest and cache epoch. A cache HIT is revalidated by the current runner before it becomes COMPLETE. A MISS executes normally; an eligible non-Quidra unit may be checkpointed independently once that unit is COMPLETE, its current validator is PASS, and any evaluation-specific cache certification succeeds. Overall Primary finalization is not required for that checkpoint.
 
-Quidra is the changing target. Any unit containing Quidra is always a cache MISS. Quidra benchmark program source comes from the evaluated snapshot under `tests/benchmark/quidra`, is re-audited for that target commit, and never enters the reusable comparison-program catalog.
+Quidra is the changing target, and a unit containing Quidra is keyed by the versions the evaluated snapshot declares in `project.toml` (`version` and `language_version`) in addition to the exact Task Packet: it is a cache HIT only while neither has changed. Quidra benchmark program source comes from the evaluated snapshot under `tests/benchmark/quidra`, is re-audited for that target commit, and never enters the reusable comparison-program catalog.
 
 Stable comparison-language measurements use a stable epoch. Ecosystem measurements use a UTC-month epoch because external packages, tools, adoption and public knowledge can change even when a language version does not.
 

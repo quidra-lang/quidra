@@ -2,6 +2,8 @@
   "schema_version": 1,
   "runtime": "quidra-sandbox-agent-v1",
   "max_turns": 24,
+  "orchestration_max_output_tokens": 32768,
+  "orchestration_max_output_tokens_note": "Output cap of one of the agent's own action turns, which are never scored. It lives here, in the runtime configuration, rather than in primary.json: primary.json is embedded in every Task Packet and hashed into every certified-cache key, so changing it there would invalidate every cached measurement. The third paid run ended learnability units on a single action turn cut off at 8192 tokens.",
   "max_observation_bytes": 65536,
   "max_read_bytes": 262144,
   "max_write_bytes": 1048576,

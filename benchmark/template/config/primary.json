@@ -135,7 +135,7 @@
     "sandbox_agent_launcher": "scripts/sandbox_launcher.py",
     "packet_only_inference": "benchmark.py task-infer via the same credential-less gateway",
     "default_max_output_tokens": 8192,
-    "orchestration_max_output_tokens": 32768,
+    "orchestration_max_output_tokens": 8192,
     "trial_turn_multiplier": 3,
     "max_trial_batch": 16,
     "trial_records": "runtime-owned files under work/agents/<agent-id>/trials/, written verbatim by scripts/sandbox_agent.py and not writable by the worker",

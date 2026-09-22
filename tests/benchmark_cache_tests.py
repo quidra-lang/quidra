@@ -107,7 +107,7 @@ def create_cacheable_task(root: Path) -> tuple[dict, dict]:
         "evaluation": "ecosystem",
         "phase": "measurement",
         "execution_kind": "agent",
-        "worker_mode": "packet-only",
+        "worker_mode": "sandbox-agent",
         "result_kind": "requirements",
         "goal": "Score one frozen ecosystem metric for Python.",
         "assigned_agent_id": agent_id,

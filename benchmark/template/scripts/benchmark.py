@@ -3280,11 +3280,23 @@ def cache_scope(unit: dict[str, Any]) -> str:
     )[:12]
 
 
+def resolve_recorded_workspace_path(root: Path, raw: str | Path) -> Path:
+    """Map a path recorded inside /quidra-benchmark back onto the current workspace."""
+    recorded = Path(str(raw))
+    if recorded.is_absolute():
+        try:
+            relative = recorded.relative_to(CANONICAL_WORKSPACE)
+        except ValueError:
+            return require_under(recorded, root)
+        return require_under(root / relative, root)
+    return require_under(root / recorded, root)
+
+
 def cache_read_input_hashes(root: Path, task: dict[str, Any]) -> dict[str, str]:
     """Hash the exact readable inputs of a cacheable task using workspace-relative names."""
     rows: dict[str, str] = {}
     for raw in task.get("read_paths", []) or []:
-        path = require_under(Path(str(raw)), root)
+        path = resolve_recorded_workspace_path(root, raw)
         relative = path.relative_to(root).as_posix()
         if path.is_symlink():
             raise BenchmarkError(f"cacheable read path may not be a symlink: {relative}")
@@ -6149,15 +6161,7 @@ def promote_prompt_store(source: Path, root: Path) -> dict[str, Any]:
             if not re.fullmatch(r"[0-9a-f]{64}", digest):
                 raise BenchmarkError(f"invalid component SHA-256 in {manifest_path}")
             recorded_path = Path(str(component.get("path") or ""))
-            if recorded_path.is_absolute():
-                try:
-                    relative = recorded_path.relative_to(CANONICAL_WORKSPACE)
-                except ValueError:
-                    component_path = require_under(recorded_path, root)
-                else:
-                    component_path = require_under(root / relative, root)
-            else:
-                component_path = require_under(root / recorded_path, root)
+            component_path = resolve_recorded_workspace_path(root, recorded_path)
             if not component_path.is_file():
                 raise BenchmarkError(
                     f"prompt component is missing after host path mapping: "

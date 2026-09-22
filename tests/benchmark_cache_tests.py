@@ -256,6 +256,24 @@ def main() -> None:
         unit, task = create_cacheable_task(root)
         freeze_manifest(root, unit)
 
+        # Production tasks are authored inside /quidra-benchmark, while post-run
+        # promotes them from the host staging path. Both path spellings must hash
+        # the same readable content and therefore produce the same cache key.
+        host_task = dict(task)
+        canonical_task = dict(task)
+        canonical_task["read_paths"] = [
+            str(benchmark.CANONICAL_WORKSPACE / "template/workloads/micro.md")
+        ]
+        assert (
+            benchmark.cache_read_input_hashes(root, host_task)
+            == benchmark.cache_read_input_hashes(root, canonical_task)
+        )
+        benchmark.json_dump(
+            root / "work/agents" / unit["assigned_agent_id"] / "task.json",
+            canonical_task,
+        )
+        task = canonical_task
+
         original = benchmark.cache_fingerprint(root, unit, task)
         assert original is not None
         original_fingerprint = original[0]

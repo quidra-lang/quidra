@@ -100,7 +100,9 @@ jobs:
           python benchmark/template/scripts/benchmark.py init \
             --source-repo "$GITHUB_WORKSPACE" \
             --sandbox-mode container \
-            --run-id "$RUN_ID"
+            --run-id "$RUN_ID" \
+            --provider anthropic-messages \
+            --model "$BENCHMARK_MODEL"
 
       - name: Deterministic preparation without paid inference
         run: |
@@ -200,7 +202,7 @@ jobs:
           # retained agent directory legitimately contains such files. Dropping
           # them silently would leave import_manifest.json listing hashes of
           # files absent from the commit.
-          git add -f "benchmark/$RUN_ID"
+          git add -f "benchmark/$RUN_ID" benchmark/cache benchmark/template/prompts
           python - <<'PY'
           import json, os, subprocess
           run_id = os.environ["RUN_ID"]
@@ -216,7 +218,7 @@ jobs:
           PY
           git -c user.name="github-actions[bot]" \
               -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
-              commit -m "Add benchmark results for ${EVALUATED_SHA:0:7}"
+              commit -m "Add benchmark summary and certified cache for ${EVALUATED_SHA:0:7}"
           git push origin HEAD:develop
 
       - name: Preserve run evidence
@@ -229,6 +231,8 @@ jobs:
           path: |
             ${{ runner.temp }}/workspace-evidence.tgz
             benchmark/${{ env.RUN_ID }}
+            benchmark/cache
+            benchmark/template/prompts
             ${{ runner.temp }}/api-cost.json
             ${{ runner.temp }}/gateway-audit.jsonl
             ${{ runner.temp }}/provider-smoke.json

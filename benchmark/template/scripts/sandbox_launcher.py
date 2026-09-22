@@ -127,7 +127,7 @@ def launcher_contract(uid: int, gid: int, image: str, network_policy: str) -> di
         "no_new_privileges": True,
         "capabilities_dropped": "ALL",
         "read_only_root_filesystem": True,
-        "read_only_paths": [f"{CANONICAL_ROOT}/repo", f"{CANONICAL_ROOT}/template"],
+        "read_only_paths": [f"{CANONICAL_ROOT}/repo", f"{CANONICAL_ROOT}/template", f"{CANONICAL_ROOT}/cache"],
         "writable_paths": [
             f"{CANONICAL_ROOT}/work",
             f"{CANONICAL_ROOT}/results",
@@ -174,6 +174,7 @@ def scored_container_argv(
         "--volume", f"{staging}:{CANONICAL_ROOT}:rw",
         "--volume", f"{staging / 'repo'}:{CANONICAL_ROOT}/repo:ro",
         "--volume", f"{staging / 'template'}:{CANONICAL_ROOT}/template:ro",
+        "--volume", f"{staging / 'cache'}:{CANONICAL_ROOT}/cache:ro",
         "--volume", f"{gateway_mount}:{GATEWAY_MOUNTPOINT}:rw",
     ]
     if interactive:

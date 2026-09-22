@@ -164,13 +164,23 @@ A COMPLETE evaluation must contain all required validated work, passing comparab
 
 If those conditions are not met, the evaluation is PARTIAL/WITHDRAWN/NOT_EXECUTED with exact blockers and no fabricated score.
 
-## 8. Reuse
+## 8. Template, certified cache and run summaries
 
-Reusable comparison-language source/harness/fixtures live directly under `benchmark/template/`. Reuse never means reusing measurements, scores or LLM generations. Every run rebuilds/checks, executes, validates and measures again.
+The benchmark has three deliberately separate layers:
 
-Frozen facts that are fully derivable from the current template/manifest (for example fixed-language coverage or frozen probe coverage) are revalidated mechanically by runner command units and must not consume an LLM call. LLM workers are reserved for judgments that cannot be reduced to those deterministic checks. This reuses stable benchmark assets, not old benchmark outcomes.
+1. **Template** — reusable prompts, prompt components, source, harnesses, fixtures, validators, workloads and methodology under `benchmark/template/`.
+2. **Certified cache** — validated comparison-language measurement results under `benchmark/cache/`, keyed by a complete benchmark-input fingerprint.
+3. **Run summary** — only compact run identity, Primary scores/rankings, blockers, cache provenance and overview under `benchmark/<run-id>/`.
 
-Quidra is the changing target. Quidra benchmark program source is run-specific: it must be authored or re-audited against the evaluated commit and must never enter the reusable program catalog.
+A certified measurement may be reused only when its fingerprint matches exactly. The fingerprint includes the exact Task Packet SHA-256, assigned language set, provider/model, frozen sampling state, relevant toolchain versions, validator/workload inputs, worker/network policy, runtime-toolchain manifest and cache epoch. A cache HIT is revalidated by the current runner before it becomes COMPLETE; a MISS executes normally and may be promoted only after the whole Primary evaluation finalizes successfully.
+
+Quidra is the changing target. Any unit containing Quidra is always a cache MISS. Quidra benchmark program source remains run-specific and never enters the reusable comparison-program catalog.
+
+Stable comparison-language measurements use a stable epoch. Ecosystem measurements use a UTC-month epoch because external packages, tools, adoption and public knowledge can change even when a language version does not.
+
+Exact scored prompts are content-addressed. New prompt components/manifests are promoted into `benchmark/template/prompts/` only after finalization; future identical prompts reuse those canonical bytes instead of storing another copy.
+
+Frozen facts fully derivable from the current template/manifest are still revalidated mechanically and never consume an LLM call. Historical run directories are never benchmark inputs; only the explicit certified cache is reusable measurement input.
 
 ## 9. Frozen measurement window
 
@@ -182,6 +192,8 @@ Template maintenance happens before freeze or after finalization.
 
 Machine-readable results are the single source of truth. Markdown/CSV/charts are generated from them.
 
-Retain only compact reproducible run artifacts. The retained set is limited to run identity, results, required raw evidence, exact prompts, leaf outputs including sandbox-agent traces, frozen plans/manifest/ledger, and runner command results. Build caches, the evaluated repository snapshot, template copy, temporary home, temporary files and micro build products are not imported. The gateway's request audit log belongs to the trusted side and is never written into the scored workspace. Never retain credentials, personal email addresses, host home paths or source-checkout paths outside `/quidra-benchmark`.
+Git retains only the compact run summary: run identity, Primary scores/rankings, exact blockers, cache HIT/MISS provenance and hashes needed to reproduce the decision. Raw prompts, completions, worker directories, traces, plans, ledgers and command evidence remain in the workflow evidence artifact for the frozen retention window instead of being committed once per run. Reusable prompt bytes are deduplicated in the content-addressed template prompt store, and reusable validated comparison measurements are deduplicated in the certified cache.
+
+Build products, the evaluated repository snapshot, temporary home and temporary files are never committed as run output. The gateway request audit remains trusted-side evidence. Never retain credentials, personal email addresses, host home paths or source-checkout paths outside `/quidra-benchmark`.
 
 A successful run has attempted all five Primary evaluations, mechanically aggregated every scoreable evaluation, emitted a ranking for every COMPLETE evaluation, recorded exact blockers for all others, and passed reconciliation/privacy/finalization gates.

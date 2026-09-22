@@ -44,7 +44,7 @@ from gateway_client import (  # noqa: E402
     GatewayRefusal,
     InferenceGatewayClient,
     completion_problem,
-    parse_model_json,
+    parse_model_json_batch,
 )
 
 CANONICAL_WORKSPACE = benchmark.CANONICAL_WORKSPACE
@@ -238,6 +238,10 @@ def act_read_file(action: dict[str, Any], perms: Permissions) -> dict[str, Any]:
     target = perms.resolve_read(str(action.get("path", "")))
     if target.is_symlink():
         raise AgentDenied(f"refusing to read through a symlink: {target.as_posix()}")
+    if target.is_dir():
+        raise AgentDenied(
+            f"not a readable file: {target.as_posix()} is a directory; use list_dir on it"
+        )
     if not target.is_file():
         raise AgentDenied(f"not a readable file: {target.as_posix()}")
     limit = min(
@@ -593,8 +597,9 @@ unchanged.
     cap_line = ""
     if orchestration_cap is not None:
         cap_line = (
-            f"- Each of your own turns is capped at {orchestration_cap} output tokens; "
-            "keep actions small and put large content in files.\n"
+            f"- Each of your own turns is capped at {orchestration_cap} output tokens. A "
+            "turn cut off at that cap executes nothing and is answered with a "
+            "protocol_error; split large content across several write_file calls.\n"
         )
     trial_block = ""
     if trials is not None and trials.budget > 0:
@@ -648,8 +653,12 @@ You are running as a `sandbox-agent` worker inside the benchmark sandbox rooted 
 filesystem access, no shell, and no agent-platform tools. The only capabilities
 that exist are the actions below, and the runtime enforces every limit in code.
 
-Reply with exactly one JSON object per turn and nothing else. No prose, no
-Markdown fence, no multiple objects.
+Reply with JSON action objects and nothing else: no prose and no Markdown fence.
+One object per turn is the norm; several objects in one turn are executed in the
+order written and answered together, so independent steps (several `write_file`
+calls, a `write_file` followed by its `run`) may share a turn. `final` ends the
+unit: send it alone or as the last object, and only once every expected output
+exists; a `final` sent earlier is refused and costs a turn.
 
 Available actions:
 
@@ -683,6 +692,16 @@ another path. Do the task within these permissions, then send `final`.
 # --------------------------------------------------------------------------
 # Loop
 # --------------------------------------------------------------------------
+
+
+def missing_expected_outputs(task: dict[str, Any], agent_dir: Path) -> list[str]:
+    """The Task Packet's expected outputs that do not exist yet, as sandbox paths."""
+    missing = []
+    for raw in task.get("expected_outputs", []):
+        path = benchmark.require_under(Path(raw), agent_dir)
+        if not path.is_file():
+            missing.append(path.as_posix())
+    return missing
 
 
 def run_agent(args: argparse.Namespace) -> int:
@@ -787,16 +806,40 @@ def run_agent(args: argparse.Namespace) -> int:
 
         incomplete = completion_problem(response)
         if incomplete:
-            # Not a protocol error on the model's part, and not worth another
-            # identical turn: the answer was cut off or declined, and saying so
-            # is more useful than three retries that end the same way.
+            if incomplete.startswith("max_tokens"):
+                # An action turn cut off at its cap is recoverable: the turn is
+                # never scored, nothing in it is executed, and the model can
+                # resend the same work in smaller pieces. The third paid run
+                # ended a unit on the first such turn; only a run of consecutive
+                # truncations ends one now.
+                protocol_errors += 1
+                trace.append({
+                    "turn": turn,
+                    "action": None,
+                    "incomplete": incomplete,
+                    "protocol_error": "truncated action turn",
+                })
+                if protocol_errors >= max_protocol_errors:
+                    stop_reason = "protocol_contract_violated"
+                    break
+                messages.append({"role": "user", "content": json.dumps({
+                    "ok": False,
+                    "protocol_error": (
+                        f"your turn was cut off at the {orchestration_cap}-token turn cap "
+                        "and nothing in it was executed; resend the work as smaller "
+                        "actions (several write_file calls with shorter content, one "
+                        "step at a time)"
+                    ),
+                })})
+                continue
+            # Refused, paused or asking for a tool: not a protocol error on the
+            # model's part, and not worth another identical turn.
             stop_reason = f"incomplete_completion:{incomplete.split(':', 1)[0]}"
             trace.append({"turn": turn, "action": None, "incomplete": incomplete})
             break
 
         try:
-            action = parse_model_json(completion)
-            protocol_errors = 0
+            actions = parse_model_json_batch(completion)
         except GatewayClientError as exc:
             protocol_errors += 1
             trace.append({
@@ -814,54 +857,97 @@ def run_agent(args: argparse.Namespace) -> int:
             })
             continue
 
-        name = action.get("action")
-        if name == "final":
-            final_summary = str(action.get("summary", ""))
-            stop_reason = "final"
-            trace.append({"turn": turn, "action": "final"})
+        # Every object in the turn is an action, executed in the order written.
+        # `final` ends the unit once the expected outputs exist; anything the
+        # model wrote after a `final` is never executed.
+        observations: list[dict[str, Any]] = []
+        turn_protocol_error = False
+        finished = False
+        for position, action in enumerate(actions, start=1):
+            batch = {"batch": [position, len(actions)]} if len(actions) > 1 else {}
+            name = action.get("action")
+            if name == "final":
+                missing_now = missing_expected_outputs(task, agent_dir)
+                if missing_now:
+                    protocol_errors += 1
+                    turn_protocol_error = True
+                    observation = {
+                        "ok": False,
+                        "protocol_error": (
+                            "final refused: expected outputs are still missing: "
+                            + ", ".join(missing_now)
+                            + "; write them with write_file, then send final again"
+                        ),
+                    }
+                    trace.append({
+                        "turn": turn, "action": "final", "observation": observation,
+                        "protocol_error": "final before expected outputs", **batch,
+                    })
+                    observations.append(observation)
+                    break
+                final_summary = str(action.get("summary", ""))
+                stop_reason = "final"
+                trace.append({"turn": turn, "action": "final", **batch})
+                finished = True
+                break
+
+            if name in {"trial_start", "trial_continue"}:
+                try:
+                    observation = trials.start(action) if name == "trial_start" else trials.resume(action)
+                except AgentDenied as exc:
+                    observation = {"ok": False, "denied": str(exc)}
+                    denials.append({"turn": turn, "action": name, "reason": str(exc)})
+            elif name not in ACTIONS:
+                observation = {
+                    "ok": False,
+                    "denied": f"unknown action {name!r}; permitted actions are "
+                              + ", ".join([*ACTIONS, "final"]),
+                }
+                denials.append({"turn": turn, "action": name, "reason": observation["denied"]})
+            else:
+                try:
+                    observation = ACTIONS[name](action, perms)
+                except AgentDenied as exc:
+                    observation = {"ok": False, "denied": str(exc)}
+                    denials.append({"turn": turn, "action": name, "reason": str(exc)})
+                except OSError as exc:
+                    observation = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
+
+            recorded = dict(observation)
+            if isinstance(recorded.get("completion"), str):
+                recorded["completion"] = f"<{len(recorded['completion'])} chars, preserved under trials>"
+            if isinstance(recorded.get("content"), str):
+                recorded["content"] = f"<{len(recorded['content'])} chars elided from trace>"
+            trace.append({"turn": turn, "action": name, "observation": recorded, **batch})
+            observations.append(observation)
+
+        if finished:
             break
+        if protocol_errors >= max_protocol_errors:
+            stop_reason = "protocol_contract_violated"
+            break
+        if not turn_protocol_error:
+            protocol_errors = 0
 
-        if name in {"trial_start", "trial_continue"}:
-            try:
-                observation = trials.start(action) if name == "trial_start" else trials.resume(action)
-            except AgentDenied as exc:
-                observation = {"ok": False, "denied": str(exc)}
-                denials.append({"turn": turn, "action": name, "reason": str(exc)})
-        elif name not in ACTIONS:
-            observation: dict[str, Any] = {
-                "ok": False,
-                "denied": f"unknown action {name!r}; permitted actions are "
-                          + ", ".join([*ACTIONS, "final"]),
-            }
-            denials.append({"turn": turn, "action": name, "reason": observation["denied"]})
+        if len(actions) == 1:
+            reply: dict[str, Any] = observations[0]
         else:
-            try:
-                observation = ACTIONS[name](action, perms)
-            except AgentDenied as exc:
-                observation = {"ok": False, "denied": str(exc)}
-                denials.append({"turn": turn, "action": name, "reason": str(exc)})
-            except OSError as exc:
-                observation = {"ok": False, "error": f"{type(exc).__name__}: {exc}"}
-
-        recorded = dict(observation)
-        if isinstance(recorded.get("completion"), str):
-            recorded["completion"] = f"<{len(recorded['completion'])} chars, preserved under trials>"
-        if isinstance(recorded.get("content"), str):
-            recorded["content"] = f"<{len(recorded['content'])} chars elided from trace>"
-        trace.append({"turn": turn, "action": name, "observation": recorded})
-
+            reply = {
+                "ok": all(bool(item.get("ok")) for item in observations),
+                "executed": len(observations),
+                "of": len(actions),
+                "results": observations,
+            }
         rendered, _ = truncate(
-            json.dumps(observation, sort_keys=True), int(config["max_observation_bytes"])
+            json.dumps(reply, sort_keys=True), int(config["max_observation_bytes"])
         )
         messages.append({"role": "user", "content": rendered})
 
-    expected = []
-    missing = []
-    for raw in task.get("expected_outputs", []):
-        path = benchmark.require_under(Path(raw), agent_dir)
-        expected.append(path.as_posix())
-        if not path.is_file():
-            missing.append(path.as_posix())
+    expected = [
+        benchmark.require_under(Path(raw), agent_dir).as_posix()
+        for raw in task.get("expected_outputs", [])
+    ]
+    missing = missing_expected_outputs(task, agent_dir)
 
     result = {
         "schema_version": 1,

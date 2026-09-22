@@ -44,6 +44,7 @@ import sys
 import threading
 import time
 from typing import Any
+import http.client
 import urllib.error
 import urllib.request
 
@@ -55,6 +56,14 @@ CANONICAL_SOCKET_PATH = "/quidra-benchmark/gateway/inference.sock"
 
 class GatewayError(RuntimeError):
     """Operator-facing gateway failure (never sent verbatim to the sandbox)."""
+
+
+class EventStreamError(RuntimeError):
+    """A streamed provider response ended early or carried an error event.
+
+    Raised inside the transport retry loop, where it is treated like a dropped
+    connection: the identical request is sent again.
+    """
 
 
 class PolicyError(RuntimeError):
@@ -228,24 +237,28 @@ class FakeProvider(Provider):
         if priced is not None:
             usage["estimated_cost_usd"] = float(priced)
 
+        def scripted(entry: Any) -> dict[str, Any]:
+            # A scripted completion is a string, or an object that also names
+            # the stop reason the provider reported, so a test can hand the
+            # sandbox a truncated turn without a paid provider.
+            if isinstance(entry, dict):
+                return {
+                    "content": str(entry.get("content", "")),
+                    "stop_reason": str(entry.get("stop_reason") or "end_turn"),
+                    "usage": {**usage, **(entry.get("usage") or {})},
+                }
+            return {"content": str(entry), "stop_reason": "end_turn", "usage": dict(usage)}
+
         # Per-task turn scripts come first: they let one gateway drive many
         # independent work units deterministically, each with its own turn counter.
         turns = (self.script.get("tasks") or {}).get(task_id)
         if turns and task_index <= len(turns):
-            return {
-                "content": str(turns[task_index - 1]),
-                "stop_reason": "end_turn",
-                "usage": dict(usage),
-            }
+            return scripted(turns[task_index - 1])
 
         for rule in self.script.get("rules", []):
             needle = rule.get("contains")
             if needle and needle in last_user:
-                return {
-                    "content": str(rule["content"]),
-                    "stop_reason": "end_turn",
-                    "usage": dict(usage),
-                }
+                return scripted(rule["content"])
 
         # The sequence answers the calls that nothing above answered, in order.
         # Counting every call here instead would let a scripted trial completion
@@ -257,19 +270,11 @@ class FakeProvider(Provider):
                 if position < len(sequence):
                     self._sequence_served += 1
             if position < len(sequence):
-                return {
-                    "content": str(sequence[position]),
-                    "stop_reason": "end_turn",
-                    "usage": dict(usage),
-                }
+                return scripted(sequence[position])
 
         default = self.script.get("default")
         if default is not None:
-            return {
-                "content": str(default),
-                "stop_reason": "end_turn",
-                "usage": dict(usage),
-            }
+            return scripted(default)
 
         digest = sha256_text(transcript)
         return {
@@ -353,6 +358,7 @@ class AnthropicMessagesProvider(Provider):
         web_search: dict[str, Any] | None = None,
         decoding: dict[str, Any] | None = None,
         caching: dict[str, Any] | None = None,
+        transport: dict[str, Any] | None = None,
         base_url: str | None = None,
     ) -> None:
         api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
@@ -406,6 +412,10 @@ class AnthropicMessagesProvider(Provider):
             0, int(self.decoding.get("empty_completion_retries", 1) or 0)
         )
         self.caching = dict(caching or {})
+        # Streaming is a transport decision on the trusted side: it changes how
+        # the bytes of an answer arrive, never what the model sees or produces.
+        # It is on unless the frozen config switches it off.
+        self.streaming = bool((transport or {}).get("streaming", True))
         self._estimated_cost_usd = 0.0
         self._lock = threading.Lock()
 
@@ -425,6 +435,7 @@ class AnthropicMessagesProvider(Provider):
             "orchestration_thinking": self.orchestration_thinking or "provider-default",
             "empty_completion_retries": self.empty_completion_retries,
             "prompt_caching": bool(self.caching.get("enabled")),
+            "streaming": "tool-less requests" if self.streaming else "off",
         }
 
     def secrets(self) -> list[str]:
@@ -471,10 +482,14 @@ class AnthropicMessagesProvider(Provider):
             * float(self.pricing.get("web_search_usd_per_request", 0.0))
         )
 
-    def _open(self, http_request: urllib.request.Request) -> dict[str, Any]:
+    def _open(
+        self, http_request: urllib.request.Request, *, stream: bool = False
+    ) -> dict[str, Any]:
         for attempt in range(6):
             try:
                 with urllib.request.urlopen(http_request, timeout=self.timeout) as response:
+                    if stream:
+                        return self._read_event_stream(response)
                     return json.loads(response.read().decode("utf-8"))
             except urllib.error.HTTPError as exc:
                 detail = exc.read().decode("utf-8", "replace")[:2000]
@@ -486,11 +501,110 @@ class AnthropicMessagesProvider(Provider):
                 except ValueError:
                     delay = min(2 ** attempt, 30)
                 time.sleep(max(1.0, min(delay, 60.0)))
-            except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
+            except (
+                urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException,
+                json.JSONDecodeError, EventStreamError,
+            ) as exc:
                 if attempt == 5:
                     raise GatewayError(f"provider transport failure: {exc}") from exc
                 time.sleep(min(2 ** attempt, 30))
         raise GatewayError("provider retry loop exhausted")
+
+    @staticmethod
+    def _read_event_stream(response: Any) -> dict[str, Any]:
+        """Assemble one Messages response from its server-sent event stream.
+
+        A non-streaming request is silent on the wire for as long as the model
+        generates. On the GitHub-hosted runner that silence is fatal: the
+        outbound connection is dropped after roughly four idle minutes, and the
+        third paid run lost every packet call that generated for longer than
+        that as "Remote end closed connection without response", then paid for
+        the same generation again on each transport retry. A streamed response
+        carries deltas and keep-alive pings for the whole generation, so the
+        connection is never idle.
+
+        The stream is folded back into the exact shape the non-streaming
+        endpoint returns - content blocks, stop_reason and usage - so nothing
+        after this point knows which transport carried the answer.
+        """
+        blocks: dict[int, dict[str, Any]] = {}
+        usage: dict[str, Any] = {}
+        stop_reason: str | None = None
+        finished = False
+
+        def apply(event: str, payload: dict[str, Any]) -> None:
+            nonlocal stop_reason, finished
+            if event == "message_start":
+                usage.update((payload.get("message") or {}).get("usage") or {})
+            elif event == "content_block_start":
+                index = int(payload["index"])
+                block = dict(payload.get("content_block") or {})
+                if block.get("type") == "text":
+                    block.setdefault("text", "")
+                elif block.get("type") == "thinking":
+                    block.setdefault("thinking", "")
+                elif block.get("type") in {"tool_use", "server_tool_use"}:
+                    block["_partial_json"] = ""
+                blocks[index] = block
+            elif event == "content_block_delta":
+                index = int(payload["index"])
+                block = blocks.setdefault(index, {"type": "text", "text": ""})
+                delta = payload.get("delta") or {}
+                kind = delta.get("type")
+                if kind == "text_delta":
+                    block["text"] = block.get("text", "") + str(delta.get("text", ""))
+                elif kind == "thinking_delta":
+                    block["thinking"] = block.get("thinking", "") + str(delta.get("thinking", ""))
+                elif kind == "signature_delta":
+                    block["signature"] = str(delta.get("signature", ""))
+                elif kind == "input_json_delta":
+                    block["_partial_json"] = (
+                        block.get("_partial_json", "") + str(delta.get("partial_json", ""))
+                    )
+            elif event == "content_block_stop":
+                block = blocks.get(int(payload["index"]))
+                if block is not None and "_partial_json" in block:
+                    raw = block.pop("_partial_json")
+                    block["input"] = json.loads(raw) if raw.strip() else {}
+            elif event == "message_delta":
+                delta = payload.get("delta") or {}
+                if delta.get("stop_reason"):
+                    stop_reason = str(delta["stop_reason"])
+                for key, value in (payload.get("usage") or {}).items():
+                    if value is not None:
+                        usage[key] = value
+            elif event == "message_stop":
+                finished = True
+            elif event == "error":
+                raise EventStreamError(f"provider stream error: {payload.get('error')}")
+
+        event_name: str | None = None
+        data_lines: list[str] = []
+        for raw_line in response:
+            line = raw_line.decode("utf-8", "replace").rstrip("\r\n")
+            if not line:
+                if data_lines:
+                    payload = json.loads("\n".join(data_lines))
+                    apply(event_name or str(payload.get("type") or ""), payload)
+                event_name = None
+                data_lines = []
+                continue
+            if line.startswith(":"):
+                continue
+            field, _, value = line.partition(":")
+            if value.startswith(" "):
+                value = value[1:]
+            if field == "event":
+                event_name = value
+            elif field == "data":
+                data_lines.append(value)
+        if data_lines:
+            payload = json.loads("\n".join(data_lines))
+            apply(event_name or str(payload.get("type") or ""), payload)
+        if not finished:
+            raise EventStreamError("provider event stream ended before message_stop")
+        content = [blocks[index] for index in sorted(blocks)]
+        return {"content": content, "stop_reason": stop_reason or "end_turn", "usage": usage}
 
     #: What a model that asks for a tool it cannot have is told. The gateway is a
     #: pure inference broker: the only tool it ever attaches is the frozen
@@ -553,17 +667,25 @@ class AnthropicMessagesProvider(Provider):
                 if assistant_blocks
                 else history
             )
+            # A request that carries no tool streams: its answer can take many
+            # minutes to generate and the connection must not sit idle. A
+            # server-tool request keeps the buffered response so the pause_turn
+            # and tool_use continuations below can send its content blocks back
+            # verbatim; those turns are short and were never the ones dropped.
+            stream = bool(self.streaming) and "tools" not in payload
+            wire = {**payload, "stream": True} if stream else payload
             http_request = urllib.request.Request(
                 f"{self.base_url}/v1/messages",
-                data=json.dumps(payload).encode("utf-8"),
+                data=json.dumps(wire).encode("utf-8"),
                 headers={
                     "content-type": "application/json",
                     "anthropic-version": "2023-06-01",
                     "x-api-key": self._api_key,
+                    "accept": "text/event-stream" if stream else "application/json",
                 },
                 method="POST",
             )
-            body = self._open(http_request)
+            body = self._open(http_request, stream=stream)
             content = body.get("content", []) or []
             texts.extend(
                 block.get("text", "") for block in content if block.get("type") == "text"
@@ -747,6 +869,7 @@ def build_provider(args: argparse.Namespace, config: dict[str, Any]) -> Provider
             web_search=config.get("anthropic_web_search"),
             decoding=config.get("anthropic_decoding"),
             caching=config.get("prompt_caching"),
+            transport=config.get("anthropic_transport"),
         )
     raise GatewayError(f"unknown provider: {args.provider}")
 

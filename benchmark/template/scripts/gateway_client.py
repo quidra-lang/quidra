@@ -240,6 +240,32 @@ def _json_object_spans(text: str) -> list[tuple[int, int]]:
     return spans
 
 
+def _json_object_candidates(text: str) -> list[str]:
+    """Every top-level JSON object a completion carries, in order of appearance."""
+    stripped = text.strip()
+    fenced = re.findall(r"```(?:[A-Za-z0-9_-]*)\n(.*?)```", stripped, re.S)
+    candidates = [block.strip() for block in fenced] if fenced else []
+    if not candidates:
+        spans = _json_object_spans(stripped)
+        candidates = [stripped[start:end] for start, end in spans]
+    return candidates
+
+
+def _load_model_object(candidate: str) -> dict:
+    # strict=False accepts raw control characters (a literal newline or tab)
+    # inside a JSON string. Models emit those routinely when a value carries
+    # source code or a multi-line note; the third paid run lost five packet
+    # calls to "Invalid control character" alone. The structure of the object
+    # and every schema check downstream stay exactly as strict as before.
+    try:
+        value = json.loads(candidate, strict=False)
+    except json.JSONDecodeError as exc:
+        raise GatewayClientError(f"model completion is not valid JSON: {exc}") from exc
+    if not isinstance(value, dict):
+        raise GatewayClientError("model completion must be a JSON object")
+    return value
+
+
 def parse_model_json(text: str) -> dict:
     """Parse the one JSON object a model completion is supposed to carry.
 
@@ -255,13 +281,7 @@ def parse_model_json(text: str) -> dict:
     ambiguity about which answer was meant - and let the schema checks downstream
     stay exactly as strict as they were.
     """
-    stripped = text.strip()
-
-    fenced = re.findall(r"```(?:[A-Za-z0-9_-]*)\n(.*?)```", stripped, re.S)
-    candidates = [block.strip() for block in fenced] if fenced else []
-    if not candidates:
-        spans = _json_object_spans(stripped)
-        candidates = [stripped[start:end] for start, end in spans]
+    candidates = _json_object_candidates(text)
 
     if not candidates:
         raise GatewayClientError(
@@ -273,13 +293,37 @@ def parse_model_json(text: str) -> dict:
             "requires exactly one, and which was meant is ambiguous"
         )
 
-    try:
-        value = json.loads(candidates[0])
-    except json.JSONDecodeError as exc:
-        raise GatewayClientError(f"model completion is not valid JSON: {exc}") from exc
-    if not isinstance(value, dict):
-        raise GatewayClientError("model completion must be a JSON object")
-    return value
+    return _load_model_object(candidates[0])
+
+
+def parse_model_json_batch(text: str) -> list[dict]:
+    """Parse every JSON object an agent action turn carries, in order.
+
+    A packet-only answer is one object and stays that way (`parse_model_json`).
+    An agent action turn is different: the runtime executes what the model
+    asks, so several objects in one turn are not ambiguous, they are a sequence
+    of actions. The third paid run rejected such turns as protocol errors -
+    one completion carried 23 write_file actions - and the units spent their
+    whole turn budget re-sending the same batch one object at a time until
+    `max_turns_exhausted`. Executing the sequence is what the model meant.
+
+    A turn with no object, or one whose objects are not all valid, is still a
+    protocol error: nothing is executed from a half-parsable turn.
+    """
+    candidates = _json_object_candidates(text)
+    if not candidates:
+        raise GatewayClientError(
+            "model completion contains no JSON object; an action turn must carry at least one"
+        )
+    actions = []
+    for index, candidate in enumerate(candidates, start=1):
+        try:
+            actions.append(_load_model_object(candidate))
+        except GatewayClientError as exc:
+            raise GatewayClientError(
+                f"object {index} of {len(candidates)} in the completion is unusable: {exc}"
+            ) from exc
+    return actions
 
 
 def cmd_health(args: argparse.Namespace) -> int:

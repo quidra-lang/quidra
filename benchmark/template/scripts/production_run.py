@@ -249,12 +249,14 @@ def dispatch_one(root: Path, task: dict[str, Any], units: dict[str, dict[str, An
     frozen_default = int(
         benchmark.worker_isolation_config(root).get("default_max_output_tokens", 8192)
     )
-    ceiling = int(benchmark.gateway_config(root).get("max_output_tokens_ceiling", 32768))
+    ceiling = int(benchmark.gateway_config(root).get("max_output_tokens_ceiling", 65536))
     if task.get("worker_mode") == "packet-only":
         # One shot, no repair loop, and adaptive thinking is billed inside the
         # same cap. At the frozen default every semantic-compression packet of
         # the first paid run spent all 8192 tokens reasoning and returned no
-        # text; the answer never had room to start. The ceiling is the cap.
+        # text; at a 32768 ceiling the third run's two-metric packets were still
+        # truncated. The ceiling is the cap, and the gateway streams the answer
+        # so a long generation is not dropped by an idle connection.
         max_output = ceiling
     else:
         max_output = int(unit.get("max_output_tokens_per_call", 0) or frozen_default)

@@ -44,7 +44,7 @@
   "max_request_bytes": 4194304,
   "max_response_bytes": 2097152,
   "max_messages": 256,
-  "max_output_tokens_ceiling": 32768,
+  "max_output_tokens_ceiling": 65536,
   "request_timeout_seconds": 900,
   "default_network_policy": "disabled",
   "network_policies": [
@@ -104,6 +104,10 @@
     "enabled": true,
     "ttl": "5m",
     "note": "Trusted-side only and invisible to the sandbox. The adapter marks the system block and the last user block as cache breakpoints, so a sandbox-agent conversation re-reads its growing prefix at the cache-read rate instead of full price, and a server-side web-search loop re-reads the Task Packet the same way. Caching changes what a prefix costs, never what the model sees or produces. Usage reports cache_creation_input_tokens and cache_read_input_tokens separately and the cost estimate prices each at its own rate."
+  },
+  "anthropic_transport": {
+    "streaming": true,
+    "note": "Trusted-side only and invisible to the sandbox. A request that carries no server-side tool is sent with stream=true and its server-sent events are folded back into the buffered response shape (content blocks, stop_reason, usage) before anything else sees it. A buffered request is silent on the wire for as long as the model generates; the GitHub-hosted runner drops an outbound connection after roughly four idle minutes, and the third paid run lost every packet call that generated for longer than that as RemoteDisconnected, then paid for the same generation again on each transport retry. Streaming keeps deltas and keep-alive pings flowing for the whole generation. Requests that attach the frozen web-search tool stay buffered so their pause_turn and tool_use continuations can send the provider's content blocks back verbatim; those turns are short. The ceiling max_output_tokens_ceiling is 65536 because Claude Sonnet 5 answers of up to 128k output tokens are supported and a two-metric semantic-compression packet with adaptive thinking exceeded 32768 in the third paid run."
   },
   "anthropic_web_search": {
     "tool_type": "web_search_20260209",

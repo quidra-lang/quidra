@@ -250,12 +250,42 @@ def install_cache_record(root: Path, unit: dict, task: dict) -> str:
     return fingerprint
 
 
+def assert_scored_cap_enters_the_key(root: Path, unit: dict, task: dict) -> None:
+    """A declared scored output cap is an experimental condition and keys the record.
+
+    A trial completion cut off at 4000 tokens and one allowed 16384 are
+    different experiments. Units that declare no cap (packet-only workers, the
+    language-development leaves) must keep the exact key they had, so the
+    certified records they already own stay valid.
+    """
+    pair = benchmark.cache_fingerprint(root, unit, task)
+    assert pair is not None
+    _, payload = pair
+    assert payload.get("scored_output_cap") == unit["max_output_tokens_per_call"], payload
+
+    raised = dict(unit, max_output_tokens_per_call=unit["max_output_tokens_per_call"] * 2)
+    assert benchmark.cache_fingerprint(root, raised, task)[0] != pair[0], (
+        "raising the scored cap must change the cache key"
+    )
+
+    capless = {k: v for k, v in unit.items() if k != "max_output_tokens_per_call"}
+    capless["max_llm_calls"] = 0
+    capless_payload = benchmark.cache_fingerprint(root, capless, task)[1]
+    assert "scored_output_cap" not in capless_payload, capless_payload
+    zero = dict(capless, max_output_tokens_per_call=0)
+    assert (
+        benchmark.cache_fingerprint(root, zero, task)[0]
+        == benchmark.cache_fingerprint(root, capless, task)[0]
+    ), "an absent cap and a zero cap must key identically"
+
+
 def main() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
         assert_language_scoped_program_reads(root)
         unit, task = create_cacheable_task(root)
         freeze_manifest(root, unit)
+        assert_scored_cap_enters_the_key(root, unit, task)
 
         # Production tasks are authored inside /quidra-benchmark, while post-run
         # promotes them from the host staging path. Both path spellings must hash

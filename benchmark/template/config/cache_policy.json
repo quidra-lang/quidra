@@ -18,7 +18,8 @@
     "worker_mode",
     "network_policy",
     "runtime_toolchain_pins_for_assigned_languages",
-    "cache_epoch"
+    "cache_epoch",
+    "scored_output_cap_when_declared"
   ],
   "epochs": {
     "semantic_compression": "stable",

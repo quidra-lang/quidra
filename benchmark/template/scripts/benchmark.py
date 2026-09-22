@@ -3435,6 +3435,15 @@ def cache_fingerprint_payload(
         "runtime_toolchain_pins": selected_pins,
         "cache_epoch": cache_epoch(root, str(unit.get("evaluation"))),
     }
+    # A scored output cap is an experimental condition: a trial completion cut
+    # off at 4000 tokens and one allowed 16384 are different experiments, and a
+    # record made under one must not satisfy a run made under the other. The
+    # key enters the payload only for units that declare a cap, so the
+    # fingerprints of packet-only and cap-less units - and every certified
+    # record they already have - are unchanged.
+    scored_cap = int(unit.get("max_output_tokens_per_call", 0) or 0)
+    if scored_cap > 0:
+        payload["scored_output_cap"] = scored_cap
     return payload
 
 

@@ -1846,9 +1846,13 @@ class _ScriptedHTTP:
     def __init__(self, bodies: list[dict[str, Any]]) -> None:
         self.bodies = list(bodies)
         self.payloads: list[dict[str, Any]] = []
+        self.streamed: list[bool] = []
+        self.headers: list[dict[str, str]] = []
 
-    def __call__(self, http_request: Any) -> dict[str, Any]:
+    def __call__(self, http_request: Any, *, stream: bool = False) -> dict[str, Any]:
         self.payloads.append(json.loads(http_request.data.decode("utf-8")))
+        self.streamed.append(stream)
+        self.headers.append({k.lower(): v for k, v in http_request.header_items()})
         if not self.bodies:
             raise AssertionError("the provider made more requests than the script allows")
         return self.bodies.pop(0)
@@ -2225,6 +2229,340 @@ def test_dispatch_batches_run_units_concurrently_and_drain_before_a_fatal_error(
     else:
         check(False, "a fatal provider error was swallowed by the batch")
     check(sorted(state["done"]) == ["a", "b", "fatal"], f"in-flight units were abandoned: {state}")
+
+
+def test_tool_less_requests_stream_and_tool_requests_stay_buffered() -> None:
+    """A long generation must keep bytes moving on the wire.
+
+    The third paid run lost every packet call that generated for longer than
+    about four minutes: a buffered request is silent while the model works and
+    the runner's outbound connection was dropped as idle, then the identical
+    generation was paid for again on each transport retry. Tool-less requests
+    therefore stream. Requests carrying the frozen web-search tool stay
+    buffered so their continuations can send content blocks back verbatim.
+    """
+    provider = _anthropic_provider()
+    config = json.loads((TEMPLATE / "config" / "inference_gateway.json").read_text("utf-8"))
+    check(
+        config["anthropic_transport"]["streaming"] is True
+        and provider.describe().get("streaming") == "tool-less requests",
+        f"the frozen transport disagrees with what the adapter does: {provider.describe()}",
+    )
+
+    http = _ScriptedHTTP([
+        {"content": [{"type": "text", "text": "ready"}], "stop_reason": "end_turn", "usage": {}},
+        {"content": [{"type": "text", "text": "ready"}], "stop_reason": "end_turn", "usage": {}},
+    ])
+    provider._open = http
+    provider.complete(_validated_request())
+    provider.complete(_validated_request(network_allowed=True))
+    check(http.streamed == [True, False], f"the wrong requests streamed: {http.streamed}")
+    check(
+        http.payloads[0].get("stream") is True and "tools" not in http.payloads[0],
+        f"a tool-less request was not sent as a stream: {sorted(http.payloads[0])}",
+    )
+    check(
+        "stream" not in http.payloads[1] and "tools" in http.payloads[1],
+        f"a web-search request was not kept buffered: {sorted(http.payloads[1])}",
+    )
+    check(
+        http.headers[0].get("accept") == "text/event-stream"
+        and http.headers[1].get("accept") == "application/json",
+        f"the accept headers do not match the transports: {http.headers}",
+    )
+
+    os.environ["ANTHROPIC_API_KEY"] = FAKE_PROVIDER_SECRET
+    try:
+        buffered = inference_gateway.AnthropicMessagesProvider(
+            "claude-sonnet-5", timeout=30, transport={"streaming": False},
+        )
+    finally:
+        os.environ.pop("ANTHROPIC_API_KEY", None)
+    http = _ScriptedHTTP([
+        {"content": [{"type": "text", "text": "ready"}], "stop_reason": "end_turn", "usage": {}},
+    ])
+    buffered._open = http
+    buffered.complete(_validated_request())
+    check(
+        http.streamed == [False] and "stream" not in http.payloads[0]
+        and buffered.describe().get("streaming") == "off",
+        "a transport frozen to buffered responses still streamed",
+    )
+
+
+def _sse(events: list[tuple[str, dict[str, Any]]]) -> bytes:
+    return b"".join(
+        f"event: {name}\ndata: {json.dumps(payload)}\n\n".encode("utf-8")
+        for name, payload in events
+    )
+
+
+_STREAMED_ANSWER: list[tuple[str, dict[str, Any]]] = [
+    ("message_start", {"type": "message_start", "message": {
+        "id": "msg_1", "role": "assistant", "content": [], "stop_reason": None,
+        "usage": {"input_tokens": 40, "cache_creation_input_tokens": 0,
+                  "cache_read_input_tokens": 30, "output_tokens": 1},
+    }}),
+    ("content_block_start", {"type": "content_block_start", "index": 0,
+                             "content_block": {"type": "thinking", "thinking": ""}}),
+    ("content_block_delta", {"type": "content_block_delta", "index": 0,
+                             "delta": {"type": "thinking_delta", "thinking": "hmm"}}),
+    ("content_block_delta", {"type": "content_block_delta", "index": 0,
+                             "delta": {"type": "signature_delta", "signature": "sig"}}),
+    ("content_block_stop", {"type": "content_block_stop", "index": 0}),
+    ("ping", {"type": "ping"}),
+    ("content_block_start", {"type": "content_block_start", "index": 1,
+                             "content_block": {"type": "text", "text": ""}}),
+    ("content_block_delta", {"type": "content_block_delta", "index": 1,
+                             "delta": {"type": "text_delta", "text": '{"ok":'}}),
+    ("content_block_delta", {"type": "content_block_delta", "index": 1,
+                             "delta": {"type": "text_delta", "text": "true}"}}),
+    ("content_block_stop", {"type": "content_block_stop", "index": 1}),
+    ("message_delta", {"type": "message_delta",
+                       "delta": {"stop_reason": "max_tokens", "stop_sequence": None},
+                       "usage": {"output_tokens": 12}}),
+    ("message_stop", {"type": "message_stop"}),
+]
+
+
+def test_event_stream_folds_back_into_the_buffered_response() -> None:
+    """Nothing after the transport may know which transport carried the answer."""
+    import http.server
+    import threading
+
+    folded = inference_gateway.AnthropicMessagesProvider._read_event_stream(
+        _sse(_STREAMED_ANSWER).splitlines(keepends=True)
+    )
+    texts = [b["text"] for b in folded["content"] if b.get("type") == "text"]
+    check(texts == ['{"ok":true}'], f"text deltas were not joined in order: {folded}")
+    check(folded["stop_reason"] == "max_tokens", f"stop_reason was not taken from message_delta: {folded}")
+    usage = folded["usage"]
+    check(
+        usage.get("input_tokens") == 40 and usage.get("cache_read_input_tokens") == 30
+        and usage.get("output_tokens") == 12,
+        f"usage was not merged from message_start and message_delta: {usage}",
+    )
+    thinking = [b for b in folded["content"] if b.get("type") == "thinking"]
+    check(
+        thinking and thinking[0].get("thinking") == "hmm" and thinking[0].get("signature") == "sig",
+        f"the thinking block was not reassembled: {folded['content']}",
+    )
+
+    for label, lines in (
+        ("a stream that ends before message_stop", _sse(_STREAMED_ANSWER[:-1]).splitlines(keepends=True)),
+        ("an error event", _sse([("error", {"type": "error", "error": {"type": "overloaded_error"}})]).splitlines(keepends=True)),
+    ):
+        try:
+            inference_gateway.AnthropicMessagesProvider._read_event_stream(lines)
+        except inference_gateway.EventStreamError:
+            continue
+        check(False, f"{label} was accepted as a complete answer")
+
+    # End to end through urllib against a local server: the first stream is cut
+    # off mid-answer (what an idle-dropped connection looks like from here), the
+    # transport retry gets the whole answer, and a buffered tool request still
+    # receives plain JSON.
+    served: list[dict[str, Any]] = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        cut_once = [True]
+
+        def log_message(self, *args: Any) -> None:  # noqa: D401 - silence the server
+            return
+
+        def do_POST(self) -> None:
+            body = json.loads(self.rfile.read(int(self.headers["content-length"])))
+            served.append(body)
+            if body.get("stream"):
+                self.send_response(200)
+                self.send_header("content-type", "text/event-stream")
+                self.end_headers()
+                if self.cut_once[0]:
+                    self.cut_once[0] = False
+                    self.wfile.write(_sse(_STREAMED_ANSWER[:6]))
+                    self.wfile.flush()
+                    self.close_connection = True
+                    return
+                self.wfile.write(_sse(_STREAMED_ANSWER))
+                return
+            payload = json.dumps({
+                "content": [{"type": "text", "text": "buffered"}],
+                "stop_reason": "end_turn", "usage": {"output_tokens": 2},
+            }).encode("utf-8")
+            self.send_response(200)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", str(len(payload)))
+            self.end_headers()
+            self.wfile.write(payload)
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        provider = _anthropic_provider()
+        provider.base_url = f"http://127.0.0.1:{server.server_address[1]}"
+        result = provider.complete(_validated_request())
+        check(
+            result["content"] == '{"ok":true}' and result["stop_reason"] == "max_tokens",
+            f"the streamed answer did not come through urllib intact: {result}",
+        )
+        check(
+            len(served) == 2 and all(b.get("stream") for b in served),
+            f"the cut-off stream was not retried as a stream: {[b.get('stream') for b in served]}",
+        )
+        check(
+            result["usage"]["output_tokens"] == 12 and result["usage"]["input_tokens"] == 40,
+            f"streamed usage was not carried into the result: {result['usage']}",
+        )
+        result = provider.complete(_validated_request(network_allowed=True))
+        check(
+            result["content"] == "buffered" and served[-1].get("stream") is None,
+            f"a tool request did not use the buffered transport: {result}",
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
+def test_agent_action_turns_parse_batches_and_control_characters() -> None:
+    """The action protocol accepts what real models send, and no more."""
+    raw_newline = '{"action":"write_file","path":"a.txt","content":"line one\nline two"}'
+    parsed = gateway_client.parse_model_json(raw_newline)
+    check(
+        parsed["content"] == "line one\nline two",
+        "a raw newline inside a JSON string was not tolerated",
+    )
+
+    batch = gateway_client.parse_model_json_batch(
+        'First:\n{"action":"write_file","path":"a","content":"1"}\n'
+        'then\n{"action":"run","argv":["python3","--version"]}\n{"action":"final"}'
+    )
+    check(
+        [item["action"] for item in batch] == ["write_file", "run", "final"],
+        f"a batch of actions was not parsed in order: {batch}",
+    )
+    check(
+        gateway_client.parse_model_json_batch('```json\n{"action":"final"}\n```') == [{"action": "final"}],
+        "a single fenced action was not accepted by the batch parser",
+    )
+    for label, completion in (
+        ("no object", "I will start now."),
+        ("one broken object among two", '{"action":"final"}\n{"action": broken}'),
+        ("an array", "[1,2]"),
+    ):
+        try:
+            gateway_client.parse_model_json_batch(completion)
+        except gateway_client.GatewayClientError:
+            continue
+        check(False, f"the batch parser accepted {label}")
+    # The packet-only contract is unchanged: one object, or it is ambiguous.
+    try:
+        gateway_client.parse_model_json('{"a":1}\n{"b":2}')
+    except gateway_client.GatewayClientError:
+        pass
+    else:
+        check(False, "the packet-only parser accepted two objects")
+
+
+def test_sandbox_agent_batches_actions_and_recovers_from_truncation_and_early_final() -> None:
+    """The three ways the third paid run lost learnability units, each survived.
+
+    Several actions in one turn are executed in order instead of being refused;
+    a turn cut off at the cap is answered with a protocol error instead of
+    ending the unit; a `final` sent before the expected outputs exist is
+    refused so the model can still write them.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td)
+        root = make_workspace(tmp)
+        agent_id = "worker-batching-agent"
+        agent_dir = create_task(root, agent_id, "sandbox-agent")
+        payload = {
+            "schema_version": 1,
+            "evaluation": "semantic_compression",
+            "requirements": {"gate.example": True},
+            "evidence": {"source": "batch protocol test"},
+        }
+        script = {
+            "schema_version": 1,
+            "sequence": [
+                # 1. two actions in one turn, executed in order
+                json.dumps({"action": "write_file", "path": "a.txt", "content": "A"})
+                + "\n"
+                + json.dumps({"action": "write_file", "path": "b.txt", "content": "B"}),
+                # 2. final before result.json exists
+                json.dumps({"action": "final", "summary": "too early"}),
+                # 3. a turn cut off at the cap: nothing in it may run
+                {"content": '{"action":"write_file","path":"result.json","content":"{\\"schema',
+                 "stop_reason": "max_tokens"},
+                # 4. the output and final in one turn
+                json.dumps({"action": "write_file", "path": "result.json",
+                            "content": json.dumps(payload) + "\n"})
+                + "\n"
+                + json.dumps({"action": "final", "summary": "done"}),
+            ],
+        }
+        with Gateway(root / "gateway", script=script) as gw:
+            completed = subprocess.run(
+                [
+                    sys.executable, str(SCRIPTS / "sandbox_agent.py"),
+                    "--workspace", str(root), "--id", agent_id,
+                    "--socket", str(gw.socket_path),
+                ],
+                env=sandbox_side_env(),
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            )
+        check(
+            completed.returncode == 0,
+            f"the agent did not finish: {completed.stderr or completed.stdout}",
+        )
+        trace_path = agent_dir / "agent_trace.json"
+        if not trace_path.is_file():
+            check(False, "the agent wrote no trace")
+            return
+        trace = json.loads(trace_path.read_text(encoding="utf-8"))
+        check(trace["stop_reason"] == "final" and trace["missing_outputs"] == [],
+              f"the unit did not end deliberately with its outputs: {trace['stop_reason']}")
+        check(
+            (agent_dir / "a.txt").read_text() == "A" and (agent_dir / "b.txt").read_text() == "B",
+            "a batched turn did not execute both actions",
+        )
+        check(
+            json.loads((agent_dir / "result.json").read_text())["evidence"]["source"]
+            == "batch protocol test",
+            "the truncated write must not have landed, and the whole one must have",
+        )
+        by_turn: dict[int, list[dict[str, Any]]] = {}
+        for entry in trace["trace"]:
+            by_turn.setdefault(int(entry["turn"]), []).append(entry)
+        first = by_turn.get(1, [])
+        check(
+            [e.get("batch") for e in first] == [[1, 2], [2, 2]]
+            and all(e["observation"]["ok"] for e in first),
+            f"turn 1 was not recorded as an executed batch: {first}",
+        )
+        second = by_turn.get(2, [])
+        check(
+            len(second) == 1 and second[0].get("action") == "final"
+            and "expected outputs" in str(second[0].get("protocol_error")),
+            f"an early final was not refused: {second}",
+        )
+        third = by_turn.get(3, [])
+        check(
+            len(third) == 1 and third[0].get("protocol_error") == "truncated action turn"
+            and third[0].get("action") is None,
+            f"a truncated turn was not reported as recoverable: {third}",
+        )
+        fourth = by_turn.get(4, [])
+        check(
+            [e.get("action") for e in fourth] == ["write_file", "final"],
+            f"the closing batch was not executed in order: {fourth}",
+        )
+        check(
+            benchmark.sandbox_agent_trace_problems(agent_dir, agent_id) == [],
+            f"task-finish would reject a trace with batched turns: "
+            f"{benchmark.sandbox_agent_trace_problems(agent_dir, agent_id)}",
+        )
 
 
 def main() -> int:

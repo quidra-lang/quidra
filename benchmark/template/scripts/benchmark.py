@@ -1723,6 +1723,9 @@ def sanitized_subprocess_env(root: Path, cwd: Path) -> dict[str, str]:
         "PWD": str(cwd),
         "PATH": "/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin",
         "PYTHONNOUSERSITE": "1",
+        # The template tree is integrity-hashed; a runner command that imports a
+        # sibling template module must not drop a __pycache__ into it.
+        "PYTHONDONTWRITEBYTECODE": "1",
     }
     for key in ("LANG", "LC_ALL", "LC_CTYPE", "TZ"):
         value = os.environ.get(key)

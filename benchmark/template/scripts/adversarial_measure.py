@@ -34,6 +34,9 @@ from typing import Any
 SCRIPTS_DIR = Path(__file__).resolve().parent
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
+# The template tree is hashed for integrity; importing a sibling module must not
+# leave a __pycache__ in it.
+sys.dont_write_bytecode = True
 
 import micro_measure as mm  # noqa: E402  (sibling module inside the frozen template)
 

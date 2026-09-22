@@ -3,8 +3,13 @@
     "TypeScript"
   ],
   "certification": {
+    "cap_evidence_source": "agent_trace.json retained by 2026-09-22-56f2c65-gh3",
+    "cap_truncated_trial_calls": 0,
     "learnability_integrity": true,
+    "max_trial_output_tokens": 150,
     "primary_complete": false,
+    "scored_output_cap": 4000,
+    "trial_calls": 6,
     "unit_complete": true,
     "validator_pass": true
   },

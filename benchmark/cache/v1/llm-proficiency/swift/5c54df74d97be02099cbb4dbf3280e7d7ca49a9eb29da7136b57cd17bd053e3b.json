@@ -3,9 +3,14 @@
     "Swift"
   ],
   "certification": {
+    "cap_evidence_source": "agent_trace.json retained by 2026-09-22-56f2c65-gh3",
+    "cap_truncated_trial_calls": 0,
     "configuration_signature": "{\"model\": \"claude-sonnet-5\", \"provider\": \"anthropic-messages\", \"sampling\": {\"decoding_state\": \"provider-controlled\", \"effort\": \"high\", \"orchestration_effort\": \"low\", \"sampling_parameters\": \"omitted\"}}",
+    "max_trial_output_tokens": 2051,
     "primary_complete": false,
     "proficiency_integrity": true,
+    "scored_output_cap": 5000,
+    "trial_calls": 9,
     "unit_complete": true,
     "validator_pass": true
   },

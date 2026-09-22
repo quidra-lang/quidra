@@ -489,20 +489,24 @@ jobs:
           from pathlib import Path
           import json
           ledger = json.loads(Path(".benchmark-template-test/work/root/ledger.json").read_text())
-          assert ledger["units"]["lq-coverage"]["status"] == "BLOCKED"
-          assert ledger["units"]["learnability-gates--part-2"]["status"] == "BLOCKED"
-          assert ledger["units"]["proficiency-gates--part-2"]["status"] == "BLOCKED"
-          assert ledger["units"]["sc-structure-gates--part-1"]["status"] == "PENDING"
+          # Static coverage gates do not need a compiler and therefore must not
+          # be converted into toolchain blockers. Only execution-heavy language
+          # shards are blocked by the deliberately missing Zig toolchain.
+          assert ledger["units"]["lq-coverage"]["status"] == "PENDING"
+          assert ledger["units"]["learnability-coverage"]["status"] == "PENDING"
+          assert ledger["units"]["proficiency-coverage"]["status"] == "PENDING"
+          assert ledger["units"]["sc-coverage"]["status"] == "PENDING"
+          assert ledger["units"]["sc-structure-gates--part-1a"]["status"] == "PENDING"
           assert ledger["units"]["ecosystem-gates--part-1"]["status"] == "PENDING"
           PY
 
           python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
 
           test -f "$TMP/results/dispatch_queue.json"
-          grep -q '"agent_id": "worker-sc-structure-gates--part-1"' "$TMP/results/dispatch_queue.json"
-          python benchmark/template/scripts/benchmark.py task-render             --workspace "$TMP" --id worker-sc-structure-gates--part-1 > "$TMP/rendered-task.md"
+          grep -q '"agent_id": "worker-sc-structure-gates--part-1a"' "$TMP/results/dispatch_queue.json"
+          python benchmark/template/scripts/benchmark.py task-render             --workspace "$TMP" --id worker-sc-structure-gates--part-1a > "$TMP/rendered-task.md"
           grep -q "Embedded input: worker_core.md" "$TMP/rendered-task.md"
-          grep -q "Mandatory semantic-site matrix" "$TMP/rendered-task.md"
+          grep -q "Fixed language-neutral capability universe" "$TMP/rendered-task.md"
           grep -q "/quidra-benchmark" "$TMP/rendered-task.md"
           if grep -Fq "$TMP" "$TMP/rendered-task.md"; then
             echo "physical synthetic workspace leaked into rendered Task Packet" >&2
@@ -539,16 +543,20 @@ jobs:
                   json.dumps(response) + "\n"
               )
 
-          write("worker-sc-structure-gates--part-1", "semantic_compression", {
+          write("worker-sc-structure-gates--part-1a", "semantic_compression", {
               "gate.capability_universe": True,
+          })
+          write("worker-sc-structure-gates--part-1b", "semantic_compression", {
               "gate.semantic_site_matrix": True,
           })
-          write("worker-sc-structure-gates--part-2", "semantic_compression", {
+          write("worker-sc-structure-gates--part-2a", "semantic_compression", {
               "gate.matrix_validator": True,
-              "coverage.all_frozen_probes": True,
           })
           PY
-          for ID in sc-structure-gates--part-1 sc-structure-gates--part-2; do
+          for ID in sc-structure-gates--part-1a sc-structure-gates--part-1b sc-structure-gates--part-2a; do
+            # The gates are deliberately chained so advance after each one
+            # materializes only the next narrow packet.
+            python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
             AGENT="worker-$ID"
             python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id "$ID"
             python benchmark/template/scripts/benchmark.py task-apply --workspace "$TMP" --id "$AGENT"               < "$TMP/raw/$AGENT.response.json"

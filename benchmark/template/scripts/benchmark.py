@@ -3435,16 +3435,79 @@ def cache_fingerprint_payload(
         "runtime_toolchain_pins": selected_pins,
         "cache_epoch": cache_epoch(root, str(unit.get("evaluation"))),
     }
-    # A scored output cap is an experimental condition: a trial completion cut
-    # off at 4000 tokens and one allowed 16384 are different experiments, and a
-    # record made under one must not satisfy a run made under the other. The
-    # key enters the payload only for units that declare a cap, so the
-    # fingerprints of packet-only and cap-less units - and every certified
-    # record they already have - are unchanged.
-    scored_cap = int(unit.get("max_output_tokens_per_call", 0) or 0)
-    if scored_cap > 0:
-        payload["scored_output_cap"] = scored_cap
     return payload
+
+
+#: Evaluations whose certified records carry scored model trials, and whose
+#: reuse therefore depends on the output cap those trials ran under.
+TRIAL_EVALUATIONS = ("llm_learnability", "llm_proficiency")
+
+
+def trial_cap_evidence(unit: dict[str, Any], trace: dict[str, Any]) -> dict[str, Any]:
+    """What a unit's scored trials did against their output cap.
+
+    The cap is not part of the cache key: a trial that finished well inside it
+    is the same measurement under any larger cap, and keying on the cap would
+    throw that measurement away every time the cap moved. What the record
+    needs instead is the evidence to decide reuse later - how many trial calls
+    the cap cut off, and the largest completion any call produced.
+    """
+    calls = 0
+    truncated = 0
+    largest = 0
+    for session in ((trace.get("trials") or {}).get("trials") or {}).values():
+        for call in session.get("calls", []) or []:
+            calls += 1
+            if str(call.get("stop_reason") or "") == "max_tokens":
+                truncated += 1
+            largest = max(largest, int((call.get("usage") or {}).get("output_tokens", 0) or 0))
+    return {
+        "scored_output_cap": int(unit.get("max_output_tokens_per_call", 0) or 0),
+        "trial_calls": calls,
+        "cap_truncated_trial_calls": truncated,
+        "max_trial_output_tokens": largest,
+    }
+
+
+def cache_cap_reuse_problem(
+    record: dict[str, Any], unit: dict[str, Any]
+) -> str | None:
+    """Why a certified trial record cannot stand in for a run at the current cap.
+
+    Same cap: same experiment, reusable. A different cap: reusable only when the
+    cap demonstrably never mattered - no call was cut off, and no completion
+    was larger than the cap that applies now. A record that predates this
+    evidence is not reusable until `cache-annotate-caps` has read the run's
+    agent traces and written it in.
+    """
+    if str(unit.get("evaluation") or "") not in TRIAL_EVALUATIONS:
+        return None
+    current = int(unit.get("max_output_tokens_per_call", 0) or 0)
+    if current <= 0:
+        return None
+    certification = record.get("certification") or {}
+    required = ("scored_output_cap", "cap_truncated_trial_calls", "max_trial_output_tokens")
+    if any(key not in certification for key in required):
+        return (
+            "the record carries no scored-cap evidence; run cache-annotate-caps on the "
+            "run's evidence before it can be reused"
+        )
+    recorded = int(certification["scored_output_cap"] or 0)
+    truncated = int(certification["cap_truncated_trial_calls"] or 0)
+    largest = int(certification["max_trial_output_tokens"] or 0)
+    if recorded == current:
+        return None
+    if truncated > 0:
+        return (
+            f"{truncated} trial call(s) were cut off at the recorded cap {recorded}; "
+            f"the current cap is {current}, so the measurement must be repeated"
+        )
+    if largest > current:
+        return (
+            f"a trial completion used {largest} output tokens, above the current cap "
+            f"{current}"
+        )
+    return None
 
 
 def cache_fingerprint(root: Path, unit: dict[str, Any], task: dict[str, Any]) -> tuple[str, dict[str, Any]] | None:
@@ -3534,6 +3597,14 @@ def hydrate_certified_cache(root: Path, evaluation: str | None = None) -> int:
             )
         ):
             raise BenchmarkError(f"{uid}: certified cache record failed integrity checks")
+        cap_problem = cache_cap_reuse_problem(record, unit)
+        if cap_problem:
+            status["misses"][uid] = {
+                "fingerprint": fingerprint,
+                "scope": cache_scope(unit),
+                "reason": cap_problem,
+            }
+            continue
         result_path = agent_dir / "result.json"
         json_dump(result_path, record["result"])
         json_dump(agent_dir / "cache_receipt.json", {
@@ -6587,6 +6658,7 @@ def cache_certification_for_unit(
                 + "; ".join(problems)
             )
         certification["learnability_integrity"] = True
+        certification.update(trial_cap_evidence(unit, trace))
 
     if evaluation == "llm_proficiency":
         trace_path = agent_dir / "agent_trace.json"
@@ -6618,7 +6690,84 @@ def cache_certification_for_unit(
             "model": model,
             "sampling": sampling,
         }, sort_keys=True)
+        certification.update(trial_cap_evidence(unit, trace))
     return certification
+
+
+def annotate_cache_cap_evidence(
+    source: Path, evidence: Path, force: bool = False
+) -> dict[str, Any]:
+    """Write scored-cap evidence into the trial records one run promoted.
+
+    Records promoted before the evidence existed cannot say whether their cap
+    ever mattered, so `hydrate_certified_cache` refuses to reuse them. This
+    reads the run's retained workspace evidence - its run.json, frozen manifest
+    and every agent_trace.json - and adds the same fields promotion now writes,
+    for exactly the records whose provenance names that run. The result and
+    fingerprint of a record are never touched.
+    """
+    run = json_load(evidence / "run.json")
+    run_id = str(run.get("run_id") or "")
+    if not run_id:
+        raise BenchmarkError(f"evidence run.json names no run_id: {evidence}")
+    manifest = json_load(evidence / "work" / "root" / "manifest.json")
+    units = {str(u.get("id")): u for u in manifest.get("work_units", [])}
+    annotated: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
+    required = ("scored_output_cap", "cap_truncated_trial_calls", "max_trial_output_tokens")
+    for evaluation in TRIAL_EVALUATIONS:
+        tree = source / "benchmark" / "cache" / "v1" / slug_id(evaluation)
+        if not tree.is_dir():
+            continue
+        for path in sorted(tree.rglob("*.json")):
+            record = json_load(path)
+            provenance = record.get("provenance") or {}
+            if provenance.get("run_id") != run_id:
+                continue
+            uid = str(provenance.get("work_unit_id") or "")
+            entry = {"record": path.relative_to(source).as_posix(), "work_unit_id": uid}
+            unit = units.get(uid)
+            if unit is None:
+                skipped.append({**entry, "reason": "unit is not in the evidence manifest"})
+                continue
+            trace_path = (
+                evidence / "work" / "agents" / str(unit.get("assigned_agent_id") or "")
+                / "agent_trace.json"
+            )
+            if not trace_path.is_file():
+                skipped.append({**entry, "reason": "agent_trace.json is not in the evidence"})
+                continue
+            certification = record.setdefault("certification", {})
+            if not force and all(key in certification for key in required):
+                skipped.append({**entry, "reason": "already annotated"})
+                continue
+            certification.update(trial_cap_evidence(unit, json_load(trace_path)))
+            certification["cap_evidence_source"] = f"agent_trace.json retained by {run_id}"
+            path.write_text(
+                json.dumps(record, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+            )
+            annotated.append({
+                **entry,
+                **{key: certification[key] for key in required},
+            })
+    return {
+        "schema_version": 1,
+        "run_id": run_id,
+        "annotated": annotated,
+        "skipped": skipped,
+    }
+
+
+def cmd_cache_annotate_caps(args: argparse.Namespace) -> int:
+    source = Path(args.source_repo).resolve()
+    evidence = Path(args.evidence).resolve()
+    if not (source / "benchmark" / "cache").is_dir():
+        raise BenchmarkError(f"source repository has no certified cache: {source}")
+    if not (evidence / "run.json").is_file():
+        raise BenchmarkError(f"evidence directory has no run.json: {evidence}")
+    summary = annotate_cache_cap_evidence(source, evidence, force=bool(args.force))
+    print(json.dumps(summary, indent=2))
+    return 0
 
 
 def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
@@ -7192,6 +7341,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     checkpoint.add_argument("--source-repo", required=True)
     checkpoint.set_defaults(func=cmd_cache_checkpoint)
+
+    annotate = sub.add_parser(
+        "cache-annotate-caps",
+        help="write scored-cap evidence from a run's retained agent traces into the "
+             "certified trial records that run promoted",
+    )
+    annotate.add_argument("--source-repo", required=True)
+    annotate.add_argument(
+        "--evidence", required=True,
+        help="extracted workspace evidence: run.json, work/root/manifest.json and "
+             "work/agents/*/agent_trace.json",
+    )
+    annotate.add_argument("--force", action="store_true", help="rewrite existing evidence")
+    annotate.set_defaults(func=cmd_cache_annotate_caps)
 
     post = sub.add_parser(
         "post-run",

@@ -18,9 +18,11 @@
     "worker_mode",
     "network_policy",
     "runtime_toolchain_pins_for_assigned_languages",
-    "cache_epoch",
-    "scored_output_cap_when_declared"
+    "cache_epoch"
   ],
+  "reuse_conditions": {
+    "scored_output_cap": "The output cap of a scored trial is not part of the key. A certified llm_learnability or llm_proficiency record carries what its trials did against the cap they ran under (scored_output_cap, trial_calls, cap_truncated_trial_calls, max_trial_output_tokens, written at promotion or by cache-annotate-caps from the run's retained agent traces). Under the same cap the record is reused. Under a different cap it is reused only when the cap demonstrably never mattered: no trial call was cut off and no completion was larger than the current cap. A record without this evidence is a MISS until it is annotated."
+  },
   "epochs": {
     "semantic_compression": "stable",
     "llm_learnability": "stable",

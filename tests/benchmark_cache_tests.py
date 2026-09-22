@@ -250,33 +250,106 @@ def install_cache_record(root: Path, unit: dict, task: dict) -> str:
     return fingerprint
 
 
-def assert_scored_cap_enters_the_key(root: Path, unit: dict, task: dict) -> None:
-    """A declared scored output cap is an experimental condition and keys the record.
+def assert_scored_cap_governs_reuse(root: Path, unit: dict, task: dict) -> None:
+    """The cap a trial ran under decides reuse by evidence, not by the key.
 
-    A trial completion cut off at 4000 tokens and one allowed 16384 are
-    different experiments. Units that declare no cap (packet-only workers, the
-    language-development leaves) must keep the exact key they had, so the
-    certified records they already own stay valid.
+    A trial that finished well inside a 4000-token cap is the same measurement
+    under 16384, so raising the cap must not throw it away. A trial the cap cut
+    off is a measurement of the cap, and is repeated. The key never contains
+    the cap, so every record a cap-less unit already owns keeps its fingerprint.
     """
     pair = benchmark.cache_fingerprint(root, unit, task)
     assert pair is not None
     _, payload = pair
-    assert payload.get("scored_output_cap") == unit["max_output_tokens_per_call"], payload
-
-    raised = dict(unit, max_output_tokens_per_call=unit["max_output_tokens_per_call"] * 2)
-    assert benchmark.cache_fingerprint(root, raised, task)[0] != pair[0], (
-        "raising the scored cap must change the cache key"
+    assert "scored_output_cap" not in payload, payload
+    raised = dict(unit, max_output_tokens_per_call=unit["max_output_tokens_per_call"] * 4)
+    assert benchmark.cache_fingerprint(root, raised, task)[0] == pair[0], (
+        "the scored cap must not be part of the cache key"
     )
 
-    capless = {k: v for k, v in unit.items() if k != "max_output_tokens_per_call"}
-    capless["max_llm_calls"] = 0
-    capless_payload = benchmark.cache_fingerprint(root, capless, task)[1]
-    assert "scored_output_cap" not in capless_payload, capless_payload
-    zero = dict(capless, max_output_tokens_per_call=0)
-    assert (
-        benchmark.cache_fingerprint(root, zero, task)[0]
-        == benchmark.cache_fingerprint(root, capless, task)[0]
-    ), "an absent cap and a zero cap must key identically"
+    problem = benchmark.cache_cap_reuse_problem
+    trial_unit = {**unit, "evaluation": "llm_learnability", "max_output_tokens_per_call": 16384}
+    same_cap = {**trial_unit, "max_output_tokens_per_call": 4000}
+    fitted = {"certification": {
+        "scored_output_cap": 4000, "trial_calls": 6,
+        "cap_truncated_trial_calls": 0, "max_trial_output_tokens": 188,
+    }}
+    cut_off = {"certification": {
+        "scored_output_cap": 4000, "trial_calls": 6,
+        "cap_truncated_trial_calls": 2, "max_trial_output_tokens": 4000,
+    }}
+    oversized = {"certification": {
+        "scored_output_cap": 32768, "trial_calls": 6,
+        "cap_truncated_trial_calls": 0, "max_trial_output_tokens": 20000,
+    }}
+    legacy = {"certification": {"learnability_integrity": True}}
+    assert problem(fitted, trial_unit) is None, "a trial that never met its cap was refused"
+    assert problem(cut_off, same_cap) is None, "the same cap is the same experiment"
+    assert "cut off" in str(problem(cut_off, trial_unit)), "a truncated trial was reused"
+    assert "above the current cap" in str(problem(oversized, trial_unit)), (
+        "a completion larger than the current cap was reused"
+    )
+    assert "cache-annotate-caps" in str(problem(legacy, trial_unit)), (
+        "a record without evidence was reused"
+    )
+    assert problem(legacy, unit) is None, "a packet-only record was held to trial evidence"
+    assert problem(legacy, {**trial_unit, "max_output_tokens_per_call": 0}) is None
+
+    # Annotation reads the run's retained traces and writes the evidence into
+    # exactly the records that run promoted, without touching their results.
+    evidence = root.parent / "evidence"
+    agent_id = "worker-learnability-i1-i2--python"
+    (evidence / "work" / "agents" / agent_id).mkdir(parents=True)
+    (evidence / "work" / "root").mkdir(parents=True)
+    benchmark.json_dump(evidence / "run.json", {"schema_version": 1, "run_id": "seed"})
+    benchmark.json_dump(evidence / "work" / "root" / "manifest.json", {
+        "schema_version": 1,
+        "work_units": [{
+            "id": "learnability-i1-i2--python", "evaluation": "llm_learnability",
+            "assigned_agent_id": agent_id, "max_output_tokens_per_call": 4000,
+        }],
+    })
+    benchmark.json_dump(evidence / "work" / "agents" / agent_id / "agent_trace.json", {
+        "schema_version": 1,
+        "trials": {"trials": {
+            "i1-t1": {"calls": [
+                {"stop_reason": "end_turn", "usage": {"output_tokens": 120}},
+                {"stop_reason": "max_tokens", "usage": {"output_tokens": 4000}},
+            ]},
+            "i1-t2": {"calls": [{"stop_reason": "end_turn", "usage": {"output_tokens": 77}}]},
+        }},
+    })
+    source = root.parent / "annotate-source"
+    record_path = (
+        source / "benchmark" / "cache" / "v1" / "llm-learnability" / "python" / ("a" * 64 + ".json")
+    )
+    record_path.parent.mkdir(parents=True)
+    other_path = record_path.with_name("b" * 64 + ".json")
+    record = {
+        "schema_version": 1, "fingerprint": "a" * 64, "result": {"x": 1},
+        "certification": {"learnability_integrity": True},
+        "provenance": {"run_id": "seed", "work_unit_id": "learnability-i1-i2--python"},
+    }
+    benchmark.json_dump(record_path, record)
+    benchmark.json_dump(other_path, {**record, "provenance": {"run_id": "another-run",
+                                                             "work_unit_id": "learnability-i1-i2--python"}})
+    summary = benchmark.annotate_cache_cap_evidence(source, evidence)
+    assert [a["work_unit_id"] for a in summary["annotated"]] == ["learnability-i1-i2--python"], summary
+    annotated = benchmark.json_load(record_path)
+    assert annotated["result"] == {"x": 1} and annotated["fingerprint"] == "a" * 64
+    certification = annotated["certification"]
+    assert certification["scored_output_cap"] == 4000
+    assert certification["trial_calls"] == 3
+    assert certification["cap_truncated_trial_calls"] == 1
+    assert certification["max_trial_output_tokens"] == 4000
+    assert certification["learnability_integrity"] is True
+    assert "certification" in benchmark.json_load(other_path)
+    assert "scored_output_cap" not in benchmark.json_load(other_path)["certification"], (
+        "a record from another run was annotated"
+    )
+    again = benchmark.annotate_cache_cap_evidence(source, evidence)
+    assert again["annotated"] == [] and again["skipped"][0]["reason"] == "already annotated"
+    assert "cut off" in str(problem(annotated, trial_unit))
 
 
 def main() -> None:
@@ -285,7 +358,7 @@ def main() -> None:
         assert_language_scoped_program_reads(root)
         unit, task = create_cacheable_task(root)
         freeze_manifest(root, unit)
-        assert_scored_cap_enters_the_key(root, unit, task)
+        assert_scored_cap_governs_reuse(root, unit, task)
 
         # Production tasks are authored inside /quidra-benchmark, while post-run
         # promotes them from the host staging path. Both path spellings must hash

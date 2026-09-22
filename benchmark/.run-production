@@ -14,6 +14,6 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-22T05:17:50Z
-reason: second production run; smoke passed on ff21e4b, benchmark CI is green and the local benchmark programs audit passed
+requested_at_utc: 2026-09-22T11:10:54Z
+reason: third production run; smoke passed on c7d3d07, benchmark-template CI is green on 0b7692e and ci/native-performance on f026a94, the local benchmark programs audit passed, and the 72 certified cache records checkpointed from 62bb50a are available for hydration
 model: claude-sonnet-5

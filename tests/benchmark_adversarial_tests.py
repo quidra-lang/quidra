@@ -123,6 +123,13 @@ def test_decision_list_replays_each_rung(frozen) -> None:
     # D1b-ii-2: unmatched wording but the diagnostic points inside the construction.
     v = stage("ADV-12", "Java", primary(build={"build_exit_status": 1, "build_stderr": "Main.java:7: error: variable x might not have been initialized"}))
     check(v["earliest_observable_stage"] == am.CTD and "compile_rejection_unmatched_lexicon" in v["flags"], v)
+    # D1b-ii-2 must find the positioned line of a multi-line diagnostic (rustc puts
+    # the position on the `-->` line) and skip a positionless header (Go's
+    # `# command-line-arguments`) rather than reading the header as the diagnostic.
+    v = stage("ADV-08/C", "Rust", primary(build={"build_exit_status": 1, "build_stderr": "error: this operation will panic at runtime\n  --> program.rs:7:18\n   |\n 7 |     let q: i64 = a / b;\n"}))
+    check(v["earliest_observable_stage"] == am.CTD and v.get("diagnostic_line") == 7, v)
+    v = stage("ADV-05/C", "Go", primary(build={"build_exit_status": 1, "build_stderr": "# command-line-arguments\n./program.go:7:13: cannot convert float64(1e30) (constant) to type int32\n"}))
+    check(v["earliest_observable_stage"] == am.CTD and v.get("diagnostic_line") == 7, v)
     # D1b-ii-3: a build failure unrelated to the construction is an authoring defect.
     v = stage("ADV-12", "Java", primary(build={"build_exit_status": 1, "build_stderr": "Main.java:1: error: package foo does not exist"}))
     check(v.get("na") is not None and "na_authoring_defect" in v["flags"], v)

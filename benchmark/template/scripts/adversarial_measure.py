@@ -584,14 +584,57 @@ def sha256_file(path: Path) -> str:
 # --------------------------------------------------------------------------
 
 
+DIAGNOSTIC_KEYWORD = re.compile(r"error|fatal|panic|exception|traceback", re.IGNORECASE)
+
+
 def first_diagnostic_line(text: str) -> str:
-    for line in text.splitlines():
-        if re.search(r"error|fatal|panic|exception|traceback", line, re.IGNORECASE):
-            return line.strip()
-    for line in text.splitlines():
-        if line.strip():
-            return line.strip()
-    return ""
+    """The first line of the first diagnostic in a toolchain's output.
+
+    A diagnostic is a line naming an error and, preferably, a source position.
+    Toolchains that print a header before the positioned line (Go's
+    `# command-line-arguments`, Rust's `error:` followed by `-->`) or that name
+    the position without an English keyword (a localized javac) must still yield
+    the diagnostic rather than the header, so the order of preference is:
+    keyword and position, keyword alone, position alone, first non-empty line.
+    """
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    for line in lines:
+        if DIAGNOSTIC_KEYWORD.search(line) and diagnostic_line_number(line) is not None:
+            return line
+    for line in lines:
+        if DIAGNOSTIC_KEYWORD.search(line):
+            return line
+    for line in lines:
+        if diagnostic_line_number(line) is not None:
+            return line
+    return lines[0] if lines else ""
+
+
+def first_diagnostic_line_number(text: str) -> int | None:
+    """Source line the first diagnostic points at, for the D1b-ii-2 range test.
+
+    Multi-line diagnostics (rustc's `error:` header with the position on the
+    following `-->` line) carry their position within the next few lines of
+    the same diagnostic, before the next keyword line or blank line.
+    """
+    first = first_diagnostic_line(text)
+    if not first:
+        return None
+    number = diagnostic_line_number(first)
+    if number is not None:
+        return number
+    lines = [line.strip() for line in text.splitlines()]
+    try:
+        start = lines.index(first)
+    except ValueError:
+        return None
+    for line in lines[start + 1:start + 6]:
+        if not line or DIAGNOSTIC_KEYWORD.search(line):
+            break
+        number = diagnostic_line_number(line)
+        if number is not None:
+            return number
+    return None
 
 
 def diagnostic_line_number(line: str) -> int | None:
@@ -681,7 +724,7 @@ def classify(frozen: Frozen, language: str, program_id: str, primary: dict[str, 
                          first_diagnostic=first, lexicon_match=matched)
         skipped("D1b-i", "no case or global lexicon fragment matched the build output")
         span = primary.get("construction_line_range")
-        number = diagnostic_line_number(first)
+        number = first_diagnostic_line_number(build_out)
         if span and number is not None and span["first_line"] <= number <= span["last_line"]:
             flags.append("compile_rejection_unmatched_lexicon")
             return fired("D1b-ii-2", CTD, "first diagnostic points inside the construction line range",

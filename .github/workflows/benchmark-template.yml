@@ -456,7 +456,9 @@ jobs:
           assert audit["execution_kind"] == "command"
           assert audit["runner_action"] == "quidra-audit"
           assert audit["requirement_ids"] == ["gate.quidra_programs_current"]
-          assert any(path.endswith("repo/tests/benchmark/quidra") for path in audit["read_paths"])
+          # Read paths that do not exist in this plan-only workspace are dropped
+          # by the planner, so the snapshot location is checked on the goal.
+          assert "tests/benchmark/quidra" in audit["goal"]
           assert not any(u["id"].startswith("lq-qudra-") for u in lq["work_units"])
 
           mechanical = by_id["lq-micro-mechanical"]

@@ -17,7 +17,7 @@
     "validator_contract",
     "worker_mode",
     "network_policy",
-    "runtime_toolchain_manifest_sha256",
+    "runtime_toolchain_pins_for_assigned_languages",
     "cache_epoch"
   ],
   "epochs": {

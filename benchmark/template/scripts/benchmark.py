@@ -3292,7 +3292,27 @@ def cache_fingerprint_payload(
         if not canonical:
             return None
         selected_toolchains[language] = str(canonical)
-    runtime_manifest = root / "template" / "runtime" / "toolchains.json"
+    # Only the pins of the languages this unit measures enter its key. Hashing
+    # the whole runtime manifest made a Zig pin bump invalidate every cached
+    # Python, Rust and Go measurement, so one toolchain change forced a cold run.
+    runtime_pins = (
+        json_load(root / "template" / "runtime" / "toolchains.json").get("toolchains") or {}
+    )
+    pin_keys = {
+        "Python": ["PYTHON_PIN"],
+        "C++": ["CLANG_PIN", "CLANG_MAJOR", "CMAKE_PIN"],
+        "Rust": ["RUST_PIN"],
+        "Go": ["GO_PIN"],
+        "Java": ["JAVA_PIN", "JAVA_BUILD"],
+        "TypeScript": ["TYPESCRIPT_PIN", "NODE_PIN"],
+        "Kotlin": ["KOTLIN_PIN", "JAVA_PIN", "JAVA_BUILD"],
+        "Swift": ["SWIFT_PIN"],
+        "Zig": ["ZIG_PIN"],
+    }
+    selected_pins = {
+        language: {key: runtime_pins.get(key) for key in pin_keys.get(language, [])}
+        for language in assigned
+    }
     payload = {
         "schema_version": 1,
         "cache_schema_version": 1,
@@ -3310,7 +3330,7 @@ def cache_fingerprint_payload(
         "validator_contract": str(unit.get("validator_command") or ""),
         "worker_mode": unit.get("worker_mode"),
         "network_allowed": bool(unit.get("network_allowed")),
-        "runtime_toolchain_manifest_sha256": sha256_file(runtime_manifest),
+        "runtime_toolchain_pins": selected_pins,
         "cache_epoch": cache_epoch(root, str(unit.get("evaluation"))),
     }
     return payload

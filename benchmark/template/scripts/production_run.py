@@ -69,10 +69,24 @@ def write_policy(root: Path, output: Path, model: str | None = None) -> dict[str
     input_price = float(pricing.get("input_usd_per_million_tokens", 0) or 0)
     output_price = float(pricing.get("output_usd_per_million_tokens", 0) or 0)
 
+    ledger_path = root / "work" / "root" / "ledger.json"
+    ledger = json_load(ledger_path) if ledger_path.is_file() else {"units": {}}
+    cache_status_path = root / "results" / "cache_status.json"
+    cache_status = (
+        json_load(cache_status_path)
+        if cache_status_path.is_file()
+        else {"hits": {}, "misses": {}}
+    )
+
     tasks: dict[str, str] = {}
     budgets: dict[str, float] = {}
+    skipped_complete: list[str] = []
     for unit in manifest.get("work_units", []):
         if unit.get("execution_kind", "agent") != "agent":
+            continue
+        uid = str(unit.get("id") or "")
+        if (ledger.get("units", {}).get(uid, {}) or {}).get("status") == "COMPLETE":
+            skipped_complete.append(uid)
             continue
         agent_id = str(unit.get("assigned_agent_id") or "")
         if not agent_id:
@@ -97,6 +111,12 @@ def write_policy(root: Path, output: Path, model: str | None = None) -> dict[str
         "schema_version": 1,
         "manifest_sha256": benchmark.sha256_file(manifest_path),
         "tasks": tasks,
+        "cache": {
+            "hit_count": len(cache_status.get("hits", {})),
+            "miss_count": len(cache_status.get("misses", {})),
+            "units_skipped_as_complete": sorted(skipped_complete),
+            "paid_task_count": len(tasks),
+        },
     }
     if budgets:
         payload["budgets"] = budgets

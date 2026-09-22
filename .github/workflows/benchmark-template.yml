@@ -889,6 +889,9 @@ jobs:
           rm -rf "$REPO"
 
 
+      - name: Certified cache reuse contract
+        run: python tests/benchmark_cache_tests.py
+
       - name: Credential-less gateway and sandbox-agent isolation
         run: python tests/benchmark_isolation_tests.py
 

@@ -3244,6 +3244,38 @@ def cache_scope(unit: dict[str, Any]) -> str:
     )[:12]
 
 
+def cache_read_input_hashes(root: Path, task: dict[str, Any]) -> dict[str, str]:
+    """Hash the exact readable inputs of a cacheable task using workspace-relative names."""
+    rows: dict[str, str] = {}
+    for raw in task.get("read_paths", []) or []:
+        path = require_under(Path(str(raw)), root)
+        relative = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            raise BenchmarkError(f"cacheable read path may not be a symlink: {relative}")
+        if path.is_file():
+            rows[relative] = sha256_file(path)
+            continue
+        if not path.is_dir():
+            raise BenchmarkError(f"cacheable read path is missing: {relative}")
+        h = hashlib.sha256()
+        for child in sorted(path.rglob("*")):
+            if child.is_symlink():
+                raise BenchmarkError(
+                    "cacheable read tree contains a symlink: "
+                    + child.relative_to(root).as_posix()
+                )
+            if not child.is_file():
+                continue
+            child = require_under(child, root)
+            child_rel = child.relative_to(path).as_posix()
+            h.update(child_rel.encode("utf-8"))
+            h.update(b"\0")
+            h.update(sha256_file(child).encode("ascii"))
+            h.update(b"\n")
+        rows[relative] = h.hexdigest()
+    return rows
+
+
 def cache_fingerprint_payload(
     root: Path, unit: dict[str, Any], task: dict[str, Any]
 ) -> dict[str, Any] | None:
@@ -3279,6 +3311,7 @@ def cache_fingerprint_payload(
         "frozen_sampling": sampling_config(root),
         "toolchains": selected_toolchains,
         "unit_input_hashes": unit.get("input_hashes") or {},
+        "readable_input_content_hashes": cache_read_input_hashes(root, task),
         "validator_contract": str(unit.get("validator_command") or ""),
         "worker_mode": unit.get("worker_mode"),
         "network_allowed": bool(unit.get("network_allowed")),
@@ -6096,8 +6129,6 @@ def promote_prompt_store(source: Path, root: Path) -> dict[str, Any]:
         compact = {
             "schema_version": 1,
             "prompt_sha256": prompt_hash,
-            "evaluation": manifest.get("evaluation"),
-            "agent_id": manifest.get("agent_id"),
             "rendered_bytes": manifest.get("rendered_bytes"),
             "components": compact_components,
         }

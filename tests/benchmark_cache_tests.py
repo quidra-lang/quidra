@@ -127,7 +127,7 @@ def create_cacheable_task(root: Path) -> tuple[dict, dict]:
         "reuse_audit_for": [],
         "requirement_ids": ["metric.documentation_quality"],
         "workload_ids": [],
-        "read_paths": [],
+        "read_paths": [str(root / "template/workloads/micro.md")],
         "evidence_paths": [str(result_path)],
         "validator_command": validator,
         "network_allowed": True,
@@ -145,7 +145,7 @@ def create_cacheable_task(root: Path) -> tuple[dict, dict]:
             parent="RUNNER",
             evaluation="ecosystem",
             goal=unit["goal"],
-            read=[],
+            read=[str(root / "template/workloads/micro.md")],
             write=str(root / "work/agents" / agent_id),
             output=[str(result_path)],
             validate=validator,
@@ -154,7 +154,7 @@ def create_cacheable_task(root: Path) -> tuple[dict, dict]:
             section=[],
             requirement_id=unit["requirement_ids"],
             language=["Python"],
-            worker_mode="packet-only",
+            worker_mode="sandbox-agent",
         )
     )
     task = benchmark.json_load(root / "work/agents" / agent_id / "task.json")
@@ -267,6 +267,15 @@ def main() -> None:
             benchmark.cache_fingerprint(root, unit, changed_task)[0]
             != original_fingerprint
         )
+
+        readable = root / "template/workloads/micro.md"
+        original_bytes = readable.read_bytes()
+        packet_before = task["prompt_sha256"]
+        readable.write_bytes(original_bytes + b"\ncache-fingerprint-mutation\n")
+        assert task["prompt_sha256"] == packet_before
+        assert benchmark.cache_fingerprint(root, unit, task)[0] != original_fingerprint
+        readable.write_bytes(original_bytes)
+        assert benchmark.cache_fingerprint(root, unit, task)[0] == original_fingerprint
 
         installed = install_cache_record(root, unit, task)
         assert installed == original_fingerprint

@@ -13,6 +13,7 @@
     "frozen_sampling",
     "toolchain_fingerprints_for_assigned_languages",
     "unit_input_hashes",
+    "readable_input_content_hashes",
     "validator_contract",
     "worker_mode",
     "network_policy",

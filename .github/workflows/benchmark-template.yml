@@ -8,6 +8,7 @@ on:
       - "benchmark/template/**"
       - "tests/benchmark_isolation_tests.py"
       - "tests/benchmark_cache_tests.py"
+      - "benchmark/cache/**"
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
   pull_request:
@@ -47,6 +48,7 @@ jobs:
           python -m json.tool benchmark/template/config/aggregation.json >/dev/null
           python -m json.tool benchmark/template/config/inference_gateway.json >/dev/null
           python -m json.tool benchmark/template/config/sandbox_agent.json >/dev/null
+          python -m json.tool benchmark/template/config/cache_policy.json >/dev/null
           python -m json.tool benchmark/template/runtime/toolchains.json >/dev/null
           python -m json.tool benchmark/template/reuse/catalog.json >/dev/null
           python benchmark/template/scripts/benchmark.py --help >/dev/null

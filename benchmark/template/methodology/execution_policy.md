@@ -95,6 +95,8 @@ Comparison-language reusable sources live in `template/programs/`; shared fixtur
 
 When current-run Quidra program authoring is required, that worker may read the evaluated Quidra documentation and the language-neutral workload/validator, but not historical Quidra programs or reusable comparison-language source. Its output stays under the current run's agent directory. Quidra program outputs and any Quidra-containing measurements, timings, scores or scored LLM outputs are never reused across evaluated commits; only eligible non-Quidra comparison-language judgment measurements may be restored through the certified cache contract above.
 
+For eligible non-Quidra measurement work, certification is unit-scoped rather than Primary-scoped: ledger state must be COMPLETE and the unit's frozen validator must have recorded PASS, but sibling units and the Primary aggregate may still be unfinished. After the scored sandbox exits, the trusted host may checkpoint those records into `benchmark/cache/` even when the paid driver stopped for budget, provider or wall-clock reasons. The running sandbox sees only the cache snapshot copied at initialization, so a checkpoint can never feed a result back into the run that produced it.
+
 ## 9. Primary-first budget
 
 The frozen plan records maximum model calls and estimated token envelopes where relevant. If an exposed hard quota makes the Primary plan impossible, stop before measurement and change the language-neutral configuration for a future run. Never reduce only one language or change replication after seeing comparative results.
@@ -138,6 +140,6 @@ After successful `finalize` and sandbox exit, only the trusted outer runner may 
 
 ## 13. Git freeze
 
-The no-write measurement window begins when `manifest-merge` freezes the manifest/ledger and ends after `finalize`.
+The no-write measurement window begins when `manifest-merge` freezes the manifest/ledger and lasts until the scored production sandbox exits. A normal complete run exits after `finalize`; a deliberately bounded or failed run may exit earlier and then enter trusted-host checkpoint recovery.
 
-Before that window, template/spec fixes may be committed. After it, completed run import and template maintenance may be committed separately.
+Before that window, template/spec fixes may be committed. After the scored sandbox exits, completed run import, unit-level certified-cache checkpointing and template maintenance are trusted outer-runner operations and must be committed separately from scored work.

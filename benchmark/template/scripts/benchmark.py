@@ -6206,9 +6206,17 @@ def promote_prompt_store(source: Path, root: Path) -> dict[str, Any]:
 def cache_certification_for_unit(
     root: Path, unit: dict[str, Any], agent_dir: Path
 ) -> dict[str, Any]:
+    status_path = root / "results" / "primary_status.json"
+    primary_complete = False
+    if status_path.is_file():
+        primary = json_load(status_path).get("evaluations") or {}
+        primary_complete = (
+            (primary.get(unit.get("evaluation")) or {}).get("status") == "COMPLETE"
+        )
     certification: dict[str, Any] = {
         "validator_pass": True,
-        "primary_complete": True,
+        "unit_complete": True,
+        "primary_complete": primary_complete,
     }
     evaluation = str(unit.get("evaluation") or "")
     if evaluation == "llm_learnability":
@@ -6245,12 +6253,27 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     manifest_path = root / "work" / "root" / "manifest.json"
     ledger_path = root / "work" / "root" / "ledger.json"
     status_path = root / "results" / "primary_status.json"
-    if not (manifest_path.is_file() and ledger_path.is_file() and status_path.is_file()):
+    if not (manifest_path.is_file() and ledger_path.is_file()):
+        return {"promoted": 0, "reused": 0, "records": []}
+
+    promotion_policy = cache_policy(root).get("promotion") or {}
+    if promotion_policy.get("require_complete_unit") is not True:
+        raise BenchmarkError("certified cache promotion must require a COMPLETE unit")
+    if promotion_policy.get("require_current_validator_pass") is not True:
+        raise BenchmarkError("certified cache promotion must require current validator PASS")
+    require_primary = bool(
+        promotion_policy.get("require_complete_primary_evaluation", True)
+    )
+    primary = (
+        json_load(status_path).get("evaluations") or {}
+        if status_path.is_file()
+        else {}
+    )
+    if require_primary and not status_path.is_file():
         return {"promoted": 0, "reused": 0, "records": []}
 
     manifest = json_load(manifest_path)
     ledger = json_load(ledger_path)
-    primary = json_load(status_path).get("evaluations") or {}
     records: list[dict[str, Any]] = []
     promoted = 0
     reused = 0
@@ -6258,9 +6281,15 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     for unit in manifest.get("work_units", []):
         if not cache_eligible_unit(root, unit):
             continue
-        if (primary.get(unit.get("evaluation")) or {}).get("status") != "COMPLETE":
+        state = ledger.get("units", {}).get(unit["id"], {}) or {}
+        if state.get("status") != "COMPLETE":
             continue
-        if (ledger.get("units", {}).get(unit["id"], {}) or {}).get("status") != "COMPLETE":
+        if state.get("validation_result") != "PASS":
+            continue
+        if (
+            require_primary
+            and (primary.get(unit.get("evaluation")) or {}).get("status") != "COMPLETE"
+        ):
             continue
         agent_dir = root / "work" / "agents" / str(unit["assigned_agent_id"])
         task_path = agent_dir / "task.json"
@@ -6320,6 +6349,42 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
             "assigned_languages": list(unit.get("assigned_languages", [])),
         })
     return {"promoted": promoted, "reused": reused, "records": records}
+
+
+def cmd_cache_checkpoint(args: argparse.Namespace) -> int:
+    """Promote independently validated cache records without requiring finalize.
+
+    This command is trusted-host only.  It runs after the scored sandbox has
+    exited, so records written into the source checkout cannot become readable
+    inputs to the run that produced them.  The workspace is deliberately kept
+    intact: a later successful finalize/post-run may still import the compact run.
+    """
+    source = Path(args.source_repo).resolve()
+    if not source.is_dir():
+        raise BenchmarkError(f"source repository does not exist: {source}")
+    root = host_workspace(source)
+    if not root.is_dir():
+        raise BenchmarkError(f"benchmark workspace does not exist: {root}")
+    run_path = root / "run.json"
+    if not run_path.is_file():
+        raise BenchmarkError("benchmark workspace is missing run.json")
+    run = json_load(run_path)
+    validate_host_workspace_sentinel(root, source, run)
+
+    meta = git_metadata(source)
+    if meta["working_tree_status"] != "clean":
+        raise BenchmarkError("cache checkpoint requires a clean source repository")
+
+    promotion = promote_certified_cache(source, root)
+    result = {
+        "schema_version": 1,
+        "ok": True,
+        "run_id": run.get("run_id"),
+        "evaluated_commit_sha": (run.get("evaluated") or {}).get("commit_sha"),
+        **promotion,
+    }
+    print(json.dumps(result, indent=2))
+    return 0
 
 
 def compact_run_files(
@@ -6733,6 +6798,13 @@ def build_parser() -> argparse.ArgumentParser:
     fin = sub.add_parser("finalize", help="enforce score/blocker and privacy gates")
     fin.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     fin.set_defaults(func=cmd_finalize)
+
+    checkpoint = sub.add_parser(
+        "checkpoint-cache",
+        help="promote COMPLETE+PASS eligible units from an unfinished host staging run",
+    )
+    checkpoint.add_argument("--source-repo", required=True)
+    checkpoint.set_defaults(func=cmd_cache_checkpoint)
 
     post = sub.add_parser(
         "post-run",

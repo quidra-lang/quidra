@@ -120,6 +120,8 @@ jobs:
             --output "$RUNNER_TEMP/task-policy.json"
 
       - name: Run paid production benchmark
+        id: paid_benchmark
+        timeout-minutes: 300
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
@@ -133,7 +135,8 @@ jobs:
             --task-policy "$RUNNER_TEMP/task-policy.json" \
             --gateway-log-out "$RUNNER_TEMP/gateway-audit.jsonl" \
             -- python3 /quidra-benchmark/template/scripts/production_run.py run \
-               --workspace /quidra-benchmark
+               --workspace /quidra-benchmark \
+               --max-wall-seconds 15300
 
       - name: Record API usage and estimated cost
         if: always()
@@ -180,6 +183,45 @@ jobs:
             ls -la "$RUNNER_TEMP/workspace-evidence.tgz" || true
           fi
 
+      - name: Checkpoint validated cache
+        if: always()
+        run: |
+          set -euo pipefail
+          echo "CHECKPOINT_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "DEVELOP_MOVED_DURING_RUN=0" >> "$GITHUB_ENV"
+          if [ ! -f .quidra-benchmark/work/root/ledger.json ]; then
+            echo "No frozen ledger exists; there is nothing safe to checkpoint."
+            exit 0
+          fi
+
+          python benchmark/template/scripts/benchmark.py checkpoint-cache \
+            --source-repo "$GITHUB_WORKSPACE" \
+            | tee "$RUNNER_TEMP/cache-checkpoint.json"
+
+          git add -f benchmark/cache
+          if git diff --cached --quiet; then
+            echo "No new certified cache records."
+            exit 0
+          fi
+
+          git fetch origin develop
+          origin_head="$(git rev-parse origin/develop)"
+          if [ "$origin_head" != "$EVALUATED_SHA" ]; then
+            echo "DEVELOP_MOVED_DURING_RUN=1" >> "$GITHUB_ENV"
+            echo "::warning::develop moved independently during the benchmark; cache remains in the workflow artifact rather than being pushed onto an unrelated source snapshot."
+            git -c user.name="github-actions[bot]" \
+                -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+                commit -m "Checkpoint certified benchmark cache for ${EVALUATED_SHA:0:7}"
+            echo "CHECKPOINT_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          git -c user.name="github-actions[bot]" \
+              -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "Checkpoint certified benchmark cache for ${EVALUATED_SHA:0:7}"
+          git push origin HEAD:develop
+          echo "CHECKPOINT_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
       - name: Import the finished run
         if: success()
         run: |
@@ -194,8 +236,12 @@ jobs:
         if: success()
         run: |
           git fetch origin develop
-          if [ "$(git rev-parse origin/develop)" != "$EVALUATED_SHA" ]; then
-            echo "::warning::develop moved during the benchmark; the imported run is preserved as an artifact instead of being pushed onto a different snapshot."
+          if [ "$DEVELOP_MOVED_DURING_RUN" = "1" ]; then
+            echo "::warning::develop moved independently during the benchmark; the imported run is preserved as an artifact instead of being pushed onto a different source snapshot."
+            exit 0
+          fi
+          if [ "$(git rev-parse origin/develop)" != "$CHECKPOINT_HEAD" ]; then
+            echo "::warning::develop moved after the cache checkpoint; the imported run is preserved as an artifact instead of racing another writer."
             exit 0
           fi
           # -f: the repository ignores *.o, *.ll, __pycache__ and similar, and a
@@ -237,3 +283,4 @@ jobs:
             ${{ runner.temp }}/gateway-audit.jsonl
             ${{ runner.temp }}/provider-smoke.json
             ${{ runner.temp }}/task-policy.json
+            ${{ runner.temp }}/cache-checkpoint.json

@@ -232,7 +232,8 @@ def install_cache_record(root: Path, unit: dict, task: dict) -> str:
         "result_sha256": benchmark.sha256_bytes(result_raw),
         "certification": {
             "validator_pass": True,
-            "primary_complete": True,
+            "unit_complete": True,
+            "primary_complete": False,
         },
         "provenance": {
             "run_id": "seed",
@@ -342,8 +343,9 @@ def main() -> None:
         assert policy["cache"]["paid_task_count"] == 0
         assert policy["cache"]["units_skipped_as_complete"] == [unit["id"]]
 
-        # A finalized trusted outer runner promotes both the certified result
-        # and the exact content-addressed prompt into canonical stores.
+        # A COMPLETE+PASS non-Quidra unit is independently promotable even when
+        # its Primary evaluation is still PARTIAL. This is what makes a paid run
+        # resumable after a budget/provider/wall-clock stop.
         source = Path(td) / "source"
         (source / "benchmark/cache").mkdir(parents=True)
         (source / "benchmark/template/prompts/components/by-hash").mkdir(parents=True)
@@ -354,7 +356,7 @@ def main() -> None:
                 "schema_version": 1,
                 "evaluations": {
                     "ecosystem": {
-                        "status": "COMPLETE",
+                        "status": "PARTIAL",
                         "scoreable": True,
                         "scores": {"Python": 88.0},
                         "ranking": [{"language": "Python", "score": 88.0}],
@@ -367,6 +369,9 @@ def main() -> None:
         assert cache_promotion["promoted"] == 1, cache_promotion
         promoted_record = source / "benchmark/cache" / cache_promotion["records"][0]["path"]
         assert promoted_record.is_file()
+        promoted = benchmark.json_load(promoted_record)
+        assert promoted["certification"]["unit_complete"] is True
+        assert promoted["certification"]["primary_complete"] is False
 
         prompt_promotion = benchmark.promote_prompt_store(source, root)
         assert prompt_promotion["components"] > 0, prompt_promotion

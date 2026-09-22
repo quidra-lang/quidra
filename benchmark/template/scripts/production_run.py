@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import subprocess
 import sys
+import time
 from typing import Any
 
 import benchmark
@@ -255,12 +256,36 @@ def dispatch_one(root: Path, task: dict[str, Any], units: dict[str, dict[str, An
         handle_worker_failure(root, unit, finish.stderr or finish.stdout)
 
 
-def run_production(root: Path, max_iterations: int) -> dict[str, Any]:
+def run_production(
+    root: Path, max_iterations: int, max_wall_seconds: float = 0.0
+) -> dict[str, Any]:
     run_cli(root, "preflight")
     run_cli(root, "prepare")
 
+    started = time.monotonic()
     dispatched = 0
+
+    def wall_checkpoint_if_due() -> None:
+        if max_wall_seconds <= 0:
+            return
+        elapsed = time.monotonic() - started
+        if elapsed < max_wall_seconds:
+            return
+        payload = {
+            "schema_version": 1,
+            "ok": True,
+            "reason": "wall-clock-checkpoint",
+            "elapsed_seconds": round(elapsed, 3),
+            "dispatched_agent_attempts": dispatched,
+        }
+        benchmark.json_dump(root / "results" / "production_checkpoint.json", payload)
+        raise ProductionRunError(
+            "production wall-clock checkpoint reached; stopping cleanly before "
+            "the GitHub Actions hard timeout so COMPLETE+PASS units can be certified"
+        )
+
     for _ in range(max_iterations):
+        wall_checkpoint_if_due()
         run_cli(root, "advance")
         queue = json_load(root / "results" / "dispatch_queue.json").get("tasks", [])
         if not queue:
@@ -274,6 +299,7 @@ def run_production(root: Path, max_iterations: int) -> dict[str, Any]:
 
         units = manifest_units(root)
         for task in queue:
+            wall_checkpoint_if_due()
             dispatch_one(root, task, units)
             dispatched += 1
     else:
@@ -609,6 +635,12 @@ def build_parser() -> argparse.ArgumentParser:
     run = sub.add_parser("run", help="drive the prepared scored run to finalization")
     run.add_argument("--workspace", default="/quidra-benchmark")
     run.add_argument("--max-iterations", type=int, default=200)
+    run.add_argument(
+        "--max-wall-seconds",
+        type=float,
+        default=0.0,
+        help="stop cleanly before dispatching another unit after this wall-clock budget",
+    )
 
     smoke = sub.add_parser(
         "provider-smoke",
@@ -649,7 +681,11 @@ def main() -> int:
                 + ", ".join(payload["failed_checks"])
             )
     elif args.command == "run":
-        payload = run_production(Path(args.workspace).resolve(), int(args.max_iterations))
+        payload = run_production(
+            Path(args.workspace).resolve(),
+            int(args.max_iterations),
+            float(args.max_wall_seconds),
+        )
     else:
         payload = build_cost_report(Path(args.log).resolve())
         if args.output:

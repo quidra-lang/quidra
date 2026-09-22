@@ -2,7 +2,7 @@
   "schema_version": 1,
   "cache_schema_version": 1,
   "target_language": "Quidra",
-  "policy": "Only validated measurement results whose complete benchmark input fingerprint matches may be reused. Quidra-containing units are never cacheable. Cache material is trusted runner input and is never exposed as a worker read path.",
+  "policy": "Only validated complete measurement results whose complete benchmark input fingerprint matches may be reused. Eligible non-Quidra units are certified independently after their own validator passes, so a partial run can preserve completed work. Quidra-containing units are never cacheable. Cache material is trusted runner input and is never exposed as a worker read path.",
   "fingerprint_includes": [
     "evaluation",
     "requirement_ids",
@@ -30,9 +30,10 @@
   "promotion": {
     "require_complete_unit": true,
     "require_current_validator_pass": true,
-    "require_complete_primary_evaluation": true,
+    "require_complete_primary_evaluation": false,
     "preserve_raw_evidence_in_git": false,
-    "raw_evidence_artifact_retention_days": 30
+    "raw_evidence_artifact_retention_days": 30,
+    "checkpoint_completed_units": true
   },
   "prompt_store": {
     "format": "content-addressed-components",

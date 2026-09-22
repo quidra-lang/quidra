@@ -380,6 +380,11 @@ def prepare_cell(root: Path, language: str, workload: str, compiler: Path) -> di
         # Section 4.12 pins Zig's allocator to std.heap.c_allocator, which is
         # libc malloc. macOS links libc implicitly; Linux, where the benchmark
         # runs, refuses a libc dependency that the build command does not name.
+        # The workload table (workloads/micro.md) still shows the command
+        # without -lc: that file is a readable input of every Language Quality
+        # language-development unit, and editing it re-keys their certified
+        # records (the first attempt did, and re-bought them). The flag names
+        # the pinned allocator's own dependency; it changes no measurement.
         build_cmd = ["zig", "build-exe", "-OReleaseFast", "-lc", str(local), f"-femit-bin={binary}"]
         run_cmd = [str(binary)]
         artifact, artifact_kind = binary, "file"

@@ -3303,13 +3303,35 @@ def cache_policy(root: Path) -> dict[str, Any]:
 
 
 def cache_eligible_unit(root: Path, unit: dict[str, Any]) -> bool:
+    if unit.get("execution_kind", "agent") != "agent":
+        return False
     assigned = list(unit.get("assigned_languages", []) or [])
+    if unit.get("result_kind", "requirements") == "requirements":
+        return unit.get("phase") == "measurement" and bool(assigned)
+    # A reuse audit judges one reusable artifact against the current toolchain.
+    # Its inputs are the artifact's own git object and the toolchain of the
+    # artifact's language, both of which the key carries, so its verdict is as
+    # reusable as any measurement. Left uncached, the four Python and C++
+    # audits were bought again by every run - about three to six dollars each
+    # time for a verdict nothing had changed.
     return (
-        unit.get("execution_kind", "agent") == "agent"
-        and unit.get("result_kind", "requirements") == "requirements"
-        and unit.get("phase") == "measurement"
-        and bool(assigned)
+        unit.get("result_kind") == "audit"
+        and unit.get("phase") == "readiness"
+        and bool(unit.get("reuse_audit_for"))
     )
+
+
+def audit_languages(root: Path, unit: dict[str, Any]) -> list[str]:
+    """The languages of the reusable artifacts a readiness audit judges."""
+    materialized_path = root / "template" / "reuse" / "materialized.json"
+    if not materialized_path.is_file():
+        return []
+    by_id = {
+        str(a.get("id")): str(a.get("language") or "")
+        for a in (json_load(materialized_path).get("artifacts") or [])
+    }
+    languages = sorted({by_id[a] for a in unit.get("reuse_audit_for", []) if by_id.get(a)})
+    return languages
 
 
 def quidra_target_identity(root: Path) -> dict[str, str]:
@@ -3367,6 +3389,8 @@ def cache_epoch(root: Path, evaluation: str) -> str:
 
 def cache_scope(unit: dict[str, Any]) -> str:
     assigned = list(unit.get("assigned_languages", []) or [])
+    if unit.get("result_kind") == "audit" and unit.get("reuse_audit_for"):
+        return "audit-" + "-".join(slug_id(str(a)) for a in sorted(unit["reuse_audit_for"]))
     if len(assigned) == 1:
         return slug_id(assigned[0])
     return "comparison-" + sha256_bytes(
@@ -3432,6 +3456,10 @@ def cache_fingerprint_payload(
     toolchain_report = json_load(root / "results" / "toolchains.json")
     toolchains = toolchain_report.get("toolchains") or {}
     assigned = list(unit.get("assigned_languages", []) or [])
+    if unit.get("result_kind") == "audit":
+        assigned = audit_languages(root, unit)
+        if not assigned:
+            return None
     target = str(cache_policy(root).get("target_language") or "Quidra")
     selected_toolchains: dict[str, str] = {}
     for language in assigned:
@@ -3487,6 +3515,9 @@ def cache_fingerprint_payload(
     }
     if target in assigned:
         payload["quidra_target"] = quidra_target_identity(root)
+    if unit.get("result_kind") == "audit":
+        payload["reuse_audit_for"] = sorted(str(a) for a in unit.get("reuse_audit_for", []))
+        payload["result_kind"] = "audit"
     return payload
 
 
@@ -6908,6 +6939,158 @@ def cmd_cache_promote_evidence(args: argparse.Namespace) -> int:
     return 0
 
 
+def _checkout_path_for_workspace_relative(source: Path, relative: str) -> Path | None:
+    """Map a workspace-relative read path to the checkout file or tree behind it."""
+    if relative.startswith("template/"):
+        return source / "benchmark" / relative
+    if relative.startswith("repo/"):
+        return source / relative[len("repo/"):]
+    return None
+
+
+def _hash_checkout_path(source: Path, path: Path) -> str | None:
+    """Hash a checkout file or tree exactly as cache_read_input_hashes hashes it.
+
+    Only git-tracked files count: the workspace snapshot is a `git archive`,
+    so an untracked file in the checkout (an editor's swap file, a Finder
+    .DS_Store) is not something any unit read.
+    """
+    if path.is_symlink() or not path.exists():
+        return None
+    listing = subprocess.run(
+        ["git", "ls-files", "-z", "--", str(path.relative_to(source))],
+        cwd=source, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    if listing.returncode != 0:
+        return None
+    tracked = sorted(
+        entry for entry in listing.stdout.decode("utf-8").split("\0") if entry
+    )
+    if path.is_file():
+        return sha256_file(path) if tracked else None
+    h = hashlib.sha256()
+    for entry in tracked:
+        child = source / entry
+        if child.is_symlink() or not child.is_file():
+            continue
+        h.update(child.relative_to(path).as_posix().encode("utf-8"))
+        h.update(b"\0")
+        h.update(sha256_file(child).encode("ascii"))
+        h.update(b"\n")
+    return h.hexdigest()
+
+
+def cache_impact(source: Path) -> dict[str, Any]:
+    """Which certified records the checkout's current inputs would no longer match.
+
+    A record's key hashes the readable inputs its unit read, the frozen
+    configuration and methodology behind it, the toolchain pins of its
+    languages, the declared epoch and, for Quidra, the snapshot's declared
+    versions. Most of those are files in this checkout, so a template edit can
+    be checked against every record before it is pushed - the check this
+    command exists for was missed once by hand, when a one-line edit to the
+    workload table re-keyed thirty-six Language Quality records and a scoped
+    run paid to measure them again. The exact Task Packet hash is not
+    recomputed here (it needs a rendered workspace), so a change to a prompt
+    component alone is reported by the synthetic run, not by this command.
+    """
+    cache_root = source / "benchmark" / "cache" / "v1"
+    template = source / "benchmark" / "template"
+    pins = (json_load(template / "runtime" / "toolchains.json").get("toolchains") or {})
+    policy = json_load(template / "config" / "cache_policy.json")
+    declared = policy.get("declared_epochs") or {}
+    epochs = policy.get("epochs") or {}
+    versions: dict[str, str] | None = None
+    project = source / "project.toml"
+    if project.is_file():
+        text = project.read_text(encoding="utf-8")
+        found = {
+            key: match.group(1)
+            for key in ("version", "language_version")
+            for match in [re.search(rf'^{key} = "([^"]*)"$', text, re.M)]
+            if match
+        }
+        versions = found if len(found) == 2 else None
+    unit_input_files = {
+        "primary_config": template / "config" / "primary.json",
+        "benchmark_metadata": template / "config" / "benchmark_metadata.json",
+    }
+    pin_keys = {
+        "Python": ["PYTHON_PIN"],
+        "C++": ["CLANG_PIN", "CLANG_MAJOR", "CMAKE_PIN"],
+        "Rust": ["RUST_PIN"],
+        "Go": ["GO_PIN"],
+        "Java": ["JAVA_PIN", "JAVA_BUILD"],
+        "TypeScript": ["TYPESCRIPT_PIN", "NODE_PIN"],
+        "Kotlin": ["KOTLIN_PIN", "JAVA_PIN", "JAVA_BUILD"],
+        "Swift": ["SWIFT_PIN"],
+        "Zig": ["ZIG_PIN"],
+    }
+    hash_cache: dict[str, str | None] = {}
+    invalid: list[dict[str, Any]] = []
+    valid = 0
+    for record_path in sorted(cache_root.rglob("*.json")):
+        record = json_load(record_path)
+        payload = record.get("fingerprint_payload") or {}
+        changed: list[str] = []
+        for relative, recorded in (payload.get("readable_input_content_hashes") or {}).items():
+            target = _checkout_path_for_workspace_relative(source, relative)
+            if target is None:
+                continue
+            key = str(target)
+            if key not in hash_cache:
+                hash_cache[key] = _hash_checkout_path(source, target)
+            if hash_cache[key] != recorded:
+                changed.append(relative)
+        unit_hashes = payload.get("unit_input_hashes") or {}
+        for name, path in unit_input_files.items():
+            if name in unit_hashes and path.is_file() and sha256_file(path) != unit_hashes[name]:
+                changed.append(name)
+        evaluation = str(payload.get("evaluation") or record.get("evaluation") or "")
+        spec = template / "methodology" / f"{evaluation}.md"
+        if "evaluation_spec" in unit_hashes and spec.is_file() and sha256_file(spec) != unit_hashes["evaluation_spec"]:
+            changed.append("evaluation_spec")
+        for language, recorded_pins in (payload.get("runtime_toolchain_pins") or {}).items():
+            current = {key: pins.get(key) for key in pin_keys.get(language, [])}
+            if recorded_pins and current != recorded_pins:
+                changed.append(f"runtime_toolchain_pins:{language}")
+        if str(epochs.get(evaluation, "stable")) == "declared":
+            if payload.get("cache_epoch") != declared.get(evaluation):
+                changed.append("cache_epoch")
+        if "quidra_target" in payload and versions is not None and payload["quidra_target"] != versions:
+            changed.append("quidra_target")
+        entry = {
+            "record": record_path.relative_to(source).as_posix(),
+            "work_unit_id": (record.get("provenance") or {}).get("work_unit_id"),
+            "evaluation": evaluation,
+            "changed": changed,
+        }
+        if changed:
+            invalid.append(entry)
+        else:
+            valid += 1
+    return {
+        "schema_version": 1,
+        "valid": valid,
+        "invalid": invalid,
+        "note": "exact_task_packet_sha256 is not recomputed here; a prompt-component "
+                "change shows up in the synthetic run, not in this report",
+    }
+
+
+def cmd_cache_impact(args: argparse.Namespace) -> int:
+    source = Path(args.source_repo).resolve()
+    if not (source / "benchmark" / "cache" / "v1").is_dir():
+        raise BenchmarkError(f"source repository has no certified cache: {source}")
+    summary = cache_impact(source)
+    by_eval: dict[str, int] = {}
+    for entry in summary["invalid"]:
+        by_eval[entry["evaluation"]] = by_eval.get(entry["evaluation"], 0) + 1
+    summary["invalid_by_evaluation"] = by_eval
+    print(json.dumps(summary, indent=2))
+    return 0 if not summary["invalid"] else 3
+
+
 def cmd_cache_annotate_caps(args: argparse.Namespace) -> int:
     source = Path(args.source_repo).resolve()
     evidence = Path(args.evidence).resolve()
@@ -7521,6 +7704,14 @@ def build_parser() -> argparse.ArgumentParser:
     promote.add_argument("--evidence", required=True, help="extracted workspace-evidence.tgz")
     promote.add_argument("--snapshot", required=True, help="the evaluated commit (git revision)")
     promote.set_defaults(func=cmd_cache_promote_evidence)
+
+    impact = sub.add_parser(
+        "cache-impact",
+        help="list the certified records the checkout's current template, docs, pins, "
+             "epochs and Quidra versions would no longer match (exit 3 when any)",
+    )
+    impact.add_argument("--source-repo", required=True)
+    impact.set_defaults(func=cmd_cache_impact)
 
     post = sub.add_parser(
         "post-run",

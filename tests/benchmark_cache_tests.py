@@ -33,6 +33,9 @@ production = load("benchmark_cache_production", SCRIPTS / "production_run.py")
 def make_workspace(tmp: Path) -> Path:
     root = tmp / "workspace"
     shutil.copytree(ROOT / "benchmark" / "template", root / "template")
+    # init materializes the reuse catalog into the template before recording
+    # its tree hash; readiness audits key on what it records.
+    benchmark.materialize_reuse_catalog(ROOT, root / "template")
     (root / "cache").mkdir(parents=True)
     for rel in (
         "work/root",
@@ -373,6 +376,49 @@ def assert_accepted_trial_start_marks_the_scored_boundary() -> None:
     assert benchmark.first_accepted_trial_index([]) is None
 
 
+def assert_readiness_audits_are_cacheable(root: Path, task: dict) -> None:
+    """A reuse audit's verdict is keyed by the artifact object and its toolchain.
+
+    Left out of the cache, the four Python and C++ audits were paid for by
+    every run. The key carries the audited artifact's git object, the
+    toolchain and pins of the artifact's language, and names the artifact in
+    its scope, so a changed artifact or a bumped toolchain misses and nothing
+    else does.
+    """
+    audit = {
+        "id": "audit-micro-python", "evaluation": "language_quality", "phase": "readiness",
+        "execution_kind": "agent", "worker_mode": "packet-only", "result_kind": "audit",
+        "assigned_languages": [], "reuse_audit_for": ["micro-python"], "requirement_ids": [],
+        "input_hashes": {"artifact_git_object": "a" * 40},
+        "validator_command": "true", "network_allowed": True, "assigned_agent_id": "worker-audit-micro-python",
+        "dependencies": [],
+    }
+    assert benchmark.cache_eligible_unit(root, audit), "a readiness audit is not cacheable"
+    assert benchmark.audit_languages(root, audit) == ["Python"]
+    pair = benchmark.cache_fingerprint(root, audit, task)
+    assert pair is not None, "an audit produced no cache key"
+    fingerprint, payload = pair
+    assert payload["toolchains"] == {"Python": "3.14.5"} and payload["result_kind"] == "audit"
+    assert payload["reuse_audit_for"] == ["micro-python"]
+    assert benchmark.cache_scope(audit) == "audit-micro-python"
+    changed = dict(audit, input_hashes={"artifact_git_object": "b" * 40})
+    assert benchmark.cache_fingerprint(root, changed, task)[0] != fingerprint, (
+        "a changed artifact must change the audit's key"
+    )
+    toolchains = benchmark.json_load(root / "results/toolchains.json")
+    toolchains["toolchains"]["Python"]["canonical"] = "3.15.0"
+    benchmark.json_dump(root / "results/toolchains.json", toolchains)
+    assert benchmark.cache_fingerprint(root, audit, task)[0] != fingerprint, (
+        "a bumped toolchain must change the audit's key"
+    )
+    toolchains["toolchains"]["Python"]["canonical"] = "3.14.5"
+    benchmark.json_dump(root / "results/toolchains.json", toolchains)
+    assert benchmark.cache_fingerprint(root, audit, task)[0] == fingerprint
+    # Audits for a language absent from the toolchain scan have no key.
+    orphan = dict(audit, reuse_audit_for=["micro-rust"])
+    assert benchmark.cache_fingerprint(root, orphan, task) is None
+
+
 def main() -> None:
     assert_accepted_trial_start_marks_the_scored_boundary()
     with tempfile.TemporaryDirectory() as td:
@@ -381,6 +427,7 @@ def main() -> None:
         unit, task = create_cacheable_task(root)
         freeze_manifest(root, unit)
         assert_scored_cap_governs_reuse(root, unit, task)
+        assert_readiness_audits_are_cacheable(root, task)
 
         # Production tasks are authored inside /quidra-benchmark, while post-run
         # promotes them from the host staging path. Both path spellings must hash

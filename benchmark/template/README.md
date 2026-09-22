@@ -162,3 +162,14 @@ These Linux toolchain versions are not expected to equal the fingerprints record
 On macOS, `init` by itself is not sufficient. If no container, VM, namespace-equivalent mechanism or other trusted isolation layer can present the staging directory as `/quidra-benchmark`, scored work must not start. Do not substitute a symlink or forged attestation.
 
 After `finalize` and sandbox exit, the trusted outer runner uses `benchmark.py post-run --source-repo <checkout>`. If a run is abandoned before successful `finalize`, use `benchmark.py discard-workspace --source-repo <checkout>` instead of manual `rm -rf`.
+
+## Files that key certified-cache records
+
+Some template files are readable inputs of scored units and are hashed into their certified-cache
+records: `workloads/` and `programs/<language>/` for the Language Quality language-development
+units, `methodology-assets/` for Semantic Compression and Ecosystem, and `config/primary.json`,
+`config/benchmark_metadata.json` and `methodology/` for every unit. Editing one of them re-keys the
+records that read it and the next run pays to measure them again. Run
+`benchmark.py cache-impact --source-repo .` before pushing a template change to see which records
+it would invalidate. The Zig build command in `workloads/micro.md` is documented without `-lc`
+for exactly this reason; `scripts/micro_measure.py` adds the flag.

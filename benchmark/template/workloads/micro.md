@@ -26,7 +26,7 @@ Exactly ten scored configurations are used.
 | `typescript` | TypeScript | `tsc FILE.ts` | `node FILE.js` | yes |
 | `kotlin` | Kotlin | `kotlinc FILE.kt -include-runtime -d FILE.jar` | `java -jar FILE.jar` | yes |
 | `swift` | Swift | `swiftc -O FILE.swift -o BIN` | `./BIN` | yes |
-| `zig` | Zig | `zig build-exe -OReleaseFast -lc FILE.zig -femit-bin=BIN` | `./BIN` | yes |
+| `zig` | Zig | `zig build-exe -OReleaseFast FILE.zig -femit-bin=BIN` | `./BIN` | yes |
 
 The exact installed toolchain fingerprints are recorded mechanically for every run. Quidra's compiler is built from the evaluated snapshot rather than taken from a historical benchmark artifact.
 

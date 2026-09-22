@@ -114,6 +114,7 @@ ALLOWED_MOUNT_POINTS = frozenset({
     "/quidra-benchmark",
     "/quidra-benchmark/repo",
     "/quidra-benchmark/template",
+    "/quidra-benchmark/cache",
     "/quidra-benchmark/gateway",
 })
 ALLOWED_MOUNT_PREFIXES = ("/proc", "/sys", "/dev")
@@ -824,6 +825,11 @@ def cmd_init(args: argparse.Namespace) -> int:
         "benchmark/template",
         root / "template",
     )
+    cache_snapshot = copy_tracked_tree(
+        source,
+        "benchmark/cache",
+        root / "cache",
+    )
     reused = materialize_reuse_catalog(source, root / "template")
 
     master_dest = root / "prompts" / "by-hash" / "master-prompt.tmp.md"
@@ -854,9 +860,15 @@ def cmd_init(args: argparse.Namespace) -> int:
         "reuse_catalog_sha256": catalog_hash,
         "reuse_materialization_sha256": materialized_hash,
         "template_tree_sha256": template_hash,
+        "cache_tree_sha256": sha256_tree(root / "cache"),
+        "inference_identity": {
+            "provider": getattr(args, "provider", None),
+            "model": getattr(args, "model", None),
+        },
         "materialized_reusable_artifacts": len(reused),
         "source_snapshot": snapshot,
         "template_source_snapshot": template_snapshot,
+        "cache_source_snapshot": cache_snapshot,
         "created_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
     }
     json_dump(root / "run.json", run)
@@ -898,6 +910,10 @@ def template_integrity_problems(root: Path, run: dict[str, Any]) -> list[str]:
     if materialized.exists() and run.get("reuse_materialization_sha256"):
         if sha256_file(materialized) != run["reuse_materialization_sha256"]:
             problems.append("reuse_materialization_hash_mismatch")
+    cache = root / "cache"
+    if run.get("cache_tree_sha256") and cache.exists():
+        if sha256_tree(cache) != run["cache_tree_sha256"]:
+            problems.append("certified_cache_hash_mismatch")
     return problems
 
 
@@ -2289,39 +2305,84 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
             })
 
         regular_ids: list[str] = []
-        split_bases = {
-            str(raw["id"])
+        split_modes = {
+            str(raw["id"]): (
+                "language"
+                if bool(raw.get("split_by_language", False))
+                else str(raw.get("split_mode") or "")
+            )
             for raw in spec.get("units", [])
-            if bool(raw.get("split_by_language", False))
+            if bool(raw.get("split_by_language", False)) or raw.get("split_mode")
         }
         fixed_languages = metadata_languages(root)
         for raw in spec.get("units", []):
             base_uid = str(raw["id"])
             execution_kind = str(raw.get("execution_kind", "agent"))
             result_kind = str(raw.get("result_kind", "requirements"))
-            split = bool(raw.get("split_by_language", False)) and execution_kind == "agent"
-            shards: list[list[str]] = (
-                [[language] for language in fixed_languages] if split else [[]]
+            split_mode = (
+                "language"
+                if bool(raw.get("split_by_language", False))
+                else str(raw.get("split_mode") or "")
             )
-            for assigned_languages in shards:
-                suffix = (
-                    f"--{slug_id(assigned_languages[0])}"
-                    if assigned_languages
-                    else ""
+            if execution_kind != "agent":
+                split_mode = ""
+            if split_mode == "language":
+                shards: list[list[str]] = [[language] for language in fixed_languages]
+            elif split_mode == "target_vs_comparison":
+                target = str(
+                    load_benchmark_metadata(root / "template").get(
+                        "evaluated_target_language", "Quidra"
+                    )
                 )
+                comparison = [language for language in fixed_languages if language != target]
+                shards = [[target], comparison]
+            elif split_mode:
+                raise BenchmarkError(
+                    f"{base_uid}: unsupported split_mode {split_mode!r}"
+                )
+            else:
+                shards = [[]]
+            for assigned_languages in shards:
+                suffix = ""
+                if assigned_languages:
+                    suffix = (
+                        f"--{slug_id(assigned_languages[0])}"
+                        if len(assigned_languages) == 1
+                        else "--comparison"
+                    )
                 uid = base_uid + suffix
                 agent_id = (
                     f"worker-{uid}" if execution_kind == "agent" else f"system-{uid}"
                 )
                 deps: list[str] = []
                 for dep in [str(x) for x in raw.get("dependencies", [])]:
-                    if dep in split_bases and assigned_languages:
-                        deps.append(dep + f"--{slug_id(assigned_languages[0])}")
-                    elif dep in split_bases:
-                        deps.extend(
-                            dep + f"--{slug_id(language)}"
-                            for language in fixed_languages
+                    dep_mode = split_modes.get(dep, "")
+                    if dep_mode == "language":
+                        if assigned_languages:
+                            deps.extend(
+                                dep + f"--{slug_id(language)}"
+                                for language in assigned_languages
+                            )
+                        else:
+                            deps.extend(
+                                dep + f"--{slug_id(language)}"
+                                for language in fixed_languages
+                            )
+                    elif dep_mode == "target_vs_comparison":
+                        target = str(
+                            load_benchmark_metadata(root / "template").get(
+                                "evaluated_target_language", "Quidra"
+                            )
                         )
+                        if assigned_languages == [target]:
+                            deps.append(dep + f"--{slug_id(target)}")
+                        elif assigned_languages and target not in assigned_languages:
+                            deps.append(dep + "--comparison")
+                        else:
+                            deps.extend([
+                                dep + f"--{slug_id(target)}",
+                                dep + "--comparison",
+                            ])
                     else:
                         deps.append(dep)
                 if audit_ids:
@@ -2362,13 +2423,14 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                     if execution_kind == "agent"
                     else 0
                 )
-                max_calls = (
-                    (total_calls + len(fixed_languages) - 1) // len(fixed_languages)
-                    if split and total_calls
-                    else total_calls
-                )
+                max_calls = total_calls
+                if assigned_languages and total_calls:
+                    max_calls = (
+                        total_calls * len(assigned_languages)
+                        + len(fixed_languages) - 1
+                    ) // len(fixed_languages)
                 language_text = (
-                    f" Assigned language: {assigned_languages[0]}."
+                    " Assigned language set: " + ", ".join(assigned_languages) + "."
                     if assigned_languages
                     else " Evaluate the fixed comparison set symmetrically."
                 )
@@ -2452,7 +2514,16 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                     "workload_ids": list(raw.get("workload_ids", [])),
                     "read_paths": [
                         str(require_under(root / p, root))
-                        for p in raw.get("read_paths", [])
+                        for p in (
+                            [
+                                value for value in raw.get("read_paths", [])
+                                if not (
+                                    assigned_languages
+                                    and "Quidra" not in assigned_languages
+                                    and value == "repo/docs"
+                                )
+                            ]
+                        )
                         if (root / p).exists()
                     ],
                     "evidence_paths": evidence_paths,
@@ -3020,18 +3091,27 @@ def render_workspace_paths(content: str, root: Path) -> str:
 def store_prompt_component(root: Path, content: str, kind: str) -> dict[str, Any]:
     data = content.encode("utf-8")
     digest = sha256_bytes(data)
-    dest = root / "prompts" / "components" / "by-hash" / f"{digest}.md"
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    if dest.exists():
-        if dest.read_bytes() != data:
-            raise BenchmarkError(f"prompt component hash collision: {digest}")
+    canonical = (
+        root / "template" / "prompts" / "components" / "by-hash" / f"{digest}.md"
+    )
+    if canonical.is_file():
+        if canonical.read_bytes() != data:
+            raise BenchmarkError(f"canonical prompt component hash collision: {digest}")
+        dest = canonical
     else:
-        dest.write_bytes(data)
+        dest = root / "prompts" / "components" / "by-hash" / f"{digest}.md"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if dest.exists():
+            if dest.read_bytes() != data:
+                raise BenchmarkError(f"prompt component hash collision: {digest}")
+        else:
+            dest.write_bytes(data)
     return {
         "kind": kind,
         "sha256": digest,
         "path": str(dest),
         "bytes": len(data),
+        "canonical": dest == canonical,
     }
 
 
@@ -3115,6 +3195,215 @@ def sampling_config(root: Path) -> dict[str, Any]:
         "effort": str(effort),
         "orchestration_effort": str(orchestration),
     }
+
+
+
+def cache_policy(root: Path) -> dict[str, Any]:
+    path = root / "template" / "config" / "cache_policy.json"
+    data = json_load(path)
+    if data.get("schema_version") != 1 or data.get("cache_schema_version") != 1:
+        raise BenchmarkError("unsupported certified cache policy schema")
+    return data
+
+
+def cache_eligible_unit(root: Path, unit: dict[str, Any]) -> bool:
+    assigned = list(unit.get("assigned_languages", []) or [])
+    policy = cache_policy(root)
+    target = str(policy.get("target_language") or "Quidra")
+    return (
+        unit.get("execution_kind", "agent") == "agent"
+        and unit.get("result_kind", "requirements") == "requirements"
+        and unit.get("phase") == "measurement"
+        and bool(assigned)
+        and target not in assigned
+    )
+
+
+def cache_epoch(root: Path, evaluation: str) -> str:
+    policy = cache_policy(root)
+    mode = str((policy.get("epochs") or {}).get(evaluation, "stable"))
+    if mode == "stable":
+        return "stable"
+    if mode == "utc-month":
+        run = json_load(root / "run.json")
+        raw = str(run.get("created_at_utc") or "")
+        try:
+            stamp = dt.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise BenchmarkError("run created_at_utc is invalid for cache epoch") from exc
+        return stamp.astimezone(dt.timezone.utc).strftime("%Y-%m")
+    raise BenchmarkError(f"unsupported cache epoch mode: {mode}")
+
+
+def cache_scope(unit: dict[str, Any]) -> str:
+    assigned = list(unit.get("assigned_languages", []) or [])
+    if len(assigned) == 1:
+        return slug_id(assigned[0])
+    return "comparison-" + sha256_bytes(
+        json.dumps(assigned, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    )[:12]
+
+
+def cache_fingerprint_payload(
+    root: Path, unit: dict[str, Any], task: dict[str, Any]
+) -> dict[str, Any] | None:
+    if not cache_eligible_unit(root, unit):
+        return None
+    run = json_load(root / "run.json")
+    identity = run.get("inference_identity") or {}
+    provider = identity.get("provider")
+    model = identity.get("model")
+    if not provider or not model:
+        return None
+    toolchain_report = json_load(root / "results" / "toolchains.json")
+    toolchains = toolchain_report.get("toolchains") or {}
+    assigned = list(unit.get("assigned_languages", []) or [])
+    selected_toolchains: dict[str, str] = {}
+    for language in assigned:
+        row = toolchains.get(language) or {}
+        canonical = row.get("canonical")
+        if not canonical:
+            return None
+        selected_toolchains[language] = str(canonical)
+    runtime_manifest = root / "template" / "runtime" / "toolchains.json"
+    payload = {
+        "schema_version": 1,
+        "cache_schema_version": 1,
+        "evaluation": unit.get("evaluation"),
+        "work_unit_base": str(unit.get("id", "")).split("--", 1)[0],
+        "requirement_ids": list(unit.get("requirement_ids", [])),
+        "assigned_languages": assigned,
+        "exact_task_packet_sha256": task.get("prompt_sha256"),
+        "provider": provider,
+        "model": model,
+        "frozen_sampling": sampling_config(root),
+        "toolchains": selected_toolchains,
+        "unit_input_hashes": unit.get("input_hashes") or {},
+        "validator_contract": str(unit.get("validator_command") or ""),
+        "worker_mode": unit.get("worker_mode"),
+        "network_allowed": bool(unit.get("network_allowed")),
+        "runtime_toolchain_manifest_sha256": sha256_file(runtime_manifest),
+        "cache_epoch": cache_epoch(root, str(unit.get("evaluation"))),
+    }
+    return payload
+
+
+def cache_fingerprint(root: Path, unit: dict[str, Any], task: dict[str, Any]) -> tuple[str, dict[str, Any]] | None:
+    payload = cache_fingerprint_payload(root, unit, task)
+    if payload is None:
+        return None
+    raw = json.dumps(
+        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+    return sha256_bytes(raw), payload
+
+
+def cache_record_relative(unit: dict[str, Any], fingerprint: str) -> Path:
+    return (
+        Path("v1")
+        / slug_id(str(unit.get("evaluation") or "unknown"))
+        / cache_scope(unit)
+        / f"{fingerprint}.json"
+    )
+
+
+def _cache_status(root: Path) -> dict[str, Any]:
+    path = root / "results" / "cache_status.json"
+    if path.is_file():
+        return json_load(path)
+    return {
+        "schema_version": 1,
+        "enabled": bool((json_load(root / "run.json").get("inference_identity") or {}).get("model")),
+        "hits": {},
+        "misses": {},
+    }
+
+
+def _write_cache_status(root: Path, status: dict[str, Any]) -> None:
+    status["hit_count"] = len(status.get("hits", {}))
+    status["miss_count"] = len(status.get("misses", {}))
+    json_dump(root / "results" / "cache_status.json", status)
+
+
+def hydrate_certified_cache(root: Path) -> int:
+    manifest = json_load(root / "work" / "root" / "manifest.json")
+    ledger = json_load(root / "work" / "root" / "ledger.json")
+    status = _cache_status(root)
+    hits = 0
+    for unit in manifest.get("work_units", []):
+        uid = str(unit["id"])
+        state = ledger.get("units", {}).get(uid, {})
+        if state.get("status", "PENDING") != "PENDING":
+            continue
+        if not cache_eligible_unit(root, unit):
+            continue
+        if not all(
+            ledger.get("units", {}).get(dep, {}).get("status") == "COMPLETE"
+            for dep in unit.get("dependencies", [])
+        ):
+            continue
+        agent_dir = root / "work" / "agents" / str(unit["assigned_agent_id"])
+        task_path = agent_dir / "task.json"
+        if not task_path.is_file():
+            continue
+        task = json_load(task_path)
+        pair = cache_fingerprint(root, unit, task)
+        if pair is None:
+            continue
+        fingerprint, payload = pair
+        rel = cache_record_relative(unit, fingerprint)
+        cache_path = root / "cache" / rel
+        if not cache_path.is_file():
+            status["misses"][uid] = {
+                "fingerprint": fingerprint,
+                "scope": cache_scope(unit),
+                "reason": "no certified record",
+            }
+            continue
+        record = json_load(cache_path)
+        if (
+            record.get("schema_version") != 1
+            or record.get("fingerprint") != fingerprint
+            or record.get("fingerprint_payload") != payload
+            or record.get("result_sha256")
+            != sha256_bytes(
+                json.dumps(
+                    record.get("result"), sort_keys=True, separators=(",", ":")
+                ).encode("utf-8")
+            )
+        ):
+            raise BenchmarkError(f"{uid}: certified cache record failed integrity checks")
+        result_path = agent_dir / "result.json"
+        json_dump(result_path, record["result"])
+        json_dump(agent_dir / "cache_receipt.json", {
+            "schema_version": 1,
+            "status": "HIT",
+            "fingerprint": fingerprint,
+            "record": str(rel.as_posix()),
+            "certification": record.get("certification") or {},
+            "fingerprint_payload": payload,
+        })
+        if cmd_result_check(argparse.Namespace(workspace=str(root), id=unit["assigned_agent_id"])) != 0:
+            raise BenchmarkError(f"{uid}: cached result failed the current validator")
+        cmd_ledger_update(argparse.Namespace(
+            workspace=str(root), id=uid, status="RUNNING", evidence=[],
+            validation_result=None, blocker=None, blocker_class=None,
+        ))
+        cmd_ledger_update(argparse.Namespace(
+            workspace=str(root), id=uid, status="COMPLETE",
+            evidence=unit.get("evidence_paths", []), validation_result="PASS",
+            blocker=None, blocker_class=None,
+        ))
+        status["hits"][uid] = {
+            "fingerprint": fingerprint,
+            "scope": cache_scope(unit),
+            "record": rel.as_posix(),
+            "assigned_languages": list(unit.get("assigned_languages", [])),
+        }
+        status["misses"].pop(uid, None)
+        hits += 1
+    _write_cache_status(root, status)
+    return hits
 
 
 def worker_isolation_config(root: Path) -> dict[str, Any]:
@@ -4741,6 +5030,10 @@ def _trial_trace_units(root: Path, evaluation: str) -> list[tuple[dict[str, Any]
         if state.get("status") != "COMPLETE":
             raise BenchmarkError(f"{unit['id']}: integrity audit requires COMPLETE trial work")
         agent_dir = root / "work" / "agents" / str(unit["assigned_agent_id"])
+        receipt = agent_dir / "cache_receipt.json"
+        if receipt.is_file():
+            rows.append((unit, agent_dir, {"certified_cache": json_load(receipt)}))
+            continue
         trace_path = agent_dir / "agent_trace.json"
         if not trace_path.is_file():
             raise BenchmarkError(f"{unit['id']}: agent_trace.json is missing")
@@ -4753,9 +5046,18 @@ def _trial_trace_units(root: Path, evaluation: str) -> list[tuple[dict[str, Any]
 def run_learnability_integrity(root: Path, unit: dict[str, Any]) -> None:
     problems: list[str] = []
     audited: list[str] = []
+    cached: list[str] = []
     for trial_unit, agent_dir, trace in _trial_trace_units(root, "llm_learnability"):
         uid = str(trial_unit["id"])
         audited.append(uid)
+        receipt = trace.get("certified_cache")
+        if receipt is not None:
+            certification = receipt.get("certification") or {}
+            if certification.get("learnability_integrity") is not True:
+                problems.append(f"{uid}: cache record lacks learnability integrity certification")
+            else:
+                cached.append(uid)
+            continue
         local = validate_learnability_attestations(agent_dir)
         problems.extend(f"{uid}: {p}" for p in local)
         actions = list(trace.get("trace", []))
@@ -4782,7 +5084,7 @@ def run_learnability_integrity(root: Path, unit: dict[str, Any]) -> None:
             "gate.infrastructure_preflight": passed,
             "gate.reference_pack_leakage": passed,
         },
-        {"audited_units": audited, "problems": problems},
+        {"audited_units": audited, "cached_units": cached, "problems": problems},
     )
 
 
@@ -4824,9 +5126,23 @@ def run_proficiency_integrity(root: Path, unit: dict[str, Any]) -> None:
     problems: list[str] = []
     signatures: set[str] = set()
     audited: list[str] = []
+    cached: list[str] = []
     for trial_unit, agent_dir, trace in _trial_trace_units(root, "llm_proficiency"):
         uid = str(trial_unit["id"])
         audited.append(uid)
+        receipt = trace.get("certified_cache")
+        if receipt is not None:
+            certification = receipt.get("certification") or {}
+            if certification.get("proficiency_integrity") is not True:
+                problems.append(f"{uid}: cache record lacks proficiency integrity certification")
+                continue
+            signature = certification.get("configuration_signature")
+            if not isinstance(signature, str) or not signature:
+                problems.append(f"{uid}: cached configuration signature is missing")
+            else:
+                signatures.add(signature)
+            cached.append(uid)
+            continue
         gateway = trace.get("gateway") or {}
         provider = gateway.get("provider")
         model = gateway.get("model")
@@ -4857,6 +5173,7 @@ def run_proficiency_integrity(root: Path, unit: dict[str, Any]) -> None:
         },
         {
             "audited_units": audited,
+            "cached_units": cached,
             "configuration_signature_count": len(signatures),
             "problems": problems,
         },
@@ -5065,6 +5382,11 @@ def cmd_advance(args: argparse.Namespace) -> int:
     cmd_tasks_create(argparse.Namespace(
         workspace=str(root), evaluation=None, parent=None, depth=1
     ))
+    cache_hits = hydrate_certified_cache(root)
+    if cache_hits:
+        # Cache completions may unlock integrity/aggregation commands or another
+        # dependency layer. Re-enter the state machine before emitting a queue.
+        return cmd_advance(args)
 
     manifest = json_load(root / "work" / "root" / "manifest.json")
     ledger = json_load(root / "work" / "root" / "ledger.json")
@@ -5845,6 +6167,8 @@ def build_parser() -> argparse.ArgumentParser:
     init = sub.add_parser("init", help="stage <source-repo>/.quidra-benchmark for mapping to /quidra-benchmark inside the sandbox")
     init.add_argument("--source-repo", required=True)
     init.add_argument("--run-id")
+    init.add_argument("--provider")
+    init.add_argument("--model")
     init.add_argument(
         "--sandbox-mode",
         required=True,

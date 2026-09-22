@@ -86,6 +86,7 @@ jobs:
               root / "fixtures" / "micro" / "reference",
               root / "validators" / "micro" / "check_micro.py",
               root / "methodology-assets" / "semantic_compression" / "capability_universe.json",
+              root / "methodology-assets" / "semantic_compression" / "semantic_site_matrix.json",
           ]
           missing = [str(path) for path in required if not path.exists()]
           assert not missing, missing
@@ -503,10 +504,10 @@ jobs:
           python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
 
           test -f "$TMP/results/dispatch_queue.json"
-          grep -q '"agent_id": "worker-sc-structure-gates--part-1b"' "$TMP/results/dispatch_queue.json"
-          python benchmark/template/scripts/benchmark.py task-render             --workspace "$TMP" --id worker-sc-structure-gates--part-1b > "$TMP/rendered-task.md"
+          grep -q '"agent_id": "worker-sc-metrics-local--part-1"' "$TMP/results/dispatch_queue.json"
+          python benchmark/template/scripts/benchmark.py task-render             --workspace "$TMP" --id worker-sc-metrics-local--part-1 > "$TMP/rendered-task.md"
           grep -q "Embedded input: worker_core.md" "$TMP/rendered-task.md"
-          grep -q "Mandatory semantic-site matrix" "$TMP/rendered-task.md"
+          grep -q "Semantic Density" "$TMP/rendered-task.md"
           grep -q "/quidra-benchmark" "$TMP/rendered-task.md"
           if grep -Fq "$TMP" "$TMP/rendered-task.md"; then
             echo "physical synthetic workspace leaked into rendered Task Packet" >&2
@@ -543,22 +544,9 @@ jobs:
                   json.dumps(response) + "\n"
               )
 
-          write("worker-sc-structure-gates--part-1b", "semantic_compression", {
-              "gate.semantic_site_matrix": True,
-          })
-          write("worker-sc-structure-gates--part-2a", "semantic_compression", {
-              "gate.matrix_validator": True,
-          })
           PY
-          for ID in sc-structure-gates--part-1b sc-structure-gates--part-2a; do
-            # The gates are deliberately chained so advance after each one
-            # materializes only the next narrow packet.
-            python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
-            AGENT="worker-$ID"
-            python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id "$ID"
-            python benchmark/template/scripts/benchmark.py task-apply --workspace "$TMP" --id "$AGENT"               < "$TMP/raw/$AGENT.response.json"
-            python benchmark/template/scripts/benchmark.py task-finish --workspace "$TMP" --id "$ID"
-          done
+          # All Semantic Compression readiness gates are deterministic commands.
+          # One advance executes them before exposing the metric workers.
           python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
 
           python - <<'PY'

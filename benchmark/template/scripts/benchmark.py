@@ -4447,6 +4447,147 @@ def _write_command_requirements(
     })
 
 
+
+def semantic_site_matrix_problems(
+    matrix: dict[str, Any], universe: dict[str, Any], languages: list[str]
+) -> list[str]:
+    problems: list[str] = []
+    if matrix.get("schema_version") != 1:
+        problems.append("schema_version must be 1")
+    if matrix.get("frozen") is not True:
+        problems.append("matrix must be frozen")
+    if list(matrix.get("languages", [])) != languages:
+        problems.append("matrix language order differs from benchmark metadata")
+    allowed_states = list(matrix.get("annotation_states", []))
+    if allowed_states != ["UNMEASURED", "SUPPORTED", "PARTIAL", "UNSUPPORTED"]:
+        problems.append("annotation states are not the frozen four-state set")
+    metric_ids = list(matrix.get("metrics", []))
+    required_metrics = [
+        "semantic_density",
+        "semantic_determinacy",
+        "semantic_locality",
+        "hidden_semantic_cost",
+        "capability_efficiency",
+    ]
+    if metric_ids != required_metrics:
+        problems.append("matrix metric mapping is not the frozen five-metric order")
+
+    universe_probes = list(universe.get("probes", []))
+    matrix_probes = list(matrix.get("probes", []))
+    if len(matrix_probes) != len(universe_probes):
+        problems.append("matrix probe count differs from capability universe")
+        return problems
+
+    fact_kinds = universe.get("semantic_fact_kinds") or {}
+    for expected, actual in zip(universe_probes, matrix_probes):
+        probe_id = str(expected.get("probe_id", ""))
+        if actual.get("probe_id") != probe_id:
+            problems.append(f"{probe_id}: probe id/order mismatch")
+            continue
+        if actual.get("family") != expected.get("family"):
+            problems.append(f"{probe_id}: capability family mismatch")
+        if int(actual.get("capability_denominator", -1)) != int(
+            expected.get("capability_points", -2)
+        ):
+            problems.append(f"{probe_id}: capability denominator mismatch")
+        expected_facts = [str(x) for x in expected.get("semantic_facts_expected", [])]
+        expected_sites = [f"{probe_id}:{fact}" for fact in expected_facts]
+        sites = list(actual.get("sites", []))
+        actual_sites = [str(site.get("site_id", "")) for site in sites]
+        if actual_sites != expected_sites:
+            problems.append(f"{probe_id}: site id set/order mismatch")
+        unsupported = actual.get("unsupported_rule")
+        if not isinstance(unsupported, str) or not unsupported:
+            problems.append(f"{probe_id}: missing unsupported rule")
+        for fact, site in zip(expected_facts, sites):
+            if site.get("semantic_fact") != fact:
+                problems.append(f"{probe_id}: semantic fact mismatch for {fact}")
+            if site.get("semantic_question") != fact_kinds.get(fact):
+                problems.append(f"{probe_id}: semantic question mismatch for {fact}")
+            if int(site.get("multiplicity", -1)) != 1:
+                problems.append(f"{probe_id}: multiplicity must be exactly one")
+            if list(site.get("metrics", [])) != required_metrics:
+                problems.append(f"{probe_id}: metric mapping differs for {fact}")
+            if site.get("unsupported_rule") != unsupported:
+                problems.append(f"{probe_id}: unsupported rule is inconsistent")
+            if not str(site.get("inclusion_criterion", "")).strip():
+                problems.append(f"{probe_id}: missing inclusion criterion")
+            if not str(site.get("exclusion_criterion", "")).strip():
+                problems.append(f"{probe_id}: missing exclusion criterion")
+        templates = actual.get("language_templates") or {}
+        if list(templates.keys()) != languages:
+            problems.append(f"{probe_id}: language template set/order mismatch")
+        for language in languages:
+            row = templates.get(language) or {}
+            if list(row.get("site_order", [])) != expected_sites:
+                problems.append(f"{probe_id}: {language} site order mismatch")
+            if row.get("default_state") != "UNMEASURED":
+                problems.append(f"{probe_id}: {language} default state is invalid")
+    return problems
+
+
+def semantic_site_matrix_negative_self_tests(
+    matrix: dict[str, Any], universe: dict[str, Any], languages: list[str]
+) -> dict[str, bool]:
+    def clone() -> dict[str, Any]:
+        return json.loads(json.dumps(matrix))
+
+    tests: dict[str, bool] = {}
+
+    bad = clone()
+    order = bad["probes"][0]["language_templates"][languages[0]]["site_order"]
+    order[0], order[1] = order[1], order[0]
+    tests["reordered_site_rejected"] = bool(
+        semantic_site_matrix_problems(bad, universe, languages)
+    )
+
+    bad = clone()
+    bad["probes"][0]["language_templates"][languages[0]]["site_order"].append(
+        "F00.P0:language_only"
+    )
+    tests["language_only_site_rejected"] = bool(
+        semantic_site_matrix_problems(bad, universe, languages)
+    )
+
+    bad = clone()
+    bad["probes"][0]["language_templates"][languages[0]]["site_order"].pop()
+    tests["missing_site_rejected"] = bool(
+        semantic_site_matrix_problems(bad, universe, languages)
+    )
+
+    bad = clone()
+    bad["probes"][0]["sites"][0]["multiplicity"] = 2
+    tests["multiplicity_change_rejected"] = bool(
+        semantic_site_matrix_problems(bad, universe, languages)
+    )
+
+    bad = clone()
+    bad["probes"][0]["sites"][0]["metrics"] = ["semantic_density"]
+    tests["metric_mapping_change_rejected"] = bool(
+        semantic_site_matrix_problems(bad, universe, languages)
+    )
+
+    bad = clone()
+    bad["probes"][0]["capability_denominator"] += 1
+    tests["capability_denominator_change_rejected"] = bool(
+        semantic_site_matrix_problems(bad, universe, languages)
+    )
+
+    bad = clone()
+    bad["probes"][0]["sites"][0]["unsupported_rule"] = "inconsistent"
+    tests["inconsistent_unsupported_rule_rejected"] = bool(
+        semantic_site_matrix_problems(bad, universe, languages)
+    )
+
+    bad = clone()
+    bad["probes"][0]["language_templates"][languages[0]]["default_state"] = "SUPPORTED"
+    tests["premeasurement_state_change_rejected"] = bool(
+        semantic_site_matrix_problems(bad, universe, languages)
+    )
+
+    return tests
+
+
 def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
     metadata = json_load(root / "template" / "config" / "benchmark_metadata.json")
     languages = list(metadata.get("languages", []))
@@ -4504,6 +4645,53 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
                 "recipe_languages": sorted(recipes),
                 "toolchain_recipe_copies_match": recipes == frozen_recipes,
                 "quidra_native_only_recipe": set((recipes.get("Quidra") or {}).keys()) == {"build", "run"},
+            })
+        elif rid in {"gate.semantic_site_matrix", "gate.matrix_validator"}:
+            universe = json_load(
+                root / "template" / "methodology-assets" / "semantic_compression"
+                / "capability_universe.json"
+            )
+            matrix = json_load(
+                root / "template" / "methodology-assets" / "semantic_compression"
+                / "semantic_site_matrix.json"
+            )
+            problems = semantic_site_matrix_problems(matrix, universe, languages)
+            self_tests = semantic_site_matrix_negative_self_tests(
+                matrix, universe, languages
+            )
+            if rid == "gate.semantic_site_matrix":
+                requirements[rid] = not problems
+            else:
+                requirements[rid] = not problems and all(self_tests.values())
+            evidence.update({
+                "matrix_document_id": matrix.get("document_id"),
+                "matrix_probe_count": len(matrix.get("probes", [])),
+                "matrix_validation_problems": problems,
+                "matrix_negative_self_tests": self_tests,
+            })
+        elif rid in {"gate.objective_rubrics_frozen", "gate.evidence_window_frozen"}:
+            methodology = (
+                root / "template" / "methodology" / "ecosystem.md"
+            ).read_text(encoding="utf-8")
+            rubric_markers = (
+                "define and freeze an objective rubric or proxy before scoring any language",
+                "thresholds, and 0–100 conversion must be applied unchanged to all 10 languages",
+                "Do not alter these category weights after measurements begin",
+            )
+            window_markers = (
+                "### Predeclared sampling",
+                "freeze a **named target or deterministic external selection rule before evidence collection**",
+                "Record the full candidate universe or query needed to reproduce the selection",
+                "Use the same number of retrieval routes and the same examination depth for every language",
+            )
+            if rid == "gate.objective_rubrics_frozen":
+                missing = [x for x in rubric_markers if x not in methodology]
+            else:
+                missing = [x for x in window_markers if x not in methodology]
+            requirements[rid] = not missing and fixed_10
+            evidence.update({
+                f"{rid}.missing_policy_markers": missing,
+                f"{rid}.fixed_language_set": fixed_10,
             })
         elif rid == "coverage.all_frozen_probes":
             asset = json_load(

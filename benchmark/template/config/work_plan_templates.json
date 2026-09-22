@@ -34,17 +34,18 @@
           "dependencies": [
             "sc-structure-gates--part-1a"
           ],
-          "prompt_sections": [
-            "### 6.1.1A Mandatory semantic-site matrix",
-            "### 6.1.7 Fairness and audit requirements"
-          ],
+          "prompt_sections": [],
           "read_paths": [
-            "repo/docs",
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
           "goal_hint": "Validate only the semantic-site-matrix definition. Do not reproduce the full matrix in result.json; cite compact evidence and return the boolean gate.",
-          "worker_mode": "packet-only"
+          "worker_mode": "runner-command",
+          "execution_kind": "command",
+          "result_kind": "requirements",
+          "runner_action": "static-coverage",
+          "max_attempts": 1,
+          "goal": "Mechanically validate the frozen language-neutral semantic-site matrix definition."
         },
         {
           "id": "sc-structure-gates--part-2a",
@@ -55,17 +56,18 @@
           "dependencies": [
             "sc-structure-gates--part-1b"
           ],
-          "prompt_sections": [
-            "### 6.1.1A Mandatory semantic-site matrix",
-            "### 6.1.7 Fairness and audit requirements"
-          ],
+          "prompt_sections": [],
           "read_paths": [
-            "repo/docs",
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
           "goal_hint": "Validate only the matrix-validator contract and its negative-self-test requirement. Keep evidence compact.",
-          "worker_mode": "packet-only"
+          "worker_mode": "runner-command",
+          "execution_kind": "command",
+          "result_kind": "requirements",
+          "runner_action": "static-coverage",
+          "max_attempts": 1,
+          "goal": "Mechanically run the semantic-site matrix validator and all required negative self-tests."
         },
         {
           "id": "sc-coverage",
@@ -777,16 +779,19 @@
             "gate.evidence_window_frozen"
           ],
           "dependencies": [],
-          "prompt_sections": [
-            "## 8.2 Ecosystem Evaluation",
-            "### Predeclared sampling"
-          ],
+          "prompt_sections": [],
           "read_paths": [
-            "repo/docs"
+            "template/methodology",
+            "template/config"
           ],
-          "network_allowed": true,
+          "network_allowed": false,
           "goal_hint": "Narrow shard of ecosystem-gates; only these requirement IDs belong to this leaf.",
-          "worker_mode": "packet-only"
+          "worker_mode": "runner-command",
+          "execution_kind": "command",
+          "result_kind": "requirements",
+          "runner_action": "static-coverage",
+          "max_attempts": 1,
+          "goal": "Mechanically verify that the frozen Ecosystem policy declares objective rubrics/proxies and a symmetric predeclared evidence-window/sampling contract before measurement."
         },
         {
           "id": "ecosystem-coverage",

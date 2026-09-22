@@ -58,7 +58,7 @@ Typical semantic questions include binding, type constraints, storage / mutabili
 
 The matrix is defined from the capability and probe semantics, **not from any of the 10 implementations**. It must not contain language spellings, Quidra-specific constructs, or rows invented because one language exposes an implementation detail conveniently.
 
-All 10 languages must then fill the **identical ordered set of `site_id` rows**.
+The template stores this frozen matrix in `methodology-assets/semantic_compression/semantic_site_matrix.json`. Before any language-specific annotation, the runner mechanically validates that definition, the identical ordered `site_id` template for all 10 languages, all multiplicity/metric/denominator/unsupported rules, and the required negative self-tests. Language-specific annotation must then fill that **identical ordered set of `site_id` rows**; it may change only annotation state/evidence, never matrix structure.
 
 Rules:
 
@@ -70,7 +70,7 @@ Rules:
 6. Hidden behavior is counted only through frozen rows/checklist items, never through free-form commentary.
 7. If a semantic phenomenon cannot be represented consistently by the frozen matrix, stop and revise the matrix **before any score is observed**, then restart the affected annotation from the frozen version.
 
-Before scoring, run a mechanical matrix validator that must confirm for every probe:
+Before scoring, run the mechanical matrix validator. Its pre-measurement pass must confirm the frozen structural contract for every probe, and every language-specific annotation must preserve that contract exactly:
 
 - identical `site_id` set and ordering across all 10 languages;
 - no unknown or language-only rows;
@@ -81,7 +81,7 @@ Before scoring, run a mechanical matrix validator that must confirm for every pr
 - identical capability denominator; and
 - consistency of every frozen `unsupported_rule`: if a language records `UNSUPPORTED` for one row governed by a shared unsupported rule, every row in that probe governed by the same rule must use the corresponding unsupported state rather than selectively collecting ordinary positive states.
 
-The validator must carry negative self-tests for each of these invariants, including an intentionally inconsistent `UNSUPPORTED` fixture that it must reject.
+The validator must carry negative self-tests for each of these invariants, including inconsistent site order, language-only and missing rows, multiplicity and metric-map changes, denominator drift, and an inconsistent shared unsupported rule. Those tests execute mechanically in every run; a failed self-test blocks Semantic Compression before any metric worker runs.
 
 In addition, before normalization or ranking, perform a blinded cross-language comparability audit on a predeclared sample covering at least 20% of probes and every capability family. Any disagreement caused by annotation depth, row interpretation, or asymmetric treatment must be adjudicated against the frozen matrix and the affected annotations revalidated.
 

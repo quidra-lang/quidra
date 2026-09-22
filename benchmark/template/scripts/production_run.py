@@ -77,6 +77,7 @@ def write_policy(
     output: Path,
     model: str | None = None,
     evaluation: str | None = None,
+    units: list[str] | None = None,
 ) -> dict[str, Any]:
     benchmark.assert_template_integrity(root)
     manifest_path = root / "work" / "root" / "manifest.json"
@@ -104,12 +105,17 @@ def write_policy(
     tasks: dict[str, str] = {}
     budgets: dict[str, float] = {}
     skipped_complete: list[str] = []
+    selected = set(units or [])
     for unit in manifest.get("work_units", []):
         if evaluation is not None and unit.get("evaluation") != evaluation:
             continue
         if unit.get("execution_kind", "agent") != "agent":
             continue
         uid = str(unit.get("id") or "")
+        # A unit-scoped rehearsal names the only tasks the gateway may serve;
+        # every other agent is refused before it can spend anything.
+        if selected and uid not in selected:
+            continue
         if (ledger.get("units", {}).get(uid, {}) or {}).get("status") == "COMPLETE":
             skipped_complete.append(uid)
             continue
@@ -143,6 +149,8 @@ def write_policy(
             "paid_task_count": len(tasks),
         },
     }
+    if selected:
+        payload["units"] = sorted(selected)
     if budgets:
         payload["budgets"] = budgets
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -366,26 +374,87 @@ def dispatch_batch(
     return started
 
 
+def select_queue(
+    queue: list[dict[str, Any]],
+    units: dict[str, dict[str, Any]],
+    evaluation: str | None,
+    selected: set[str] | None,
+) -> list[dict[str, Any]]:
+    """The dispatchable tasks inside the run's scope: one evaluation, or named units."""
+    chosen = []
+    for task in queue:
+        uid = str(task["work_unit_id"])
+        if evaluation is not None and units[uid].get("evaluation") != evaluation:
+            continue
+        if selected and uid not in selected:
+            continue
+        chosen.append(task)
+    return chosen
+
+
+def scope_states(
+    ledger: dict[str, Any],
+    units: dict[str, dict[str, Any]],
+    evaluation: str | None,
+    selected: set[str] | None,
+) -> set[str]:
+    """Ledger statuses of every unit inside the run's scope."""
+    states: set[str] = set()
+    for uid, unit in units.items():
+        if evaluation is not None and unit.get("evaluation") != evaluation:
+            continue
+        if selected and uid not in selected:
+            continue
+        states.add(str(ledger["units"].get(uid, {}).get("status", "PENDING")))
+    return states
+
+
 def run_production(
     root: Path,
     max_iterations: int,
     max_wall_seconds: float = 0.0,
     evaluation: str | None = None,
     concurrency: int = 1,
+    units: list[str] | None = None,
 ) -> dict[str, Any]:
+    """Drive the prepared run. Naming `units` makes it a rehearsal.
+
+    A rehearsal dispatches exactly the named work units through the real
+    image, gateway and provider - the same frozen packets and caps a full run
+    would use - and stops when they are terminal, without finalizing. It is
+    how a change to the paid path is tried on one packet or one agent unit for
+    under a dollar before a run that would spend a hundred; what it completes
+    is certified and checkpointed like any other unit, so nothing it spends is
+    lost.
+    """
     if evaluation is not None and evaluation not in benchmark.PRIMARY_NAMES:
         raise ProductionRunError(f"unknown Primary evaluation: {evaluation}")
+    selected: set[str] = {str(u) for u in (units or []) if str(u)}
 
     scope_args: tuple[str, ...] = (
         ("--evaluation", evaluation) if evaluation is not None else ()
     )
     run_cli(root, "preflight")
     run_cli(root, "prepare", *scope_args)
+    if selected:
+        known = manifest_units(root)
+        unknown = sorted(uid for uid in selected if uid not in known)
+        if unknown:
+            raise ProductionRunError(f"unknown work unit(s): {', '.join(unknown)}")
+        not_agent = sorted(
+            uid for uid in selected if known[uid].get("execution_kind", "agent") != "agent"
+        )
+        if not_agent:
+            raise ProductionRunError(
+                f"only agent work units can be rehearsed: {', '.join(not_agent)}"
+            )
 
     started = time.monotonic()
     dispatched = 0
     log(
-        f"production run: scope={evaluation or 'all'} concurrency={max(1, int(concurrency))} "
+        f"production run: scope={evaluation or 'all'}"
+        + (f" units={','.join(sorted(selected))}" if selected else "")
+        + f" concurrency={max(1, int(concurrency))} "
         f"wall_budget={int(max_wall_seconds) or 'none'}s; ledger {ledger_summary(root, evaluation)}"
     )
 
@@ -415,23 +484,12 @@ def run_production(
         run_cli(root, "advance", *scope_args)
         queue = json_load(root / "results" / "dispatch_queue.json").get("tasks", [])
         units = manifest_units(root)
-        if evaluation is not None:
-            queue = [
-                task for task in queue
-                if units[str(task["work_unit_id"])].get("evaluation") == evaluation
-            ]
+        queue = select_queue(queue, units, evaluation, selected)
+        ledger = json_load(root / "work" / "root" / "ledger.json")
+        states = scope_states(ledger, units, evaluation, selected)
+        if states <= {"COMPLETE", "BLOCKED", "INVALID"}:
+            break
         if not queue:
-            ledger = json_load(root / "work" / "root" / "ledger.json")
-            relevant = [
-                unit for unit in units.values()
-                if evaluation is None or unit.get("evaluation") == evaluation
-            ]
-            states = {
-                str(ledger["units"][str(unit["id"])].get("status", "PENDING"))
-                for unit in relevant
-            }
-            if states <= {"COMPLETE", "BLOCKED", "INVALID"}:
-                break
             raise ProductionRunError(
                 f"dispatch queue is empty while selected ledger scope is nonterminal: "
                 f"{sorted(states)}"
@@ -450,7 +508,7 @@ def run_production(
     run_cli(root, "advance", *scope_args)
     finalized = False
     finalization: str | None = None
-    if evaluation is None:
+    if evaluation is None and not selected:
         run_cli(root, "finalize")
         finalized = True
         finalization = str(root / "results" / "finalization.json")
@@ -459,11 +517,22 @@ def run_production(
         "schema_version": 1,
         "ok": True,
         "evaluation": evaluation or "all",
+        "units": sorted(selected),
         "scope_terminal": True,
         "finalized": finalized,
         "dispatched_agent_attempts": dispatched,
         "finalization": finalization,
     }
+    if selected:
+        ledger = json_load(root / "work" / "root" / "ledger.json")
+        payload["unit_outcomes"] = {
+            uid: {
+                "status": ledger["units"].get(uid, {}).get("status"),
+                "validation_result": ledger["units"].get(uid, {}).get("validation_result"),
+                "blocker": ledger["units"].get(uid, {}).get("blocker"),
+            }
+            for uid in sorted(selected)
+        }
     benchmark.json_dump(root / "results" / "production_run.json", payload)
     return payload
 
@@ -783,11 +852,20 @@ def build_parser() -> argparse.ArgumentParser:
              "every ceiling is the configured floor",
     )
     policy.add_argument("--evaluation", choices=benchmark.PRIMARY_NAMES)
+    policy.add_argument(
+        "--unit", action="append", dest="units", default=None,
+        help="name a work unit to rehearse (repeatable); every other agent is refused",
+    )
 
     run = sub.add_parser("run", help="drive the prepared scored run to finalization")
     run.add_argument("--workspace", default="/quidra-benchmark")
     run.add_argument("--max-iterations", type=int, default=200)
     run.add_argument("--evaluation", choices=benchmark.PRIMARY_NAMES)
+    run.add_argument(
+        "--unit", action="append", dest="units", default=None,
+        help="rehearse exactly this work unit through the real provider (repeatable); "
+             "the run stops when the named units are terminal and does not finalize",
+    )
     run.add_argument(
         "--max-wall-seconds",
         type=float,
@@ -827,6 +905,7 @@ def main() -> int:
             Path(args.output).resolve(),
             args.model,
             args.evaluation,
+            args.units,
         )
     elif args.command == "provider-smoke":
         payload = provider_smoke(
@@ -850,6 +929,7 @@ def main() -> int:
             float(args.max_wall_seconds),
             args.evaluation,
             int(args.concurrency),
+            args.units,
         )
     else:
         payload = build_cost_report(Path(args.log).resolve())

@@ -62,6 +62,37 @@ jobs:
             all|semantic_compression|llm_learnability|language_quality|ecosystem|llm_proficiency) ;;
             *) echo "::error::Invalid benchmark evaluation in benchmark/.run-production: $evaluation"; exit 1 ;;
           esac
+          # A rehearsal names work units and runs them alone through the real
+          # image, gateway and provider under a hard one-dollar guard. It is how
+          # a change to the paid path is tried on one packet or one agent unit
+          # before a run that could spend a hundred dollars.
+          units="$(sed -n 's/^units:[[:space:]]*//p' benchmark/.run-production | tail -n 1 | tr ',' ' ' | xargs)"
+          budget="$(sed -n 's/^budget_usd:[[:space:]]*//p' benchmark/.run-production | tail -n 1 | xargs)"
+          if [ -n "$units" ]; then
+            for unit in $units; do
+              case "$unit" in
+                *[!A-Za-z0-9._-]*) echo "::error::Invalid work unit id in benchmark/.run-production: $unit"; exit 1 ;;
+              esac
+            done
+            [ -n "$budget" ] || budget="1.0"
+            python - "$budget" <<'PY'
+          import sys
+          budget = float(sys.argv[1])
+          if not 0 < budget <= 1.0:
+              raise SystemExit("::error::a rehearsal's budget_usd must be within (0, 1.0]")
+          PY
+            echo "BENCHMARK_BUDGET_USD=$budget" >> "$GITHUB_ENV"
+            echo "paid rehearsal units: $units (guard $budget USD)"
+          elif [ -n "$budget" ]; then
+            python - "$budget" <<'PY'
+          import sys
+          budget = float(sys.argv[1])
+          if not 0 < budget <= 150.0:
+              raise SystemExit("::error::budget_usd must be within (0, 150]")
+          PY
+            echo "BENCHMARK_BUDGET_USD=$budget" >> "$GITHUB_ENV"
+          fi
+          echo "BENCHMARK_UNITS=$units" >> "$GITHUB_ENV"
           short_sha="$(git rev-parse --short=7 HEAD)"
           run_id="$(date -u +%F)-${short_sha}-gh${GITHUB_RUN_NUMBER}"
           echo "RUN_ID=$run_id" >> "$GITHUB_ENV"
@@ -136,11 +167,13 @@ jobs:
           if [ "$BENCHMARK_EVALUATION" != "all" ]; then
             scope_args=(--evaluation "$BENCHMARK_EVALUATION")
           fi
+          unit_args=()
+          for unit in $BENCHMARK_UNITS; do unit_args+=(--unit "$unit"); done
           python benchmark/template/scripts/production_run.py policy \
             --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
             --model "$BENCHMARK_MODEL" \
             --output "$RUNNER_TEMP/task-policy.json" \
-            "${scope_args[@]}"
+            "${scope_args[@]}" "${unit_args[@]}"
 
       - name: Run paid production benchmark
         id: paid_benchmark
@@ -152,6 +185,8 @@ jobs:
           if [ "$BENCHMARK_EVALUATION" != "all" ]; then
             scope_args=(--evaluation "$BENCHMARK_EVALUATION")
           fi
+          unit_args=()
+          for unit in $BENCHMARK_UNITS; do unit_args+=(--unit "$unit"); done
           python benchmark/template/scripts/sandbox_launcher.py run \
             --source-repo "$GITHUB_WORKSPACE" \
             --image "$BENCHMARK_IMAGE" \
@@ -165,7 +200,7 @@ jobs:
                --workspace /quidra-benchmark \
                --max-wall-seconds 18900 \
                --concurrency "$BENCHMARK_CONCURRENCY" \
-               "${scope_args[@]}"
+               "${scope_args[@]}" "${unit_args[@]}"
 
       - name: Record API usage and estimated cost
         if: always()
@@ -252,7 +287,7 @@ jobs:
           echo "CHECKPOINT_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Import the finished run
-        if: success() && env.BENCHMARK_EVALUATION == 'all'
+        if: success() && env.BENCHMARK_EVALUATION == 'all' && env.BENCHMARK_UNITS == ''
         run: |
           # Always produce benchmark/$RUN_ID once the paid step succeeded, so the
           # artifact step below preserves the full retained set even when the
@@ -262,7 +297,7 @@ jobs:
           test -f "benchmark/$RUN_ID/import_manifest.json"
 
       - name: Push the result when develop has not moved
-        if: success() && env.BENCHMARK_EVALUATION == 'all'
+        if: success() && env.BENCHMARK_EVALUATION == 'all' && env.BENCHMARK_UNITS == ''
         run: |
           git fetch origin develop
           if [ "$DEVELOP_MOVED_DURING_RUN" = "1" ]; then

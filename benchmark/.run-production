@@ -12,6 +12,15 @@
 # window is frozen from manifest-merge to finalize, and a moved develop turns
 # the result into a workflow artifact instead of a commit.
 #
+# Optional fields, one per line after the comments:
+#   evaluation: <primary_id>      dispatch one Primary evaluation only
+#   units: <id>[, <id>...]        rehearse exactly these work units through the real
+#                                 image, gateway and provider, then stop without
+#                                 finalizing; completed units are checkpointed like
+#                                 any other, so nothing spent on them is lost
+#   budget_usd: <number>          soft spend guard; a rehearsal's guard must be
+#                                 within (0, 1.0] and defaults to 1.0
+#
 # Re-request by editing any line below.
 
 requested_at_utc: 2026-09-22T11:10:54Z

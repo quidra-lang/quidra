@@ -2618,6 +2618,73 @@ def test_privacy_gate_reads_sandbox_authored_temp_paths_as_code_not_leaks() -> N
         )
 
 
+def test_a_rehearsal_dispatches_only_its_named_units_and_stops_when_they_are_terminal() -> None:
+    """A unit-scoped run is the same run on one packet or one agent unit.
+
+    It is how a change to the paid path is tried for under a dollar. The
+    runner must dispatch nothing outside the named units, must stop as soon as
+    they are terminal even though the rest of the manifest is pending, and the
+    frozen task policy must name only their agents so the gateway refuses
+    every other request before it can spend anything.
+    """
+    production_run = load(SCRIPTS / "production_run.py", "isolation_tests_production_run_rehearsal")
+    units = {
+        "sc-a": {"evaluation": "semantic_compression", "execution_kind": "agent"},
+        "sc-b": {"evaluation": "semantic_compression", "execution_kind": "agent"},
+        "eco-a": {"evaluation": "ecosystem", "execution_kind": "agent"},
+        "gate": {"evaluation": "ecosystem", "execution_kind": "command"},
+    }
+    queue = [{"work_unit_id": uid} for uid in ("sc-a", "sc-b", "eco-a")]
+    chosen = production_run.select_queue(queue, units, None, {"sc-b"})
+    check([t["work_unit_id"] for t in chosen] == ["sc-b"], f"a rehearsal dispatched outside its units: {chosen}")
+    chosen = production_run.select_queue(queue, units, "semantic_compression", None)
+    check([t["work_unit_id"] for t in chosen] == ["sc-a", "sc-b"], f"the evaluation scope changed: {chosen}")
+    chosen = production_run.select_queue(queue, units, "ecosystem", {"sc-b"})
+    check(chosen == [], "a unit outside the evaluation scope was dispatched")
+
+    ledger = {"units": {"sc-b": {"status": "COMPLETE"}, "sc-a": {"status": "PENDING"},
+                        "eco-a": {"status": "RUNNING"}, "gate": {"status": "PENDING"}}}
+    check(
+        production_run.scope_states(ledger, units, None, {"sc-b"}) == {"COMPLETE"},
+        "a rehearsal's scope included units it did not name",
+    )
+    check(
+        production_run.scope_states(ledger, units, None, None) == {"COMPLETE", "PENDING", "RUNNING"},
+        "the full scope lost a state",
+    )
+    check(
+        production_run.scope_states(ledger, units, "ecosystem", None) == {"RUNNING", "PENDING"},
+        "the evaluation scope lost a state",
+    )
+
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        work_units = [
+            {"id": uid, "evaluation": "ecosystem", "execution_kind": "agent",
+             "assigned_agent_id": f"worker-{uid}", "network_allowed": True,
+             "max_llm_calls": 1, "estimated_input_tokens_per_call": 1000,
+             "max_output_tokens_per_call": 1000}
+            for uid in ("eco-a", "eco-b")
+        ]
+        benchmark.json_dump(root / "work" / "root" / "manifest.json",
+                            {"schema_version": 1, "work_units": work_units})
+        benchmark.json_dump(root / "work" / "root" / "ledger.json", {"schema_version": 1, "units": {}})
+        policy = production_run.write_policy(
+            root, root / "results" / "task-policy.json", model="claude-sonnet-5", units=["eco-b"],
+        )
+        check(
+            list(policy["tasks"]) == ["worker-eco-b"] and policy.get("units") == ["eco-b"],
+            f"the rehearsal policy named more than its units: {policy['tasks']}",
+        )
+        policy = production_run.write_policy(
+            root, root / "results" / "task-policy.json", model="claude-sonnet-5",
+        )
+        check(
+            sorted(policy["tasks"]) == ["worker-eco-a", "worker-eco-b"] and "units" not in policy,
+            f"the full policy changed: {policy['tasks']}",
+        )
+
+
 def main() -> int:
     tests = [value for name, value in sorted(globals().items()) if name.startswith("test_")]
     for test in tests:

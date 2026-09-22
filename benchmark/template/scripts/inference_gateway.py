@@ -387,6 +387,24 @@ class AnthropicMessagesProvider(Provider):
         # at the scored depth the first action turn of a unit regularly spent its
         # whole cap on reasoning and returned no text, which ended the unit.
         self.orchestration_effort = self.decoding.get("orchestration_effort") or self.effort
+        # Even at the shallow depth, an action turn sometimes spends its whole
+        # answer inside the thinking block and ends the turn with no text at all;
+        # the runtime counts that as a protocol error and a wasted turn. Turning
+        # thinking off for these never-scored turns removes that failure mode.
+        # Scored requests keep the provider default, exactly as the frozen
+        # sampling declaration records.
+        self.orchestration_thinking = self.decoding.get("orchestration_thinking")
+        if self.orchestration_thinking not in (None, "disabled", "provider-default"):
+            raise GatewayError(
+                "anthropic_decoding.orchestration_thinking must be 'disabled' or "
+                "'provider-default'"
+            )
+        # A completion with no text and an ordinary end_turn is a provider-side
+        # accident, not an answer. It is re-requested once, identically, before
+        # the sandbox ever sees it.
+        self.empty_completion_retries = max(
+            0, int(self.decoding.get("empty_completion_retries", 1) or 0)
+        )
         self.caching = dict(caching or {})
         self._estimated_cost_usd = 0.0
         self._lock = threading.Lock()
@@ -404,6 +422,8 @@ class AnthropicMessagesProvider(Provider):
             "sampling_parameters": "omitted",
             "effort": self.effort,
             "orchestration_effort": self.orchestration_effort,
+            "orchestration_thinking": self.orchestration_thinking or "provider-default",
+            "empty_completion_retries": self.empty_completion_retries,
             "prompt_caching": bool(self.caching.get("enabled")),
         }
 
@@ -472,6 +492,141 @@ class AnthropicMessagesProvider(Provider):
                 time.sleep(min(2 ** attempt, 30))
         raise GatewayError("provider retry loop exhausted")
 
+    #: What a model that asks for a tool it cannot have is told. The gateway is a
+    #: pure inference broker: the only tool it ever attaches is the frozen
+    #: server-side web search, and once that tool's per-request budget is spent
+    #: the model has nothing left to call. Answering the request with an error
+    #: result keeps the turn alive so the model can finish from what it has,
+    #: instead of the whole paid turn ending on a stop reason nobody consumes.
+    TOOL_USE_REFUSAL = (
+        "This tool is not available. The trusted gateway executes no client tools, "
+        "and the frozen server-side web-search budget for this request may already "
+        "be spent. Do not request tools again; finish the task now from the "
+        "evidence you already have and reply with the required output."
+    )
+
+    def _reserve_budget(self) -> None:
+        with self._lock:
+            if self.budget_usd is not None and self._estimated_cost_usd >= self.budget_usd:
+                raise GatewayError(
+                    "soft API budget exhausted: "
+                    f"estimated {self._estimated_cost_usd:.4f} USD >= {self.budget_usd:.4f} USD"
+                )
+
+    def _account(self, step: dict[str, Any]) -> None:
+        with self._lock:
+            self._estimated_cost_usd += self._request_cost(step)
+
+    @staticmethod
+    def _zero_usage() -> dict[str, int]:
+        return {
+            "input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "cache_read_input_tokens": 0,
+            "output_tokens": 0,
+            "web_search_requests": 0,
+        }
+
+    def _complete_once(
+        self, payload: dict[str, Any], turns: list[dict[str, Any]]
+    ) -> dict[str, Any]:
+        """One provider turn, with the continuations that keep it alive.
+
+        Only budget checks and cost accounting take the provider lock, so several
+        workers can have requests in flight at once; the HTTP round trip itself
+        runs unlocked.
+        """
+        max_continuations = int(self.web_search.get("max_turn_continuations", 8) or 0)
+        texts: list[str] = []
+        usage = self._zero_usage()
+        stop_reason = "end_turn"
+        history: list[dict[str, Any]] = list(turns)
+        # A paused turn is resumed by sending the assistant content produced so
+        # far back verbatim; it accumulates across pauses within one turn.
+        assistant_blocks: list[dict[str, Any]] = []
+        continuations = 0
+        tool_use_refusals = 0
+        for continuation in range(max_continuations + 1):
+            self._reserve_budget()
+            payload["messages"] = (
+                [*history, {"role": "assistant", "content": assistant_blocks}]
+                if assistant_blocks
+                else history
+            )
+            http_request = urllib.request.Request(
+                f"{self.base_url}/v1/messages",
+                data=json.dumps(payload).encode("utf-8"),
+                headers={
+                    "content-type": "application/json",
+                    "anthropic-version": "2023-06-01",
+                    "x-api-key": self._api_key,
+                },
+                method="POST",
+            )
+            body = self._open(http_request)
+            content = body.get("content", []) or []
+            texts.extend(
+                block.get("text", "") for block in content if block.get("type") == "text"
+            )
+            raw_usage = body.get("usage", {}) or {}
+            server_tool_use = raw_usage.get("server_tool_use", {}) or {}
+            step = {
+                "input_tokens": int(raw_usage.get("input_tokens", 0) or 0),
+                "cache_creation_input_tokens": int(
+                    raw_usage.get("cache_creation_input_tokens", 0) or 0
+                ),
+                "cache_read_input_tokens": int(
+                    raw_usage.get("cache_read_input_tokens", 0) or 0
+                ),
+                "output_tokens": int(raw_usage.get("output_tokens", 0) or 0),
+                "web_search_requests": int(server_tool_use.get("web_search_requests", 0) or 0),
+            }
+            for key, value in step.items():
+                usage[key] += value
+            self._account(step)
+            stop_reason = body.get("stop_reason", "end_turn")
+            if continuation == max_continuations:
+                break
+            # A server-side tool loop hands the turn back paused. Sending the
+            # response back verbatim lets it continue; the sandbox never sees
+            # the partial state and never has to know a tool ran.
+            if stop_reason == "pause_turn":
+                assistant_blocks = [*assistant_blocks, *content]
+                continuations += 1
+                continue
+            # The model asked for a client tool. There is none: answer every
+            # request with an error result and let the model finish its turn.
+            if stop_reason == "tool_use":
+                requested = [block for block in content if block.get("type") == "tool_use"]
+                if not requested:
+                    break
+                refusals = [
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": str(block.get("id")),
+                        "is_error": True,
+                        "content": self.TOOL_USE_REFUSAL,
+                    }
+                    for block in requested
+                ]
+                history = [
+                    *history,
+                    {"role": "assistant", "content": [*assistant_blocks, *content]},
+                    {"role": "user", "content": refusals},
+                ]
+                assistant_blocks = []
+                tool_use_refusals += len(requested)
+                continuations += 1
+                continue
+            break
+        return {
+            "content": "".join(texts),
+            "stop_reason": stop_reason,
+            "usage": usage,
+            "continuations": continuations,
+            "tool_use_refusals": tool_use_refusals,
+        }
+
     def complete(self, request: dict[str, Any]) -> dict[str, Any]:
         system_chunks = [m["content"] for m in request["messages"] if m["role"] == "system"]
         turns: list[dict[str, Any]] = [
@@ -479,7 +634,8 @@ class AnthropicMessagesProvider(Provider):
             for m in request["messages"]
             if m["role"] in {"user", "assistant"}
         ]
-        effort = self.effort_for(request.get("purpose"))
+        purpose = request.get("purpose")
+        effort = self.effort_for(purpose)
         cache_marker = {"type": "ephemeral"}
         caching = bool(self.caching.get("enabled"))
         if caching and str(self.caching.get("ttl", "5m")) == "1h":
@@ -518,9 +674,12 @@ class AnthropicMessagesProvider(Provider):
                     break
         # No temperature/top_p/top_k: this model family removed them and rejects a
         # request carrying one with HTTP 400. Depth is pinned with effort, which is
-        # the control it does expose, and thinking is left at the provider default.
+        # the control it does expose. Scored requests leave thinking at the
+        # provider default; never-scored orchestration turns may switch it off.
         if effort:
             payload["output_config"] = {"effort": str(effort)}
+        if purpose == "orchestration" and self.orchestration_thinking == "disabled":
+            payload["thinking"] = {"type": "disabled"}
         if request.get("stop"):
             payload["stop_sequences"] = list(request["stop"])
 
@@ -534,74 +693,32 @@ class AnthropicMessagesProvider(Provider):
                 "allowed_callers": list(self.web_search.get("allowed_callers", ["direct"])),
             }]
 
-        max_continuations = int(self.web_search.get("max_turn_continuations", 8) or 0)
-        texts: list[str] = []
-        usage = {
-            "input_tokens": 0,
-            "cache_creation_input_tokens": 0,
-            "cache_read_input_tokens": 0,
-            "output_tokens": 0,
-            "web_search_requests": 0,
-        }
-        stop_reason = "end_turn"
+        total = self._zero_usage()
+        outcome: dict[str, Any] = {}
+        empty_retries = 0
+        for attempt in range(self.empty_completion_retries + 1):
+            outcome = self._complete_once(payload, turns)
+            for key in total:
+                total[key] += int(outcome["usage"].get(key, 0) or 0)
+            if outcome["content"].strip() or outcome["stop_reason"] != "end_turn":
+                break
+            if attempt < self.empty_completion_retries:
+                empty_retries += 1
+        usage: dict[str, Any] = dict(total)
+        usage["estimated_cost_usd"] = round(self._request_cost(total), 6)
         with self._lock:
-            for continuation in range(max_continuations + 1):
-                if (
-                    self.budget_usd is not None
-                    and self._estimated_cost_usd >= self.budget_usd
-                ):
-                    raise GatewayError(
-                        "soft API budget exhausted: "
-                        f"estimated {self._estimated_cost_usd:.4f} USD >= {self.budget_usd:.4f} USD"
-                    )
-                http_request = urllib.request.Request(
-                    f"{self.base_url}/v1/messages",
-                    data=json.dumps(payload).encode("utf-8"),
-                    headers={
-                        "content-type": "application/json",
-                        "anthropic-version": "2023-06-01",
-                        "x-api-key": self._api_key,
-                    },
-                    method="POST",
-                )
-                body = self._open(http_request)
-                content = body.get("content", []) or []
-                texts.extend(
-                    block.get("text", "") for block in content if block.get("type") == "text"
-                )
-                raw_usage = body.get("usage", {}) or {}
-                server_tool_use = raw_usage.get("server_tool_use", {}) or {}
-                step = {
-                    "input_tokens": int(raw_usage.get("input_tokens", 0) or 0),
-                    "cache_creation_input_tokens": int(
-                        raw_usage.get("cache_creation_input_tokens", 0) or 0
-                    ),
-                    "cache_read_input_tokens": int(
-                        raw_usage.get("cache_read_input_tokens", 0) or 0
-                    ),
-                    "output_tokens": int(raw_usage.get("output_tokens", 0) or 0),
-                    "web_search_requests": int(server_tool_use.get("web_search_requests", 0) or 0),
-                }
-                for key, value in step.items():
-                    usage[key] += value
-                self._estimated_cost_usd += self._request_cost(step)
-                stop_reason = body.get("stop_reason", "end_turn")
-                # A server-side tool loop hands the turn back paused. Sending the
-                # response back verbatim lets it continue; the sandbox never sees
-                # the partial state and never has to know a tool ran.
-                if stop_reason != "pause_turn" or continuation == max_continuations:
-                    break
-                payload["messages"] = [*turns, {"role": "assistant", "content": content}]
-            usage["estimated_cost_usd"] = round(self._request_cost(usage), 6)
             usage["cumulative_estimated_cost_usd"] = round(self._estimated_cost_usd, 6)
-            text = "".join(texts)
 
         return {
-            "content": text,
-            "stop_reason": stop_reason,
+            "content": outcome["content"],
+            "stop_reason": outcome["stop_reason"],
             "usage": usage,
             "effort": effort,
+            "continuations": int(outcome.get("continuations", 0)),
+            "tool_use_refusals": int(outcome.get("tool_use_refusals", 0)),
+            "empty_completion_retries": empty_retries,
         }
+
 
 def render_conversation(messages: list[dict[str, str]]) -> str:
     chunks = []
@@ -916,6 +1033,9 @@ class GatewayHandler(socketserver.StreamRequestHandler):
                 "decoding": result.get("effort", describe.get("effort")),
                 "sampling_parameters": "omitted",
                 "stop_reason": result.get("stop_reason", "end_turn"),
+                "continuations": int(result.get("continuations", 0) or 0),
+                "tool_use_refusals": int(result.get("tool_use_refusals", 0) or 0),
+                "empty_completion_retries": int(result.get("empty_completion_retries", 0) or 0),
                 "elapsed_seconds": round(elapsed, 3),
                 "response_sha256": sha256_text(content),
                 "response_chars": len(content),

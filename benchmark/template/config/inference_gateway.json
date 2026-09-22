@@ -111,13 +111,16 @@
     "allowed_callers": [
       "direct"
     ],
-    "note": "The _20260209 variant is the one Claude Sonnet 5 supports. Older models take the basic web_search_20250305 variant instead; update this together with the model.",
-    "max_turn_continuations": 8
+    "note": "The _20260209 variant is the one Claude Sonnet 5 supports. Older models take the basic web_search_20250305 variant instead; update this together with the model. max_uses_per_request is the whole search budget of one request; the packet-only worker prompt states it so the model finishes from what it has instead of asking for more. When a turn nevertheless stops on tool_use, the adapter answers every requested client tool with an error result and lets the turn finish (refuse-and-continue), counting toward max_turn_continuations.",
+    "max_turn_continuations": 8,
+    "tool_use_stop_handling": "refuse-and-continue"
   },
   "anthropic_decoding": {
     "send_sampling_parameters": false,
     "effort": "high",
     "orchestration_effort": "low",
-    "note": "Claude Sonnet 5 removed temperature/top_p/top_k and rejects them with HTTP 400, and runs adaptive thinking when the thinking parameter is omitted. The adapter therefore sends no sampling parameters and no thinking block, and pins depth with output_config.effort. `effort` applies to every scored request (trial completions and packet-only workers) and is identical for every language. `orchestration_effort` applies only to sandbox-agent action turns, which are never scored: adaptive thinking is billed inside max_tokens, and at high effort the first action turn of a unit regularly spent its entire output cap on reasoning and returned no text at all. The sandbox selects a purpose label only; both depths are frozen here and recorded per request in the audit log."
+    "note": "Claude Sonnet 5 removed temperature/top_p/top_k and rejects them with HTTP 400, and runs adaptive thinking when the thinking parameter is omitted. The adapter therefore sends no sampling parameters and pins depth with output_config.effort. `effort` applies to every scored request (trial completions and packet-only workers), is identical for every language, and leaves thinking at the provider default exactly as primary.json's sampling section records. `orchestration_effort` and `orchestration_thinking` apply only to sandbox-agent action turns, which are never scored: adaptive thinking is billed inside max_tokens, and at high effort the first action turn of a unit regularly spent its entire output cap on reasoning; even at low effort roughly one action turn in twelve ended with all of its output inside the thinking block and no text, which the runtime counts as a protocol error and a lost turn. Action turns therefore run with thinking disabled. `empty_completion_retries` is how many times the adapter re-sends an identical request whose completion ended normally with no text at all before handing that empty answer to the sandbox. The sandbox selects a purpose label only; every depth is frozen here and recorded per request in the audit log.",
+    "orchestration_thinking": "disabled",
+    "empty_completion_retries": 1
   }
 }

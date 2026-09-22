@@ -8,7 +8,9 @@ implement language-specific scoring logic from the benchmark methodology.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import datetime as dt
+import fcntl
 import hashlib
 import json
 import os
@@ -90,6 +92,34 @@ TOOLCHAIN_COMMANDS = {
     "Swift": [["swift", "--version"]],
     "TypeScript": [["tsc", "--version"], ["node", "--version"]],
     "Zig": [["zig", "version"]],
+}
+
+#: Image-level toolchain locations that scored subprocesses keep. None of these
+#: can carry a credential; all of them decide whether a compiler works at all.
+#: rustc in the runtime image is a rustup proxy that resolves its toolchain
+#: through RUSTUP_HOME and otherwise looks under $HOME/.rustup, which does not
+#: exist in the sandbox home - so without RUSTUP_HOME every rustc call tried to
+#: download a toolchain, failed offline, and the first paid run measured Rust
+#: with a compiler that never ran once.
+TOOLCHAIN_ENVIRONMENT_PASSTHROUGH = (
+    "RUSTUP_HOME", "CARGO_HOME", "JAVA_HOME", "GOROOT", "GOTOOLCHAIN",
+)
+
+#: Programs whose successful `run` in an agent trace evidences that the assigned
+#: language's toolchain actually compiled or executed something. A learnability
+#: unit attests fixtures_compile_and_run=true; this is the mechanical check that
+#: the attestation is backed by a real invocation rather than a string matcher.
+LANGUAGE_TOOLCHAIN_PROGRAMS = {
+    "Python": ("python3",),
+    "C++": ("c++", "g++", "clang++", "cc", "gcc", "clang"),
+    "Rust": ("rustc", "cargo"),
+    "Go": ("go",),
+    "Java": ("javac", "java"),
+    "Kotlin": ("kotlinc",),
+    "TypeScript": ("tsc", "node"),
+    "Swift": ("swiftc", "swift"),
+    "Zig": ("zig",),
+    "Quidra": ("quidra",),
 }
 
 SECRET_ENV_PARTS = (
@@ -926,10 +956,13 @@ def assert_template_integrity(root: Path) -> None:
         raise BenchmarkError("template integrity failed: " + ", ".join(problems))
 
 
-def command_version_output(cmd: list[str], cwd: Path) -> str:
+def command_version_output(
+    cmd: list[str], cwd: Path, env: dict[str, str] | None = None
+) -> str:
     p = subprocess.run(
         cmd,
         cwd=cwd,
+        env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
@@ -966,11 +999,15 @@ def cmd_toolchain_scan(args: argparse.Namespace) -> int:
     root = workspace(args)
     results: dict[str, Any] = {}
     missing: list[str] = []
+    # Scan with exactly the environment scored subprocesses get. A toolchain
+    # that answers here but not there is the worst kind of missing: it passes
+    # bootstrap and then fails every measurement that pays to reach it.
+    env = sanitized_subprocess_env(root, root / "repo") if (root / "repo").is_dir() else None
     for language, commands in TOOLCHAIN_COMMANDS.items():
         outputs: list[str] = []
         try:
             for cmd in commands:
-                outputs.append(command_version_output(cmd, root / "repo"))
+                outputs.append(command_version_output(cmd, root / "repo", env))
             results[language] = {
                 "canonical": canonical_toolchain_fingerprint(language, outputs),
                 "raw": outputs,
@@ -990,6 +1027,38 @@ def cmd_toolchain_scan(args: argparse.Namespace) -> int:
     json_dump(out, payload)
     print(json.dumps(payload, indent=2))
     return 0 if (not args.strict or not missing) else 2
+
+
+def cmd_target_toolchain(args: argparse.Namespace) -> int:
+    """Build the evaluated Quidra compiler before any scored work can need it.
+
+    Sandbox agents for Quidra units run `quidra` from the build directory that
+    `sanitized_subprocess_env` puts on their PATH. In the first paid run that
+    build existed only once the Language Quality audit happened to run, and the
+    Quidra learnability agents that ran earlier were told the compiler was not
+    installed. Building it during prepare makes the order irrelevant.
+    """
+    root = workspace(args)
+    if not (root / "repo" / "CMakeLists.txt").is_file():
+        payload = {"ok": True, "skipped": "the evaluated snapshot has no CMake build"}
+        print(json.dumps(payload, indent=2))
+        return 0
+    script = root / "template" / "scripts" / "micro_measure.py"
+    p = subprocess.run(
+        [sys.executable, str(script), "build-target", "--workspace", str(root)],
+        cwd=root,
+        env=sanitized_subprocess_env(root, root / "work" / "root"),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if p.returncode != 0:
+        raise BenchmarkError(
+            "the evaluated Quidra compiler could not be built from the snapshot: "
+            f"{(p.stderr or p.stdout).strip()[:2000]}"
+        )
+    print(p.stdout)
+    return 0
 
 
 def expected_toolchain_canonical(language: str, value: str | None) -> str | None:
@@ -1727,10 +1796,15 @@ def sanitized_subprocess_env(root: Path, cwd: Path) -> dict[str, str]:
         # sibling template module must not drop a __pycache__ into it.
         "PYTHONDONTWRITEBYTECODE": "1",
     }
-    for key in ("LANG", "LC_ALL", "LC_CTYPE", "TZ"):
+    for key in ("LANG", "LC_ALL", "LC_CTYPE", "TZ", *TOOLCHAIN_ENVIRONMENT_PASSTHROUGH):
         value = os.environ.get(key)
         if value:
             env[key] = value
+    # The compiler under evaluation is built from the snapshot into the
+    # workspace; `quidra` on a scored process's PATH must resolve to that build.
+    target_bin = root / "work" / "root" / "target-build"
+    if (target_bin / "quidra").is_file():
+        env["PATH"] = f"{target_bin}:{env['PATH']}"
     if (
         root != lexical_absolute(CANONICAL_WORKSPACE)
         and os.environ.get("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS") == "1"
@@ -2947,7 +3021,32 @@ def cmd_manifest_merge(args: argparse.Namespace) -> int:
     return 0
 
 
+@contextlib.contextmanager
+def ledger_lock(root: Path):
+    """Serialize ledger read-modify-write across the runner's worker processes.
+
+    The ledger is rewritten whole. With several work units in flight, two
+    `task-finish` processes that read the same ledger and each write back their
+    own unit would keep only the later one. An exclusive lock on a sibling file
+    makes every update see the previous one.
+    """
+    lock_path = root / "work" / "root" / "ledger.lock"
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(lock_path, "a+b") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
+
+
 def cmd_ledger_update(args: argparse.Namespace) -> int:
+    root = workspace(args)
+    with ledger_lock(root):
+        return _cmd_ledger_update_locked(args)
+
+
+def _cmd_ledger_update_locked(args: argparse.Namespace) -> int:
     root = workspace(args)
     manifest_path = root / "work" / "root" / "manifest.json"
     ledger_path = root / "work" / "root" / "ledger.json"
@@ -3608,10 +3707,25 @@ def apply_worker_response(
         if rel_text in seen:
             raise BenchmarkError(f"duplicate packet-only output path: {rel_text}")
         content = entry.get("content")
+        if content is None and "json" in entry:
+            # A JSON document may be returned as the object itself. Escaping a
+            # ten-kilobyte result.json into a JSON string is the single most
+            # common way a worker response arrived unparseable; the object form
+            # cannot be corrupted that way, and it is serialized here verbatim.
+            content = json.dumps(entry["json"], indent=2, sort_keys=True, ensure_ascii=False) + "\n"
         if not isinstance(content, str):
             raise BenchmarkError(
                 f"packet-only output content must be UTF-8 text: {rel_text}"
             )
+        if rel.suffix == ".json":
+            try:
+                json.loads(content)
+            except json.JSONDecodeError as exc:
+                raise BenchmarkError(
+                    f"packet-only output {rel_text} is not valid JSON ({exc}); "
+                    "return the document as an object under \"json\" instead of an "
+                    "escaped string"
+                ) from exc
         data = content.encode("utf-8")
         total_output_bytes += len(data)
         if total_output_bytes > max_bytes:
@@ -3691,20 +3805,42 @@ def cmd_task_infer(args: argparse.Namespace) -> int:
                 "inference gateway reports an exposed host tool surface; refusing to "
                 "dispatch scored work through it"
             )
+        system_text = (
+            "You are a packet-only benchmark worker. You have no local "
+            "filesystem, shell, process, editor or host-application tools. "
+            "Every permitted input is embedded in the Task Packet below. "
+            "Reply with exactly one JSON Worker Response object and nothing "
+            "else. A file entry may carry a JSON document as an object under "
+            "\"json\" instead of an escaped string under \"content\"; use that "
+            "form for result.json so the document cannot be corrupted by string "
+            "escaping."
+        )
+        if meta.get("network_allowed"):
+            searches = int(
+                (config.get("anthropic_web_search") or {}).get("max_uses_per_request", 0) or 0
+            )
+            if searches:
+                system_text += (
+                    f" Web retrieval is available and limited to {searches} searches "
+                    "for this whole request; when they are spent, finish from the "
+                    "evidence you already have. Never request any other tool."
+                )
+        messages = [
+            {"role": "system", "content": system_text},
+            {"role": "user", "content": packet},
+        ]
+        feedback = previous_attempt_feedback(root, args.id)
+        if feedback:
+            messages.append({
+                "role": "user",
+                "content": (
+                    "Your previous attempt at this exact Task Packet was rejected: "
+                    f"{feedback}\n\nThe packet above is unchanged. Return a corrected "
+                    "Worker Response now."
+                ),
+            })
         response = client.complete(
-            [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a packet-only benchmark worker. You have no local "
-                        "filesystem, shell, process, editor or host-application tools. "
-                        "Every permitted input is embedded in the Task Packet below. "
-                        "Reply with exactly one JSON Worker Response object and nothing "
-                        "else."
-                    ),
-                },
-                {"role": "user", "content": packet},
-            ],
+            messages,
             task_id=args.id,
             max_output_tokens=int(args.max_output_tokens),
             network_allowed=bool(meta.get("network_allowed")),
@@ -4040,7 +4176,12 @@ def cmd_result_check(args: argparse.Namespace) -> int:
     if not task_path.is_file() or not result_path.is_file():
         raise BenchmarkError("task.json/result.json missing")
     task = json_load(task_path)
-    result = json_load(result_path)
+    try:
+        result = json_load(result_path)
+    except json.JSONDecodeError as exc:
+        raise BenchmarkError(f"result.json is not valid JSON: {exc}") from exc
+    if not isinstance(result, dict):
+        raise BenchmarkError("result.json must be a JSON object")
     if result.get("schema_version") != 1:
         raise BenchmarkError("result.json schema_version must be 1")
     if result.get("evaluation") != task.get("evaluation"):
@@ -4225,6 +4366,7 @@ def archive_attempt(
     reason: str,
     *,
     reset: bool,
+    detail: str | None = None,
 ) -> str | None:
     agent_id = str(unit["assigned_agent_id"])
     agent_dir = root / "work" / "agents" / agent_id
@@ -4243,6 +4385,10 @@ def archive_attempt(
         "agent_id": agent_id,
         "attempt": attempt,
         "reason": reason,
+        # Why it failed, in the words of the process that failed it. The first
+        # paid run archived forty-three retried attempts with only a reason
+        # code, and nothing could say afterwards what had gone wrong.
+        "detail": (" ".join(str(detail or "").split())[:4000] or None),
         "archived_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
     })
     if reset:
@@ -4251,6 +4397,150 @@ def archive_attempt(
         agent_dir.mkdir(parents=True, exist_ok=True)
         json_dump(agent_dir / "task.json", task)
     return str(archive)
+
+
+def previous_attempt_feedback(root: Path, agent_id: str, limit: int = 1500) -> str | None:
+    """What the last archived attempt of this agent's work unit was rejected for.
+
+    A retried unit is otherwise a fresh worker with no memory of the failure,
+    so a shape error in result.json comes back identical at full price. The
+    detail is folded into the next attempt's prompt as feedback; the Task
+    Packet itself is unchanged, so the frozen packet hash and the certified
+    cache key are unchanged too.
+    """
+    manifest_path = root / "work" / "root" / "manifest.json"
+    if not manifest_path.is_file():
+        return None
+    unit_id = None
+    for unit in json_load(manifest_path).get("work_units", []):
+        if str(unit.get("assigned_agent_id") or "") == agent_id:
+            unit_id = str(unit.get("id"))
+            break
+    if not unit_id:
+        return None
+    attempts = sorted((root / "work" / "attempts" / unit_id).glob("attempt-*/attempt.json"))
+    if not attempts:
+        return None
+    try:
+        latest = json_load(attempts[-1])
+    except (OSError, json.JSONDecodeError):
+        return None
+    detail = str(latest.get("detail") or "").strip()
+    if not detail:
+        return f"attempt {latest.get('attempt')} was archived as {latest.get('reason')}"
+    detail = re.sub(r"/quidra-benchmark/work/agents/[^\s/]+/", "", detail)
+    return detail[:limit]
+
+
+def _validation_detail(agent_dir: Path, limit: int = 1500) -> str:
+    path = agent_dir / "validation.json"
+    if not path.is_file():
+        return "validator produced no record"
+    try:
+        validation = json_load(path)
+    except (OSError, json.JSONDecodeError):
+        return "validator record is unreadable"
+    text = str(validation.get("stderr") or "").strip() or str(validation.get("stdout") or "").strip()
+    text = " ".join(text.split())
+    # A traceback is noise to the next attempt; its last line is the message.
+    if "Traceback (most recent call last)" in text:
+        text = text.rsplit("Traceback (most recent call last)", 1)[-1].split()[-1:]
+        text = " ".join(text)
+    return (text or "validator failed without a message")[-limit:]
+
+
+def learnability_toolchain_evidence_problems(
+    unit: dict[str, Any], trace: dict[str, Any]
+) -> list[str]:
+    """Require a real, successful toolchain invocation per assigned language.
+
+    The runtime lets a learnability agent start trials only after it attests
+    fixtures_compile_and_run=true. In the first paid run the Rust agents, whose
+    rustc could not run at all, attested it anyway and scored trials with a
+    string matcher; nothing downstream noticed. The trace records every `run`
+    with its exit code, so the attestation is checkable.
+    """
+    problems: list[str] = []
+    actions = list(trace.get("trace", []))
+    for language in unit.get("assigned_languages", []) or []:
+        programs = LANGUAGE_TOOLCHAIN_PROGRAMS.get(str(language))
+        if not programs:
+            continue
+        seen_success = False
+        for entry in actions:
+            if entry.get("action") != "run":
+                continue
+            observation = entry.get("observation") or {}
+            argv = observation.get("argv") or []
+            if not argv or observation.get("exit_code") != 0:
+                continue
+            program = str(argv[0]).rsplit("/", 1)[-1]
+            if program in programs:
+                seen_success = True
+                break
+        if not seen_success:
+            problems.append(
+                f"no successful {language} toolchain invocation ({', '.join(programs)}) "
+                "appears in the agent trace, so fixtures_compile_and_run is unsupported"
+            )
+    return problems
+
+
+def is_trial_unit(unit: dict[str, Any]) -> bool:
+    evaluation = str(unit.get("evaluation") or "")
+    if unit.get("execution_kind", "agent") != "agent":
+        return False
+    if evaluation == "llm_learnability":
+        return any(str(r).startswith("condition.") for r in unit.get("requirement_ids", []))
+    if evaluation == "llm_proficiency":
+        return str(unit.get("id", "")).startswith("proficiency-trials--")
+    return False
+
+
+def trial_unit_problems(
+    unit: dict[str, Any], agent_dir: Path
+) -> tuple[bool, list[str]]:
+    """Per-unit integrity of a scored trial unit, before it can count as COMPLETE.
+
+    Returns (infrastructure, problems). `infrastructure` is true when the unit's
+    own preflight says the assigned toolchain cannot compile and run inside the
+    sandbox: retrying that at full price buys the same failure, so the unit is
+    blocked as an infrastructure problem instead. Every other problem is a
+    validation failure the next attempt is told about.
+    """
+    evaluation = str(unit.get("evaluation") or "")
+    problems: list[str] = []
+    infrastructure = False
+    trace_path = agent_dir / "agent_trace.json"
+    if not trace_path.is_file():
+        return False, ["agent_trace.json is missing"]
+    try:
+        trace = json_load(trace_path)
+    except (OSError, json.JSONDecodeError) as exc:
+        return False, [f"agent_trace.json is unreadable: {exc}"]
+    actions = list(trace.get("trace", []))
+    if not any(x.get("action") == "trial_start" for x in actions):
+        problems.append("no scored trial_start was performed")
+    if evaluation == "llm_learnability":
+        problems.extend(validate_learnability_attestations(agent_dir))
+        preflight_path = agent_dir / "learnability_preflight.json"
+        if preflight_path.is_file():
+            try:
+                preflight = json_load(preflight_path)
+            except (OSError, json.JSONDecodeError):
+                preflight = {}
+            if preflight.get("fixtures_compile_and_run") is False:
+                infrastructure = True
+                evidence = preflight.get("evidence") or []
+                first = str(evidence[0])[:400] if evidence else "no evidence recorded"
+                problems.append(
+                    "learnability preflight reports that the assigned toolchain cannot "
+                    f"compile and run fixtures inside the sandbox: {first}"
+                )
+        problems.extend(learnability_toolchain_evidence_problems(unit, trace))
+    elif evaluation == "llm_proficiency":
+        problems.extend(_preserved_trial_problems(agent_dir, trace))
+    return infrastructure, problems
 
 
 def cmd_task_finish(args: argparse.Namespace) -> int:
@@ -4286,6 +4576,25 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
         raise BenchmarkError(f"unsupported worker_mode for task-finish: {worker_mode}")
     validation_ns = argparse.Namespace(workspace=str(root), id=agent_id)
     rc = cmd_task_validate(validation_ns)
+    integrity_detail: str | None = None
+    if rc == 0 and worker_mode == "sandbox-agent" and is_trial_unit(unit):
+        infrastructure, problems = trial_unit_problems(unit, agent_dir)
+        if infrastructure:
+            archive_attempt(
+                root, unit, int(state.get("attempts", 0)), "toolchain-unusable-in-sandbox",
+                reset=False, detail="; ".join(problems),
+            )
+            ns = argparse.Namespace(
+                workspace=str(root), id=args.id, status="BLOCKED",
+                evidence=unit.get("evidence_paths", []), validation_result="FAIL",
+                blocker="assigned toolchain unusable inside the sandbox: " + "; ".join(problems),
+                blocker_class="infrastructure",
+            )
+            cmd_ledger_update(ns)
+            return 2
+        if problems:
+            rc = 2
+            integrity_detail = "trial integrity: " + "; ".join(problems)
     if rc == 0:
         failed_gates = failed_gate_requirements(root, unit)
         if failed_gates:
@@ -4305,9 +4614,10 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
 
     attempts = int(state.get("attempts", 0))
     max_attempts = int(state.get("max_attempts", 3))
+    detail = integrity_detail or _validation_detail(agent_dir)
     if attempts < max_attempts:
         archive_attempt(
-            root, unit, attempts, "validation-failed-retry", reset=True
+            root, unit, attempts, "validation-failed-retry", reset=True, detail=detail
         )
         ns = argparse.Namespace(
             workspace=str(root), id=args.id, status="PENDING",
@@ -4325,12 +4635,12 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
         return 2
 
     archive_attempt(
-        root, unit, attempts, "validation-failed-exhausted", reset=False
+        root, unit, attempts, "validation-failed-exhausted", reset=False, detail=detail
     )
     ns = argparse.Namespace(
         workspace=str(root), id=args.id, status="BLOCKED",
         evidence=unit.get("evidence_paths", []), validation_result="FAIL",
-        blocker=f"validator failed after {attempts} attempts",
+        blocker=f"validator failed after {attempts} attempts: {detail[:600]}",
         blocker_class="ordinary-incomplete",
     )
     cmd_ledger_update(ns)
@@ -5113,6 +5423,9 @@ def run_learnability_integrity(root: Path, unit: dict[str, Any]) -> None:
             continue
         local = validate_learnability_attestations(agent_dir)
         problems.extend(f"{uid}: {p}" for p in local)
+        problems.extend(
+            f"{uid}: {p}" for p in learnability_toolchain_evidence_problems(trial_unit, trace)
+        )
         actions = list(trace.get("trace", []))
         first_trial = next(
             (int(x.get("turn", 0)) for x in actions if x.get("action") == "trial_start"),
@@ -5605,6 +5918,7 @@ def cmd_prepare(args: argparse.Namespace) -> int:
     steps = [
         ("preflight", cmd_preflight, argparse.Namespace(workspace=str(root))),
         ("toolchain-scan", cmd_toolchain_scan, argparse.Namespace(workspace=str(root), strict=False)),
+        ("target-toolchain", cmd_target_toolchain, argparse.Namespace(workspace=str(root))),
         ("reuse-status", cmd_reuse_status, argparse.Namespace(workspace=str(root), strict=False)),
         ("privacy-check", cmd_privacy_check, argparse.Namespace(workspace=str(root))),
         ("deterministic-plan", cmd_deterministic_plan, argparse.Namespace(workspace=str(root))),
@@ -6238,6 +6552,7 @@ def cache_certification_for_unit(
                 )
                 if not wrote_before:
                     problems.append(f"{filename} was not preserved before first trial_start")
+        problems.extend(learnability_toolchain_evidence_problems(unit, trace))
         if problems:
             raise BenchmarkError(
                 f"{unit['id']}: learnability cache promotion failed integrity: "
@@ -6305,6 +6620,7 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     manifest = json_load(manifest_path)
     ledger = json_load(ledger_path)
     records: list[dict[str, Any]] = []
+    skipped: list[dict[str, Any]] = []
     promoted = 0
     reused = 0
 
@@ -6340,7 +6656,15 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
             certification = (json_load(receipt_path).get("certification") or {})
             reused += 1
         else:
-            certification = cache_certification_for_unit(root, unit, agent_dir)
+            try:
+                certification = cache_certification_for_unit(root, unit, agent_dir)
+            except BenchmarkError as exc:
+                # One unit that cannot be certified is one record fewer, not a
+                # reason to keep every other validated measurement out of the
+                # cache. The first paid run lost eighty-seven promotions to a
+                # single Rust unit whose compiler had never run.
+                skipped.append({"work_unit_id": unit.get("id"), "reason": str(exc)})
+                continue
         record = {
             "schema_version": 1,
             "fingerprint": fingerprint,
@@ -6378,7 +6702,7 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
             "path": str(relative.as_posix()),
             "assigned_languages": list(unit.get("assigned_languages", [])),
         })
-    return {"promoted": promoted, "reused": reused, "records": records}
+    return {"promoted": promoted, "reused": reused, "records": records, "skipped": skipped}
 
 
 def cmd_cache_checkpoint(args: argparse.Namespace) -> int:
@@ -6805,7 +7129,10 @@ def build_parser() -> argparse.ArgumentParser:
     ti.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     ti.add_argument("--id", required=True)
     ti.add_argument("--socket")
-    ti.add_argument("--timeout", type=float, default=900.0)
+    # One packet-only request may now run to the 32768-token ceiling, be
+    # re-sent once when it comes back empty, and carry web-search
+    # continuations; the slowest first-run call produced 15k tokens in 186s.
+    ti.add_argument("--timeout", type=float, default=1800.0)
     ti.add_argument("--max-output-tokens", type=int, default=8192)
     ti.set_defaults(func=cmd_task_infer)
 

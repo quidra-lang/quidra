@@ -1736,6 +1736,497 @@ def test_gateway_enforces_per_task_spend_ceilings() -> None:
     )
 
 
+# --------------------------------------------------------------------------
+# 8. What the first paid run exposed: the fixes stay fixed
+# --------------------------------------------------------------------------
+
+
+def test_sanitized_environment_keeps_toolchain_homes_and_the_built_compiler() -> None:
+    """Scored subprocesses see the image's toolchain locations and the target build.
+
+    rustc in the runtime image is a rustup proxy; without RUSTUP_HOME it looks
+    under the sandbox home, finds nothing, and tries to download a toolchain
+    offline. The first paid run measured Rust with a compiler that never ran.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td).resolve() / "ws"
+        for d in ("work/root/target-build", "home", "tmp"):
+            (root / d).mkdir(parents=True)
+        planted = {
+            "RUSTUP_HOME": "/opt/rust-test", "CARGO_HOME": "/opt/rust-test",
+            "JAVA_HOME": "/opt/java-test", "ANTHROPIC_API_KEY": FAKE_PROVIDER_SECRET,
+            "SSH_AUTH_SOCK": "/tmp/agent.sock",
+        }
+        saved = {k: os.environ.get(k) for k in planted}
+        os.environ.update(planted)
+        try:
+            env = benchmark.sanitized_subprocess_env(root, root)
+            check(
+                env.get("RUSTUP_HOME") == "/opt/rust-test"
+                and env.get("CARGO_HOME") == "/opt/rust-test"
+                and env.get("JAVA_HOME") == "/opt/java-test",
+                f"toolchain locations were stripped from the scored environment: {env}",
+            )
+            check(
+                "ANTHROPIC_API_KEY" not in env and "SSH_AUTH_SOCK" not in env,
+                f"a credential survived environment sanitization: {sorted(env)}",
+            )
+            target = root / "work" / "root" / "target-build"
+            check(
+                str(target) not in env["PATH"],
+                "an absent target build was put on PATH",
+            )
+            compiler = target / "quidra"
+            compiler.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            compiler.chmod(0o755)
+            env = benchmark.sanitized_subprocess_env(root, root)
+            check(
+                env["PATH"].startswith(f"{target}:"),
+                f"the built compiler's directory does not lead PATH: {env['PATH']}",
+            )
+            check(
+                shutil.which("quidra", path=env["PATH"]) == str(compiler),
+                "`quidra` on the scored PATH does not resolve to the target build",
+            )
+        finally:
+            for key, value in saved.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
+
+
+def test_ledger_updates_are_serialized_across_processes() -> None:
+    """Concurrent workers must not lose each other's ledger transitions."""
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td).resolve() / "ws"
+        (root / "work" / "root").mkdir(parents=True)
+        ids = [f"unit-{n:02d}" for n in range(24)]
+        manifest = {"schema_version": 1, "work_units": [{"id": uid} for uid in ids]}
+        manifest_path = root / "work" / "root" / "manifest.json"
+        benchmark.json_dump(manifest_path, manifest)
+        benchmark.json_dump(root / "work" / "root" / "ledger.json", {
+            "schema_version": 1,
+            "manifest_sha256": benchmark.sha256_file(manifest_path),
+            "units": {
+                uid: {"status": "PENDING", "attempts": 0, "max_attempts": 3, "attempt_history": []}
+                for uid in ids
+            },
+        })
+
+        def transition(uid: str) -> subprocess.CompletedProcess[str]:
+            return subprocess.run(
+                [
+                    sys.executable, str(SCRIPTS / "benchmark.py"), "ledger-update",
+                    "--workspace", str(root), "--id", uid, "--status", "RUNNING",
+                ],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            )
+
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(ids)) as pool:
+            results = list(pool.map(transition, ids))
+        failed = [r.stderr for r in results if r.returncode != 0]
+        check(not failed, f"ledger updates failed: {failed[:3]}")
+        ledger = json.loads((root / "work" / "root" / "ledger.json").read_text(encoding="utf-8"))
+        running = [uid for uid in ids if ledger["units"][uid]["status"] == "RUNNING"]
+        check(
+            len(running) == len(ids),
+            f"concurrent ledger updates were lost: {len(running)}/{len(ids)} survived",
+        )
+        check(
+            (root / "work" / "root" / "ledger.lock").exists(),
+            "the ledger lock file was never created",
+        )
+
+
+class _ScriptedHTTP:
+    """Stand-in for the provider's HTTP round trip: canned bodies, captured payloads."""
+
+    def __init__(self, bodies: list[dict[str, Any]]) -> None:
+        self.bodies = list(bodies)
+        self.payloads: list[dict[str, Any]] = []
+
+    def __call__(self, http_request: Any) -> dict[str, Any]:
+        self.payloads.append(json.loads(http_request.data.decode("utf-8")))
+        if not self.bodies:
+            raise AssertionError("the provider made more requests than the script allows")
+        return self.bodies.pop(0)
+
+
+def _anthropic_provider() -> Any:
+    config = json.loads((TEMPLATE / "config" / "inference_gateway.json").read_text("utf-8"))
+    os.environ["ANTHROPIC_API_KEY"] = FAKE_PROVIDER_SECRET
+    try:
+        return inference_gateway.AnthropicMessagesProvider(
+            "claude-sonnet-5", timeout=30,
+            pricing=config["anthropic_pricing"]["claude-sonnet-5"],
+            web_search=config["anthropic_web_search"],
+            decoding=config["anthropic_decoding"],
+            caching=config["prompt_caching"],
+        )
+    finally:
+        os.environ.pop("ANTHROPIC_API_KEY", None)
+
+
+def _validated_request(**overrides: Any) -> dict[str, Any]:
+    request = {
+        "request_id": "r", "task_id": "t",
+        "messages": [{"role": "user", "content": "Reply with ready"}],
+        "max_output_tokens": 64, "stop": None, "network_allowed": False, "purpose": "scored",
+    }
+    request.update(overrides)
+    return request
+
+
+def test_provider_recovers_empty_completions_and_refused_tool_calls() -> None:
+    """The three provider-side accidents of the first paid run, each handled once.
+
+    A normal end_turn with no text is re-requested once; a turn that stops on a
+    client tool call is answered with an error result so the model can finish;
+    a turn cut off by max_tokens is not retried, because the same request would
+    be cut off again at the same price.
+    """
+    provider = _anthropic_provider()
+
+    # 1. Empty end_turn -> one identical retry, usage summed across both.
+    http = _ScriptedHTTP([
+        {"content": [{"type": "thinking", "thinking": ""}], "stop_reason": "end_turn",
+         "usage": {"input_tokens": 10, "output_tokens": 300}},
+        {"content": [{"type": "text", "text": "ready"}], "stop_reason": "end_turn",
+         "usage": {"input_tokens": 10, "output_tokens": 3}},
+    ])
+    provider._open = http
+    result = provider.complete(_validated_request())
+    check(result["content"] == "ready", f"the retried completion was not returned: {result}")
+    check(result["empty_completion_retries"] == 1, f"the empty retry was not counted: {result}")
+    check(result["usage"]["output_tokens"] == 303, f"retry usage was not summed: {result['usage']}")
+    check(
+        len(http.payloads) == 2 and http.payloads[0]["messages"] == http.payloads[1]["messages"],
+        "the retry did not re-send the identical request",
+    )
+
+    # 2. tool_use -> refused with an error tool_result, turn continued to the answer.
+    http = _ScriptedHTTP([
+        {"content": [
+            {"type": "text", "text": "partial "},
+            {"type": "tool_use", "id": "tu_1", "name": "web_search", "input": {"query": "x"}},
+         ], "stop_reason": "tool_use", "usage": {"output_tokens": 20}},
+        {"content": [{"type": "text", "text": '{"ok":true}'}], "stop_reason": "end_turn",
+         "usage": {"output_tokens": 5}},
+    ])
+    provider._open = http
+    result = provider.complete(_validated_request(network_allowed=True))
+    check(result["content"] == 'partial {"ok":true}', f"the continued turn lost text: {result}")
+    check(
+        result["tool_use_refusals"] == 1 and result["continuations"] == 1
+        and result["stop_reason"] == "end_turn",
+        f"the tool_use stop was not refused-and-continued: {result}",
+    )
+    tail = http.payloads[1]["messages"][-2:]
+    check(
+        tail[0]["role"] == "assistant"
+        and any(block.get("type") == "tool_use" for block in tail[0]["content"])
+        and tail[1]["role"] == "user"
+        and tail[1]["content"][0]["type"] == "tool_result"
+        and tail[1]["content"][0]["tool_use_id"] == "tu_1"
+        and tail[1]["content"][0]["is_error"] is True,
+        f"the continuation did not answer the tool call with an error result: {tail}",
+    )
+    check("tools" in http.payloads[0], "a network-enabled request carried no web-search tool")
+
+    # 3. max_tokens with no text -> reported as-is, not retried.
+    http = _ScriptedHTTP([
+        {"content": [], "stop_reason": "max_tokens", "usage": {"output_tokens": 64}},
+    ])
+    provider._open = http
+    result = provider.complete(_validated_request())
+    check(
+        result["stop_reason"] == "max_tokens" and result["empty_completion_retries"] == 0
+        and len(http.payloads) == 1,
+        f"a max_tokens cut-off was retried at full price: {result}",
+    )
+    check(
+        gateway_client.completion_problem({"stop_reason": "tool_use"}) is not None,
+        "a lingering tool_use stop is not classified as incomplete",
+    )
+
+
+def test_orchestration_turns_run_without_thinking_and_scored_turns_do_not_change() -> None:
+    provider = _anthropic_provider()
+    for purpose, expect_thinking in (("orchestration", True), ("scored", False), (None, False)):
+        http = _ScriptedHTTP([
+            {"content": [{"type": "text", "text": "{}"}], "stop_reason": "end_turn", "usage": {}},
+        ])
+        provider._open = http
+        provider.complete(_validated_request(purpose=purpose))
+        payload = http.payloads[0]
+        has_thinking = payload.get("thinking") == {"type": "disabled"}
+        check(
+            has_thinking is expect_thinking,
+            f"purpose {purpose!r} sent thinking={payload.get('thinking')!r}",
+        )
+        check(
+            payload["output_config"]["effort"] == provider.effort_for(purpose),
+            f"purpose {purpose!r} was decoded at the wrong depth: {payload.get('output_config')}",
+        )
+        check(
+            all(key not in payload for key in ("temperature", "top_p", "top_k")),
+            f"purpose {purpose!r} sent a sampling parameter: {sorted(payload)}",
+        )
+    described = provider.describe()
+    check(
+        described.get("orchestration_thinking") == "disabled"
+        and described.get("empty_completion_retries") == 1,
+        f"the handshake does not describe the frozen orchestration decoding: {described}",
+    )
+
+
+def test_cache_checkpoint_skips_units_it_cannot_certify() -> None:
+    """One uncertifiable unit costs one record, not the whole checkpoint."""
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td).resolve()
+        root = make_workspace(tmp)
+        run = json.loads((root / "run.json").read_text(encoding="utf-8"))
+        run["inference_identity"] = {"provider": "anthropic-messages", "model": "claude-sonnet-5"}
+        run["created_at_utc"] = "2026-09-22T05:00:00+00:00"
+        (root / "run.json").write_text(json.dumps(run, indent=2) + "\n", encoding="utf-8")
+        benchmark.json_dump(root / "results" / "toolchains.json", {
+            "schema_version": 1,
+            "toolchains": {"Python": {"canonical": "3.12.3"}, "Rust": {"canonical": "1.95.0"}},
+            "missing": [], "ok": True,
+        })
+
+        def unit(uid: str, evaluation: str, language: str, mode: str, requirement: str) -> dict[str, Any]:
+            return {
+                "id": uid, "evaluation": evaluation, "assigned_languages": [language],
+                "execution_kind": "agent", "result_kind": "requirements", "phase": "measurement",
+                "requirement_ids": [requirement], "input_hashes": {}, "validator_command": "true",
+                "worker_mode": mode, "network_allowed": False, "assigned_agent_id": f"worker-{uid}",
+                "dependencies": [],
+            }
+
+        units = [
+            unit("eco-python", "ecosystem", "Python", "packet-only", "metric.x"),
+            unit("learn-rust", "llm_learnability", "Rust", "sandbox-agent", "condition.i1"),
+        ]
+        manifest_path = root / "work" / "root" / "manifest.json"
+        benchmark.json_dump(manifest_path, {"schema_version": 1, "work_units": units})
+        benchmark.json_dump(root / "work" / "root" / "ledger.json", {
+            "schema_version": 1, "manifest_sha256": benchmark.sha256_file(manifest_path),
+            "units": {u["id"]: {"status": "COMPLETE", "validation_result": "PASS"} for u in units},
+        })
+        for u in units:
+            agent_dir = root / "work" / "agents" / u["assigned_agent_id"]
+            agent_dir.mkdir(parents=True)
+            benchmark.json_dump(agent_dir / "task.json", {"prompt_sha256": "a" * 64, "read_paths": []})
+            benchmark.json_dump(agent_dir / "result.json", {"schema_version": 1, "requirements": {}})
+        # learn-rust has no agent_trace.json, so its certification cannot succeed.
+
+        source = tmp / "source"
+        source.mkdir()
+        promotion = benchmark.promote_certified_cache(source, root)
+        check(
+            promotion["promoted"] == 1
+            and [r["work_unit_id"] for r in promotion["records"]] == ["eco-python"],
+            f"the certifiable unit was not promoted: {promotion}",
+        )
+        check(
+            [s["work_unit_id"] for s in promotion.get("skipped", [])] == ["learn-rust"]
+            and "agent_trace.json" in promotion["skipped"][0]["reason"],
+            f"the uncertifiable unit was not skipped with its reason: {promotion}",
+        )
+        written = list((source / "benchmark" / "cache").rglob("*.json"))
+        check(len(written) == 1, f"expected exactly one cache record on disk: {written}")
+
+
+def test_worker_responses_may_carry_json_objects_and_broken_json_is_named() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td).resolve())
+        payload = {"schema_version": 1, "evaluation": "ecosystem", "requirements": {"metric.x": {}}}
+
+        agent_id = "worker-json-object"
+        create_task(root, agent_id, "packet-only")
+        raw = json.dumps({
+            "schema_version": 1, "task_id": agent_id,
+            "files": [{"path": "result.json", "json": payload}],
+        }).encode("utf-8")
+        benchmark.apply_worker_response(root, agent_id, raw)
+        materialized = json.loads(
+            (root / "work" / "agents" / agent_id / "result.json").read_text(encoding="utf-8")
+        )
+        check(materialized == payload, f"the json-object file form was not materialized: {materialized}")
+
+        agent_id = "worker-broken-json"
+        create_task(root, agent_id, "packet-only")
+        raw = json.dumps({
+            "schema_version": 1, "task_id": agent_id,
+            "files": [{"path": "result.json", "content": '{"schema_version": 1, "requirements": {'}],
+        }).encode("utf-8")
+        try:
+            benchmark.apply_worker_response(root, agent_id, raw)
+        except benchmark.BenchmarkError as exc:
+            check(
+                "result.json is not valid JSON" in str(exc) and '"json"' in str(exc),
+                f"the import error does not name the file or the object form: {exc}",
+            )
+        else:
+            check(False, "a result.json that is not JSON was imported")
+
+
+def test_result_check_names_invalid_json_instead_of_crashing() -> None:
+    import argparse
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td).resolve())
+        agent_id = "worker-result-check"
+        agent_dir = create_task(root, agent_id, "packet-only")
+        (agent_dir / "result.json").write_text("{ broken", encoding="utf-8")
+        try:
+            benchmark.cmd_result_check(argparse.Namespace(workspace=str(root), id=agent_id))
+        except benchmark.BenchmarkError as exc:
+            check("not valid JSON" in str(exc), f"unexpected result-check error: {exc}")
+        except json.JSONDecodeError:
+            check(False, "result-check crashed with a traceback on invalid JSON")
+        else:
+            check(False, "result-check accepted a result.json that is not JSON")
+
+
+def test_trial_units_need_real_trials_and_a_working_toolchain() -> None:
+    """A learnability unit whose compiler never ran is not a measurement."""
+    unit = {
+        "id": "learnability-i1-i2--rust", "evaluation": "llm_learnability",
+        "assigned_languages": ["Rust"], "requirement_ids": ["condition.i1"],
+        "execution_kind": "agent",
+    }
+    check(benchmark.is_trial_unit(unit), "a learnability condition unit is not a trial unit")
+
+    def attestation(fields: tuple[str, ...], **overrides: Any) -> dict[str, Any]:
+        payload: dict[str, Any] = {"schema_version": 1, "passed": True, "evidence": ["checked"]}
+        payload.update({field: True for field in fields})
+        payload.update(overrides)
+        return payload
+
+    def run_entry(turn: int, program: str, exit_code: int) -> dict[str, Any]:
+        return {"turn": turn, "action": "run",
+                "observation": {"argv": [f"/usr/bin/{program}", "x.rs"], "exit_code": exit_code, "ok": exit_code == 0}}
+
+    with tempfile.TemporaryDirectory() as td:
+        agent_dir = Path(td)
+        # 1. The toolchain could not run at all: an infrastructure blocker, not a retry.
+        benchmark.json_dump(agent_dir / "learnability_preflight.json", attestation(
+            benchmark.LEARNABILITY_PREFLIGHT_FIELDS, passed=False, fixtures_compile_and_run=False,
+            evidence=["rustc needs network to fetch a toolchain; sandbox has none"],
+        ))
+        benchmark.json_dump(agent_dir / "learnability_leakage.json", attestation(benchmark.LEARNABILITY_LEAKAGE_FIELDS))
+        benchmark.json_dump(agent_dir / "agent_trace.json", {
+            "trace": [run_entry(1, "rustc", 1), {"turn": 2, "action": "final"}],
+        })
+        infrastructure, problems = benchmark.trial_unit_problems(unit, agent_dir)
+        check(infrastructure, f"an unusable toolchain was not classed as infrastructure: {problems}")
+        check(
+            any("cannot compile" in p for p in problems) and any("trial_start" in p for p in problems),
+            f"the problems do not say what was missing: {problems}",
+        )
+
+        # 2. Attested true, trial ran, compiler succeeded: clean.
+        benchmark.json_dump(agent_dir / "learnability_preflight.json", attestation(benchmark.LEARNABILITY_PREFLIGHT_FIELDS))
+        benchmark.json_dump(agent_dir / "agent_trace.json", {
+            "trace": [run_entry(1, "rustc", 0), {"turn": 2, "action": "trial_start"}, {"turn": 3, "action": "final"}],
+        })
+        infrastructure, problems = benchmark.trial_unit_problems(unit, agent_dir)
+        check(not infrastructure and problems == [], f"a sound unit was rejected: {problems}")
+
+        # 3. Attested true but no successful compiler run anywhere: unsupported, retried with feedback.
+        benchmark.json_dump(agent_dir / "agent_trace.json", {
+            "trace": [run_entry(1, "rustc", 1), run_entry(2, "python3", 0),
+                      {"turn": 3, "action": "trial_start"}, {"turn": 4, "action": "final"}],
+        })
+        infrastructure, problems = benchmark.trial_unit_problems(unit, agent_dir)
+        check(
+            not infrastructure and any("no successful Rust toolchain invocation" in p for p in problems),
+            f"an unsupported attestation passed: infrastructure={infrastructure} problems={problems}",
+        )
+
+
+def test_rejected_attempts_feed_back_into_the_next_one() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td).resolve())
+        agent_id = "worker-feedback"
+        create_task(root, agent_id, "packet-only")
+        unit = {"id": "feedback-unit", "assigned_agent_id": agent_id}
+        benchmark.json_dump(root / "work" / "root" / "manifest.json", {"schema_version": 1, "work_units": [unit]})
+        check(
+            benchmark.previous_attempt_feedback(root, agent_id) is None,
+            "feedback was produced before any attempt failed",
+        )
+        benchmark.archive_attempt(
+            root, unit, 1, "validation-failed-retry", reset=True,
+            detail="benchmark error: result requirement mismatch; missing=['metric.x'], unknown=[]",
+        )
+        feedback = benchmark.previous_attempt_feedback(root, agent_id)
+        check(
+            feedback is not None and "requirement mismatch" in feedback,
+            f"the rejected attempt's detail did not reach the next attempt: {feedback!r}",
+        )
+        archived = json.loads(
+            (root / "work" / "attempts" / "feedback-unit" / "attempt-01" / "attempt.json").read_text("utf-8")
+        )
+        check(archived.get("detail", "").startswith("benchmark error"), f"attempt.json lost the detail: {archived}")
+        check(
+            (root / "work" / "agents" / agent_id / "task.json").is_file()
+            and not (root / "work" / "agents" / agent_id / "result.json").exists(),
+            "archive_attempt did not reset the agent directory to its packet",
+        )
+
+
+def test_dispatch_batches_run_units_concurrently_and_drain_before_a_fatal_error() -> None:
+    production_run = load(SCRIPTS / "production_run.py", "isolation_tests_production_run_batch")
+    import threading
+    state = {"active": 0, "peak": 0, "done": []}
+    gate = threading.Lock()
+
+    def slow_dispatch(root: Path, task: dict[str, Any], units: dict[str, Any]) -> None:
+        with gate:
+            state["active"] += 1
+            state["peak"] = max(state["peak"], state["active"])
+        time.sleep(0.25)
+        with gate:
+            state["active"] -= 1
+            state["done"].append(task["work_unit_id"])
+        if task["work_unit_id"] == "fatal":
+            raise production_run.ProductionRunError("the provider cannot serve this run any further")
+
+    queue = [{"work_unit_id": f"u{n}"} for n in range(4)]
+    started_at = time.monotonic()
+    started = production_run.dispatch_batch(Path("."), queue, {}, 4, dispatch=slow_dispatch)
+    elapsed = time.monotonic() - started_at
+    check(started == 4 and len(state["done"]) == 4, f"not every unit was dispatched: {state}")
+    check(state["peak"] >= 2, f"units did not overlap: peak concurrency {state['peak']}")
+    check(elapsed < 0.9, f"four 0.25s units took {elapsed:.2f}s; the batch was not concurrent")
+
+    # A wall-clock stop lets in-flight units finish and starts nothing new.
+    state.update(active=0, peak=0, done=[])
+    calls = {"n": 0}
+
+    def may_start() -> bool:
+        calls["n"] += 1
+        return calls["n"] <= 2
+
+    started = production_run.dispatch_batch(Path("."), queue, {}, 4, may_start=may_start, dispatch=slow_dispatch)
+    check(started == 2 and len(state["done"]) == 2, f"the stop signal was not honoured: {started}, {state}")
+
+    # A fatal provider error surfaces only after the batch has drained.
+    state.update(active=0, peak=0, done=[])
+    fatal_queue = [{"work_unit_id": "fatal"}, {"work_unit_id": "a"}, {"work_unit_id": "b"}]
+    try:
+        production_run.dispatch_batch(Path("."), fatal_queue, {}, 3, dispatch=slow_dispatch)
+    except production_run.ProductionRunError as exc:
+        check("cannot serve" in str(exc), f"the wrong error surfaced: {exc}")
+    else:
+        check(False, "a fatal provider error was swallowed by the batch")
+    check(sorted(state["done"]) == ["a", "b", "fatal"], f"in-flight units were abandoned: {state}")
+
+
 def main() -> int:
     tests = [value for name, value in sorted(globals().items()) if name.startswith("test_")]
     for test in tests:

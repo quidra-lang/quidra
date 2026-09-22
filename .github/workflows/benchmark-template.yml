@@ -1255,7 +1255,7 @@ jobs:
             --provider fake --fake-script "$RUNNER_TEMP/fake/script.json" \
             --gateway-log-out "$RUNNER_TEMP/driver-audit.jsonl" \
             -- python3 /quidra-benchmark/template/scripts/production_run.py run \
-               --workspace /quidra-benchmark
+               --workspace /quidra-benchmark --concurrency 3
 
           python - <<'PY'
           import json

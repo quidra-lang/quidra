@@ -4,11 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
+import datetime as dt
 import json
 import os
 from pathlib import Path
 import subprocess
 import sys
+import threading
 import time
 from typing import Any
 
@@ -32,6 +35,20 @@ AGENT = SCRIPTS_DIR / "sandbox_agent.py"
 
 class ProductionRunError(RuntimeError):
     pass
+
+
+_LOG_LOCK = threading.Lock()
+
+
+def log(message: str) -> None:
+    """One timestamped progress line on stdout, visible in the workflow log.
+
+    The first paid run was silent for four hours and then reported only that it
+    had run out of time. Every unit start and outcome is worth a line.
+    """
+    stamp = dt.datetime.now(dt.timezone.utc).strftime("%H:%M:%S")
+    with _LOG_LOCK:
+        print(f"[{stamp}] {message}", flush=True)
 
 
 def json_load(path: Path) -> dict[str, Any]:
@@ -202,12 +219,14 @@ def handle_worker_failure(root: Path, unit: dict[str, Any], detail: str) -> None
 
     if attempts < max_attempts and is_retryable(safe_detail):
         benchmark.archive_attempt(
-            root, unit, attempts, "worker-process-failed-retry", reset=True
+            root, unit, attempts, "worker-process-failed-retry", reset=True,
+            detail=safe_detail,
         )
         run_cli(
             root, "ledger-update", "--id", uid, "--status", "PENDING",
             "--validation-result", "FAIL",
         )
+        log(f"retry {uid} (attempt {attempts}/{max_attempts}): {safe_detail[:300]}")
         return
 
     run_cli(
@@ -216,6 +235,7 @@ def handle_worker_failure(root: Path, unit: dict[str, Any], detail: str) -> None
         "--blocker", f"worker process failed after {attempts} attempt(s): {safe_detail}",
         "--blocker-class", blocker_class,
     )
+    log(f"blocked {uid} ({blocker_class}): {safe_detail[:300]}")
 
 
 def dispatch_one(root: Path, task: dict[str, Any], units: dict[str, dict[str, Any]]) -> None:
@@ -223,12 +243,22 @@ def dispatch_one(root: Path, task: dict[str, Any], units: dict[str, dict[str, An
     unit = units[uid]
     agent_id = str(task["agent_id"])
     run_cli(root, "task-start", "--id", uid)
+    started = time.monotonic()
+    log(f"start {uid} [{task.get('worker_mode')}]")
 
     frozen_default = int(
         benchmark.worker_isolation_config(root).get("default_max_output_tokens", 8192)
     )
-    max_output = int(unit.get("max_output_tokens_per_call", 0) or frozen_default)
-    max_output = max(1, min(max_output, 32768))
+    ceiling = int(benchmark.gateway_config(root).get("max_output_tokens_ceiling", 32768))
+    if task.get("worker_mode") == "packet-only":
+        # One shot, no repair loop, and adaptive thinking is billed inside the
+        # same cap. At the frozen default every semantic-compression packet of
+        # the first paid run spent all 8192 tokens reasoning and returned no
+        # text; the answer never had room to start. The ceiling is the cap.
+        max_output = ceiling
+    else:
+        max_output = int(unit.get("max_output_tokens_per_call", 0) or frozen_default)
+    max_output = max(1, min(max_output, ceiling))
     if task.get("worker_mode") == "packet-only":
         argv = [
             sys.executable, str(CLI), "task-infer",
@@ -256,11 +286,82 @@ def dispatch_one(root: Path, task: dict[str, Any], units: dict[str, dict[str, An
     )
     if worker.returncode != 0:
         handle_worker_failure(root, unit, worker.stderr or worker.stdout)
+        _log_outcome(root, uid, started)
         return
 
     finish = run_cli(root, "task-finish", "--id", uid, check=False)
     if finish.returncode != 0 and ledger_state(root, uid).get("status") == "RUNNING":
         handle_worker_failure(root, unit, finish.stderr or finish.stdout)
+    _log_outcome(root, uid, started)
+
+
+def _log_outcome(root: Path, uid: str, started: float) -> None:
+    state = ledger_state(root, uid)
+    status = state.get("status")
+    line = (
+        f"done {uid} -> {status}/{state.get('validation_result')} "
+        f"in {time.monotonic() - started:.0f}s"
+    )
+    if status == "BLOCKED":
+        line += f": {str(state.get('blocker') or '')[:300]}"
+    log(line)
+
+
+def ledger_summary(root: Path, evaluation: str | None) -> str:
+    units = manifest_units(root)
+    ledger = json_load(root / "work" / "root" / "ledger.json")["units"]
+    counts: dict[str, int] = {}
+    for uid, unit in units.items():
+        if evaluation is not None and unit.get("evaluation") != evaluation:
+            continue
+        status = str(ledger.get(uid, {}).get("status", "PENDING"))
+        counts[status] = counts.get(status, 0) + 1
+    return ", ".join(f"{k}={v}" for k, v in sorted(counts.items()))
+
+
+def dispatch_batch(
+    root: Path,
+    queue: list[dict[str, Any]],
+    units: dict[str, dict[str, Any]],
+    concurrency: int,
+    *,
+    may_start=lambda: True,
+    dispatch=None,
+) -> int:
+    """Run one dispatch queue with up to `concurrency` workers in flight.
+
+    Every unit in a queue is dependency-ready, and each one owns its own agent
+    directory; the only shared state is the ledger, whose updates are serialized
+    in `benchmark.py`. The first paid run dispatched strictly one unit at a
+    time and used the whole GitHub Actions window on 182 attempts, most of them
+    a single ninety-second provider call; the runner spent that time waiting.
+
+    `may_start` is consulted before each submission so a wall-clock stop lets
+    the in-flight units finish instead of abandoning them mid-request. A fatal
+    provider error raised by one worker is re-raised after the batch has
+    drained, so no in-flight unit is left RUNNING without a verdict.
+    """
+    dispatch = dispatch or dispatch_one
+    started = 0
+    fatal: BaseException | None = None
+    workers = max(1, int(concurrency))
+    with concurrent.futures.ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = []
+        for task in queue:
+            if not may_start():
+                break
+            futures.append(pool.submit(dispatch, root, task, units))
+            started += 1
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                future.result()
+            except ProductionRunError as exc:
+                fatal = fatal or exc
+            except Exception as exc:  # noqa: BLE001 - surface, never swallow, a worker crash
+                fatal = fatal or ProductionRunError(f"dispatch worker crashed: {exc!r}")
+    if fatal is not None:
+        raise fatal
+    return started
 
 
 def run_production(
@@ -268,6 +369,7 @@ def run_production(
     max_iterations: int,
     max_wall_seconds: float = 0.0,
     evaluation: str | None = None,
+    concurrency: int = 1,
 ) -> dict[str, Any]:
     if evaluation is not None and evaluation not in benchmark.PRIMARY_NAMES:
         raise ProductionRunError(f"unknown Primary evaluation: {evaluation}")
@@ -280,13 +382,18 @@ def run_production(
 
     started = time.monotonic()
     dispatched = 0
+    log(
+        f"production run: scope={evaluation or 'all'} concurrency={max(1, int(concurrency))} "
+        f"wall_budget={int(max_wall_seconds) or 'none'}s; ledger {ledger_summary(root, evaluation)}"
+    )
+
+    def wall_budget_left() -> bool:
+        return max_wall_seconds <= 0 or (time.monotonic() - started) < max_wall_seconds
 
     def wall_checkpoint_if_due() -> None:
-        if max_wall_seconds <= 0:
+        if wall_budget_left():
             return
         elapsed = time.monotonic() - started
-        if elapsed < max_wall_seconds:
-            return
         payload = {
             "schema_version": 1,
             "ok": True,
@@ -328,10 +435,11 @@ def run_production(
                 f"{sorted(states)}"
             )
 
-        for task in queue:
-            wall_checkpoint_if_due()
-            dispatch_one(root, task, units)
-            dispatched += 1
+        log(f"batch of {len(queue)} ready unit(s); ledger {ledger_summary(root, evaluation)}")
+        dispatched += dispatch_batch(
+            root, queue, units, concurrency, may_start=wall_budget_left
+        )
+        wall_checkpoint_if_due()
     else:
         raise ProductionRunError(
             f"production benchmark exceeded {max_iterations} runner iterations"
@@ -684,6 +792,13 @@ def build_parser() -> argparse.ArgumentParser:
         default=0.0,
         help="stop cleanly before dispatching another unit after this wall-clock budget",
     )
+    run.add_argument(
+        "--concurrency",
+        type=int,
+        default=1,
+        help="dependency-ready work units to keep in flight at once (each is one "
+             "worker process and at most one provider request at a time)",
+    )
 
     smoke = sub.add_parser(
         "provider-smoke",
@@ -732,6 +847,7 @@ def main() -> int:
             int(args.max_iterations),
             float(args.max_wall_seconds),
             args.evaluation,
+            int(args.concurrency),
         )
     else:
         payload = build_cost_report(Path(args.log).resolve())

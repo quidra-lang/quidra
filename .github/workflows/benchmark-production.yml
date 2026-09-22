@@ -30,6 +30,12 @@ jobs:
       # once estimated spend reaches it, so it caps overspend, it does not
       # authorize this much.
       BENCHMARK_BUDGET_USD: "100.0"
+      # Dependency-ready work units kept in flight at once. The first paid run
+      # dispatched one unit at a time and spent its whole window on 182
+      # attempts, most of them one ninety-second provider call; six workers on
+      # a four-vCPU runner keep the provider busy while compile bursts and the
+      # host-timed micro suite (which runs between batches, alone) still fit.
+      BENCHMARK_CONCURRENCY: "6"
 
     steps:
       - uses: actions/checkout@v4
@@ -158,6 +164,7 @@ jobs:
             -- python3 /quidra-benchmark/template/scripts/production_run.py run \
                --workspace /quidra-benchmark \
                --max-wall-seconds 15300 \
+               --concurrency "$BENCHMARK_CONCURRENCY" \
                "${scope_args[@]}"
 
       - name: Record API usage and estimated cost

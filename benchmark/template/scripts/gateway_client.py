@@ -194,6 +194,10 @@ INCOMPLETE_STOP_REASONS = {
     ),
     "refusal": "the provider declined this request",
     "pause_turn": "a server-side tool paused the turn and the gateway did not resume it",
+    "tool_use": (
+        "the model kept asking for a tool the gateway does not have after every "
+        "continuation the frozen policy allows, so the answer was never written"
+    ),
 }
 
 

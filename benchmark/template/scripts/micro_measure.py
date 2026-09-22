@@ -1346,7 +1346,19 @@ def build_parser() -> argparse.ArgumentParser:
     measure_p = sub.add_parser("measure")
     measure_p.add_argument("--workspace", required=True)
     measure_p.add_argument("--unit-id", required=True)
+    build_p = sub.add_parser(
+        "build-target",
+        help="build the evaluated Quidra compiler into the workspace before scored work needs it",
+    )
+    build_p.add_argument("--workspace", required=True)
     return p
+
+
+def build_target(root: Path) -> int:
+    compiler = ensure_target_compiler(root)
+    record = load_json(root / "results" / "target_toolchain.json")
+    print(json.dumps({"ok": True, "compiler_path": str(compiler), **record}, indent=2))
+    return 0
 
 
 def main() -> int:
@@ -1357,6 +1369,8 @@ def main() -> int:
             return audit(root, args.unit_id)
         if args.command == "measure":
             return measure(root, args.unit_id)
+        if args.command == "build-target":
+            return build_target(root)
         raise MeasureError(f"unknown command: {args.command}")
     except (MeasureError, OSError, ValueError, KeyError, subprocess.SubprocessError) as exc:
         print(f"micro measure error: {exc}", file=sys.stderr)

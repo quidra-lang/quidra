@@ -570,6 +570,24 @@ def runtime_contract_prompt(perms: Permissions, task: dict[str, Any],
     outputs = task.get("expected_outputs") or []
     output_lines = "\n".join(f"- {Path(p).as_posix()}" for p in outputs) or "- defined by this task"
     allowlist = ", ".join(config["exec_allowlist"])
+    target_compiler = perms.root / "work" / "root" / "target-build" / "quidra"
+    compiler_line = ""
+    if target_compiler.is_file():
+        compiler_line = (
+            f"- `quidra` is the compiler built from the evaluated snapshot "
+            f"(`{target_compiler.as_posix()}`); it is on PATH for `run`.\n"
+        )
+    feedback = benchmark.previous_attempt_feedback(perms.root, task.get("id", ""))
+    feedback_block = ""
+    if feedback:
+        feedback_block = f"""
+Your previous attempt at this exact task was rejected. The rejection was:
+
+{feedback}
+
+Correct that this time; the task, its permissions and its expected outputs are
+unchanged.
+"""
     if max_turns is None:
         max_turns = trials.max_turns if trials is not None else config["max_turns"]
     cap_line = ""
@@ -650,9 +668,9 @@ Permissions:
 - Writable directory (the only writable location): `{perms.agent_dir.as_posix()}`
 - `write_file` and `run` paths are resolved relative to that directory.
 - `run` executes with `shell=False`. Permitted programs: {allowlist}.
-- Network access: {"allowed through the inference gateway only" if task.get("network_allowed") else "disabled"}.
+{compiler_line}- Network access: {"allowed through the inference gateway only" if task.get("network_allowed") else "disabled"}.
 - Maximum turns: {max_turns}.
-{cap_line}{trial_block}
+{cap_line}{trial_block}{feedback_block}
 Expected outputs before you send `final`:
 {output_lines}
 
@@ -876,6 +894,20 @@ def run_agent(args: argparse.Namespace) -> int:
     print(json.dumps({k: v for k, v in result.items() if k != "trace"}, indent=2))
 
     if stop_reason != "final" or missing:
+        # The runner keeps the worker's stderr as the attempt's failure detail,
+        # and the next attempt is told about it. One line that names the cause
+        # is worth more there than the whole trace on stdout.
+        protocol = [x for x in trace if x.get("protocol_error")]
+        last_denials = "; ".join(str(d.get("reason")) for d in denials[-3:])
+        print(
+            "sandbox agent error: the run ended with stop_reason="
+            f"{stop_reason!r} after {len(trace)} turn(s); "
+            f"missing outputs: {missing or 'none'}; "
+            f"protocol errors: {len(protocol)}"
+            + (f" (last: {protocol[-1].get('protocol_error')})" if protocol else "")
+            + (f"; last denials: {last_denials}" if last_denials else ""),
+            file=sys.stderr,
+        )
         return 2
     return 0
 

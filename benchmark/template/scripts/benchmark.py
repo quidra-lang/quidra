@@ -6112,9 +6112,21 @@ def promote_prompt_store(source: Path, root: Path) -> dict[str, Any]:
             digest = str(component.get("sha256") or "")
             if not re.fullmatch(r"[0-9a-f]{64}", digest):
                 raise BenchmarkError(f"invalid component SHA-256 in {manifest_path}")
-            component_path = Path(str(component.get("path") or ""))
+            recorded_path = Path(str(component.get("path") or ""))
+            if recorded_path.is_absolute():
+                try:
+                    relative = recorded_path.relative_to(CANONICAL_WORKSPACE)
+                except ValueError:
+                    component_path = require_under(recorded_path, root)
+                else:
+                    component_path = require_under(root / relative, root)
+            else:
+                component_path = require_under(root / recorded_path, root)
             if not component_path.is_file():
-                raise BenchmarkError(f"prompt component is missing: {component_path}")
+                raise BenchmarkError(
+                    f"prompt component is missing after host path mapping: "
+                    f"{recorded_path} -> {component_path}"
+                )
             if sha256_file(component_path) != digest:
                 raise BenchmarkError(f"prompt component hash mismatch: {component_path}")
             if _copy_if_new(

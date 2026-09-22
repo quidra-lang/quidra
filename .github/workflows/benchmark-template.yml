@@ -1308,20 +1308,29 @@ jobs:
 
       - name: The finished run imports into the repository
         run: |
-          # post-run is the last thing a paid run does and the only step that
-          # writes into the checkout. It has been exercised against a synthetic
-          # directory; this is the first time it imports a run the driver
-          # actually produced.
+          # post-run promotes reusable cache/prompt material and commits only a
+          # compact run summary. Raw evidence remains in the workflow artifact.
+          RUN_ID="$(python - <<'PY'
+          import json
+          print(json.load(open(".quidra-benchmark/run.json"))["run_id"])
+          PY
+          )"
           python benchmark/template/scripts/benchmark.py post-run \
             --source-repo "$GITHUB_WORKSPACE"
           test ! -e .quidra-benchmark
-          RUN_DIR="$(ls -d benchmark/*/ | grep -v template | head -1)"
+          RUN_DIR="benchmark/$RUN_ID"
           test -f "$RUN_DIR/import_manifest.json"
-          test -f "$RUN_DIR/results/finalization.json"
-          test ! -e "$RUN_DIR/repo"
-          test ! -e "$RUN_DIR/template"
-          echo "imported $RUN_DIR"
+          test -f "$RUN_DIR/summary.json"
+          test -f "$RUN_DIR/rankings.json"
+          test -f "$RUN_DIR/cache_usage.json"
+          test -f "$RUN_DIR/provenance.json"
+          test ! -e "$RUN_DIR/results"
+          test ! -e "$RUN_DIR/raw"
+          test ! -e "$RUN_DIR/prompts"
+          test ! -e "$RUN_DIR/work"
+          echo "imported compact $RUN_DIR"
           git checkout -- . 2>/dev/null || true
+          git clean -fd -- benchmark/cache benchmark/template/prompts >/dev/null 2>&1 || true
           rm -rf "$RUN_DIR"
 
       - name: Discard the staging workspace

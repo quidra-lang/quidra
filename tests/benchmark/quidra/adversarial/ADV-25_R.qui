@@ -1,0 +1,18 @@
+print("ADV-START")
+io.flush()
+string read_input_line()
+    string | none | error line = input()
+    match line
+        string text
+            return text
+        none
+            process.exit(2)
+        error problem
+            process.exit(2)
+string text = read_input_line()
+int value = int.parse(text)
+int product = value * 2
+print("OBS=R:{product}")
+io.flush()
+print("ADV-END")
+io.flush()

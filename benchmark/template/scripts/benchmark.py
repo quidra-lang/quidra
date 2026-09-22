@@ -1966,7 +1966,10 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
             if phase == "aggregation":
                 if runner_action not in (None, "aggregate-primary"):
                     raise BenchmarkError(f"{uid}: aggregation command has invalid runner_action")
-            elif runner_action not in {"micro-measure", "static-coverage", "learnability-integrity", "proficiency-integrity"}:
+            elif runner_action not in {
+                "micro-measure", "adversarial-measure", "quidra-audit", "static-coverage",
+                "learnability-integrity", "proficiency-integrity",
+            }:
                 raise BenchmarkError(
                     f"{uid}: command work requires an approved runner_action"
                 )
@@ -2049,62 +2052,21 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
 
     if evaluation == "language_quality":
         by_id = {unit["id"]: unit for unit in normalized}
-        representation = by_id.get("lq-qudra-representation")
-        if representation is None or representation.get("result_kind") != "audit":
+        # Quidra's programs live in the evaluated snapshot and are re-audited
+        # mechanically for every commit; no model authors them during a run.
+        audit_unit = by_id.get("lq-quidra-audit")
+        if (
+            audit_unit is None
+            or audit_unit.get("execution_kind") != "command"
+            or audit_unit.get("runner_action") != "quidra-audit"
+            or "gate.quidra_programs_current" not in set(audit_unit.get("requirement_ids", []))
+        ):
             raise BenchmarkError(
-                "language_quality: missing Quidra representation audit unit"
-            )
-        shards = [
-            unit for unit in normalized
-            if unit["id"].startswith("lq-qudra-micro-authoring-")
-        ]
-        expected_workloads = {
-            "mb00", "mb01", "mb02", "mb03", "mb04", "mb05",
-            "mb06", "mb07", "mb08", "mb09", "mb10", "mb11",
-        }
-        max_per_leaf = int(
-            json_load(root / "template" / "config" / "primary.json")
-            .get("runner", {})
-            .get("max_quidra_workloads_per_authoring_leaf", 3)
-        )
-        if len(shards) != 4:
-            raise BenchmarkError(
-                f"language_quality: expected exactly 4 Quidra authoring shards, got {len(shards)}"
-            )
-        owners: dict[str, list[str]] = {}
-        for shard in shards:
-            workload_ids = list(shard.get("workload_ids", []))
-            if (
-                shard.get("result_kind") != "audit"
-                or not workload_ids
-                or len(workload_ids) > max_per_leaf
-            ):
-                raise BenchmarkError(
-                    f"{shard['id']}: invalid Quidra authoring shard size/result kind"
-                )
-            if shard.get("dependencies") != ["lq-qudra-representation"]:
-                raise BenchmarkError(
-                    f"{shard['id']}: must depend only on lq-qudra-representation"
-                )
-            for workload in workload_ids:
-                owners.setdefault(workload, []).append(shard["id"])
-        missing_workloads = sorted(expected_workloads - set(owners))
-        duplicate_workloads = sorted(
-            workload for workload, unit_ids in owners.items()
-            if len(unit_ids) != 1
-        )
-        unknown_workloads = sorted(set(owners) - expected_workloads)
-        if missing_workloads or duplicate_workloads or unknown_workloads:
-            raise BenchmarkError(
-                "language_quality: invalid Quidra authoring workload coverage; "
-                f"missing={missing_workloads}, duplicate={duplicate_workloads}, "
-                f"unknown={unknown_workloads}"
+                "language_quality: missing the quidra-audit command unit that gates "
+                "measurement on the snapshot's own benchmark programs"
             )
         mechanical = by_id.get("lq-micro-mechanical")
-        required_dependencies = {
-            "lq-qudra-representation",
-            *(shard["id"] for shard in shards),
-        }
+        required_dependencies = {"lq-quidra-audit"}
         # Currency audits are a legitimate additional dependency here, not a
         # defect. The mechanical unit reads the reusable comparison-language
         # programs, so when one of those needs a toolchain-currency audit the
@@ -2126,8 +2088,8 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
         ):
             raise BenchmarkError(
                 "language_quality: mechanical micro unit must depend on the "
-                "representation audit, all four authoring shards, and nothing "
-                "beyond the currency audits of the artifacts it measures"
+                "quidra-audit unit and nothing beyond the currency audits of the "
+                "artifacts it measures"
                 + (f"; unexpected: {sorted(unexpected)}" if unexpected else "")
             )
 
@@ -2497,22 +2459,7 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                         str(root / "work" / "agents" / agent_id / "result.json")
                     ]
                     validator_action = raw.get("validator_action")
-                    if validator_action == "verify-quidra-representation":
-                        validator_command = (
-                            f"python3 {root / 'template' / 'scripts' / 'micro_measure.py'} "
-                            f"verify-representation --workspace {root} --agent-id {agent_id}"
-                        )
-                    elif validator_action == "verify-quidra-micro-shard":
-                        validator_command = (
-                            f"python3 {root / 'template' / 'scripts' / 'micro_measure.py'} "
-                            f"verify-shard --workspace {root} --unit-id {uid} --agent-id {agent_id}"
-                        )
-                    elif validator_action == "verify-quidra-micro":
-                        validator_command = (
-                            f"python3 {root / 'template' / 'scripts' / 'micro_measure.py'} "
-                            f"verify-quidra --workspace {root} --agent-id {agent_id}"
-                        )
-                    elif validator_action is None:
+                    if validator_action is None:
                         validator_command = (
                             f"python3 {root / 'template' / 'scripts' / 'benchmark.py'} "
                             f"result-check --workspace {root} --id {agent_id}"
@@ -5388,11 +5335,20 @@ def cmd_advance(args: argparse.Namespace) -> int:
                     )
                     if check_rc != 0:
                         raise BenchmarkError("proficiency integrity result validation failed")
-                elif action == "micro-measure":
-                    script = root / "template" / "scripts" / "micro_measure.py"
+                elif action in {"micro-measure", "adversarial-measure", "quidra-audit"}:
+                    # All three are mechanical scripts in the frozen template:
+                    # the micro suite, the adversarial / safety case set replayed
+                    # through its frozen decision list, and the audit of the
+                    # snapshot's own Quidra benchmark programs.
+                    script_name, subcommand = {
+                        "micro-measure": ("micro_measure.py", "measure"),
+                        "adversarial-measure": ("adversarial_measure.py", "measure"),
+                        "quidra-audit": ("micro_measure.py", "audit"),
+                    }[action]
+                    script = root / "template" / "scripts" / script_name
                     p = subprocess.run(
                         [
-                            sys.executable, str(script), "measure",
+                            sys.executable, str(script), subcommand,
                             "--workspace", str(root), "--unit-id", uid,
                         ],
                         cwd=root,
@@ -5403,13 +5359,13 @@ def cmd_advance(args: argparse.Namespace) -> int:
                     )
                     if p.returncode != 0:
                         raise BenchmarkError(
-                            f"micro measurement failed: {p.stderr or p.stdout}"
+                            f"{action} failed: {p.stderr or p.stdout}"
                         )
                     check_rc = cmd_command_result_check(
                         argparse.Namespace(workspace=str(root), id=uid)
                     )
                     if check_rc != 0:
-                        raise BenchmarkError("micro command result validation failed")
+                        raise BenchmarkError(f"{action} result validation failed")
                 else:
                     raise BenchmarkError(
                         f"unsupported runner command action for {uid}: {action!r}"
@@ -5449,6 +5405,8 @@ def cmd_advance(args: argparse.Namespace) -> int:
                         if any(token in lower for token in (
                             "host contention",
                             "missing required micro toolchains",
+                            "missing required comparison toolchains",
+                            "quidra benchmark programs",
                             "requires darwin",
                             "timed out",
                         ))

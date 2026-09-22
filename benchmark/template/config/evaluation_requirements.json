@@ -33,6 +33,7 @@
     "language_quality": {
       "required": [
         "coverage.all_10_languages",
+        "gate.quidra_programs_current",
         "metric.native_execution_performance",
         "metric.long_running_performance",
         "metric.compile_build_performance",

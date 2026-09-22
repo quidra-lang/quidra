@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Mechanical micro-benchmark execution for Quidra Language Quality.
 
-Quidra sources are authored anew for the evaluated commit by a narrow leaf worker.
-This script owns all repeatable post-authoring work: target compiler build,
-correctness validation, build/run timing, peak RSS, source/artifact sizes and
-normalization into requirement-level 0-100 scores.
+Quidra sources live in the evaluated snapshot (primary.json
+language_quality.quidra_program_root) and are re-audited against the compiler
+built from that snapshot by the `audit` command before anything is timed. This
+script owns all repeatable work: the audit, target compiler build, correctness
+validation, build/run timing, peak RSS, source/artifact sizes and normalization
+into requirement-level 0-100 scores.
 """
 from __future__ import annotations
 
@@ -198,61 +200,32 @@ def manifest_unit(root: Path, unit_id: str) -> dict[str, Any]:
     raise MeasureError(f"unknown work unit: {unit_id}")
 
 
+def quidra_program_root(root: Path) -> Path:
+    """Where the evaluated snapshot keeps its own benchmark programs.
+
+    Quidra's programs are maintained with the compiler, under the path frozen
+    in primary.json, and are read from the snapshot mounted read-only at
+    /quidra-benchmark/repo. They are re-audited for every evaluated commit by
+    the quidra-audit command unit before anything is measured.
+    """
+    primary = load_json(root / "template" / "config" / "primary.json")
+    relative = str(
+        (primary.get("language_quality") or {}).get("quidra_program_root")
+        or "tests/benchmark/quidra"
+    )
+    return root / "repo" / relative
+
+
 def quidra_representation_path(root: Path) -> Path:
-    manifest = load_json(root / "work" / "root" / "manifest.json")
-    matches = [
-        u for u in manifest.get("work_units", [])
-        if u.get("id") == "lq-qudra-representation"
-    ]
-    if len(matches) != 1:
-        raise MeasureError(
-            "lq-qudra-representation unit is missing from the frozen manifest"
-        )
-    agent = root / "work" / "agents" / str(matches[0]["assigned_agent_id"])
-    return agent / "quidra_representation.json"
-
-
-def quidra_authoring_units(root: Path) -> list[dict[str, Any]]:
-    manifest = load_json(root / "work" / "root" / "manifest.json")
-    units = [
-        u for u in manifest.get("work_units", [])
-        if str(u.get("id", "")).startswith("lq-qudra-micro-authoring-")
-    ]
-    if not units:
-        raise MeasureError("Quidra micro authoring shards are missing from the frozen manifest")
-    expected = {STARTUP_WORKLOAD, *WORKLOADS}
-    owners: dict[str, list[str]] = {}
-    for unit in units:
-        workloads = list(unit.get("workload_ids", []))
-        if not workloads or len(workloads) > 3:
-            raise MeasureError(
-                f"{unit.get('id')}: Quidra authoring shard must own 1..3 workloads"
-            )
-        for workload in workloads:
-            owners.setdefault(workload, []).append(str(unit.get("id")))
-    missing = sorted(expected - set(owners))
-    duplicate = sorted(k for k, v in owners.items() if len(v) != 1)
-    unknown = sorted(set(owners) - expected)
-    if missing or duplicate or unknown:
-        raise MeasureError(
-            "invalid Quidra authoring shard coverage; "
-            f"missing={missing}, duplicate={duplicate}, unknown={unknown}"
-        )
-    return units
+    return quidra_program_root(root) / "representation.json"
 
 
 def quidra_source_path(root: Path, workload: str) -> Path:
-    matches = [
-        unit for unit in quidra_authoring_units(root)
-        if workload in set(unit.get("workload_ids", []))
-    ]
-    if len(matches) != 1:
-        raise MeasureError(f"Quidra workload ownership is not unique: {workload}")
-    unit = matches[0]
-    agent = root / "work" / "agents" / str(unit["assigned_agent_id"])
-    path = agent / "programs" / f"{workload}.qui"
+    path = quidra_program_root(root) / "micro" / f"{workload}.qui"
     if not path.is_file():
-        raise MeasureError(f"missing Quidra source for {workload}: {path}")
+        raise MeasureError(
+            f"missing Quidra source for {workload} in the evaluated snapshot: {path}"
+        )
     return path
 
 
@@ -688,7 +661,11 @@ def validate_quidra_representation(root: Path, representation_path: Path) -> dic
     expected_commit = str(
         load_json(root / "run.json").get("evaluated", {}).get("commit_sha", "")
     )
-    if not expected_commit or representation.get("evaluated_commit_sha") != expected_commit:
+    recorded = representation.get("evaluated_commit_sha")
+    # A manifest maintained inside the evaluated snapshot cannot know its own
+    # commit; it says so with the literal sentinel and is bound to the commit by
+    # being part of it.
+    if recorded != "evaluated-snapshot" and (not expected_commit or recorded != expected_commit):
         raise MeasureError("Quidra representation manifest commit SHA mismatch")
     required_fields = set(schema.get("required_top_level_fields", []))
     missing_fields = sorted(required_fields - set(representation))
@@ -730,132 +707,151 @@ def validate_quidra_representation(root: Path, representation_path: Path) -> dic
     return representation
 
 
-def require_audit_result(agent: Path) -> dict[str, Any]:
-    result_path = agent / "result.json"
-    if not result_path.is_file():
-        raise MeasureError("Quidra support-task result.json is missing")
-    result = load_json(result_path)
-    if result.get("schema_version") != 1 or result.get("evaluation") != "language_quality":
-        raise MeasureError("Quidra support-task result.json metadata is invalid")
-    if result.get("audit_pass") is not True:
-        raise MeasureError("Quidra support-task worker did not return audit_pass=true")
-    return result
+def audit(root: Path, unit_id: str) -> int:
+    """Re-audit the snapshot's Quidra benchmark programs against its own compiler.
 
-
-def verify_quidra_representation_unit(root: Path, agent_id: str) -> int:
-    agent = root / "work" / "agents" / agent_id
-    require_audit_result(agent)
-    representation_path = agent / "quidra_representation.json"
-    if synthetic_mode(root):
-        dump_json(agent / "quidra_representation_validation.json", {
-            "schema_version": 1,
-            "synthetic_ci": True,
-        })
-        print(json.dumps({
-            "ok": True,
-            "agent_id": agent_id,
-            "synthetic_ci": True,
-        }, indent=2))
-        return 0
-
-    representation = validate_quidra_representation(root, representation_path)
-    dump_json(agent / "quidra_representation_validation.json", {
-        "schema_version": 1,
-        "evaluated_commit_sha": representation["evaluated_commit_sha"],
-        "representation_sha256": hashlib.sha256(
-            representation_path.read_bytes()
-        ).hexdigest(),
-        "valid": True,
-    })
-    print(json.dumps({
-        "ok": True,
-        "agent_id": agent_id,
-        "representation": str(representation_path),
-    }, indent=2))
-    return 0
-
-
-def verify_quidra_shard(root: Path, unit_id: str, agent_id: str) -> int:
+    This is the `quidra-audit` command unit. It replaces per-run authoring of
+    Quidra programs by a model: the programs live in the evaluated snapshot and
+    are maintained with the compiler, so a run's job is to prove they are current
+    - every micro program builds with the compiler built from this commit, runs
+    once, matches the frozen oracle and speaks steady mode; every scored
+    adversarial program is present with the frozen skeleton; the generated
+    adversarial sources are exactly what the frozen generators produce; and the
+    representation manifest and type-binding amendment are valid. Any failure is
+    an authoring/infrastructure blocker for the evaluation, never a language
+    score.
+    """
     unit = manifest_unit(root, unit_id)
-    if unit.get("assigned_agent_id") != agent_id:
-        raise MeasureError("Quidra authoring shard agent mismatch")
-    workloads = list(unit.get("workload_ids", []))
-    if not workloads or len(workloads) > 3:
-        raise MeasureError("Quidra authoring shard must own between 1 and 3 workloads")
-    # Validate global coverage before accepting any shard so overlap/omission is caught early.
-    quidra_authoring_units(root)
-
-    agent = root / "work" / "agents" / agent_id
-    require_audit_result(agent)
+    if unit.get("runner_action") != "quidra-audit":
+        raise MeasureError(f"{unit_id} is not a quidra-audit command unit")
+    out_dir = root / "work" / "root" / "commands" / unit_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    gate = "gate.quidra_programs_current"
     if synthetic_mode(root):
-        dump_json(agent / "quidra_micro_validation.json", {
+        dump_json(out_dir / "result.json", {
             "schema_version": 1,
-            "synthetic_ci": True,
-            "workloads": workloads,
+            "evaluation": "language_quality",
+            "requirements": {gate: True},
+            "evidence": {"synthetic_ci": True},
         })
-        print(json.dumps({
-            "ok": True,
-            "agent_id": agent_id,
-            "workloads": workloads,
-            "synthetic_ci": True,
-        }, indent=2))
+        print(json.dumps({"ok": True, "unit_id": unit_id, "synthetic_ci": True}, indent=2))
         return 0
 
-    validate_quidra_representation(root, quidra_representation_path(root))
+    programs = quidra_program_root(root)
+    problems: list[str] = []
+    evidence: dict[str, Any] = {"program_root": str(programs), "micro": [], "adversarial": {}}
+    if not programs.is_dir():
+        raise MeasureError(
+            f"quidra benchmark programs are absent from the evaluated snapshot at {programs}"
+        )
+
+    representation_path = quidra_representation_path(root)
+    try:
+        validate_quidra_representation(root, representation_path)
+        evidence["representation_sha256"] = hashlib.sha256(
+            representation_path.read_bytes()
+        ).hexdigest()
+    except MeasureError as exc:
+        problems.append(f"representation.json: {exc}")
+
+    amendment_path = programs / "quidra_type_binding_amendment.json"
+    if not amendment_path.is_file():
+        problems.append("quidra_type_binding_amendment.json is missing")
+    else:
+        amendment = load_json(amendment_path)
+        evidence["amendment_sha256"] = hashlib.sha256(amendment_path.read_bytes()).hexdigest()
+        for key in ("default_arithmetic_type", "fixed_width_i64", "fixed_width_i32",
+                    "fixed_width_u32", "float64", "default_string_type",
+                    "default_ordered_sequence", "most_general_reference", "null_or_absent_value"):
+            row = (amendment.get("bindings") or {}).get(key) or {}
+            if not row.get("construct") or not row.get("citation"):
+                problems.append(f"amendment: binding {key} lacks a construct or citation")
+
     compiler = ensure_target_compiler(root)
     expected = expected_outputs(root)
     checker = checker_module(root)
-    report = []
-
-    for workload in workloads:
-        source = agent / "programs" / f"{workload}.qui"
-        if not source.is_file():
-            raise MeasureError(f"Quidra authoring source is missing: {source}")
-        cell = prepare_cell(root, "Quidra", workload, compiler)
-        build = build_once(root, cell)
-        run = run_once(root, cell)
-        require_ok(run, f"Quidra correctness run {workload}")
-        if workload == STARTUP_WORKLOAD:
-            validate_startup_output(run["stdout"])
-            report.append({
+    for workload in [STARTUP_WORKLOAD, *WORKLOADS]:
+        try:
+            source = quidra_source_path(root, workload)
+            cell = prepare_cell(root, "Quidra", workload, compiler)
+            build = build_once(root, cell)
+            run = run_once(root, cell)
+            require_ok(run, f"Quidra correctness run {workload}")
+            if workload == STARTUP_WORKLOAD:
+                validate_startup_output(run["stdout"])
+            else:
+                validate_output(checker, expected[workload], run["stdout"])
+                steady = run_once(root, cell, "steady", 3)
+                require_ok(steady, f"Quidra steady-mode smoke {workload}")
+                if len(parse_steady_samples(steady["stdout"])) != 3:
+                    raise MeasureError(f"{workload} steady mode did not emit exactly 3 ITER rows")
+                validate_output(checker, expected[workload], steady["stdout"])
+            evidence["micro"].append({
                 "workload": workload,
                 "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
                 "build_wall_seconds": build["wall_seconds"] if build else 0.0,
                 "correct": True,
-                "startup_probe": True,
             })
-            continue
+        except MeasureError as exc:
+            problems.append(f"micro {workload}: {exc}")
 
-        validate_output(checker, expected[workload], run["stdout"])
-        steady = run_once(root, cell, "steady", 3)
-        require_ok(steady, f"Quidra steady-mode smoke {workload}")
-        if len(parse_steady_samples(steady["stdout"])) != 3:
-            raise MeasureError(
-                f"Quidra {workload} steady mode did not emit exactly 3 ITER rows"
-            )
-        validate_output(checker, expected[workload], steady["stdout"])
-        report.append({
-            "workload": workload,
-            "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
-            "build_wall_seconds": build["wall_seconds"] if build else 0.0,
-            "correct": True,
-            "steady_mode": True,
+    adversarial = programs / "adversarial"
+    generator = adversarial / "generate.py"
+    if generator.is_file():
+        check = run_command(
+            [sys.executable, str(generator), "--check"], adversarial,
+            benchmark_env(root, adversarial), timeout=120,
+        )
+        if check["exit_code"] != 0:
+            problems.append("adversarial generated sources are stale: " + (check["stderr"] or check["stdout"]).strip()[:300])
+    else:
+        problems.append("adversarial/generate.py is missing")
+    asset = load_json(
+        root / "template" / "methodology-assets" / "language_quality" / "adversarial_cases.json"
+    )
+    tm3a = set()
+    if amendment_path.is_file():
+        tm3a = {
+            k for k, v in (load_json(amendment_path).get("tm3_determinations") or {}).items()
+            if v.get("branch") == "TM3a"
+        }
+    present = 0
+    for row in asset["fixed_scored_case_variant_list"]["rows"]:
+        for program in row["programs"]:
+            base, _, variant = program.partition("/")
+            case_id = base.split("_", 1)[0]
+            if case_id in tm3a or program in tm3a:
+                continue
+            stem = f"{base}_{variant}" if variant else base
+            source = adversarial / f"{stem}.qui"
+            if not source.is_file():
+                problems.append(f"adversarial {program}: no source {source.name}")
+                continue
+            text = source.read_text(encoding="utf-8", errors="replace")
+            if program not in ("ADV-22a", "ADV-22b") and not all(
+                marker in text for marker in ('print("ADV-START")', 'print("ADV-END")', "OBS=")
+            ):
+                problems.append(f"adversarial {program}: frozen skeleton lines are missing")
+            present += 1
+    evidence["adversarial"] = {"programs_present": present, "tm3a_cases": sorted(tm3a)}
+
+    if problems:
+        dump_json(out_dir / "result.json", {
+            "schema_version": 1,
+            "evaluation": "language_quality",
+            "requirements": {gate: False},
+            "evidence": {**evidence, "problems": problems},
         })
-
-    dump_json(agent / "quidra_micro_validation.json", {
+        raise MeasureError(
+            "quidra benchmark programs audit failed: " + "; ".join(problems)[:1500]
+        )
+    dump_json(out_dir / "result.json", {
         "schema_version": 1,
-        "unit_id": unit_id,
-        "representation_sha256": hashlib.sha256(
-            quidra_representation_path(root).read_bytes()
-        ).hexdigest(),
-        "workloads": report,
+        "evaluation": "language_quality",
+        "requirements": {gate: True},
+        "evidence": evidence,
     })
-    print(json.dumps({
-        "ok": True,
-        "agent_id": agent_id,
-        "unit_id": unit_id,
-        "workloads": workloads,
-    }, indent=2))
+    print(json.dumps({"ok": True, "unit_id": unit_id, "result": str(out_dir / "result.json")}, indent=2))
     return 0
 
 
@@ -885,7 +881,6 @@ def measure(root: Path, unit_id: str) -> int:
         })
         print(json.dumps({"ok": True, "unit_id": unit_id, "synthetic_ci": True}, indent=2))
         return 0
-    quidra_authoring_units(root)
     validate_quidra_representation(root, quidra_representation_path(root))
     compiler = ensure_target_compiler(root)
     expected = expected_outputs(root)
@@ -1345,13 +1340,9 @@ def measure(root: Path, unit_id: str) -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Quidra mechanical micro benchmark runner")
     sub = p.add_subparsers(dest="command", required=True)
-    verify_rep = sub.add_parser("verify-representation")
-    verify_rep.add_argument("--workspace", required=True)
-    verify_rep.add_argument("--agent-id", required=True)
-    verify_shard = sub.add_parser("verify-shard")
-    verify_shard.add_argument("--workspace", required=True)
-    verify_shard.add_argument("--unit-id", required=True)
-    verify_shard.add_argument("--agent-id", required=True)
+    audit_p = sub.add_parser("audit", help="re-audit the snapshot's Quidra benchmark programs")
+    audit_p.add_argument("--workspace", required=True)
+    audit_p.add_argument("--unit-id", required=True)
     measure_p = sub.add_parser("measure")
     measure_p.add_argument("--workspace", required=True)
     measure_p.add_argument("--unit-id", required=True)
@@ -1362,10 +1353,8 @@ def main() -> int:
     args = build_parser().parse_args()
     try:
         root = root_from(args.workspace)
-        if args.command == "verify-representation":
-            return verify_quidra_representation_unit(root, args.agent_id)
-        if args.command == "verify-shard":
-            return verify_quidra_shard(root, args.unit_id, args.agent_id)
+        if args.command == "audit":
+            return audit(root, args.unit_id)
         if args.command == "measure":
             return measure(root, args.unit_id)
         raise MeasureError(f"unknown command: {args.command}")

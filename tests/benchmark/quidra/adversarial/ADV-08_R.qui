@@ -1,0 +1,18 @@
+print("ADV-START")
+io.flush()
+string read_input_line()
+    string | none | error line = input()
+    match line
+        string text
+            return text
+        none
+            process.exit(2)
+        error problem
+            process.exit(2)
+int a = int.parse(read_input_line())
+int b = int.parse(read_input_line())
+int q = a / b
+print("OBS=QUOT:{q}")
+io.flush()
+print("ADV-END")
+io.flush()

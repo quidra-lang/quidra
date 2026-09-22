@@ -1,0 +1,19 @@
+print("ADV-START")
+io.flush()
+string read_input_line()
+    string | none | error line = input()
+    match line
+        string text
+            return text
+        none
+            process.exit(2)
+        error problem
+            process.exit(2)
+int n = int.parse(read_input_line())
+int[] big = array(n, fill = 0)
+big[0] = 1
+int first = big[0]
+print("OBS=ALLOC:{len(big)}|FIRST:{first}")
+io.flush()
+print("ADV-END")
+io.flush()

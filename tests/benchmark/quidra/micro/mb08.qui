@@ -1,0 +1,114 @@
+// MB-08 - Strings: text construction plus five explicit character-level passes.
+// Passes 1-4 run on the pinned mutable byte buffer (uint8[]); pass 5 runs on a
+// native string built fresh each round, read through its own code-point
+// sequence accessor (string.codepoints()).
+// Methodology 06 section 5.2 program modes: argv[1] in {once, steady}, argv[2] = K.
+cli args
+    string mode = argument(default = "once")
+    int iterations = argument(default = 7)
+
+// Lehmer / MINSTD generator, frozen for every language in the suite.
+class Lcg
+    int state
+
+    int next_int()
+        state = (48271 * state) % 2147483647
+        return state
+
+// Order-sensitive rolling hash over a byte sequence.
+int rhash(const uint8[] &seq)
+    int h = 0
+    for c in seq
+        h = (h * 131 + int(c)) % 1000000007
+    return h
+
+class Result
+    int acc
+    int length
+    int cnt_ab
+    int cnt_w
+
+// The whole workload body, build phase included (methodology 06 section 4, MB-08).
+Result workload()
+    int nw = 200000
+    int rounds = 20
+    int q = 1000000007
+    Lcg g = Lcg(state = 20268917)
+
+    string[] words = []
+    for w in range(nw)
+        int l = 4 + (g.next_int() % 13)
+        uint8[] word = array(l, fill = uint8(0))
+        for c in range(l)
+            word[c] = uint8(97 + (g.next_int() % 26))
+        string piece = string.from_utf8(bin(word))
+        words = words.append(piece)
+    string joined = words.join(" ")
+    uint8[] text = uint8[](joined.utf8())
+    int n = len(text)
+
+    int acc = 0
+    int cnt_ab = 0
+    int cnt_w = 0
+    for r in range(rounds)
+        int p = 7 * r + 11
+        if text[p] == uint8(32)
+            text[p] = uint8(120)
+        else
+            text[p] = uint8(97 + ((int(text[p]) - 97 + 1) % 26))
+
+        int h1 = rhash(&text)
+
+        uint8[] u = array(n, fill = uint8(0))
+        for i in range(n)
+            int c = int(text[i])
+            if c >= 97 and c <= 122
+                u[i] = uint8(c - 32)
+            else
+                u[i] = uint8(c)
+        int h2 = rhash(&u)
+
+        uint8[] v = array(n, fill = uint8(0))
+        for i in range(n)
+            v[i] = text[n - 1 - i]
+        int h3 = rhash(&v)
+
+        cnt_ab = 0
+        for i in range(n - 1)
+            if text[i] == uint8(97) and text[i + 1] == uint8(98)
+                cnt_ab = cnt_ab + 1
+
+        // pass 5: word count on the language's own string type, constructed
+        // fresh from the working buffer inside the timed round.
+        string s = string.from_utf8(bin(text))
+        cnt_w = 1
+        for cp in s.codepoints()
+            if cp == 32
+                cnt_w = cnt_w + 1
+
+        acc = (acc * 31 + h1) % q
+        acc = (acc * 31 + h2) % q
+        acc = (acc * 31 + h3) % q
+        acc = (acc * 31 + cnt_ab) % q
+        acc = (acc * 31 + cnt_w) % q
+    return Result(acc = acc, length = n, cnt_ab = cnt_ab, cnt_w = cnt_w)
+
+Result timed(int index)
+    time.Instant start = time.now()
+    Result result = workload()
+    time.Duration elapsed = time.since(start)
+    int elapsed_ns = math.round(elapsed.seconds() * 1000000000.0)
+    print("ITER {index} {elapsed_ns}")
+    io.flush()
+    return result
+
+Result result
+if args.mode == "steady"
+    int k = math.max(args.iterations, 1)
+    result = timed(0)
+    for i in range(1, k)
+        result = timed(i)
+else
+    result = workload()
+
+print("MB08 {result.acc} {result.length} {result.cnt_ab} {result.cnt_w}")

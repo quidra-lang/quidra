@@ -361,149 +361,30 @@
           "goal": "Mechanically verify that Language Quality uses exactly the frozen 10-language comparison set."
         },
         {
-          "id": "lq-qudra-representation",
+          "id": "lq-quidra-audit",
           "phase": "readiness",
-          "execution_kind": "agent",
-          "result_kind": "audit",
-          "requirement_ids": [],
-          "workload_ids": [],
+          "execution_kind": "command",
+          "result_kind": "requirements",
+          "runner_action": "quidra-audit",
+          "requirement_ids": [
+            "gate.quidra_programs_current"
+          ],
           "dependencies": [
             "lq-coverage"
           ],
-          "goal": "Resolve and freeze the exact Quidra representations/APIs needed by the Language Quality startup + micro suite from the evaluated commit only. Write quidra_representation.json exactly according to template/config/quidra_representation_schema.json and result.json with audit_pass=true. Evidence must point only to current repo/docs files. Do not inspect historical benchmark runs or reusable comparison-language programs.",
-          "validator_action": "verify-quidra-representation",
-          "prompt_sections": [
-            "# 7. Language Quality Evaluation Fairness",
-            "# 11. Quidra Current-Commit Evaluation",
-            "# 12. Micro Benchmarks"
-          ],
+          "prompt_sections": [],
           "read_paths": [
+            "repo/tests/benchmark/quidra",
             "repo/docs",
-            "template/workloads/micro.md",
-            "template/config/quidra_representation_schema.json"
+            "template/workloads",
+            "template/validators/micro",
+            "template/config/quidra_representation_schema.json",
+            "template/methodology-assets/language_quality"
           ],
           "network_allowed": false,
-          "worker_mode": "packet-only"
-        },
-        {
-          "id": "lq-qudra-micro-authoring-a",
-          "phase": "readiness",
-          "execution_kind": "agent",
-          "result_kind": "audit",
-          "requirement_ids": [],
-          "workload_ids": [
-            "mb00",
-            "mb01",
-            "mb02"
-          ],
-          "dependencies": [
-            "lq-qudra-representation"
-          ],
-          "goal": "Create fresh Quidra implementations only for mb00, mb01, mb02 for the evaluated Quidra commit. Write exactly those .qui files under programs/ and result.json with audit_pass=true after self-checking current repo/docs and the frozen language-neutral micro specification. Do not write other workload sources, inspect historical Quidra benchmark programs, or read reusable comparison-language programs.",
-          "validator_action": "verify-quidra-micro-shard",
-          "prompt_sections": [
-            "# 7. Language Quality Evaluation Fairness",
-            "# 11. Quidra Current-Commit Evaluation",
-            "# 12. Micro Benchmarks"
-          ],
-          "read_paths": [
-            "repo/docs",
-            "template/workloads/micro.md",
-            "template/validators/micro/check_micro.py",
-            "template/config/quidra_representation_schema.json"
-          ],
-          "network_allowed": false,
-          "worker_mode": "packet-only"
-        },
-        {
-          "id": "lq-qudra-micro-authoring-b",
-          "phase": "readiness",
-          "execution_kind": "agent",
-          "result_kind": "audit",
-          "requirement_ids": [],
-          "workload_ids": [
-            "mb03",
-            "mb04",
-            "mb05"
-          ],
-          "dependencies": [
-            "lq-qudra-representation"
-          ],
-          "goal": "Create fresh Quidra implementations only for mb03, mb04, mb05 for the evaluated Quidra commit. Write exactly those .qui files under programs/ and result.json with audit_pass=true after self-checking current repo/docs and the frozen language-neutral micro specification. Do not write other workload sources, inspect historical Quidra benchmark programs, or read reusable comparison-language programs.",
-          "validator_action": "verify-quidra-micro-shard",
-          "prompt_sections": [
-            "# 7. Language Quality Evaluation Fairness",
-            "# 11. Quidra Current-Commit Evaluation",
-            "# 12. Micro Benchmarks"
-          ],
-          "read_paths": [
-            "repo/docs",
-            "template/workloads/micro.md",
-            "template/validators/micro/check_micro.py",
-            "template/config/quidra_representation_schema.json"
-          ],
-          "network_allowed": false,
-          "worker_mode": "packet-only"
-        },
-        {
-          "id": "lq-qudra-micro-authoring-c",
-          "phase": "readiness",
-          "execution_kind": "agent",
-          "result_kind": "audit",
-          "requirement_ids": [],
-          "workload_ids": [
-            "mb06",
-            "mb07",
-            "mb08"
-          ],
-          "dependencies": [
-            "lq-qudra-representation"
-          ],
-          "goal": "Create fresh Quidra implementations only for mb06, mb07, mb08 for the evaluated Quidra commit. Write exactly those .qui files under programs/ and result.json with audit_pass=true after self-checking current repo/docs and the frozen language-neutral micro specification. Do not write other workload sources, inspect historical Quidra benchmark programs, or read reusable comparison-language programs.",
-          "validator_action": "verify-quidra-micro-shard",
-          "prompt_sections": [
-            "# 7. Language Quality Evaluation Fairness",
-            "# 11. Quidra Current-Commit Evaluation",
-            "# 12. Micro Benchmarks"
-          ],
-          "read_paths": [
-            "repo/docs",
-            "template/workloads/micro.md",
-            "template/validators/micro/check_micro.py",
-            "template/config/quidra_representation_schema.json"
-          ],
-          "network_allowed": false,
-          "worker_mode": "packet-only"
-        },
-        {
-          "id": "lq-qudra-micro-authoring-d",
-          "phase": "readiness",
-          "execution_kind": "agent",
-          "result_kind": "audit",
-          "requirement_ids": [],
-          "workload_ids": [
-            "mb09",
-            "mb10",
-            "mb11"
-          ],
-          "dependencies": [
-            "lq-qudra-representation"
-          ],
-          "goal": "Create fresh Quidra implementations only for mb09, mb10, mb11 for the evaluated Quidra commit. Write exactly those .qui files under programs/ and result.json with audit_pass=true after self-checking current repo/docs and the frozen language-neutral micro specification. Do not write other workload sources, inspect historical Quidra benchmark programs, or read reusable comparison-language programs.",
-          "validator_action": "verify-quidra-micro-shard",
-          "prompt_sections": [
-            "# 7. Language Quality Evaluation Fairness",
-            "# 11. Quidra Current-Commit Evaluation",
-            "# 12. Micro Benchmarks"
-          ],
-          "read_paths": [
-            "repo/docs",
-            "template/workloads/micro.md",
-            "template/validators/micro/check_micro.py",
-            "template/config/quidra_representation_schema.json"
-          ],
-          "network_allowed": false,
-          "worker_mode": "packet-only"
+          "max_attempts": 1,
+          "goal": "Mechanically re-audit the evaluated snapshot's own Quidra benchmark programs (tests/benchmark/quidra) against the compiler built from the same commit: every micro program builds, runs once, matches the frozen oracle and speaks steady mode; every scored adversarial program is present with the frozen skeleton; the generated adversarial sources match the frozen generators; representation.json and the Quidra type-binding amendment are valid. No model authors Quidra programs during a run.",
+          "worker_mode": "runner-command"
         },
         {
           "id": "lq-micro-mechanical",
@@ -522,14 +403,11 @@
             "metric.runtime_overhead"
           ],
           "dependencies": [
-            "lq-qudra-representation",
-            "lq-qudra-micro-authoring-a",
-            "lq-qudra-micro-authoring-b",
-            "lq-qudra-micro-authoring-c",
-            "lq-qudra-micro-authoring-d"
+            "lq-quidra-audit"
           ],
           "prompt_sections": [],
           "read_paths": [
+            "repo/tests/benchmark/quidra",
             "template/programs",
             "template/fixtures",
             "template/workloads",
@@ -538,7 +416,7 @@
           ],
           "network_allowed": false,
           "max_attempts": 3,
-          "goal": "Mechanically build, validate, execute, measure and normalize the frozen micro-suite performance/resource metrics plus ordinary-program Startup Latency for all 10 languages. Source Code Size is the mean of per-workload normalized source-byte measurements over MB-01..MB-11. Quidra sources come only from the four current-run authoring shards after the separate current-commit representation freeze; comparison-language sources come from the current reusable template.",
+          "goal": "Mechanically build, validate, execute, measure and normalize the frozen micro-suite performance/resource metrics plus ordinary-program Startup Latency for all 10 languages. Source Code Size is the mean of per-workload normalized source-byte measurements over MB-01..MB-11. Quidra sources come from the evaluated snapshot (tests/benchmark/quidra/micro) after the quidra-audit gate; comparison-language sources come from the current reusable template.",
           "worker_mode": "runner-command"
         },
         {
@@ -642,143 +520,35 @@
           "split_by_language": true
         },
         {
-          "id": "lq-safety--part-1",
+          "id": "lq-adversarial-mechanical",
           "phase": "measurement",
+          "execution_kind": "command",
+          "result_kind": "requirements",
+          "runner_action": "adversarial-measure",
           "requirement_ids": [
             "metric.type_safety",
-            "metric.memory_safety"
-          ],
-          "dependencies": [
-            "lq-coverage"
-          ],
-          "prompt_sections": [
-            "# 7. Language Quality Evaluation Fairness",
-            "## Safety / Robustness",
-            "# 17. Adversarial / Edge-case Testing",
-            "# 18. Early Error Detection",
-            "# 19. Debuggability"
-          ],
-          "read_paths": [
-            "repo/docs",
-            "template/programs",
-            "template/methodology-assets/language_quality",
-            "template/methodology-assets/scoring"
-          ],
-          "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf.",
-          "worker_mode": "sandbox-agent",
-          "split_by_language": true
-        },
-        {
-          "id": "lq-safety--part-2",
-          "phase": "measurement",
-          "requirement_ids": [
+            "metric.memory_safety",
             "metric.runtime_safety",
-            "metric.boundary_value_safety"
-          ],
-          "dependencies": [
-            "lq-coverage"
-          ],
-          "prompt_sections": [
-            "# 7. Language Quality Evaluation Fairness",
-            "## Safety / Robustness",
-            "# 17. Adversarial / Edge-case Testing",
-            "# 18. Early Error Detection",
-            "# 19. Debuggability"
-          ],
-          "read_paths": [
-            "repo/docs",
-            "template/programs",
-            "template/methodology-assets/language_quality",
-            "template/methodology-assets/scoring"
-          ],
-          "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf.",
-          "worker_mode": "sandbox-agent",
-          "split_by_language": true
-        },
-        {
-          "id": "lq-safety--part-3",
-          "phase": "measurement",
-          "requirement_ids": [
+            "metric.boundary_value_safety",
             "metric.adversarial_input_robustness",
-            "metric.early_error_detection"
-          ],
-          "dependencies": [
-            "lq-coverage"
-          ],
-          "prompt_sections": [
-            "# 7. Language Quality Evaluation Fairness",
-            "## Safety / Robustness",
-            "# 17. Adversarial / Edge-case Testing",
-            "# 18. Early Error Detection",
-            "# 19. Debuggability"
-          ],
-          "read_paths": [
-            "repo/docs",
-            "template/programs",
-            "template/methodology-assets/language_quality",
-            "template/methodology-assets/scoring"
-          ],
-          "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf.",
-          "worker_mode": "sandbox-agent",
-          "split_by_language": true
-        },
-        {
-          "id": "lq-safety--part-4",
-          "phase": "measurement",
-          "requirement_ids": [
+            "metric.early_error_detection",
             "metric.debuggability",
-            "metric.silent_bug_resistance"
-          ],
-          "dependencies": [
-            "lq-coverage"
-          ],
-          "prompt_sections": [
-            "# 7. Language Quality Evaluation Fairness",
-            "## Safety / Robustness",
-            "# 17. Adversarial / Edge-case Testing",
-            "# 18. Early Error Detection",
-            "# 19. Debuggability"
-          ],
-          "read_paths": [
-            "repo/docs",
-            "template/programs",
-            "template/methodology-assets/language_quality",
-            "template/methodology-assets/scoring"
-          ],
-          "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf.",
-          "worker_mode": "sandbox-agent",
-          "split_by_language": true
-        },
-        {
-          "id": "lq-safety--part-5",
-          "phase": "measurement",
-          "requirement_ids": [
+            "metric.silent_bug_resistance",
             "metric.implementation_robustness"
           ],
           "dependencies": [
             "lq-coverage"
           ],
-          "prompt_sections": [
-            "# 7. Language Quality Evaluation Fairness",
-            "## Safety / Robustness",
-            "# 17. Adversarial / Edge-case Testing",
-            "# 18. Early Error Detection",
-            "# 19. Debuggability"
-          ],
+          "prompt_sections": [],
           "read_paths": [
-            "repo/docs",
             "template/programs",
             "template/methodology-assets/language_quality",
             "template/methodology-assets/scoring"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-safety; only these requirement IDs belong to this leaf.",
-          "worker_mode": "sandbox-agent",
-          "split_by_language": true
+          "max_attempts": 1,
+          "goal": "Mechanically build and run the frozen 34-row adversarial case set for all 10 languages under the frozen primary and non-scoring secondary recipes, replay decision rules D0..D7 on the captured bytes, and compute the nine Safety / Robustness metrics exactly as adversarial_cases.json, type_safety.json, memory_safety.json and debuggability.json define them. Comparison-language programs come from the reusable template; Quidra programs and the frozen Quidra type-binding amendment come from the evaluated snapshot and are re-audited for every commit.",
+          "worker_mode": "runner-command"
         }
       ]
     },

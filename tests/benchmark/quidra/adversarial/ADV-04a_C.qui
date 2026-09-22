@@ -1,0 +1,9 @@
+print("ADV-START")
+io.flush()
+uint32 a = 0
+uint32 b = 1
+uint32 r = a - b
+print("OBS=SUB:{r}")
+io.flush()
+print("ADV-END")
+io.flush()

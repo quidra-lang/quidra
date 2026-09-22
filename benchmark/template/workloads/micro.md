@@ -2,7 +2,7 @@
 
 This document defines the reusable, language-neutral micro workload and measurement protocol for Language Quality. It is template input, not a historical run record.
 
-The scored comparison contains exactly the ten fixed languages. Each language contributes exactly one ordinary program-execution configuration. Quidra uses the compiler/runtime built from the exact evaluated commit and its normal compiled/native path. Quidra source is authored fresh for that commit; reusable comparison-language source may be reused only through the template currency-audit rules.
+The scored comparison contains exactly the ten fixed languages. Each language contributes exactly one ordinary program-execution configuration. Quidra uses the compiler/runtime built from the exact evaluated commit and its normal compiled/native path. Quidra source is maintained inside the evaluated snapshot and re-audited against that commit's compiler before measurement; reusable comparison-language source may be reused only through the template currency-audit rules.
 
 No second Quidra execution configuration is defined or aggregated by this suite. Program startup means startup of the ordinary scored program execution path.
 
@@ -34,7 +34,7 @@ The exact installed toolchain fingerprints are recorded mechanically for every r
 
 The recipes intentionally use each language's frozen ordinary production-reasonable path; they are not assumed to expose identical optimization or runtime-checking behavior. Bounds checks, overflow behavior, JIT/AOT behavior, runtime bundling, GC, and similar properties are recorded as measured/toolchain facts and are never manually compensated in scoring.
 
-One source program exists per (workload, language). Quidra's source files belong to the current run only. The other nine languages may use validated reusable template source, but every run rebuilds, executes, validates, and measures again.
+One source program exists per (workload, language). Quidra's source files come from the evaluated snapshot (`tests/benchmark/quidra/micro`) and are never taken from the template or a previous run. The other nine languages may use validated reusable template source, but every run rebuilds, executes, validates, and measures again.
 
 ---
 
@@ -1011,10 +1011,10 @@ options anywhere in this suite.** The tables below are binding; a deviation is a
 under §7.2, not a permitted variant.
 
 **Verification rule.** The nine reusable comparison-language rows below are template pins and are
-currency-audited against the current installed toolchains. Quidra is deliberately different: the current-run
-authoring leaf resolves the ordinary representation/API from the evaluated commit's documentation using the
-same language-neutral constraints, writes the exact choice and documentation evidence to
-`quidra_representation.json`, and the validator freezes that manifest before any timed run. Historical
+currency-audited against the current installed toolchains. Quidra is deliberately different: its
+representation/API choices are pinned in the evaluated snapshot's `tests/benchmark/quidra/representation.json`,
+resolved from that commit's own documentation under the same language-neutral constraints, and the
+quidra-audit unit validates that manifest against the snapshot before any timed run. Historical
 Quidra representation/API choices are never inputs. Once the run manifest is frozen, none of these choices
 may change after observing measurements.
 
@@ -1422,7 +1422,7 @@ The nine established comparison-language implementations are reusable template a
 only through the frozen reuse/currency audit and are rebuilt, executed, validated and measured again in
 every run.
 
-Quidra is different because it is the changing target. One current-run leaf freezes the exact representation/API choices from the evaluated commit, then four source-authoring leaves each own exactly three files: `mb00`–`mb02`, `mb03`–`mb05`, `mb06`–`mb08`, and `mb09`–`mb11`. Each leaf reads the evaluated commit's documentation and the language-neutral workload specification, may not read historical Quidra benchmark source or reusable comparison-language programs, and writes only its assigned files. The resulting source remains current-run evidence and is never promoted into the reusable program catalog.
+Quidra is different because it is the changing target. Its twelve programs and its representation manifest are maintained inside the evaluated snapshot, next to the compiler, and change only through ordinary reviewed commits. The deterministic runner's quidra-audit unit re-verifies them against the compiler built from the evaluated commit before any timed run. A run may report that a program looks non-idiomatic or violates a pin; that report is advice for a later commit, never an edit made by the run, and Quidra source is never promoted into the reusable program catalog.
 
 These programs are benchmark fixtures, not scored LLM-generation trials. Their authorship therefore does
 not enter LLM Learnability or LLM Proficiency.
@@ -1502,7 +1502,7 @@ The reusable invariants are:
 - 10 fixed languages and exactly one scored execution configuration per language;
 - MB-01 … MB-11 as the frozen workload categories;
 - MB-00 as ordinary-program startup only;
-- current-commit Quidra source authored fresh for the run;
+- Quidra source taken from the evaluated snapshot and re-audited against its compiler;
 - comparison-language reusable source subject to currency audit;
 - correctness before timing;
 - deterministic cross-language measurement interleaving;

@@ -1,0 +1,18 @@
+print("ADV-START")
+io.flush()
+string read_input_line()
+    string | none | error line = input()
+    match line
+        string text
+            return text
+        none
+            process.exit(2)
+        error problem
+            process.exit(2)
+int32 a = int32.parse(read_input_line())
+uint32 b = uint32.parse(read_input_line())
+bool r = a < b
+print("OBS=CMP:{r}")
+io.flush()
+print("ADV-END")
+io.flush()

@@ -8,6 +8,7 @@ on:
       - "benchmark/template/**"
       - "tests/benchmark_isolation_tests.py"
       - "tests/benchmark_cache_tests.py"
+      - "tests/benchmark_adversarial_tests.py"
       - "benchmark/cache/**"
       - ".github/workflows/benchmark-template.yml"
       - ".github/workflows/benchmark-production.yml"
@@ -17,6 +18,7 @@ on:
       - "benchmark/template/**"
       - "tests/benchmark_isolation_tests.py"
       - "tests/benchmark_cache_tests.py"
+      - "tests/benchmark_adversarial_tests.py"
       - "benchmark/cache/**"
       - ".github/workflows/benchmark-template.yml"
 
@@ -33,6 +35,7 @@ jobs:
         run: |
           python -m py_compile benchmark/template/scripts/benchmark.py
           python -m py_compile benchmark/template/scripts/micro_measure.py
+          python -m py_compile benchmark/template/scripts/adversarial_measure.py
           python -m py_compile benchmark/template/scripts/inference_gateway.py
           python -m py_compile benchmark/template/scripts/gateway_client.py
           python -m py_compile benchmark/template/scripts/sandbox_agent.py
@@ -43,6 +46,7 @@ jobs:
           bash -n benchmark/template/runtime/install_toolchains.sh
           python benchmark/template/scripts/check_metadata.py
           python benchmark/template/scripts/micro_measure.py --help >/dev/null
+          python benchmark/template/scripts/adversarial_measure.py --help >/dev/null
           python -m json.tool benchmark/template/config/benchmark_metadata.json >/dev/null
           python -m json.tool benchmark/template/config/primary.json >/dev/null
           python -m json.tool benchmark/template/config/evaluation_requirements.json >/dev/null
@@ -446,38 +450,19 @@ jobs:
               (root / "work/root/plans/language_quality.json").read_text()
           )
           by_id = {u["id"]: u for u in lq["work_units"]}
-          representation = by_id["lq-qudra-representation"]
-          assert representation["execution_kind"] == "agent"
-          assert representation["result_kind"] == "audit"
-          assert "template/programs" not in "\n".join(representation["read_paths"])
-          assert any(
-              path.endswith("template/config/quidra_representation_schema.json")
-              for path in representation["read_paths"]
-          )
-          assert "quidra_representation.json" in representation["goal"]
-
-          expected_shards = {
-              "lq-qudra-micro-authoring-a": ["mb00", "mb01", "mb02"],
-              "lq-qudra-micro-authoring-b": ["mb03", "mb04", "mb05"],
-              "lq-qudra-micro-authoring-c": ["mb06", "mb07", "mb08"],
-              "lq-qudra-micro-authoring-d": ["mb09", "mb10", "mb11"],
-          }
-          for uid, workloads in expected_shards.items():
-              shard = by_id[uid]
-              assert shard["execution_kind"] == "agent"
-              assert shard["result_kind"] == "audit"
-              assert shard["workload_ids"] == workloads
-              assert len(shard["workload_ids"]) <= 3
-              assert shard["dependencies"] == ["lq-qudra-representation"]
-              assert "template/programs" not in "\n".join(shard["read_paths"])
+          # Quidra's programs live in the evaluated snapshot; the plan carries a
+          # single mechanical audit unit instead of model-authored shards.
+          audit = by_id["lq-quidra-audit"]
+          assert audit["execution_kind"] == "command"
+          assert audit["runner_action"] == "quidra-audit"
+          assert audit["requirement_ids"] == ["gate.quidra_programs_current"]
+          assert any(path.endswith("repo/tests/benchmark/quidra") for path in audit["read_paths"])
+          assert not any(u["id"].startswith("lq-qudra-") for u in lq["work_units"])
 
           mechanical = by_id["lq-micro-mechanical"]
           assert mechanical["execution_kind"] == "command"
           assert mechanical["runner_action"] == "micro-measure"
-          assert set(mechanical["dependencies"]) == {
-              "lq-qudra-representation",
-              *expected_shards.keys(),
-          }
+          assert set(mechanical["dependencies"]) == {"lq-quidra-audit"}
           assert set(mechanical["requirement_ids"]) == {
               "metric.native_execution_performance",
               "metric.long_running_performance",
@@ -896,6 +881,9 @@ jobs:
 
       - name: Certified cache reuse contract
         run: python tests/benchmark_cache_tests.py
+
+      - name: Mechanical adversarial scorer replays the frozen decision list
+        run: python tests/benchmark_adversarial_tests.py
 
       - name: Credential-less gateway and sandbox-agent isolation
         run: python tests/benchmark_isolation_tests.py

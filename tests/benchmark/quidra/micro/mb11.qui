@@ -1,0 +1,125 @@
+// MB-11 - Collections: the standard map.Map, set.Set and growable int[] under
+// insert / update / lookup / delete / iterate. Default construction only.
+// Methodology 06 section 5.2 program modes: argv[1] in {once, steady}, argv[2] = K.
+cli args
+    string mode = argument(default = "once")
+    int iterations = argument(default = 7)
+
+// Lehmer / MINSTD generator, frozen for every language in the suite.
+class Lcg
+    int state
+
+    int next_int()
+        state = (48271 * state) % 2147483647
+        return state
+
+class Result
+    int acc
+    int size1
+    int found
+    int vsum
+    int mchk
+    int size2
+    int size3
+    int lsum
+
+// The whole workload body, generation included (methodology 06 section 4, MB-11).
+Result workload()
+    int n = 1000000
+    int rounds = 3
+    int km = 500009
+    int sm = 100003
+    int q = 1000000007
+    Lcg g = Lcg(state = 20271917)
+    int[] keys = array(n, fill = 0)
+    for i in range(n)
+        keys[i] = g.next_int()
+
+    int acc = 0
+    int size1 = 0
+    int found = 0
+    int vsum = 0
+    int mchk = 0
+    int size2 = 0
+    int size3 = 0
+    int lsum = 0
+
+    for r in range(rounds)
+        keys[r] = keys[r] + 1000000
+
+        map.Map<int, int> m = map.Map<int, int>()
+        for i in range(n)
+            int k = keys[i] % km
+            int | none current = m.get(k)
+            match current
+                int value
+                    m.set(k, value + 1)
+                none
+                    m.set(k, 1)
+        size1 = m.size()
+
+        found = 0
+        vsum = 0
+        for i in range(n)
+            int k = (keys[i] + 7) % km
+            int | none hit = m.get(k)
+            match hit
+                int value
+                    found = found + 1
+                    vsum = vsum + value
+                none
+                    void
+
+        mchk = 0
+        int[] map_keys = m.keys()
+        int[] map_values = m.values()
+        for i in range(len(map_keys))
+            mchk = (mchk + (map_keys[i] % 1000003) * map_values[i]) % 1000003
+
+        for i in range(0, n, step = 2)
+            int k = keys[i] % km
+            if m.has(k)
+                m.remove(k)
+        size2 = m.size()
+
+        set.Set<int> st = set.Set<int>()
+        for i in range(n)
+            st.add(keys[i] % sm)
+        size3 = st.size()
+
+        int[] lst = []
+        for i in range(n)
+            lst = lst.append(keys[i] % 1000)
+        lsum = 0
+        for v in lst
+            lsum = lsum + v
+
+        acc = (acc * 31 + size1) % q
+        acc = (acc * 31 + found) % q
+        acc = (acc * 31 + vsum) % q
+        acc = (acc * 31 + mchk) % q
+        acc = (acc * 31 + size2) % q
+        acc = (acc * 31 + size3) % q
+        acc = (acc * 31 + lsum) % q
+
+    return Result(acc = acc, size1 = size1, found = found, vsum = vsum, mchk = mchk, size2 = size2, size3 = size3, lsum = lsum)
+
+Result timed(int index)
+    time.Instant start = time.now()
+    Result result = workload()
+    time.Duration elapsed = time.since(start)
+    int elapsed_ns = math.round(elapsed.seconds() * 1000000000.0)
+    print("ITER {index} {elapsed_ns}")
+    io.flush()
+    return result
+
+Result result
+if args.mode == "steady"
+    int k = math.max(args.iterations, 1)
+    result = timed(0)
+    for i in range(1, k)
+        result = timed(i)
+else
+    result = workload()
+
+print("MB11 {result.acc} {result.size1} {result.found} {result.vsum} {result.mchk} {result.size2} {result.size3} {result.lsum}")

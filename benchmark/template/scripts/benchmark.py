@@ -4464,6 +4464,47 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
     for rid in unit.get("requirement_ids", []):
         if rid == "coverage.all_10_languages":
             requirements[rid] = fixed_10
+        elif rid == "gate.capability_universe":
+            asset = json_load(
+                root / "template" / "methodology-assets" / "semantic_compression"
+                / "capability_universe.json"
+            )
+            environment = json_load(root / "template" / "environment" / "environment.json")
+            probes = list(asset.get("probes", []))
+            probe_ids = [str(p.get("probe_id", "")) for p in probes]
+            families = {str(p.get("family", "")) for p in probes}
+            facts = set((asset.get("semantic_fact_kinds") or {}).keys())
+            fact_refs = {
+                str(fact)
+                for probe in probes
+                for fact in (probe.get("semantic_facts_expected") or [])
+            }
+            recipes = (asset.get("toolchain_binding") or {}).get("recipes") or {}
+            frozen_recipes = environment.get("frozen_toolchain_recipes") or {}
+            ok = (
+                asset.get("frozen") is True
+                and int(asset.get("probe_count", -1)) == len(probes)
+                and int(asset.get("family_count", -1)) == len(families)
+                and int(asset.get("total_fixed_capability_points", -1)) == 2 * len(probes)
+                and len(probes) > 0
+                and all(probe_ids)
+                and len(probe_ids) == len(set(probe_ids))
+                and fact_refs <= facts
+                and list(asset.get("fixed_comparison_languages", [])) == languages
+                and set(recipes) == set(languages)
+                and recipes == frozen_recipes
+                and "interpreter_run" not in (recipes.get("Quidra") or {})
+            )
+            requirements[rid] = ok
+            evidence.update({
+                "probe_count": len(probes),
+                "family_count": len(families),
+                "semantic_fact_kind_count": len(facts),
+                "unknown_semantic_fact_refs": sorted(fact_refs - facts),
+                "recipe_languages": sorted(recipes),
+                "toolchain_recipe_copies_match": recipes == frozen_recipes,
+                "quidra_interpreter_recipe_absent": "interpreter_run" not in (recipes.get("Quidra") or {}),
+            })
         elif rid == "coverage.all_frozen_probes":
             asset = json_load(
                 root / "template" / "methodology-assets" / "semantic_compression"

@@ -5,8 +5,7 @@
   "frozen_toolchain_recipes": {
     "Quidra": {
       "build": "quidra build FILE.qui -o BIN",
-      "run": "./BIN",
-      "interpreter_run": "quidra run FILE.qui"
+      "run": "./BIN"
     },
     "Python": {
       "run": "python3 FILE.py"

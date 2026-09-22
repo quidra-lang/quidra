@@ -503,10 +503,10 @@ jobs:
           python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
 
           test -f "$TMP/results/dispatch_queue.json"
-          grep -q '"agent_id": "worker-sc-structure-gates--part-1a"' "$TMP/results/dispatch_queue.json"
-          python benchmark/template/scripts/benchmark.py task-render             --workspace "$TMP" --id worker-sc-structure-gates--part-1a > "$TMP/rendered-task.md"
+          grep -q '"agent_id": "worker-sc-structure-gates--part-1b"' "$TMP/results/dispatch_queue.json"
+          python benchmark/template/scripts/benchmark.py task-render             --workspace "$TMP" --id worker-sc-structure-gates--part-1b > "$TMP/rendered-task.md"
           grep -q "Embedded input: worker_core.md" "$TMP/rendered-task.md"
-          grep -q "Fixed language-neutral capability universe" "$TMP/rendered-task.md"
+          grep -q "Mandatory semantic-site matrix" "$TMP/rendered-task.md"
           grep -q "/quidra-benchmark" "$TMP/rendered-task.md"
           if grep -Fq "$TMP" "$TMP/rendered-task.md"; then
             echo "physical synthetic workspace leaked into rendered Task Packet" >&2
@@ -543,9 +543,6 @@ jobs:
                   json.dumps(response) + "\n"
               )
 
-          write("worker-sc-structure-gates--part-1a", "semantic_compression", {
-              "gate.capability_universe": True,
-          })
           write("worker-sc-structure-gates--part-1b", "semantic_compression", {
               "gate.semantic_site_matrix": True,
           })
@@ -553,7 +550,7 @@ jobs:
               "gate.matrix_validator": True,
           })
           PY
-          for ID in sc-structure-gates--part-1a sc-structure-gates--part-1b sc-structure-gates--part-2a; do
+          for ID in sc-structure-gates--part-1b sc-structure-gates--part-2a; do
             # The gates are deliberately chained so advance after each one
             # materializes only the next narrow packet.
             python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"

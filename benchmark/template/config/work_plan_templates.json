@@ -11,17 +11,19 @@
             "gate.capability_universe"
           ],
           "dependencies": [],
-          "prompt_sections": [
-            "### 6.1.2 Fixed language-neutral capability universe",
-            "### 6.1.7 Fairness and audit requirements"
-          ],
+          "prompt_sections": [],
           "read_paths": [
-            "repo/docs",
-            "template/methodology-assets/semantic_compression"
+            "template/methodology-assets/semantic_compression",
+            "template/environment"
           ],
           "network_allowed": false,
           "goal_hint": "Validate only the frozen language-neutral capability universe gate. Keep the result compact; detailed frozen data already lives in methodology-assets.",
-          "worker_mode": "packet-only"
+          "worker_mode": "runner-command",
+          "execution_kind": "command",
+          "result_kind": "requirements",
+          "runner_action": "static-coverage",
+          "max_attempts": 1,
+          "goal": "Mechanically validate the frozen language-neutral Semantic Compression capability universe and its toolchain recipe agreement."
         },
         {
           "id": "sc-structure-gates--part-1b",

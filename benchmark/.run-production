@@ -14,8 +14,8 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-22T15:52:04Z
-reason: Language Quality scoped run on 12df6b0 after rehearsals 1, 2 and 2b: every LQ agent unit is certified in the cache, so this pays nothing and exercises the Linux mechanical measurement (Swift Glibc and Zig -lc fixes) and the LQ aggregation on real data; guard 1.0 USD
+requested_at_utc: 2026-09-22T18:38:35Z
+reason: Rehearsal of learnability-i1-i2--quidra on 8eecf57, the first paid Quidra unit under Quidra 0.3.0 / language 0.2 (constructors, scan, void | error output, math-only names, dnn.mode); the unit's cache record is keyed by the new version so it must miss; guard 1.0 USD
 model: claude-sonnet-5
 budget_usd: 1.0
-evaluation: language_quality
+units: learnability-i1-i2--quidra

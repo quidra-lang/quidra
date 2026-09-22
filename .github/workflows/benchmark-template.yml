@@ -640,14 +640,15 @@ jobs:
           PY
 
           # Stale RUNNING work is automatically reclaimable instead of hanging forever.
-          python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id ecosystem-gates--part-1
-          echo "stale-attempt-evidence" > "$TMP/work/agents/worker-ecosystem-gates--part-1/stale.txt"
+          # Use a real agent work unit; readiness gates are deterministic commands.
+          python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id ecosystem-external--part-1
+          echo "stale-attempt-evidence" > "$TMP/work/agents/worker-ecosystem-external--part-1/stale.txt"
           python - <<'PY'
           from pathlib import Path
           import json
           p = Path(".benchmark-template-test/work/root/ledger.json")
           data = json.loads(p.read_text())
-          data["units"]["ecosystem-gates--part-1"]["heartbeat_at_utc"] = "2000-01-01T00:00:00+00:00"
+          data["units"]["ecosystem-external--part-1"]["heartbeat_at_utc"] = "2000-01-01T00:00:00+00:00"
           p.write_text(json.dumps(data, indent=2) + "\n")
           PY
           python benchmark/template/scripts/benchmark.py reclaim-stale --workspace "$TMP"
@@ -655,14 +656,14 @@ jobs:
           from pathlib import Path
           import json
           data = json.loads(Path(".benchmark-template-test/work/root/ledger.json").read_text())
-          assert data["units"]["ecosystem-gates--part-1"]["status"] == "PENDING"
-          assert data["units"]["ecosystem-gates--part-1"]["attempts"] == 1
+          assert data["units"]["ecosystem-external--part-1"]["status"] == "PENDING"
+          assert data["units"]["ecosystem-external--part-1"]["attempts"] == 1
           PY
 
-          # A terminal blocker must propagate through dependent work instead of
-          # leaving the evaluation permanently PENDING.
+          # A terminal blocker must propagate to work that actually depends on it
+          # without poisoning independent Ecosystem metric units.
           python benchmark/template/scripts/benchmark.py ledger-update \
-            --workspace "$TMP" --id ecosystem-gates--part-1 --status BLOCKED \
+            --workspace "$TMP" --id ecosystem-external--part-1 --status BLOCKED \
             --blocker "synthetic CI infrastructure blocker" \
             --blocker-class infrastructure
           python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
@@ -671,8 +672,8 @@ jobs:
           import json
           root = Path(".benchmark-template-test")
           ledger = json.loads((root / "work/root/ledger.json").read_text())
-          for uid in ("ecosystem-external--part-1", "ecosystem-tooling--part-1", "ecosystem-aggregate"):
-              assert ledger["units"][uid]["status"] == "BLOCKED", (uid, ledger["units"][uid])
+          assert ledger["units"]["ecosystem-aggregate"]["status"] == "BLOCKED"
+          assert ledger["units"]["ecosystem-tooling--part-1"]["status"] == "PENDING"
           status = json.loads((root / "results/primary_status.json").read_text())
           eco = status["evaluations"]["ecosystem"]
           assert eco["status"] == "PARTIAL", eco

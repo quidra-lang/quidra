@@ -29,7 +29,7 @@ jobs:
       # partway. It remains a soft ceiling: the gateway refuses the next request
       # once estimated spend reaches it, so it caps overspend, it does not
       # authorize this much.
-      BENCHMARK_BUDGET_USD: "70.0"
+      BENCHMARK_BUDGET_USD: "100.0"
 
     steps:
       - uses: actions/checkout@v4

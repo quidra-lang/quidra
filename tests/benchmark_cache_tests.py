@@ -94,6 +94,24 @@ def make_workspace(tmp: Path) -> Path:
     return root
 
 
+def assert_language_scoped_program_reads(root: Path) -> None:
+    reads = set(
+        benchmark.planned_read_paths(
+            root,
+            ["repo/docs", "template/programs", "template/workloads"],
+            ["Python"],
+        )
+    )
+    expected = {
+        str(root / "template/programs/python/micro"),
+        str(root / "template/programs/python/adversarial"),
+        str(root / "template/workloads"),
+    }
+    assert reads == expected, (reads, expected)
+    assert not any("/programs/rust/" in path for path in reads)
+    assert not any(path.endswith("/repo/docs") for path in reads)
+
+
 def create_cacheable_task(root: Path) -> tuple[dict, dict]:
     unit_id = "cache-test--python"
     agent_id = "worker-cache-test--python"
@@ -234,6 +252,7 @@ def install_cache_record(root: Path, unit: dict, task: dict) -> str:
 def main() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
+        assert_language_scoped_program_reads(root)
         unit, task = create_cacheable_task(root)
         freeze_manifest(root, unit)
 

@@ -2231,6 +2231,51 @@ def derive_llm_call_budget(
     )
 
 
+def planned_read_paths(
+    root: Path,
+    raw_paths: list[str],
+    assigned_languages: list[str],
+) -> list[str]:
+    """Resolve task reads, narrowing reusable programs to assigned comparison languages."""
+    comparison_only = bool(assigned_languages) and "Quidra" not in assigned_languages
+    expanded: list[str] = []
+    catalog: dict[str, Any] | None = None
+
+    for value in raw_paths:
+        if comparison_only and value == "repo/docs":
+            continue
+        if comparison_only and value == "template/programs":
+            if catalog is None:
+                catalog = json_load(root / "template" / "reuse" / "catalog.json")
+                validate_reuse_catalog(catalog)
+            matches = sorted({
+                "template/" + str(artifact["destination"])
+                for artifact in catalog.get("artifacts", [])
+                if artifact.get("language") in assigned_languages
+                and str(artifact.get("destination", "")).startswith("programs/")
+            })
+            if not matches:
+                raise BenchmarkError(
+                    "no reusable comparison-language programs found for: "
+                    + ", ".join(assigned_languages)
+                )
+            expanded.extend(matches)
+            continue
+        expanded.append(value)
+
+    resolved: list[str] = []
+    seen: set[str] = set()
+    for value in expanded:
+        path = root / value
+        if not path.exists():
+            continue
+        canonical = str(require_under(path, root))
+        if canonical not in seen:
+            resolved.append(canonical)
+            seen.add(canonical)
+    return resolved
+
+
 def cmd_deterministic_plan(args: argparse.Namespace) -> int:
     root = workspace(args)
     assert_template_integrity(root)
@@ -2354,6 +2399,11 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                 agent_id = (
                     f"worker-{uid}" if execution_kind == "agent" else f"system-{uid}"
                 )
+                task_read_paths = planned_read_paths(
+                    root,
+                    [str(value) for value in raw.get("read_paths", [])],
+                    assigned_languages,
+                )
                 deps: list[str] = []
                 for dep in [str(x) for x in raw.get("dependencies", [])]:
                     dep_mode = split_modes.get(dep, "")
@@ -2387,9 +2437,8 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                         deps.append(dep)
                 if audit_ids:
                     raw_reads = [
-                        lexical_absolute(root / p)
-                        for p in raw.get("read_paths", [])
-                        if (root / p).exists()
+                        lexical_absolute(Path(path))
+                        for path in task_read_paths
                     ]
                     relevant_audits: list[str] = []
                     for audit_uid, audit_artifact in audit_artifact_by_unit.items():
@@ -2512,20 +2561,7 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                     "reuse_audit_for": [],
                     "requirement_ids": list(raw.get("requirement_ids", [])),
                     "workload_ids": list(raw.get("workload_ids", [])),
-                    "read_paths": [
-                        str(require_under(root / p, root))
-                        for p in (
-                            [
-                                value for value in raw.get("read_paths", [])
-                                if not (
-                                    assigned_languages
-                                    and "Quidra" not in assigned_languages
-                                    and value == "repo/docs"
-                                )
-                            ]
-                        )
-                        if (root / p).exists()
-                    ],
+                    "read_paths": task_read_paths,
                     "evidence_paths": evidence_paths,
                     "validator_command": validator_command,
                     "network_allowed": bool(raw.get("network_allowed", False)),

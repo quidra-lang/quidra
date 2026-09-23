@@ -945,6 +945,9 @@ def cmd_init(args: argparse.Namespace) -> int:
     catalog_hash = sha256_file(catalog_path) if catalog_path.exists() else None
     materialized_hash = sha256_file(materialized_path) if materialized_path.exists() else None
     template_hash = sha256_tree(root / "template")
+    target_execution_identity = quidra_execution_identity_from_git(
+        source, meta["commit_sha"]
+    )
 
     run = {
         "schema_version": 1,
@@ -952,6 +955,7 @@ def cmd_init(args: argparse.Namespace) -> int:
         "evaluated": {
             **meta,
             "compiler_version": manifest_version(root / "repo"),
+            "quidra_execution_identity": target_execution_identity,
         },
         "workspace_root": str(CANONICAL_WORKSPACE),
         "sandbox_mode": args.sandbox_mode,
@@ -5631,6 +5635,116 @@ def audit_languages(root: Path, unit: dict[str, Any]) -> list[str]:
     return languages
 
 
+QUIDRA_EXECUTION_INPUT_PATHS = (
+    "CMakeLists.txt",
+    "project.toml",
+    "quidra.manifest.json",
+    "src",
+    "include",
+    "docs/spec/grammar.ebnf",
+)
+
+
+def quidra_execution_identity_from_git(
+    source: Path, revision: str = "HEAD"
+) -> dict[str, Any]:
+    """Content identity of the compiler/runtime implementation a run executes.
+
+    Benchmark-only edits must not invalidate Quidra measurements, while a
+    compiler/runtime change under the same declared version must.
+    """
+    objects: dict[str, str] = {}
+    for relative in QUIDRA_EXECUTION_INPUT_PATHS:
+        try:
+            observed = run_capture(
+                ["git", "rev-parse", f"{revision}:{relative}"], source
+            )
+        except subprocess.CalledProcessError as exc:
+            raise BenchmarkError(
+                f"cannot identify Quidra execution input at {revision}:{relative}"
+            ) from exc
+        if not re.fullmatch(r"[0-9a-f]{40}", observed):
+            raise BenchmarkError(
+                f"invalid git object for Quidra execution input {relative}: {observed!r}"
+            )
+        objects[relative] = observed
+    digest = sha256_bytes(
+        json.dumps(
+            objects, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode("utf-8")
+    )
+    return {"schema_version": 1, "sha256": digest, "git_objects": objects}
+
+
+def current_quidra_execution_identity(root: Path) -> dict[str, Any] | None:
+    """Trusted target identity frozen by init before the sandbox is staged."""
+    run_path = root / "run.json"
+    if not run_path.is_file():
+        return None
+    raw = (json_load(run_path).get("evaluated") or {}).get(
+        "quidra_execution_identity"
+    )
+    if raw is None:
+        return None
+    if (
+        not isinstance(raw, dict)
+        or raw.get("schema_version") != 1
+        or not re.fullmatch(r"[0-9a-f]{64}", str(raw.get("sha256") or ""))
+        or not isinstance(raw.get("git_objects"), dict)
+        or set(raw["git_objects"]) != set(QUIDRA_EXECUTION_INPUT_PATHS)
+    ):
+        raise BenchmarkError("run.json carries an invalid Quidra execution identity")
+    return raw
+
+
+def _legacy_cache_run_commit_prefix(record: dict[str, Any]) -> str | None:
+    run_id = str((record.get("provenance") or {}).get("run_id") or "")
+    match = re.search(r"-([0-9a-f]{7,40})-gh\d+$", run_id)
+    return match.group(1) if match else None
+
+
+def cache_quidra_execution_reuse_problem(
+    root: Path, record: dict[str, Any]
+) -> str | None:
+    """Reject same-version target cache when the compiler/runtime actually changed."""
+    payload = record.get("fingerprint_payload") or {}
+    target = str(cache_policy(root).get("target_language") or "Quidra")
+    if target not in (payload.get("assigned_languages") or []):
+        return None
+    current = current_quidra_execution_identity(root)
+    if current is None:
+        if lexical_absolute(root) == lexical_absolute(CANONICAL_WORKSPACE):
+            return "current run is missing the trusted Quidra execution identity"
+        return None
+    compatibility = record.get("compatibility") or {}
+    recorded = compatibility.get("quidra_execution_identity")
+    if recorded is not None:
+        if not isinstance(recorded, dict):
+            return "cached Quidra execution identity is malformed"
+        if recorded.get("sha256") != current.get("sha256"):
+            return "Quidra compiler/runtime implementation changed"
+        if recorded.get("git_objects") != current.get("git_objects"):
+            return "Quidra execution-input object map changed"
+        return None
+    policy = cache_policy(root).get("quidra_execution_identity") or {}
+    baseline = policy.get("legacy_baseline") or {}
+    verified = {
+        str(value) for value in (policy.get("legacy_verified_commit_prefixes") or [])
+    }
+    prefix = _legacy_cache_run_commit_prefix(record)
+    if prefix not in verified:
+        return (
+            "legacy Quidra cache has no execution identity and its source commit "
+            "was not verified for migration"
+        )
+    if baseline.get("git_objects") != current.get("git_objects"):
+        return (
+            "legacy Quidra cache predates execution identities and the current "
+            "compiler/runtime no longer matches the frozen migration baseline"
+        )
+    return None
+
+
 def quidra_target_identity(root: Path) -> dict[str, str]:
     """The evaluated Quidra's declared versions, from the snapshot's project.toml.
 
@@ -6070,10 +6184,20 @@ def hydrate_certified_cache(
             raise BenchmarkError(f"{uid}: certified cache record failed integrity checks")
         cap_problem = cache_cap_reuse_problem(root, record, unit)
         if cap_problem:
+            status["hits"].pop(uid, None)
             status["misses"][uid] = {
                 "fingerprint": fingerprint,
                 "scope": cache_scope(unit),
                 "reason": cap_problem,
+            }
+            continue
+        target_problem = cache_quidra_execution_reuse_problem(root, record)
+        if target_problem:
+            status["hits"].pop(uid, None)
+            status["misses"][uid] = {
+                "fingerprint": fingerprint,
+                "scope": cache_scope(unit),
+                "reason": target_problem,
             }
             continue
         result_path = agent_dir / "result.json"
@@ -6087,14 +6211,43 @@ def hydrate_certified_cache(
             "certification": record.get("certification") or {},
             "fingerprint_payload": payload,
         })
-        if mechanical:
-            # The record holds the result the measurement scripts wrote; the
-            # raw samples stay in the retained evidence of the run that measured.
-            check_rc = cmd_command_result_check(argparse.Namespace(workspace=str(root), id=uid))
-        else:
-            check_rc = cmd_result_check(argparse.Namespace(workspace=str(root), id=unit["assigned_agent_id"]))
+        validation_problem = None
+        try:
+            if mechanical:
+                check_rc = cmd_command_result_check(
+                    argparse.Namespace(workspace=str(root), id=uid)
+                )
+            else:
+                check_rc = cmd_result_check(
+                    argparse.Namespace(
+                        workspace=str(root), id=unit["assigned_agent_id"]
+                    )
+                )
+        except (BenchmarkError, OSError, ValueError, KeyError) as exc:
+            check_rc = 2
+            validation_problem = str(exc)
         if check_rc != 0:
-            raise BenchmarkError(f"{uid}: cached result failed the current validator")
+            # Structurally intact cache may still be stale under a newer
+            # validator. Treat that as a MISS and execute only this unit again.
+            try:
+                result_path.unlink()
+            except FileNotFoundError:
+                pass
+            receipt_path = agent_dir / "cache_receipt.json"
+            try:
+                receipt_path.unlink()
+            except FileNotFoundError:
+                pass
+            status["hits"].pop(uid, None)
+            status["misses"][uid] = {
+                "fingerprint": fingerprint,
+                "scope": cache_scope(unit),
+                "reason": (
+                    "certified record rejected by current validator"
+                    + (f": {validation_problem}" if validation_problem else "")
+                ),
+            }
+            continue
         cmd_ledger_update(argparse.Namespace(
             workspace=str(root), id=uid, status="RUNNING", evidence=[],
             validation_result=None, blocker=None, blocker_class=None,
@@ -11846,6 +11999,14 @@ def cache_impact(source: Path) -> dict[str, Any]:
     pins = (json_load(template / "runtime" / "toolchains.json").get("toolchains") or {})
     policy = json_load(template / "config" / "cache_policy.json")
     declared = policy.get("declared_epochs") or {}
+    target_language = str(policy.get("target_language") or "Quidra")
+    current_target_execution = quidra_execution_identity_from_git(source, "HEAD")
+    target_identity_policy = policy.get("quidra_execution_identity") or {}
+    legacy_target_baseline = target_identity_policy.get("legacy_baseline") or {}
+    legacy_verified_prefixes = {
+        str(value)
+        for value in (target_identity_policy.get("legacy_verified_commit_prefixes") or [])
+    }
     epochs = policy.get("epochs") or {}
     versions: dict[str, str] | None = None
     project = source / "project.toml"
@@ -11911,6 +12072,27 @@ def cache_impact(source: Path) -> dict[str, Any]:
                 changed.append(f"measurement_script:{name}")
         if "quidra_target" in payload and versions is not None and payload["quidra_target"] != versions:
             changed.append("quidra_target")
+        if target_language in (payload.get("assigned_languages") or []):
+            recorded_identity = (
+                (record.get("compatibility") or {}).get("quidra_execution_identity")
+            )
+            if isinstance(recorded_identity, dict):
+                if (
+                    recorded_identity.get("sha256")
+                    != current_target_execution.get("sha256")
+                    or recorded_identity.get("git_objects")
+                    != current_target_execution.get("git_objects")
+                ):
+                    changed.append("quidra_execution_identity")
+            else:
+                prefix = _legacy_cache_run_commit_prefix(record)
+                if prefix not in legacy_verified_prefixes:
+                    changed.append("quidra_execution_identity:legacy-unverified")
+                elif (
+                    legacy_target_baseline.get("git_objects")
+                    != current_target_execution.get("git_objects")
+                ):
+                    changed.append("quidra_execution_identity:legacy-baseline-changed")
         entry = {
             "record": record_path.relative_to(source).as_posix(),
             "work_unit_id": (record.get("provenance") or {}).get("work_unit_id"),
@@ -12212,6 +12394,16 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
                 # single Rust unit whose compiler had never run.
                 skipped.append({"work_unit_id": unit.get("id"), "reason": str(exc)})
                 continue
+        compatibility: dict[str, Any] = {}
+        target = str(cache_policy(root).get("target_language") or "Quidra")
+        if target in (payload.get("assigned_languages") or []):
+            execution_identity = current_quidra_execution_identity(root)
+            if execution_identity is None:
+                raise BenchmarkError(
+                    f"{unit.get('id')}: cannot certify Quidra cache without "
+                    "the frozen execution identity"
+                )
+            compatibility["quidra_execution_identity"] = execution_identity
         record = {
             "schema_version": 1,
             "fingerprint": fingerprint,
@@ -12227,6 +12419,8 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
                 "prompt_sha256": task.get("prompt_sha256"),
             },
         }
+        if compatibility:
+            record["compatibility"] = compatibility
         relative = cache_record_relative(unit, fingerprint)
         destination = source / "benchmark" / "cache" / relative
         encoded = (json.dumps(record, indent=2, sort_keys=True) + "\n").encode("utf-8")

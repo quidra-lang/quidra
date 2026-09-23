@@ -348,6 +348,42 @@ def unit_payload(
                 "limitations": "synthetic deterministic harness evidence",
             }
         elif (
+            unit.get("evaluation") == "language_quality"
+            and requirement_id.startswith("metric.")
+        ):
+            design_path = (
+                root
+                / "template"
+                / "methodology-assets"
+                / "language_quality"
+                / "design_rubrics.json"
+            )
+            design_asset = json.loads(design_path.read_text(encoding="utf-8"))
+            rubric = (design_asset.get("metrics") or {}).get(requirement_id)
+            if rubric is None:
+                requirements[requirement_id] = {
+                    language: float(90 - languages.index(language))
+                    for language in assigned
+                }
+            else:
+                component_ids = [row["id"] for row in rubric["components"]]
+                requirements[requirement_id] = {
+                    language: 75.0 for language in assigned
+                }
+                evidence[requirement_id] = {
+                    "rubric_id": rubric["rubric_id"],
+                    "component_levels": {cid: 3 for cid in component_ids},
+                    "component_findings": {
+                        cid: f"synthetic frozen evidence for {cid}"
+                        for cid in component_ids
+                    },
+                    "evidence_refs": [
+                        "template/methodology-assets/language_quality/design_rubrics.json"
+                    ],
+                    "selection_rule": rubric["selection_rule"],
+                    "limitations": "synthetic deterministic harness evidence",
+                }
+        elif (
             unit.get("evaluation") == "llm_proficiency"
             and requirement_id in {
                 "metric.generation_success_rate",

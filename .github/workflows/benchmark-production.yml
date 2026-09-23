@@ -44,6 +44,14 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Restore private cross-run paid-leaf checkpoints
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/benchmark-paid-state
+          key: quidra-benchmark-paid-v1-${{ runner.os }}-${{ github.run_id }}-prepare-${{ github.run_attempt }}
+          restore-keys: |
+            quidra-benchmark-paid-v1-${{ runner.os }}-
+
       - name: Validate request and freeze run identity
         id: contract
         env:
@@ -182,6 +190,12 @@ jobs:
           # exactly which historical cache records were invalidated and why.
           cp "$RUNNER_TEMP/cache-impact.json" \
             .quidra-benchmark/results/cache_impact.json
+          paid_args=()
+          if [ "$MODE" = "scoped" ]; then paid_args+=(--evaluation "$EVALUATION"); fi
+          python benchmark/template/scripts/benchmark.py partial-paid-import \
+            --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+            --store "$RUNNER_TEMP/benchmark-paid-state" \
+            "${paid_args[@]}"
 
       - name: Report free cache hydration before paid inference
         env:

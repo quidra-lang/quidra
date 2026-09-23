@@ -120,6 +120,10 @@ jobs:
             raise "#{name}: previous handoff mismatch" unless inputs["previous-handoff"] == previous
           end
 
+          smoke = jobs.fetch("prepare").fetch("steps").find { |step| step["id"] == "smoke" }
+          raise "prepare provider smoke missing" unless smoke
+          smoke_run = smoke.fetch("run", "")
+          raise "provider smoke does not prove shared-prefix caching" unless smoke_run.include?("--prefix-probe-text")
 
           readme = File.read("benchmark/README.md").gsub(/\s+/, " ")
           order = "Semantic Compression → LLM Learnability → Language Quality → Ecosystem → LLM Proficiency"
@@ -173,6 +177,13 @@ jobs:
           )
           module = importlib.util.module_from_spec(spec)
           spec.loader.exec_module(module)
+
+          ranking = module.deterministic_ranking(
+              {"A": 80.004, "B": 80.003, "C": 79.99},
+              ["A", "B", "C"],
+          )
+          assert [row["rank"] for row in ranking] == [1, 1, 3], ranking
+          assert [row["score"] for row in ranking] == [80.0, 80.0, 79.99], ranking
 
           root = Path("benchmark/template")
           required = [

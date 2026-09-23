@@ -10893,6 +10893,14 @@ def cmd_aggregate_primary(args: argparse.Namespace) -> int:
         "score": scores["Quidra"],
         "scores": scores,
         "ranking": ranking,
+        "ranking_basis": {
+            "precision_decimals": 2,
+            "tie_policy": "competition rank on published score",
+            "interpretation": (
+                "descriptive ranking of the frozen Primary sample; it does not "
+                "claim statistical superiority beyond the measured sample"
+            ),
+        },
         "blocker_class": None,
         "blockers": [],
     }

@@ -14,12 +14,14 @@ The normal full-run lifecycle is:
 4. Create **benchmark** from the exact **develop** commit to evaluate, create
    benchmark/.run-production only on **benchmark**, commit that request there,
    and push it. The request marker must never exist on **develop**.
-5. GitHub Actions runs **benchmark-production** on **benchmark**. A single
-   provider smoke runs first, then a full request appears as five separate
-   top-level GitHub Actions jobs: **Semantic Compression → LLM Learnability →
-   Language Quality → Ecosystem → LLM Proficiency**, followed by a separate
-   **finalize** job. A scoped one-evaluation/rehearsal request still uses the
-   single scoped job.
+5. GitHub Actions runs **benchmark-production** on **benchmark**. Free preparation
+   hydrates every currently provable certified cache hit and verifies the remaining
+   budget before a single provider smoke. The five Primary evaluations then run in
+   order: **Semantic Compression → LLM Learnability → Language Quality → Ecosystem
+   → LLM Proficiency**. Each Primary has an initial slice plus two bounded recovery
+   slices; completed evaluations fast-forward those recovery jobs without rebuilding
+   the runtime or making paid calls. A separate **finalize** job follows. A scoped
+   one-evaluation/rehearsal request still uses the single scoped job.
 6. Do not write to **benchmark** while the workflow runs. **develop** may continue
    moving independently. The workflow itself may advance **benchmark** between
    evaluation jobs, but those commits contain only certified cache/prompt

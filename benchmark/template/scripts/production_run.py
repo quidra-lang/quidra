@@ -611,8 +611,9 @@ def build_budget_plan(
     )
     packet_output_ceiling = int(gateway.get("max_output_tokens_ceiling", 0) or 0)
     sandbox_cfg = benchmark.json_load(root / "template/config/sandbox_agent.json")
+    worker_cfg = benchmark.worker_isolation_config(root)
     orchestration_output = int(
-        sandbox_cfg.get("orchestration_max_output_tokens", 0) or 0
+        worker_cfg.get("orchestration_max_output_tokens", 8192) or 8192
     )
     orchestration_turn_reserve = min(
         3, int(sandbox_cfg.get("max_turns", 3) or 3)

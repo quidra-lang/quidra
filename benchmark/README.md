@@ -161,11 +161,11 @@ evaluated source SHA. Cache checkpoint commits on the remote **benchmark** branc
 are durability copies, not a new source snapshot.
 
 A planned wall-clock slice is a checkpoint, not a benchmark failure. After the
-normal five Primary jobs, each Primary has its own continuation job with another
-long execution window. An evaluation already marked **COMPLETE** skips the image
-build and paid dispatch entirely and simply forwards the handoff; only unresolved
-work can consume the continuation window or API budget. Terminal scientific or
-validator blockers are never silently converted into scores.
+normal five Primary jobs, each Primary has two bounded continuation passes, each
+with its own long execution window. An evaluation already marked **COMPLETE**
+skips the image build and paid dispatch entirely and simply forwards the handoff;
+only unresolved work can consume a continuation window or API budget. Terminal
+scientific or validator blockers are never silently converted into scores.
 
 - Validated cache is checkpointed into benchmark/cache and pushed to
   **benchmark** after each of the five evaluation jobs. The full scored workspace
@@ -181,9 +181,9 @@ validator blockers are never silently converted into scores.
 - If another writer unexpectedly moves **benchmark**, the workflow stops racing
   the branch and preserves the local result in the workflow artifact.
 - A full run keeps the prepared handoff, one normal handoff per evaluation and
-  one continuation handoff per evaluation. Every handoff carries the workspace,
+  two continuation handoffs per evaluation. Every handoff carries the workspace,
   cumulative budget ledger and API-cost evidence for that slice. **finalize**
-  consumes benchmark-<run-id>-recovery-llm-proficiency, and only if all five
+  consumes benchmark-<run-id>-recovery2-llm-proficiency, and only if all five
   evaluations are **COMPLETE** does it write benchmark-<run-id> with the combined
   formal result. A scoped request writes benchmark-<run-id>-scoped.
 

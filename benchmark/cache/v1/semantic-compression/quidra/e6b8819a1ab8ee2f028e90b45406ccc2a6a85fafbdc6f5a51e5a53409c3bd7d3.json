@@ -1,0 +1,385 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "e6b8819a1ab8ee2f028e90b45406ccc2a6a85fafbdc6f5a51e5a53409c3bd7d3",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "2026-09-medium",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "e3800217b90bde398aa72621f61f076a024ca804a1f48e09a95efb3fc81b7ef2",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "language_version": "0.2",
+      "version": "0.3.0"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs": "fa90c62e60146d693fb1c0d7d5f5aace4f4aed63f94abdfbaf4b5955208eb851",
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.semantic_density"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-sc-metrics-local--part-1--quidra",
+    "work_unit_id": "sc-metrics-local--part-1--quidra",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "e3800217b90bde398aa72621f61f076a024ca804a1f48e09a95efb3fc81b7ef2",
+    "run_id": "2026-09-23-fce5cfa-gh16",
+    "work_unit_id": "sc-metrics-local--part-1--quidra"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "metric.semantic_density": {
+        "fact_state_source": "Per-probe frozen site_id list taken directly from semantic_site_matrix.json language_templates.Quidra.site_order for each probe; EXPLICIT_LOCAL/NONLOCAL/IMPLICIT/ABSENT assignments made per the evidence-state definitions in semantic_compression.md 6.1.3, applied identically to Quidra as would be applied to any other language given the same local surface form.",
+        "methodology_basis": "benchmark/template/methodology/semantic_compression.md section 6.1.3.A: raw value = explicit local semantic sites (EXPLICIT_LOCAL evidence-state rows from the frozen semantic-site matrix) / lexical source tokens of measured_fragment, aggregated across the 44 frozen probes in capability_universe.json using a language-neutral whitespace/punctuation tokenizer (each identifier, keyword, literal, and each individual punctuation/operator glyph counts as one token; string contents count as a single literal token; comments/whitespace excluded).",
+        "normalization_note": "This shard reports only the Quidra language slice. No cross-language token/fact data is available inside this packet to perform the run's final min-max or comparative normalization across all 10 languages, which is a runner-level aggregation step. The reported 0-100 value is a provisional, explicitly-documented linear transform: normalized_score = round(min(100, raw_density * 100)), where raw_density = total_explicit_local_facts / total_lexical_tokens summed over every probe for which Quidra has a supported fragment. The runner should recompute the final cross-language normalized score once all language shards for metric.semantic_density are merged; the raw aggregate figures below are preserved so that recomputation is possible without re-deriving fragments.",
+        "per_probe": [
+          {
+            "explicit_local_facts": 4,
+            "fragment": "const int n = 7\nreturn n",
+            "probe_id": "F01.P1",
+            "tokens": 7,
+            "total_facts": 4
+          },
+          {
+            "explicit_local_facts": 4,
+            "fragment": "int counter = 0\nconst int LIMIT = 100",
+            "note": "lifetime_resource_effect scored IMPLICIT (module-level lifetime is a language default, no local annotation)",
+            "probe_id": "F01.P2",
+            "tokens": 9,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "int v\nif cond\n    v = 5\nelse\n    v = 9\nreturn v",
+            "probe_id": "F02.P1",
+            "tokens": 13,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "uint8[16] buf\nbuf[0] = 1\nreturn buf[0]",
+            "probe_id": "F02.P2",
+            "tokens": 16,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 4,
+            "fragment": "x += 1",
+            "probe_id": "F03.P1",
+            "tokens": 3,
+            "total_facts": 4
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "xs[1] = 42",
+            "probe_id": "F03.P2",
+            "tokens": 6,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "int slot = 4\nint &port = &slot\nport = 9\nreturn slot",
+            "probe_id": "F04.P1",
+            "tokens": 15,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "const int[] &window = &xs\nreturn window[0]",
+            "probe_id": "F04.P2",
+            "tokens": 14,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 4,
+            "fragment": "ref.Cell<int32> first = ref.Cell<int32>(value = int32(5))\nref.Cell<int32>[] holder = [first]\nref.Cell<int32> second = holder[0]\nbool same = first.same(second)\nreturn same",
+            "note": "lifetime_resource_effect scored NONLOCAL (Cell managed-allocation lifetime policy is documented at the runtime-representation section, not locally in the fragment)",
+            "probe_id": "F04.P3",
+            "tokens": 57,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 2,
+            "fragment": "int[] x = [1, 2, 3]\nf(x)\nreturn x[0]",
+            "note": "per spec 6.1.4.B this probe deliberately measures indeterminacy: aliasing_writable_aliasing, mutability, allocation_copy_move_borrow_destroy and externally_visible_side_effects require f's declaration (NONLOCAL); only value_vs_storage and control_flow_effect are locally decidable from the bare call site",
+            "probe_id": "F05.P1",
+            "tokens": 20,
+            "total_facts": 6
+          },
+          {
+            "explicit_local_facts": 6,
+            "fragment": "void put(int &value)\n    value = 12\n\nint cell = 3\nput(&cell)\nreturn cell",
+            "probe_id": "F05.P2",
+            "tokens": 21,
+            "total_facts": 6
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "int mid(int[] xs)\n    return xs[1]\n\nint[] xs = [1, 2, 3]\nint y = mid(xs)\nreturn y",
+            "probe_id": "F06.P1",
+            "tokens": 34,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "class DivMod\n    int q\n    int r\n\nDivMod divmod2(int a, int b)\n    DivMod result\n    result.q = a / b\n    result.r = a % b\n    return result\n\nDivMod dm = divmod2(a, b)\nint q = dm.q\nint r = dm.r\nreturn q + r",
+            "probe_id": "F06.P2",
+            "tokens": 58,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 4,
+            "fragment": "int32 r = a * b + c",
+            "probe_id": "F07.P1",
+            "tokens": 8,
+            "total_facts": 4
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "int q = a / b\nint m = a % b\nfloat d = float(a) / float(b)",
+            "probe_id": "F07.P2",
+            "tokens": 23,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "int32 m = 2147483647\nint32 o = m + 1\nreturn o",
+            "note": "Quidra's single optimized-and-checked arithmetic mode is the only rung available (rung iv); the trapping outcome is deterministic and locally documented by the language spec",
+            "probe_id": "F08.P1",
+            "tokens": 12,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "int q = 0\nif b == 0\n    q = 0\nelse\n    q = a / b\nreturn q",
+            "probe_id": "F08.P2",
+            "tokens": 19,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 4,
+            "fragment": "bool eq = s1 == s2",
+            "note": "alternative_value_cases ABSENT (no union involved)",
+            "probe_id": "F09.P1",
+            "tokens": 6,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "int[] xs2 = xs.sorted()\nint[] desc = array(len(xs2), fill = 0)\nfor i in range(len(xs2))\n    desc[i] = xs2[len(xs2) - 1 - i]\nbool lt = a < b",
+            "note": "Quidra's stdlib documents only ascending sorted(); descending order is obtained by an explicit manual reversal loop (PARTIAL under P-a); scored for density regardless",
+            "probe_id": "F09.P2",
+            "tokens": 58,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "int32 small = int32(big)\nreturn small",
+            "probe_id": "F10.P1",
+            "tokens": 9,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 4,
+            "fragment": "float sum = float(i) + d",
+            "probe_id": "F10.P2",
+            "tokens": 9,
+            "total_facts": 4
+          },
+          {
+            "explicit_local_facts": 3,
+            "fragment": "int e = xs[i]\nreturn e",
+            "note": "overflow_exceptional_numeric and alternative_value_cases ABSENT (indexing is not numeric overflow and yields no union alternative in the primary form)",
+            "probe_id": "F11.P1",
+            "tokens": 9,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "int[] part = array(3, fill = 0)\nfor i in range(3)\n    part[i] = xs[i + 1]\nint first = part[0]",
+            "note": "Quidra documents slicing for tensor/string/bin but not ordinary int[]; substituted with an explicit manual copy loop (PARTIAL under P-a)",
+            "probe_id": "F11.P2",
+            "tokens": 38,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "int | none o = none\nint n = 0\nmatch o\n    int value\n        n = value\n    none\n        n = 0\nreturn n",
+            "probe_id": "F12.P1",
+            "tokens": 23,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 4,
+            "fragment": "int inc(int value)\n    return value + 1\n\nint | none p = none\nmatch o\n    int value\n        p = inc(value)\n    none\n        p = none\nint result = 0\nmatch p\n    int value\n        result = value\n    none\n        result = 0",
+            "note": "Quidra has no optional-aware chaining/map operation; substituted with explicit match (PARTIAL under P-a per R9)",
+            "probe_id": "F12.P2",
+            "tokens": 45,
+            "total_facts": 4
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "int | error parse_twice(string s)\n    int value = try int.parse(s)\n    return value * 2",
+            "probe_id": "F13.P1",
+            "tokens": 22,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 4,
+            "fragment": "int n = 0\nmatch int.parse(s)\n    int value\n        n = value\n    error e\n        n = 0\nreturn n",
+            "note": "lifetime_resource_effect ABSENT",
+            "probe_id": "F13.P2",
+            "tokens": 23,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 4,
+            "fragment": "class RectData\n    float w\n    float h\n\nenum Shape\n    Circle(float)\n    Rect(RectData)\n\nShape s = Shape.Circle(2.0)",
+            "note": "possible_failure ABSENT (construction cannot fail); enum variants closed by declaration, satisfying F14.P1's closedness requirement",
+            "probe_id": "F14.P1",
+            "tokens": 25,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 4,
+            "fragment": "float area = 0.0\nmatch s\n    Shape.Circle value\n        area = 3.141592653589793 * value * value\n    Shape.Rect value\n        area = value.w * value.h\nreturn area",
+            "note": "possible_failure ABSENT (exhaustive match cannot fail)",
+            "probe_id": "F14.P2",
+            "tokens": 32,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 4,
+            "fragment": "T head<T>(T[] values)\n    return values[0]\n\nint a = head([4, 5, 6])\nstring b = head([\"p\", \"q\"])\nreturn a.string() + b",
+            "note": "alternative_value_cases ABSENT",
+            "probe_id": "F15.P1",
+            "tokens": 48,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 3,
+            "fragment": "T max_of<T: ordered>(T a, T b)\n    if a > b\n        return a\n    return b\n\nint m = max_of(3, 5)\nreturn m",
+            "note": "possible_failure and alternative_value_cases ABSENT",
+            "probe_id": "F15.P2",
+            "tokens": 33,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "int[] xs = [1, 2, 3]\nint total = 0\nfor value in xs\n    total = total + value\nreturn total",
+            "note": "Quidra stdlib documents no fold/reduce; explicit iteration used",
+            "probe_id": "F16.P1",
+            "tokens": 27,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "map.Map<string, int> mp = map.Map<string, int>()\nmp.set(\"a\", 1)\nint total = 0\nfor value in mp.values()\n    total = total + value\nint miss = 0\nmatch mp.get(\"b\")\n    int value\n        miss = value\n    none\n        miss = 0\nreturn total + miss",
+            "probe_id": "F16.P2",
+            "tokens": 69,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "int | error read_all()\n    file.Handle handle = try file.open(\"data.txt\")\n    string text = try handle.read()\n    return len(text.utf8())",
+            "probe_id": "F17.P1",
+            "tokens": 36,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 4,
+            "fragment": "print(\"x\")",
+            "probe_id": "F18.P1",
+            "tokens": 4,
+            "total_facts": 4
+          },
+          {
+            "explicit_local_facts": 3,
+            "fragment": "class Util\n    private int secret()\n        return 1\n\n    int pub_add(int a, int b)\n        return a + b + secret()\n\nUtil util\nint result = util.pub_add(2, 3)\nreturn result",
+            "note": "Quidra's 'private' visibility is class-member-only, not module-scoped; substituted with a class as the visibility unit within the same file (PARTIAL under P-e / infrastructure-note); externally_visible_side_effects and lifetime_resource_effect ABSENT",
+            "probe_id": "F18.P2",
+            "tokens": 41,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "int twenty()\n    return 20\n\nint twenty_two()\n    return 22\n\nint[] results = task.all([twenty, twenty_two])\nint sum = results[0] + results[1]\nreturn sum",
+            "probe_id": "F19.P1",
+            "tokens": 41,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 5,
+            "fragment": "void increment(atomic.Counter counter)\n    for index in range(1000)\n        counter.add(1)\n\natomic.Counter counter = atomic.counter(0)\ntask.all([increment, increment], counter)\nint final = counter.load()\nreturn final",
+            "probe_id": "F19.P2",
+            "tokens": 55,
+            "total_facts": 5
+          },
+          {
+            "explicit_local_facts": 3,
+            "fragment": "extern int c_abs(int value) = \"llabs\"\nint result = c_abs(-3)\nreturn result",
+            "note": "possible_failure and lifetime_resource_effect ABSENT (scalar-only C ABI boundary has no error channel and no resource)",
+            "probe_id": "F20.P1",
+            "tokens": 19,
+            "total_facts": 5
+          }
+        ],
+        "raw_aggregate": {
+          "raw_density": 0.1708,
+          "total_explicit_local_facts": 172,
+          "total_lexical_tokens": 1007
+        },
+        "supported_probe_count": 39,
+        "tokenizer_rule": "Each keyword, identifier, integer/float/string literal (as one token), and each individual punctuation/operator glyph (including each bracket, dot, comma, and each multi-character operator such as == or += as one token) counts as one lexical token; NEWLINE/INDENT/DEDENT structure, comments, and whitespace are not counted.",
+        "unsupported_probe_count": 5,
+        "unsupported_probes": {
+          "F05.P3": "Quidra function values are explicitly capture-free ('captures no local, receiver, top-level, or hidden environment' per docs/spec/language.md, 'Function values and union payload initialization'); the probe requires a closure capturing an enclosing local. NONE per rubric N-1, no fragment written.",
+          "F14.P3": "Quidra classes/enums use closed composition with no inheritance, interfaces, or declared open-extension mechanism ('Classes do not have a parent-class form...reuse is explicit composition' and enum variants are fixed at declaration; docs/spec/language.md). A third alternative cannot be added from a separate unit without editing the original declaration. NONE per rubric N-1.",
+          "F15.P3": "Method selection in Quidra is static and local to the receiver's concrete class; the language spec states explicitly 'no dynamic dispatch or hidden subtype relation' (docs/spec/architecture.md, docs/spec/language.md generics section). There is no abstract element type with runtime-dispatched implementation. NONE per rubric N-1.",
+          "F17.P2": "Quidra has no user-declarable end-of-lifetime hook (destructor/deinit) for ordinary classes; only compiler-owned managed allocation retain/release and standard-library resource handles (e.g. file.Handle) have documented deterministic release, and no standard scoped-dispose construct is exposed to arbitrary user classes. NONE per rubric N-1.",
+          "F20.P2": "Quidra's C FFI is documented as inbound-only: 'extern' declarations call existing C symbols; the spec exposes no no_mangle/export-with-C-ABI mechanism for a Quidra-defined function to be called from C. NONE per rubric N-1."
+        }
+      }
+    },
+    "requirements": {
+      "metric.semantic_density": {
+        "Quidra": 17
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "939a4110be57a5271cc0b0fb055dccfd32ea224faf6228aa0488432ffe530f1e",
+  "schema_version": 1
+}

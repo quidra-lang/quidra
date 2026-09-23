@@ -1,0 +1,124 @@
+{
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "certification": {
+    "primary_complete": true,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "ecosystem",
+  "fingerprint": "fc76ca4ae029e67db8014481f93808d235e071c8b3ca81c6c590823ad42d9011",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Quidra"
+    ],
+    "cache_epoch": "2026-09",
+    "cache_schema_version": 1,
+    "evaluation": "ecosystem",
+    "exact_task_packet_sha256": "dff04bd0cb8fa21aaf4d0f3613d1a83df9662518e1fa21209f8e29d2cfca47e4",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": true,
+    "provider": "anthropic-messages",
+    "quidra_target": {
+      "language_version": "0.2",
+      "version": "0.3.0"
+    },
+    "readable_input_content_hashes": {
+      "repo/docs": "fa90c62e60146d693fb1c0d7d5f5aace4f4aed63f94abdfbaf4b5955208eb851"
+    },
+    "requirement_ids": [
+      "metric.community_public_knowledge_availability"
+    ],
+    "runtime_toolchain_pins": {
+      "Quidra": {}
+    },
+    "schema_version": 1,
+    "toolchains": {},
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "3eabe97aecd3fc9944e176f9426881c2e67ad03a6105f46f84fb40e9edacad91",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-ecosystem-external--part-3--quidra",
+    "work_unit_id": "ecosystem-external--part-3--quidra",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "dff04bd0cb8fa21aaf4d0f3613d1a83df9662518e1fa21209f8e29d2cfca47e4",
+    "run_id": "2026-09-23-fce5cfa-gh16",
+    "work_unit_id": "ecosystem-external--part-3--quidra"
+  },
+  "result": {
+    "evaluation": "ecosystem",
+    "evidence": {
+      "metric.community_public_knowledge_availability": {
+        "examination_depth": "4 search queries executed, first-page aggregated results examined for each; identical depth budget as used for the other language shards in this ecosystem work unit",
+        "findings": [
+          {
+            "cite": "Quidra is a statically typed, native general-purpose programming language designed for both humans and language models.",
+            "note": "Official repository. Description and README confirm Quidra is a small, first-party-maintained project.",
+            "source": "https://github.com/quidra-lang/quidra"
+          },
+          {
+            "note": "Release history exists (v0.1.0 through v0.3.1) but changelogs are terse, single-maintainer style entries, not community-driven release notes.",
+            "source": "https://github.com/quidra-lang/quidra/releases"
+          },
+          {
+            "note": "Very small pull-request count (single digits), authored by one maintainer account (koba-jon), several with Claude Code co-authorship notes, indicating a small, largely non-community-contributed codebase rather than an active outside contributor base.",
+            "source": "https://github.com/quidra-lang/quidra/pull/1..6"
+          },
+          {
+            "cite": "The official Quidra playground: the real Quidra compiler frontend, compiled to WebAssembly and running in your browser tab.",
+            "note": "An official in-browser playground/WebAssembly frontend exists as first-party tooling.",
+            "source": "https://github.com/quidra-lang/playground"
+          },
+          {
+            "note": "No Stack Overflow tag, Reddit thread, Discord server, third-party tutorial, or blog post specific to the Quidra language was returned; results were unrelated general pages (Stack Overflow's own Wikipedia article, an unrelated 'Stack' language community, an unrelated PL-design Discord wiki).",
+            "source": "web_search: Quidra + stackoverflow/reddit/discord/tutorial/blog"
+          },
+          {
+            "note": "No matching Quidra-specific Stack Overflow or Reddit content was returned; results were unrelated Wikipedia pages for similarly-spelled terms (Quintiq, Quixote, Quil, etc.).",
+            "source": "web_search: site:stackoverflow.com OR site:reddit.com \"quidra\""
+          },
+          {
+            "note": "No independent ranking/aggregator page (e.g. star-ranking lists, StackShare, language-popularity trackers) surfaced quidra-lang as a tracked entry, unlike well-established languages that appear in such aggregator indexes.",
+            "source": "web_search: quidra-lang github stars forks watchers"
+          }
+        ],
+        "language": "Quidra",
+        "limitations": [
+          "Web search snapshots are not exhaustive and could miss small/private community venues (e.g. a closed Discord invite-only server) that do not surface in general search indexes.",
+          "Raw popularity indicators such as GitHub star/fork counts were not retrievable via the search tool in this session (no aggregator page reported a numeric count), so this evidence relies on presence/absence signals from search results rather than a numeric popularity proxy; per methodology this is used only as declared, non-standalone evidence.",
+          "This is a single-language shard; no cross-language comparison table was computed here, only the Quidra-specific raw evidence, consistent with the language-sharded task assignment."
+        ],
+        "measurement_date": "2026-09-23",
+        "predeclared_selection_rule": "For a single-language external-ecosystem shard, the predeclared target is the language's own canonical identity: search for (a) the official/canonical repository and site declared by the language's own docs, and (b) the presence of independent third-party public-knowledge venues (Stack Overflow tag/questions, Reddit community, Discord/community chat, third-party tutorials/blog posts, books, conference talks) using a fixed query set applied identically in spirit to every other assigned language shard: '<language> programming language', '<language> stackoverflow OR reddit OR discord OR tutorial OR blog', '<language> site:stackoverflow.com OR site:reddit.com', and a GitHub popularity-signal query. Candidate universe = general web search results returned by these queries; no cherry-picking beyond the queries actually run.",
+        "queries_run": [
+          "Quidra programming language",
+          "\"Quidra\" language quidra-lang github",
+          "Quidra language stackoverflow OR reddit OR discord OR tutorial OR blog",
+          "\"quidra\" site:stackoverflow.com OR site:reddit.com",
+          "quidra-lang github stars forks watchers"
+        ],
+        "retrieval_route": "web_search (provider-brokered), general web index, no login/API",
+        "score_rationale": "Normalized 0-100 (100 = best/richest independent community knowledge). Score of 5 reflects: (a) credit for genuine, substantial first-party documentation and an official interactive playground, which lower-bounds the score above zero and above a purely non-existent/undocumented language; (b) an essentially complete absence, within the retrievable public web, of independent third-party community knowledge channels (Q&A sites, forums, chat communities, tutorials, blogs, books) that the metric is specifically measuring, which is the dominant factor and keeps the score near the low end of the scale rather than at a mid-range value reserved for languages with some but limited community presence.",
+        "summary": "Quidra has substantial first-party technical documentation (this repository's own docs/spec tree, an official README, a dedicated WebAssembly playground site, and a small GitHub release history), but the predeclared search set found no evidence of independent public/community knowledge: no Stack Overflow tag or questions, no Reddit community, no Discord/community chat, no third-party tutorials or blog posts, no books, and no listing in general GitHub popularity/ranking aggregators. Contribution activity on the canonical repository is limited to a single maintainer account across a handful of pull requests. This pattern is consistent with a very new (v0.1.0-v0.3.1), single-vendor language that has not yet accumulated third-party community discussion or teaching material independent of its own maintainers."
+      }
+    },
+    "requirements": {
+      "metric.community_public_knowledge_availability": {
+        "Quidra": 5
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "345078f04c1ab7b329dbb88c8113d0556fa1564f9d98ef1b3d30531e26a3fc3f",
+  "schema_version": 1
+}

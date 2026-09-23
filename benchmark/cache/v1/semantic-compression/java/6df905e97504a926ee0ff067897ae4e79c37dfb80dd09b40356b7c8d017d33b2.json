@@ -1,0 +1,380 @@
+{
+  "assigned_languages": [
+    "Java"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "6df905e97504a926ee0ff067897ae4e79c37dfb80dd09b40356b7c8d017d33b2",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Java"
+    ],
+    "cache_epoch": "2026-09-medium",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "53c41689af804aae26d139f5257f8e888e007a3060c15ad71b30036388d6fcc3",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.hidden_semantic_cost"
+    ],
+    "runtime_toolchain_pins": {
+      "Java": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Java": "26.0.1"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-sc-metrics-hidden-coverage--part-1--java",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-1--java",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "53c41689af804aae26d139f5257f8e888e007a3060c15ad71b30036388d6fcc3",
+    "run_id": "2026-09-23-fce5cfa-gh16",
+    "work_unit_id": "sc-metrics-hidden-coverage--part-1--java"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "metric.hidden_semantic_cost": {
+        "aggregate_calculation": {
+          "computed_score": 92.68,
+          "formula": "score = 100 * (1 - (sum_of_hidden_category_counts / (supported_fragment_count * 9)))",
+          "interpretation": "Higher score = lower hidden semantic cost = better, per common.md normalization rule (0-100, 100 best).",
+          "max_categories_per_fragment": 9,
+          "max_possible_total": 369,
+          "raw_hidden_cost_fraction": 0.0732,
+          "rounded_score_reported": 93,
+          "sum_of_hidden_category_counts_over_supported_fragments": 27,
+          "supported_fragment_count": 41
+        },
+        "basis": "Java-only (this work unit is a single-language shard and cannot compute the cross-language COMMON BASIS defined in capability_universe.json interaction_with_quality_metrics; the runner is responsible for recombining all ten languages' fragment sets to derive the frozen common basis and re-deriving the common-basis figure for metrics A-D). The figures below are the ALL-FRAGMENTS basis for Java alone, published with n_L stated as required.",
+        "checklist_categories": [
+          "implicit_conversions",
+          "hidden_writable_aliasing_or_mutation",
+          "overload_or_dynamic_dispatch_not_locally_evident",
+          "implicit_allocation_copy_move_destruction_cleanup",
+          "implicit_exception_or_failure_propagation",
+          "hidden_nullability_or_optionality",
+          "implicit_representation_change",
+          "context_dependent_overflow_or_numeric_behavior",
+          "hidden_side_effects_on_existing_state"
+        ],
+        "counting_rule": "For each of the 44 frozen probes (capability_universe.json), one Java fragment was authored per authoring rules R1-R10. For each fragment, an annotator counts the NUMBER OF DISTINCT CHECKLIST CATEGORIES (0-9, not repeated instances of the same category) whose behavior is triggered by the fragment's measured_fragment but is NOT locally signalled by fixed local syntax under the Java Language Specification (per the 'do not count a behavior as hidden if fixed local syntax makes it unambiguous' rule). A behavior counted once per category per probe even if it recurs at multiple statements inside the same probe. Only fragments with support level FULL or PARTIAL are counted in the aggregate (probes scored NONE for Java contribute no fragment and are excluded from this metric's numerator/denominator, per the interaction_with_quality_metrics rule; they remain fully charged elsewhere via Capability Coverage).",
+        "language": "Java",
+        "limitations_and_gates": {
+          "comparability_gate_note": "Per primary.json semantic_compression.score_requires_comparability_gate=true, this per-language figure must not be treated as the final reported Semantic Compression Overall Score for Java until the runner confirms the semantic-site comparability gate passed and the common-basis recombination across all ten languages is complete.",
+          "na_policy_compliance": "No N/A was recorded for any capability point; the three NONE probes for Java (F05.P2, F20.P1, F20.P2) are documented NONE-with-justification per NA-6 and are excluded from this metric's numerator/denominator per interaction_with_quality_metrics, while remaining fully charged in Capability Coverage (separate metric, not computed by this work unit).",
+          "single_language_shard_caveat": "This work unit measures Java alone. Per capability_universe.json interaction_with_quality_metrics, Semantic Compression metrics A-D are PRIMARILY computed on the COMMON BASIS across all ten languages, which this shard cannot construct. This evidence file supplies the Java raw counts and an all-fragments-basis Java figure; the runner must recompute the common-basis figure once all ten language shards for metric.hidden_semantic_cost are merged, per spec 6.1.7 and the semantic_site_matrix.json provenance rule."
+        },
+        "methodology_source": "benchmark/template/methodology/semantic_compression.md section D (Hidden Semantic Cost, 20% of quality score); checklist frozen before annotation.",
+        "n_L_supported_fragments": 41,
+        "n_L_total_probes": 44,
+        "none_probes_java": [
+          {
+            "probe_id": "F05.P2",
+            "reason": "N-1: Java provides no documented standard mechanism giving a callee writable access to a caller's primitive scalar local; primitives are always passed by value and there is no reference/pointer/inout form in the language for locals of primitive type. JLS 8.4.1 / 15.12.4.2 (evaluation of arguments) confirm value-copy semantics for primitives."
+          },
+          {
+            "probe_id": "F20.P1",
+            "reason": "N-1/N-2: no built-in FFI usable under the frozen recipe (javac/java without --enable-preview and without linking flags); the Java Foreign Function & Memory API is a preview feature not enabled by the frozen recipe and JNI requires a separate native compilation/link step outside the frozen recipe."
+          },
+          {
+            "probe_id": "F20.P2",
+            "reason": "N-1: java produces JVM bytecode, not a natively-linked artifact exposing an unmangled C-ABI symbol discoverable by nm under the frozen recipe; no compiled artifact under the frozen recipe (nm field: 'no compiled artifact under the frozen recipe')."
+          }
+        ],
+        "per_probe_hidden_category_counts": {
+          "F01.P1": {
+            "categories": [],
+            "count": 0,
+            "note": "final int n = 7; return n; \u2014 no dynamic dispatch, no conversion, no hidden mutation."
+          },
+          "F01.P2": {
+            "categories": [],
+            "count": 0,
+            "note": "static long counter = 0; static final long LIMIT = 100; \u2014 mutability explicit via final."
+          },
+          "F02.P1": {
+            "categories": [],
+            "count": 0,
+            "note": "definite-assignment is compiler-checked (JLS 16); no runtime hidden behavior remains."
+          },
+          "F02.P2": {
+            "categories": [
+              "implicit_allocation_copy_move_destruction_cleanup",
+              "implicit_representation_change"
+            ],
+            "count": 2,
+            "note": "Substituted fragment (P-a): new byte[16] is implicitly zero-filled by the JVM (JLS 4.12.5); the zeroing and the allocation are not visible at the call site."
+          },
+          "F03.P1": {
+            "categories": [
+              "context_dependent_overflow_or_numeric_behavior"
+            ],
+            "count": 1,
+            "note": "x++ silently wraps on int overflow (JLS 15.18.2); no local signal of the wraparound."
+          },
+          "F03.P2": {
+            "categories": [
+              "implicit_exception_or_failure_propagation"
+            ],
+            "count": 1,
+            "note": "xs.set(1,42) on ArrayList throws unchecked IndexOutOfBoundsException, not declared at the call site."
+          },
+          "F04.P1": {
+            "categories": [],
+            "count": 0,
+            "note": "single-element int[] used as the alias; array reference semantics are explicit in Java (arrays are reference types)."
+          },
+          "F04.P2": {
+            "categories": [
+              "hidden_writable_aliasing_or_mutation"
+            ],
+            "count": 1,
+            "note": "Collections.unmodifiableList wraps without copying; a write to the underlying list remains visible through the view although the view's own mutators are blocked \u2014 this asymmetry is not evident at the wrap site."
+          },
+          "F04.P3": {
+            "categories": [],
+            "count": 0,
+            "note": "== used explicitly for identity; no hidden dispatch (Object.equals not invoked)."
+          },
+          "F05.P1": {
+            "categories": [
+              "hidden_writable_aliasing_or_mutation",
+              "implicit_exception_or_failure_propagation"
+            ],
+            "count": 2,
+            "note": "f(x) bare call on a List reference: callee may mutate, replace elements, or retain the reference, none of which is visible at the ordinary call-site expression; UnsupportedOperationException possibility from f is also invisible."
+          },
+          "F05.P3": {
+            "categories": [
+              "implicit_allocation_copy_move_destruction_cleanup"
+            ],
+            "count": 1,
+            "note": "the lambda neg is compiled to an implicitly allocated functional-interface instance capturing k; allocation is invisible at the declaration site."
+          },
+          "F06.P1": {
+            "categories": [
+              "implicit_conversions"
+            ],
+            "count": 1,
+            "note": "List<Integer> get(1) returns Integer; auto-unboxing to int at return is implicit (JLS 5.1.8)."
+          },
+          "F06.P2": {
+            "categories": [],
+            "count": 0,
+            "note": "a Java record used for the pair; no hidden boxing/copy beyond what the record declaration makes explicit."
+          },
+          "F07.P1": {
+            "categories": [
+              "context_dependent_overflow_or_numeric_behavior"
+            ],
+            "count": 1,
+            "note": "a*b+c silently wraps on int overflow."
+          },
+          "F07.P2": {
+            "categories": [
+              "context_dependent_overflow_or_numeric_behavior"
+            ],
+            "count": 1,
+            "note": "% on negative a yields a result whose sign follows the dividend, a special-case rule not visible at the operator (JLS 15.17.3)."
+          },
+          "F08.P1": {
+            "categories": [
+              "implicit_exception_or_failure_propagation"
+            ],
+            "count": 1,
+            "note": "Math.addExact throws unchecked ArithmeticException on overflow; not declared at the call site."
+          },
+          "F08.P2": {
+            "categories": [],
+            "count": 0,
+            "note": "explicit local guard on b==0 makes the fallback path fully visible."
+          },
+          "F09.P1": {
+            "categories": [
+              "overload_or_dynamic_dispatch_not_locally_evident"
+            ],
+            "count": 1,
+            "note": "s1.equals(s2) is a virtual call; the actual equals implementation invoked depends on s1's runtime class, not evident at the call site."
+          },
+          "F09.P2": {
+            "categories": [
+              "hidden_writable_aliasing_or_mutation"
+            ],
+            "count": 1,
+            "note": "Collections.sort(xs, Comparator.reverseOrder()) mutates xs in place; nothing at the call site signals in-place mutation versus a new list."
+          },
+          "F10.P1": {
+            "categories": [
+              "implicit_exception_or_failure_propagation"
+            ],
+            "count": 1,
+            "note": "Math.toIntExact throws unchecked ArithmeticException on overflow, undeclared."
+          },
+          "F10.P2": {
+            "categories": [
+              "implicit_conversions"
+            ],
+            "count": 1,
+            "note": "i + d implicitly widens i (int) to double before the addition (JLS 5.6.2); no cast token appears."
+          },
+          "F11.P1": {
+            "categories": [
+              "implicit_exception_or_failure_propagation"
+            ],
+            "count": 1,
+            "note": "xs.get(i) throws unchecked IndexOutOfBoundsException on an out-of-range i, undeclared at the call site."
+          },
+          "F11.P2": {
+            "categories": [
+              "hidden_writable_aliasing_or_mutation"
+            ],
+            "count": 1,
+            "note": "xs.subList(1,4) returns a view backed by xs; subsequent structural modification of xs invalidates/affects the view, not evident at the call site."
+          },
+          "F12.P1": {
+            "categories": [
+              "implicit_conversions"
+            ],
+            "count": 1,
+            "note": "Optional<Integer>.orElse(0) auto-boxes/unboxes the Integer payload implicitly."
+          },
+          "F12.P2": {
+            "categories": [
+              "implicit_allocation_copy_move_destruction_cleanup"
+            ],
+            "count": 1,
+            "note": "o.map(h) implicitly allocates a new Optional wrapper and invokes h through an implicit lambda/functional object."
+          },
+          "F13.P1": {
+            "categories": [
+              "implicit_exception_or_failure_propagation",
+              "hidden_nullability_or_optionality"
+            ],
+            "count": 2,
+            "note": "Integer.parseInt throws an unchecked NumberFormatException; Java's unchecked-exception design means parse_twice's signature does NOT reveal that calling it can fail, unlike checked exceptions."
+          },
+          "F13.P2": {
+            "categories": [],
+            "count": 0,
+            "note": "explicit try/catch(NumberFormatException) makes the protected region and the fallback fully visible."
+          },
+          "F14.P1": {
+            "categories": [],
+            "count": 0,
+            "note": "sealed interface Shape permits Circle, Rect (Java 17+) makes the closed set explicit at the declaration."
+          },
+          "F14.P2": {
+            "categories": [],
+            "count": 0,
+            "note": "switch pattern-matching over a sealed hierarchy is compiler-checked for exhaustiveness; no default arm is written and none is silently needed."
+          },
+          "F14.P3": {
+            "categories": [],
+            "count": 0,
+            "note": "ordinary interface + separate-unit implementation is Java's normal open-extension mechanism; explicit at both ends."
+          },
+          "F15.P1": {
+            "categories": [
+              "implicit_representation_change"
+            ],
+            "count": 1,
+            "note": "generic type erasure means T's runtime representation is Object at the bytecode level; the declared static relationship head(List<T>):T is not preserved as a runtime fact, an implicit representation change invisible in source."
+          },
+          "F15.P2": {
+            "categories": [
+              "implicit_representation_change"
+            ],
+            "count": 1,
+            "note": "same erasure behavior applies to the bounded generic max_of."
+          },
+          "F15.P3": {
+            "categories": [],
+            "count": 0,
+            "note": "dispatch through the Named interface is an ordinary, locally-evident virtual call at the call site (tag() on an interface-typed receiver)."
+          },
+          "F16.P1": {
+            "categories": [
+              "implicit_conversions"
+            ],
+            "count": 1,
+            "note": "summing via IntStream requires auto-unboxing/boxing conversions between Integer and int that are not written explicitly at each step."
+          },
+          "F16.P2": {
+            "categories": [
+              "context_dependent_overflow_or_numeric_behavior"
+            ],
+            "count": 1,
+            "note": "HashMap iteration order is unspecified by the Java specification; the fragment's behavior with respect to order is not determinable from the fragment alone (documented as unspecified, not from the operator syntax)."
+          },
+          "F17.P1": {
+            "categories": [],
+            "count": 0,
+            "note": "try-with-resources makes the close point and the exception-path guarantee explicit and local (JLS 14.20.3)."
+          },
+          "F17.P2": {
+            "categories": [],
+            "count": 0,
+            "note": "substituted fragment (P-a, no finalizer relied upon): an explicit try-with-resources-style scoped close is used instead of a nondeterministic finalizer, so the cleanup point remains locally visible."
+          },
+          "F18.P1": {
+            "categories": [],
+            "count": 0,
+            "note": "System.out.println is fully qualified and requires no import; no hidden scope introduction."
+          },
+          "F18.P2": {
+            "categories": [],
+            "count": 0,
+            "note": "package-private secret() enforces the boundary at compile time; visible and checked at both declaration and use sites."
+          },
+          "F19.P1": {
+            "categories": [
+              "implicit_exception_or_failure_propagation"
+            ],
+            "count": 1,
+            "note": "Future.get() declares checked InterruptedException/ExecutionException that must be caught or rethrown, adding propagation paths not visible from the bare submit() call alone."
+          },
+          "F19.P2": {
+            "categories": [],
+            "count": 0,
+            "note": "AtomicLong.incrementAndGet is an explicit, documented atomic operation; race-freedom guarantee is stated in the java.util.concurrent.atomic package documentation."
+          }
+        }
+      }
+    },
+    "requirements": {
+      "metric.hidden_semantic_cost": {
+        "Java": 93
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "c622a5d7ad2f4a885e31c1c165ffc0372103d29b6c5f45833aca9f2fbf747218",
+  "schema_version": 1
+}

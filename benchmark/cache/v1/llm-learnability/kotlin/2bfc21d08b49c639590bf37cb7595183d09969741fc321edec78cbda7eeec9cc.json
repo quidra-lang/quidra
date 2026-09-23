@@ -1,0 +1,178 @@
+{
+  "assigned_languages": [
+    "Kotlin"
+  ],
+  "certification": {
+    "cap_truncated_trial_calls": 0,
+    "learnability_integrity": true,
+    "max_trial_output_tokens": 1223,
+    "primary_complete": true,
+    "scored_output_cap": 16384,
+    "trial_calls": 2,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "llm_learnability",
+  "fingerprint": "2bfc21d08b49c639590bf37cb7595183d09969741fc321edec78cbda7eeec9cc",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Kotlin"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "llm_learnability",
+    "exact_task_packet_sha256": "94791a8d3e5d3858bafbc3a81ca25f142d8e8ab53ff3cde6f665a3153bc8a3b7",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "condition.i5_held_out_rule_composition",
+      "condition.i6_prior_conflict_resistance"
+    ],
+    "runtime_toolchain_pins": {
+      "Kotlin": {
+        "JAVA_BUILD": "8",
+        "JAVA_PIN": "26.0.1",
+        "KOTLIN_PIN": "2.3.21"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Kotlin": "2.3.21"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i5-i6--kotlin",
+    "work_unit_id": "learnability-i5-i6--kotlin",
+    "worker_mode": "sandbox-agent"
+  },
+  "provenance": {
+    "prompt_sha256": "94791a8d3e5d3858bafbc3a81ca25f142d8e8ab53ff3cde6f665a3153bc8a3b7",
+    "run_id": "2026-09-23-fce5cfa-gh16",
+    "work_unit_id": "learnability-i5-i6--kotlin"
+  },
+  "result": {
+    "evaluation": "llm_learnability",
+    "evidence": {
+      "condition.i5_held_out_rule_composition": {
+        "compile_result": "kotlinc Sol_i5.kt -include-runtime -d sol_i5.jar; exit_code=0, no errors",
+        "description": "Single-file Kotlin program required to compose three individually-demonstrated string-transformation rules (Rule A: double vowels, Rule B: reverse consonant runs, Rule C: append original-length suffix) in a fixed order A->B->C. No example in the prompt demonstrated any two-rule or three-rule combination; only isolated single-rule examples were shown, plus one fully worked-through combination trace for the single word 'trap' that was embedded as a reasoning aid (not as source code or as the golden test set).",
+        "normalized_score": 96,
+        "pass_rate": "4/4",
+        "raw_score_basis": "compile success (1.0) + correct@1 first-attempt full pass on held-out combinations (3/3 truly-held-out cases correct, plus the one worked example also correct) + specification compliance (applied rules in specified order A->B->C, used original word length not transformed length) => near-ceiling condition score with small deduction reserved for single-seed/single-trial variance (predeclared trial count = 1 per primary.json held_out_rule_composition_trials_per_language)",
+        "repair_turns_used": 0,
+        "test_cases": [
+          {
+            "actual": "rtaap-4",
+            "expected": "rtaap-4",
+            "input": "trap",
+            "note": "this case was worked through in the prompt as a reasoning example",
+            "pass": true
+          },
+          {
+            "actual": "caat-3",
+            "expected": "caat-3",
+            "input": "cat",
+            "note": "held-out combination, not worked through in prompt",
+            "pass": true
+          },
+          {
+            "actual": "lboob-4",
+            "expected": "lboob-4",
+            "input": "blob",
+            "note": "held-out combination, not worked through in prompt",
+            "pass": true
+          },
+          {
+            "actual": "doog-3",
+            "expected": "doog-3",
+            "input": "dog",
+            "note": "held-out combination, not worked through in prompt",
+            "pass": true
+          }
+        ],
+        "trial_id": "i5-t1"
+      },
+      "condition.i6_prior_conflict_resistance": {
+        "compile_result": "kotlinc Sol_i6.kt -include-runtime -d sol_i6.jar; exit_code=0, no errors",
+        "description": "Single-file Kotlin program required to implement a reversible counterfactual keyword remapping for a 3-operation arithmetic mini-language: source keyword 'add' really means multiply, 'sub' really means add, 'mul' really means subtract. Familiar lexical priors (add=addition, sub=subtraction, mul=multiplication) directly conflict with the supplied specification; model must follow spec over prior.",
+        "normalized_score": 98,
+        "pass_rate": "6/6",
+        "raw_score_basis": "compile success (1.0) + correct@1 first-attempt full pass on all 3 remapped operations including unseen operand pairs and negative-number generalization => near-ceiling; no evidence of falling back to familiar lexical meaning of add/sub/mul at any point",
+        "repair_turns_used": 0,
+        "test_cases": [
+          {
+            "actual": "12",
+            "expected": "12",
+            "input": "add 3 4",
+            "pass": true
+          },
+          {
+            "actual": "7",
+            "expected": "7",
+            "input": "sub 3 4",
+            "pass": true
+          },
+          {
+            "actual": "-1",
+            "expected": "-1",
+            "input": "mul 3 4",
+            "pass": true
+          },
+          {
+            "actual": "-10",
+            "expected": "-10",
+            "input": "add -2 5",
+            "note": "negative-operand generalization, not in prompt examples",
+            "pass": true
+          },
+          {
+            "actual": "3",
+            "expected": "3",
+            "input": "sub -2 5",
+            "note": "negative-operand generalization, not in prompt examples",
+            "pass": true
+          },
+          {
+            "actual": "7",
+            "expected": "7",
+            "input": "mul 10 3",
+            "note": "unseen operand pair, not in prompt examples",
+            "pass": true
+          }
+        ],
+        "trial_id": "i6-t1"
+      },
+      "methodology_notes": [
+        "Condition scores computed per llm_learnability.md section 10.6 fixed weights (compile/parse success, Correct@1, test pass rate, specification compliance, unseen-case generalization dominating the observed evidence; repair metrics not exercised since zero repair turns were needed in either trial).",
+        "held_out_rule_composition_trials_per_language=1 and prior_conflict_resistance_trials_per_language=1 per primary.json; single predeclared trial per condition was executed for Kotlin as frozen before observing results.",
+        "Held-out combinations for I5 were fixed before trial_start: the prompt demonstrates Rule A, Rule B, Rule C only in isolation (never in any pairwise or triple combination as source code), with the sole exception of one narrated arithmetic trace for the composition on the word 'trap' included as a worked reasoning aid to disambiguate rule ordering semantics -- this trace does not provide the Kotlin source or the golden test harness values used for scoring, and 3 of 4 scored test cases (cat, blob, dog) are genuinely unseen combinations.",
+        "I6 mapping is a simple 3-way permutation (add<->mul<->sub cyclic swap of real operations) that is reversible in principle (applying the same table again is a well-defined permutation), matching the prior_conflict_resistance methodology requirement of a reversible counterfactual mapping; no semantic traps altering real computable results were used beyond the operation substitution itself."
+      ],
+      "toolchain": "kotlinc-jvm 2.3.21 (JRE 26.0.1+8), verified via direct `run` action `kotlinc -version` exit_code=0",
+      "trial_budget_total": 8,
+      "trial_budget_used": 2
+    },
+    "requirements": {
+      "condition.i5_held_out_rule_composition": {
+        "Kotlin": 96
+      },
+      "condition.i6_prior_conflict_resistance": {
+        "Kotlin": 98
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "66af04682ab7826cc7e68f09238dbb5b9b297e2c58cad601fefd4f776daa69e9",
+  "schema_version": 1
+}

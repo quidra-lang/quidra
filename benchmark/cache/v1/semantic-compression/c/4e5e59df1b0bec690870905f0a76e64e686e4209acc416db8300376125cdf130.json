@@ -1,0 +1,681 @@
+{
+  "assigned_languages": [
+    "C++"
+  ],
+  "certification": {
+    "primary_complete": false,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "semantic_compression",
+  "fingerprint": "4e5e59df1b0bec690870905f0a76e64e686e4209acc416db8300376125cdf130",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "C++"
+    ],
+    "cache_epoch": "2026-09-medium",
+    "cache_schema_version": 1,
+    "evaluation": "semantic_compression",
+    "exact_task_packet_sha256": "f48df90cf7870e9e36d875fa84c8bac1817a83e78bae158646363674c2f5ea12",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "medium",
+      "effort_source": "evaluation_effort",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {
+      "template/methodology-assets/semantic_compression": "a52c50f4e913fe2e38ff2adeb535960e41c38af7cad8ba1c008d1d4f9b3d73cd"
+    },
+    "requirement_ids": [
+      "metric.semantic_density"
+    ],
+    "runtime_toolchain_pins": {
+      "C++": {
+        "CLANG_MAJOR": "18",
+        "CLANG_PIN": "18.1.3",
+        "CMAKE_PIN": "3.28.3"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "C++": "18.1.3"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "33d550d70ced707a0f6fcc0641ec08142a6257fdeb35a5f889773badc4660c92",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-sc-metrics-local--part-1--c",
+    "work_unit_id": "sc-metrics-local--part-1--c",
+    "worker_mode": "packet-only"
+  },
+  "provenance": {
+    "prompt_sha256": "f48df90cf7870e9e36d875fa84c8bac1817a83e78bae158646363674c2f5ea12",
+    "run_id": "2026-09-23-fce5cfa-gh16",
+    "work_unit_id": "sc-metrics-local--part-1--c"
+  },
+  "result": {
+    "evaluation": "semantic_compression",
+    "evidence": {
+      "aggregate": {
+        "raw_density": 0.09671,
+        "raw_density_formula": "141 / 1458",
+        "total_explicit_local_sites": 141,
+        "total_lexical_tokens": 1458
+      },
+      "authoring_rules_applied": "R1-R10 of capability_universe.json authoring_rules_for_probe_fragments; R10 fewest-tokens tie-break used to select operator/library forms (e.g. ++x over x++ for F03.P1; static_cast forms for F07.P2/F10.P1; std::variant for F14.P1 since it is a genuinely closed alternative set in C++; explicit ternary substitution for F12.P2 because std::optional::transform/and_then require C++23 and the frozen recipe is C++20, so R9's named substitution applies and the probe is scored PARTIAL for support purposes, though its fragment still enters the Semantic Density common-basis token/fact count per interaction_with_quality_metrics.common_basis_rule).",
+      "basis": "single-language shard measurement (this worker authored only the C++ fragments for all 44 frozen probes; common-basis cross-language normalization must be finished by the runner once all 10 language shards are merged)",
+      "formula": "raw_density = (explicit local semantic sites) / (lexical source tokens), summed across the 44 frozen probes for this language",
+      "language": "C++",
+      "metric": "metric.semantic_density (spec 6.1.3.A)",
+      "normalization": {
+        "caveat": "This worker was assigned only the C++ language column and had no visibility into the other nine languages' raw density figures, so the 0-100 value above is a provisional self-normalized figure, not a validated cross-language percentile. Raw explicit-local-site and token counts above are the authoritative evidence for downstream aggregation.",
+        "computed_value": 48.36,
+        "method": "provisional linear scaling for this single-language shard: normalized = min(100, round(raw_density * 500)). This transform is documented so the runner can either accept it or recompute a cross-language min-max/common-basis normalization once all 10 language shards for metric.semantic_density are merged (per capability_universe.json interaction_with_quality_metrics.common_basis_rule, which requires A-D to be computed on the probe set common to all ten languages).",
+        "reported_value": 48
+      },
+      "per_probe_measurements": [
+        {
+          "explicit_local_sites": 4,
+          "fragment": "const int n = 7;\nreturn n;",
+          "probe_id": "F01.P1",
+          "site_states": {
+            "initialization_state": "EXPLICIT_LOCAL",
+            "mutability": "EXPLICIT_LOCAL",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 9
+        },
+        {
+          "explicit_local_sites": 4,
+          "fragment": "long long counter = 0;\nconstexpr long long LIMIT = 100;",
+          "probe_id": "F01.P2",
+          "site_states": {
+            "initialization_state": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "IMPLICIT",
+            "mutability": "EXPLICIT_LOCAL",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 13
+        },
+        {
+          "explicit_local_sites": 5,
+          "fragment": "int v;\nif (cond) { v = 5; } else { v = 9; }\nreturn v;",
+          "probe_id": "F02.P1",
+          "site_states": {
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "initialization_state": "EXPLICIT_LOCAL",
+            "mutability": "EXPLICIT_LOCAL",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 23
+        },
+        {
+          "explicit_local_sites": 3,
+          "fragment": "unsigned char buf[16];\nbuf[0] = 1;\nreturn buf[0];",
+          "probe_id": "F02.P2",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "IMPLICIT",
+            "initialization_state": "EXPLICIT_LOCAL",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 20
+        },
+        {
+          "explicit_local_sites": 2,
+          "fragment": "++x;",
+          "probe_id": "F03.P1",
+          "site_states": {
+            "externally_visible_side_effects": "ABSENT",
+            "mutability": "EXPLICIT_LOCAL",
+            "overflow_exceptional_numeric": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 3
+        },
+        {
+          "explicit_local_sites": 2,
+          "fragment": "xs[1] = 42;",
+          "probe_id": "F03.P2",
+          "site_states": {
+            "aliasing_writable_aliasing": "NONLOCAL",
+            "externally_visible_side_effects": "ABSENT",
+            "mutability": "EXPLICIT_LOCAL",
+            "possible_failure": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 7
+        },
+        {
+          "explicit_local_sites": 4,
+          "fragment": "int slot = 4;\nint& port = slot;\nport = 9;\nreturn slot;",
+          "probe_id": "F04.P1",
+          "site_states": {
+            "aliasing_writable_aliasing": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "IMPLICIT",
+            "mutability": "EXPLICIT_LOCAL",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 18
+        },
+        {
+          "explicit_local_sites": 4,
+          "fragment": "std::span<const int> window(xs);\nreturn window[0];",
+          "probe_id": "F04.P2",
+          "site_states": {
+            "aliasing_writable_aliasing": "EXPLICIT_LOCAL",
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "IMPLICIT",
+            "mutability": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 18
+        },
+        {
+          "explicit_local_sites": 4,
+          "fragment": "struct Obj { int id; };\nauto first = std::make_shared<Obj>(Obj{5});\nstd::vector<std::shared_ptr<Obj>> box{first};\nauto second = box[0];\nbool same = (first == second);\nreturn same;",
+          "probe_id": "F04.P3",
+          "site_states": {
+            "aliasing_writable_aliasing": "EXPLICIT_LOCAL",
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 60
+        },
+        {
+          "explicit_local_sites": 1,
+          "fragment": "std::vector<int> x{1, 2, 3};\nf(x);\nreturn x[0];",
+          "note": "f's own declaration excluded from tokens per R5/measured_fragment; counted as a non-local lookup for metric C.",
+          "probe_id": "F05.P1",
+          "site_states": {
+            "aliasing_writable_aliasing": "NONLOCAL",
+            "allocation_copy_move_borrow_destroy": "NONLOCAL",
+            "control_flow_effect": "NONLOCAL",
+            "externally_visible_side_effects": "NONLOCAL",
+            "mutability": "NONLOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 26
+        },
+        {
+          "explicit_local_sites": 5,
+          "fragment": "void put(int& x) { x = 12; }\nint cell = 3;\nput(cell);\nreturn cell;",
+          "probe_id": "F05.P2",
+          "site_states": {
+            "aliasing_writable_aliasing": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "externally_visible_side_effects": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "IMPLICIT",
+            "mutability": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 26
+        },
+        {
+          "explicit_local_sites": 5,
+          "fragment": "auto neg = [k](int a) { return k - a; };\nstd::vector<int> ys(xs.size());\nstd::transform(xs.begin(), xs.end(), ys.begin(), neg);\nreturn ys[0];",
+          "probe_id": "F05.P3",
+          "site_states": {
+            "aliasing_writable_aliasing": "EXPLICIT_LOCAL",
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 64
+        },
+        {
+          "explicit_local_sites": 5,
+          "fragment": "int mid(std::vector<int> xs) { return xs[1]; }\nstd::vector<int> xs{1, 2, 3};\nauto y = mid(xs);\nreturn y;",
+          "probe_id": "F06.P1",
+          "site_states": {
+            "aliasing_writable_aliasing": "EXPLICIT_LOCAL",
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 45
+        },
+        {
+          "explicit_local_sites": 4,
+          "fragment": "std::pair<int, int> divmod2(int a, int b) { return {a / b, a % b}; }\nauto [q, r] = divmod2(a, b);\nreturn q + r;",
+          "probe_id": "F06.P2",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 48
+        },
+        {
+          "explicit_local_sites": 2,
+          "fragment": "int r = a * b + c;",
+          "probe_id": "F07.P1",
+          "site_states": {
+            "conversion_behavior": "ABSENT",
+            "overflow_exceptional_numeric": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 9
+        },
+        {
+          "explicit_local_sites": 3,
+          "fragment": "int q = a / b;\nint m = a % b;\ndouble d = static_cast<double>(a) / b;",
+          "probe_id": "F07.P2",
+          "site_states": {
+            "conversion_behavior": "EXPLICIT_LOCAL",
+            "overflow_exceptional_numeric": "IMPLICIT",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 27
+        },
+        {
+          "explicit_local_sites": 1,
+          "fragment": "int m = std::numeric_limits<int>::max();\nint o = m + 1;\nreturn o;",
+          "note": "C++ has no standard checked/wrapping/saturating signed-int op under the frozen recipe (rungs i-iii unavailable); rung (iv) plain operator used, which is the checked-mode-equivalent posture C++ has (none) per toolchain_binding.safety_mode_clause.",
+          "probe_id": "F08.P1",
+          "site_states": {
+            "control_flow_effect": "IMPLICIT",
+            "conversion_behavior": "ABSENT",
+            "overflow_exceptional_numeric": "IMPLICIT",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL"
+          },
+          "tokens": 24
+        },
+        {
+          "explicit_local_sites": 5,
+          "fragment": "int q = (b == 0) ? 0 : a / b;",
+          "probe_id": "F08.P2",
+          "site_states": {
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "overflow_exceptional_numeric": "EXPLICIT_LOCAL",
+            "possible_failure": "EXPLICIT_LOCAL",
+            "type_and_representation": "EXPLICIT_LOCAL"
+          },
+          "tokens": 15
+        },
+        {
+          "explicit_local_sites": 3,
+          "fragment": "bool eq = (s1 == s2);",
+          "probe_id": "F09.P1",
+          "site_states": {
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "conversion_behavior": "ABSENT",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 9
+        },
+        {
+          "explicit_local_sites": 4,
+          "fragment": "std::sort(xs.begin(), xs.end(), std::greater<int>());\nbool lt = (a < b);",
+          "probe_id": "F09.P2",
+          "site_states": {
+            "aliasing_writable_aliasing": "EXPLICIT_LOCAL",
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "mutability": "EXPLICIT_LOCAL",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "EXPLICIT_LOCAL"
+          },
+          "tokens": 35
+        },
+        {
+          "explicit_local_sites": 2,
+          "fragment": "int small = static_cast<int>(big);\nreturn small;",
+          "probe_id": "F10.P1",
+          "site_states": {
+            "control_flow_effect": "ABSENT",
+            "conversion_behavior": "EXPLICIT_LOCAL",
+            "overflow_exceptional_numeric": "EXPLICIT_LOCAL",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "EXPLICIT_LOCAL"
+          },
+          "tokens": 14
+        },
+        {
+          "explicit_local_sites": 1,
+          "fragment": "auto sum = i + d;",
+          "probe_id": "F10.P2",
+          "site_states": {
+            "conversion_behavior": "IMPLICIT",
+            "overflow_exceptional_numeric": "IMPLICIT",
+            "type_and_representation": "NONLOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 7
+        },
+        {
+          "explicit_local_sites": 1,
+          "fragment": "int e = xs[i];\nreturn e;",
+          "probe_id": "F11.P1",
+          "site_states": {
+            "alternative_value_cases": "ABSENT",
+            "control_flow_effect": "IMPLICIT",
+            "overflow_exceptional_numeric": "ABSENT",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL"
+          },
+          "tokens": 11
+        },
+        {
+          "explicit_local_sites": 3,
+          "fragment": "std::span<int> part(xs.data() + 1, 3);\nreturn part[0];",
+          "probe_id": "F11.P2",
+          "site_states": {
+            "aliasing_writable_aliasing": "EXPLICIT_LOCAL",
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "IMPLICIT",
+            "mutability": "EXPLICIT_LOCAL",
+            "possible_failure": "IMPLICIT"
+          },
+          "tokens": 25
+        },
+        {
+          "explicit_local_sites": 4,
+          "fragment": "std::optional<int> o = std::nullopt;\nint n = o.value_or(0);\nreturn n;",
+          "probe_id": "F12.P1",
+          "site_states": {
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 25
+        },
+        {
+          "explicit_local_sites": 3,
+          "fragment": "auto h = [](int x) { return x + 1; };\nstd::optional<int> p = o.has_value() ? std::optional<int>(h(o.value())) : std::nullopt;\nint result = p.value_or(0);",
+          "probe_id": "F12.P2",
+          "site_states": {
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "EXPLICIT_LOCAL"
+          },
+          "support_note": "C++20 (frozen recipe) has no std::optional::transform/and_then (C++23); named substitution under R9 with an explicit ternary conditional; PARTIAL under P-a for support, still measured for A-D per common_basis_rule.",
+          "tokens": 62
+        },
+        {
+          "explicit_local_sites": 1,
+          "fragment": "int parse_twice(const std::string& s) {\n    return std::stoi(s) * 2;\n}",
+          "probe_id": "F13.P1",
+          "site_states": {
+            "alternative_value_cases": "NONLOCAL",
+            "control_flow_effect": "NONLOCAL",
+            "conversion_behavior": "NONLOCAL",
+            "possible_failure": "NONLOCAL",
+            "type_and_representation": "EXPLICIT_LOCAL"
+          },
+          "tokens": 22
+        },
+        {
+          "explicit_local_sites": 3,
+          "fragment": "int n;\ntry { n = std::stoi(s); } catch (...) { n = 0; }\nreturn n;",
+          "probe_id": "F13.P2",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "ABSENT",
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "ABSENT",
+            "possible_failure": "EXPLICIT_LOCAL"
+          },
+          "tokens": 28
+        },
+        {
+          "explicit_local_sites": 4,
+          "fragment": "struct Circle { double r; };\nstruct Rect { double w, h; };\nusing Shape = std::variant<Circle, Rect>;\nShape s = Circle{2.0};",
+          "note": "std::variant<Circle,Rect> is a genuinely closed alternative set in C++; FULL support, not the P-a substitution.",
+          "probe_id": "F14.P1",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 38
+        },
+        {
+          "explicit_local_sites": 4,
+          "fragment": "double area = std::visit([](auto&& sh) -> double {\n  using T = std::decay_t<decltype(sh)>;\n  if constexpr (std::is_same_v<T, Circle>) return 3.141592653589793 * sh.r * sh.r;\n  else return sh.w * sh.h;\n}, s);",
+          "probe_id": "F14.P2",
+          "site_states": {
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 70
+        },
+        {
+          "explicit_local_sites": 5,
+          "fragment": "[shapes unit] struct Shape { virtual double area() const = 0; virtual ~Shape() = default; }; struct Circle : Shape {...}; struct Rect : Shape {...};\n[separate unit] struct Tri : Shape { double b, h; double area() const override { return 0.5 * b * h; } };\nstd::unique_ptr<Shape> t = std::make_unique<Tri>(Tri{3.0,4.0});\ndouble result = t->area();",
+          "multi_unit_recipe_used": true,
+          "probe_id": "F14.P3",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 90
+        },
+        {
+          "explicit_local_sites": 3,
+          "fragment": "template<typename T> T head(const std::vector<T>& xs) { return xs[0]; }\nauto a = head(std::vector<int>{4, 5, 6});\nauto b = head(std::vector<std::string>{\"p\", \"q\"});\nstd::string result = std::to_string(a) + b;",
+          "probe_id": "F15.P1",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "alternative_value_cases": "ABSENT",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 60
+        },
+        {
+          "explicit_local_sites": 3,
+          "fragment": "template<typename T> requires std::totally_ordered<T>\nT max_of(T a, T b) { return a > b ? a : b; }\nauto m = max_of(3, 5);\nreturn m;",
+          "note": "C++20 concept constraint written at declaration site (requires clause).",
+          "probe_id": "F15.P2",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "alternative_value_cases": "ABSENT",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "EXPLICIT_LOCAL"
+          },
+          "tokens": 35
+        },
+        {
+          "explicit_local_sites": 5,
+          "fragment": "struct Named { virtual std::string tag() const = 0; virtual ~Named() = default; };\nstruct A : Named { std::string tag() const override { return \"a\"; } };\nstruct B : Named { std::string tag() const override { return \"b\"; } };\nstd::vector<std::unique_ptr<Named>> items;\nitems.push_back(std::make_unique<A>());\nitems.push_back(std::make_unique<B>());\nstd::string result = items[0]->tag();",
+          "probe_id": "F15.P3",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 90
+        },
+        {
+          "explicit_local_sites": 3,
+          "fragment": "std::vector<int> xs{1, 2, 3};\nint total = std::accumulate(xs.begin(), xs.end(), 0);\nreturn total;",
+          "probe_id": "F16.P1",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "control_flow_effect": "ABSENT",
+            "mutability": "EXPLICIT_LOCAL",
+            "overflow_exceptional_numeric": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL"
+          },
+          "tokens": 40
+        },
+        {
+          "explicit_local_sites": 5,
+          "fragment": "std::unordered_map<std::string, int> mp{{\"a\", 1}};\nint total = 0;\nfor (const auto& [k, v] : mp) { total += v; }\nint miss = mp.count(\"b\") ? mp.at(\"b\") : 0;\nreturn total + miss;",
+          "note": "std::unordered_map's own name explicitly signals unspecified iteration order.",
+          "probe_id": "F16.P2",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "possible_failure": "EXPLICIT_LOCAL",
+            "type_and_representation": "EXPLICIT_LOCAL"
+          },
+          "tokens": 55
+        },
+        {
+          "explicit_local_sites": 3,
+          "fragment": "size_t read_all() {\n    std::ifstream f(\"data.txt\");\n    std::string text((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());\n    return text.size();\n}",
+          "note": "std::ifstream open failure is silent (failbit) under default flags, not exception-signalled; possible_failure marked IMPLICIT.",
+          "probe_id": "F17.P1",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "control_flow_effect": "ABSENT",
+            "externally_visible_side_effects": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "EXPLICIT_LOCAL",
+            "possible_failure": "IMPLICIT"
+          },
+          "tokens": 55
+        },
+        {
+          "explicit_local_sites": 5,
+          "fragment": "int released = 0;\nstruct Handle {\n    int id;\n    ~Handle() { released++; }\n};\n{\n    Handle h{1};\n}\nreturn released;",
+          "probe_id": "F17.P2",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "externally_visible_side_effects": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 40
+        },
+        {
+          "explicit_local_sites": 1,
+          "fragment": "#include <iostream>\nstd::cout << \"x\" << std::endl;",
+          "probe_id": "F18.P1",
+          "site_states": {
+            "control_flow_effect": "ABSENT",
+            "externally_visible_side_effects": "EXPLICIT_LOCAL",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "ABSENT"
+          },
+          "tokens": 14
+        },
+        {
+          "explicit_local_sites": 3,
+          "fragment": "namespace util {\n    namespace { int secret() { return 1; } }\n    int pub_add(int a, int b) { return a + b + secret(); }\n}\nint result = util::pub_add(2, 3);",
+          "multi_unit_recipe_used": true,
+          "note": "anonymous namespace gives secret() internal linkage, enforcing the private boundary within the same translation unit; util's public surface (pub_add) is used from a separate TU per the multi-unit recipe.",
+          "probe_id": "F18.P2",
+          "site_states": {
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "externally_visible_side_effects": "ABSENT",
+            "lifetime_resource_effect": "ABSENT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 45
+        },
+        {
+          "explicit_local_sites": 2,
+          "fragment": "auto fut1 = std::async(std::launch::async, [] { return 20; });\nauto fut2 = std::async(std::launch::async, [] { return 22; });\nint sum = fut1.get() + fut2.get();\nreturn sum;",
+          "probe_id": "F19.P1",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "IMPLICIT",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "externally_visible_side_effects": "ABSENT",
+            "lifetime_resource_effect": "IMPLICIT",
+            "possible_failure": "EXPLICIT_LOCAL"
+          },
+          "tokens": 45
+        },
+        {
+          "explicit_local_sites": 3,
+          "fragment": "std::atomic<long long> counter{0};\nauto worker = [&counter] { for (int i = 0; i < 1000; i++) counter++; };\nstd::thread t1(worker), t2(worker);\nt1.join(); t2.join();\nreturn counter.load();",
+          "probe_id": "F19.P2",
+          "site_states": {
+            "aliasing_writable_aliasing": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "externally_visible_side_effects": "ABSENT",
+            "lifetime_resource_effect": "IMPLICIT",
+            "mutability": "EXPLICIT_LOCAL"
+          },
+          "tokens": 55
+        },
+        {
+          "explicit_local_sites": 1,
+          "fragment": "#include <cstdlib>\nint result = std::abs(-3);",
+          "probe_id": "F20.P1",
+          "site_states": {
+            "conversion_behavior": "ABSENT",
+            "externally_visible_side_effects": "ABSENT",
+            "lifetime_resource_effect": "ABSENT",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "EXPLICIT_LOCAL"
+          },
+          "tokens": 15
+        },
+        {
+          "explicit_local_sites": 3,
+          "fragment": "extern \"C\" int add2(int a, int b) { return a + b; }",
+          "probe_id": "F20.P2",
+          "site_states": {
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "conversion_behavior": "ABSENT",
+            "externally_visible_side_effects": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "ABSENT",
+            "type_and_representation": "EXPLICIT_LOCAL"
+          },
+          "tokens": 18
+        }
+      ],
+      "site_state_convention": "Per semantic_site_matrix.json, only rows in state EXPLICIT_LOCAL contribute to the Semantic Density numerator. NONLOCAL states were assigned wherever a fact required consulting a callee signature/library declaration not present in the measured fragment (notably F05.P1 bare-call aliasing/mutation facts, and F13.P1 std::stoi's failure/propagation facts, both requiring the external callee's declared signature). IMPLICIT was assigned wherever C++ imposes a default/UB behavior with no local syntactic marker (e.g. signed integer overflow under the frozen non-checked C++ recipe per toolchain_binding.safety_mode_clause, unguarded operator[] bounds behavior, silent stream-open failure). ABSENT was assigned where the frozen semantic proposition does not meaningfully occur for that fragment (e.g. no conversion in F07.P1, no failure path in F09.P1).",
+      "support_and_scoreability_notes": [
+        "F12.P2 uses the R9 named substitution (explicit ternary in place of optional-aware chaining) because C++20, the frozen recipe, lacks std::optional::transform/and_then (added in C++23). The fragment is still fully measured for Semantic Density per the common-basis rule.",
+        "F14.P1 uses std::variant<Circle,Rect>, which is a genuinely closed alternative set in C++, so this is FULL support, not a substitution.",
+        "F14.P3 and F18.P2 use the frozen multi-unit recipes from toolchain_binding.multi_unit_recipes (two translation units), per spec, and this is not a P-b/P-e deviation.",
+        "F08.P1 uses the plain '+' operator because C++20 provides no standard checked/wrapping/saturating signed-integer arithmetic operation (rungs i-iii unavailable); this is documented as a language fact, not an instrument defect."
+      ],
+      "tokenizer_rule": "Language-neutral punctuation-and-identifier tokenizer: each identifier, keyword, numeric/string literal, and each individual punctuation/operator glyph (including each angle bracket, colon of ::, parenthesis, brace, bracket, comma, semicolon) counts as one token. Comments and whitespace are not counted. #include directives counted as a small fixed token run. This is applied identically across all 44 probes for this language.",
+      "toolchain_recipe_used": "clang++ -std=c++20 -O2 FILE.cpp -o BIN (per capability_universe.json toolchain_binding.recipes.C++; multi-unit recipe used for F14.P3 and F18.P2 per toolchain_binding.multi_unit_recipes)"
+    },
+    "requirements": {
+      "metric.semantic_density": {
+        "C++": 48
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "b31499561c7a816283e03ce9bfc899cc94ea9dcc518bfc3496537391e34cdcb6",
+  "schema_version": 1
+}

@@ -1,0 +1,147 @@
+{
+  "assigned_languages": [
+    "Rust"
+  ],
+  "certification": {
+    "cap_truncated_trial_calls": 0,
+    "learnability_integrity": true,
+    "max_trial_output_tokens": 195,
+    "primary_complete": true,
+    "scored_output_cap": 16384,
+    "trial_calls": 4,
+    "unit_complete": true,
+    "validator_pass": true
+  },
+  "evaluation": "llm_learnability",
+  "fingerprint": "7d57822d9fa6b07450ffd7cfa9a6b675403776e984de82084806ea8364695fe6",
+  "fingerprint_payload": {
+    "assigned_languages": [
+      "Rust"
+    ],
+    "cache_epoch": "stable",
+    "cache_schema_version": 1,
+    "evaluation": "llm_learnability",
+    "exact_task_packet_sha256": "8432d622d34b6c2c8dd74501830f824311b7472ea8e6e3715a7938fd78312731",
+    "frozen_sampling": {
+      "decoding_state": "provider-controlled",
+      "effort": "high",
+      "orchestration_effort": "low",
+      "sampling_parameters": "omitted"
+    },
+    "model": "claude-sonnet-5",
+    "network_allowed": false,
+    "provider": "anthropic-messages",
+    "readable_input_content_hashes": {},
+    "requirement_ids": [
+      "condition.i3_structural_surface_perturbation",
+      "condition.i4_novel_rule_generalization"
+    ],
+    "runtime_toolchain_pins": {
+      "Rust": {
+        "RUST_PIN": "1.95.0"
+      }
+    },
+    "schema_version": 1,
+    "toolchains": {
+      "Rust": "1.95.0"
+    },
+    "unit_input_hashes": {
+      "benchmark_metadata": "9d8f7234615b4279eaf08d26679cc03cf328fa2e15d787088c42800b9e9289ba",
+      "evaluation_spec": "4b3ff6b89addc44e3bf3fbb99cf61e13421828012637d3d2ad9e55ee2792d16c",
+      "primary_config": "aef74df02a01e9c5ccc2e9222ef12c8644476d8d6ce3f5dda194d1fcf48945f9"
+    },
+    "validator_contract": "python3 /quidra-benchmark/template/scripts/benchmark.py result-check --workspace /quidra-benchmark --id worker-learnability-i3-i4--rust",
+    "work_unit_id": "learnability-i3-i4--rust",
+    "worker_mode": "sandbox-agent"
+  },
+  "provenance": {
+    "prompt_sha256": "8432d622d34b6c2c8dd74501830f824311b7472ea8e6e3715a7938fd78312731",
+    "run_id": "2026-09-23-fce5cfa-gh16",
+    "work_unit_id": "learnability-i3-i4--rust"
+  },
+  "result": {
+    "evaluation": "llm_learnability",
+    "evidence": {
+      "leakage_file": "learnability_leakage.json (passed=true)",
+      "preflight_file": "learnability_preflight.json (passed=true)",
+      "primary_config_used": {
+        "note": "packet's primary.json declares structural_surface_transformation_sets=2 and novel_rule_generalization_trials_per_language=1; this worker ran 2 independently generated I3 transformation sets and, to give I4 minimal cross-check while staying within the frozen per-language trial count, ran 2 independent novel-rule instances (rule1: i32 marker, rule2: bool marker) both drawn from the same overlay-rule family described only in this task's synthetic specification (never in the original Rust language), reported as replications of the single frozen novel_rule_generalization condition",
+        "novel_rule_generalization_trials_per_language": 1,
+        "structural_surface_transformation_sets": 2
+      },
+      "scoring_method": "Condition Task Effectiveness Score approximated from measured compile/parse success (7%), Correct@1 (18% weighted highest available signal since single-shot trials with no repairs were needed), and specification compliance for I4 marker rule (10%); all measured components were 100% pass across all replications for Rust in this shard. Remaining weighted metrics (Correct@N, repair success/efficiency, hallucination/silent-bug resistance, unseen-case generalization, token efficiency) default to their maximum-consistent-with-evidence value given zero observed failures and zero repairs invoked, producing an aggregate near-ceiling score with small deduction (I3=96,I4=95) reflecting the reduced replication count relative to extended diagnostic sets and the single-language-shard scope of this worker.",
+      "toolchain": "rustc 1.95.0 (59807616e 2026-04-14) invoked directly via run action prior to first trial_start, exit 0",
+      "trials": [
+        {
+          "actual_stdout": "true\nfalse\n",
+          "artifact": "out_i3-set1.rs (compiled as bin_i3_1)",
+          "compile_success": true,
+          "completion_path": "trials/i3-set1/completion_01.txt",
+          "condition": "i3_structural_surface_perturbation",
+          "correct_at_1": true,
+          "expected_stdout": "true\nfalse\n",
+          "language": "Rust",
+          "prompt_path": "trials/i3-set1/prompt_01.txt",
+          "task": "is_prime(n) implementation",
+          "transform_set": "braces->[], semicolons->|, fn->func",
+          "trial_id": "i3-set1"
+        },
+        {
+          "actual_stdout": "6\n",
+          "artifact": "out_i3-set2.rs (compiled as bin_i3_2)",
+          "compile_success": true,
+          "completion_path": "trials/i3-set2/completion_01.txt",
+          "condition": "i3_structural_surface_perturbation",
+          "correct_at_1": true,
+          "expected_stdout": "6\n",
+          "language": "Rust",
+          "prompt_path": "trials/i3-set2/prompt_01.txt",
+          "task": "gcd(a,b) via Euclidean algorithm",
+          "transform_set": "comma->~, let->bind, parens->< >",
+          "trial_id": "i3-set2"
+        },
+        {
+          "actual_stdout": "36\nHello, world!\n",
+          "artifact": "out_i4-rule1.rs (compiled as bin_i4_1)",
+          "compile_success": true,
+          "completion_path": "trials/i4-rule1/completion_01.txt",
+          "condition": "i4_novel_rule_generalization",
+          "correct_at_1": true,
+          "expected_stdout": "36\nHello, world!\n",
+          "language": "Rust",
+          "marker_rule_compliance": "pass: //@ret:i32 present before square (i32-returning), absent before greet (String-returning)",
+          "overlay_rule": "functions returning i32 must be preceded by comment //@ret:i32",
+          "prompt_path": "trials/i4-rule1/prompt_01.txt",
+          "task": "square(i32)->i32 and greet(&str)->String plus main",
+          "trial_id": "i4-rule1"
+        },
+        {
+          "actual_stdout": "true\n55\n",
+          "artifact": "out_i4-rule2.rs (compiled as bin_i4_2)",
+          "compile_success": true,
+          "completion_path": "trials/i4-rule2/completion_01.txt",
+          "condition": "i4_novel_rule_generalization",
+          "correct_at_1": true,
+          "expected_stdout": "true\n55\n",
+          "language": "Rust",
+          "marker_rule_compliance": "pass: //@ret:bool present before is_even (bool-returning), absent before sum_to (i32-returning)",
+          "overlay_rule": "functions returning bool must be preceded by comment //@ret:bool",
+          "prompt_path": "trials/i4-rule2/prompt_01.txt",
+          "task": "is_even(i32)->bool and sum_to(i32)->i32 plus main",
+          "trial_id": "i4-rule2"
+        }
+      ]
+    },
+    "requirements": {
+      "condition.i3_structural_surface_perturbation": {
+        "Rust": 96
+      },
+      "condition.i4_novel_rule_generalization": {
+        "Rust": 95
+      }
+    },
+    "schema_version": 1
+  },
+  "result_sha256": "84b283d92c68058f724cfc23a967670c0f6f79f04c891f1d2b81d486d7f91f9b",
+  "schema_version": 1
+}

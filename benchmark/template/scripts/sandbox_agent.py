@@ -937,20 +937,32 @@ def run_agent(args: argparse.Namespace) -> int:
             name = action.get("action")
             if name == "final":
                 missing_now = missing_expected_outputs(task, agent_dir)
-                if missing_now:
+                missing_trials = sorted(
+                    trials.required_trial_id_set - set(trials.sessions)
+                )
+                if missing_now or missing_trials:
                     protocol_errors += 1
                     turn_protocol_error = True
+                    reasons = []
+                    if missing_now:
+                        reasons.append(
+                            "expected outputs are still missing: " + ", ".join(missing_now)
+                        )
+                    if missing_trials:
+                        reasons.append(
+                            "required Primary trials are still missing: "
+                            + ", ".join(missing_trials)
+                        )
                     observation = {
                         "ok": False,
                         "protocol_error": (
-                            "final refused: expected outputs are still missing: "
-                            + ", ".join(missing_now)
-                            + "; write them with write_file, then send final again"
+                            "final refused: " + "; ".join(reasons)
+                            + "; complete them before sending final again"
                         ),
                     }
                     trace.append({
                         "turn": turn, "action": "final", "observation": observation,
-                        "protocol_error": "final before expected outputs", **batch,
+                        "protocol_error": "final before required work completed", **batch,
                     })
                     observations.append(observation)
                     break

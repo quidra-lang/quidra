@@ -7764,11 +7764,12 @@ def verify_proficiency_completion(
             "compile_or_parse": {
                 "label": "synthetic-ci",
                 "argv": [],
-                "exit_code": 0,
+                "exit_code": None,
                 "stdout": "",
                 "stderr": "",
+                "error": "synthetic-ci-does-not-run-target-toolchain",
             },
-            "compile_parse_ok": True,
+            "compile_parse_ok": False,
             "run": None,
             "oracle_test_count": len(oracle_cases),
             "oracle_passed_count": 0,
@@ -7895,6 +7896,46 @@ def verify_proficiency_completion(
     }
     json_dump(work_dir / "verification.json", result)
     return result
+
+
+def proficiency_reference_self_test(root: Path) -> dict[str, Any]:
+    """Prove the frozen reference sources and hidden oracle agree before scoring."""
+    asset = proficiency_workload_contract(root)
+    cfg = json_load(root / "template" / "config" / "primary.json")["llm_proficiency"]
+    first_scenario = str(cfg["primary_scenarios"][0])
+    reports: dict[str, Any] = {}
+    passed = True
+    for workload_name in [str(value) for value in cfg["primary_workloads"]]:
+        trial_id = (
+            f"{slug_id(workload_name)}--{slug_id(first_scenario)}--t1"
+        )
+        report = verify_proficiency_completion(
+            root,
+            "C++",
+            trial_id,
+            str(asset["workloads"][workload_name]["reference_cpp"]),
+            root / "work" / "root" / "commands"
+            / "proficiency-reference-self-test" / slug_id(workload_name),
+        )
+        synthetic = report.get("synthetic_ci") is True
+        row_passed = synthetic or (
+            report.get("compile_parse_ok") is True
+            and report.get("test_passed") is True
+        )
+        passed = passed and row_passed
+        reports[workload_name] = {
+            "passed": row_passed,
+            "synthetic_structural_only": synthetic,
+            "compile_parse_ok": report.get("compile_parse_ok"),
+            "test_passed": report.get("test_passed"),
+            "oracle_test_count": report.get("oracle_test_count"),
+            "oracle_passed_count": report.get("oracle_passed_count"),
+        }
+    return {
+        "passed": bool(passed),
+        "workload_contract_sha256": proficiency_workload_contract_sha256(root),
+        "workloads": reports,
+    }
 
 
 def proficiency_repair_prompt(verification: dict[str, Any]) -> str:
@@ -9767,6 +9808,7 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
         elif rid == "gate.proficiency_workload_contract":
             asset = proficiency_workload_contract(root)
             trial_manifest = proficiency_trial_manifest(root)
+            reference_self_test = proficiency_reference_self_test(root)
             prompt_hashes = {
                 language: proficiency_primary_prompt_set_sha256(root, language)
                 for language in languages
@@ -9783,6 +9825,7 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
                     )
                 )
                 and len(set(prompt_hashes.values())) == len(languages)
+                and reference_self_test["passed"]
             )
             evidence.update({
                 "proficiency_workload_document_id": asset.get("document_id"),
@@ -9796,6 +9839,10 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
                         (asset.get("source_provenance") or {}).items()
                     )
                 },
+                "proficiency_reference_self_test": reference_self_test,
+                "proficiency_workload_contract_sha256": (
+                    proficiency_workload_contract_sha256(root)
+                ),
             })
         elif rid == "gate.capability_universe":
             asset = json_load(

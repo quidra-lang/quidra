@@ -6,7 +6,6 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-22T16:00:55Z
-reason: prefix-cache probe on 7c9efc4: a real semantic-compression input is sent twice under different Task Packet headers through the shared-inputs-first split; the second send must read the shared prefix from the prompt cache before any run relies on that saving
+requested_at_utc: 2026-09-23T02:47:23Z
+reason: output ceiling proof on 559f3e4: the packet output ceiling is now 128000 and the smoke sends one one-word request under the full ceiling; the provider must accept it as max_tokens before any paid run depends on it
 model: claude-sonnet-5
-probe: sc-prefix-cache

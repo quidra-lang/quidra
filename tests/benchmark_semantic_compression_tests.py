@@ -363,8 +363,78 @@ def assert_go_multi_unit_recipe_builds_one_main_package() -> None:
     assert artifact == "program", artifact
 
 
+def assert_support_adjudication_receives_trusted_verification() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_root(td)
+        agent_dir = root / "work/agents/worker-python"
+        agent_dir.mkdir(parents=True)
+        benchmark.json_dump(
+            agent_dir / "result.json",
+            {
+                "requirements": {},
+                "evidence": {
+                    "probe_rows": [
+                        {
+                            "probe_id": "F20.P1",
+                            "fragment": "ffi_fragment()",
+                            "note": "candidate support annotation",
+                        }
+                    ]
+                },
+            },
+        )
+        benchmark.json_dump(
+            root
+            / "work/audit/semantic-compression/canonical_verification_python.json",
+            {
+                "schema_version": 1,
+                "language": "Python",
+                "synthetic_ci": False,
+                "probes": {
+                    "F20.P1": {
+                        "mode": "run",
+                        "run_count": 1,
+                        "build": None,
+                        "runs": [
+                            {
+                                "argv": ["python3", "main.py"],
+                                "exit_code": 0,
+                                "stdout": "3\n",
+                                "stderr": "",
+                            }
+                        ],
+                    }
+                },
+            },
+        )
+        source = {
+            "id": "sc-source--python",
+            "assigned_agent_id": "worker-python",
+            "assigned_languages": ["Python"],
+            "requirement_ids": ["metric.semantic_density"],
+        }
+        unit = {
+            "id": "sc-support-adjudication--f20-p1",
+            "dependencies": [source["id"]],
+        }
+        path = benchmark.build_support_adjudication_input(
+            root,
+            unit,
+            {"work_units": [source, unit]},
+            "F20.P1",
+        )
+        payload = benchmark.json_load(path)
+        verified = payload["mechanical_verification"]["Python"]
+        assert verified["verified"] is True, verified
+        assert verified["runs"][0]["argv"] == ["python3", "main.py"], verified
+        assert verified["runs"][0]["exit_code"] == 0, verified
+        assert verified["runs"][0]["stdout"] == "3\n", verified
+        assert "do not contradict its build/run facts" in payload["task"], payload["task"]
+
+
 def main() -> None:
     assert_complete_support_record_contract()
+    assert_support_adjudication_receives_trusted_verification()
     assert_probe_alias_rows_are_recognized()
     assert_conflicting_annotation_fields_are_rejected()
     assert_adjudication_is_authoritative()

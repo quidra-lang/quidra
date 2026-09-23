@@ -69,7 +69,9 @@
   "prompt_store": {
     "format": "content-addressed-components",
     "canonical_root": "benchmark/template/prompts",
-    "promote_after_finalization": true
+    "promote_after_finalization": true,
+    "promote_with_certified_checkpoint": true,
+    "checkpoint_scope": "Only prompt manifests/components referenced by cache records successfully certified in that checkpoint; raw provider responses/trials remain private paid-state artifacts."
   },
   "quidra_execution_identity": {
     "input_paths": [

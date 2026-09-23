@@ -1870,45 +1870,41 @@ jobs:
           }, indent=2))
           PY
 
-      - name: The finished run imports into the repository
+      - name: Incomplete diagnostic run cannot publish
         run: |
-          # post-run promotes reusable cache/prompt material and commits only a
-          # compact run summary. Raw evidence remains in the workflow artifact.
+          # The ci-base image deliberately lacks most comparison-language
+          # toolchains, so this synthetic run is expected to finalize only as a
+          # diagnostic PARTIAL run. Publication must refuse it while preserving
+          # the workspace for cache/recovery checks and guarded cleanup.
           RUN_ID="$(python - <<'PY'
           import json
           print(json.load(open(".quidra-benchmark/run.json"))["run_id"])
           PY
           )"
-          python benchmark/template/scripts/benchmark.py post-run \
-            --source-repo "$GITHUB_WORKSPACE"
-          test ! -e .quidra-benchmark
-          RUN_DIR="benchmark/$RUN_ID"
-          test -f "$RUN_DIR/import_manifest.json"
-          test -f "$RUN_DIR/summary.json"
-          test -f "$RUN_DIR/rankings.json"
-          test -f "$RUN_DIR/cache_usage.json"
-          test -f "$RUN_DIR/provenance.json"
-          test -f "$RUN_DIR/audit/semantic_compression.json"
-          python - "$RUN_DIR" <<'PY'
-          import json, sys
+          python - <<'PY'
+          import json
           from pathlib import Path
-          run_dir = Path(sys.argv[1])
-          summary = json.loads((run_dir / "summary.json").read_text())
-          audit_rel = summary["raw_evidence"]["semantic_compression_audit_manifest"]
-          assert audit_rel == "audit/semantic_compression.json", audit_rel
-          audit = json.loads((run_dir / audit_rel).read_text())
-          assert audit["purpose"].startswith("Compact reconstruction manifest"), audit
-          assert "final_support_adjudications" in audit, audit
-          assert "transient_audit_sha256" in audit, audit
+
+          root = Path(".quidra-benchmark")
+          finalization = json.loads((root / "results/finalization.json").read_text())
+          completeness = json.loads((root / "results/completeness_audit.json").read_text())
+          assert finalization["ok"] is True, finalization
+          assert finalization["formal_complete"] is False, finalization
+          assert completeness["formal_complete"] is False, completeness
+          assert (
+              completeness["rerun_agent_leaf_ids"]
+              or completeness["rerun_machine_unit_ids"]
+          ), completeness
           PY
-          test ! -e "$RUN_DIR/results"
-          test ! -e "$RUN_DIR/raw"
-          test ! -e "$RUN_DIR/prompts"
-          test ! -e "$RUN_DIR/work"
-          echo "imported compact $RUN_DIR"
-          git checkout -- . 2>/dev/null || true
-          git clean -fd -- benchmark/cache benchmark/template/prompts >/dev/null 2>&1 || true
-          rm -rf "$RUN_DIR"
+
+          if python benchmark/template/scripts/benchmark.py post-run \
+            --source-repo "$GITHUB_WORKSPACE"; then
+            echo "::error::post-run published a formally incomplete benchmark"
+            exit 1
+          fi
+          test -d .quidra-benchmark
+          test ! -e "benchmark/$RUN_ID"
+          echo "formal-incomplete publication guard: ok"
 
       - name: Discard the staging workspace
         if: always()

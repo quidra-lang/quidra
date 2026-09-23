@@ -253,7 +253,7 @@ jobs:
           python benchmark/template/scripts/production_run.py provider-smoke \
             --model "$BENCHMARK_MODEL" \
             --budget-usd 0.50 \
-            --prefix-probe-text benchmark/template/methodology/worker_core.md \
+            --prefix-probe-text benchmark/template/methodology/common.md \
             --output "$RUNNER_TEMP/provider-smoke.json"
           spend="$(python - <<'PY'
           import json, os

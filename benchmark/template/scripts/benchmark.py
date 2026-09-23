@@ -5395,13 +5395,11 @@ def cmd_result_check(args: argparse.Namespace) -> int:
                         f"got {sorted(value)}"
                     )
                 for language in languages:
-                    annotation = sc_adjudication_annotation(
-                        result, rid, language
-                    )
-                    problems = sc_adjudication_problems(annotation)
-                    if problems:
+                    if sc_adjudicated_record(value[language]) is None:
                         raise BenchmarkError(
-                            f"{rid}: {language}: " + "; ".join(problems)
+                            f"{rid}: {language}: support adjudication must be a "
+                            "complete canonical record with level, fragment, "
+                            "partial_reasons, none_reason, justification and citation"
                         )
             else:
                 raise BenchmarkError(f"unsupported requirement result type: {rid}")

@@ -22,6 +22,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import time
@@ -354,7 +355,26 @@ TOOLCHAIN_VERSION_PROBES = {
 }
 
 
-def sandbox_turns(unit: dict[str, Any], payload: str) -> list[str]:
+def synthetic_proficiency_trial_ids(root: Path) -> list[str]:
+    cfg = json.loads(
+        (root / "template/config/primary.json").read_text(encoding="utf-8")
+    )["llm_proficiency"]
+    replications = int(cfg["independent_trials_per_replicated_cell"])
+    ids = []
+    for workload in cfg["primary_workloads"]:
+        for scenario in cfg["primary_scenarios"]:
+            workload_slug = re.sub(r"[^a-z0-9]+", "-", str(workload).lower()).strip("-")
+            scenario_slug = re.sub(r"[^a-z0-9]+", "-", str(scenario).lower()).strip("-")
+            for replication in range(1, replications + 1):
+                ids.append(
+                    f"{workload_slug}--{scenario_slug}--t{replication}"
+                )
+    if len(ids) != len(set(ids)):
+        raise RunError("synthetic Proficiency trial IDs collide")
+    return ids
+
+
+def sandbox_turns(root: Path, unit: dict[str, Any], payload: str) -> list[str]:
     turns: list[str] = []
     if unit.get("evaluation") == "llm_learnability" and int(unit.get("max_llm_calls", 0) or 0) > 0:
         preflight = {
@@ -384,22 +404,46 @@ def sandbox_turns(unit: dict[str, Any], payload: str) -> list[str]:
             json.dumps({"action": "write_file", "path": "learnability_leakage.json",
                         "content": json.dumps(leakage, indent=2) + "\n"}),
         ])
-    if unit.get("evaluation") == "llm_learnability" and int(unit.get("max_llm_calls", 0) or 0) > 0:
-        # A trial unit must show its assigned toolchain actually ran: a real
-        # agent compiles fixtures, the scripted one asks for the version. In
-        # the sandbox this resolves through the same PATH a real agent gets
-        # (the Quidra build included); on a host without the toolchain it is
-        # denied, and the synthetic escape hatch waives the check there.
+    if (
+        unit.get("evaluation") in {"llm_learnability", "llm_proficiency"}
+        and int(unit.get("max_llm_calls", 0) or 0) > 0
+    ):
+        # Every scored trial unit must show its assigned toolchain actually ran:
+        # a real agent compiles/tests generated source; the scripted one asks
+        # for the version before its first trial. On a host without the
+        # toolchain the synthetic escape hatch waives the check there.
         for language in unit.get("assigned_languages") or []:
             probe = TOOLCHAIN_VERSION_PROBES.get(str(language))
             if probe:
                 turns.append(json.dumps({"action": "run", "argv": list(probe)}))
     if int(unit.get("max_llm_calls", 0) or 0) > 0:
-        turns.extend([
-            json.dumps({"action": "trial_start", "trial_id": "synthetic-t1",
-                        "prompt": "Return a short synthetic benchmark completion."}),
-            "synthetic trial completion",
-        ])
+        if unit.get("evaluation") == "llm_proficiency":
+            # Initial Proficiency prompts are runtime-owned. Exercise every
+            # frozen ID, in batches no larger than the runtime's configured
+            # max_trial_batch, and deliberately omit prompt fields.
+            primary = json.loads(
+                (root / "template/config/primary.json").read_text(encoding="utf-8")
+            )
+            max_batch = int(
+                (primary.get("worker_isolation") or {}).get("max_trial_batch", 16)
+                or 16
+            )
+            trial_ids = synthetic_proficiency_trial_ids(root)
+            for offset in range(0, len(trial_ids), max_batch):
+                batch = trial_ids[offset:offset + max_batch]
+                turns.append(json.dumps({
+                    "action": "trial_start",
+                    "trials": [{"trial_id": trial_id} for trial_id in batch],
+                }))
+                turns.extend(
+                    "synthetic trial completion" for _ in batch
+                )
+        else:
+            turns.extend([
+                json.dumps({"action": "trial_start", "trial_id": "synthetic-t1",
+                            "prompt": "Return a short synthetic benchmark completion."}),
+                "synthetic trial completion",
+            ])
     turns.extend([
         json.dumps({"action": "write_file", "path": "result.json", "content": payload}),
         json.dumps({"action": "final", "summary": "wrote result.json"}),
@@ -428,7 +472,7 @@ def script_for_queue(
                 "files": [{"path": "result.json", "content": payload}],
             })]
         else:
-            tasks[agent_id] = sandbox_turns(unit, payload)
+            tasks[agent_id] = sandbox_turns(root, unit, payload)
     return {"schema_version": 1, "tasks": tasks}
 
 

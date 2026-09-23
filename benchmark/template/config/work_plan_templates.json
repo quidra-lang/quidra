@@ -1431,14 +1431,15 @@
           "result_kind": "requirements",
           "runner_action": "static-coverage",
           "requirement_ids": [
-            "coverage.all_10_languages"
+            "coverage.all_10_languages",
+            "gate.proficiency_workload_contract"
           ],
           "dependencies": [],
           "prompt_sections": [],
           "read_paths": [],
           "network_allowed": false,
           "max_attempts": 1,
-          "goal": "Mechanically verify that Proficiency uses exactly the frozen 10-language comparison set.",
+          "goal": "Mechanically verify the frozen 10-language set and the complete offline SVM/GMM/LightGrad workload+scenario prompt contract before any paid Proficiency trial.",
           "worker_mode": "runner-command"
         },
         {
@@ -1479,7 +1480,8 @@
           "read_paths": [
             "repo/docs",
             "template/workloads",
-            "template/fixtures"
+            "template/fixtures",
+            "template/methodology-assets/llm_proficiency"
           ],
           "network_allowed": false,
           "estimated_input_tokens_per_call": 7000,

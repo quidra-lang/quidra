@@ -248,7 +248,6 @@ def handle_worker_failure(root: Path, unit: dict[str, Any], detail: str) -> None
         )
 
     max_attempts = int(state.get("max_attempts", 3) or 3)
-    max_attempts = int(state.get("max_attempts", 3) or 3)
     safe_detail = " ".join(detail.strip().split())[:1200] or "worker process failed"
     blocker_class = classify_failure(safe_detail)
 

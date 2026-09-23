@@ -8344,6 +8344,25 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
             }
             recipes = (asset.get("toolchain_binding") or {}).get("recipes") or {}
             frozen_recipes = environment.get("frozen_toolchain_recipes") or {}
+            p_a_allowed = set(
+                (asset.get("support_rubric") or {}).get(
+                    "partial_p_a_allowed_probe_ids"
+                ) or []
+            )
+            r9_text = str(
+                (asset.get("authoring_rules") or {}).get(
+                    "R9_no_probe_substitution", ""
+                )
+            )
+            named_substitution_text = str(
+                (asset.get("support_rubric") or {})
+                .get("deterministic_tie_break", {})
+                .get("named_substitution", "")
+            )
+            r9_named = set(re.findall(r"F\d{2}\.P\d+", r9_text))
+            tie_break_named = set(
+                re.findall(r"F\d{2}\.P\d+", named_substitution_text)
+            )
             ok = (
                 asset.get("frozen") is True
                 and int(asset.get("probe_count", -1)) == len(probes)
@@ -8357,6 +8376,10 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
                 and set(recipes) == set(languages)
                 and recipes == frozen_recipes
                 and "interpreter_run" not in (recipes.get("Quidra") or {})
+                and p_a_allowed
+                and p_a_allowed <= set(probe_ids)
+                and p_a_allowed == r9_named
+                and p_a_allowed == tie_break_named
             )
             requirements[rid] = ok
             evidence.update({
@@ -8367,6 +8390,9 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
                 "recipe_languages": sorted(recipes),
                 "toolchain_recipe_copies_match": recipes == frozen_recipes,
                 "quidra_native_only_recipe": set((recipes.get("Quidra") or {}).keys()) == {"build", "run"},
+                "p_a_allowed_probe_ids": sorted(p_a_allowed),
+                "p_a_scope_matches_r9": p_a_allowed == r9_named,
+                "p_a_scope_matches_named_substitution": p_a_allowed == tie_break_named,
             })
         elif rid in {"gate.semantic_site_matrix", "gate.matrix_validator"}:
             universe = json_load(

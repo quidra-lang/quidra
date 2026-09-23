@@ -887,7 +887,7 @@ def assert_v3_survives_comparability_repair() -> None:
                     "probe_id": probe_id,
                     "label": first_label,
                     "record": canonical(
-                        "PARTIAL", "verified_fragment()", partial=["P-a"]
+                        "PARTIAL", "verified_fragment()", partial=["P-c"]
                     ),
                 }],
             },

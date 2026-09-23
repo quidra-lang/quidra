@@ -3029,10 +3029,6 @@ def build_support_adjudication_input(
             by_language.setdefault(str(languages[0]), {}).update(
                 clip_annotation_text(fields)
             )
-    if not by_language:
-        raise BenchmarkError(
-            f"support adjudication for {probe_id} has no annotations to review"
-        )
     probe = next(
         (
             entry
@@ -3055,10 +3051,21 @@ def build_support_adjudication_input(
             "award_formula from the level you assign."
         ),
         "frozen_probe": probe,
+        "annotation_count": len(by_language),
         "annotations": {
             language: by_language[language] for language in sorted(by_language)
         },
     }
+    if not by_language:
+        # The shards recorded nothing per-probe for this one. That cannot happen
+        # in a scored run, whose dependencies are the COMPLETE metric shards,
+        # and it is the normal state of a structural rehearsal against synthetic
+        # results. Say so in the packet rather than failing the run over it.
+        payload["note"] = (
+            "No per-probe annotation was found for this probe in any language. "
+            "There is nothing to adjudicate: return the requirement with an "
+            "empty mapping."
+        )
     destination = require_under(
         root / "work" / "audit" / "semantic-compression"
         / f"support_adjudication_{probe_id.lower().replace('.', '-')}.json",

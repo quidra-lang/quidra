@@ -74,6 +74,40 @@ def assert_probe_alias_rows_are_recognized() -> None:
     assert rows["F10.P1"]["support"] == "FULL", rows
 
 
+def assert_conflicting_annotation_fields_are_rejected() -> None:
+    target = {"fragment": "same", "metric_fact": 1}
+    benchmark.merge_annotation_fields_strict(
+        target,
+        {"fragment": "same", "other_fact": 2},
+        context="F20.P1/Python",
+    )
+    assert target["other_fact"] == 2
+
+    try:
+        benchmark.merge_annotation_fields_strict(
+            target,
+            {"fragment": "different"},
+            context="F20.P1/Python",
+        )
+    except benchmark.BenchmarkError as exc:
+        assert "conflicting annotation field" in str(exc)
+    else:
+        raise AssertionError("conflicting shard annotations were silently overwritten")
+
+    result = {
+        "evidence": {
+            "a": [{"probe": "F20.P1", "fragment": "first"}],
+            "b": [{"probe_id": "F20.P1", "fragment": "second"}],
+        }
+    }
+    try:
+        benchmark.probe_annotation_fields(result, {"F20.P1"})
+    except benchmark.BenchmarkError as exc:
+        assert "conflicting annotation field" in str(exc)
+    else:
+        raise AssertionError("probe collection silently stitched conflicting fields")
+
+
 def assert_adjudication_is_authoritative() -> None:
     by_language = {
         "Go": {
@@ -332,6 +366,7 @@ def assert_go_multi_unit_recipe_builds_one_main_package() -> None:
 def main() -> None:
     assert_complete_support_record_contract()
     assert_probe_alias_rows_are_recognized()
+    assert_conflicting_annotation_fields_are_rejected()
     assert_adjudication_is_authoritative()
     assert_repair_loop_is_scoped_and_idempotent()
     assert_every_sampled_probe_has_a_cohort_adjudicator()

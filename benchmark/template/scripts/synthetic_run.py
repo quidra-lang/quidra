@@ -318,6 +318,7 @@ def unit_payload(
                 "metric.compile_parse_success_rate",
                 "metric.correct_at_1",
                 "metric.correct_at_n",
+                "metric.test_pass_rate",
             }
         ):
             # The fake provider deliberately returns a non-empty but invalid

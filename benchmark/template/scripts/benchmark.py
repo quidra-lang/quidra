@@ -2692,6 +2692,8 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
 COMPARABILITY_GATE = "gate.comparability_audit"
 COMPARABILITY_SAMPLE_RELATIVE = "work/audit/semantic-compression/comparability_sample.json"
 COMPARABILITY_BLINDING_RELATIVE = "work/root/comparability_blinding.json"
+COMPARABILITY_REPAIR_RELATIVE = "work/audit/semantic-compression/comparability_repairs.json"
+COMPARABILITY_POLICY_RELATIVE = "template/config/semantic_compression_comparability.json"
 COMPARABILITY_TEXT_LIMIT = 300
 # Measured on the first full run: the audit's other inputs (the snapshot docs
 # and the frozen Semantic Compression assets) embed 707,897 of the 1,048,576
@@ -2942,123 +2944,63 @@ def sc_adjudicated_level(value: Any) -> str | None:
     return None
 
 
-def sc_string_list(value: Any) -> list[str]:
-    if isinstance(value, str):
-        return [value.strip()] if value.strip() else []
-    if isinstance(value, list):
-        return [str(item).strip() for item in value if str(item).strip()]
-    return []
+SC_PARTIAL_REASONS = {"P-a", "P-b", "P-c", "P-d", "P-e"}
+SC_NONE_REASONS = {"N-1", "N-2", "N-3", "N-4"}
 
 
-def sc_adjudication_annotation(
-    result: dict[str, Any], requirement_id: str, language: str
-) -> dict[str, Any] | None:
-    """Normalize one cohort adjudication into the sole support record.
+def sc_adjudicated_record(value: Any) -> dict[str, Any] | None:
+    """Normalize one authoritative support adjudication record.
 
-    Earlier runs copied only FULL/PARTIAL/NONE into the comparability sample and
-    left the old shard rationale beside it. That let the final audit reject a
-    corrected P-b/N-1 decision because it was still reading the superseded
-    explanation. The normalized record carries the whole decision instead:
-    level, rubric code, citation and justification.
+    Bare levels were intentionally accepted in early runs, but that discarded
+    the P-letter/N-reason, citation and the exact fragment. The comparability
+    audit then had to read stale shard prose and could reject a correction that
+    had already been made. New adjudications are complete records and therefore
+    become the sole support source for their (probe, language) pair.
     """
-    requirement = (result.get("requirements") or {}).get(requirement_id)
-    if not isinstance(requirement, dict) or language not in requirement:
+    if not isinstance(value, dict):
         return None
-    raw = requirement[language]
-    level = sc_adjudicated_level(raw)
+    level = sc_adjudicated_level(value)
     if level is None:
         return None
-
-    merged: dict[str, Any] = {}
-    per_language = ((result.get("evidence") or {}).get("per_language") or {})
-    evidence_row = per_language.get(language) if isinstance(per_language, dict) else None
-    if isinstance(evidence_row, dict):
-        merged.update(evidence_row)
-    if isinstance(raw, dict):
-        merged.update(raw)
-
-    letters: list[str] = []
-    for key in ("p_letters", "applicable_letters", "letters", "p_letter"):
-        for item in sc_string_list(merged.get(key)):
-            normalized = item.strip()
-            if re.fullmatch(r"P-[a-eA-E]", normalized):
-                normalized = "P-" + normalized[-1].lower()
-            if normalized and normalized not in letters:
-                letters.append(normalized)
-
-    n_reason = str(merged.get("n_reason") or "").strip() or None
-    citation = ""
-    for key in ("citation", "documentation_citation", "doc_citation"):
-        candidate = str(merged.get(key) or "").strip()
-        if candidate:
-            citation = candidate
-            break
-    justification = ""
-    for key in ("justification", "rationale", "basis", "reason"):
-        candidate = str(merged.get(key) or "").strip()
-        if candidate:
-            justification = candidate
-            break
-    if not justification:
-        justification = citation
-
-    factor = {"FULL": 1.0, "PARTIAL": 0.5, "NONE": 0.0}[level]
-    annotation: dict[str, Any] = {
-        "support": level,
-        "support_factor": factor,
-        "p_letters": letters,
-        "n_reason": n_reason,
-        "citation": citation,
-        "justification": justification,
-        "source": "cohort_support_adjudication",
-    }
-    for key in ("rung_used", "mechanism", "condition"):
-        if key in merged:
-            annotation[key] = clip_annotation_text(merged[key])
-    return annotation
-
-
-def sc_adjudication_problems(annotation: dict[str, Any] | None) -> list[str]:
-    if annotation is None:
-        return ["missing normalized adjudication"]
-    problems: list[str] = []
-    level = str(annotation.get("support") or "")
-    letters = list(annotation.get("p_letters") or [])
-    n_reason = str(annotation.get("n_reason") or "").strip()
-    citation = str(annotation.get("citation") or "").strip()
-    justification = str(annotation.get("justification") or "").strip()
-
-    unknown_letters = [letter for letter in letters if letter not in SC_P_LETTERS]
-    if unknown_letters:
-        problems.append("unknown PARTIAL rubric code(s): " + ", ".join(unknown_letters))
-    if level == "PARTIAL":
-        if not letters:
-            problems.append("PARTIAL requires at least one P-a..P-e rubric code")
-        if n_reason:
-            problems.append("PARTIAL may not carry an N-reason")
-    elif level == "NONE":
-        if n_reason not in SC_N_REASONS:
-            problems.append("NONE requires one of N-1, N-2, N-3 or N-4")
-        if letters:
-            problems.append("NONE may not carry P-letters")
-    elif level == "FULL":
-        if letters:
-            problems.append("FULL may not carry P-letters")
-        if n_reason:
-            problems.append("FULL may not carry an N-reason")
+    fragment = value.get("fragment")
+    if fragment is not None:
+        fragment = str(fragment).strip() or None
+    raw_partial = (
+        value.get("partial_reasons")
+        if "partial_reasons" in value
+        else value.get("applicable_letters", value.get("letters", []))
+    )
+    if raw_partial is None:
+        raw_partial = []
+    if not isinstance(raw_partial, list):
+        return None
+    partial = [str(item).strip() for item in raw_partial if str(item).strip()]
+    none_reason = value.get("none_reason", value.get("n_reason"))
+    if none_reason is not None:
+        none_reason = str(none_reason).strip() or None
+    justification = str(value.get("justification", value.get("rationale", ""))).strip()
+    citation = str(value.get("citation", "")).strip()
+    if not justification or not citation:
+        return None
+    if level == "FULL":
+        if fragment is None or partial or none_reason is not None:
+            return None
+    elif level == "PARTIAL":
+        if fragment is None or not partial or any(code not in SC_PARTIAL_REASONS for code in partial):
+            return None
+        if none_reason is not None:
+            return None
     else:
-        problems.append("support must be FULL, PARTIAL or NONE")
-
-    if not citation:
-        problems.append("adjudication requires a per-language documentation citation")
-    if not justification:
-        problems.append("adjudication requires a per-language justification")
-    return problems
-
-
-def sc_support_annotation_key(key: str) -> bool:
-    lowered = str(key).lower()
-    return any(hint in lowered for hint in SC_SUPPORT_FIELD_HINTS)
+        if fragment is not None or partial or none_reason not in SC_NONE_REASONS:
+            return None
+    return {
+        "level": level,
+        "fragment": fragment,
+        "partial_reasons": partial,
+        "none_reason": none_reason,
+        "justification": justification,
+        "citation": citation,
+    }
 
 
 def sc_reconcile_support(
@@ -3067,14 +3009,7 @@ def sc_reconcile_support(
     owner: dict[str, Any],
     adjudicated: dict[str, dict[str, dict[str, Any]]] | None = None,
 ) -> list[dict[str, Any]]:
-    """Give every (language, probe) one authoritative support annotation.
-
-    Metric shards remain the source for A-D measurements. Capability support is
-    different: when a cohort adjudicator exists, its whole normalized record is
-    authoritative. Superseded shard support rationales are removed before the
-    blinded comparability packet is built, so the audit cannot accidentally
-    compare an old explanation against a corrected level.
-    """
+    """Give every (language, probe) one authoritative support statement."""
     fields = [str(name) for name in (owner.get("fields") or ["support"])]
     levels = {
         str(name).upper(): float(factor)
@@ -3082,41 +3017,54 @@ def sc_reconcile_support(
     }
     adjudicated = adjudicated or {}
     replaced: list[dict[str, Any]] = []
+    stale_names = {
+        "fragment", "selected_fragment", "source_fragment", "reason", "rationale",
+        "justification", "citation", "notes", "n_reason", "none_reason",
+        "applicable_letters", "letters", "p_letter", "partial_reasons",
+    }
     for language in sorted(by_language):
         for probe_id, row in sorted(by_language[language].items()):
             canonical = (adjudicated.get(probe_id) or {}).get(language)
-            if canonical:
-                candidates = {str(canonical["support"])}
-            else:
-                owner_row = (owner_rows.get(language) or {}).get(probe_id) or {}
-                candidates = sc_owner_support_levels(owner_row, fields)
-
+            owner_row = (owner_rows.get(language) or {}).get(probe_id) or {}
+            candidates = (
+                {canonical["level"]}
+                if canonical is not None
+                else sc_owner_support_levels(owner_row, fields)
+            )
             dropped = {
-                key: value for key, value in row.items()
-                if sc_support_annotation_key(str(key))
+                key: value
+                for key, value in row.items()
+                if any(hint in str(key).lower() for hint in SC_SUPPORT_FIELD_HINTS)
+                or (canonical is not None and str(key).lower() in stale_names)
             }
+            level = candidates.pop() if len(candidates) == 1 else None
             for key in dropped:
                 row.pop(key, None)
-
-            level = candidates.pop() if len(candidates) == 1 else None
             if level is None:
                 row["support"] = "UNRECONCILED"
                 row["support_note"] = (
-                    "No cohort adjudication exists and the owning Capability "
-                    "Coverage annotation did not state one determinate level."
+                    "The owning Capability Coverage annotation did not state one "
+                    "determinate level for this probe. Judge it as unstated."
                 )
             else:
                 row["support"] = level
                 row["support_factor"] = levels.get(level, 0.0)
-                if canonical:
-                    row["support_adjudication"] = clip_annotation_text(canonical, 1200)
-
-            if dropped or canonical or level is None:
+                if canonical is not None:
+                    row["fragment"] = canonical["fragment"]
+                    row["support_reason_codes"] = (
+                        canonical["partial_reasons"]
+                        if level == "PARTIAL"
+                        else ([canonical["none_reason"]] if level == "NONE" else [])
+                    )
+                    row["support_justification"] = canonical["justification"]
+                    row["support_citation"] = canonical["citation"]
+                    row["support_source"] = "cohort_adjudication"
+            if dropped or level is None or canonical is not None:
                 replaced.append({
                     "language": language,
                     "probe_id": probe_id,
                     "reconciled_to": row["support"],
-                    "authoritative_adjudication": bool(canonical),
+                    "authoritative_adjudication": canonical,
                     "replaced_fields": {
                         key: value for key, value in sorted(dropped.items())
                     },
@@ -3140,9 +3088,19 @@ def support_adjudication_probe(requirement_ids: list[str]) -> str | None:
 def build_support_adjudication_input(
     root: Path, unit: dict[str, Any], manifest: dict[str, Any], probe_id: str
 ) -> Path:
-    """Put one probe's ten annotations in front of a single adjudicator."""
+    """Put one probe's ten annotations plus cross-probe support context together."""
     units = {str(item.get("id")): item for item in manifest.get("work_units", [])}
     by_language: dict[str, dict[str, Any]] = {}
+    cross_probe: dict[str, dict[str, Any]] = {}
+    sampled = {
+        str(entry.get("probe_id")) for entry in comparability_sample_probes(root)
+    }
+    support_owner = (
+        json_load(root / "template" / "config" / "aggregation.json")
+        .get("evaluations", {}).get("semantic_compression", {})
+        .get("support_level_owner") or {}
+    )
+    support_owner_id = str(support_owner.get("requirement_id") or "")
     for dependency in unit.get("dependencies", []):
         source = units.get(str(dependency))
         if source is None:
@@ -3150,52 +3108,58 @@ def build_support_adjudication_input(
         languages = list(source.get("assigned_languages") or [])
         if len(languages) != 1:
             continue
+        language = str(languages[0])
         result_path = (
             root / "work" / "agents" / str(source.get("assigned_agent_id"))
             / "result.json"
         )
         if not result_path.is_file():
             continue
-        collected = probe_annotation_fields(json_load(result_path), {probe_id})
-        fields_for_probe = collected.get(probe_id) or {}
-        if fields_for_probe:
-            by_language.setdefault(str(languages[0]), {}).update(
-                clip_annotation_text(fields_for_probe)
-            )
+        result = json_load(result_path)
+        collected = probe_annotation_fields(result, {probe_id})
+        fields = collected.get(probe_id) or {}
+        if fields:
+            by_language.setdefault(language, {}).update(clip_annotation_text(fields))
+        if support_owner_id in (source.get("requirement_ids") or []):
+            context = probe_annotation_fields(result, sampled)
+            cross_probe[language] = {
+                pid: clip_annotation_text(values, 180)
+                for pid, values in sorted(context.items())
+                if values
+            }
     probe = next(
-        (
-            entry
-            for entry in comparability_sample_probes(root)
-            if str(entry.get("probe_id")) == probe_id
-        ),
+        (entry for entry in comparability_sample_probes(root)
+         if str(entry.get("probe_id")) == probe_id),
         None,
     )
+    policy_path = root / COMPARABILITY_POLICY_RELATIVE
+    policy = json_load(policy_path) if policy_path.is_file() else {}
     payload = {
         "schema_version": 1,
         "probe_id": probe_id,
         "task": (
-            "Assign the support level for this one probe in every language, "
-            "applying the frozen support rubric and template/config/"
-            "support_consistency.json identically across the cohort. Standard "
-            "runtime/library wrappers shipped with the frozen toolchain are not "
-            "third-party merely because they are wrappers. If such a standard "
-            "mechanism delivers some but not all numbered sub-requirements, use "
-            "PARTIAL/P-a rather than NONE solely for lack of a native primitive. "
-            "Use the same mechanism classification consistently across probes. "
-            "Return for every language: support, p_letters, n_reason, citation "
-            "and justification."
+            "Assign one authoritative support record for this probe in every "
+            "language, applying the frozen rubric and comparability policy "
+            "symmetrically. Use the cross-probe context to avoid classifying the "
+            "same standard mechanism differently unless numbered requirements "
+            "materially distinguish the probes. Return objects, never bare levels."
         ),
+        "output_contract": {
+            "level": "FULL|PARTIAL|NONE",
+            "fragment": "exact selected fragment for FULL/PARTIAL; null for NONE",
+            "partial_reasons": "[] for FULL/NONE; one or more P-a..P-e for PARTIAL",
+            "none_reason": "N-1..N-4 for NONE; null otherwise",
+            "justification": "compact rubric-grounded reason",
+            "citation": "documentation/evidence relied on",
+        },
         "frozen_probe": probe,
+        "comparability_policy": policy,
         "annotation_count": len(by_language),
-        "annotations": {
-            language: by_language[language] for language in sorted(by_language)
+        "annotations": {language: by_language[language] for language in sorted(by_language)},
+        "cross_probe_support_context": {
+            language: cross_probe[language] for language in sorted(cross_probe)
         },
     }
-    if not by_language:
-        payload["note"] = (
-            "No per-probe annotation was found for this probe in any language. "
-            "There is nothing to adjudicate."
-        )
     destination = require_under(
         root / "work" / "audit" / "semantic-compression"
         / f"support_adjudication_{probe_id.lower().replace('.', '-')}.json",
@@ -3206,51 +3170,113 @@ def build_support_adjudication_input(
     return destination
 
 
-def sc_adjudicated_annotations(
-    root: Path,
-) -> dict[str, dict[str, dict[str, Any]]]:
-    """Every complete cohort adjudication, normalized by probe and language."""
-    annotations: dict[str, dict[str, dict[str, Any]]] = {}
+def sc_adjudicated_records(root: Path) -> dict[str, dict[str, dict[str, Any]]]:
+    """Every complete cohort adjudication record, keyed by probe and language."""
+    records: dict[str, dict[str, dict[str, Any]]] = {}
     agents = root / "work" / "agents"
     if not agents.is_dir():
-        return annotations
+        return records
     for result_path in sorted(agents.glob("*/result.json")):
         try:
             result = json_load(result_path)
         except (OSError, json.JSONDecodeError):
             continue
-        requirements = result.get("requirements") or {}
-        for rid, value in requirements.items():
+        for rid, value in (result.get("requirements") or {}).items():
             if not str(rid).startswith(SUPPORT_ADJUDICATION_PREFIX):
                 continue
-            probe = support_adjudication_probe([str(rid)])
+            probe = support_adjudication_probe([rid])
             if probe is None or not isinstance(value, dict):
                 continue
-            for language in value:
-                annotation = sc_adjudication_annotation(
-                    result, str(rid), str(language)
-                )
-                if annotation is None:
-                    continue
-                problems = sc_adjudication_problems(annotation)
-                if problems:
-                    raise BenchmarkError(
-                        f"{rid}: {language}: invalid cohort adjudication: "
-                        + "; ".join(problems)
-                    )
-                annotations.setdefault(probe, {})[str(language)] = annotation
-    return annotations
+            for language, raw in value.items():
+                record = sc_adjudicated_record(raw)
+                if record is not None:
+                    records.setdefault(probe, {})[str(language)] = record
+    return records
 
 
 def sc_adjudicated_levels(root: Path) -> dict[str, dict[str, str]]:
-    """Compatibility view of the authoritative adjudications: levels only."""
     return {
-        probe: {
-            language: str(annotation["support"])
-            for language, annotation in per_language.items()
-        }
-        for probe, per_language in sc_adjudicated_annotations(root).items()
+        probe: {language: record["level"] for language, record in rows.items()}
+        for probe, rows in sc_adjudicated_records(root).items()
     }
+
+
+def sc_comparability_repairs(root: Path) -> dict[str, dict[str, dict[str, Any]]]:
+    path = root / COMPARABILITY_REPAIR_RELATIVE
+    if not path.is_file():
+        return {}
+    data = json_load(path)
+    out: dict[str, dict[str, dict[str, Any]]] = {}
+    for row in data.get("repairs", []) or []:
+        record = sc_adjudicated_record(row.get("record"))
+        if record is not None:
+            out.setdefault(str(row.get("probe_id")), {})[str(row.get("language"))] = record
+    return out
+
+
+def validate_comparability_repair_directives(
+    root: Path, result: dict[str, Any]
+) -> list[dict[str, Any]]:
+    evidence = result.get("evidence") or {}
+    raw = evidence.get("repair_directives", [])
+    if raw is None:
+        raw = []
+    if not isinstance(raw, list):
+        raise BenchmarkError("comparability repair_directives must be an array")
+    blinding_path = root / COMPARABILITY_BLINDING_RELATIVE
+    valid_labels: set[str] = set()
+    if blinding_path.is_file():
+        valid_labels = set((json_load(blinding_path).get("labels") or {}).values())
+    normalized: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            raise BenchmarkError("comparability repair directive must be an object")
+        probe_id = str(item.get("probe_id") or "")
+        label = str(item.get("label") or "")
+        record = sc_adjudicated_record(item.get("record"))
+        if not re.fullmatch(r"F\d\d\.P\d+", probe_id):
+            raise BenchmarkError(f"invalid comparability repair probe_id: {probe_id!r}")
+        if valid_labels and label not in valid_labels:
+            raise BenchmarkError(f"unknown comparability repair label: {label!r}")
+        if record is None:
+            raise BenchmarkError(
+                f"comparability repair for {probe_id}/{label} is not a complete support record"
+            )
+        normalized.append({"probe_id": probe_id, "label": label, "record": record})
+    return normalized
+
+
+def persist_comparability_repairs(root: Path, result: dict[str, Any]) -> int:
+    directives = validate_comparability_repair_directives(root, result)
+    if not directives:
+        return 0
+    blinding = json_load(root / COMPARABILITY_BLINDING_RELATIVE).get("labels") or {}
+    by_label = {str(label): str(language) for language, label in blinding.items()}
+    path = root / COMPARABILITY_REPAIR_RELATIVE
+    existing = json_load(path) if path.is_file() else {"schema_version": 1, "repairs": []}
+    rows = {
+        (str(row.get("probe_id")), str(row.get("language"))): row
+        for row in (existing.get("repairs") or [])
+    }
+    changed = 0
+    for directive in directives:
+        language = by_label.get(directive["label"])
+        if not language:
+            raise BenchmarkError(f"cannot resolve blinded label {directive['label']!r}")
+        key = (directive["probe_id"], language)
+        row = {
+            "probe_id": directive["probe_id"],
+            "language": language,
+            "record": directive["record"],
+        }
+        if rows.get(key) != row:
+            rows[key] = row
+            changed += 1
+    json_dump(path, {
+        "schema_version": 1,
+        "repairs": [rows[key] for key in sorted(rows)],
+    })
+    return changed
 
 
 def build_comparability_sample(
@@ -5287,6 +5313,8 @@ def cmd_result_check(args: argparse.Namespace) -> int:
                     )
                 if not isinstance(value, bool):
                     raise BenchmarkError(f"{rid}: gate/coverage result must be boolean")
+                if rid == COMPARABILITY_GATE and value is False:
+                    validate_comparability_repair_directives(root, result)
             elif rid.startswith("metric.") or rid.startswith("condition."):
                 if not isinstance(value, dict):
                     raise BenchmarkError(f"{rid}: score result must map assigned languages")

@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "policy": "Requirements that are deterministically measurable or verifiable must remain runner-command work. Requirements whose substance is semantic judgment, external evidence adjudication, or the measured LLM behavior itself remain agent work. This file prevents future plan edits from paying an LLM for work the runner already knows how to do, and also prevents brittle scripts from replacing judgment tasks.",
+  "evaluations": {
+    "semantic_compression": {
+      "runner_command_requirements": [
+        "gate.capability_universe",
+        "gate.semantic_site_matrix",
+        "gate.matrix_validator",
+        "coverage.all_frozen_probes",
+        "gate.semantic_premeasurement_validation"
+      ],
+      "agent_requirements": [
+        "metric.semantic_density",
+        "metric.semantic_determinacy",
+        "metric.semantic_locality",
+        "metric.hidden_semantic_cost",
+        "metric.capability_efficiency",
+        "metric.capability_coverage",
+        "gate.comparability_audit"
+      ],
+      "agent_requirement_prefixes": [
+        "annotation.support_adjudication--"
+      ]
+    },
+    "llm_learnability": {
+      "runner_command_requirements": [
+        "coverage.all_10_languages",
+        "gate.infrastructure_preflight",
+        "gate.reference_pack_leakage"
+      ],
+      "agent_requirements": [
+        "condition.i1_keyword_anonymization",
+        "condition.i2_vocabulary_anonymization",
+        "condition.i3_structural_surface_perturbation",
+        "condition.i4_novel_rule_generalization",
+        "condition.i5_held_out_rule_composition",
+        "condition.i6_prior_conflict_resistance"
+      ],
+      "agent_requirement_prefixes": []
+    },
+    "language_quality": {
+      "runner_command_requirements": [
+        "coverage.all_10_languages",
+        "gate.quidra_programs_current",
+        "metric.native_execution_performance",
+        "metric.long_running_performance",
+        "metric.compile_build_performance",
+        "metric.memory_efficiency",
+        "metric.binary_artifact_size",
+        "metric.startup_latency",
+        "metric.source_code_size",
+        "metric.runtime_overhead",
+        "metric.type_safety",
+        "metric.memory_safety",
+        "metric.runtime_safety",
+        "metric.boundary_value_safety",
+        "metric.adversarial_input_robustness",
+        "metric.early_error_detection",
+        "metric.debuggability",
+        "metric.silent_bug_resistance",
+        "metric.implementation_robustness"
+      ],
+      "agent_requirements": [
+        "metric.code_efficiency_conciseness",
+        "metric.readability",
+        "metric.functionality_expressiveness",
+        "metric.diagnostics",
+        "metric.dependency_simplicity",
+        "metric.portability_design_platform_neutrality",
+        "metric.ffi_interoperability_design",
+        "metric.concurrency"
+      ],
+      "agent_requirement_prefixes": []
+    },
+    "ecosystem": {
+      "runner_command_requirements": [
+        "gate.objective_rubrics_frozen",
+        "gate.evidence_window_frozen",
+        "coverage.all_10_languages"
+      ],
+      "agent_requirements": [
+        "metric.third_party_library_availability_domain_coverage",
+        "metric.package_ecosystem_activity_maintenance",
+        "metric.third_party_tool_availability",
+        "metric.production_adoption_deployment_evidence",
+        "metric.community_public_knowledge_availability",
+        "metric.core_tooling_availability_quality",
+        "metric.package_dependency_management_quality",
+        "metric.ide_editor_support_quality",
+        "metric.debugger_profiler_support",
+        "metric.build_test_integration",
+        "metric.documentation_quality",
+        "metric.installation_distribution_experience",
+        "metric.toolchain_stability_release_maturity",
+        "metric.implemented_platform_coverage",
+        "metric.external_integration_coverage"
+      ],
+      "agent_requirement_prefixes": []
+    },
+    "llm_proficiency": {
+      "runner_command_requirements": [
+        "coverage.all_10_languages",
+        "gate.proficiency_workload_contract",
+        "gate.fixed_model_configuration",
+        "gate.prompt_preservation"
+      ],
+      "agent_requirements": [
+        "metric.generation_success_rate",
+        "metric.compile_parse_success_rate",
+        "metric.correct_at_1",
+        "metric.correct_at_n",
+        "metric.test_pass_rate",
+        "metric.repair_success_rate",
+        "metric.repair_efficiency",
+        "metric.diagnosis_efficiency",
+        "metric.silent_bug_resistance",
+        "metric.syntax_hallucination_resistance",
+        "metric.specification_compliance",
+        "metric.prompt_robustness",
+        "metric.unseen_case_generalization",
+        "metric.source_token_efficiency",
+        "metric.total_token_efficiency",
+        "metric.generated_code_performance",
+        "metric.generated_code_memory_efficiency",
+        "metric.generated_code_compile_performance"
+      ],
+      "agent_requirement_prefixes": []
+    }
+  }
+}

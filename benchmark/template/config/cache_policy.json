@@ -2,7 +2,7 @@
   "schema_version": 1,
   "cache_schema_version": 1,
   "target_language": "Quidra",
-  "policy": "Only validated complete measurement results whose complete benchmark input fingerprint matches may be reused. Eligible units are certified independently after their own validator passes, so a partial run can preserve completed work. Units that measure Quidra are cacheable too: their key carries the versions the evaluated snapshot declares in project.toml (version and language_version) and the exact Task Packet, which embeds the snapshot's docs, so a Quidra record is reused only while neither has changed. Cache material is trusted runner input and is never exposed as a worker read path. The three Language Quality mechanical units (the micro suite, the adversarial set and the audit of the snapshot's Quidra programs) are certified too: no model is involved, so their key carries the pinned toolchains of every language they measure, the programs and fixtures they read, the measurement scripts, the snapshot's Quidra versions and a declared mechanical epoch; the raw samples stay in the run's retained artifact.",
+  "policy": "Only validated complete measurement results whose complete benchmark input fingerprint matches may be reused. Eligible units are certified independently after their own validator passes, so a partial run can preserve completed work. Units that measure Quidra are cacheable too: their historical key still carries the declared versions and exact Task Packet, while a separate trusted execution-identity check covers the actual compiler/runtime inputs. This preserves already-paid records without allowing same-version implementation changes to reuse stale results. Cache material is trusted runner input and is never exposed as a worker read path. The three Language Quality mechanical units (the micro suite, the adversarial set and the audit of the snapshot's Quidra programs) are certified too: no model is involved, so their key carries the pinned toolchains of every language they measure, the programs and fixtures they read, the measurement scripts, the snapshot's Quidra versions and a declared mechanical epoch; the raw samples stay in the run's retained artifact.",
   "fingerprint_includes": [
     "evaluation",
     "requirement_ids",
@@ -24,7 +24,8 @@
     "proficiency_workload_contract_sha256_for_llm_proficiency"
   ],
   "reuse_conditions": {
-    "scored_output_cap": "The output cap of a scored trial is not part of the key. A certified llm_learnability or llm_proficiency record carries what its trials did against the cap they ran under (scored_output_cap, trial_calls, cap_truncated_trial_calls, max_trial_output_tokens, written at promotion or by cache-annotate-caps from the run's retained agent traces). Under the same cap the record is reused. Under a different cap it is reused only when the cap demonstrably never mattered: no trial call was cut off and no completion was larger than the current cap. A record without this evidence is a MISS until it is annotated."
+    "scored_output_cap": "The output cap of a scored trial is not part of the key. A certified llm_learnability or llm_proficiency record carries what its trials did against the cap they ran under (scored_output_cap, trial_calls, cap_truncated_trial_calls, max_trial_output_tokens, written at promotion or by cache-annotate-caps from the run's retained agent traces). Under the same cap the record is reused. Under a different cap it is reused only when the cap demonstrably never mattered: no trial call was cut off and no completion was larger than the current cap. A record without this evidence is a MISS until it is annotated.",
+    "quidra_execution_identity": "The historical fingerprint remains unchanged so already-paid cache stays addressable. Reuse of any record that measures Quidra additionally requires an exact compiler/runtime execution identity. New records carry it explicitly; legacy records are accepted only from verified migration commits while the target still equals the frozen migration baseline."
   },
   "epochs": {
     "semantic_compression": "declared",
@@ -56,5 +57,35 @@
     "format": "content-addressed-components",
     "canonical_root": "benchmark/template/prompts",
     "promote_after_finalization": true
+  },
+  "quidra_execution_identity": {
+    "input_paths": [
+      "CMakeLists.txt",
+      "project.toml",
+      "quidra.manifest.json",
+      "src",
+      "include",
+      "docs/spec/grammar.ebnf"
+    ],
+    "purpose": "Prevent stale same-version Quidra cache reuse without making benchmark-only commits cold. init records these Git object IDs before .git is excluded from the scored snapshot. New Quidra cache records certify that identity outside the historical fingerprint so existing valid records keep their paths.",
+    "legacy_verified_commit_prefixes": [
+      "fce5cfa",
+      "bc3d9dd",
+      "f3ef003",
+      "216a230"
+    ],
+    "legacy_baseline": {
+      "schema_version": 1,
+      "sha256": "7557084a0270aed00a5f43498348c1414e643353201f61885c3a03b855388a3b",
+      "git_objects": {
+        "CMakeLists.txt": "6235be49e91b72294049b2ae7b17c1fa2006ee72",
+        "project.toml": "740e2feec8b50a287a2b66f3634276adf31a1001",
+        "quidra.manifest.json": "41e4b800f1da0705b9099a5df891165aa05bcb4e",
+        "src": "9d4efb1251afd04455edae83f1e48736f87fc35a",
+        "include": "8b5548c2f205c85d2631963984e2ce140d28c6dc",
+        "docs/spec/grammar.ebnf": "9627047d19d038e8d1345fec746047f80fdb362a"
+      }
+    },
+    "legacy_note": "Only legacy records from the listed source commits may use the baseline. Their Quidra execution inputs were verified to equal this map. 56f2c65 is intentionally excluded because its compiler/runtime inputs differ. Once the current target changes, every identity-less legacy Quidra record becomes a MISS even if project.toml keeps the same version."
   }
 }

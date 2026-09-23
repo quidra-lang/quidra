@@ -14,8 +14,8 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-23T02:27:48Z
-reason: Rehearsal 7 of learnability-i1-i2--quidra: the Quidra learnability agent (24 action turns, snapshot compiler in the sandbox) never ran live after the protocol fixes because rehearsal 3 was cancelled at the job deadline; preparation is scoped to llm_learnability; guard 1.0 USD
+requested_at_utc: 2026-09-23T02:48:36Z
+reason: Rehearsal 8 of the two Language Quality agent units that never completed live after the fixes: lq-language-development--part-1--quidra (the snapshot compiler in the sandbox, audit dependencies from the cache) and lq-language-development--part-1--swift (the Glibc import fix for the Linux image); preparation is scoped to language_quality and hydrates the three mechanical records; guard 1.0 USD
 model: claude-sonnet-5
 budget_usd: 1.0
-units: learnability-i1-i2--quidra
+units: lq-language-development--part-1--quidra,lq-language-development--part-1--swift

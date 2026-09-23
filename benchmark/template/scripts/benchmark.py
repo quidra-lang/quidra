@@ -3220,10 +3220,67 @@ def support_adjudication_probe(requirement_ids: list[str]) -> str | None:
     return None
 
 
+def sc_probe_mechanical_verification(
+    root: Path, language: str, probe_id: str
+) -> dict[str, Any] | None:
+    """Compact trusted build/run evidence for one canonical Semantic probe.
+
+    Canonical-fragment validation executes in the pinned runtime after the
+    authoring worker returns. Support adjudicators must see that trusted fact;
+    otherwise they can re-invent stale toolchain assumptions after the exact
+    frozen recipe has already succeeded.
+    """
+    path = (
+        root / "work" / "audit" / "semantic-compression"
+        / f"canonical_verification_{slug_id(language)}.json"
+    )
+    if not path.is_file():
+        return None
+    report = json_load(path)
+    if report.get("synthetic_ci") is True:
+        return {
+            "verified": False,
+            "synthetic_ci": True,
+            "note": "synthetic CI carries no scored toolchain execution evidence",
+        }
+    raw = (report.get("probes") or {}).get(probe_id)
+    if not isinstance(raw, dict):
+        return None
+
+    def process(value: Any) -> dict[str, Any] | None:
+        if not isinstance(value, dict):
+            return None
+        return {
+            "argv": list(value.get("argv") or []),
+            "exit_code": value.get("exit_code"),
+            "stdout": clip_annotation_text(str(value.get("stdout") or ""), 500),
+            "stderr": clip_annotation_text(str(value.get("stderr") or ""), 500),
+        }
+
+    compact: dict[str, Any] = {
+        "verified": True,
+        "source": "trusted canonical-fragment validator in the pinned runtime",
+        "mode": raw.get("mode"),
+        "run_count": raw.get("run_count"),
+        "build": process(raw.get("build")),
+        "symbol_add2_defined": raw.get("symbol_add2_defined"),
+    }
+    runs = [
+        item for item in (process(value) for value in (raw.get("runs") or []))
+        if item is not None
+    ]
+    if runs:
+        compact["runs"] = runs
+    nm = process(raw.get("nm"))
+    if nm is not None:
+        compact["nm"] = nm
+    return compact
+
+
 def build_support_adjudication_input(
     root: Path, unit: dict[str, Any], manifest: dict[str, Any], probe_id: str
 ) -> Path:
-    """Put one probe's ten annotations plus cross-probe support context together."""
+    """Put one probe's ten annotations plus trusted verification context together."""
     units = {str(item.get("id")): item for item in manifest.get("work_units", [])}
     by_language: dict[str, dict[str, Any]] = {}
     cross_probe: dict[str, dict[str, Any]] = {}
@@ -3266,6 +3323,12 @@ def build_support_adjudication_input(
                 for pid, values in sorted(context.items())
                 if values
             }
+    mechanical_verification = {
+        language: evidence
+        for language in sorted(by_language)
+        if (evidence := sc_probe_mechanical_verification(root, language, probe_id))
+        is not None
+    }
     probe = next(
         (entry for entry in comparability_sample_probes(root)
          if str(entry.get("probe_id")) == probe_id),
@@ -3281,7 +3344,11 @@ def build_support_adjudication_input(
             "language, applying the frozen rubric and comparability policy "
             "symmetrically. Use the cross-probe context to avoid classifying the "
             "same standard mechanism differently unless numbered requirements "
-            "materially distinguish the probes. Return objects, never bare levels."
+            "materially distinguish the probes. mechanical_verification is trusted "
+            "runner evidence from the pinned runtime using the exact frozen recipe; "
+            "when present, do not contradict its build/run facts or invent a P-b "
+            "flag requirement that its argv does not contain. Return objects, never "
+            "bare levels."
         ),
         "output_contract": {
             "level": "FULL|PARTIAL|NONE",
@@ -3293,6 +3360,7 @@ def build_support_adjudication_input(
         },
         "frozen_probe": probe,
         "comparability_policy": policy,
+        "mechanical_verification": mechanical_verification,
         "annotation_count": len(by_language),
         "annotations": {language: by_language[language] for language in sorted(by_language)},
         "cross_probe_support_context": {

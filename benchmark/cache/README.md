@@ -17,6 +17,22 @@ Ecosystem evidence uses a declared epoch (`declared_epochs.ecosystem` in the cac
 policy) because external ecosystem facts change without a language version change;
 the operator changes that value when they should be measured again.
 
+The three Language Quality mechanical units are certified as well: the micro
+suite (`lq-micro-mechanical`), the adversarial case set (`lq-adversarial-mechanical`)
+and the audit of the snapshot's own Quidra programs (`lq-quidra-audit`). No model is
+involved, so their key carries no provider or sampling; it carries the pinned
+toolchains of every language they measure, the programs, fixtures, workloads and
+validators they read, the measurement scripts (`scripts/micro_measure.py` and
+`scripts/adversarial_measure.py`), the snapshot's Quidra versions and the declared
+`mechanical` epoch. The record holds the requirement-level result; the raw process
+captures (tens of megabytes) stay in the run's retained workspace artifact and are
+named by hash in the record's certification. They live under
+`v1/language-quality/mechanical-<action>/`. The reason is time rather than money:
+the measurement takes about six hours on a hosted runner, and a run that repeats it
+cannot also finish its paid units inside the six-hour job limit. Change
+`declared_epochs.mechanical` when the runner class changes or the numbers should be
+taken again.
+
 Workers never receive this directory as a readable path. Cache hydration is a
 trusted runner operation, and every hydrated result is passed through the current
 validator before it can become COMPLETE.

@@ -3302,7 +3302,42 @@ def cache_policy(root: Path) -> dict[str, Any]:
     return data
 
 
+#: Runner actions whose results are mechanical measurements of the frozen
+#: programs: no model is involved, only the pinned image, the snapshot's
+#: compiler and the measurement scripts. Their results are certified like any
+#: measurement, because the third rehearsal spent five hours and fifty minutes
+#: of its six-hour job measuring them again for nothing that had changed, and
+#: was cancelled before its one paid unit could finish.
+MECHANICAL_ACTIONS = ("micro-measure", "adversarial-measure", "quidra-audit")
+
+MEASUREMENT_SCRIPTS = ("micro_measure.py", "adversarial_measure.py")
+
+
+def mechanical_unit(unit: dict[str, Any]) -> bool:
+    return (
+        unit.get("execution_kind") == "command"
+        and str(unit.get("runner_action") or "") in MECHANICAL_ACTIONS
+        and unit.get("result_kind", "requirements") == "requirements"
+    )
+
+
+def mechanical_task(unit: dict[str, Any]) -> dict[str, Any]:
+    """The task-shaped view of a mechanical unit: its read paths, no packet."""
+    return {"read_paths": list(unit.get("read_paths", []) or []), "prompt_sha256": None}
+
+
+def mechanical_result_path(root: Path, unit: dict[str, Any]) -> Path:
+    return root / "work" / "root" / "commands" / str(unit["id"]) / "result.json"
+
+
+def measurement_script_hashes(root: Path) -> dict[str, str]:
+    scripts = root / "template" / "scripts"
+    return {name: sha256_file(scripts / name) for name in MEASUREMENT_SCRIPTS}
+
+
 def cache_eligible_unit(root: Path, unit: dict[str, Any]) -> bool:
+    if mechanical_unit(unit):
+        return True
     if unit.get("execution_kind", "agent") != "agent":
         return False
     assigned = list(unit.get("assigned_languages", []) or [])
@@ -3388,6 +3423,8 @@ def cache_epoch(root: Path, evaluation: str) -> str:
 
 
 def cache_scope(unit: dict[str, Any]) -> str:
+    if mechanical_unit(unit):
+        return "mechanical-" + slug_id(str(unit.get("runner_action")))
     assigned = list(unit.get("assigned_languages", []) or [])
     if unit.get("result_kind") == "audit" and unit.get("reuse_audit_for"):
         return "audit-" + "-".join(slug_id(str(a)) for a in sorted(unit["reuse_audit_for"]))
@@ -3451,7 +3488,8 @@ def cache_fingerprint_payload(
     identity = run.get("inference_identity") or {}
     provider = identity.get("provider")
     model = identity.get("model")
-    if not provider or not model:
+    mechanical = mechanical_unit(unit)
+    if not mechanical and (not provider or not model):
         return None
     toolchain_report = json_load(root / "results" / "toolchains.json")
     toolchains = toolchain_report.get("toolchains") or {}
@@ -3461,6 +3499,16 @@ def cache_fingerprint_payload(
         if not assigned:
             return None
     target = str(cache_policy(root).get("target_language") or "Quidra")
+    if mechanical:
+        # The micro suite and the adversarial set measure every language on the
+        # pinned image; the audit measures only the snapshot's own programs.
+        # No model is involved, so provider, model and sampling stay out of the
+        # key, and the measurement scripts themselves enter it.
+        assigned = (
+            [target] if unit.get("runner_action") == "quidra-audit"
+            else list(metadata_languages(root))
+        )
+        task = mechanical_task(unit)
     selected_toolchains: dict[str, str] = {}
     for language in assigned:
         if language == target:
@@ -3501,9 +3549,9 @@ def cache_fingerprint_payload(
         "requirement_ids": list(unit.get("requirement_ids", [])),
         "assigned_languages": assigned,
         "exact_task_packet_sha256": task.get("prompt_sha256"),
-        "provider": provider,
-        "model": model,
-        "frozen_sampling": sampling_config(root),
+        "provider": None if mechanical else provider,
+        "model": None if mechanical else model,
+        "frozen_sampling": None if mechanical else sampling_config(root),
         "toolchains": selected_toolchains,
         "unit_input_hashes": unit.get("input_hashes") or {},
         "readable_input_content_hashes": cache_read_input_hashes(root, task),
@@ -3511,8 +3559,14 @@ def cache_fingerprint_payload(
         "worker_mode": unit.get("worker_mode"),
         "network_allowed": bool(unit.get("network_allowed")),
         "runtime_toolchain_pins": selected_pins,
-        "cache_epoch": cache_epoch(root, str(unit.get("evaluation"))),
+        "cache_epoch": cache_epoch(
+            root, "mechanical" if mechanical else str(unit.get("evaluation"))
+        ),
     }
+    if mechanical:
+        payload["result_kind"] = "mechanical"
+        payload["runner_action"] = str(unit.get("runner_action"))
+        payload["measurement_script_hashes"] = measurement_script_hashes(root)
     if target in assigned:
         payload["quidra_target"] = quidra_target_identity(root)
     if unit.get("result_kind") == "audit":
@@ -3649,11 +3703,16 @@ def hydrate_certified_cache(root: Path, evaluation: str | None = None) -> int:
             for dep in unit.get("dependencies", [])
         ):
             continue
-        agent_dir = root / "work" / "agents" / str(unit["assigned_agent_id"])
-        task_path = agent_dir / "task.json"
-        if not task_path.is_file():
-            continue
-        task = json_load(task_path)
+        mechanical = mechanical_unit(unit)
+        if mechanical:
+            agent_dir = mechanical_result_path(root, unit).parent
+            task = mechanical_task(unit)
+        else:
+            agent_dir = root / "work" / "agents" / str(unit["assigned_agent_id"])
+            task_path = agent_dir / "task.json"
+            if not task_path.is_file():
+                continue
+            task = json_load(task_path)
         pair = cache_fingerprint(root, unit, task)
         if pair is None:
             continue
@@ -3689,6 +3748,7 @@ def hydrate_certified_cache(root: Path, evaluation: str | None = None) -> int:
             }
             continue
         result_path = agent_dir / "result.json"
+        agent_dir.mkdir(parents=True, exist_ok=True)
         json_dump(result_path, record["result"])
         json_dump(agent_dir / "cache_receipt.json", {
             "schema_version": 1,
@@ -3698,7 +3758,13 @@ def hydrate_certified_cache(root: Path, evaluation: str | None = None) -> int:
             "certification": record.get("certification") or {},
             "fingerprint_payload": payload,
         })
-        if cmd_result_check(argparse.Namespace(workspace=str(root), id=unit["assigned_agent_id"])) != 0:
+        if mechanical:
+            # The record holds the result the measurement scripts wrote; the
+            # raw samples stay in the retained evidence of the run that measured.
+            check_rc = cmd_command_result_check(argparse.Namespace(workspace=str(root), id=uid))
+        else:
+            check_rc = cmd_result_check(argparse.Namespace(workspace=str(root), id=unit["assigned_agent_id"]))
+        if check_rc != 0:
             raise BenchmarkError(f"{uid}: cached result failed the current validator")
         cmd_ledger_update(argparse.Namespace(
             workspace=str(root), id=uid, status="RUNNING", evidence=[],
@@ -7054,9 +7120,14 @@ def cache_impact(source: Path) -> dict[str, Any]:
             current = {key: pins.get(key) for key in pin_keys.get(language, [])}
             if recorded_pins and current != recorded_pins:
                 changed.append(f"runtime_toolchain_pins:{language}")
-        if str(epochs.get(evaluation, "stable")) == "declared":
-            if payload.get("cache_epoch") != declared.get(evaluation):
+        epoch_name = "mechanical" if payload.get("result_kind") == "mechanical" else evaluation
+        if str(epochs.get(epoch_name, "stable")) == "declared":
+            if payload.get("cache_epoch") != declared.get(epoch_name):
                 changed.append("cache_epoch")
+        for name, recorded in (payload.get("measurement_script_hashes") or {}).items():
+            script = template / "scripts" / name
+            if not script.is_file() or sha256_file(script) != recorded:
+                changed.append(f"measurement_script:{name}")
         if "quidra_target" in payload and versions is not None and payload["quidra_target"] != versions:
             changed.append("quidra_target")
         entry = {
@@ -7103,6 +7174,35 @@ def cmd_cache_annotate_caps(args: argparse.Namespace) -> int:
     return 0
 
 
+def mechanical_certification(
+    root: Path, unit: dict[str, Any], command_dir: Path, result: dict[str, Any]
+) -> dict[str, Any]:
+    """What certifies a mechanical measurement: its validator passed, the unit
+    completed, and the raw samples it was normalized from are identified by
+    hash. The raw files are megabytes of process captures; they stay in the
+    run's retained workspace artifact rather than in git."""
+    raw_hashes: dict[str, str] = {}
+    for child in sorted(command_dir.iterdir()):
+        if child.name in ("result.json", "cache_receipt.json"):
+            continue
+        if child.is_file():
+            raw_hashes[child.name] = sha256_file(child)
+        elif child.is_dir():
+            # One hash per capture tree (the adversarial cells hold thousands
+            # of files); the artifact keeps the files themselves.
+            raw_hashes[child.name + "/"] = sha256_tree(child)
+    return {
+        "validator_pass": True,
+        "unit_complete": True,
+        "primary_complete": False,
+        "mechanical": True,
+        "runner_action": str(unit.get("runner_action")),
+        "raw_evidence_sha256": raw_hashes,
+        "raw_evidence_retained_in": "the run's workspace artifact (provenance.run_id)",
+        "measured_at_utc": result.get("measured_at_utc"),
+    }
+
+
 def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     manifest_path = root / "work" / "root" / "manifest.json"
     ledger_path = root / "work" / "root" / "ledger.json"
@@ -7147,12 +7247,20 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
             and (primary.get(unit.get("evaluation")) or {}).get("status") != "COMPLETE"
         ):
             continue
-        agent_dir = root / "work" / "agents" / str(unit["assigned_agent_id"])
-        task_path = agent_dir / "task.json"
-        result_path = agent_dir / "result.json"
-        if not (task_path.is_file() and result_path.is_file()):
-            continue
-        task = json_load(task_path)
+        mechanical = mechanical_unit(unit)
+        if mechanical:
+            agent_dir = mechanical_result_path(root, unit).parent
+            result_path = agent_dir / "result.json"
+            if not result_path.is_file():
+                continue
+            task = mechanical_task(unit)
+        else:
+            agent_dir = root / "work" / "agents" / str(unit["assigned_agent_id"])
+            task_path = agent_dir / "task.json"
+            result_path = agent_dir / "result.json"
+            if not (task_path.is_file() and result_path.is_file()):
+                continue
+            task = json_load(task_path)
         pair = cache_fingerprint(root, unit, task)
         if pair is None:
             continue
@@ -7165,6 +7273,8 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
         if receipt_path.is_file():
             certification = (json_load(receipt_path).get("certification") or {})
             reused += 1
+        elif mechanical:
+            certification = mechanical_certification(root, unit, agent_dir, result)
         else:
             try:
                 certification = cache_certification_for_unit(root, unit, agent_dir)

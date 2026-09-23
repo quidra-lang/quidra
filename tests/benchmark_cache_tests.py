@@ -419,8 +419,109 @@ def assert_readiness_audits_are_cacheable(root: Path, task: dict) -> None:
     assert benchmark.cache_fingerprint(root, orphan, task) is None
 
 
+def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
+    """The micro suite, the adversarial set and the Quidra audit are certified.
+
+    They are mechanical: no model, only the pinned image, the snapshot's
+    compiler, the frozen programs and the measurement scripts. Left out of the
+    cache, the third rehearsal spent five hours and fifty minutes of its
+    six-hour job measuring them again and was cancelled before its one paid
+    unit could finish. The key carries every measured language's toolchain
+    and pins, the read paths, the measurement scripts, the Quidra versions and
+    the declared mechanical epoch; the raw samples stay in the run artifact.
+    """
+    languages = list(benchmark.metadata_languages(root))
+    toolchains = benchmark.json_load(root / "results/toolchains.json")
+    for language in languages:
+        if language == "Quidra":
+            continue
+        toolchains["toolchains"].setdefault(language, {"canonical": f"{language}-1.0-test"})
+    benchmark.json_dump(root / "results/toolchains.json", toolchains)
+    programs = root / "repo" / "tests" / "benchmark" / "quidra" / "micro"
+    programs.mkdir(parents=True, exist_ok=True)
+    (programs / "mb00.qui").write_text("print(1)\n", encoding="utf-8")
+    (root / "repo" / "project.toml").write_text(
+        'name = "Quidra"\nversion = "0.3.0"\nlanguage_version = "0.2"\n', encoding="utf-8"
+    )
+    result_path = root / "work" / "root" / "commands" / "lq-micro-mechanical" / "result.json"
+    unit = {
+        "id": "lq-micro-mechanical", "evaluation": "language_quality", "phase": "measurement",
+        "execution_kind": "command", "result_kind": "requirements", "runner_action": "micro-measure",
+        "requirement_ids": ["metric.native_execution_performance"], "dependencies": [],
+        "read_paths": ["repo/tests/benchmark/quidra", "template/workloads"],
+        "evidence_paths": [str(result_path)], "network_allowed": False, "max_attempts": 3,
+        "worker_mode": "runner-command", "assigned_languages": [],
+    }
+    assert benchmark.cache_eligible_unit(root, unit), "a mechanical measurement is not cacheable"
+    assert benchmark.cache_scope(unit) == "mechanical-micro-measure"
+    task = benchmark.mechanical_task(unit)
+    pair = benchmark.cache_fingerprint(root, unit, task)
+    assert pair is not None, "a mechanical unit produced no cache key"
+    fingerprint, payload = pair
+    assert set(payload["toolchains"]) == set(languages) - {"Quidra"}, payload["toolchains"]
+    assert payload["quidra_target"] == {"version": "0.3.0", "language_version": "0.2"}
+    assert set(payload["measurement_script_hashes"]) == {"micro_measure.py", "adversarial_measure.py"}
+    assert payload["provider"] is None and payload["model"] is None
+    assert payload["result_kind"] == "mechanical" and payload["cache_epoch"] == "2026-09"
+    assert "repo/tests/benchmark/quidra" in payload["readable_input_content_hashes"]
+
+    # A completed measurement promotes into the source repository's cache.
+    result = {
+        "schema_version": 1, "evaluation": "language_quality",
+        "requirements": {"metric.native_execution_performance": {lang: 50.0 for lang in languages}},
+        "evidence": {"raw": "/quidra-benchmark/work/root/commands/lq-micro-mechanical/micro_raw.json"},
+    }
+    benchmark.json_dump(result_path, result)
+    (result_path.parent / "micro_raw.json").write_text("{}\n", encoding="utf-8")
+    freeze_manifest(root, unit)
+    ledger = benchmark.json_load(root / "work/root/ledger.json")
+    ledger["units"][unit["id"]].update({"status": "COMPLETE", "validation_result": "PASS"})
+    benchmark.json_dump(root / "work/root/ledger.json", ledger)
+    source = tmp / "source"
+    (source / "benchmark" / "cache").mkdir(parents=True)
+    summary = benchmark.promote_certified_cache(source, root)
+    assert summary["promoted"] == 1, summary
+    rel = benchmark.cache_record_relative(unit, fingerprint)
+    record_path = source / "benchmark" / "cache" / rel
+    assert record_path.is_file() and "mechanical-micro-measure" in rel.as_posix()
+    record = benchmark.json_load(record_path)
+    assert record["certification"]["mechanical"] is True
+    assert "micro_raw.json" in record["certification"]["raw_evidence_sha256"]
+    assert record["result"] == result
+
+    # A later run with the same inputs hydrates the record instead of measuring.
+    shutil.rmtree(result_path.parent)
+    freeze_manifest(root, unit)
+    benchmark.json_dump(root / "cache" / rel, record)
+    run = benchmark.json_load(root / "run.json")
+    run["cache_tree_sha256"] = benchmark.sha256_tree(root / "cache")
+    benchmark.json_dump(root / "run.json", run)
+    assert benchmark.hydrate_certified_cache(root, "language_quality") == 1
+    ledger = benchmark.json_load(root / "work/root/ledger.json")
+    assert ledger["units"][unit["id"]]["status"] == "COMPLETE"
+    assert benchmark.json_load(result_path) == result
+    status = benchmark.json_load(root / "results/cache_status.json")
+    assert unit["id"] in status["hits"]
+
+    # A changed Quidra program or measurement script re-keys the measurement.
+    (programs / "mb00.qui").write_text("print(2)\n", encoding="utf-8")
+    assert benchmark.cache_fingerprint(root, unit, task)[0] != fingerprint
+    (programs / "mb00.qui").write_text("print(1)\n", encoding="utf-8")
+    script = root / "template" / "scripts" / "micro_measure.py"
+    original = script.read_bytes()
+    script.write_bytes(original + b"\n# changed\n")
+    assert benchmark.cache_fingerprint(root, unit, task)[0] != fingerprint
+    script.write_bytes(original)
+    assert benchmark.cache_fingerprint(root, unit, task)[0] == fingerprint
+    shutil.rmtree(result_path.parent)
+    (root / "cache" / rel).unlink()
+
+
 def main() -> None:
     assert_accepted_trial_start_marks_the_scored_boundary()
+    with tempfile.TemporaryDirectory() as mechanical_td:
+        # Its own workspace: the test freezes a manifest of one mechanical unit.
+        assert_mechanical_measurements_are_cacheable(make_workspace(Path(mechanical_td)), Path(mechanical_td))
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
         assert_language_scoped_program_reads(root)

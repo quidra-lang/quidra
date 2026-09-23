@@ -2,7 +2,7 @@
   "schema_version": 1,
   "cache_schema_version": 1,
   "target_language": "Quidra",
-  "policy": "Only validated complete measurement results whose complete benchmark input fingerprint matches may be reused. Eligible units are certified independently after their own validator passes, so a partial run can preserve completed work. Units that measure Quidra are cacheable too: their key carries the versions the evaluated snapshot declares in project.toml (version and language_version) and the exact Task Packet, which embeds the snapshot's docs, so a Quidra record is reused only while neither has changed. Cache material is trusted runner input and is never exposed as a worker read path.",
+  "policy": "Only validated complete measurement results whose complete benchmark input fingerprint matches may be reused. Eligible units are certified independently after their own validator passes, so a partial run can preserve completed work. Units that measure Quidra are cacheable too: their key carries the versions the evaluated snapshot declares in project.toml (version and language_version) and the exact Task Packet, which embeds the snapshot's docs, so a Quidra record is reused only while neither has changed. Cache material is trusted runner input and is never exposed as a worker read path. The three Language Quality mechanical units (the micro suite, the adversarial set and the audit of the snapshot's Quidra programs) are certified too: no model is involved, so their key carries the pinned toolchains of every language they measure, the programs and fixtures they read, the measurement scripts, the snapshot's Quidra versions and a declared mechanical epoch; the raw samples stay in the run's retained artifact.",
   "fingerprint_includes": [
     "evaluation",
     "requirement_ids",
@@ -19,7 +19,8 @@
     "network_policy",
     "runtime_toolchain_pins_for_assigned_languages",
     "cache_epoch",
-    "quidra_target_versions_when_assigned"
+    "quidra_target_versions_when_assigned",
+    "runner_action_and_measurement_script_hashes_for_mechanical_units"
   ],
   "reuse_conditions": {
     "scored_output_cap": "The output cap of a scored trial is not part of the key. A certified llm_learnability or llm_proficiency record carries what its trials did against the cap they ran under (scored_output_cap, trial_calls, cap_truncated_trial_calls, max_trial_output_tokens, written at promotion or by cache-annotate-caps from the run's retained agent traces). Under the same cap the record is reused. Under a different cap it is reused only when the cap demonstrably never mattered: no trial call was cut off and no completion was larger than the current cap. A record without this evidence is a MISS until it is annotated."
@@ -29,11 +30,14 @@
     "llm_learnability": "stable",
     "language_quality": "stable",
     "llm_proficiency": "stable",
-    "ecosystem": "declared"
+    "ecosystem": "declared",
+    "mechanical": "declared"
   },
   "declared_epochs": {
     "ecosystem": "2026-09",
-    "note": "Set by a person, like a toolchain pin. Ecosystem measures external packages, tools and public knowledge, which change even when a language version does not; rather than expiring every ecosystem record at each calendar month, the operator changes this value when the outside world should be measured again. Records carry the value in their key, so changing it makes every ecosystem record a MISS. 2026-09 keeps the records certified in September 2026 valid."
+    "note": "Set by a person, like a toolchain pin. Ecosystem measures external packages, tools and public knowledge, which change even when a language version does not; rather than expiring every ecosystem record at each calendar month, the operator changes this value when the outside world should be measured again. Records carry the value in their key, so changing it makes every ecosystem record a MISS. 2026-09 keeps the records certified in September 2026 valid.",
+    "mechanical": "2026-09",
+    "mechanical_note": "Mechanical measurements are timed on the hosted runner class the workflow names. Change this value when that class changes or when the numbers should be taken again for another reason; nothing else about the runner enters the key."
   },
   "promotion": {
     "require_complete_unit": true,

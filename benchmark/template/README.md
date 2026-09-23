@@ -172,4 +172,7 @@ units, `methodology-assets/` for Semantic Compression and Ecosystem, and `config
 records that read it and the next run pays to measure them again. Run
 `benchmark.py cache-impact --source-repo .` before pushing a template change to see which records
 it would invalidate. The Zig build command in `workloads/micro.md` is documented without `-lc`
-for exactly this reason; `scripts/micro_measure.py` adds the flag.
+for exactly this reason; `scripts/micro_measure.py` adds the flag. The mechanical Language Quality
+records additionally key on `scripts/micro_measure.py`, `scripts/adversarial_measure.py`,
+`programs/`, `fixtures/`, `validators/micro/` and the snapshot's `tests/benchmark/quidra`, so an
+edit to any of those re-runs the six-hour measurement on the next run.

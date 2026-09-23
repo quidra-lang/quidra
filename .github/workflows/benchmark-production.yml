@@ -83,6 +83,32 @@ jobs:
           PY
             echo "BENCHMARK_BUDGET_USD=$budget" >> "$GITHUB_ENV"
             echo "paid rehearsal units: $units (guard $budget USD)"
+            # A rehearsal prepares only its own evaluation. Preparing everything
+            # would also run the Language Quality mechanical measurement, which
+            # takes about six hours on a hosted runner and ended rehearsal 3 at
+            # the job's deadline before its one paid unit could finish.
+            if [ "$evaluation" = "all" ]; then
+              evaluation="$(python - $units <<'PY'
+          import sys
+          prefixes = {
+              "learnability-": "llm_learnability", "sc-": "semantic_compression",
+              "proficiency-": "llm_proficiency", "ecosystem-": "ecosystem", "lq-": "language_quality",
+          }
+          found = set()
+          for unit in sys.argv[1:]:
+              for prefix, evaluation in prefixes.items():
+                  if unit.startswith(prefix):
+                      found.add(evaluation)
+                      break
+              else:
+                  raise SystemExit(f"::error::cannot tell which evaluation work unit {unit} belongs to")
+          if len(found) != 1:
+              raise SystemExit("::error::a rehearsal's units must belong to one evaluation")
+          print(found.pop())
+          PY
+          )"
+              echo "rehearsal prepares only: $evaluation"
+            fi
           elif [ -n "$budget" ]; then
             python - "$budget" <<'PY'
           import sys

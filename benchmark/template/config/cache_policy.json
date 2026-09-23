@@ -63,7 +63,7 @@
     "require_complete_primary_evaluation": false,
     "preserve_raw_evidence_in_git": false,
     "raw_evidence_artifact_retention_days": 90,
-    "paid_partial_store": "Private content-addressed Actions artifact (quidra-benchmark-paid-state-*) with Actions cache as a speed mirror; exact-fingerprint import only; hidden prompts/trials are never committed to public Git.",
+    "paid_partial_store": "Private content-addressed Actions artifact (quidra-benchmark-paid-state) with Actions cache as a speed mirror; exact-fingerprint import only; hidden prompts/trials are never committed to public Git.",
     "checkpoint_completed_units": true
   },
   "prompt_store": {

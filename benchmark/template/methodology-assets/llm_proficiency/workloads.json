@@ -7,12 +7,18 @@
     "network_allowed": false,
     "package_downloads": false,
     "one_complete_program": true,
-    "same_cell_prompt_across_replications": true,
+    "same_cell_prompt_across_replications": false,
     "specification_scenario_hides_reference": true,
     "reference_scenario_uses_same_cpp_reference_for_all_languages": true,
     "note": "Each workload is a deterministic stdin/stdout program. The prompt exposes the protocol and a public example; the trusted runtime separately executes hidden inputs and computes expected outputs with its own oracle. A literal PASS program cannot satisfy the hidden cases.",
     "hidden_tests_runtime_only": true,
-    "success_is_external_oracle_not_program_self_report": true
+    "success_is_external_oracle_not_program_self_report": true,
+    "primary_prompt_variants": [
+      "canonical",
+      "scenario-first",
+      "contract-first"
+    ],
+    "prompt_variant_note": "The three Primary trials per workload/scenario cell use the same semantic content under three trusted runtime-owned layouts. Only section order/format changes; the same variants are used for every language."
   },
   "source_provenance": {
     "SVM": {

@@ -7456,6 +7456,73 @@ def proficiency_runtime_metrics(trace: dict[str, Any]) -> dict[str, float] | Non
     }
 
 
+def project_proficiency_runtime_metrics(
+    root: Path,
+    unit: dict[str, Any],
+    agent_dir: Path,
+    trace: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Make mechanically decidable Proficiency metrics runner-owned.
+
+    The worker still authors the complete result document and every metric whose
+    meaning requires qualitative judgment. Generation and compile/parse success,
+    however, are facts already present in the trusted trial trace. Re-running all
+    paid trials because the worker made an arithmetic mistake while summarizing
+    those facts would change no experiment, so the runner projects only those
+    mechanically decidable cells and preserves the worker's original values in a
+    separate audit record.
+    """
+    if str(unit.get("evaluation") or "") != "llm_proficiency":
+        return None
+    computed = proficiency_runtime_metrics(trace)
+    if computed is None:
+        return None
+    assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
+    if len(assigned) != 1:
+        return None
+    language = assigned[0]
+    result_path = agent_dir / "result.json"
+    if not result_path.is_file():
+        return None
+    try:
+        result = json_load(result_path)
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(result, dict):
+        return None
+    requirements = result.get("requirements")
+    if not isinstance(requirements, dict):
+        return None
+
+    allowed = set(str(value) for value in (unit.get("requirement_ids") or []))
+    original: dict[str, Any] = {}
+    before_sha = sha256_file(result_path)
+    projected: dict[str, float] = {}
+    for metric, expected in computed.items():
+        if metric not in allowed:
+            continue
+        original[metric] = requirements.get(metric)
+        value = float(expected)
+        requirements[metric] = {language: value}
+        projected[metric] = value
+
+    if not projected:
+        return None
+    json_dump(result_path, result)
+    report = {
+        "schema_version": 1,
+        "work_unit_id": str(unit.get("id") or ""),
+        "language": language,
+        "source": "trusted Proficiency trial trace",
+        "worker_result_sha256": before_sha,
+        "projected_result_sha256": sha256_file(result_path),
+        "worker_reported": original,
+        "runtime_metrics": projected,
+    }
+    json_dump(agent_dir / "proficiency_runtime_projection.json", report)
+    return report
+
+
 def proficiency_primary_trial_set_sha256(root: Path) -> str:
     payload = json.dumps(
         proficiency_required_trial_ids(root),
@@ -7529,7 +7596,7 @@ def proficiency_runtime_verification_problems(
     agent_dir: Path,
     trace: dict[str, Any],
 ) -> list[str]:
-    """Verify every Proficiency call mechanically and bind four basic metrics to it."""
+    """Verify every Proficiency call mechanically and bind decidable metrics to it."""
     trials = ((trace.get("trials") or {}).get("trials") or {})
     problems: list[str] = []
     per_trial: dict[str, Any] = {}
@@ -7883,6 +7950,15 @@ def cmd_task_finish(args: argparse.Namespace) -> int:
             )
     else:
         raise BenchmarkError(f"unsupported worker_mode for task-finish: {worker_mode}")
+    if (
+        worker_mode == "sandbox-agent"
+        and str(unit.get("evaluation") or "") == "llm_proficiency"
+    ):
+        trace_path = agent_dir / "agent_trace.json"
+        if trace_path.is_file():
+            project_proficiency_runtime_metrics(
+                root, unit, agent_dir, json_load(trace_path)
+            )
     validation_ns = argparse.Namespace(workspace=str(root), id=agent_id)
     rc = cmd_task_validate(validation_ns)
     integrity_detail: str | None = None

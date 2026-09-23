@@ -6964,25 +6964,162 @@ def toolchain_evidence_required(root: Path) -> bool:
     )
 
 
-def proficiency_required_trial_ids(root: Path) -> list[str]:
-    """The exact fresh-session IDs required by the frozen Primary allocation."""
+PROFICIENCY_WORKLOADS_RELATIVE = Path(
+    "template/methodology-assets/llm_proficiency/workloads.json"
+)
+
+
+def proficiency_workload_contract(root: Path) -> dict[str, Any]:
+    """Load and mechanically validate the frozen offline Proficiency tasks."""
+    asset = json_load(root / PROFICIENCY_WORKLOADS_RELATIVE)
+    if asset.get("schema_version") != 1:
+        raise BenchmarkError("unsupported LLM Proficiency workload schema")
     cfg = json_load(root / "template" / "config" / "primary.json")["llm_proficiency"]
+    expected_workloads = [str(value) for value in cfg["primary_workloads"]]
+    expected_scenarios = [str(value) for value in cfg["primary_scenarios"]]
+    workloads = asset.get("workloads")
+    scenarios = asset.get("scenarios")
+    provenance = asset.get("source_provenance")
+    if not isinstance(workloads, dict) or set(workloads) != set(expected_workloads):
+        raise BenchmarkError(
+            "LLM Proficiency workload asset must match primary_workloads exactly"
+        )
+    if not isinstance(scenarios, dict) or set(scenarios) != set(expected_scenarios):
+        raise BenchmarkError(
+            "LLM Proficiency scenario asset must match primary_scenarios exactly"
+        )
+    if not isinstance(provenance, dict) or set(provenance) != set(expected_workloads):
+        raise BenchmarkError(
+            "LLM Proficiency source provenance must cover every Primary workload"
+        )
+    for workload in expected_workloads:
+        row = workloads[workload]
+        source = provenance[workload]
+        if (
+            not isinstance(row, dict)
+            or not str(row.get("subset_id") or "").strip()
+            or not str(row.get("specification") or "").strip()
+            or not str(row.get("reference_cpp") or "").strip()
+            or not isinstance(row.get("validation"), dict)
+            or not str((row.get("validation") or {}).get("success_stdout") or "").strip()
+        ):
+            raise BenchmarkError(
+                f"LLM Proficiency workload {workload} has an incomplete frozen contract"
+            )
+        commit = str((source or {}).get("commit") or "")
+        paths = (source or {}).get("paths")
+        if (
+            not re.fullmatch(r"[0-9a-f]{40}", commit)
+            or not isinstance(paths, list)
+            or not paths
+            or not all(isinstance(path, str) and path for path in paths)
+        ):
+            raise BenchmarkError(
+                f"LLM Proficiency workload {workload} has invalid source provenance"
+            )
+    for scenario in expected_scenarios:
+        row = scenarios[scenario]
+        if (
+            not isinstance(row, dict)
+            or not isinstance(row.get("include_reference"), bool)
+            or not str(row.get("instruction") or "").strip()
+        ):
+            raise BenchmarkError(
+                f"LLM Proficiency scenario {scenario} has an incomplete frozen contract"
+            )
+    if scenarios["specification_to_implementation"]["include_reference"] is not False:
+        raise BenchmarkError(
+            "specification_to_implementation must not expose the reference implementation"
+        )
+    if scenarios["reference_to_porting"]["include_reference"] is not True:
+        raise BenchmarkError("reference_to_porting must expose the frozen reference")
+    return asset
+
+
+def proficiency_trial_manifest(root: Path) -> dict[str, dict[str, Any]]:
+    """Exact Primary trial IDs mapped to their frozen cell identity."""
+    cfg = json_load(root / "template" / "config" / "primary.json")["llm_proficiency"]
+    proficiency_workload_contract(root)
     workloads = [str(value) for value in cfg["primary_workloads"]]
     scenarios = [str(value) for value in cfg["primary_scenarios"]]
     replications = int(cfg["independent_trials_per_replicated_cell"])
     if replications < 1:
         raise BenchmarkError("LLM Proficiency requires at least one Primary replication")
-    trial_ids = [
-        f"{slug_id(workload)}--{slug_id(scenario)}--t{replication}"
-        for workload in workloads
-        for scenario in scenarios
-        for replication in range(1, replications + 1)
-    ]
-    if len(trial_ids) != len(set(trial_ids)):
+    manifest: dict[str, dict[str, Any]] = {}
+    for workload in workloads:
+        for scenario in scenarios:
+            for replication in range(1, replications + 1):
+                trial_id = f"{slug_id(workload)}--{slug_id(scenario)}--t{replication}"
+                if trial_id in manifest:
+                    raise BenchmarkError(
+                        "LLM Proficiency workload/scenario names collide after "
+                        "trial-ID normalization"
+                    )
+                manifest[trial_id] = {
+                    "workload": workload,
+                    "scenario": scenario,
+                    "replication": replication,
+                }
+    return manifest
+
+
+def proficiency_required_trial_ids(root: Path) -> list[str]:
+    """The exact fresh-session IDs required by the frozen Primary allocation."""
+    return list(proficiency_trial_manifest(root))
+
+
+def proficiency_expected_prompt(root: Path, language: str, trial_id: str) -> str:
+    """Trusted initial prompt for one frozen Proficiency cell."""
+    languages = metadata_languages(root)
+    if language not in languages:
+        raise BenchmarkError(f"unknown LLM Proficiency target language: {language}")
+    manifest = proficiency_trial_manifest(root)
+    cell = manifest.get(trial_id)
+    if cell is None:
+        raise BenchmarkError(f"unknown LLM Proficiency trial ID: {trial_id}")
+    asset = proficiency_workload_contract(root)
+    workload = asset["workloads"][cell["workload"]]
+    scenario = asset["scenarios"][cell["scenario"]]
+    environment = json_load(root / "template" / "environment" / "environment.json")
+    recipe = (environment.get("frozen_toolchain_recipes") or {}).get(language)
+    if not isinstance(recipe, dict):
         raise BenchmarkError(
-            "LLM Proficiency workload/scenario names collide after trial-ID normalization"
+            f"LLM Proficiency has no frozen toolchain recipe for {language}"
         )
-    return trial_ids
+    sections = [
+        "# Frozen LLM Proficiency Trial",
+        f"Target language: {language}",
+        f"Workload: {cell['workload']} ({workload['subset_id']})",
+        f"Scenario: {cell['scenario']}",
+        "",
+        "Rules:",
+        "- Return only one complete source program, with no Markdown fences or explanation.",
+        "- Use only the target language and its standard library/runtime shipped in the frozen toolchain.",
+        "- Do not use the network, package downloads, third-party dependencies, generated bindings, or external services.",
+        "- Preserve the algorithm and validation contract exactly; do not replace the task with a simpler computation or hard-code PASS.",
+        "- The program must exit nonzero when its own required validation fails.",
+        f"- Frozen build/run recipe: {json.dumps(recipe, sort_keys=True, separators=(',', ':'))}",
+        "",
+        "Scenario instruction:",
+        str(scenario["instruction"]),
+        "",
+        "Frozen specification:",
+        str(workload["specification"]).strip(),
+    ]
+    if scenario["include_reference"]:
+        sections.extend([
+            "",
+            "Frozen C++ reference implementation:",
+            str(workload["reference_cpp"]).strip(),
+        ])
+    sections.extend([
+        "",
+        "Frozen validation contract:",
+        json.dumps(workload["validation"], sort_keys=True, separators=(",", ":")),
+        "",
+        "Return only the complete target-language source program.",
+    ])
+    return "\n".join(sections).rstrip() + "\n"
 
 
 def proficiency_primary_trial_set_sha256(root: Path) -> str:
@@ -6994,11 +7131,29 @@ def proficiency_primary_trial_set_sha256(root: Path) -> str:
     return sha256_bytes(payload)
 
 
+def proficiency_primary_prompt_set_sha256(root: Path, language: str) -> str:
+    payload = {
+        trial_id: sha256_bytes(
+            proficiency_expected_prompt(root, language, trial_id).encode("utf-8")
+        )
+        for trial_id in proficiency_required_trial_ids(root)
+    }
+    return sha256_bytes(
+        json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        ).encode("utf-8")
+    )
+
+
 def proficiency_trial_coverage_problems(
-    root: Path, trace: dict[str, Any]
+    root: Path, unit: dict[str, Any], trace: dict[str, Any]
 ) -> list[str]:
-    """Require exactly the predeclared Primary cells and replications."""
+    """Require the exact Primary cells, replications, and runtime-owned prompts."""
     expected = set(proficiency_required_trial_ids(root))
+    assigned = [str(value) for value in (unit.get("assigned_languages") or [])]
+    if len(assigned) != 1:
+        return ["LLM Proficiency trial unit must be assigned exactly one language"]
+    language = assigned[0]
     trials = ((trace.get("trials") or {}).get("trials") or {})
     if not isinstance(trials, dict):
         return ["scored trial records are not an object"]
@@ -7007,19 +7162,32 @@ def proficiency_trial_coverage_problems(
     extra = sorted(observed - expected)
     problems: list[str] = []
     if missing:
-        problems.append(
-            "missing required Primary trials: " + ", ".join(missing)
-        )
+        problems.append("missing required Primary trials: " + ", ".join(missing))
     if extra:
-        problems.append(
-            "unexpected Primary trial IDs: " + ", ".join(extra)
-        )
+        problems.append("unexpected Primary trial IDs: " + ", ".join(extra))
     if len(observed) != len(expected):
         problems.append(
             f"Primary trial count is {len(observed)}, expected exactly {len(expected)}"
         )
+    for trial_id in sorted(expected & observed):
+        session = trials.get(trial_id) or {}
+        calls = session.get("calls") or []
+        if not isinstance(calls, list) or not calls:
+            problems.append(f"{trial_id}: no preserved scored calls")
+            continue
+        first = calls[0] if isinstance(calls[0], dict) else {}
+        expected_prompt = proficiency_expected_prompt(root, language, trial_id)
+        if first.get("prompt") != expected_prompt:
+            problems.append(
+                f"{trial_id}: initial prompt does not match the frozen runtime-owned "
+                "workload/scenario prompt"
+            )
+        expected_hash = sha256_bytes(expected_prompt.encode("utf-8"))
+        if first.get("prompt_sha256") != expected_hash:
+            problems.append(
+                f"{trial_id}: initial prompt hash does not match the frozen prompt"
+            )
     return problems
-
 
 def is_trial_unit(unit: dict[str, Any]) -> bool:
     evaluation = str(unit.get("evaluation") or "")
@@ -7076,7 +7244,7 @@ def trial_unit_problems(
             problems.extend(learnability_toolchain_evidence_problems(unit, trace))
     elif evaluation == "llm_proficiency":
         root = agent_dir.parent.parent.parent
-        problems.extend(proficiency_trial_coverage_problems(root, trace))
+        problems.extend(proficiency_trial_coverage_problems(root, unit, trace))
         problems.extend(_preserved_trial_problems(agent_dir, trace))
         if toolchain_evidence_required(root):
             problems.extend(trial_toolchain_evidence_problems(unit, trace))
@@ -8967,7 +9135,7 @@ def run_proficiency_integrity(root: Path, unit: dict[str, Any]) -> None:
             problems.append(f"{uid}: host tool surface was exposed")
         problems.extend(
             f"{uid}: {p}"
-            for p in proficiency_trial_coverage_problems(root, trace)
+            for p in proficiency_trial_coverage_problems(root, trial_unit, trace)
         )
         problems.extend(f"{uid}: {p}" for p in _preserved_trial_problems(agent_dir, trace))
         if toolchain_evidence_required(root):
@@ -10050,7 +10218,7 @@ def cache_certification_for_unit(
             problems.append("trial client was not credential-less")
         if gateway.get("host_tools_exposed") is not False:
             problems.append("host tool surface was exposed")
-        problems.extend(proficiency_trial_coverage_problems(root, trace))
+        problems.extend(proficiency_trial_coverage_problems(root, unit, trace))
         problems.extend(_preserved_trial_problems(agent_dir, trace))
         if toolchain_evidence_required(root):
             problems.extend(trial_toolchain_evidence_problems(unit, trace))

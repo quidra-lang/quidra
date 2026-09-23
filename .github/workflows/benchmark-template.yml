@@ -1746,6 +1746,19 @@ jobs:
           test -f "$RUN_DIR/rankings.json"
           test -f "$RUN_DIR/cache_usage.json"
           test -f "$RUN_DIR/provenance.json"
+          test -f "$RUN_DIR/audit/semantic_compression.json"
+          python - "$RUN_DIR" <<'PY'
+          import json, sys
+          from pathlib import Path
+          run_dir = Path(sys.argv[1])
+          summary = json.loads((run_dir / "summary.json").read_text())
+          audit_rel = summary["raw_evidence"]["semantic_compression_audit_manifest"]
+          assert audit_rel == "audit/semantic_compression.json", audit_rel
+          audit = json.loads((run_dir / audit_rel).read_text())
+          assert audit["purpose"].startswith("Compact reconstruction manifest"), audit
+          assert "final_support_adjudications" in audit, audit
+          assert "transient_audit_sha256" in audit, audit
+          PY
           test ! -e "$RUN_DIR/results"
           test ! -e "$RUN_DIR/raw"
           test ! -e "$RUN_DIR/prompts"

@@ -228,7 +228,8 @@ jobs:
           row = by_language["Python"]["F08.P1"]
           assert row["support"] == "PARTIAL" and row["fragment"] == "wrapper(x)"
           assert row["support_reason_codes"] == ["P-a"]
-          assert row["support_justification"] == "standard substitution"
+          assert row["support_adjudication"]["justification"] == "standard substitution"
+          assert row["support_source"] == "cohort_adjudication_or_repair"
           assert "rationale" not in row
 
           with tempfile.TemporaryDirectory() as repair_td:
@@ -239,14 +240,25 @@ jobs:
                   {"schema_version":1,"labels":{"Python":"E"}},
               )
               result = {
-                  "evidence": {"repair_directives": [{
-                      "probe_id":"F08.P1","label":"E","record":partial
-                  }]}
+                  "evidence": {
+                      "gate_result": {
+                          "affected_pairs_requiring_revalidation": [
+                              {"probe_id":"F10.P1","label":"E"}
+                          ]
+                      },
+                      "repair_directives": [{
+                          "probe_id":"F10.P1","label":"E","record":partial
+                      }],
+                  }
               }
               assert module.persist_comparability_repairs(repair_root, result) == 1
               assert module.persist_comparability_repairs(repair_root, result) == 0
               repairs = module.sc_comparability_repairs(repair_root)
-              assert repairs["F08.P1"]["Python"]["level"] == "PARTIAL"
+              assert repairs["F10.P1"]["Python"]["level"] == "PARTIAL"
+              # F10 intentionally has no dedicated cohort-adjudication unit:
+              # direct repair must still become authoritative.
+              merged = module.sc_adjudicated_annotations(repair_root)
+              assert merged["F10.P1"]["Python"]["fragment"] == "wrapper(x)"
 
           lq = (root / "methodology" / "language_quality.md").read_text()
           assert "3 unscored warm-up runs" not in lq

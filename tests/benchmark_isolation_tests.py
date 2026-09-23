@@ -2416,21 +2416,68 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
         trial_id = next(
             trial_id
             for trial_id in benchmark.proficiency_required_trial_ids(root)
-            if trial_id.startswith("gmm--specification-to-implementation--")
+            if trial_id.startswith("lightgrad--specification-to-implementation--")
         )
         agent_dir = root / "work/agents/worker-proficiency-runtime"
         verify_dir = agent_dir / "trials" / trial_id / "verification" / "call_01"
         previous = os.environ.pop("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS", None)
         try:
-            valid_source = 'print("GMM PASS")\n'
+            valid_source = (
+                "import sys\n"
+                "x1, x2, x3 = map(float, sys.stdin.read().split())\n"
+                "y = x1*x1*x1*x2*x2 + x1*x3\n"
+                "g1 = 3*x1*x1*x2*x2 + x3\n"
+                "g2 = 2*x1*x1*x1*x2\n"
+                "g3 = x1\n"
+                "print('LIGHTGRAD', format(y, '.17g'), format(g1, '.17g'), "
+                "format(g2, '.17g'), format(g3, '.17g'))\n"
+            )
             verification = benchmark.verify_proficiency_completion(
                 root, "Python", trial_id, valid_source, verify_dir
             )
             check(
                 verification["compile_parse_ok"] is True
-                and verification["test_passed"] is True,
-                f"trusted Python verifier rejected an executable fixture: {verification}",
+                and verification["test_passed"] is True
+                and verification["oracle_passed_count"]
+                == verification["oracle_test_count"],
+                f"trusted Python hidden-oracle verifier rejected a valid fixture: {verification}",
             )
+
+            hardcoded = benchmark.verify_proficiency_completion(
+                root,
+                "Python",
+                trial_id,
+                "print('LIGHTGRAD 82 113 48 2')\n",
+                agent_dir / "hardcoded-verification",
+            )
+            check(
+                hardcoded["compile_parse_ok"] is True
+                and hardcoded["test_passed"] is False
+                and 0 < hardcoded["oracle_passed_count"] < hardcoded["oracle_test_count"],
+                f"a hard-coded public answer escaped hidden-input verification: {hardcoded}",
+            )
+            repair = benchmark.proficiency_repair_prompt(hardcoded)
+            check(
+                "hidden-" not in repair
+                and "hidden_case_failures" in repair
+                and "expected_sha256" not in repair
+                and "input_sha256" not in repair,
+                f"hidden-oracle details leaked into the scored repair prompt: {repair}",
+            )
+
+            extra_stdout = benchmark.verify_proficiency_completion(
+                root,
+                "Python",
+                trial_id,
+                valid_source + "print('EXTRA')\n",
+                agent_dir / "extra-stdout-verification",
+            )
+            check(
+                extra_stdout["compile_parse_ok"] is True
+                and extra_stdout["test_passed"] is False,
+                f"extra stdout escaped the exact one-line oracle: {extra_stdout}",
+            )
+
             broken = benchmark.verify_proficiency_completion(
                 root,
                 "Python",
@@ -2476,6 +2523,9 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
                 "requirements": {
                     "metric.generation_success_rate": {"Python": 100.0},
                     "metric.compile_parse_success_rate": {"Python": 100.0},
+                    "metric.correct_at_1": {"Python": 100.0},
+                    "metric.correct_at_n": {"Python": 100.0},
+                    "metric.test_pass_rate": {"Python": 100.0},
                 }
             },
         )
@@ -2494,7 +2544,6 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
             any("runtime evidence requires 100.000000" in problem for problem in problems),
             f"a fabricated compile-success metric was not rejected: {problems}",
         )
-
 
 def test_proficiency_toolchain_evidence_precedes_scored_trials() -> None:
     unit = {

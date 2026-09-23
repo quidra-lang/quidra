@@ -3702,6 +3702,68 @@ def canonical_fragment_input_for_unit(
     return destination, sha256_bytes(encoded)
 
 
+def canonical_owner_record_for_probe(
+    root: Path, language: str, probe_id: str
+) -> dict[str, Any]:
+    """Read the fragment/support record frozen by Capability Coverage."""
+    manifest = json_load(root / "work" / "root" / "manifest.json")
+    matches = [
+        unit for unit in manifest.get("work_units", [])
+        if "metric.capability_coverage" in (unit.get("requirement_ids") or [])
+        and list(unit.get("assigned_languages") or []) == [language]
+    ]
+    if len(matches) != 1:
+        raise BenchmarkError(
+            f"{probe_id}: expected one canonical fragment owner for {language}; "
+            f"found {len(matches)}"
+        )
+    result_path = (
+        root / "work" / "agents" / str(matches[0].get("assigned_agent_id"))
+        / "result.json"
+    )
+    if not result_path.is_file():
+        raise BenchmarkError(
+            f"{probe_id}: canonical fragment owner result missing for {language}"
+        )
+    catalog = canonical_fragment_catalog(root, json_load(result_path))
+    if probe_id not in catalog:
+        raise BenchmarkError(
+            f"{probe_id}: canonical fragment owner omitted {language}"
+        )
+    return catalog[probe_id]
+
+
+def validate_support_adjudication_against_canonical_fragments(
+    root: Path, requirement_id: str, value: dict[str, Any]
+) -> None:
+    """Adjudication may refine support, never rewrite what A/B/C/D/E measured."""
+    probe_id = support_adjudication_probe([requirement_id])
+    if probe_id is None:
+        raise BenchmarkError(f"invalid support adjudication id: {requirement_id}")
+    for language in metadata_languages(root):
+        adjudicated = sc_adjudicated_record(value.get(language))
+        if adjudicated is None:
+            # Shape errors are reported by the ordinary result validator.
+            continue
+        canonical = canonical_owner_record_for_probe(root, language, probe_id)
+        canonical_none = canonical["level"] == "NONE"
+        adjudicated_none = adjudicated["level"] == "NONE"
+        if canonical_none != adjudicated_none:
+            raise BenchmarkError(
+                f"{requirement_id}: {language} crosses the canonical NONE "
+                "boundary; this requires a fresh metric measurement"
+            )
+        if not canonical_none:
+            if str(adjudicated["fragment"]).strip() != str(
+                canonical["fragment"]
+            ).strip():
+                raise BenchmarkError(
+                    f"{requirement_id}: {language} changes the canonical measured "
+                    "fragment; adjudication may only refine FULL/PARTIAL and its "
+                    "reasoning on the existing fragment"
+                )
+
+
 def validate_canonical_fragment_owner_result(
     root: Path, task: dict[str, Any], result: dict[str, Any]
 ) -> None:
@@ -5758,6 +5820,9 @@ def cmd_result_check(args: argparse.Namespace) -> int:
                             "complete canonical record with level, fragment, "
                             "partial_reasons, none_reason, justification and citation"
                         )
+                validate_support_adjudication_against_canonical_fragments(
+                    root, rid, value
+                )
             else:
                 raise BenchmarkError(f"unsupported requirement result type: {rid}")
 

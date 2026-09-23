@@ -47,6 +47,7 @@ Binding controls:
 - identical decoding controls or the same recorded provider-controlled/unavailable state for all languages;
 - identical prompt structure/budget, oracle policy, success stopping rule and token-accounting rule across languages;
 - no prior scored generation, repair history, sibling-agent output or hidden parent conversation in a fresh trial;
+- hidden-oracle cases are score-only holdout evidence: they never decide whether another repair turn is offered, and no hidden verdict/count/input/output is model-visible; repair turns are driven only by compilation diagnostics and public-case failures;
 - provider/network/rate-limit failures are infrastructure events, never incorrect language/model generations;
 - actual scored prompts are content-addressed with `prompt-save` before dispatch.
 

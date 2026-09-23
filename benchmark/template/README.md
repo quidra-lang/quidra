@@ -119,7 +119,8 @@ Normal source pushes, pull requests, scheduled CI, runtime-image CI and
 benchmark-template CI never call the Anthropic API.
 
 `benchmark-smoke` follows the same explicit-request rule for provider
-diagnostics. A production request never adds its marker to `develop`, so the
+diagnostics. Production provider smoke runs only when the preflight plan still
+contains paid dispatch; a fully cache-satisfied replay performs no paid smoke. A production request never adds its marker to `develop`, so the
 evaluated compiler/program snapshot remains the exact pre-request commit.
 
 The production workflow evaluates that frozen snapshot with

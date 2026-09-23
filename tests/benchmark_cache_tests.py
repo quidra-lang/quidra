@@ -557,6 +557,7 @@ def assert_proficiency_cache_requires_exact_primary_trial_set() -> None:
         root = make_workspace(Path(td))
         unit = {
             "evaluation": "llm_proficiency",
+            "assigned_languages": ["Python"],
             "max_output_tokens_per_call": 16384,
         }
         record = {
@@ -577,6 +578,11 @@ def assert_proficiency_cache_requires_exact_primary_trial_set() -> None:
         )
         certification["proficiency_primary_trial_count"] = len(
             benchmark.proficiency_required_trial_ids(root)
+        )
+        problem = benchmark.cache_cap_reuse_problem(root, record, unit)
+        assert problem is not None and "prompt set" in problem, problem
+        certification["proficiency_primary_prompt_set_sha256"] = (
+            benchmark.proficiency_primary_prompt_set_sha256(root, "Python")
         )
         problem = benchmark.cache_cap_reuse_problem(root, record, unit)
         assert problem is not None and "toolchain" in problem, problem
@@ -679,7 +685,7 @@ def main() -> None:
         assert benchmark.cache_epoch(root, "ecosystem") == "2026-09"
         assert benchmark.cache_epoch(root, "semantic_compression") == "2026-09-canonical-fragments-v5-r9-machine"
         assert benchmark.cache_epoch(root, "llm_learnability") == "stable"
-        assert benchmark.cache_epoch(root, "llm_proficiency") == "2026-09-complete-primary-trials-v2-pretrial-toolchain"
+        assert benchmark.cache_epoch(root, "llm_proficiency") == "2026-09-complete-primary-trials-v3-runtime-prompts"
         policy_path = root / "template/config/cache_policy.json"
         policy_bytes = policy_path.read_bytes()
         policy = benchmark.json_load(policy_path)

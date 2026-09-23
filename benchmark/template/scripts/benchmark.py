@@ -8400,8 +8400,136 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
     _write_command_requirements(root, unit, requirements, evidence)
 
 
+def semantic_premeasurement_verification_summary(
+    root: Path,
+    language: str,
+    catalog: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    """Re-check preserved V1 mechanical evidence before semantic scoring unlocks."""
+    report_path = (
+        root / "work" / "audit" / "semantic-compression"
+        / f"canonical_verification_{slug_id(language)}.json"
+    )
+    if not report_path.is_file():
+        raise BenchmarkError(
+            f"Semantic Compression V1 mechanical verification report is missing for {language}"
+        )
+    report = json_load(report_path)
+    if report.get("schema_version") != 1 or report.get("language") != language:
+        raise BenchmarkError(
+            f"Semantic Compression V1 mechanical verification report is invalid for {language}"
+        )
+
+    expected = {
+        probe_id
+        for probe_id, record in catalog.items()
+        if str(record.get("level")).upper() in {"FULL", "PARTIAL"}
+    }
+    synthetic_allowed = (
+        lexical_absolute(root) != lexical_absolute(CANONICAL_WORKSPACE)
+        and os.environ.get("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS") == "1"
+    )
+    if report.get("synthetic_ci") is True:
+        if not synthetic_allowed:
+            raise BenchmarkError(
+                f"Semantic Compression V1 synthetic verification cannot unlock scored work for {language}"
+            )
+        verified = {
+            str(probe_id) for probe_id in (report.get("verified_probes") or [])
+        }
+        if verified != expected:
+            raise BenchmarkError(
+                f"Semantic Compression V1 synthetic report coverage mismatch for {language}: "
+                f"missing={sorted(expected-verified)}, extra={sorted(verified-expected)}"
+            )
+        return {
+            "synthetic_ci": True,
+            "verified_probe_count": len(verified),
+        }
+
+    probes = report.get("probes")
+    if not isinstance(probes, dict):
+        raise BenchmarkError(
+            f"Semantic Compression V1 mechanical verification probes are missing for {language}"
+        )
+    actual = set(str(probe_id) for probe_id in probes)
+    if actual != expected:
+        raise BenchmarkError(
+            f"Semantic Compression V1 report coverage mismatch for {language}: "
+            f"missing={sorted(expected-actual)}, extra={sorted(actual-expected)}"
+        )
+
+    for probe_id in sorted(expected):
+        row = probes.get(probe_id)
+        if not isinstance(row, dict):
+            raise BenchmarkError(
+                f"Semantic Compression V1 report row is invalid: {language} {probe_id}"
+            )
+        expected_mode = "nm-add2" if probe_id == "F20.P2" else "run"
+        expected_runs = 0 if probe_id == "F20.P2" else (20 if probe_id == "F19.P2" else 1)
+        if row.get("mode") != expected_mode or int(row.get("run_count", -1)) != expected_runs:
+            raise BenchmarkError(
+                f"Semantic Compression V1 report contract drifted: {language} {probe_id}"
+            )
+
+        build = row.get("build")
+        if language == "Python":
+            if build not in (None, {}):
+                raise BenchmarkError(
+                    f"Semantic Compression V1 Python report unexpectedly records a build: {probe_id}"
+                )
+        else:
+            if (
+                not isinstance(build, dict)
+                or build.get("exit_code") != 0
+                or not isinstance(build.get("argv"), list)
+                or not build.get("argv")
+            ):
+                raise BenchmarkError(
+                    f"Semantic Compression V1 successful frozen build evidence is missing: "
+                    f"{language} {probe_id}"
+                )
+
+        if expected_mode == "nm-add2":
+            nm = row.get("nm")
+            if (
+                row.get("symbol_add2_defined") is not True
+                or not isinstance(nm, dict)
+                or nm.get("exit_code") != 0
+                or not isinstance(nm.get("argv"), list)
+                or not nm.get("argv")
+            ):
+                raise BenchmarkError(
+                    f"Semantic Compression V1 nm evidence is incomplete: {language} {probe_id}"
+                )
+        else:
+            runs = row.get("runs")
+            if not isinstance(runs, list) or len(runs) != expected_runs:
+                raise BenchmarkError(
+                    f"Semantic Compression V1 run evidence count mismatch: "
+                    f"{language} {probe_id}"
+                )
+            for run in runs:
+                if (
+                    not isinstance(run, dict)
+                    or run.get("exit_code") != 0
+                    or not isinstance(run.get("argv"), list)
+                    or not run.get("argv")
+                ):
+                    raise BenchmarkError(
+                        f"Semantic Compression V1 successful frozen run evidence is missing: "
+                        f"{language} {probe_id}"
+                    )
+
+    return {
+        "synthetic_ci": False,
+        "verified_probe_count": len(actual),
+        "report": str(report_path),
+    }
+
+
 def semantic_premeasurement_cohort_summary(root: Path) -> dict[str, Any]:
-    """Enforce capability-universe pre-measurement V3/V4 across the cohort."""
+    """Enforce capability-universe pre-measurement V1/V3/V4 across the cohort."""
     manifest = json_load(root / "work" / "root" / "manifest.json")
     languages = metadata_languages(root)
     matrix = json_load(
@@ -8414,6 +8542,7 @@ def semantic_premeasurement_cohort_summary(root: Path) -> dict[str, Any]:
 
     catalogs: dict[str, dict[str, dict[str, Any]]] = {}
     owner_units: dict[str, str] = {}
+    verification_reports: dict[str, dict[str, Any]] = {}
     for source in manifest.get("work_units", []):
         if (
             source.get("evaluation") != "semantic_compression"
@@ -8439,6 +8568,9 @@ def semantic_premeasurement_cohort_summary(root: Path) -> dict[str, Any]:
                 f"Semantic Compression canonical owner result is missing for {language}"
             )
         catalogs[language] = canonical_fragment_catalog(root, json_load(result_path))
+        verification_reports[language] = semantic_premeasurement_verification_summary(
+            root, language, catalogs[language]
+        )
         owner_units[language] = str(source.get("id") or "")
 
     expected_languages = set(languages)
@@ -8514,6 +8646,7 @@ def semantic_premeasurement_cohort_summary(root: Path) -> dict[str, Any]:
         "probe_count": len(probe_ids),
         "language_count": len(languages),
         "owner_units": owner_units,
+        "v1_mechanical_verification": verification_reports,
         "v3_probes_without_full": probes_without_full,
         "v4_all_none_probes": all_none_probes,
         "v4_languages_over_one_third_none": suspicious_languages,

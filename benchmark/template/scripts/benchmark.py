@@ -11075,6 +11075,36 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
                 "matrix_validation_problems": problems,
                 "matrix_negative_self_tests": self_tests,
             })
+        elif rid == "gate.language_quality_design_rubrics_frozen":
+            rubric_problems: list[str] = []
+            asset: dict[str, Any] = {}
+            try:
+                asset = language_quality_design_rubric_asset(root)
+            except BenchmarkError as exc:
+                rubric_problems.append(str(exc))
+            expected_design = set(
+                (
+                    json_load(root / "template" / "config" / "aggregation.json")
+                    .get("evaluations", {})
+                    .get("language_quality", {})
+                    .get("categories", {})
+                    .get("language_development", {})
+                    .get("metrics", [])
+                )
+            )
+            requirements[rid] = bool(
+                fixed_10
+                and not rubric_problems
+                and asset.get("frozen") is True
+                and set(asset.get("metrics") or {}) == expected_design
+                and (asset.get("scoring") or {}).get("runner_owned") is True
+            )
+            evidence.update({
+                f"{rid}.rubric_set_id": asset.get("rubric_set_id"),
+                f"{rid}.metric_count": len(asset.get("metrics") or {}),
+                f"{rid}.fixed_language_set": fixed_10,
+                f"{rid}.problems": rubric_problems,
+            })
         elif rid in {"gate.objective_rubrics_frozen", "gate.evidence_window_frozen"}:
             rubric_problems: list[str] = []
             asset: dict[str, Any] = {}

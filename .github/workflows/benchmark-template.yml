@@ -481,6 +481,21 @@ jobs:
               if u["id"].startswith("learnability-i1-i2--")
           ]
           assert all(u["max_llm_calls"] == expected_i12 for u in i12)
+          sc = json.loads(
+              (root / "work/root/plans/semantic_compression.json").read_text()
+          )
+          repairable = {
+              u["id"] for u in sc["work_units"]
+              if u["id"].startswith("sc-support-adjudication--")
+          }
+          expected_repairable = {
+              f"sc-support-adjudication--f{i:02d}-p1" for i in range(1, 21)
+          }
+          assert repairable == expected_repairable, sorted(repairable)
+          comparability = next(
+              u for u in sc["work_units"] if u["id"] == "sc-comparability"
+          )
+          assert expected_repairable <= set(comparability["dependencies"])
 
           repairs_p = 1 + primary["llm_proficiency"]["max_repair_turns"]
           expected_prof = (
@@ -706,7 +721,7 @@ jobs:
           import json
           root = Path(".benchmark-template-test")
           langs = ["Quidra","Python","C++","Rust","Go","Java","TypeScript","Kotlin","Swift","Zig"]
-          for slug in ("f04-p1", "f08-p1", "f10-p1", "f20-p1"):
+          for slug in tuple(f"f{i:02d}-p1" for i in range(1, 21)):
               agent = "worker-sc-support-adjudication--" + slug
               values = {
                   language: {
@@ -746,7 +761,7 @@ jobs:
                   json.dumps(response) + "\n"
               )
           PY
-          for SLUG in f04-p1 f08-p1 f10-p1 f20-p1; do
+          for SLUG in f01-p1 f02-p1 f03-p1 f04-p1 f05-p1 f06-p1 f07-p1 f08-p1 f09-p1 f10-p1 f11-p1 f12-p1 f13-p1 f14-p1 f15-p1 f16-p1 f17-p1 f18-p1 f19-p1 f20-p1; do
             ID="sc-support-adjudication--$SLUG"
             AGENT="worker-$ID"
             python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id "$ID"

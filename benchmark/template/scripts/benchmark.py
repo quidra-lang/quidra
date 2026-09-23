@@ -10081,6 +10081,71 @@ def unresolved_semantic_comparability_probes(
     return set()
 
 
+def unresolved_semantic_comparability_pairs(
+    root: Path, manifest: dict[str, Any]
+) -> set[tuple[str, str]]:
+    """Resolve failed blinded audit pairs back to the affected languages.
+
+    A terminal comparability failure can mean the canonical fragment/support
+    measurement itself needs to be redone, not merely the cohort adjudication.
+    Preserve cache for unaffected languages, but quarantine every Semantic
+    metric shard of an affected language so a new run cannot hydrate the same
+    suspect fragment and deterministically reproduce the blocker.
+    """
+    for unit in manifest.get("work_units", []):
+        if COMPARABILITY_GATE not in (unit.get("requirement_ids") or []):
+            continue
+        result_path = (
+            root / "work" / "agents" / str(unit.get("assigned_agent_id"))
+            / "result.json"
+        )
+        if not result_path.is_file():
+            return set()
+        result = json_load(result_path)
+        if (result.get("requirements") or {}).get(COMPARABILITY_GATE) is not False:
+            return set()
+        evidence = result.get("evidence") or {}
+        gate = evidence.get("gate_result") or {}
+        rows = gate.get("affected_pairs_requiring_revalidation")
+        if rows is None:
+            rows = evidence.get("affected_pairs_requiring_revalidation")
+        if not isinstance(rows, list):
+            return set()
+
+        blinding_path = root / COMPARABILITY_BLINDING_RELATIVE
+        labels: dict[str, str] = {}
+        if blinding_path.is_file():
+            raw = (json_load(blinding_path).get("labels") or {})
+            labels = {str(label): str(language) for language, label in raw.items()}
+
+        pairs: set[tuple[str, str]] = set()
+        unresolved_probes: set[str] = set()
+        unknown_label = False
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            probe = str(row.get("probe_id") or "").upper().strip()
+            label = str(row.get("label") or "").strip()
+            if not re.fullmatch(r"F\d{2}\.P\d+", probe):
+                continue
+            unresolved_probes.add(probe)
+            language = labels.get(label)
+            if language:
+                pairs.add((probe, language))
+            else:
+                unknown_label = True
+
+        if unknown_label and unresolved_probes:
+            # Losing the blinded label map must never make a failed measurement
+            # look cache-safe. Fall back to remeasuring the affected probes for
+            # every language rather than silently preserving suspect shards.
+            for probe in unresolved_probes:
+                for language in metadata_languages(root):
+                    pairs.add((probe, language))
+        return pairs
+    return set()
+
+
 def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     manifest_path = root / "work" / "root" / "manifest.json"
     ledger_path = root / "work" / "root" / "ledger.json"
@@ -10108,6 +10173,8 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     manifest = json_load(manifest_path)
     ledger = json_load(ledger_path)
     unresolved_sc_probes = unresolved_semantic_comparability_probes(root, manifest)
+    unresolved_sc_pairs = unresolved_semantic_comparability_pairs(root, manifest)
+    unresolved_sc_languages = {language for _, language in unresolved_sc_pairs}
     records: list[dict[str, Any]] = []
     skipped: list[dict[str, Any]] = []
     promoted = 0
@@ -10125,18 +10192,36 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
         adjudicated_probe = support_adjudication_probe(
             [str(value) for value in (unit.get("requirement_ids") or [])]
         )
-        if (
-            unit.get("evaluation") == "semantic_compression"
-            and adjudicated_probe in unresolved_sc_probes
-        ):
-            skipped.append({
-                "work_unit_id": unit.get("id"),
-                "reason": (
-                    "final comparability audit requires this probe to be "
-                    "revalidated; its support adjudication is not cache-certified"
-                ),
-            })
-            continue
+        if unit.get("evaluation") == "semantic_compression":
+            if adjudicated_probe in unresolved_sc_probes:
+                skipped.append({
+                    "work_unit_id": unit.get("id"),
+                    "reason": (
+                        "final comparability audit requires this probe to be "
+                        "revalidated; its support adjudication is not cache-certified"
+                    ),
+                })
+                continue
+            assigned = list(unit.get("assigned_languages") or [])
+            affected_language = (
+                str(assigned[0])
+                if len(assigned) == 1 and str(assigned[0]) in unresolved_sc_languages
+                else None
+            )
+            if (
+                affected_language is not None
+                and str(unit.get("id") or "").startswith("sc-metrics-")
+            ):
+                skipped.append({
+                    "work_unit_id": unit.get("id"),
+                    "reason": (
+                        "final comparability audit affects "
+                        f"{affected_language}; its Semantic Compression metric "
+                        "shards are quarantined so the canonical fragment/support "
+                        "measurement is revalidated before reuse"
+                    ),
+                })
+                continue
         if (
             require_primary
             and (primary.get(unit.get("evaluation")) or {}).get("status") != "COMPLETE"

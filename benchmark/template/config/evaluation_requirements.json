@@ -14,10 +14,7 @@
         "metric.semantic_locality",
         "metric.hidden_semantic_cost",
         "metric.capability_efficiency",
-        "metric.capability_coverage",
-        "annotation.support_adjudication--f04-p1",
-        "annotation.support_adjudication--f08-p1",
-        "annotation.support_adjudication--f20-p1"
+        "metric.capability_coverage"
       ]
     },
     "llm_learnability": {

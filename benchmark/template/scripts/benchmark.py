@@ -2017,7 +2017,10 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
         if len(workload_ids) != len(set(workload_ids)):
             raise BenchmarkError(f"{uid}: duplicate workload_ids are not allowed")
         requirement_ids = [x.strip() for x in requirement_ids]
-        unknown_requirements = sorted(set(requirement_ids) - allowed_requirement_ids)
+        unknown_requirements = sorted(
+            rid for rid in set(requirement_ids) - allowed_requirement_ids
+            if not str(rid).startswith(SUPPORT_ADJUDICATION_PREFIX)
+        )
         if unknown_requirements:
             raise BenchmarkError(
                 f"{uid}: unknown requirement_ids for {evaluation}: "
@@ -4864,7 +4867,10 @@ def cmd_task_create(args: argparse.Namespace) -> int:
             ))
 
         requirements_path, all_requirement_ids = load_evaluation_requirements(root, args.evaluation)
-        unknown = sorted(set(requirement_ids) - set(all_requirement_ids))
+        unknown = sorted(
+            rid for rid in set(requirement_ids) - set(all_requirement_ids)
+            if not str(rid).startswith(SUPPORT_ADJUDICATION_PREFIX)
+        )
         if unknown:
             raise BenchmarkError(
                 f"Task Packet names unknown requirement IDs: {', '.join(unknown)}"

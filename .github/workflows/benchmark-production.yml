@@ -60,8 +60,8 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/benchmark-paid-state"
           artifact_id="$(gh api \
-            "/repos/$GITHUB_REPOSITORY/actions/artifacts?name=quidra-benchmark-paid-state&per_page=100" \
-            --jq '[.artifacts[] | select(.expired == false)] | sort_by(.created_at) | last | .id // empty')"
+            "/repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false and (.name | startswith("quidra-benchmark-paid-state-")))] | sort_by(.created_at) | last | .id // empty')"
           if [ -n "$artifact_id" ]; then
             gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" \
               > "$RUNNER_TEMP/benchmark-paid-state.zip"
@@ -863,6 +863,14 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Restore private paid-leaf checkpoint cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/benchmark-paid-state
+          key: quidra-benchmark-paid-v1-${{ runner.os }}-${{ github.run_id }}-finalize-${{ github.run_attempt }}
+          restore-keys: |
+            quidra-benchmark-paid-v1-${{ runner.os }}-
+
       - name: Download final Primary handoff
         continue-on-error: true
         uses: actions/download-artifact@v4
@@ -878,6 +886,11 @@ jobs:
         run: |
           set -euo pipefail
           state="$RUNNER_TEMP/benchmark-budget-state.json"
+          mkdir -p "$RUNNER_TEMP/benchmark-paid-state"
+          if [ -f "$RUNNER_TEMP/benchmark-final-handoff/paid-state.tgz" ]; then
+            tar -xzf "$RUNNER_TEMP/benchmark-final-handoff/paid-state.tgz" \
+              -C "$RUNNER_TEMP/benchmark-paid-state"
+          fi
           if [ -f "$RUNNER_TEMP/benchmark-final-handoff/workspace.tgz" ] \
              && [ -f "$RUNNER_TEMP/benchmark-final-handoff/budget-state.json" ]; then
             tar -xzf "$RUNNER_TEMP/benchmark-final-handoff/workspace.tgz" -C "$GITHUB_WORKSPACE"
@@ -958,6 +971,29 @@ jobs:
             --image "$BENCHMARK_IMAGE" \
             --provider fake \
             -- python3 /quidra-benchmark/template/scripts/benchmark.py finalize
+
+      - name: Export cumulative private paid-call state
+        if: ${{ always() }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          if [ -f .quidra-benchmark/work/root/manifest.json ]; then
+            mkdir -p "$RUNNER_TEMP/benchmark-paid-state"
+            python benchmark/template/scripts/benchmark.py partial-paid-export \
+              --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
+              --store "$RUNNER_TEMP/benchmark-paid-state" \
+              > "$RUNNER_TEMP/final-paid-state-export.json"
+            cat "$RUNNER_TEMP/final-paid-state-export.json"
+          fi
+
+      - name: Preserve cumulative paid-call state privately
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: quidra-benchmark-paid-state-${{ needs.prepare.outputs.run_id }}
+          path: ${{ runner.temp }}/benchmark-paid-state
+          if-no-files-found: ignore
+          retention-days: 90
 
       - name: Snapshot full workspace evidence
         if: ${{ always() }}

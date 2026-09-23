@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "document_id": "llm-proficiency-primary-workloads-v1",
+  "purpose": "Frozen, offline, language-neutral Primary workload contract for LLM Proficiency. The trusted runtime constructs the scored initial prompt from this file; scored workers cannot invent or replace the task.",
+  "policy": {
+    "standard_library_only": true,
+    "network_allowed": false,
+    "package_downloads": false,
+    "one_complete_program": true,
+    "same_cell_prompt_across_replications": true,
+    "specification_scenario_hides_reference": true,
+    "reference_scenario_uses_same_cpp_reference_for_all_languages": true,
+    "note": "The subsets are deliberately compact enough to run in every frozen toolchain while preserving the defining algorithmic behavior of the named source projects."
+  },
+  "source_provenance": {
+    "SVM": {
+      "repository": "koba-jon/svm_cpp",
+      "commit": "5fa1b0951740b249a7b7bb170031b75470dbf090",
+      "paths": [
+        "HardMargin-SVM/src/svm.cpp",
+        "HardMargin-SVM/src/svm.hpp",
+        "HardMargin-SVM/README.md"
+      ],
+      "subset": "Hard-margin binary linear SVM training/update rule and sign prediction on a fixed 2D separable toy set."
+    },
+    "GMM": {
+      "repository": "koba-jon/gmm_cpp",
+      "commit": "f405f0a4d04ad93f04c2969bbd232c956e6b0e2d",
+      "paths": [
+        "src/gmm.cpp",
+        "src/gmm.hpp",
+        "README.md"
+      ],
+      "subset": "Two-component Gaussian-mixture EM core with deterministic initialization on a fixed one-dimensional toy set."
+    },
+    "LightGrad": {
+      "repository": "koba-jon/lightgrad",
+      "commit": "8656ef7a9d00ea84ab5ed2f368e94aa12ba8a8b8",
+      "paths": [
+        "example/main.cpp",
+        "cmake/include/lightgrad/tensor.hpp",
+        "cmake/src/tensor.cpp"
+      ],
+      "subset": "Scalar reverse-mode automatic differentiation with addition, multiplication, graph traversal, and gradient accumulation."
+    }
+  },
+  "scenarios": {
+    "specification_to_implementation": {
+      "include_reference": false,
+      "instruction": "Implement from the frozen specification and validation contract only. Do not assume or reconstruct a hidden reference implementation."
+    },
+    "reference_to_porting": {
+      "include_reference": true,
+      "instruction": "Port the supplied frozen C++ reference implementation to the target language while preserving the specified behavior and validation contract."
+    }
+  },
+  "workloads": {
+    "SVM": {
+      "subset_id": "hard-margin-svm-2d-v1",
+      "specification": "Implement the frozen Hard-Margin SVM toy workload as a single complete program.\n\nData and labels:\n- class +1: (2,2), (2,3), (3,2)\n- class -1: (-2,-2), (-2,-3), (-3,-2)\n- dimension D = 2\n- learning rate lr = 0.001\n- convergence limit = 0.00001\n- support-vector epsilon = 0.0000001\n- maximum epochs = 200000\n\nTraining is the deterministic update rule used by the frozen source subset. Concatenate the +1 examples first and the -1 examples second. Set alpha[i]=0 for all six samples and beta=1. For each epoch, visit i=0..5 in order. Compute item1=sum_j alpha[j]*y[i]*y[j]*dot(x[i],x[j]); item2=sum_j alpha[j]*y[i]*y[j]; delta=1-item1-beta*item2; then alpha[i]+=lr*delta. If alpha[i] becomes negative, clamp it to 0. Otherwise, if abs(delta)>limit, the epoch is not converged. After all six alpha updates, compute item3=sum_i alpha[i]*y[i] and update beta += item3*item3/2. Stop after the first converged epoch; exceeding maximum epochs is failure.\n\nAfter training, support vectors are alpha>epsilon. Compute w[d]=sum_sv alpha[i]*y[i]*x[i][d]. Compute b as the arithmetic mean over support vectors of y[i]-dot(w,x[i]). Predict +1 when dot(w,x)+b >= 0, else -1.\n\nValidation:\n- all six training examples must be classified correctly;\n- w0 and w1 must each be within 0.0001 of 0.25;\n- b must be within 0.0001 of 0;\n- on success print exactly: SVM PASS\n- any failed condition must exit nonzero and must not print SVM PASS.",
+      "reference_cpp": "#include <cmath>\n#include <iostream>\n#include <vector>\nusing V = std::vector<double>;\nstatic double dot(const V& a, const V& b){ double s=0; for(size_t i=0;i<a.size();++i)s+=a[i]*b[i]; return s; }\nint main(){\n  std::vector<V> x={{2,2},{2,3},{3,2},{-2,-2},{-2,-3},{-3,-2}};\n  std::vector<int> y={1,1,1,-1,-1,-1};\n  std::vector<double> a(6,0.0); double beta=1.0; const double lr=0.001, limit=1e-5;\n  bool converged=false;\n  for(int epoch=0; epoch<200000; ++epoch){\n    bool judge=false;\n    for(int i=0;i<6;++i){\n      double item1=0,item2=0;\n      for(int j=0;j<6;++j){ item1+=a[j]*y[i]*y[j]*dot(x[i],x[j]); item2+=a[j]*y[i]*y[j]; }\n      double delta=1.0-item1-beta*item2; a[i]+=lr*delta;\n      if(a[i]<0) a[i]=0; else if(std::abs(delta)>limit) judge=true;\n    }\n    double item3=0; for(int i=0;i<6;++i)item3+=a[i]*y[i]; beta+=item3*item3/2.0;\n    if(!judge){ converged=true; break; }\n  }\n  if(!converged) return 2;\n  V w(2,0.0); double b=0; int ns=0;\n  for(int i=0;i<6;++i) if(a[i]>1e-7){ ++ns; for(int d=0;d<2;++d)w[d]+=a[i]*y[i]*x[i][d]; }\n  for(int i=0;i<6;++i) if(a[i]>1e-7)b+=y[i]-dot(w,x[i]); b/=ns;\n  int correct=0; for(int i=0;i<6;++i) correct += ((dot(w,x[i])+b>=0?1:-1)==y[i]);\n  if(correct!=6 || std::abs(w[0]-0.25)>1e-4 || std::abs(w[1]-0.25)>1e-4 || std::abs(b)>1e-4) return 3;\n  std::cout<<\"SVM PASS\\n\";\n}",
+      "validation": {
+        "success_stdout": "SVM PASS",
+        "success_exit_code": 0
+      }
+    },
+    "GMM": {
+      "subset_id": "gmm-1d-two-component-em-v1",
+      "specification": "Implement the frozen two-component Gaussian Mixture Model EM workload as a single complete program using binary64 floating-point arithmetic.\n\nData, initialization, and iteration count:\n- observations: -3.0, -2.5, -2.0, -1.5, 1.5, 2.0, 2.5, 3.0\n- K = 2\n- initial weights = [0.5, 0.5]\n- initial means = [-2.0, 2.0]\n- initial variances = [1.0, 1.0]\n- perform exactly 8 EM iterations\n- Gaussian density is weight * exp(-0.5*(x-mean)^2/variance) / sqrt(2*pi*variance)\n- use pi = 3.141592653589793\n\nEach iteration performs a full E step followed by a full M step. Responsibilities for an observation are each weighted component density divided by their sum. Nk[k] is the sum of responsibilities. New weight is Nk/N; new mean is the responsibility-weighted mean; new variance is the responsibility-weighted squared deviation from the NEW mean divided by Nk. Do not add random initialization or regularization.\n\nAfter iteration 8, validate:\n- weights within 1e-9 of [0.5, 0.5]\n- means within 1e-8 of [-2.249999999687584, 2.249999999687584]\n- variances within 1e-8 of [0.31250000140587114, 0.31250000140587114]\n- total log-likelihood within 1e-8 of -12.244082470061318\nOn success print exactly: GMM PASS\nAny failed condition must exit nonzero and must not print GMM PASS.",
+      "reference_cpp": "#include <cmath>\n#include <iostream>\n#include <vector>\nint main(){\n  const double pi=3.141592653589793;\n  std::vector<double> x={-3,-2.5,-2,-1.5,1.5,2,2.5,3};\n  std::vector<double> w={0.5,0.5}, m={-2,2}, v={1,1};\n  std::vector<std::vector<double>> r(x.size(),std::vector<double>(2));\n  for(int it=0;it<8;++it){\n    for(size_t i=0;i<x.size();++i){\n      double s=0;\n      for(int k=0;k<2;++k){ double d=x[i]-m[k]; r[i][k]=w[k]*std::exp(-0.5*d*d/v[k])/std::sqrt(2*pi*v[k]); s+=r[i][k]; }\n      for(int k=0;k<2;++k)r[i][k]/=s;\n    }\n    std::vector<double> nk(2,0), nm(2,0), nv(2,0);\n    for(int k=0;k<2;++k){ for(size_t i=0;i<x.size();++i)nk[k]+=r[i][k]; w[k]=nk[k]/x.size(); for(size_t i=0;i<x.size();++i)nm[k]+=r[i][k]*x[i]; m[k]=nm[k]/nk[k]; for(size_t i=0;i<x.size();++i){double d=x[i]-m[k];nv[k]+=r[i][k]*d*d;} v[k]=nv[k]/nk[k]; }\n  }\n  double ll=0;\n  for(double z:x){ double s=0; for(int k=0;k<2;++k){double d=z-m[k];s+=w[k]*std::exp(-0.5*d*d/v[k])/std::sqrt(2*pi*v[k]);} ll+=std::log(s); }\n  if(std::abs(w[0]-0.5)>1e-9||std::abs(w[1]-0.5)>1e-9||std::abs(m[0]+2.249999999687584)>1e-8||std::abs(m[1]-2.249999999687584)>1e-8||std::abs(v[0]-0.31250000140587114)>1e-8||std::abs(v[1]-0.31250000140587114)>1e-8||std::abs(ll+12.244082470061318)>1e-8) return 2;\n  std::cout<<\"GMM PASS\\n\";\n}",
+      "validation": {
+        "success_stdout": "GMM PASS",
+        "success_exit_code": 0
+      }
+    },
+    "LightGrad": {
+      "subset_id": "lightgrad-scalar-reverse-mode-v1",
+      "specification": "Implement the frozen LightGrad scalar reverse-mode automatic-differentiation subset as a single complete program.\n\nRequired abstraction:\n- a scalar Value/Node object stores a binary64 data value, an accumulated gradient, its parent nodes, and the local derivative contribution used during reverse propagation;\n- support addition and multiplication between Value/Node objects;\n- build a computation graph during forward operations;\n- backward() starts at the output with gradient 1, visits the graph in reverse topological order, and ACCUMULATES gradient contributions when a node is used more than once;\n- no symbolic differentiation and no hard-coded derivative of the final expression.\n\nWorkload:\nx1=2, x2=3, x3=5\ny = x1*x1*x1*x2*x2 + x1*x3\nRun reverse-mode backward from y.\n\nValidate:\n- y == 82 within 1e-12\n- dy/dx1 == 113 within 1e-12\n- dy/dx2 == 48 within 1e-12\n- dy/dx3 == 2 within 1e-12\nThe repeated uses of x1 and x2 are intentional and must test gradient accumulation.\nOn success print exactly: LIGHTGRAD PASS\nAny failed condition must exit nonzero and must not print LIGHTGRAD PASS.",
+      "reference_cpp": "#include <cmath>\n#include <functional>\n#include <iostream>\n#include <memory>\n#include <unordered_set>\n#include <vector>\nstruct Value;\nusing P=std::shared_ptr<Value>;\nstruct Edge{P parent; double local;};\nstruct Value{\n  double data,grad=0; std::vector<Edge> edges;\n  explicit Value(double d):data(d){}\n};\nstatic P val(double x){return std::make_shared<Value>(x);}\nstatic P add(const P&a,const P&b){auto o=val(a->data+b->data);o->edges={{a,1},{b,1}};return o;}\nstatic P mul(const P&a,const P&b){auto o=val(a->data*b->data);o->edges={{a,b->data},{b,a->data}};return o;}\nstatic void topo(const P&v,std::unordered_set<Value*>&seen,std::vector<P>&out){if(!seen.insert(v.get()).second)return;for(auto&e:v->edges)topo(e.parent,seen,out);out.push_back(v);}\nstatic void backward(const P&y){std::unordered_set<Value*> seen;std::vector<P> order;topo(y,seen,order);for(auto&v:order)v->grad=0;y->grad=1;for(auto it=order.rbegin();it!=order.rend();++it)for(auto&e:(*it)->edges)e.parent->grad+=(*it)->grad*e.local;}\nint main(){\n  auto x1=val(2),x2=val(3),x3=val(5);\n  auto y=add(mul(mul(mul(mul(x1,x1),x1),x2),x2),mul(x1,x3));\n  backward(y);\n  if(std::abs(y->data-82)>1e-12||std::abs(x1->grad-113)>1e-12||std::abs(x2->grad-48)>1e-12||std::abs(x3->grad-2)>1e-12)return 2;\n  std::cout<<\"LIGHTGRAD PASS\\n\";\n}",
+      "validation": {
+        "success_stdout": "LIGHTGRAD PASS",
+        "success_exit_code": 0
+      }
+    }
+  }
+}

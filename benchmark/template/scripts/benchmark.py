@@ -2141,6 +2141,7 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
                     raise BenchmarkError(f"{uid}: aggregation command has invalid runner_action")
             elif runner_action not in {
                 "micro-measure", "adversarial-measure", "quidra-audit", "static-coverage",
+                "semantic-premeasurement-validation",
                 "learnability-integrity", "proficiency-integrity",
             }:
                 raise BenchmarkError(

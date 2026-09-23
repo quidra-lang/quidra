@@ -8348,6 +8348,104 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
     _write_command_requirements(root, unit, requirements, evidence)
 
 
+def semantic_premeasurement_cohort_summary(root: Path) -> dict[str, Any]:
+    """Enforce capability-universe pre-measurement V3/V4 across the cohort."""
+    manifest = json_load(root / "work" / "root" / "manifest.json")
+    languages = metadata_languages(root)
+    matrix = json_load(
+        root / "template" / "methodology-assets" / "semantic_compression"
+        / "semantic_site_matrix.json"
+    )
+    probe_ids = [str(probe.get("probe_id") or "") for probe in matrix.get("probes", [])]
+    if not probe_ids or any(not probe_id for probe_id in probe_ids):
+        raise BenchmarkError("Semantic Compression pre-measurement gate has no frozen probe set")
+
+    catalogs: dict[str, dict[str, dict[str, Any]]] = {}
+    owner_units: dict[str, str] = {}
+    for source in manifest.get("work_units", []):
+        if (
+            source.get("evaluation") != "semantic_compression"
+            or not source.get("canonical_fragment_owner")
+        ):
+            continue
+        assigned = list(source.get("assigned_languages") or [])
+        if len(assigned) != 1:
+            raise BenchmarkError(
+                f"{source.get('id')}: canonical fragment owner must have one language"
+            )
+        language = str(assigned[0])
+        if language in catalogs:
+            raise BenchmarkError(
+                f"Semantic Compression has multiple canonical owners for {language}"
+            )
+        result_path = (
+            root / "work" / "agents" / str(source.get("assigned_agent_id"))
+            / "result.json"
+        )
+        if not result_path.is_file():
+            raise BenchmarkError(
+                f"Semantic Compression canonical owner result is missing for {language}"
+            )
+        catalogs[language] = canonical_fragment_catalog(root, json_load(result_path))
+        owner_units[language] = str(source.get("id") or "")
+
+    expected_languages = set(languages)
+    if set(catalogs) != expected_languages:
+        raise BenchmarkError(
+            "Semantic Compression pre-measurement gate requires every canonical owner; "
+            f"missing={sorted(expected_languages-set(catalogs))}, "
+            f"extra={sorted(set(catalogs)-expected_languages)}"
+        )
+
+    per_probe: dict[str, Any] = {}
+    none_by_language = {language: 0 for language in languages}
+    probes_without_full: list[str] = []
+    all_none_probes: list[str] = []
+    for probe_id in probe_ids:
+        levels = {
+            language: str(catalogs[language][probe_id]["level"]).upper()
+            for language in languages
+        }
+        counts = {
+            level: sum(1 for value in levels.values() if value == level)
+            for level in ("FULL", "PARTIAL", "NONE")
+        }
+        for language, level in levels.items():
+            if level == "NONE":
+                none_by_language[language] += 1
+        if counts["FULL"] == 0:
+            probes_without_full.append(probe_id)
+        if counts["NONE"] == len(languages):
+            all_none_probes.append(probe_id)
+        per_probe[probe_id] = {"counts": counts, "levels": levels}
+
+    suspicious_languages = {
+        language: count
+        for language, count in none_by_language.items()
+        if count * 3 > len(probe_ids)
+    }
+    passed = not probes_without_full and not all_none_probes and not suspicious_languages
+    return {
+        "passed": passed,
+        "probe_count": len(probe_ids),
+        "language_count": len(languages),
+        "owner_units": owner_units,
+        "v3_probes_without_full": probes_without_full,
+        "v4_all_none_probes": all_none_probes,
+        "v4_languages_over_one_third_none": suspicious_languages,
+        "none_by_language": none_by_language,
+        "per_probe": per_probe,
+    }
+
+
+def run_semantic_premeasurement_validation(root: Path, unit: dict[str, Any]) -> None:
+    summary = semantic_premeasurement_cohort_summary(root)
+    requirements = {
+        rid: bool(summary["passed"]) for rid in unit.get("requirement_ids", [])
+    }
+    _write_command_requirements(root, unit, requirements, summary)
+
+
 def _trial_trace_units(root: Path, evaluation: str) -> list[tuple[dict[str, Any], Path, dict[str, Any]]]:
     manifest = json_load(root / "work" / "root" / "manifest.json")
     ledger = json_load(root / "work" / "root" / "ledger.json")
@@ -8641,6 +8739,15 @@ def cmd_advance(args: argparse.Namespace) -> int:
                     )
                     if check_rc != 0:
                         raise BenchmarkError("static coverage result validation failed")
+                elif action == "semantic-premeasurement-validation":
+                    run_semantic_premeasurement_validation(root, unit)
+                    check_rc = cmd_command_result_check(
+                        argparse.Namespace(workspace=str(root), id=uid)
+                    )
+                    if check_rc != 0:
+                        raise BenchmarkError(
+                            "Semantic Compression pre-measurement validation failed"
+                        )
                 elif action == "learnability-integrity":
                     run_learnability_integrity(root, unit)
                     check_rc = cmd_command_result_check(

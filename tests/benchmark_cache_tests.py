@@ -788,6 +788,78 @@ def assert_cached_validator_rejection_becomes_miss() -> None:
         assert unit["id"] in status["hits"] and unit["id"] not in status["misses"]
 
 
+def assert_language_quality_design_runner_owned_scoring() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        asset = benchmark.language_quality_design_rubric_asset(root)
+        assert asset["frozen"] is True
+        assert len(asset["metrics"]) == 8
+        reqs = ["metric.readability", "metric.diagnostics"]
+        task = {
+            "evaluation": "language_quality",
+            "assigned_languages": ["Python"],
+            "requirement_ids": reqs,
+        }
+        evidence = {}
+        for index, rid in enumerate(reqs):
+            rubric = asset["metrics"][rid]
+            component_ids = [row["id"] for row in rubric["components"]]
+            level = 4 if index == 0 else 3
+            evidence[rid] = {
+                "rubric_id": rubric["rubric_id"],
+                "component_levels": {cid: level for cid in component_ids},
+                "component_findings": {
+                    cid: f"frozen test evidence for {cid}" for cid in component_ids
+                },
+                "evidence_refs": [
+                    "template/methodology-assets/language_quality/design_rubrics.json"
+                ],
+                "selection_rule": rubric["selection_rule"],
+                "limitations": "",
+            }
+        result = {
+            "schema_version": 1,
+            "evaluation": "language_quality",
+            "requirements": {rid: {"Python": -1.0} for rid in reqs},
+            "evidence": evidence,
+        }
+        benchmark.apply_language_quality_design_runner_scores(root, task, result)
+        assert result["requirements"][reqs[0]] == {"Python": 100.0}
+        assert result["requirements"][reqs[1]] == {"Python": 75.0}
+        scoring = result["evidence"]["language_quality_design_runner_scoring"]
+        assert scoring["rubric_set_id"] == "language-quality-design-runner-rubric-v1"
+
+        broken = json.loads(json.dumps(result))
+        broken["evidence"][reqs[0]]["component_levels"].pop(
+            next(iter(broken["evidence"][reqs[0]]["component_levels"]))
+        )
+        try:
+            benchmark.apply_language_quality_design_runner_scores(
+                root, task, broken
+            )
+        except benchmark.BenchmarkError as exc:
+            assert "component_levels" in str(exc), exc
+        else:
+            raise AssertionError(
+                "incomplete Language Quality design component evidence was accepted"
+            )
+
+        external = json.loads(json.dumps(result))
+        external["evidence"][reqs[0]]["evidence_refs"] = [
+            "https://example.invalid/not-a-frozen-input"
+        ]
+        try:
+            benchmark.apply_language_quality_design_runner_scores(
+                root, task, external
+            )
+        except benchmark.BenchmarkError as exc:
+            assert "relative repo/... or template/... path" in str(exc), exc
+        else:
+            raise AssertionError(
+                "external Language Quality evidence reference was accepted"
+            )
+
+
 def assert_ecosystem_runner_owned_scoring() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
@@ -894,6 +966,7 @@ def assert_ecosystem_runner_owned_scoring() -> None:
 
 def main() -> None:
     assert_accepted_trial_start_marks_the_scored_boundary()
+    assert_language_quality_design_runner_owned_scoring()
     assert_ecosystem_runner_owned_scoring()
     assert_execution_identity_paths_are_policy_authoritative()
     assert_quidra_execution_identity_reuse_guard()

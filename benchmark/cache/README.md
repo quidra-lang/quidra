@@ -16,10 +16,12 @@ discards Quidra's own completed measurements.
 Ecosystem evidence uses a declared epoch (`declared_epochs.ecosystem` in the cache
 policy) because external ecosystem facts change without a language version change;
 the operator changes that value when they should be measured again. Semantic
-Compression uses one too (`declared_epochs.semantic_compression`): its packets are
-decoded at the depth `inference_gateway.json` pins for that evaluation, and the
-epoch retired the records certified before that depth was lowered, so every score
-in the evaluation comes from one depth.
+Compression uses one too (`declared_epochs.semantic_compression`). The current
+`2026-09-canonical-fragments-v2` epoch requires Capability Coverage to freeze one
+canonical fragment/support record for every probe and language before A/B/C/D/E are
+measured; each downstream shard is keyed by that exact catalog. Older Semantic
+Compression records remain stored as historical certified artifacts but cannot
+hydrate the v2 evaluation. Other Primary-evaluation cache records are unaffected.
 
 The three Language Quality mechanical units are certified as well: the micro
 suite (`lq-micro-mechanical`), the adversarial case set (`lq-adversarial-mechanical`)

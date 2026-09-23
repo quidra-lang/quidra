@@ -8115,6 +8115,7 @@ def proficiency_runtime_metrics(trace: dict[str, Any]) -> dict[str, float] | Non
     if not isinstance(trials, dict) or not trials:
         return None
     generation = compiled = correct1 = correctn = 0
+    oracle_passed = oracle_total = 0
     for summary in trials.values():
         calls = (summary or {}).get("calls") or []
         if not calls:
@@ -8140,12 +8141,28 @@ def proficiency_runtime_metrics(trace: dict[str, Any]) -> dict[str, float] | Non
             for call in calls
         ):
             correctn += 1
+        for call in calls:
+            verification = call.get("verification") if isinstance(call, dict) else None
+            if not isinstance(verification, dict):
+                return None
+            try:
+                total = int(verification.get("oracle_test_count", 0) or 0)
+                passed = int(verification.get("oracle_passed_count", 0) or 0)
+            except (TypeError, ValueError):
+                return None
+            if total < 1 or passed < 0 or passed > total:
+                return None
+            oracle_total += total
+            oracle_passed += passed
     denominator = float(len(trials))
+    if oracle_total <= 0:
+        return None
     return {
         "metric.generation_success_rate": 100.0 * generation / denominator,
         "metric.compile_parse_success_rate": 100.0 * compiled / denominator,
         "metric.correct_at_1": 100.0 * correct1 / denominator,
         "metric.correct_at_n": 100.0 * correctn / denominator,
+        "metric.test_pass_rate": 100.0 * oracle_passed / float(oracle_total),
     }
 
 

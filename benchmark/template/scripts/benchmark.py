@@ -15868,7 +15868,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     paid_import = sub.add_parser(
         "partial-paid-import",
-        help="restore exact-fingerprint paid-but-incomplete leaf state from a private CI cache",
+        help="restore exact-fingerprint paid leaf inference state from a durable/mirrored checkpoint store",
     )
     paid_import.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     paid_import.add_argument("--store", required=True)
@@ -15877,7 +15877,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     paid_export = sub.add_parser(
         "partial-paid-export",
-        help="checkpoint paid-but-incomplete leaf state into a private CI cache",
+        help="checkpoint paid leaf inference state into a content-addressed recovery store",
     )
     paid_export.add_argument("--workspace", default=str(CANONICAL_WORKSPACE))
     paid_export.add_argument("--store", required=True)

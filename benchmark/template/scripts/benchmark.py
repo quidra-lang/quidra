@@ -7253,6 +7253,13 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
             result_path = agent_dir / "result.json"
             if not result_path.is_file():
                 continue
+            candidate = json_load(result_path)
+            if candidate.get("synthetic_ci") or (candidate.get("evidence") or {}).get("synthetic_ci"):
+                # The synthetic CI flow stands in for the measurement scripts;
+                # its numbers must never become certified measurements, and a
+                # real record at the same key must not be overwritten by them.
+                skipped.append({"work_unit_id": unit.get("id"), "reason": "synthetic mechanical result"})
+                continue
             task = mechanical_task(unit)
         else:
             agent_dir = root / "work" / "agents" / str(unit["assigned_agent_id"])

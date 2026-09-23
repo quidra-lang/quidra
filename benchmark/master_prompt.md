@@ -165,7 +165,7 @@ Ledger state is authoritative. Work units use `PENDING`, `RUNNING`, `COMPLETE`, 
 
 A worker crash must not strand the run permanently. RUNNING work has a heartbeat lease. When stale, the runner returns it to PENDING and redispatches the same frozen Task Packet. After the frozen maximum attempts, it becomes an explicit infrastructure blocker instead of remaining silently stuck.
 
-Persist a paid response/trial before later parsing, validation or orchestration can fail. Handoffs plus a private content-addressed `quidra-benchmark-paid-state-*` Actions artifact preserve paid state across workflow runs; Actions cache is only a speed mirror. Mismatch/corruption rejects only that leaf checkpoint.
+Persist a paid response/trial before later parsing, validation or orchestration can fail. Handoffs plus a private content-addressed `quidra-benchmark-paid-state` Actions artifact preserve paid state across workflow runs; Actions cache is only a speed mirror. Mismatch/corruption rejects only that leaf checkpoint.
 
 COMPLETE requires evidence plus current-validator PASS. Diagnostic finalize records missing required leaves in `completeness_audit.json`; `post-run` requires `formal_complete=true`.
 
@@ -203,7 +203,7 @@ Template maintenance happens before freeze or after the scored sandbox has exite
 
 Machine-readable results are the single source of truth. Markdown/CSV/charts are generated from them.
 
-Git retains a compact summary only for five-COMPLETE runs. Incomplete runs remain workflow evidence/cache recovery. Raw run evidence stays in private workflow artifacts; paid prompts/responses/trial state are additionally checkpointed in the private content-addressed `quidra-benchmark-paid-state-*` artifact and may be mirrored in Actions cache. They are ignored on dependency mismatch and never certify a score by themselves. Reusable prompts and validated measurements are content-addressed/deduplicated.
+Git retains a compact summary only for five-COMPLETE runs. Incomplete runs remain workflow evidence/cache recovery. Raw run evidence stays in private workflow artifacts; paid prompts/responses/trial state are additionally checkpointed in the private content-addressed `quidra-benchmark-paid-state` artifact and may be mirrored in Actions cache. They are ignored on dependency mismatch and never certify a score by themselves. Reusable prompts and validated measurements are content-addressed/deduplicated.
 
 Build products, the evaluated repository snapshot, temporary home and temporary files are never committed as run output. The gateway request audit remains trusted-side evidence. Never retain credentials, personal email addresses, host home paths or source-checkout paths outside `/quidra-benchmark`.
 

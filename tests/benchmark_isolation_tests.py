@@ -3563,6 +3563,42 @@ def test_shared_inputs_first_packets_cache_their_shared_prefix() -> None:
             f"a task-first packet was split: {plain}",
         )
 
+        sibling_prefixes = []
+        sibling_tails = []
+        for suffix, body in (("a", "unit A only\n"), ("b", "unit B only\n")):
+            read_dir = root / "repo" / "docs" / f"sibling-{suffix}"
+            read_dir.mkdir()
+            (read_dir / "input.md").write_text(body, encoding="utf-8")
+            sibling_id = f"worker-shared-prefix-{suffix}"
+            with contextlib.redirect_stdout(io.StringIO()):
+                benchmark.cmd_task_create(argparse.Namespace(
+                    workspace=str(root), id=sibling_id, parent=None, evaluation=None,
+                    goal=f"sibling {suffix}", read=[str(read_dir)], write=None,
+                    output=[str(root / "work" / "agents" / sibling_id / "result.json")],
+                    validate="true", network=False, depth=0, section=[], requirement_id=[],
+                    language=[], worker_mode="packet-only", layout="shared-inputs-first",
+                ))
+            sibling = json.loads(
+                (root / "work" / "agents" / sibling_id / "task.json").read_text("utf-8")
+            )
+            sibling_text = benchmark.render_prompt_components(
+                sibling["prompt_components"], sibling["prompt_sha256"]
+            ).decode("utf-8")
+            sibling_blocks = inference_gateway.split_cached_user_content(
+                sibling_text, marker
+            )
+            check(len(sibling_blocks) == 2, f"sibling packet was not split: {suffix}")
+            sibling_prefixes.append(sibling_blocks[0]["text"])
+            sibling_tails.append(sibling_blocks[1]["text"])
+        check(
+            sibling_prefixes[0] == sibling_prefixes[1]
+            and sibling_tails[0] != sibling_tails[1],
+            (
+                "unit-specific task inputs contaminated the cached prefix; "
+                "sibling prefixes must be byte-identical"
+            ),
+        )
+
         # End to end through the adapter's request builder.
         provider = _anthropic_provider()
         http = _ScriptedHTTP([

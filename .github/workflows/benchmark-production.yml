@@ -317,18 +317,56 @@ jobs:
           git push origin HEAD:benchmark
           echo "CHECKPOINT_HEAD=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
-      - name: Import the finished run
-        if: success() && env.BENCHMARK_EVALUATION == 'all' && env.BENCHMARK_UNITS == ''
+      - name: Decide whether this is a publishable complete run
+        if: always() && env.BENCHMARK_EVALUATION == 'all' && env.BENCHMARK_UNITS == ''
         run: |
-          # Always produce benchmark/$RUN_ID once the paid step succeeded, so the
-          # artifact step below preserves the full retained set even when the
-          # push has to be skipped. post-run needs only a clean tree.
+          set -euo pipefail
+          echo "BENCHMARK_PUBLISH_RESULT=0" >> "$GITHUB_ENV"
+          status=".quidra-benchmark/results/primary_status.json"
+          if [ ! -f "$status" ]; then
+            echo "No Primary status exists; preserve evidence/cache only."
+            exit 0
+          fi
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          status = json.loads(Path(".quidra-benchmark/results/primary_status.json").read_text())
+          evaluations = status.get("evaluations") or {}
+          expected = {
+              "semantic_compression", "llm_learnability", "language_quality",
+              "ecosystem", "llm_proficiency",
+          }
+          missing = sorted(expected - set(evaluations))
+          incomplete = {
+              name: (evaluations.get(name) or {}).get("status")
+              for name in sorted(expected)
+              if (evaluations.get(name) or {}).get("status") != "COMPLETE"
+          }
+          print(json.dumps({"missing": missing, "incomplete": incomplete}, indent=2))
+          if missing or incomplete:
+              raise SystemExit(3)
+          PY
+          rc=$?
+          if [ "$rc" -eq 0 ]; then
+            echo "BENCHMARK_PUBLISH_RESULT=1" >> "$GITHUB_ENV"
+            echo "All five Primary evaluations are COMPLETE; this run is publishable."
+          else
+            echo "Run is not fully COMPLETE; keep certified cache and workflow artifact, but do not create a formal benchmark/<run-id> result."
+          fi
+          exit 0
+
+      - name: Import the finished run
+        if: success() && env.BENCHMARK_EVALUATION == 'all' && env.BENCHMARK_UNITS == '' && env.BENCHMARK_PUBLISH_RESULT == '1'
+        run: |
+          # Only a fully COMPLETE five-Primary run becomes a formal repository
+          # result. Partial/blocked attempts remain available in the workflow
+          # artifact and their validated units are still checkpointed to cache.
           python benchmark/template/scripts/benchmark.py post-run \
             --source-repo "$GITHUB_WORKSPACE"
           test -f "benchmark/$RUN_ID/import_manifest.json"
 
       - name: Push the result to the isolated benchmark branch
-        if: success() && env.BENCHMARK_EVALUATION == 'all' && env.BENCHMARK_UNITS == ''
+        if: success() && env.BENCHMARK_EVALUATION == 'all' && env.BENCHMARK_UNITS == '' && env.BENCHMARK_PUBLISH_RESULT == '1'
         run: |
           git fetch origin benchmark
           if [ "$BENCHMARK_BRANCH_MOVED_DURING_RUN" = "1" ]; then

@@ -603,6 +603,7 @@ def assert_premeasurement_gate_is_wired() -> None:
     ]
     assert len(consumers) == 5, [unit["id"] for unit in consumers]
     for unit in consumers:
+        assert "sc-metrics-hidden-coverage--part-2" in unit["dependencies"], unit
         assert "sc-premeasurement-validation" in unit["dependencies"], unit
 
 

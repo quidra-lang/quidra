@@ -805,6 +805,28 @@ def assert_ecosystem_runner_owned_scoring() -> None:
         else:
             raise AssertionError("incomplete Ecosystem component evidence was accepted")
 
+        wrong_month = json.loads(json.dumps(result))
+        wrong_month["evidence"][reqs[0]]["snapshot_date"] = "2026-08-31"
+        try:
+            benchmark.apply_ecosystem_runner_scores(root, task, wrong_month)
+        except benchmark.BenchmarkError as exc:
+            assert "epoch month" in str(exc), exc
+        else:
+            raise AssertionError("out-of-window Ecosystem evidence was accepted")
+
+        gateway_path = root / "template/config/inference_gateway.json"
+        gateway_bytes = gateway_path.read_bytes()
+        gateway = benchmark.json_load(gateway_path)
+        gateway["anthropic_web_search"]["max_uses_per_request"] = 4
+        benchmark.json_dump(gateway_path, gateway)
+        try:
+            benchmark.ecosystem_rubric_asset(root)
+        except benchmark.BenchmarkError as exc:
+            assert "max_uses_per_request" in str(exc), exc
+        else:
+            raise AssertionError("Ecosystem/gateway search-budget drift was accepted")
+        gateway_path.write_bytes(gateway_bytes)
+
 
 def main() -> None:
     assert_accepted_trial_start_marks_the_scored_boundary()

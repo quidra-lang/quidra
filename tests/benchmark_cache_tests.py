@@ -1090,20 +1090,25 @@ def assert_evaluation_scoped_primary_cache() -> None:
         legacy_component = benchmark.store_prompt_component(
             root, legacy_section, "embedded:primary.json"
         )
-        template_component = (
-            root
-            / "template/prompts/components/by-hash"
-            / f"{legacy_component['sha256']}.md"
-        )
-        template_component.parent.mkdir(parents=True, exist_ok=True)
-        template_component.write_bytes(Path(legacy_component["path"]).read_bytes())
-
         legacy_components = [
             legacy_component
             if component.get("kind") == "embedded:primary.json"
             else component
             for component in task["prompt_components"]
         ]
+
+        # A historical prompt manifest can prove a safe scoped-cache migration
+        # only when every component it names is present in the canonical prompt
+        # store. Mirror the real finalized-prompt layout instead of seeding only
+        # primary.json and turning missing fixture bytes into a false cache MISS.
+        canonical_components = root / "template/prompts/components/by-hash"
+        canonical_components.mkdir(parents=True, exist_ok=True)
+        for component in legacy_components:
+            source = Path(component["path"])
+            destination = canonical_components / f"{component['sha256']}.md"
+            if not destination.is_file():
+                destination.write_bytes(source.read_bytes())
+
         legacy_rendered = b"".join(
             Path(component["path"]).read_bytes()
             for component in legacy_components

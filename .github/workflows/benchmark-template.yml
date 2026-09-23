@@ -966,7 +966,7 @@ jobs:
             --workspace "$TMP" --id ecosystem-external--part-1--quidra --status BLOCKED \
             --blocker "synthetic CI infrastructure blocker" \
             --blocker-class infrastructure
-          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
+          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP" --evaluation ecosystem
           python - <<'PY'
           from pathlib import Path
           import json

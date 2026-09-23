@@ -52,7 +52,7 @@ Binding controls:
 
 If deterministic decoding produces duplicate outputs, preserve all configured independent trials and report duplication; do not add ad-hoc prompt noise.
 
-For every Primary Proficiency initial completion and repair completion, the trusted runtime writes the returned source into an isolated trial directory, performs the frozen target-language compile/parse step, and executes the frozen run recipe. The worker does not choose these commands. **Generation Success Rate**, **Compile / Parse Success Rate**, **Correct@1**, **Correct@N**, **Test Pass Rate**, **Prompt Robustness**, and **Unseen-case Generalization** are runner-owned facts projected from the trusted trial trace before result validation. Test Pass Rate uses all trusted public/hidden oracle cases across scored calls; Prompt Robustness uses the worst first-attempt full-oracle correctness rate across the frozen equivalent prompt variants; Unseen-case Generalization uses first-attempt hidden-case pass rate.
+For every Primary Proficiency initial completion and repair completion, the trusted runtime writes the returned source into an isolated trial directory, performs the frozen target-language compile/parse step, and executes the frozen run recipe. The worker does not choose these commands. **Generation Success Rate**, **Compile / Parse Success Rate**, **Correct@1**, **Correct@N**, **Test Pass Rate**, **Repair Success Rate**, **Repair Efficiency**, **Diagnosis Efficiency**, **Silent Bug Resistance**, **Prompt Robustness**, and **Unseen-case Generalization** are runner-owned facts projected from trusted trial/oracle evidence before result validation. Test Pass Rate uses all trusted public/hidden oracle cases across scored calls; Prompt Robustness uses the worst first-attempt full-oracle correctness rate across the frozen equivalent prompt variants; Unseen-case Generalization uses first-attempt hidden-case pass rate.
 
 Correctness is determined by an external hidden-input oracle. Each frozen workload exposes its protocol and public example to the scored model, while the trusted runtime additionally executes predeclared hidden stdin cases that are excluded from worker read paths and scored prompts. A completion is correct only when it passes every trusted public and hidden case; a literal or hard-coded public answer therefore cannot earn Correct@1/Correct@N. Full hidden inputs, expected answers, case identities, and hidden-run stdout/stderr remain trusted evidence only. Repair feedback is runtime-owned: compile diagnostics and public-case failures may be returned, while hidden failures are reported only as a count, so the orchestration worker cannot tutor the scored model or leak the oracle. Qualitative metrics that are not fully determined by these executions remain separately adjudicated from preserved source and evidence.
 
@@ -139,6 +139,32 @@ A specification-assisted condition may be used as the normal practical prompt wh
 All normalized LLM scores must follow:
 
 **100 = best, 0 = worst.**
+
+### 9.0.1 Runner-owned repair and failure metrics
+
+The following formulas are frozen before measurement and are applied identically to
+all languages:
+
+- **Repair Success Rate**: among trials whose initial completion fails the full
+  trusted oracle, the percentage that reaches a full-oracle pass on a later
+  repair completion. If no trial needs repair, the score is 100.
+- **Repair Efficiency**: per trial, first-attempt success scores 100. If the first
+  full-oracle success occurs after repair number `k`, with `R` the fixed
+  `max_repair_turns`, score `100 * (1 - k/(R+1))`; an unrepaired failure
+  scores 0. Report the arithmetic mean across the fixed Primary trial set.
+- **Diagnosis Efficiency**: among trials whose initial completion fails, the
+  percentage that passes the full oracle on the **first** repair. If no trial
+  needs repair, the score is 100. Because repair feedback is runtime-owned, this
+  measures whether the model can act on the first trusted diagnostic rather than
+  whether an orchestration worker can coach it.
+- **Silent Bug Resistance**: among first completions that compile/parse and
+  execute oracle cases, a silent-bug trial is one where at least one oracle run
+  exits 0 but its output disagrees with the trusted oracle. Resistance is
+  `100 * (eligible_trials - silent_bug_trials) / eligible_trials`. If no first
+  completion is eligible, the score is 0 rather than an unearned 100.
+
+These metrics are recomputed from runner-only evidence; a worker-provided score
+cannot override them.
 
 The configured trial allocation in Section 6.2 is part of validity, not merely a reporting preference. Every replicated cell that contributes to Proficiency Correct@1 or Prompt Robustness must contain exactly the Primary independent-trial count from `primary.json` before the LLM Proficiency score may be published.
 

@@ -261,6 +261,20 @@ def assert_repair_loop_is_scoped_and_idempotent() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_root(td)
         benchmark.json_dump(
+            root / benchmark.F20_RUNTIME_FACTS_RELATIVE,
+            {
+                "schema_version": 1,
+                "probe_id": "F20.P1",
+                "languages": {
+                    "Go": {
+                        "passed": True,
+                        "frozen_recipe_extra_flags": [],
+                        "observed_stdout": "3",
+                    }
+                },
+            },
+        )
+        benchmark.json_dump(
             root / benchmark.COMPARABILITY_BLINDING_RELATIVE,
             {"schema_version": 1, "labels": {"Go": "A"}},
         )
@@ -292,7 +306,7 @@ def assert_repair_loop_is_scoped_and_idempotent() -> None:
                     "probe_id": "F20.P1",
                     "label": "A",
                     "record": canonical(
-                        "PARTIAL", "go_fragment", partial=["P-b"]
+                        "PARTIAL", "go_fragment", partial=["P-c"]
                     ),
                 }],
             },
@@ -300,7 +314,20 @@ def assert_repair_loop_is_scoped_and_idempotent() -> None:
         assert benchmark.persist_comparability_repairs(root, result) == 1
         assert benchmark.persist_comparability_repairs(root, result) == 0
         repaired = benchmark.sc_comparability_repairs(root)
-        assert repaired["F20.P1"]["Go"]["partial_reasons"] == ["P-b"]
+        assert repaired["F20.P1"]["Go"]["partial_reasons"] == ["P-c"]
+
+        stale_flag_claim = json.loads(json.dumps(result))
+        stale_flag_claim["evidence"]["repair_directives"][0]["record"] = canonical(
+            "PARTIAL", "go_fragment", partial=["P-b"]
+        )
+        try:
+            benchmark.persist_comparability_repairs(root, stale_flag_claim)
+        except benchmark.BenchmarkError as exc:
+            assert "cannot cite P-b" in str(exc), exc
+        else:
+            raise AssertionError(
+                "F20.P1 repair must not contradict trusted no-extra-flag runtime facts"
+            )
 
         unsafe = json.loads(json.dumps(result))
         unsafe["evidence"]["repair_directives"][0]["record"] = canonical(
@@ -312,7 +339,6 @@ def assert_repair_loop_is_scoped_and_idempotent() -> None:
             assert "NONE boundary" in str(exc)
         else:
             raise AssertionError("run-local repair must not cross the NONE boundary")
-
 
 def assert_every_sampled_probe_has_a_cohort_adjudicator() -> None:
     with tempfile.TemporaryDirectory() as td:

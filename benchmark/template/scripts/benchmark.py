@@ -5732,6 +5732,13 @@ def cache_fingerprint_payload(
             root, "mechanical" if mechanical else str(unit.get("evaluation"))
         ),
     }
+    if unit.get("evaluation") == "llm_proficiency":
+        workload_contract_path = root / PROFICIENCY_WORKLOADS_RELATIVE
+        if not workload_contract_path.is_file():
+            return None
+        payload["proficiency_workload_contract_sha256"] = sha256_file(
+            workload_contract_path
+        )
     if mechanical:
         payload["result_kind"] = "mechanical"
         payload["runner_action"] = str(unit.get("runner_action"))

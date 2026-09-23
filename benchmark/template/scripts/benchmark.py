@@ -8445,7 +8445,7 @@ def proficiency_runtime_verification_problems(
     agent_dir: Path,
     trace: dict[str, Any],
 ) -> list[str]:
-    """Revalidate every Proficiency call against the frozen external oracle."""
+    """Revalidate sanitized trial records against runner-only oracle evidence."""
     trials = ((trace.get("trials") or {}).get("trials") or {})
     problems: list[str] = []
     per_trial: dict[str, Any] = {}
@@ -8457,6 +8457,10 @@ def proficiency_runtime_verification_problems(
         json_load(root / "template" / "config" / "primary.json")
         ["llm_proficiency"].get("max_repair_turns", 0)
     )
+    trusted_root = (
+        root / "work" / "root" / "proficiency-verification"
+        / str(unit.get("assigned_agent_id") or "")
+    )
 
     for trial_id, summary in sorted(trials.items()):
         calls = (summary or {}).get("calls") or []
@@ -8465,11 +8469,39 @@ def proficiency_runtime_verification_problems(
             if not isinstance(call, dict):
                 problems.append(f"{trial_id}: call {index} is not an object")
                 continue
-            verification = call.get("verification")
+            visible = call.get("verification")
             verification_path = call.get("verification_path")
-            if not isinstance(verification, dict):
-                problems.append(f"{trial_id}: call {index} has no trusted verification")
+            if not isinstance(visible, dict):
+                problems.append(
+                    f"{trial_id}: call {index} has no sanitized trusted verification"
+                )
                 continue
+            if not isinstance(verification_path, str) or not verification_path:
+                problems.append(f"{trial_id}: call {index} verification path is missing")
+                continue
+            try:
+                path = require_under(root / verification_path, trusted_root)
+            except BenchmarkError as exc:
+                problems.append(
+                    f"{trial_id}: call {index} invalid trusted verification path: {exc}"
+                )
+                continue
+            if not path.is_file():
+                problems.append(
+                    f"{trial_id}: call {index} trusted verification file is missing"
+                )
+                continue
+            try:
+                verification = json_load(path)
+            except (OSError, json.JSONDecodeError) as exc:
+                problems.append(
+                    f"{trial_id}: call {index} trusted verification is unreadable: {exc}"
+                )
+                continue
+            if visible != proficiency_verification_summary(verification):
+                problems.append(
+                    f"{trial_id}: call {index} sanitized verification disagrees with trusted record"
+                )
             if verification.get("trial_id") != trial_id:
                 problems.append(f"{trial_id}: call {index} verification trial ID mismatch")
             if verification.get("source_sha256") != call.get("completion_sha256"):
@@ -8478,17 +8510,19 @@ def proficiency_runtime_verification_problems(
                 problems.append(
                     f"{trial_id}: call {index} verification workload contract hash mismatch"
                 )
+
             cell = trial_manifest.get(str(trial_id))
             if cell is None:
                 problems.append(f"{trial_id}: call {index} has no frozen trial manifest row")
-                expected_cases = []
+                expected_cases: list[dict[str, Any]] = []
             else:
                 workload_name = str(cell["workload"])
-                if verification.get("workload") not in (None, workload_name):
+                if verification.get("workload") != workload_name:
                     problems.append(
                         f"{trial_id}: call {index} verification workload mismatch"
                     )
                 expected_cases = proficiency_trusted_oracle_cases(root, workload_name)
+
             compile_record = verification.get("compile_or_parse")
             compile_ok = (
                 isinstance(compile_record, dict)
@@ -8499,10 +8533,8 @@ def proficiency_runtime_verification_problems(
                     f"{trial_id}: call {index} compile/parse verdict disagrees with evidence"
                 )
             if int(verification.get("oracle_test_count", -1) or -1) != len(expected_cases):
-                problems.append(
-                    f"{trial_id}: call {index} oracle test count mismatch"
-                )
-            oracle_rows = verification.get("oracle_tests")
+                problems.append(f"{trial_id}: call {index} oracle test count mismatch")
+
             synthetic_call = verification.get("synthetic_ci") is True
             if synthetic_call:
                 if not (
@@ -8513,6 +8545,7 @@ def proficiency_runtime_verification_problems(
                         f"{trial_id}: call {index} synthetic verification in scored workspace"
                     )
             elif compile_ok:
+                oracle_rows = verification.get("oracle_tests")
                 if not isinstance(oracle_rows, list):
                     problems.append(
                         f"{trial_id}: call {index} has no trusted oracle result rows"
@@ -8525,9 +8558,7 @@ def proficiency_runtime_verification_problems(
                     if isinstance(row, dict) and row.get("id") is not None
                 }
                 if set(observed_by_id) != set(expected_by_id):
-                    problems.append(
-                        f"{trial_id}: call {index} oracle case set mismatch"
-                    )
+                    problems.append(f"{trial_id}: call {index} oracle case set mismatch")
                 recomputed_passed = 0
                 for case_id, case in expected_by_id.items():
                     row = observed_by_id.get(case_id)
@@ -8542,76 +8573,34 @@ def proficiency_runtime_verification_problems(
                             f"{trial_id}: call {index} oracle case {case_id} hash/visibility mismatch"
                         )
                     run = row.get("run")
-                    if bool(case["hidden"]):
-                        if not isinstance(run, dict):
-                            problems.append(
-                                f"{trial_id}: call {index} hidden oracle case {case_id} "
-                                "has no run evidence"
-                            )
-                            continue
-                        if run.get("output_redacted") is not True:
-                            problems.append(
-                                f"{trial_id}: call {index} hidden oracle case {case_id} "
-                                "did not redact stdout/stderr"
-                            )
-                        if "stdout" in run or "stderr" in run:
-                            problems.append(
-                                f"{trial_id}: call {index} hidden oracle case {case_id} "
-                                "retained hidden output bytes"
-                            )
-                        for hash_name in ("stdout_sha256", "stderr_sha256"):
-                            value = str(run.get(hash_name) or "")
-                            if not re.fullmatch(r"[0-9a-f]{64}", value):
-                                problems.append(
-                                    f"{trial_id}: call {index} hidden oracle case {case_id} "
-                                    f"has invalid {hash_name}"
-                                )
-                        expected_passed = row.get("passed") is True
-                        problem_text = str(row.get("problem") or "").strip()
-                        if expected_passed and problem_text:
-                            problems.append(
-                                f"{trial_id}: call {index} hidden oracle case {case_id} "
-                                "passed but retains a failure reason"
-                            )
-                        if not expected_passed and not problem_text:
-                            problems.append(
-                                f"{trial_id}: call {index} hidden oracle case {case_id} "
-                                "failed without a preserved reason"
-                            )
-                    else:
-                        expected_problem = (
-                            None
-                            if isinstance(run, dict) and run.get("exit_code") == 0
-                            else (
-                                f"program exited with {run.get('exit_code')}"
-                                if isinstance(run, dict)
-                                else "missing run evidence"
-                            )
+                    expected_problem = (
+                        None
+                        if isinstance(run, dict) and run.get("exit_code") == 0
+                        else (
+                            f"program exited with {run.get('exit_code')}"
+                            if isinstance(run, dict)
+                            else "missing run evidence"
                         )
-                        if expected_problem is None:
-                            expected_problem = _proficiency_oracle_output_problem(
-                                case, str((run or {}).get("stdout") or "")
-                            )
-                        expected_passed = expected_problem is None
-                        if bool(row.get("passed")) != expected_passed:
-                            problems.append(
-                                f"{trial_id}: call {index} oracle case {case_id} "
-                                "pass verdict mismatch"
-                            )
+                    )
+                    if expected_problem is None:
+                        expected_problem = _proficiency_oracle_output_problem(
+                            case, str((run or {}).get("stdout") or "")
+                        )
+                    expected_passed = expected_problem is None
+                    if bool(row.get("passed")) != expected_passed:
+                        problems.append(
+                            f"{trial_id}: call {index} oracle case {case_id} pass verdict mismatch"
+                        )
                     if expected_passed:
                         recomputed_passed += 1
                 if int(verification.get("oracle_passed_count", -1) or 0) != recomputed_passed:
-                    problems.append(
-                        f"{trial_id}: call {index} oracle passed-count mismatch"
-                    )
+                    problems.append(f"{trial_id}: call {index} oracle passed-count mismatch")
                 expected_test_passed = (
                     len(expected_cases) > 0
                     and recomputed_passed == len(expected_cases)
                 )
                 if verification.get("test_passed") is not expected_test_passed:
-                    problems.append(
-                        f"{trial_id}: call {index} final oracle verdict mismatch"
-                    )
+                    problems.append(f"{trial_id}: call {index} final oracle verdict mismatch")
             else:
                 if verification.get("test_passed") is True:
                     problems.append(
@@ -8621,33 +8610,14 @@ def proficiency_runtime_verification_problems(
                     problems.append(
                         f"{trial_id}: call {index} records oracle passes without executable code"
                     )
-            if not isinstance(verification_path, str) or not verification_path:
-                problems.append(f"{trial_id}: call {index} verification path is missing")
-            else:
-                try:
-                    path = require_under(agent_dir / verification_path, agent_dir)
-                except BenchmarkError as exc:
-                    problems.append(f"{trial_id}: call {index} invalid verification path: {exc}")
-                else:
-                    if not path.is_file():
-                        problems.append(f"{trial_id}: call {index} verification file is missing")
-                    else:
-                        try:
-                            preserved = json_load(path)
-                        except (OSError, json.JSONDecodeError) as exc:
-                            problems.append(
-                                f"{trial_id}: call {index} verification file is unreadable: {exc}"
-                            )
-                        else:
-                            if preserved != verification:
-                                problems.append(
-                                    f"{trial_id}: call {index} verification file disagrees with trace"
-                                )
+
             trial_rows.append({
                 "call": index,
                 "completion_sha256": call.get("completion_sha256"),
-                "compile_parse_ok": verification.get("compile_parse_ok"),
-                "test_passed": verification.get("test_passed"),
+                "compile_parse_ok": visible.get("compile_parse_ok"),
+                "test_passed": visible.get("test_passed"),
+                "oracle_passed_count": visible.get("oracle_passed_count"),
+                "oracle_test_count": visible.get("oracle_test_count"),
                 "verification_path": verification_path,
             })
         per_trial[str(trial_id)] = trial_rows
@@ -8665,7 +8635,7 @@ def proficiency_runtime_verification_problems(
                     f"success or the frozen {max_repairs}-repair budget was exhausted"
                 )
 
-    computed = proficiency_runtime_metrics(root, trace)
+    computed = proficiency_runtime_metrics(trace)
     synthetic = any(
         isinstance(call.get("verification"), dict)
         and call["verification"].get("synthetic_ci") is True
@@ -8705,9 +8675,10 @@ def proficiency_runtime_verification_problems(
                         )
 
     audit = {
-        "schema_version": 1,
+        "schema_version": 2,
         "work_unit_id": str(unit.get("id") or ""),
         "assigned_languages": list(unit.get("assigned_languages") or []),
+        "workload_contract_sha256": contract_sha,
         "runtime_metrics": computed,
         "synthetic_ci": synthetic,
         "trials": per_trial,

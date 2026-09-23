@@ -7635,8 +7635,13 @@ def sc_per_probe(evidence: Any, names: Iterable[str]) -> dict[str, float]:
     return out
 
 
-def sc_language_ratio(evidence: Any, spec: dict[str, Any]) -> float | None:
-    """A metric the methodology defines over the whole probe universe, not per probe."""
+def sc_language_ratio(
+    evidence: Any,
+    spec: dict[str, Any],
+    *,
+    denominator_override: float | None = None,
+) -> float | None:
+    """A whole-universe ratio, optionally with a trusted runner-owned denominator."""
     raw_patterns = [re.compile(p, re.I) for p in spec.get("raw_patterns", [])]
     numerator = re.compile(spec["numerator_pattern"], re.I)
     denominator = re.compile(spec["denominator_pattern"], re.I)
@@ -7667,6 +7672,10 @@ def sc_language_ratio(evidence: Any, spec: dict[str, Any]) -> float | None:
                 walk(item)
 
     walk(evidence)
+    if denominator_override is not None:
+        if denominator_override <= 0 or "num" not in found:
+            return None
+        return found["num"] / denominator_override
     if "raw" in found:
         return found["raw"]
     if found.get("den"):
@@ -7692,6 +7701,7 @@ def sc_raw_values(
         if result.is_file():
             shards[(requirements[0], assigned[0])] = result
 
+    supported_points = sc_supported_capability_points(root, config, languages)
     raw: dict[str, dict[str, float]] = {}
     for metric, rule in spec["metrics"].items():
         evidence_by_language: dict[str, Any] = {}
@@ -7707,10 +7717,26 @@ def sc_raw_values(
         if rule["reduce"] == "language_ratio":
             values = {}
             for language, evidence in evidence_by_language.items():
-                value = sc_language_ratio(evidence, rule)
+                denominator_override = None
+                if metric == "metric.capability_efficiency":
+                    if supported_points is None:
+                        raise BenchmarkError(
+                            "metric.capability_efficiency: final supported capability "
+                            "points could not be derived from the authoritative support ledger"
+                        )
+                    by_language, _ = supported_points
+                    denominator_override = by_language.get(language)
+                value = sc_language_ratio(
+                    evidence, rule, denominator_override=denominator_override
+                )
                 if value is None:
+                    detail = (
+                        "semantic-complexity numerator and final supported capability points"
+                        if metric == "metric.capability_efficiency"
+                        else "raw value"
+                    )
                     raise BenchmarkError(
-                        f"{metric}: {language} recorded no raw value to recompute from"
+                        f"{metric}: {language} recorded no {detail} to recompute from"
                     )
                 values[language] = value
             raw[metric] = values
@@ -7780,6 +7806,66 @@ def sc_normalize(raw: dict[str, float], direction: str) -> dict[str, float]:
     }
 
 
+def sc_supported_capability_points(
+    root: Path, config: dict[str, Any], languages: list[str]
+) -> tuple[dict[str, float], float] | None:
+    """Final supported capability points after cohort adjudication/repair."""
+    owner = config.get("support_level_owner") or {}
+    owner_id = str(owner.get("requirement_id") or "")
+    if not owner_id:
+        return None
+    fields = [str(name) for name in (owner.get("fields") or ["support"])]
+    factors = {
+        str(name).upper(): float(value)
+        for name, value in (owner.get("levels") or {}).items()
+    }
+    matrix = json_load(
+        root / "template" / "methodology-assets" / "semantic_compression"
+        / "semantic_site_matrix.json"
+    )
+    probes = {
+        str(probe["probe_id"]): float(probe.get("capability_denominator") or 0)
+        for probe in (matrix.get("probes") or [])
+    }
+    total = sum(probes.values())
+    if not probes or total <= 0:
+        return None
+
+    adjudicated = sc_adjudicated_levels(root)
+    manifest = json_load(root / "work" / "root" / "manifest.json")
+    awarded_by_language: dict[str, float] = {}
+    for unit in manifest.get("work_units", []):
+        if owner_id not in (unit.get("requirement_ids") or []):
+            continue
+        assigned = list(unit.get("assigned_languages") or [])
+        if len(assigned) != 1:
+            continue
+        language = str(assigned[0])
+        result_path = (
+            root / "work" / "agents" / str(unit.get("assigned_agent_id"))
+            / "result.json"
+        )
+        if not result_path.is_file():
+            return None
+        rows = probe_annotation_fields(json_load(result_path), set(probes))
+        awarded = 0.0
+        for probe_id, points in probes.items():
+            settled = (adjudicated.get(probe_id) or {}).get(language)
+            if settled:
+                level = settled
+            else:
+                found = sc_owner_support_levels(rows.get(probe_id) or {}, fields)
+                if len(found) != 1:
+                    return None
+                level = found.pop()
+            awarded += points * factors.get(level, 0.0)
+        awarded_by_language[language] = awarded
+
+    if sorted(awarded_by_language) != sorted(languages):
+        return None
+    return awarded_by_language, total
+
+
 def sc_coverage_from_support(
     root: Path, config: dict[str, Any], languages: list[str]
 ) -> dict[str, float] | None:
@@ -7796,62 +7882,17 @@ def sc_coverage_from_support(
     determinate level in every language, because a coverage computed from a
     partial ledger would be worse than the one the shards reported.
     """
-    owner = config.get("support_level_owner") or {}
     rule = config.get("coverage_from_support") or {}
-    owner_id = str(owner.get("requirement_id") or "")
-    if not owner_id or not rule:
+    if not rule:
         return None
-    fields = [str(name) for name in (owner.get("fields") or ["support"])]
-    factors = {
-        str(name).upper(): float(value)
-        for name, value in (owner.get("levels") or {}).items()
+    settled = sc_supported_capability_points(root, config, languages)
+    if settled is None:
+        return None
+    awarded_by_language, total = settled
+    return {
+        language: 100.0 * awarded / total
+        for language, awarded in awarded_by_language.items()
     }
-    matrix = json_load(
-        root / "template" / "methodology-assets" / "semantic_compression"
-        / "semantic_site_matrix.json"
-    )
-    probes = {
-        str(probe["probe_id"]): float(probe.get("capability_denominator") or 0)
-        for probe in (matrix.get("probes") or [])
-    }
-    if not probes:
-        return None
-    adjudicated = sc_adjudicated_levels(root)
-    manifest = json_load(root / "work" / "root" / "manifest.json")
-    coverage: dict[str, float] = {}
-    for unit in manifest.get("work_units", []):
-        if owner_id not in (unit.get("requirement_ids") or []):
-            continue
-        assigned = list(unit.get("assigned_languages") or [])
-        if len(assigned) != 1:
-            continue
-        language = str(assigned[0])
-        result_path = (
-            root / "work" / "agents" / str(unit.get("assigned_agent_id"))
-            / "result.json"
-        )
-        if not result_path.is_file():
-            return None
-        rows = probe_annotation_fields(json_load(result_path), set(probes))
-        awarded = 0.0
-        total = 0.0
-        for probe_id, points in probes.items():
-            settled = (adjudicated.get(probe_id) or {}).get(language)
-            if settled:
-                level = settled
-            else:
-                found = sc_owner_support_levels(rows.get(probe_id) or {}, fields)
-                if len(found) != 1:
-                    return None
-                level = found.pop()
-            total += points
-            awarded += points * factors.get(level, 0.0)
-        if total <= 0:
-            return None
-        coverage[language] = 100.0 * awarded / total
-    if sorted(coverage) != sorted(languages):
-        return None
-    return coverage
 
 
 def sc_recomputed_requirements(

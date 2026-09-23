@@ -1726,8 +1726,10 @@ def test_paid_trial_calls_resume_from_the_atomic_runtime_journal() -> None:
              "content": '{"schema_version":1}\n'},
             {"action": "final", "summary": "resumed without buying trials again"},
         ]
+        retry_gateway = root / "gateway-retry"
+        retry_gateway.mkdir()
         with Gateway(
-            root / "gateway",
+            retry_gateway,
             script={"schema_version": 1, "sequence": [json.dumps(a) for a in second_actions]},
         ) as gw:
             second = subprocess.run(

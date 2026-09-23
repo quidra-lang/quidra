@@ -992,9 +992,13 @@ def assert_budget_plan_excludes_complete_units() -> None:
             available_usd=0.0,
             evaluation="ecosystem",
             safety_multiplier=1.25,
+            smoke_reserve_usd=0.10,
         )
         assert cached["pending_agent_units"] == 0, cached
         assert cached["estimated_uncached_usd"] == 0, cached
+        assert cached["expected_paid_api_calls_upper_bound"] == 0, cached
+        assert cached["provider_smoke_required"] is False, cached
+        assert cached["smoke_reserve_usd"] == 0, cached
         assert cached["recommended_budget_usd"] == 0, cached
         assert cached["sufficient"] is True, cached
 

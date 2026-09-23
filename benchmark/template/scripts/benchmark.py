@@ -8536,9 +8536,25 @@ def semantic_premeasurement_verification_summary(
             raise BenchmarkError(
                 f"Semantic Compression V1 report row is invalid: {language} {probe_id}"
             )
+        expected_fragment_sha = sha256_bytes(
+            str(catalog[probe_id]["fragment"]).encode("utf-8")
+        )
+        if row.get("canonical_fragment_sha256") != expected_fragment_sha:
+            raise BenchmarkError(
+                f"Semantic Compression V1 report is stale for {language} {probe_id}: "
+                "canonical fragment hash mismatch"
+            )
+
         expected_mode = "nm-add2" if probe_id == "F20.P2" else "run"
         expected_runs = 0 if probe_id == "F20.P2" else (20 if probe_id == "F19.P2" else 1)
-        if row.get("mode") != expected_mode or int(row.get("run_count", -1)) != expected_runs:
+        try:
+            recorded_runs = int(row.get("run_count", -1))
+        except (TypeError, ValueError) as exc:
+            raise BenchmarkError(
+                f"Semantic Compression V1 report run_count is invalid: "
+                f"{language} {probe_id}"
+            ) from exc
+        if row.get("mode") != expected_mode or recorded_runs != expected_runs:
             raise BenchmarkError(
                 f"Semantic Compression V1 report contract drifted: {language} {probe_id}"
             )

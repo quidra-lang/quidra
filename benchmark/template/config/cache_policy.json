@@ -38,8 +38,8 @@
     "note": "Set by a person, like a toolchain pin. Ecosystem measures external packages, tools and public knowledge, which change even when a language version does not; rather than expiring every ecosystem record at each calendar month, the operator changes this value when the outside world should be measured again. Records carry the value in their key, so changing it makes every ecosystem record a MISS. 2026-09 keeps the records certified in September 2026 valid.",
     "mechanical": "2026-09",
     "mechanical_note": "Mechanical measurements are timed on the hosted runner class the workflow names. Change this value when that class changes or when the numbers should be taken again for another reason; nothing else about the runner enters the key.",
-    "semantic_compression": "2026-09-medium",
-    "semantic_compression_note": "Semantic Compression packets are decoded at the depth inference_gateway.json's evaluation_effort pins (medium since rehearsal 4, when high effort spent the whole output cap reasoning). The eleven records certified at high effort are retired by this value so every Semantic Compression score comes from one depth, which section 6.2 of the methodology requires across languages."
+    "semantic_compression": "2026-09-canonical-fragments-v2",
+    "semantic_compression_note": "Semantic Compression v2 fixes one canonical fragment/support record per probe and language before A/B/C/D/E are measured, and every downstream shard is keyed by that catalog. Earlier records could let independent metric shards measure different fragments for the same probe, so they remain preserved in cache as historical certified artifacts but must not hydrate a v2 run."
   },
   "promotion": {
     "require_complete_unit": true,

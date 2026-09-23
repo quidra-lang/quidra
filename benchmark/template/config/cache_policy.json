@@ -38,10 +38,10 @@
     "note": "Set by a person, like a toolchain pin. Ecosystem measures external packages, tools and public knowledge, which change even when a language version does not; rather than expiring every ecosystem record at each calendar month, the operator changes this value when the outside world should be measured again. Records carry the value in their key, so changing it makes every ecosystem record a MISS. 2026-09 keeps the records certified in September 2026 valid.",
     "mechanical": "2026-09",
     "mechanical_note": "Mechanical measurements are timed on the hosted runner class the workflow names. Change this value when that class changes or when the numbers should be taken again for another reason; nothing else about the runner enters the key.",
-    "semantic_compression": "2026-09-canonical-fragments-v3-verified",
-    "semantic_compression_note": "Semantic Compression v3 preserves the v2 one-canonical-fragment contract and additionally requires every FULL/PARTIAL canonical fragment to pass the frozen build/run recipe in the trusted runner before downstream A/B/C/D/E measurement. F19.P2 is replayed 20 times and F20.P2 is checked with nm after mandatory positive/negative validator controls. Earlier Semantic Compression records remain preserved but cannot hydrate a v3 run.",
-    "llm_proficiency": "2026-09-complete-primary-trials-v2",
-    "llm_proficiency_note": "LLM Proficiency v2 requires the exact predeclared workload × scenario × replication Primary trial set before a shard can complete or enter certified cache. Earlier records may contain fewer or differently named fresh sessions, so only llm_proficiency is re-keyed; other Primary caches remain reusable."
+    "semantic_compression": "2026-09-canonical-fragments-v4-r9-verified",
+    "semantic_compression_note": "Semantic Compression v4 preserves the mechanically verified canonical-fragment contract and makes authoring rule R9 authoritative over P-a: weaker substitutions earn PARTIAL only when the canonical task explicitly permits them. Trusted pinned-runtime build/run evidence is also passed into cohort support adjudication so it cannot invent stale flag/toolchain assumptions. Earlier Semantic Compression records remain preserved but cannot hydrate a v4 run.",
+    "llm_proficiency": "2026-09-complete-primary-trials-v1",
+    "llm_proficiency_note": "LLM Proficiency v1 requires exactly the frozen Cartesian product of primary workloads and scenarios with the configured independent-trial replication count. Cache records must certify the exact Primary trial-set hash and count; older records remain preserved but cannot hydrate this epoch."
   },
   "promotion": {
     "require_complete_unit": true,

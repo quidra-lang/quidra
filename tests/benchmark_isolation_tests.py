@@ -3492,9 +3492,9 @@ def test_shared_inputs_first_packets_cache_their_shared_prefix() -> None:
     methodology assets for every language; with the per-unit header first,
     the third paid run wrote them once per packet and never read them. In the
     shared-inputs-first layout the rendered bytes are a permutation of the
-    task-first layout - nothing added, nothing removed - the header opens the
-    tail, and the trusted adapter splits the message there so the breakpoint
-    sits at the end of the shared part.
+    task-first layout - nothing added, nothing removed. Only frozen embedded
+    inputs precede the header; unit-specific generated/read-path inputs follow
+    it, so the trusted adapter's breakpoint is actually reusable by siblings.
     """
     import argparse
     import contextlib
@@ -3522,9 +3522,19 @@ def test_shared_inputs_first_packets_cache_their_shared_prefix() -> None:
         first_kinds = [c["kind"] for c in first_components]
         shared_kinds = [c["kind"] for c in shared_components]
         check(first_kinds[0] == "task", f"task-first no longer starts with the header: {first_kinds}")
+        task_index = shared_kinds.index("task")
         check(
-            shared_kinds[-1] == "task" and shared_kinds[0].startswith("task-input:"),
-            f"shared-inputs-first did not put the inputs first and the header last: {shared_kinds}",
+            task_index > 0
+            and not any(kind.startswith("task-input:") for kind in shared_kinds[:task_index])
+            and all(
+                index > task_index
+                for index, kind in enumerate(shared_kinds)
+                if kind.startswith("task-input:")
+            ),
+            (
+                "shared-inputs-first must cache only frozen embedded inputs; "
+                f"unit-specific task inputs belong after the header: {shared_kinds}"
+            ),
         )
         check(sorted(first_kinds) == sorted(shared_kinds), "a layout changed the set of components")
         # The same shared components, byte for byte; only the per-unit header

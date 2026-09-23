@@ -218,19 +218,36 @@ def is_retryable(detail: str) -> bool:
 
 def handle_worker_failure(root: Path, unit: dict[str, Any], detail: str) -> None:
     lowered = detail.lower()
-    fatal = next((token for token in FATAL_PROVIDER_TOKENS if token in lowered), None)
-    if fatal:
-        raise ProductionRunError(
-            f"the provider cannot serve this run any further ({fatal}); stopping "
-            "before another paid request so the remaining units stay pending "
-            "instead of being blocked one by one"
-        )
-
     uid = str(unit["id"])
     state = ledger_state(root, uid)
     if state.get("status") != "RUNNING":
         return
     attempts = int(state.get("attempts", 0) or 0)
+
+    fatal = next((token for token in FATAL_PROVIDER_TOKENS if token in lowered), None)
+    if fatal:
+        # A provider-wide failure is not a verdict on this work unit. Leaving it
+        # RUNNING strands the next continuation behind the lease timeout, because
+        # the worker process is already gone but reclaim-stale quite correctly
+        # refuses a fresh heartbeat. Archive the attempt and return the unit to
+        # PENDING before stopping the paid driver. The next continuation can then
+        # hydrate any COMPLETE siblings immediately and retry only this unfinished
+        # unit once the provider/budget problem is actually gone.
+        safe_detail = " ".join(detail.strip().split())[:1200] or "provider failure"
+        benchmark.archive_attempt(
+            root, unit, attempts, "fatal-provider-pause", reset=True,
+            detail=safe_detail,
+        )
+        run_cli(
+            root, "ledger-update", "--id", uid, "--status", "PENDING",
+            "--validation-result", "FAIL",
+        )
+        raise ProductionRunError(
+            f"the provider cannot serve this run any further ({fatal}); stopping "
+            "before another paid request with the interrupted unit returned to PENDING"
+        )
+
+    max_attempts = int(state.get("max_attempts", 3) or 3)
     max_attempts = int(state.get("max_attempts", 3) or 3)
     safe_detail = " ".join(detail.strip().split())[:1200] or "worker process failed"
     blocker_class = classify_failure(safe_detail)

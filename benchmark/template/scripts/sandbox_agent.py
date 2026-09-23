@@ -398,6 +398,126 @@ class Trials:
         self.trusted_verification_dir = (
             root / "work" / "root" / "proficiency-verification" / agent_id
         )
+        self._restore_sessions()
+
+    def _resumed_call_counts(self) -> dict[str, int]:
+        """Accepted scored calls represented by the immutable prior audit trace."""
+        path = self.agent_dir / "resume_trace.json"
+        if not path.is_file():
+            return {}
+        try:
+            payload = benchmark.json_load(path)
+        except (OSError, json.JSONDecodeError) as exc:
+            raise AgentFailure(f"resume_trace.json is unreadable: {exc}") from exc
+        counts: dict[str, int] = {}
+        for entry in payload.get("trace", []) or []:
+            if entry.get("action") not in {"trial_start", "trial_continue"}:
+                continue
+            observation = entry.get("observation") or {}
+            rows = observation.get("trials")
+            if not isinstance(rows, list):
+                rows = [observation]
+            for row in rows:
+                if not isinstance(row, dict) or row.get("denied"):
+                    continue
+                trial_id = row.get("trial_id")
+                if isinstance(trial_id, str) and trial_id:
+                    counts[trial_id] = counts.get(trial_id, 0) + 1
+        return counts
+
+    def _restore_sessions(self) -> None:
+        """Restore paid calls only when runtime records and the prior trace agree."""
+        if not self.records_dir.is_dir():
+            return
+        traced = self._resumed_call_counts()
+        if not traced:
+            return
+
+        for trial_dir in sorted(p for p in self.records_dir.iterdir() if p.is_dir()):
+            trial_id = trial_dir.name
+            try:
+                self._valid_id(trial_id)
+                self._require_allowed_trial_id(trial_id)
+            except AgentDenied as exc:
+                raise AgentFailure(f"invalid resumed trial directory {trial_id!r}: {exc}") from exc
+            allowed = int(traced.get(trial_id, 0) or 0)
+            if allowed <= 0:
+                continue
+            session_path = trial_dir / "session.json"
+            if not session_path.is_file():
+                raise AgentFailure(f"resumed trial {trial_id!r} has no session.json")
+            try:
+                payload = benchmark.json_load(session_path)
+            except (OSError, json.JSONDecodeError) as exc:
+                raise AgentFailure(f"resumed trial {trial_id!r} is unreadable: {exc}") from exc
+            if payload.get("schema_version") != 1 or payload.get("trial_id") != trial_id:
+                raise AgentFailure(f"resumed trial {trial_id!r} has invalid session metadata")
+            original = payload.get("calls")
+            if not isinstance(original, list) or len(original) < allowed:
+                raise AgentFailure(f"resumed trial {trial_id!r} has fewer calls than its audit trace")
+            records = list(original[:allowed])
+            messages: list[dict[str, str]] = []
+            trusted: list[dict[str, Any]] = []
+            for expected_call, record in enumerate(records, start=1):
+                if not isinstance(record, dict) or int(record.get("call", 0) or 0) != expected_call:
+                    raise AgentFailure(f"resumed trial {trial_id!r} has non-sequential calls")
+                prompt = record.get("prompt")
+                completion = record.get("completion")
+                if not isinstance(prompt, str) or not isinstance(completion, str):
+                    raise AgentFailure(f"resumed trial {trial_id!r} lacks verbatim call text")
+                if benchmark.sha256_bytes(prompt.encode("utf-8")) != record.get("prompt_sha256"):
+                    raise AgentFailure(f"resumed trial {trial_id!r} prompt hash changed")
+                if benchmark.sha256_bytes(completion.encode("utf-8")) != record.get("completion_sha256"):
+                    raise AgentFailure(f"resumed trial {trial_id!r} completion hash changed")
+                for kind, value in (("prompt", prompt), ("completion", completion)):
+                    rel = record.get(f"{kind}_path")
+                    if not isinstance(rel, str):
+                        raise AgentFailure(f"resumed trial {trial_id!r} lacks {kind}_path")
+                    disk = self.agent_dir / rel
+                    if not _is_within(disk, self.agent_dir) or not disk.is_file():
+                        raise AgentFailure(f"resumed trial {trial_id!r} {kind} file is missing")
+                    if disk.read_text(encoding="utf-8") != value:
+                        raise AgentFailure(f"resumed trial {trial_id!r} {kind} file changed")
+                if self.evaluation == "llm_proficiency":
+                    rel = record.get("verification_path")
+                    if not isinstance(rel, str) or not rel:
+                        raise AgentFailure(f"resumed Proficiency trial {trial_id!r} lacks verification")
+                    verification_path = self.root / rel
+                    if not _is_within(verification_path, self.trusted_verification_dir):
+                        raise AgentFailure(f"resumed verification escapes trusted storage: {rel}")
+                    if not verification_path.is_file():
+                        raise AgentFailure(f"resumed verification is missing: {rel}")
+                    verification = benchmark.json_load(verification_path)
+                    if benchmark.proficiency_verification_summary(verification) != record.get("verification"):
+                        raise AgentFailure(f"resumed verification summary changed for {trial_id!r}")
+                    trusted.append(verification)
+                messages.append({"role": "user", "content": prompt})
+                messages.append({"role": "assistant", "content": completion})
+
+            if self.evaluation == "llm_proficiency":
+                if self.proficiency_language is None:
+                    raise AgentFailure("resumed Proficiency trial has no assigned language")
+                expected_prompt = benchmark.proficiency_expected_prompt(
+                    self.root, self.proficiency_language, trial_id
+                )
+                if not records or records[0].get("prompt") != expected_prompt:
+                    raise AgentFailure(f"resumed Proficiency trial {trial_id!r} initial prompt changed")
+
+            if len(original) != allowed:
+                benchmark.json_dump(session_path, {
+                    "schema_version": 1, "trial_id": trial_id, "calls": records
+                })
+            self.sessions[trial_id] = {
+                "messages": messages,
+                "records": records,
+                "trusted_verifications": trusted,
+            }
+            self.used += len(records)
+
+        if self.used > self.budget:
+            raise AgentFailure(
+                f"resumed trial calls ({self.used}) exceed frozen unit budget ({self.budget})"
+            )
 
     @staticmethod
     def _valid_id(value: Any) -> str:

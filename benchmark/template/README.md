@@ -11,7 +11,7 @@ This directory is the complete reusable input for a new benchmark run.
 - `config/work_plan_templates.json` — deterministic decomposition into leaf work.
 - `config/aggregation.json` — runner-owned score/ranking formulas.
 - `config/inference_gateway.json` — frozen credential-less inference protocol: socket path, accepted request kinds, refused request fields, size limits and the credential names/paths that must never appear inside the sandbox.
-- `config/sandbox_agent.json` — frozen sandbox-agent runtime limits: turn budget, read/write byte ceilings and the subprocess allowlist.
+- `config/sandbox_agent.json` — frozen sandbox-agent runtime limits: turn budget, read/write byte ceilings, the subprocess allowlist, the action-turn output cap and the per-unit attempt limit (runtime values that must not re-key the certified cache live here rather than in `primary.json`).
 - `methodology/worker_core.md` — compact leaf-worker rules.
 - `methodology/{semantic_compression,llm_learnability,language_quality,ecosystem,llm_proficiency}.md` — scientific evaluation specifications.
 - `methodology/execution_policy.md` — execution/recovery/isolation policy.

@@ -475,6 +475,16 @@ jobs:
               "metric.source_code_size",
               "metric.binary_artifact_size",
           }
+          # The attempt limit comes from the runtime configuration, where it
+          # re-keys no certified record; a command unit's declared limit stays.
+          runtime = json.loads(
+              (root / "template/config/sandbox_agent.json").read_text()
+          )
+          agent_unit = by_id["lq-language-development--part-1--quidra"]
+          assert agent_unit["max_attempts"] == runtime["max_attempts_per_work_unit"] == 5, (
+              agent_unit["max_attempts"], runtime["max_attempts_per_work_unit"]
+          )
+          assert audit["max_attempts"] == 1, audit["max_attempts"]
           PY
           python benchmark/template/scripts/benchmark.py manifest-merge --workspace "$TMP"
           python benchmark/template/scripts/benchmark.py plan --workspace "$TMP" --strict

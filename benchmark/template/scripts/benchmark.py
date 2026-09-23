@@ -2042,7 +2042,7 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
         prompt_sections = raw.get("prompt_sections", [])
         if not isinstance(prompt_sections, list) or not all(isinstance(x, str) for x in prompt_sections):
             raise BenchmarkError(f"{uid}: prompt_sections must be a string array")
-        max_attempts = int(raw.get("max_attempts", 3) or 3)
+        max_attempts = int(raw.get("max_attempts", runner_max_attempts(root)) or 3)
         if max_attempts < 1:
             raise BenchmarkError(f"{uid}: max_attempts must be at least 1")
         result_kind = str(raw.get("result_kind", "requirements"))
@@ -2225,6 +2225,26 @@ def require_privacy_pass(root: Path) -> None:
         )
 
 
+def runner_max_attempts(root: Path) -> int:
+    """The default attempt limit of a work unit.
+
+    The runtime configuration (sandbox_agent.json) wins over primary.json's
+    runner section: primary.json is embedded in every Task Packet and hashed
+    into every certified-cache key, so the limit is raised where it re-keys
+    nothing. A unit that declares its own max_attempts keeps it.
+    """
+    runtime_path = root / "template" / "config" / "sandbox_agent.json"
+    if runtime_path.is_file():
+        declared = json_load(runtime_path).get("max_attempts_per_work_unit")
+        if declared is not None:
+            value = int(declared)
+            if value < 1:
+                raise BenchmarkError("max_attempts_per_work_unit must be at least 1")
+            return value
+    primary = json_load(root / "template" / "config" / "primary.json")
+    return int((primary.get("runner") or {}).get("max_attempts_per_work_unit", 3) or 3)
+
+
 def load_work_plan_templates(root: Path) -> dict[str, Any]:
     path = root / "template" / "config" / "work_plan_templates.json"
     data = json_load(path)
@@ -2332,7 +2352,7 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
     require_privacy_pass(root)
     templates = load_work_plan_templates(root)
     primary = json_load(root / "template" / "config" / "primary.json")
-    default_max_attempts = int(primary.get("runner", {}).get("max_attempts_per_work_unit", 3))
+    default_max_attempts = runner_max_attempts(root)
     plan_root = root / "work" / "root" / "plans"
     if (root / "work" / "root" / "manifest.json").exists():
         raise BenchmarkError("manifest already frozen; deterministic plan cannot change this run")
@@ -2849,7 +2869,7 @@ def cmd_manifest_merge(args: argparse.Namespace) -> int:
                 raise BenchmarkError(f"{uid}: reuse_audit_for must be a string array")
             execution_kind = str(raw.get("execution_kind", "agent"))
             prompt_sections = raw.get("prompt_sections", [])
-            max_attempts = int(raw.get("max_attempts", 3) or 3)
+            max_attempts = int(raw.get("max_attempts", runner_max_attempts(root)) or 3)
             result_kind = str(raw.get("result_kind", "requirements"))
             max_calls = int(raw.get("max_llm_calls", 0) or 0)
             input_tokens = int(raw.get("estimated_input_tokens_per_call", 0) or 0)

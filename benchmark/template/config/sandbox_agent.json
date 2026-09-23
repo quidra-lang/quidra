@@ -4,6 +4,8 @@
   "max_turns": 24,
   "orchestration_max_output_tokens": 32768,
   "orchestration_max_output_tokens_note": "Output cap of one of the agent's own action turns, which are never scored. It lives here, in the runtime configuration, rather than in primary.json: primary.json is embedded in every Task Packet and hashed into every certified-cache key, so changing it there would invalidate every cached measurement. The third paid run ended learnability units on a single action turn cut off at 8192 tokens.",
+  "max_attempts_per_work_unit": 5,
+  "max_attempts_per_work_unit_note": "How many attempts a work unit gets before it is blocked. It overrides runner.max_attempts_per_work_unit in primary.json for the same reason the action-turn cap lives here: primary.json is embedded in every Task Packet and hashed into every certified-cache key, and raising the limit there would invalidate every cached measurement. Five rather than three because an agent unit's retry carries every earlier rejection as feedback, so later attempts are different experiments: the second rehearsal of a learnability unit failed three times on three different rules. A packet-only unit resends the same packet, so extra attempts only cover transient failures there. Command units that declare max_attempts keep their own value.",
   "max_observation_bytes": 65536,
   "max_read_bytes": 262144,
   "max_write_bytes": 1048576,

@@ -3502,17 +3502,23 @@ def test_shared_inputs_first_packets_cache_their_shared_prefix() -> None:
 
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
-        (root / "repo" / "docs" / "allowed.md").write_text("shared doc\n" * 50, encoding="utf-8")
+        docs = root / "repo" / "docs"
+        docs.mkdir(parents=True, exist_ok=True)
+        (docs / "allowed.md").write_text(
+            "unit-specific input A\n" * 50, encoding="utf-8"
+        )
         components_by_layout = {}
         for layout in ("task-first", "shared-inputs-first"):
             agent_id = f"worker-layout-{layout}"
             with contextlib.redirect_stdout(io.StringIO()):
                 benchmark.cmd_task_create(argparse.Namespace(
-                    workspace=str(root), id=agent_id, parent=None, evaluation=None,
-                    goal="layout test", read=[str(root / "repo" / "docs")], write=None,
+                    workspace=str(root), id=agent_id, parent=None,
+                    evaluation="semantic_compression",
+                    goal="layout test", read=[str(docs / "allowed.md")], write=None,
                     output=[str(root / "work" / "agents" / agent_id / "result.json")],
-                    validate="true", network=False, depth=0, section=[], requirement_id=[],
-                    language=[], worker_mode="packet-only", layout=layout,
+                    validate="true", network=False, depth=0, section=[],
+                    requirement_id=["metric.semantic_density"],
+                    language=["Python"], worker_mode="packet-only", layout=layout,
                 ))
             task = json.loads((root / "work" / "agents" / agent_id / "task.json").read_text("utf-8"))
             rendered = benchmark.render_prompt_components(task["prompt_components"], task["prompt_sha256"])
@@ -3554,9 +3560,45 @@ def test_shared_inputs_first_packets_cache_their_shared_prefix() -> None:
         check(
             len(blocks) == 2 and "cache_control" in blocks[0] and "cache_control" not in blocks[1]
             and blocks[0]["text"] + blocks[1]["text"] == text
-            and blocks[1]["text"].startswith("\n# Task Packet: "),
+            and blocks[1]["text"].startswith("\n# Task Packet: ")
+            and "unit-specific input A" not in blocks[0]["text"]
+            and "unit-specific input A" in blocks[1]["text"],
             f"the adapter did not split the packet at its header: {[b.get('text', '')[:40] for b in blocks]}",
         )
+
+        # Different per-unit evidence must change only the uncached tail.
+        (docs / "other.md").write_text(
+            "unit-specific input B\n" * 50, encoding="utf-8"
+        )
+        sibling_id = "worker-layout-shared-sibling"
+        with contextlib.redirect_stdout(io.StringIO()):
+            benchmark.cmd_task_create(argparse.Namespace(
+                workspace=str(root), id=sibling_id, parent=None,
+                evaluation="semantic_compression",
+                goal="layout test", read=[str(docs / "other.md")], write=None,
+                output=[str(root / "work" / "agents" / sibling_id / "result.json")],
+                validate="true", network=False, depth=0, section=[],
+                requirement_id=["metric.semantic_density"],
+                language=["Python"], worker_mode="packet-only",
+                layout="shared-inputs-first",
+            ))
+        sibling = json.loads(
+            (root / "work" / "agents" / sibling_id / "task.json").read_text("utf-8")
+        )
+        sibling_text = benchmark.render_prompt_components(
+            sibling["prompt_components"], sibling["prompt_sha256"]
+        ).decode("utf-8")
+        sibling_blocks = inference_gateway.split_cached_user_content(
+            sibling_text, marker
+        )
+        check(
+            len(sibling_blocks) == 2
+            and sibling_blocks[0]["text"] == blocks[0]["text"]
+            and sibling_blocks[1]["text"] != blocks[1]["text"]
+            and "unit-specific input B" in sibling_blocks[1]["text"],
+            "unit-specific task inputs changed the supposedly shared cache prefix",
+        )
+
         plain = inference_gateway.split_cached_user_content("# Task Packet: x\nheader first", marker)
         check(
             len(plain) == 1 and "cache_control" in plain[0],

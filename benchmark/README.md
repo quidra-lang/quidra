@@ -9,6 +9,17 @@ the GitHub Actions page of the repository.
 
 1. `develop` must be green: `ci`, `benchmark-template` and `native-performance` on
    the commit you are about to evaluate.
+
+   ```
+   gh run list --commit "$(git rev-parse HEAD)" --limit 20
+   ```
+
+   Pass the full SHA. `gh run list --commit` does not resolve an abbreviated one:
+   it prints nothing and exits zero, exactly as it does for a commit that has no
+   runs at all. Check that each workflow you need is *present and successful*,
+   never that "nothing is still running" - an empty list satisfies that and tells
+   you nothing. `benchmark-template` only runs when `benchmark/template/**`
+   changed; when it did not, its last run on the commit that did still counts.
 2. No `benchmark-production` run may be in flight. Check the Actions page (or
    `gh run list --workflow benchmark-production --limit 1`). A push to `develop`
    while a run is inside its frozen window turns that run's result into a workflow
@@ -44,6 +55,18 @@ treats a forced update as a change to the marker and starts the workflow again.
 
 - A run imports a compact summary under `benchmark/<run-id>/` and pushes it to
   `develop` when `develop` has not moved; rankings are in `rankings.json`.
+- `breakdown/<evaluation>.md` decomposes each published ranking: every measured
+  requirement's score per language, that requirement's own ranking, the frozen
+  weights that combined them, and a reconstruction check. The check recomputes
+  the published score through the same functions the aggregate used and reports
+  the largest disagreement; anything but zero to floating-point means the
+  breakdown and the published score no longer describe the same run.
+  `breakdown/<evaluation>.json` is the same content for tooling, and
+  `breakdown/skipped.json` appears only when an evaluation could not be
+  rendered, with the reason.
+- `evidence/<evaluation>/<agent>.json` keeps what each worker actually wrote:
+  its per-requirement results and the reasoning it gave for them. This is the
+  only durable copy - the run artifact holding the agent traces expires.
 - A ranking is published only for an evaluation whose ten languages are all
   `COMPLETE`. One `BLOCKED` unit withholds that evaluation's ranking and records
   the blocker instead; the other evaluations are unaffected.

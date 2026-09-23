@@ -237,6 +237,20 @@ jobs:
                   repair_root / module.COMPARABILITY_BLINDING_RELATIVE,
                   {"schema_version":1,"labels":{"Python":"E"}},
               )
+              module.json_dump(
+                  repair_root / module.COMPARABILITY_SAMPLE_RELATIVE,
+                  {
+                      "schema_version":1,
+                      "probes":[{
+                          "probe_id":"F10.P1",
+                          "annotations":[{
+                              "label":"E",
+                              "support":"PARTIAL",
+                              "fragment":"wrapper(x)",
+                          }],
+                      }],
+                  },
+              )
               result = {
                   "evidence": {
                       "gate_result": {
@@ -257,6 +271,8 @@ jobs:
               # direct repair must still become authoritative.
               merged = module.sc_adjudicated_annotations(repair_root)
               assert merged["F10.P1"]["Python"]["fragment"] == "wrapper(x)"
+              levels = module.sc_adjudicated_levels(repair_root)
+              assert levels["F10.P1"]["Python"] == "PARTIAL"
 
           lq = (root / "methodology" / "language_quality.md").read_text()
           assert "3 unscored warm-up runs" not in lq

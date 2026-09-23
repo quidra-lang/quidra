@@ -105,7 +105,8 @@ class Permissions:
         # A worker may always re-read what it has produced itself.
         self.read_roots.append(self.agent_dir)
         self.reserved_names = {
-            "task.json", "validation.json", "worker_response.json", "agent_trace.json"
+            "task.json", "validation.json", "worker_response.json", "agent_trace.json",
+            "agent_trace.partial.json", "resume_trace.json",
         }
         self.total_written = 0
 

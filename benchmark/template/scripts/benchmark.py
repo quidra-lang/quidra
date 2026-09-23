@@ -4291,6 +4291,110 @@ def _semantic_verification_recipe(
     raise BenchmarkError(f"unsupported Semantic Compression verification language: {language}")
 
 
+def _semantic_render_frozen_recipe(command: str, entry: str) -> list[str]:
+    """Render one frozen Semantic Compression recipe with verification fixture names."""
+    replacements = {
+        "FILE.qui": entry,
+        "FILE.py": entry,
+        "FILE.cpp": entry,
+        "FILE.rs": entry,
+        "FILE.go": entry,
+        "FILE.java": entry,
+        "FILE.ts": entry,
+        "FILE.kt": entry,
+        "FILE.swift": entry,
+        "FILE.zig": entry,
+        "FILE.jar": "program.jar",
+        "FILE.js": str(PurePosixPath(entry).with_suffix(".js")),
+        "BIN": "program",
+        "OUT": "out",
+    }
+    argv: list[str] = []
+    for raw in shlex.split(command):
+        value = raw
+        for key in sorted(replacements, key=len, reverse=True):
+            value = value.replace(key, replacements[key])
+        argv.append(value)
+    return argv
+
+
+def semantic_verification_recipe_drift_problems(root: Path) -> list[str]:
+    """Detect drift between the frozen SC recipe contract and the runner executor."""
+    asset = json_load(
+        root / "template" / "methodology-assets" / "semantic_compression"
+        / "capability_universe.json"
+    )
+    binding = asset.get("toolchain_binding") or {}
+    recipes = binding.get("recipes") or {}
+    multi_recipes = binding.get("multi_unit_recipes") or {}
+    problems: list[str] = []
+
+    def frozen_single(language: str, entry: str) -> tuple[list[str] | None, list[str]]:
+        recipe = recipes.get(language)
+        if not isinstance(recipe, dict) or not isinstance(recipe.get("run"), str):
+            raise BenchmarkError(
+                f"Semantic Compression frozen recipe is missing for {language}"
+            )
+        build_raw = recipe.get("build")
+        build = (
+            _semantic_render_frozen_recipe(build_raw, entry)
+            if isinstance(build_raw, str) and build_raw.strip()
+            else None
+        )
+        return build, _semantic_render_frozen_recipe(str(recipe["run"]), entry)
+
+    multi_files = {
+        "C++": {"util.cpp": ""},
+        "Swift": {"util.swift": ""},
+        "Java": {"util/Util.java": ""},
+        "Kotlin": {"util.kt": ""},
+        "Go": {"go.mod": "module example\n", "util/util.go": "package util\n"},
+    }
+
+    for language, entry in SEMANTIC_VERIFICATION_ENTRY_FILES.items():
+        files = {entry: ""}
+        actual_build, actual_run, _ = _semantic_verification_recipe(
+            language, "F01.P1", entry, files
+        )
+        expected_build, expected_run = frozen_single(language, entry)
+        if actual_build != expected_build:
+            problems.append(
+                f"{language}: single-unit build recipe drift: "
+                f"runner={actual_build!r}, frozen={expected_build!r}"
+            )
+        if actual_run != expected_run:
+            problems.append(
+                f"{language}: single-unit run recipe drift: "
+                f"runner={actual_run!r}, frozen={expected_run!r}"
+            )
+
+        multi_files_for_language = {entry: "", **multi_files.get(language, {})}
+        actual_multi_build, actual_multi_run, _ = _semantic_verification_recipe(
+            language, "F18.P2", entry, multi_files_for_language
+        )
+        frozen_build, frozen_run = frozen_single(language, entry)
+        multi_raw = multi_recipes.get(language)
+        if isinstance(multi_raw, str) and not multi_raw.startswith("unchanged"):
+            build_command = multi_raw.split("  (", 1)[0].strip()
+            expected_multi_build = _semantic_render_frozen_recipe(
+                build_command, entry
+            )
+        else:
+            expected_multi_build = frozen_build
+        if actual_multi_build != expected_multi_build:
+            problems.append(
+                f"{language}: multi-unit build recipe drift: "
+                f"runner={actual_multi_build!r}, frozen={expected_multi_build!r}"
+            )
+        if actual_multi_run != frozen_run:
+            problems.append(
+                f"{language}: multi-unit run recipe drift: "
+                f"runner={actual_multi_run!r}, frozen={frozen_run!r}"
+            )
+
+    return problems
+
+
 def _semantic_process_record(
     argv: list[str], completed: subprocess.CompletedProcess[str]
 ) -> dict[str, Any]:
@@ -9470,6 +9574,7 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
             }
             recipes = (asset.get("toolchain_binding") or {}).get("recipes") or {}
             frozen_recipes = environment.get("frozen_toolchain_recipes") or {}
+            verification_recipe_drift = semantic_verification_recipe_drift_problems(root)
             p_a_allowed = set(
                 (asset.get("support_rubric") or {}).get(
                     "partial_p_a_allowed_probe_ids"
@@ -9501,6 +9606,7 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
                 and list(asset.get("fixed_comparison_languages", [])) == languages
                 and set(recipes) == set(languages)
                 and recipes == frozen_recipes
+                and not verification_recipe_drift
                 and "interpreter_run" not in (recipes.get("Quidra") or {})
                 and p_a_allowed
                 and p_a_allowed <= set(probe_ids)
@@ -9515,6 +9621,7 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
                 "unknown_semantic_fact_refs": sorted(fact_refs - facts),
                 "recipe_languages": sorted(recipes),
                 "toolchain_recipe_copies_match": recipes == frozen_recipes,
+                "verification_recipe_drift_problems": verification_recipe_drift,
                 "quidra_native_only_recipe": set((recipes.get("Quidra") or {}).keys()) == {"build", "run"},
                 "p_a_allowed_probe_ids": sorted(p_a_allowed),
                 "p_a_scope_matches_r9": p_a_allowed == r9_named,

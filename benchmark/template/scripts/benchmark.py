@@ -8,11 +8,13 @@ implement language-specific scoring logic from the benchmark methodology.
 from __future__ import annotations
 
 import argparse
+import collections
 import contextlib
 import datetime as dt
 import fcntl
 import hashlib
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -5463,6 +5465,283 @@ def deterministic_ranking(scores: dict[str, float], language_order: list[str]) -
     return ranking
 
 
+SC_PROBE_ID = re.compile(r"^F\d\d\.P\d$")
+
+
+def sc_probe_rows(evidence: Any) -> dict[str, list[Any]]:
+    """Every per-probe row a metric shard recorded, by probe ID.
+
+    Ten shards wrote ten shapes for the same metric - a list of objects with
+    `probe_id`, a list keyed by `probe`, a mapping from probe ID to a number,
+    to `{"L": 0, "rationale": ...}`, or to a category vector with a `total` -
+    so this collects the rows wherever they are and leaves the reading of them
+    to `sc_row_number`.
+    """
+    rows: dict[str, list[Any]] = collections.defaultdict(list)
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                if SC_PROBE_ID.match(str(key)):
+                    rows[str(key)].append(value)
+                else:
+                    walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                probe = ""
+                if isinstance(item, dict):
+                    probe = str(item.get("probe_id") or item.get("probe") or "")
+                if SC_PROBE_ID.match(probe):
+                    rows[probe].append(
+                        {k: v for k, v in item.items() if k not in ("probe_id", "probe")}
+                    )
+                else:
+                    walk(item)
+
+    walk(evidence)
+    return rows
+
+
+def sc_row_number(value: Any, names: Iterable[str]) -> float | None:
+    """The one raw number a per-probe row records for a metric."""
+    names = [str(name).lower() for name in names]
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, dict):
+        numeric = {
+            str(key).lower(): float(item)
+            for key, item in value.items()
+            if isinstance(item, (int, float)) and not isinstance(item, bool)
+        }
+        for key in numeric:
+            if key in names:
+                return numeric[key]
+        for key in numeric:
+            if any(name in key for name in names):
+                return numeric[key]
+        for nested_key, nested in value.items():
+            if isinstance(nested, dict) and any(
+                name in str(nested_key).lower() for name in names
+            ):
+                found = sc_row_number(nested, names + ["total"])
+                if found is not None:
+                    return found
+        for generic in ("total", "count", "value", "units", "sum", "n"):
+            if generic in numeric:
+                return numeric[generic]
+        if len(numeric) == 1:
+            return next(iter(numeric.values()))
+        for key, item in value.items():
+            if isinstance(item, list) and any(
+                hint in str(key).lower()
+                for hint in ("triggered", "categories", "hops", "lookups")
+            ):
+                return float(len(item))
+        return None
+    if isinstance(value, list):
+        return float(len(value))
+    return None
+
+
+def sc_per_probe(evidence: Any, names: Iterable[str]) -> dict[str, float]:
+    """probe ID -> the raw number this shard recorded for it."""
+    out: dict[str, float] = {}
+    for probe, entries in sc_probe_rows(evidence).items():
+        for entry in entries:
+            found = sc_row_number(entry, names)
+            if found is not None:
+                out[probe] = found
+                break
+    return out
+
+
+def sc_language_ratio(evidence: Any, spec: dict[str, Any]) -> float | None:
+    """A metric the methodology defines over the whole probe universe, not per probe."""
+    raw_patterns = [re.compile(p, re.I) for p in spec.get("raw_patterns", [])]
+    numerator = re.compile(spec["numerator_pattern"], re.I)
+    denominator = re.compile(spec["denominator_pattern"], re.I)
+    found: dict[str, float] = {}
+
+    def walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for key, value in node.items():
+                name = str(key)
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    if "raw" not in found and any(p.search(name) for p in raw_patterns):
+                        found["raw"] = float(value)
+                    if "num" not in found and numerator.search(name):
+                        found["num"] = float(value)
+                    if "den" not in found and denominator.search(name):
+                        found["den"] = float(value)
+                elif isinstance(value, dict) and "raw" not in found and any(
+                    p.search(name) for p in raw_patterns
+                ):
+                    for inner, item in value.items():
+                        if str(inner).lower() in ("value", "raw_value", "computed_value") \
+                                and isinstance(item, (int, float)):
+                            found["raw"] = float(item)
+                            break
+                walk(value)
+        elif isinstance(node, list):
+            for item in node:
+                walk(item)
+
+    walk(evidence)
+    if "raw" in found:
+        return found["raw"]
+    if found.get("den"):
+        return found.get("num", 0.0) / found["den"]
+    return None
+
+
+def sc_raw_values(
+    root: Path, config: dict[str, Any], languages: list[str]
+) -> dict[str, dict[str, float]]:
+    """Each quality metric's raw value per language, on the common basis."""
+    spec = config["recompute_from_evidence"]
+    manifest = json_load(root / "work" / "root" / "manifest.json")
+    shards: dict[tuple[str, str], Path] = {}
+    for unit in manifest.get("work_units", []):
+        assigned = list(unit.get("assigned_languages") or [])
+        requirements = list(unit.get("requirement_ids") or [])
+        if len(assigned) != 1 or len(requirements) != 1:
+            continue
+        result = (
+            root / "work" / "agents" / str(unit.get("assigned_agent_id")) / "result.json"
+        )
+        if result.is_file():
+            shards[(requirements[0], assigned[0])] = result
+
+    raw: dict[str, dict[str, float]] = {}
+    for metric, rule in spec["metrics"].items():
+        evidence_by_language: dict[str, Any] = {}
+        for language in languages:
+            path = shards.get((metric, language))
+            if path is None:
+                raise BenchmarkError(
+                    f"{metric}: no completed shard for {language} to recompute from"
+                )
+            block = (json_load(path).get("evidence") or {})
+            evidence_by_language[language] = block.get(metric, block)
+
+        if rule["reduce"] == "language_ratio":
+            values = {}
+            for language, evidence in evidence_by_language.items():
+                value = sc_language_ratio(evidence, rule)
+                if value is None:
+                    raise BenchmarkError(
+                        f"{metric}: {language} recorded no raw value to recompute from"
+                    )
+                values[language] = value
+            raw[metric] = values
+            continue
+
+        if rule["reduce"] == "ratio":
+            numerators = {
+                language: sc_per_probe(evidence, rule["numerator"])
+                for language, evidence in evidence_by_language.items()
+            }
+            denominators = {
+                language: sc_per_probe(evidence, rule["denominator"])
+                for language, evidence in evidence_by_language.items()
+            }
+            basis = set.intersection(*(
+                set(numerators[l]) & set(denominators[l]) for l in languages
+            ))
+            if not basis:
+                raise BenchmarkError(f"{metric}: the ten languages share no probe")
+            values = {}
+            for language in languages:
+                top = sum(numerators[language][p] for p in basis)
+                bottom = sum(denominators[language][p] for p in basis)
+                if bottom <= 0:
+                    raise BenchmarkError(f"{metric}: {language} counted no tokens")
+                values[language] = top / bottom
+            raw[metric] = values
+            continue
+
+        per_language = {
+            language: sc_per_probe(evidence, rule["fields"])
+            for language, evidence in evidence_by_language.items()
+        }
+        basis = set.intersection(*(set(per_language[l]) for l in languages))
+        if not basis:
+            raise BenchmarkError(f"{metric}: the ten languages share no probe")
+        values = {}
+        for language in languages:
+            numbers = [per_language[language][p] for p in basis]
+            if rule["reduce"] == "mean_log2":
+                numbers = [math.log2(max(value, 1.0)) for value in numbers]
+            values[language] = sum(numbers) / len(numbers)
+        raw[metric] = values
+    return raw
+
+
+def sc_normalize(raw: dict[str, float], direction: str) -> dict[str, float]:
+    """Map raw values onto 0-100 by where each language sits between the extremes.
+
+    The methodology fixes the raw value and which end is better, and leaves the
+    scale open; a shard that can see one language cannot close it. Min-max over
+    the ten languages needs no invented constant, is reproducible from the
+    evidence, and is what the shards themselves asked the runner for.
+    """
+    low = min(raw.values())
+    high = max(raw.values())
+    if high == low:
+        return {language: 100.0 for language in raw}
+    span = high - low
+    return {
+        language: round(
+            100.0 * ((value - low) if direction == "higher_is_better" else (high - value))
+            / span,
+            2,
+        )
+        for language, value in raw.items()
+    }
+
+
+def sc_recomputed_requirements(
+    root: Path, config: dict[str, Any], req: dict[str, Any], languages: list[str]
+) -> dict[str, Any]:
+    """Replace the shards' self-normalized metric values with comparable ones."""
+    spec = config["recompute_from_evidence"]
+    try:
+        raw = sc_raw_values(root, config, languages)
+    except BenchmarkError as exc:
+        # A run whose ten shards are not all COMPLETE has nothing to put on a
+        # common basis. It cannot be scored either, so leave the requirement
+        # values alone and let the aggregate reach its ordinary PARTIAL rather
+        # than turning an unscoreable evaluation into a failed run.
+        json_dump(
+            root / "results" / "semantic_compression_recomputation.json",
+            {"schema_version": 1, "recomputed": False, "reason": str(exc)},
+        )
+        return req
+    recomputed = dict(req)
+    audit: dict[str, Any] = {}
+    for metric, rule in spec["metrics"].items():
+        scores = sc_normalize(raw[metric], rule["direction"])
+        recomputed[metric] = scores
+        audit[metric] = {
+            "direction": rule["direction"],
+            "raw": {language: round(value, 6) for language, value in raw[metric].items()},
+            "normalized": scores,
+        }
+    json_dump(
+        root / "results" / "semantic_compression_recomputation.json",
+        {
+            "schema_version": 1,
+            "recomputed": True,
+            "normalization": spec["normalization"],
+            "common_basis": spec["common_basis"],
+            "metrics": audit,
+        },
+    )
+    return recomputed
+
+
 def cmd_aggregate_primary(args: argparse.Namespace) -> int:
     root = workspace(args)
     evaluation = args.evaluation
@@ -5470,6 +5749,8 @@ def cmd_aggregate_primary(args: argparse.Namespace) -> int:
     aggregation = json_load(root / "template" / "config" / "aggregation.json")
     languages = metadata_languages(root)
     config = aggregation["evaluations"][evaluation]
+    if config.get("recompute_from_evidence"):
+        req = sc_recomputed_requirements(root, config, req, languages)
 
     failed_gates = [
         rid for rid, value in req.items()

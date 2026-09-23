@@ -10,7 +10,79 @@
         "metric.hidden_semantic_cost": 0.2,
         "metric.capability_efficiency": 0.15
       },
-      "coverage_metric": "metric.capability_coverage"
+      "coverage_metric": "metric.capability_coverage",
+      "recompute_from_evidence": {
+        "why": "Methodology 6.1.4 freezes each metric's raw value and its direction but not the map from that raw value to the 0-100 scale the metrics are reported on, and a language shard cannot see the other nine. Left to the workers, the first full run received min(100, raw*1000) from one language, min(100, raw/0.35*100) from another and raw*100 from five more, which the harmonic combination would have mixed into a ranking. The runner recomputes every quality metric from the per-probe evidence each shard recorded, on the basis the shards themselves said it must: the probes every language covered.",
+        "common_basis": "probes for which all ten languages recorded a per-probe row",
+        "normalization": "min_max_across_languages",
+        "metrics": {
+          "metric.semantic_density": {
+            "reduce": "ratio",
+            "direction": "higher_is_better",
+            "numerator": [
+              "explicit_local_facts",
+              "explicit_local_sites",
+              "explicit_local_count",
+              "explicit_local",
+              "explicit_local_semantic_sites"
+            ],
+            "denominator": [
+              "tokens",
+              "lexical_tokens",
+              "token_count",
+              "lexical_source_tokens",
+              "source_tokens"
+            ]
+          },
+          "metric.semantic_determinacy": {
+            "reduce": "mean_log2",
+            "direction": "lower_is_better",
+            "fields": [
+              "b",
+              "b_i",
+              "branching",
+              "branch_count",
+              "branching_factor",
+              "interpretations"
+            ]
+          },
+          "metric.semantic_locality": {
+            "reduce": "mean",
+            "direction": "lower_is_better",
+            "fields": [
+              "l",
+              "lookups",
+              "lookup_count",
+              "required_lookups",
+              "hops",
+              "nonlocal_lookups",
+              "lookup"
+            ]
+          },
+          "metric.hidden_semantic_cost": {
+            "reduce": "mean",
+            "direction": "lower_is_better",
+            "fields": [
+              "count",
+              "hidden_count",
+              "hidden",
+              "categories_triggered",
+              "hidden_categories"
+            ]
+          },
+          "metric.capability_efficiency": {
+            "reduce": "language_ratio",
+            "direction": "lower_is_better",
+            "raw_patterns": [
+              "raw.*(_e\\b|_e_|efficiency)",
+              "efficiency.*raw",
+              "units_per_point"
+            ],
+            "numerator_pattern": "(total_(semantic_)?complexity_units|sum_of_totals)",
+            "denominator_pattern": "supported_capability_points"
+          }
+        }
+      }
     },
     "llm_learnability": {
       "type": "weighted_mean",

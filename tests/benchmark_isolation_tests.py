@@ -2076,6 +2076,98 @@ def test_cache_checkpoint_skips_units_it_cannot_certify() -> None:
         check(len(written) == 1, f"expected exactly one cache record on disk: {written}")
 
 
+def test_semantic_compression_metrics_are_recomputed_from_the_evidence() -> None:
+    """A shard's invented 0-100 transform must not reach the ranking.
+
+    Methodology 6.1.4 freezes each metric's raw value and its direction, not
+    the scale, and a shard sees one language. In the first full run that left
+    one language reporting min(100, raw*1000) = 82 beside another's raw*100 =
+    11.77 for the same metric, which the harmonic combination would have mixed
+    into a ranking had the comparability gate not stopped it.
+    """
+    with tempfile.TemporaryDirectory() as td:
+        tmp = Path(td).resolve()
+        root = make_workspace(tmp)
+        config = json.loads(
+            (root / "template" / "config" / "aggregation.json").read_text(encoding="utf-8")
+        )["evaluations"]["semantic_compression"]
+        languages = benchmark.metadata_languages(root)
+        probes = [f"F{index:02d}.P1" for index in range(1, 21)]
+
+        def write_shards(invented: dict[str, float]) -> None:
+            units = []
+            for position, language in enumerate(languages):
+                sites, tokens = 4 + position, 40
+                for metric in config["recompute_from_evidence"]["metrics"]:
+                    uid = f"sc-{metric.rsplit('.', 1)[-1]}--{language.lower()}"
+                    agent = f"worker-{uid}"
+                    units.append({
+                        "id": uid, "evaluation": "semantic_compression",
+                        "assigned_languages": [language], "assigned_agent_id": agent,
+                        "execution_kind": "agent", "result_kind": "requirements",
+                        "phase": "measurement", "requirement_ids": [metric],
+                        "input_hashes": {}, "validator_command": "true",
+                        "worker_mode": "packet-only", "network_allowed": False,
+                        "dependencies": [],
+                    })
+                    if metric == "metric.capability_efficiency":
+                        evidence = {"raw_E": {"value": 1.0 + position / 10}}
+                    else:
+                        field = {
+                            "metric.semantic_density": "explicit_local_facts",
+                            "metric.semantic_determinacy": "B",
+                            "metric.semantic_locality": "lookups",
+                            "metric.hidden_semantic_cost": "count",
+                        }[metric]
+                        evidence = {"per_probe": [
+                            {"probe_id": probe, field: sites, "tokens": tokens}
+                            for probe in probes
+                        ]}
+                    agent_dir = root / "work" / "agents" / agent
+                    agent_dir.mkdir(parents=True, exist_ok=True)
+                    benchmark.json_dump(agent_dir / "result.json", {
+                        "schema_version": 1, "evaluation": "semantic_compression",
+                        # what the shard invented for itself, which must not matter
+                        "requirements": {metric: {language: invented[language]}},
+                        "evidence": {metric: evidence},
+                    })
+            benchmark.json_dump(
+                root / "work" / "root" / "manifest.json",
+                {"schema_version": 1, "work_units": units},
+            )
+
+        honest = {language: 10.0 for language in languages}
+        write_shards(honest)
+        first = benchmark.sc_raw_values(root, config, languages)
+
+        # The same measurements, reported through wildly different transforms.
+        invented = dict(honest)
+        invented[languages[0]] = 82.0
+        invented[languages[1]] = 39.0
+        write_shards(invented)
+        second = benchmark.sc_raw_values(root, config, languages)
+        check(first == second, "a shard's own 0-100 transform changed the raw values")
+
+        density = benchmark.sc_normalize(
+            first["metric.semantic_density"], "higher_is_better"
+        )
+        check(
+            density[languages[-1]] == 100.0 and density[languages[0]] == 0.0,
+            f"density was not normalized across the cohort: {density}",
+        )
+        efficiency = benchmark.sc_normalize(
+            first["metric.capability_efficiency"], "lower_is_better"
+        )
+        check(
+            efficiency[languages[0]] == 100.0 and efficiency[languages[-1]] == 0.0,
+            f"a lower-is-better metric was not inverted: {efficiency}",
+        )
+        check(
+            len(first["metric.semantic_density"]) == len(languages),
+            "the recomputation skipped a language",
+        )
+
+
 def test_the_comparability_audit_reviews_blinded_annotations() -> None:
     """The audit packet carries the run's own annotations, with the languages hidden.
 

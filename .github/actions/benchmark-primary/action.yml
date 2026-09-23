@@ -229,6 +229,14 @@ runs:
       env:
         EVALUATION: ${{ inputs.evaluation }}
       run: |
+        mkdir -p "$RUNNER_TEMP/benchmark-paid-state"
+        # Actions cache is only a speed layer. The benchmark branch also carries
+        # the same content-addressed paid-leaf store, so a cache eviction or a
+        # brand-new workflow run never forces us to buy an exact prior call again.
+        if [ -d .quidra-benchmark/cache/partial-paid ]; then
+          cp -a .quidra-benchmark/cache/partial-paid/. \
+            "$RUNNER_TEMP/benchmark-paid-state/"
+        fi
         python benchmark/template/scripts/benchmark.py partial-paid-import \
           --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
           --store "$RUNNER_TEMP/benchmark-paid-state" \
@@ -525,6 +533,15 @@ runs:
         python benchmark/template/scripts/benchmark.py checkpoint-cache \
           --source-repo "$GITHUB_WORKSPACE" \
           | tee "$RUNNER_TEMP/cache-checkpoint.json"
+
+        # Persist paid-but-incomplete calls in the repository cache as well as
+        # Actions cache. The store is already content-addressed and exact-
+        # fingerprint guarded by partial-paid-import, so this is durable resume
+        # state rather than scored input visible to workers.
+        if [ -d "$RUNNER_TEMP/benchmark-paid-state" ]; then
+          mkdir -p benchmark/cache/partial-paid
+          cp -a "$RUNNER_TEMP/benchmark-paid-state/." benchmark/cache/partial-paid/
+        fi
 
         # Certified results remain content-addressed under benchmark/cache. The
         # run-specific checkpoint stores only trusted orchestration state needed

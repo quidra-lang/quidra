@@ -675,7 +675,8 @@ def main() -> None:
         # and miss only when the operator changes the value.
         assert benchmark.cache_epoch(root, "ecosystem") == "2026-09"
         assert benchmark.cache_epoch(root, "semantic_compression") == "2026-09-canonical-fragments-v4-r9-verified"
-        assert benchmark.cache_epoch(root, "llm_learnability") == "stable"\n        assert benchmark.cache_epoch(root, "llm_proficiency") == "2026-09-complete-primary-trials-v1"
+        assert benchmark.cache_epoch(root, "llm_learnability") == "stable"
+        assert benchmark.cache_epoch(root, "llm_proficiency") == "2026-09-complete-primary-trials-v1"
         policy_path = root / "template/config/cache_policy.json"
         policy_bytes = policy_path.read_bytes()
         policy = benchmark.json_load(policy_path)

@@ -25,7 +25,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 # The native dependency list matches the repository's own Linux CI so the
 # evaluated snapshot builds here exactly as it does there.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      ca-certificates curl unzip xz-utils tar git make \
+      ca-certificates curl unzip xz-utils tar git make strace \
       python3 python3-venv \
       build-essential pkg-config ninja-build cmake \
       clang-${CLANG_MAJOR} lld-${CLANG_MAJOR} llvm-${CLANG_MAJOR}-dev llvm-${CLANG_MAJOR} \

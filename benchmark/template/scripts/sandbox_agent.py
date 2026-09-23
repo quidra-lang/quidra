@@ -898,6 +898,21 @@ back empty is reported with `ok:false` and counts as a failed attempt for that
 trial. Budget for this unit: {trials.budget} trial calls in total ({trials.used}
 used); a batch larger than the remaining budget is denied before any call.
 """
+        if trials.sessions:
+            restored = "\n".join(
+                f"- {trial_id}: {len(session.get('records') or [])} paid call(s) already preserved"
+                for trial_id, session in sorted(trials.sessions.items())
+            )
+            trial_block += f"""
+This is a resumed worker attempt. The runtime has already restored the scored
+sessions below from runtime-owned per-trial records and the prior audit trace.
+Do not trial_start an existing ID again. Read its preserved files when needed;
+use trial_continue only when that session still requires an allowed repair, and
+spend new scored calls only on genuinely missing work.
+
+{restored}
+"""
+
         if str(task.get("evaluation") or "") == "llm_proficiency":
             required = "\n".join(f"- {trial_id}" for trial_id in trials.required_trial_ids)
             trial_block += f"""

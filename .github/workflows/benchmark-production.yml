@@ -45,14 +45,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Restore private cross-run paid-leaf checkpoints
-        uses: actions/cache/restore@v4
-        with:
-          path: ${{ runner.temp }}/benchmark-paid-state
-          key: quidra-benchmark-paid-v1-${{ runner.os }}-${{ github.run_id }}-prepare-${{ github.run_attempt }}
-          restore-keys: |
-            quidra-benchmark-paid-v1-${{ runner.os }}-
-
       - name: Restore durable private paid-call artifact
         env:
           GH_TOKEN: ${{ github.token }}
@@ -71,6 +63,14 @@ jobs:
           else
             echo "No durable private paid-call artifact exists yet."
           fi
+
+      - name: Restore private cross-run paid-leaf checkpoints
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ runner.temp }}/benchmark-paid-state
+          key: quidra-benchmark-paid-v1-${{ runner.os }}-${{ github.run_id }}-prepare-${{ github.run_attempt }}
+          restore-keys: |
+            quidra-benchmark-paid-v1-${{ runner.os }}-
 
       - name: Validate request and freeze run identity
         id: contract

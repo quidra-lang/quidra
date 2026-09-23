@@ -1004,6 +1004,17 @@ def assert_budget_plan_excludes_complete_units() -> None:
 
 
 
+def assert_empty_cache_impact_is_a_valid_first_run() -> None:
+    """A repository with no v1 records still produces a zero-impact plan."""
+    with tempfile.TemporaryDirectory() as td:
+        source = Path(td) / "source"
+        shutil.copytree(ROOT, source)
+        shutil.rmtree(source / "benchmark/cache/v1", ignore_errors=True)
+        summary = benchmark.cache_impact(source)
+        assert summary["valid"] == 0, summary
+        assert summary["invalid"] == [], summary
+
+
 def assert_evaluation_scoped_primary_cache() -> None:
     """Unrelated Primary settings neither re-key nor reprompt another evaluation.
 
@@ -1022,6 +1033,28 @@ def assert_evaluation_scoped_primary_cache() -> None:
         proficiency_before = benchmark.primary_config_projection_sha256(
             root, "llm_proficiency"
         )
+        language_quality_before = benchmark.primary_config_projection_sha256(
+            root, "language_quality"
+        )
+        primary = benchmark.json_load(primary_path)
+        # This pre-certified-cache flag is retained in the source config only
+        # for historical readability. It is not a scientific dependency and
+        # correcting it must not throw away paid Language Quality evidence.
+        primary["language_quality"]["reuse_never_includes_measurements"] = (
+            not bool(
+                primary["language_quality"].get(
+                    "reuse_never_includes_measurements", False
+                )
+            )
+        )
+        benchmark.json_dump(primary_path, primary)
+        assert benchmark.primary_config_projection_sha256(
+            root, "language_quality"
+        ) == language_quality_before, (
+            "legacy measurement-reuse prose re-keyed Language Quality"
+        )
+        primary_path.write_bytes(original_primary)
+
         primary = benchmark.json_load(primary_path)
         primary["llm_proficiency"]["primary_prompt_variants"].append(
             "cache-scope-regression"
@@ -1376,6 +1409,7 @@ def main() -> None:
     assert_corrupt_cache_is_leaf_local_and_explicit()
     assert_execution_plan_classifies_cache_decisions()
     assert_packet_paid_response_commit_is_replayable()
+    assert_empty_cache_impact_is_a_valid_first_run()
     assert_evaluation_scoped_primary_cache()
     assert_budget_plan_excludes_complete_units()
     assert_accepted_trial_start_marks_the_scored_boundary()

@@ -745,6 +745,13 @@ def assert_failed_comparability_quarantines_affected_probe() -> None:
                 },
             },
         )
+        benchmark.json_dump(
+            root / "work/root/comparability_blinding.json",
+            {
+                "schema_version": 1,
+                "labels": {"Python": "A", "Rust": "B"},
+            },
+        )
         manifest = {
             "work_units": [
                 {
@@ -757,6 +764,9 @@ def assert_failed_comparability_quarantines_affected_probe() -> None:
         assert benchmark.unresolved_semantic_comparability_probes(
             root, manifest
         ) == {"F20.P1"}
+        assert benchmark.unresolved_semantic_comparability_pairs(
+            root, manifest
+        ) == {("F20.P1", "Python")}
 
 
 def main() -> None:

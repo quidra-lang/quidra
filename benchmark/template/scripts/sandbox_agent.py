@@ -439,6 +439,29 @@ class Trials:
         prompt_path.write_text(prompt_text, encoding="utf-8")
         completion_path.write_text(completion, encoding="utf-8")
         agent_dir = self.records_dir.parent
+
+        verification = None
+        verification_path = None
+        if self.evaluation == "llm_proficiency":
+            if self.proficiency_language is None:
+                raise AgentFailure("LLM Proficiency target language is unavailable")
+            verify_dir = trial_dir / "verification" / f"call_{call:02d}"
+            try:
+                verification = benchmark.verify_proficiency_completion(
+                    self.root,
+                    self.proficiency_language,
+                    trial_id,
+                    completion,
+                    verify_dir,
+                )
+            except benchmark.BenchmarkError as exc:
+                raise AgentFailure(
+                    f"trusted Proficiency verifier failed: {exc}"
+                ) from exc
+            verification_path = (
+                verify_dir / "verification.json"
+            ).relative_to(agent_dir).as_posix()
+
         session["records"].append({
             "call": call,
             "prompt": prompt_text,
@@ -450,6 +473,8 @@ class Trials:
             "stop_reason": response.get("stop_reason"),
             "incomplete": incomplete,
             "usage": response.get("usage", {}),
+            "verification": verification,
+            "verification_path": verification_path,
         })
         benchmark.json_dump(trial_dir / "session.json", {
             "schema_version": 1,
@@ -457,6 +482,25 @@ class Trials:
             "calls": session["records"],
         })
         session["messages"].append({"role": "assistant", "content": completion})
+        verification_view = None
+        if isinstance(verification, dict):
+            diagnostic_source = (
+                verification.get("compile_or_parse")
+                if verification.get("compile_parse_ok") is not True
+                else verification.get("run")
+            ) or {}
+            diagnostic = str(
+                diagnostic_source.get("stderr")
+                or diagnostic_source.get("stdout")
+                or ""
+            )[:2000]
+            verification_view = {
+                "compile_parse_ok": verification.get("compile_parse_ok"),
+                "test_passed": verification.get("test_passed"),
+                "expected_stdout": verification.get("expected_stdout"),
+                "diagnostic": diagnostic,
+                "path": verification_path,
+            }
         return {
             "ok": incomplete is None,
             "trial_id": trial_id,
@@ -465,6 +509,7 @@ class Trials:
             "completion_chars": len(completion),
             "stop_reason": response.get("stop_reason"),
             "incomplete": incomplete,
+            "verification": verification_view,
             "repairs_used": len(session["records"]) - 1,
             "repairs_remaining": self.max_repairs - (len(session["records"]) - 1),
             "calls_used": self.used,

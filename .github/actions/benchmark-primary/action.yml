@@ -475,7 +475,7 @@ runs:
         print(json.dumps(state, indent=2, sort_keys=True))
         PY
 
-    - name: Export paid-but-incomplete leaf state
+    - name: Export paid leaf inference state
       if: ${{ always() }}
       id: paid-partial-export
       continue-on-error: true
@@ -534,8 +534,9 @@ runs:
           --source-repo "$GITHUB_WORKSPACE" \
           | tee "$RUNNER_TEMP/cache-checkpoint.json"
 
-        # Persist paid-but-incomplete calls in the repository cache as well as
-        # Actions cache. The store is already content-addressed and exact-
+        # Persist paid model calls in the repository cache as well as Actions
+        # cache, including calls from leaves that reached COMPLETE. The store is
+        # already content-addressed and exact-
         # fingerprint guarded by partial-paid-import, so this is durable resume
         # state rather than scored input visible to workers.
         if [ -d "$RUNNER_TEMP/benchmark-paid-state" ]; then

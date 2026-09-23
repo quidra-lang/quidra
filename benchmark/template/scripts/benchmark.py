@@ -1098,7 +1098,8 @@ def cmd_toolchain_scan(args: argparse.Namespace) -> int:
             ) from exc
     semantic_ffi_smoke = runtime_image_record.get("semantic_ffi_smoke", {})
     if lexical_absolute(root) == lexical_absolute(CANONICAL_WORKSPACE):
-        semantic_ffi_smoke = run_f20_runtime_baselines(root)
+        stable_f20 = normalize_f20_runtime_smoke(semantic_ffi_smoke)
+        json_dump(root / F20_RUNTIME_FACTS_RELATIVE, stable_f20)
     payload = {
         "schema_version": 1,
         "checked_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
@@ -4182,124 +4183,85 @@ def _semantic_run_process(
     return record
 
 
-F20_RUNTIME_FIXTURES_RELATIVE = Path("template/runtime/f20_interop_fixtures.json")
+F20_RUNTIME_FACTS_RELATIVE = Path("work/root/f20_runtime_facts.json")
+F20_RUNTIME_REQUIRED_LANGUAGES = ("Python", "Go", "Java", "Kotlin")
 
 
-def _render_f20_runtime_recipe(
-    recipe: str, source: Path, work: Path
-) -> list[str]:
-    replacements = {
-        "FILE.py": str(source),
-        "FILE.go": str(source),
-        "FILE.java": str(source),
-        "FILE.kt": str(source),
-        "FILE.jar": str(work / "program.jar"),
-        "./BIN": str(work / "program"),
-        "BIN": str(work / "program"),
-        "OUT": str(work / "out"),
-    }
-    argv: list[str] = []
-    for token in shlex.split(recipe):
-        rendered = token
-        for key in sorted(replacements, key=len, reverse=True):
-            rendered = rendered.replace(key, replacements[key])
-        argv.append(rendered)
-    return argv
-
-
-def run_f20_runtime_baselines(root: Path) -> dict[str, Any]:
-    """Verify selected F20.P1 mechanisms under the exact frozen recipes."""
-    fixtures = json_load(root / F20_RUNTIME_FIXTURES_RELATIVE)
-    if fixtures.get("schema_version") != 1 or fixtures.get("probe_id") != "F20.P1":
-        raise BenchmarkError("invalid F20 runtime baseline fixture contract")
-    environment = json_load(root / "template" / "environment" / "environment.json")
-    frozen = environment.get("frozen_toolchain_recipes") or {}
-    work_root = root / "work" / "root" / "commands" / "f20-runtime-baselines"
-    shutil.rmtree(work_root, ignore_errors=True)
-    work_root.mkdir(parents=True, exist_ok=True)
-    report: dict[str, Any] = {
+def normalize_f20_runtime_smoke(smoke: dict[str, Any]) -> dict[str, Any]:
+    """Stable, cache-key-safe projection of the image's F20.P1 smoke evidence."""
+    languages: dict[str, Any] = {}
+    for language in F20_RUNTIME_REQUIRED_LANGUAGES:
+        row = smoke.get(language)
+        if not isinstance(row, dict):
+            raise BenchmarkError(
+                f"runtime image F20.P1 smoke is missing {language}"
+            )
+        if row.get("passed") is not True:
+            raise BenchmarkError(
+                f"runtime image F20.P1 smoke failed for {language}"
+            )
+        extra = row.get("frozen_recipe_extra_flags")
+        if extra != []:
+            raise BenchmarkError(
+                f"runtime image F20.P1 smoke for {language} used extra flags: {extra!r}"
+            )
+        build = row.get("build")
+        run = row.get("run") or {}
+        languages[language] = {
+            "mechanism": row.get("mechanism"),
+            "passed": True,
+            "frozen_recipe_extra_flags": [],
+            "build_argv": (build or {}).get("argv") if isinstance(build, dict) else None,
+            "run_argv": run.get("argv") if isinstance(run, dict) else None,
+            "observed_stdout": str(run.get("stdout") or "").strip(),
+        }
+        if languages[language]["observed_stdout"] != "3":
+            raise BenchmarkError(
+                f"runtime image F20.P1 smoke for {language} did not observe stdout 3"
+            )
+    return {
         "schema_version": 1,
         "probe_id": "F20.P1",
-        "passed": False,
-        "languages": {},
+        "source": "/opt/quidra-benchmark/toolchains-observed.json",
+        "languages": languages,
     }
-    for language, fixture in sorted((fixtures.get("languages") or {}).items()):
-        recipe = frozen.get(language) or {}
-        if fixture.get("build") != recipe.get("build") or fixture.get("run") != recipe.get("run"):
-            raise BenchmarkError(
-                f"F20 baseline recipe drift for {language}: fixture must equal frozen recipe"
-            )
-        work = work_root / slug_id(language)
-        work.mkdir(parents=True, exist_ok=True)
-        (work / "out").mkdir(exist_ok=True)
-        source = work / str(fixture["filename"])
-        source.write_text(str(fixture["source"]), encoding="utf-8")
-        evidence: dict[str, Any] = {
-            "recipe_build": fixture.get("build"),
-            "recipe_run": fixture.get("run"),
-        }
-        if fixture.get("build"):
-            build_argv = _render_f20_runtime_recipe(
-                str(fixture["build"]), source, work
-            )
-            evidence["build"] = _semantic_run_process(
-                root, work, build_argv, label=f"{language} F20.P1 baseline build"
-            )
-        run_argv = _render_f20_runtime_recipe(str(fixture["run"]), source, work)
-        evidence["run"] = _semantic_run_process(
-            root, work, run_argv, label=f"{language} F20.P1 baseline run"
-        )
-        stdout = str(evidence["run"].get("stdout") or "").strip()
-        if stdout != "3":
-            raise BenchmarkError(
-                f"{language} F20.P1 baseline produced {stdout!r}, expected '3'"
-            )
-        evidence["verified_without_extra_flags"] = True
-        evidence["observed_stdout"] = "3"
-        report["languages"][language] = evidence
-    report["passed"] = True
-    return report
 
 
 def f20_runtime_baseline_data(root: Path) -> dict[str, Any] | None:
-    path = root / "results" / "toolchains.json"
+    path = root / F20_RUNTIME_FACTS_RELATIVE
     if not path.is_file():
         return None
-    data = (json_load(path).get("semantic_ffi_smoke") or {})
-    if not data:
-        return None
-    if data.get("probe_id") != "F20.P1" or data.get("passed") is not True:
-        raise BenchmarkError("F20 runtime baseline evidence is incomplete or failed")
+    data = json_load(path)
+    if data.get("schema_version") != 1 or data.get("probe_id") != "F20.P1":
+        raise BenchmarkError("F20 runtime facts file is invalid")
     return data
 
 
 def validate_f20_record_against_runtime_baseline(
     root: Path, language: str, record: dict[str, Any]
 ) -> None:
-    fixtures = json_load(root / F20_RUNTIME_FIXTURES_RELATIVE)
-    verified_languages = set((fixtures.get("languages") or {}).keys())
-    if language not in verified_languages:
+    if language not in F20_RUNTIME_REQUIRED_LANGUAGES:
         return
     data = f20_runtime_baseline_data(root)
     if data is None:
         if lexical_absolute(root) == lexical_absolute(CANONICAL_WORKSPACE):
             raise BenchmarkError(
-                f"F20.P1: trusted runtime baseline evidence is missing for {language}"
+                f"F20.P1: trusted runtime facts are missing for {language}"
             )
         return
     if language not in (data.get("languages") or {}):
         raise BenchmarkError(
-            f"F20.P1: trusted runtime baseline omitted configured language {language}"
+            f"F20.P1: trusted runtime facts omitted configured language {language}"
         )
     if record["level"] == "NONE":
         raise BenchmarkError(
-            f"F20.P1: {language} cannot be NONE: the pinned runtime baseline "
-            "delivers the numbered task under the exact frozen recipe"
+            f"F20.P1: {language} cannot be NONE: the pinned runtime image "
+            "demonstrates the numbered task under the exact frozen recipe"
         )
     if "P-b" in record["partial_reasons"]:
         raise BenchmarkError(
-            f"F20.P1: {language} cannot cite P-b: the pinned runtime baseline "
-            "uses no compiler/runtime flag beyond the frozen recipe"
+            f"F20.P1: {language} cannot cite P-b: the pinned runtime image "
+            "demonstrates the mechanism with no extra compiler/runtime flags"
         )
 
 

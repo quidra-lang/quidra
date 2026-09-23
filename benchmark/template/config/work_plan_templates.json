@@ -99,7 +99,6 @@
             "sc-structure-gates--part-1b",
             "sc-structure-gates--part-2a",
             "sc-coverage",
-            "sc-metrics-hidden-coverage--part-2",
             "sc-premeasurement-validation"
           ],
           "prompt_sections": [
@@ -130,7 +129,6 @@
             "sc-structure-gates--part-1b",
             "sc-structure-gates--part-2a",
             "sc-coverage",
-            "sc-metrics-hidden-coverage--part-2",
             "sc-premeasurement-validation"
           ],
           "prompt_sections": [
@@ -161,7 +159,6 @@
             "sc-structure-gates--part-1b",
             "sc-structure-gates--part-2a",
             "sc-coverage",
-            "sc-metrics-hidden-coverage--part-2",
             "sc-premeasurement-validation"
           ],
           "prompt_sections": [
@@ -192,7 +189,6 @@
             "sc-structure-gates--part-1b",
             "sc-structure-gates--part-2a",
             "sc-coverage",
-            "sc-metrics-hidden-coverage--part-2",
             "sc-premeasurement-validation"
           ],
           "prompt_sections": [
@@ -223,7 +219,6 @@
             "sc-structure-gates--part-1b",
             "sc-structure-gates--part-2a",
             "sc-coverage",
-            "sc-metrics-hidden-coverage--part-2",
             "sc-premeasurement-validation"
           ],
           "prompt_sections": [

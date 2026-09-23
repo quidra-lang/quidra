@@ -33,7 +33,9 @@ captures (tens of megabytes) stay in the run's retained workspace artifact and a
 named by hash in the record's certification. They live under
 `v1/language-quality/mechanical-<action>/`. The reason is time rather than money:
 the measurement takes about six hours on a hosted runner, and a run that repeats it
-cannot also finish its paid units inside the six-hour job limit. Change
+cannot also finish its paid units inside the six-hour job limit. The runner
+hydrates these records before it runs any command unit, so a certified measurement
+is never taken again by a run that could reuse it. Change
 `declared_epochs.mechanical` when the runner class changes or the numbers should be
 taken again.
 

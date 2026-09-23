@@ -3509,7 +3509,12 @@ def cache_fingerprint_payload(
     mechanical = mechanical_unit(unit)
     if not mechanical and (not provider or not model):
         return None
-    toolchain_report = json_load(root / "results" / "toolchains.json")
+    # The toolchain report is written by the toolchain check, which a run
+    # performs before dispatch; the mechanical audit of the snapshot's own
+    # programs is keyed before that and needs no comparison toolchain, while
+    # a unit that does need one has no key until the report exists.
+    report_path = root / "results" / "toolchains.json"
+    toolchain_report = json_load(report_path) if report_path.is_file() else {}
     toolchains = toolchain_report.get("toolchains") or {}
     assigned = list(unit.get("assigned_languages", []) or [])
     if unit.get("result_kind") == "audit":
@@ -3586,6 +3591,11 @@ def cache_fingerprint_payload(
         payload["runner_action"] = str(unit.get("runner_action"))
         payload["measurement_script_hashes"] = measurement_script_hashes(root)
     if target in assigned:
+        # A workspace whose snapshot declares no versions (the synthetic CI
+        # harness stages no project.toml) has no key for Quidra work; the
+        # unit simply runs. A real snapshot always declares them.
+        if not (root / "repo" / "project.toml").is_file():
+            return None
         payload["quidra_target"] = quidra_target_identity(root)
     if unit.get("result_kind") == "audit":
         payload["reuse_audit_for"] = sorted(str(a) for a in unit.get("reuse_audit_for", []))
@@ -3702,7 +3712,17 @@ def _write_cache_status(root: Path, status: dict[str, Any]) -> None:
     json_dump(root / "results" / "cache_status.json", status)
 
 
-def hydrate_certified_cache(root: Path, evaluation: str | None = None) -> int:
+def hydrate_certified_cache(
+    root: Path, evaluation: str | None = None, *, mechanical_only: bool = False
+) -> int:
+    """Complete every PENDING cacheable unit that has a certified record.
+
+    With `mechanical_only`, only the mechanical measurement units are
+    considered; `cmd_advance` calls it that way before it runs any command
+    unit, so a certified micro, adversarial or audit measurement is reused
+    instead of being measured again. Agent units are hydrated after their
+    tasks exist.
+    """
     manifest = json_load(root / "work" / "root" / "manifest.json")
     ledger = json_load(root / "work" / "root" / "ledger.json")
     status = _cache_status(root)
@@ -3722,6 +3742,8 @@ def hydrate_certified_cache(root: Path, evaluation: str | None = None) -> int:
         ):
             continue
         mechanical = mechanical_unit(unit)
+        if mechanical_only and not mechanical:
+            continue
         if mechanical:
             agent_dir = mechanical_result_path(root, unit).parent
             task = mechanical_task(unit)
@@ -5934,6 +5956,16 @@ def cmd_advance(args: argparse.Namespace) -> int:
     progressed = True
     while progressed:
         progressed = False
+        # A certified mechanical measurement is reused before its command
+        # could run. The command loop below used to run first, so the third
+        # rehearsal's certified micro suite would have been measured again
+        # (five hours) and the container smoke re-audited the snapshot and
+        # collided with the certified audit at import: same key, different
+        # build timings. Hydrating first also completes the dependents'
+        # prerequisites, so the loop re-enters until nothing more hydrates.
+        if hydrate_certified_cache(root, evaluation_filter, mechanical_only=True):
+            progressed = True
+            continue
         manifest = json_load(root / "work" / "root" / "manifest.json")
         ledger = json_load(root / "work" / "root" / "ledger.json")
         for unit in manifest.get("work_units", []):

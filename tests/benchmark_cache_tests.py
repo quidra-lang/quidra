@@ -514,6 +514,30 @@ def assert_mechanical_measurements_are_cacheable(root: Path, tmp: Path) -> None:
     status = benchmark.json_load(root / "results/cache_status.json")
     assert unit["id"] in status["hits"]
 
+    # The runner reuses the record before its command could run: advance used
+    # to execute every ready command unit first and consult the cache only
+    # afterwards, so the certified five-hour micro suite was measured again
+    # and the container smoke's re-measured audit collided with the certified
+    # one at import. Here the measurement script cannot succeed (no compiler
+    # in this workspace), so a unit that ran it would be retried and blocked.
+    shutil.rmtree(result_path.parent)
+    freeze_manifest(root, unit)
+    benchmark.json_dump(root / "results" / "privacy_check.json", {"schema_version": 1, "ok": True})
+    assert benchmark.cmd_advance(argparse.Namespace(
+        workspace=str(root), evaluation="language_quality"
+    )) == 0
+    ledger = benchmark.json_load(root / "work/root/ledger.json")
+    state = ledger["units"][unit["id"]]
+    assert state["status"] == "COMPLETE" and state["validation_result"] == "PASS", state
+    # One attempt: the hydration itself. A measurement attempt would have
+    # failed and been retried, leaving FAIL entries behind.
+    assert int(state.get("attempts", 0) or 0) == 1, state
+    assert [a["result"] for a in state["attempt_history"]] == ["PASS"], state
+    assert benchmark.json_load(result_path) == result
+    assert (result_path.parent / "cache_receipt.json").is_file()
+    status = benchmark.json_load(root / "results/cache_status.json")
+    assert unit["id"] in status["hits"] and unit["id"] not in status["misses"]
+
     # A changed Quidra program or measurement script re-keys the measurement.
     (programs / "mb00.qui").write_text("print(2)\n", encoding="utf-8")
     assert benchmark.cache_fingerprint(root, unit, task)[0] != fingerprint

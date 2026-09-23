@@ -508,7 +508,7 @@ def emit_fake_script(root: Path, output: Path) -> dict[str, Any]:
                 "files": [{"path": "result.json", "content": payload}],
             })]
         else:
-            turns = sandbox_turns(unit, payload)
+            turns = sandbox_turns(root, unit, payload)
         # A retry re-dispatches the same unit, so repeat each script enough times
         # that a retried unit is answered rather than falling through.
         tasks[agent_id] = turns * 4

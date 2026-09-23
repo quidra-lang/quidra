@@ -2640,6 +2640,12 @@ def cmd_deterministic_plan(args: argparse.Namespace) -> int:
                     "max_output_tokens_per_call": int(
                         raw.get("max_output_tokens_per_call", 0) or 0
                     ),
+                    "canonical_fragment_owner": bool(
+                        raw.get("canonical_fragment_owner", False)
+                    ),
+                    "canonical_fragment_source_requirement": raw.get(
+                        "canonical_fragment_source_requirement"
+                    ),
                 })
 
         aggregate_id = f"{evaluation}-aggregate"
@@ -3539,6 +3545,209 @@ def build_comparability_sample(
     return destination
 
 
+
+def canonical_fragment_catalog(
+    root: Path, result: dict[str, Any]
+) -> dict[str, dict[str, Any]]:
+    """Validate and normalize the one-fragment-per-probe catalog."""
+    evidence = result.get("evidence") or {}
+    raw = evidence.get("canonical_fragments")
+    if not isinstance(raw, dict):
+        raise BenchmarkError(
+            "canonical fragment owner must write evidence.canonical_fragments"
+        )
+    matrix = json_load(
+        root / "template" / "methodology-assets" / "semantic_compression"
+        / "semantic_site_matrix.json"
+    )
+    expected = {str(probe.get("probe_id")) for probe in matrix.get("probes", [])}
+    if set(raw) != expected:
+        raise BenchmarkError(
+            "canonical fragment catalog must contain exactly the frozen probe set; "
+            f"missing={sorted(expected-set(raw))}, extra={sorted(set(raw)-expected)}"
+        )
+    normalized: dict[str, dict[str, Any]] = {}
+    for probe_id in sorted(expected):
+        record = sc_adjudicated_record(raw[probe_id])
+        if record is None:
+            raise BenchmarkError(
+                f"canonical fragment {probe_id} must be a complete support record"
+            )
+        normalized[probe_id] = record
+    return normalized
+
+
+def canonical_fragment_input_for_unit(
+    root: Path, unit: dict[str, Any], manifest: dict[str, Any]
+) -> tuple[Path, str]:
+    """Materialize the completed owner catalog for one language as task input."""
+    source_requirement = str(
+        unit.get("canonical_fragment_source_requirement") or ""
+    )
+    assigned = list(unit.get("assigned_languages") or [])
+    if not source_requirement or len(assigned) != 1:
+        raise BenchmarkError(
+            f"{unit.get('id')}: canonical fragment consumer must own one language"
+        )
+    language = str(assigned[0])
+    units = {str(item.get("id")): item for item in manifest.get("work_units", [])}
+    candidates: list[dict[str, Any]] = []
+    for dep in unit.get("dependencies", []):
+        source = units.get(str(dep))
+        if source is None:
+            continue
+        if source_requirement not in (source.get("requirement_ids") or []):
+            continue
+        if list(source.get("assigned_languages") or []) != [language]:
+            continue
+        candidates.append(source)
+    if len(candidates) != 1:
+        raise BenchmarkError(
+            f"{unit.get('id')}: expected one completed canonical fragment owner "
+            f"for {language}, found {len(candidates)}"
+        )
+    source = candidates[0]
+    result_path = (
+        root / "work" / "agents" / str(source.get("assigned_agent_id"))
+        / "result.json"
+    )
+    if not result_path.is_file():
+        raise BenchmarkError(
+            f"{unit.get('id')}: canonical fragment owner result is missing"
+        )
+    catalog = canonical_fragment_catalog(root, json_load(result_path))
+    payload = {
+        "schema_version": 1,
+        "language": language,
+        "source_work_unit_id": source.get("id"),
+        "source_requirement_id": source_requirement,
+        "rule": (
+            "Use exactly these fragments for every downstream Semantic "
+            "Compression metric. FULL/PARTIAL entries must be measured verbatim; "
+            "NONE entries have no fragment and must not receive a numeric "
+            "per-probe A/B/C/D measurement."
+        ),
+        "canonical_fragments": catalog,
+    }
+    destination = require_under(
+        root / "work" / "audit" / "semantic-compression"
+        / f"canonical_fragments_{slug_id(language)}.json",
+        root,
+    )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    encoded = (
+        json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
+    if destination.exists() and destination.read_bytes() != encoded:
+        raise BenchmarkError(
+            f"canonical fragment input changed after owner completion: {language}"
+        )
+    destination.write_bytes(encoded)
+    return destination, sha256_bytes(encoded)
+
+
+def validate_canonical_fragment_owner_result(
+    root: Path, task: dict[str, Any], result: dict[str, Any]
+) -> None:
+    """The owner fixes fragments/support before any A/B/C/D/E measurement."""
+    assigned = list(task.get("assigned_languages") or [])
+    if len(assigned) != 1:
+        raise BenchmarkError("canonical fragment owner must be language-sharded")
+    language = str(assigned[0])
+    catalog = canonical_fragment_catalog(root, result)
+    aggregation = json_load(root / "template" / "config" / "aggregation.json")
+    owner = (
+        aggregation.get("evaluations", {}).get("semantic_compression", {})
+        .get("support_level_owner") or {}
+    )
+    factors = {
+        str(name).upper(): float(value)
+        for name, value in (owner.get("levels") or {}).items()
+    }
+    matrix = json_load(
+        root / "template" / "methodology-assets" / "semantic_compression"
+        / "semantic_site_matrix.json"
+    )
+    total = 0.0
+    awarded = 0.0
+    for probe in matrix.get("probes", []):
+        probe_id = str(probe.get("probe_id"))
+        points = float(probe.get("capability_denominator") or 0)
+        total += points
+        awarded += points * factors.get(catalog[probe_id]["level"], 0.0)
+    if total <= 0:
+        raise BenchmarkError("canonical fragment catalog has no capability denominator")
+    expected = round(100.0 * awarded / total, 6)
+    req = result.get("requirements") or {}
+    coverage = req.get("metric.capability_coverage") or {}
+    actual = coverage.get(language)
+    if not isinstance(actual, (int, float)) or isinstance(actual, bool):
+        raise BenchmarkError(
+            "canonical fragment owner must report numeric metric.capability_coverage"
+        )
+    if abs(float(actual) - expected) > 0.02:
+        raise BenchmarkError(
+            f"canonical fragment owner coverage mismatch for {language}: "
+            f"reported={actual}, derived={expected}"
+        )
+
+
+def _fragment_values(node: Any, key: str = "") -> set[str]:
+    found: set[str] = set()
+    if isinstance(node, dict):
+        for name, value in node.items():
+            found |= _fragment_values(value, str(name))
+    elif isinstance(node, list):
+        for value in node:
+            found |= _fragment_values(value, key)
+    elif isinstance(node, str) and (key == "fragment" or key.endswith("_fragment")):
+        if node.strip():
+            found.add(node.strip())
+    return found
+
+
+def validate_canonical_fragment_consumer_result(
+    root: Path, task: dict[str, Any], result: dict[str, Any]
+) -> None:
+    """Reject a metric result that drifted from its frozen canonical catalog."""
+    digest = str(task.get("canonical_fragment_catalog_sha256") or "")
+    if not re.fullmatch(r"[0-9a-f]{64}", digest):
+        raise BenchmarkError("canonical fragment consumer task has no catalog digest")
+    evidence = result.get("evidence") or {}
+    if str(evidence.get("canonical_fragment_catalog_sha256") or "") != digest:
+        raise BenchmarkError(
+            "result must attest the exact canonical fragment catalog SHA-256"
+        )
+    catalog_path = None
+    for raw in task.get("read_paths", []) or []:
+        path = resolve_recorded_workspace_path(root, raw)
+        if path.name.startswith("canonical_fragments_") and path.suffix == ".json":
+            catalog_path = path
+            break
+    if catalog_path is None or not catalog_path.is_file():
+        raise BenchmarkError("canonical fragment catalog task input is missing")
+    payload = json_load(catalog_path)
+    catalog = payload.get("canonical_fragments") or {}
+    wanted = set(catalog)
+    rows = probe_annotation_fields(result, wanted)
+    for probe_id, record in catalog.items():
+        canonical = sc_adjudicated_record(record)
+        if canonical is None:
+            raise BenchmarkError(f"invalid task catalog record: {probe_id}")
+        values = _fragment_values(rows.get(probe_id) or {})
+        if canonical["level"] == "NONE":
+            if values:
+                raise BenchmarkError(
+                    f"{probe_id}: NONE probe may not measure a fragment: {sorted(values)}"
+                )
+            continue
+        expected = str(canonical["fragment"]).strip()
+        if values and values != {expected}:
+            raise BenchmarkError(
+                f"{probe_id}: metric evidence drifted from canonical fragment"
+            )
+
+
 def cmd_tasks_create(args: argparse.Namespace) -> int:
     root = workspace(args)
     assert_template_integrity(root)
@@ -3600,6 +3809,23 @@ def cmd_tasks_create(args: argparse.Namespace) -> int:
             # Appended before the retry check so a re-dispatched audit compares
             # equal to the packet it is retrying.
             goal += COMPARABILITY_AUDIT_INSTRUCTIONS
+        reads = list(unit.get("read_paths", []))
+        canonical_catalog_sha = None
+        source_requirement = unit.get("canonical_fragment_source_requirement")
+        if source_requirement:
+            catalog_path, canonical_catalog_sha = canonical_fragment_input_for_unit(
+                root, unit, manifest
+            )
+            reads.append(str(catalog_path))
+            goal += (
+                "\n\nCanonical fragment contract:\n"
+                f"- Use exactly the supplied catalog ({canonical_catalog_sha}).\n"
+                "- Do not author, substitute, or rewrite a probe fragment.\n"
+                "- A NONE catalog entry has no measurable fragment; do not emit "
+                "a numeric per-probe A/B/C/D value for it.\n"
+                "- Write evidence.canonical_fragment_catalog_sha256 with exactly "
+                "the catalog SHA-256 above."
+            )
         if agent_dir.exists() and any(agent_dir.iterdir()):
             task_path = agent_dir / "task.json"
             if task_path.is_file():
@@ -3615,6 +3841,13 @@ def cmd_tasks_create(args: argparse.Namespace) -> int:
                     or task_meta.get("expected_outputs") != expected_outputs
                     or task_meta.get("validation_command") != unit.get("validator_command")
                     or bool(task_meta.get("network_allowed")) != bool(unit.get("network_allowed", False))
+                    or bool(task_meta.get("canonical_fragment_owner")) != bool(
+                        unit.get("canonical_fragment_owner", False)
+                    )
+                    or task_meta.get("canonical_fragment_source_requirement")
+                    != unit.get("canonical_fragment_source_requirement")
+                    or task_meta.get("canonical_fragment_catalog_sha256")
+                    != canonical_catalog_sha
                 )
                 if frozen_mismatch:
                     raise BenchmarkError(
@@ -3629,7 +3862,6 @@ def cmd_tasks_create(args: argparse.Namespace) -> int:
                 continue
             skipped.append({"id": uid, "reason": "agent_directory_initialized_without_task"})
             continue
-        reads = list(unit.get("read_paths", []))
         if COMPARABILITY_GATE in requirement_ids:
             reads.append(str(build_comparability_sample(root, unit, manifest)))
         adjudicated_probe = support_adjudication_probe(requirement_ids)
@@ -3654,6 +3886,11 @@ def cmd_tasks_create(args: argparse.Namespace) -> int:
             language=assigned_languages,
             worker_mode=unit.get("worker_mode", "packet-only"),
             layout=unit.get("packet_layout", "task-first"),
+            canonical_fragment_owner=bool(
+                unit.get("canonical_fragment_owner", False)
+            ),
+            canonical_fragment_source_requirement=source_requirement,
+            canonical_fragment_catalog_sha256=canonical_catalog_sha,
         )
         cmd_task_create(ns)
         created.append({
@@ -5279,6 +5516,15 @@ Goal: {args.goal}
         "prompt_components": components,
         "packet_layout": layout,
         "rendered_bytes": len(rendered),
+        "canonical_fragment_owner": bool(
+            getattr(args, "canonical_fragment_owner", False)
+        ),
+        "canonical_fragment_source_requirement": getattr(
+            args, "canonical_fragment_source_requirement", None
+        ),
+        "canonical_fragment_catalog_sha256": getattr(
+            args, "canonical_fragment_catalog_sha256", None
+        ),
     }
     prompt_manifest = root / "prompts" / "manifests" / f"{args.id}.json"
     meta["prompt_manifest_path"] = str(prompt_manifest)
@@ -5458,6 +5704,11 @@ def cmd_result_check(args: argparse.Namespace) -> int:
                         )
             else:
                 raise BenchmarkError(f"unsupported requirement result type: {rid}")
+
+    if task.get("canonical_fragment_owner"):
+        validate_canonical_fragment_owner_result(root, task, result)
+    if task.get("canonical_fragment_source_requirement"):
+        validate_canonical_fragment_consumer_result(root, task, result)
 
     print(json.dumps({"ok": True, "agent_id": args.id, "result": str(result_path)}, indent=2))
     return 0

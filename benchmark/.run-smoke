@@ -1,11 +1,12 @@
 # Request marker for the benchmark-smoke workflow.
 #
-# Changing this file and pushing to develop asks CI to verify the paid request
-# shape against the live provider: two tiny calls plus two refusals that cost
-# nothing. It builds no image and dispatches no work units.
+# Changing this file only starts benchmark-smoke when the commit is pushed on
+# the disposable benchmark branch. develop never starts paid smoke inference.
+# The full benchmark-production workflow already runs this provider smoke before
+# spending on the benchmark, so this marker is only for isolated diagnostics.
 #
 # Re-request by editing any line below.
-
+#
 requested_at_utc: 2026-09-23T09:31:00Z
 reason: request-shape proof on 58b65bc, the snapshot the next full run will evaluate; 787f981 returned evaluation_requirements.json to the bytes 8168710 hashed, so the 227 certified records hydrate this run instead of being re-measured as they would have been by the run cancelled at f64113f, and cache-impact reports the same 227 valid and 21 invalid records on this snapshot
 model: claude-sonnet-5

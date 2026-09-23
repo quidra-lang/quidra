@@ -489,8 +489,41 @@ def assert_support_adjudication_receives_trusted_verification() -> None:
         assert "do not contradict those build/run facts" in payload["task"], payload["task"]
 
 
+def assert_failed_comparability_quarantines_affected_probe() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_root(td)
+        agent_dir = root / "work/agents/worker-sc-comparability"
+        agent_dir.mkdir(parents=True)
+        benchmark.json_dump(
+            agent_dir / "result.json",
+            {
+                "requirements": {"gate.comparability_audit": False},
+                "evidence": {
+                    "gate_result": {
+                        "affected_pairs_requiring_revalidation": [
+                            {"probe_id": "F20.P1", "label": "A"}
+                        ]
+                    }
+                },
+            },
+        )
+        manifest = {
+            "work_units": [
+                {
+                    "id": "sc-comparability",
+                    "assigned_agent_id": "worker-sc-comparability",
+                    "requirement_ids": ["gate.comparability_audit"],
+                }
+            ]
+        }
+        assert benchmark.unresolved_semantic_comparability_probes(
+            root, manifest
+        ) == {"F20.P1"}
+
+
 def main() -> None:
     assert_complete_support_record_contract()
+    assert_failed_comparability_quarantines_affected_probe()
     assert_support_adjudication_receives_trusted_verification()
     assert_probe_alias_rows_are_recognized()
     assert_conflicting_annotation_fields_are_rejected()

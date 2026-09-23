@@ -7070,7 +7070,7 @@ PROFICIENCY_WORKLOADS_RELATIVE = Path(
 def proficiency_workload_contract(root: Path) -> dict[str, Any]:
     """Load and mechanically validate the frozen offline Proficiency tasks."""
     asset = json_load(root / PROFICIENCY_WORKLOADS_RELATIVE)
-    if asset.get("schema_version") != 1:
+    if asset.get("schema_version") != 2:
         raise BenchmarkError("unsupported LLM Proficiency workload schema")
     cfg = json_load(root / "template" / "config" / "primary.json")["llm_proficiency"]
     expected_workloads = [str(value) for value in cfg["primary_workloads"]]
@@ -7099,7 +7099,14 @@ def proficiency_workload_contract(root: Path) -> dict[str, Any]:
             or not str(row.get("specification") or "").strip()
             or not str(row.get("reference_cpp") or "").strip()
             or not isinstance(row.get("validation"), dict)
-            or not str((row.get("validation") or {}).get("success_stdout") or "").strip()
+            or not str((row.get("validation") or {}).get("output_prefix") or "").strip()
+            or not isinstance(
+                (row.get("validation") or {}).get("float_absolute_tolerance"),
+                (int, float),
+            )
+            or float((row.get("validation") or {}).get("float_absolute_tolerance")) <= 0
+            or not isinstance(row.get("trusted_tests"), list)
+            or len(row.get("trusted_tests")) < 2
         ):
             raise BenchmarkError(
                 f"LLM Proficiency workload {workload} has an incomplete frozen contract"
@@ -7194,8 +7201,8 @@ def proficiency_expected_prompt(root: Path, language: str, trial_id: str) -> str
         "- Return only one complete source program, with no Markdown fences or explanation.",
         "- Use only the target language and its standard library/runtime shipped in the frozen toolchain.",
         "- Do not use the network, package downloads, third-party dependencies, generated bindings, or external services.",
-        "- Preserve the algorithm and validation contract exactly; do not replace the task with a simpler computation or hard-code PASS.",
-        "- The program must exit nonzero when its own required validation fails.",
+        "- Preserve the algorithm and validation contract exactly; do not replace the task with a simpler computation or hard-code the public example output.",
+        "- The trusted runtime supplies additional hidden stdin cases; your program must compute its output from stdin on every run.",
         f"- Frozen build/run recipe: {json.dumps(recipe, sort_keys=True, separators=(',', ':'))}",
         "",
         "Scenario instruction:",
@@ -7279,6 +7286,217 @@ def proficiency_verifier_commands(
     )
 
 
+def _proficiency_svm_oracle(test: dict[str, Any]) -> tuple[str, list[float], list[int]]:
+    samples = test.get("samples")
+    if (
+        not isinstance(samples, list)
+        or not samples
+        or not all(isinstance(row, list) and len(row) == 3 for row in samples)
+    ):
+        raise BenchmarkError("trusted SVM test has invalid samples")
+    labels = [int(row[0]) for row in samples]
+    if any(label not in {-1, 1} for label in labels):
+        raise BenchmarkError("trusted SVM labels must be +/-1")
+    xs = [[float(row[1]), float(row[2])] for row in samples]
+    lr = float(test["learning_rate"])
+    limit = float(test["convergence_limit"])
+    max_epochs = int(test["max_epochs"])
+    alpha = [0.0] * len(xs)
+    beta = 1.0
+
+    def dot(left: list[float], right: list[float]) -> float:
+        return sum(a * b for a, b in zip(left, right))
+
+    converged = False
+    for _epoch in range(max_epochs):
+        judge = False
+        for i in range(len(xs)):
+            item1 = sum(
+                alpha[j] * labels[i] * labels[j] * dot(xs[i], xs[j])
+                for j in range(len(xs))
+            )
+            item2 = sum(
+                alpha[j] * labels[i] * labels[j]
+                for j in range(len(xs))
+            )
+            delta = 1.0 - item1 - beta * item2
+            alpha[i] += lr * delta
+            if alpha[i] < 0.0:
+                alpha[i] = 0.0
+            elif abs(delta) > limit:
+                judge = True
+        item3 = sum(alpha[i] * labels[i] for i in range(len(xs)))
+        beta += item3 * item3 / 2.0
+        if not judge:
+            converged = True
+            break
+    if not converged:
+        raise BenchmarkError("trusted SVM oracle did not converge")
+
+    support = [i for i, value in enumerate(alpha) if value > 1e-7]
+    if not support:
+        raise BenchmarkError("trusted SVM oracle found no support vector")
+    weights = [
+        sum(alpha[i] * labels[i] * xs[i][dimension] for i in support)
+        for dimension in range(2)
+    ]
+    bias = sum(
+        labels[i] - dot(weights, xs[i]) for i in support
+    ) / len(support)
+    predictions = [
+        1 if dot(weights, point) + bias >= 0.0 else -1
+        for point in xs
+    ]
+    stdin = (
+        f"{len(xs)} 2\n"
+        + "\n".join(
+            f"{labels[i]} {xs[i][0]:.17g} {xs[i][1]:.17g}"
+            for i in range(len(xs))
+        )
+        + f"\n{lr:.17g} {limit:.17g} {max_epochs}\n"
+    )
+    return stdin, [*weights, bias], predictions
+
+
+def _proficiency_gmm_oracle(test: dict[str, Any]) -> tuple[str, list[float], list[int]]:
+    observations = [float(value) for value in (test.get("observations") or [])]
+    weights = [float(value) for value in (test.get("weights") or [])]
+    means = [float(value) for value in (test.get("means") or [])]
+    variances = [float(value) for value in (test.get("variances") or [])]
+    iterations = int(test.get("iterations", 0))
+    if (
+        not observations
+        or len(weights) != 2
+        or len(means) != 2
+        or len(variances) != 2
+        or iterations < 1
+        or any(value <= 0 for value in variances)
+    ):
+        raise BenchmarkError("trusted GMM test has invalid parameters")
+    responsibilities = [[0.0, 0.0] for _ in observations]
+    pi = 3.141592653589793
+    for _ in range(iterations):
+        for i, value in enumerate(observations):
+            total = 0.0
+            for k in range(2):
+                dev = value - means[k]
+                weighted = (
+                    weights[k]
+                    * math.exp(-0.5 * dev * dev / variances[k])
+                    / math.sqrt(2.0 * pi * variances[k])
+                )
+                responsibilities[i][k] = weighted
+                total += weighted
+            if not total > 0:
+                raise BenchmarkError("trusted GMM oracle encountered zero density")
+            for k in range(2):
+                responsibilities[i][k] /= total
+
+        nk = [
+            sum(row[k] for row in responsibilities)
+            for k in range(2)
+        ]
+        weights = [value / len(observations) for value in nk]
+        means = [
+            sum(
+                responsibilities[i][k] * observations[i]
+                for i in range(len(observations))
+            ) / nk[k]
+            for k in range(2)
+        ]
+        variances = [
+            sum(
+                responsibilities[i][k]
+                * (observations[i] - means[k]) ** 2
+                for i in range(len(observations))
+            ) / nk[k]
+            for k in range(2)
+        ]
+
+    log_likelihood = 0.0
+    for value in observations:
+        total = 0.0
+        for k in range(2):
+            dev = value - means[k]
+            total += (
+                weights[k]
+                * math.exp(-0.5 * dev * dev / variances[k])
+                / math.sqrt(2.0 * pi * variances[k])
+            )
+        log_likelihood += math.log(total)
+
+    stdin = (
+        f"{len(observations)} 2 {iterations}\n"
+        + " ".join(f"{value:.17g}" for value in observations) + "\n"
+        + " ".join(f"{value:.17g}" for value in test["weights"]) + "\n"
+        + " ".join(f"{value:.17g}" for value in test["means"]) + "\n"
+        + " ".join(f"{value:.17g}" for value in test["variances"]) + "\n"
+    )
+    return stdin, [*weights, *means, *variances, log_likelihood], []
+
+
+def _proficiency_lightgrad_oracle(
+    test: dict[str, Any],
+) -> tuple[str, list[float], list[int]]:
+    values = [float(value) for value in (test.get("inputs") or [])]
+    if len(values) != 3:
+        raise BenchmarkError("trusted LightGrad test needs three inputs")
+    x1, x2, x3 = values
+    y = x1 * x1 * x1 * x2 * x2 + x1 * x3
+    dx1 = 3.0 * x1 * x1 * x2 * x2 + x3
+    dx2 = 2.0 * x1 * x1 * x1 * x2
+    dx3 = x1
+    stdin = " ".join(f"{value:.17g}" for value in values) + "\n"
+    return stdin, [y, dx1, dx2, dx3], []
+
+
+def _proficiency_case_oracle(
+    workload: str, test: dict[str, Any]
+) -> tuple[str, list[float], list[int]]:
+    if workload == "SVM":
+        return _proficiency_svm_oracle(test)
+    if workload == "GMM":
+        return _proficiency_gmm_oracle(test)
+    if workload == "LightGrad":
+        return _proficiency_lightgrad_oracle(test)
+    raise BenchmarkError(f"no trusted Proficiency oracle for {workload}")
+
+
+def _proficiency_output_matches(
+    workload: str,
+    validation: dict[str, Any],
+    stdout: str,
+    expected_floats: list[float],
+    expected_ints: list[int],
+) -> tuple[bool, str | None]:
+    tokens = stdout.strip().split()
+    prefix = str(validation.get("output_prefix") or "")
+    expected_count = 1 + len(expected_floats) + len(expected_ints)
+    if len(tokens) != expected_count or not tokens or tokens[0] != prefix:
+        return False, (
+            f"expected {expected_count} whitespace-separated fields beginning "
+            f"with {prefix!r}, got {len(tokens)}"
+        )
+    try:
+        observed_floats = [
+            float(value) for value in tokens[1:1 + len(expected_floats)]
+        ]
+        observed_ints = [
+            int(value) for value in tokens[1 + len(expected_floats):]
+        ]
+    except ValueError:
+        return False, "numeric output could not be parsed"
+    if any(not math.isfinite(value) for value in observed_floats):
+        return False, "numeric output contains a non-finite value"
+    tolerance = float(validation["float_absolute_tolerance"])
+    for observed, expected in zip(observed_floats, expected_floats):
+        if abs(observed - expected) > tolerance:
+            return False, "floating-point output differs from trusted oracle"
+    if observed_ints != expected_ints:
+        return False, "integer output differs from trusted oracle"
+    return True, None
+
+
 def verify_proficiency_completion(
     root: Path,
     language: str,
@@ -7286,15 +7504,16 @@ def verify_proficiency_completion(
     source_text: str,
     work_dir: Path,
 ) -> dict[str, Any]:
-    """Compile/parse and run one generated Proficiency program mechanically."""
+    """Compile once, then test generated source against public + hidden inputs."""
     manifest = proficiency_trial_manifest(root)
     cell = manifest.get(trial_id)
     if cell is None:
         raise BenchmarkError(f"unknown LLM Proficiency trial ID: {trial_id}")
     asset = proficiency_workload_contract(root)
-    validation = asset["workloads"][cell["workload"]]["validation"]
-    expected_stdout = str(validation["success_stdout"])
-    expected_exit = int(validation.get("success_exit_code", 0))
+    workload_name = str(cell["workload"])
+    workload = asset["workloads"][workload_name]
+    validation = workload["validation"]
+    trusted_tests = list(workload["trusted_tests"])
 
     work_dir.mkdir(parents=True, exist_ok=True)
     synthetic_allowed = (
@@ -7303,12 +7522,10 @@ def verify_proficiency_completion(
     )
     if synthetic_allowed:
         result = {
-            "schema_version": 1,
+            "schema_version": 2,
             "trial_id": trial_id,
             "language": language,
             "source_sha256": sha256_bytes(source_text.encode("utf-8")),
-            "expected_exit_code": expected_exit,
-            "expected_stdout": expected_stdout,
             "compile_or_parse": {
                 "label": "synthetic-ci",
                 "argv": [],
@@ -7317,27 +7534,30 @@ def verify_proficiency_completion(
                 "stderr": "",
             },
             "compile_parse_ok": True,
-            "run": None,
+            "cases": [],
+            "trusted_case_count": len(trusted_tests),
             "test_passed": False,
             "synthetic_ci": True,
         }
         json_dump(work_dir / "verification.json", result)
         return result
 
-    work_dir.mkdir(parents=True, exist_ok=True)
     source_name, build_argv, run_argv = proficiency_verifier_commands(root, language)
     source_path = work_dir / source_name
     source_path.parent.mkdir(parents=True, exist_ok=True)
     source_path.write_text(source_text, encoding="utf-8")
     (work_dir / "out").mkdir(exist_ok=True)
 
-    def invoke(argv: list[str], label: str) -> dict[str, Any]:
+    def invoke(
+        argv: list[str], label: str, input_text: str | None = None
+    ) -> dict[str, Any]:
         try:
             completed = subprocess.run(
                 argv,
                 cwd=work_dir,
                 env=sanitized_subprocess_env(root, work_dir),
                 shell=False,
+                input=input_text,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -7370,7 +7590,9 @@ def verify_proficiency_completion(
             }
 
     if build_argv is None and language == "Python":
-        compile_record = invoke(["python3", "-m", "py_compile", source_name], "parse")
+        compile_record = invoke(
+            ["python3", "-m", "py_compile", source_name], "parse"
+        )
     elif build_argv is not None:
         compile_record = invoke(build_argv, "build")
     else:
@@ -7383,34 +7605,72 @@ def verify_proficiency_completion(
         }
 
     compile_parse_ok = compile_record.get("exit_code") == 0
-    run_record: dict[str, Any] | None = None
+    cases: list[dict[str, Any]] = []
+    first_failed_run: dict[str, Any] | None = None
     if compile_parse_ok:
-        run_record = invoke(run_argv, "run")
-    observed_stdout = (
-        str((run_record or {}).get("stdout") or "").strip()
-        if run_record is not None
-        else ""
-    )
+        for test in trusted_tests:
+            if not isinstance(test, dict) or not str(test.get("id") or ""):
+                raise BenchmarkError(
+                    f"{workload_name}: trusted test has no stable id"
+                )
+            stdin, expected_floats, expected_ints = _proficiency_case_oracle(
+                workload_name, test
+            )
+            run_record = invoke(
+                run_argv, f"run-{test['id']}", input_text=stdin
+            )
+            passed = False
+            mismatch: str | None = None
+            if run_record.get("exit_code") == 0:
+                passed, mismatch = _proficiency_output_matches(
+                    workload_name,
+                    validation,
+                    str(run_record.get("stdout") or ""),
+                    expected_floats,
+                    expected_ints,
+                )
+            else:
+                mismatch = "program exited nonzero or could not execute"
+            case_record = {
+                "id": str(test["id"]),
+                "hidden": str(test["id"]) != "public",
+                "passed": passed,
+                "exit_code": run_record.get("exit_code"),
+                "stdout": str(run_record.get("stdout") or "")[:4000],
+                "stderr": str(run_record.get("stderr") or "")[:4000],
+                "mismatch": mismatch,
+            }
+            cases.append(case_record)
+            if not passed and first_failed_run is None:
+                first_failed_run = {
+                    key: value
+                    for key, value in run_record.items()
+                    if key not in {"stdin", "input"}
+                }
+
     test_passed = bool(
-        run_record is not None
-        and run_record.get("exit_code") == expected_exit
-        and observed_stdout == expected_stdout
+        compile_parse_ok
+        and len(cases) == len(trusted_tests)
+        and all(case["passed"] is True for case in cases)
     )
     result = {
-        "schema_version": 1,
+        "schema_version": 2,
         "trial_id": trial_id,
         "language": language,
         "source_sha256": sha256_bytes(source_text.encode("utf-8")),
-        "expected_exit_code": expected_exit,
-        "expected_stdout": expected_stdout,
         "compile_or_parse": compile_record,
         "compile_parse_ok": compile_parse_ok,
-        "run": run_record,
+        "run": first_failed_run,
+        "cases": cases,
+        "trusted_case_count": len(trusted_tests),
+        "hidden_case_count": sum(
+            1 for test in trusted_tests if str(test.get("id")) != "public"
+        ),
         "test_passed": test_passed,
+        "trusted_hidden_oracle": True,
     }
     json_dump(work_dir / "verification.json", result)
     return result
-
 
 def proficiency_repair_prompt(verification: dict[str, Any]) -> str:
     """Deterministic verifier-only feedback for a Proficiency repair turn.

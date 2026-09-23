@@ -6160,6 +6160,12 @@ def cache_cap_reuse_problem(
                 "the Proficiency record predates runtime-owned per-completion "
                 "compile/run verification; it must be measured again"
             )
+        expected_contract = proficiency_workload_contract_sha256(root)
+        if certification.get("proficiency_workload_contract_sha256") != expected_contract:
+            return (
+                "the Proficiency record was not certified against the current "
+                "hidden-oracle workload contract; it must be measured again"
+            )
     current = int(unit.get("max_output_tokens_per_call", 0) or 0)
     if current <= 0:
         return None
@@ -10857,6 +10863,13 @@ def run_proficiency_integrity(root: Path, unit: dict[str, Any]) -> None:
                     "complete Primary trial set"
                 )
                 continue
+            expected_contract = proficiency_workload_contract_sha256(root)
+            if certification.get("proficiency_workload_contract_sha256") != expected_contract:
+                problems.append(
+                    f"{uid}: cache record was not certified against the current "
+                    "hidden-oracle workload contract"
+                )
+                continue
             assigned = [str(value) for value in (trial_unit.get("assigned_languages") or [])]
             expected_prompts = (
                 proficiency_primary_prompt_set_sha256(root, assigned[0])
@@ -12002,6 +12015,9 @@ def cache_certification_for_unit(
         certification["proficiency_integrity"] = True
         certification["proficiency_toolchain_evidence"] = True
         certification["proficiency_runtime_verification"] = True
+        certification["proficiency_workload_contract_sha256"] = (
+            proficiency_workload_contract_sha256(root)
+        )
         runtime_audit = json_load(agent_dir / "proficiency_runtime_verification.json")
         certification["proficiency_runtime_metrics_sha256"] = sha256_bytes(
             json.dumps(

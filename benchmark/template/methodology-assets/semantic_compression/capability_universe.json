@@ -918,7 +918,17 @@
       "common_basis_rationale": "Metrics A-D use one common probe basis for all ten languages so denominator choice cannot vary by language. Unsupported capabilities remain visible through Capability Coverage rather than disappearing from the comparison."
     },
     "determinacy_is_not_a_support_criterion": "BINDING. Support level records ONLY whether the canonical_task's stated behavior is delivered. Whether a fact is recoverable from the local surface form is measured exclusively by metrics B (Semantic Determinacy) and D (Hidden Semantic Cost) and NEVER affects FULL/PARTIAL/NONE. A fragment that delivers the behavior while leaving facts locally indeterminate is FULL and pays for the indeterminacy in B and D. This applies identically to all ten languages: it is the rule that keeps a dynamically typed language from being charged twice for dynamic typing, and equally the rule that keeps a statically typed language from being credited twice for static typing.",
-    "observation_target_clauses": "A clause prefixed `OBSERVATION TARGET (not a support requirement; scored by metrics B/D only)` is non-normative for Capability Coverage. It identifies evidence consumed by Semantic Determinacy/Hidden Semantic Cost and never changes FULL/PARTIAL/NONE support by itself."
+    "observation_target_clauses": "A clause prefixed `OBSERVATION TARGET (not a support requirement; scored by metrics B/D only)` is non-normative for Capability Coverage. It identifies evidence consumed by Semantic Determinacy/Hidden Semantic Cost and never changes FULL/PARTIAL/NONE support by itself.",
+    "partial_p_a_allowed_probe_ids": [
+      "F02.P2",
+      "F12.P1",
+      "F12.P2",
+      "F14.P1",
+      "F15.P1",
+      "F15.P2",
+      "F17.P2"
+    ],
+    "partial_p_a_allowed_probe_ids_note": "Binding machine-readable form of authoring rule R9 and deterministic_tie_break.named_substitution. P-a is invalid for every probe not listed here."
   },
   "capability_coverage": {
     "formula": "C = 100 * (sum over the 44 probes of capability_points * support_factor) / total_fixed_capability_points",

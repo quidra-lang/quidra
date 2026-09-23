@@ -51,6 +51,10 @@
     {
       "id": "ffi-built-in-vs-external",
       "rule": "For FFI probes, distinguish a language/toolchain's documented built-in interoperability facility from a third-party package, binding generator or separate build system. A built-in facility that misses a numbered requirement may be PARTIAL with the matching P-letter; absence of any built-in facility satisfying a numbered requirement is NONE with the matching N-reason."
+    },
+    {
+      "id": "r9-overrides-generic-substitution",
+      "rule": "Authoring rule R9 is authoritative over the generic P-a description. A weaker substitute can earn PARTIAL under P-a only when that probe's canonical_task explicitly permits the substitute as enumerated by R9. For every other probe, do not convert a forbidden easier task into PARTIAL merely because it is a standard mechanism."
     }
   ],
   "repair_loop": {

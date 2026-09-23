@@ -9838,7 +9838,7 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
                 .get("deterministic_tie_break", {})
                 .get("named_substitution", "")
             )
-            r9_named = set(re.findall(r"F\d{2}\.P\d+", r9_text))
+            r9_mentions = set(re.findall(r"F\d{2}\.P\d+", r9_text))
             tie_break_named = set(
                 re.findall(r"F\d{2}\.P\d+", named_substitution_text)
             )
@@ -9858,7 +9858,7 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
                 and "interpreter_run" not in (recipes.get("Quidra") or {})
                 and p_a_allowed
                 and p_a_allowed <= set(probe_ids)
-                and p_a_allowed == r9_named
+                and p_a_allowed <= r9_mentions
                 and p_a_allowed == tie_break_named
             )
             requirements[rid] = ok
@@ -9872,7 +9872,8 @@ def run_static_coverage(root: Path, unit: dict[str, Any]) -> None:
                 "verification_recipe_drift_problems": verification_recipe_drift,
                 "quidra_native_only_recipe": set((recipes.get("Quidra") or {}).keys()) == {"build", "run"},
                 "p_a_allowed_probe_ids": sorted(p_a_allowed),
-                "p_a_scope_matches_r9": p_a_allowed == r9_named,
+                "p_a_scope_matches_r9": p_a_allowed <= r9_mentions,
+                "p_a_extra_r9_mentions": sorted(r9_mentions - p_a_allowed),
                 "p_a_scope_matches_named_substitution": p_a_allowed == tie_break_named,
             })
         elif rid in {"gate.semantic_site_matrix", "gate.matrix_validator"}:

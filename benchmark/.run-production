@@ -14,8 +14,8 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-23T01:19:23Z
-reason: Rehearsal 5 of sc-metrics-local--part-1--go on 471d322: the same single-metric Semantic Compression packet, now decoded at the evaluation's frozen medium depth and rendered shared-inputs-first; rehearsal 4 spent the whole 65,536-token cap reasoning at high depth; guard 1.0 USD
+requested_at_utc: 2026-09-23T01:31:03Z
+reason: Rehearsal 6 of proficiency-trials--kotlin: the Kotlin proficiency path (trial cap 16384, Kotlin toolchain evidence) has never run against the live model; preparation is scoped to llm_proficiency; guard 1.0 USD
 model: claude-sonnet-5
 budget_usd: 1.0
-units: sc-metrics-local--part-1--go
+units: proficiency-trials--kotlin

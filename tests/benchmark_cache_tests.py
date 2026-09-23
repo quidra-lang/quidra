@@ -144,8 +144,8 @@ def create_cacheable_task(root: Path) -> tuple[dict, dict]:
             "benchmark_metadata": benchmark.sha256_file(
                 root / "template/config/benchmark_metadata.json"
             ),
-            "evaluation_spec": benchmark.sha256_file(
-                root / "template/methodology/ecosystem.md"
+            "evaluation_spec_sections": benchmark.evaluation_spec_projection_sha256(
+                root, "ecosystem", []
             ),
         },
         "reuse_audit_for": [],
@@ -1004,7 +1004,7 @@ def assert_evaluation_scoped_primary_cache() -> None:
     """Unrelated Primary settings neither re-key nor reprompt another evaluation.
 
     Historical full-primary packets are accepted only through the narrow
-    projection migration: every non-primary prompt component and every other
+    projection migration: every non-scoped prompt component and every other
     cache dependency must still match.
     """
     with tempfile.TemporaryDirectory() as td:
@@ -1132,7 +1132,7 @@ def assert_evaluation_scoped_primary_cache() -> None:
         )
         assert receipt["fingerprint"] == current_fingerprint
         assert receipt["source_fingerprint"] == legacy_fingerprint
-        assert receipt["compatibility_mode"] == "primary-config-projection"
+        assert receipt["compatibility_mode"] == "scoped-input-projection"
 
 
 def main() -> None:

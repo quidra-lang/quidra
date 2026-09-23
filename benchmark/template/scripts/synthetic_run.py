@@ -164,6 +164,12 @@ def unit_payload(unit: dict[str, Any], languages: list[str]) -> dict[str, Any]:
     for requirement_id in unit.get("requirement_ids", []):
         if requirement_id.startswith("gate.") or requirement_id.startswith("coverage."):
             requirements[requirement_id] = True
+        elif requirement_id.startswith("annotation.support_adjudication--"):
+            # A support adjudication answers for the whole cohort with a level,
+            # not a score, and never for a subset of the languages.
+            requirements[requirement_id] = {
+                language: "FULL" for language in languages
+            }
         else:
             requirements[requirement_id] = {
                 language: float(90 - languages.index(language)) for language in assigned

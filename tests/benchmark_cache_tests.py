@@ -679,7 +679,7 @@ def main() -> None:
         assert benchmark.cache_epoch(root, "ecosystem") == "2026-09"
         assert benchmark.cache_epoch(root, "semantic_compression") == "2026-09-canonical-fragments-v5-r9-machine"
         assert benchmark.cache_epoch(root, "llm_learnability") == "stable"
-        assert benchmark.cache_epoch(root, "llm_proficiency") == "2026-09-complete-primary-trials-v1"
+        assert benchmark.cache_epoch(root, "llm_proficiency") == "2026-09-complete-primary-trials-v2-pretrial-toolchain"
         policy_path = root / "template/config/cache_policy.json"
         policy_bytes = policy_path.read_bytes()
         policy = benchmark.json_load(policy_path)

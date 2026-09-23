@@ -18,6 +18,7 @@ paths a real run depends on are wired correctly -
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -151,7 +152,80 @@ def start_gateway(
     raise RunError("inference gateway did not bind its socket in time")
 
 
-def unit_payload(unit: dict[str, Any], languages: list[str]) -> dict[str, Any]:
+def synthetic_canonical_catalog(root: Path) -> dict[str, dict[str, Any]]:
+    """A complete fake catalog matching the real canonical-fragment contract."""
+    matrix = json.loads(
+        (
+            root
+            / "template/methodology-assets/semantic_compression/semantic_site_matrix.json"
+        ).read_text(encoding="utf-8")
+    )
+    return {
+        str(probe["probe_id"]): {
+            "level": "FULL",
+            "fragment": "synthetic_fragment()",
+            "partial_reasons": [],
+            "none_reason": None,
+            "citation": "Synthetic frozen documentation citation.",
+            "justification": "Synthetic canonical fragment selected under R1-R10.",
+        }
+        for probe in matrix["probes"]
+    }
+
+
+def synthetic_catalog_digest(
+    root: Path,
+    unit: dict[str, Any],
+    units: dict[str, dict[str, Any]],
+) -> str | None:
+    """Reproduce canonical_fragment_input_for_unit's content hash for fake results."""
+    source_requirement = str(
+        unit.get("canonical_fragment_source_requirement") or ""
+    )
+    assigned = list(unit.get("assigned_languages") or [])
+    if not source_requirement:
+        return None
+    if len(assigned) != 1:
+        raise RunError(
+            f"{unit.get('id')}: synthetic canonical consumer is not single-language"
+        )
+    language = str(assigned[0])
+    candidates = [
+        source
+        for source in units.values()
+        if source_requirement in (source.get("requirement_ids") or [])
+        and list(source.get("assigned_languages") or []) == [language]
+    ]
+    if len(candidates) != 1:
+        raise RunError(
+            f"{unit.get('id')}: synthetic catalog owner count is {len(candidates)}"
+        )
+    source = candidates[0]
+    payload = {
+        "schema_version": 1,
+        "language": language,
+        "source_work_unit_id": source.get("id"),
+        "source_requirement_id": source_requirement,
+        "rule": (
+            "Use exactly these fragments for every downstream Semantic "
+            "Compression metric. FULL/PARTIAL entries must be measured verbatim; "
+            "NONE entries have no fragment and must not receive a numeric "
+            "per-probe A/B/C/D measurement."
+        ),
+        "canonical_fragments": synthetic_canonical_catalog(root),
+    }
+    encoded = (
+        json.dumps(payload, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def unit_payload(
+    root: Path,
+    unit: dict[str, Any],
+    languages: list[str],
+    units: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
     if unit.get("result_kind") == "audit":
         return {
             "schema_version": 1,
@@ -161,6 +235,7 @@ def unit_payload(unit: dict[str, Any], languages: list[str]) -> dict[str, Any]:
         }
     assigned = unit.get("assigned_languages") or languages
     requirements: dict[str, Any] = {}
+    evidence: dict[str, Any] = {"synthetic": "deterministic harness evidence"}
     for requirement_id in unit.get("requirement_ids", []):
         if requirement_id.startswith("gate.") or requirement_id.startswith("coverage."):
             requirements[requirement_id] = True
@@ -182,11 +257,21 @@ def unit_payload(unit: dict[str, Any], languages: list[str]) -> dict[str, Any]:
             requirements[requirement_id] = {
                 language: float(90 - languages.index(language)) for language in assigned
             }
+        if (
+            unit.get("evaluation") == "semantic_compression"
+            and requirement_id == "metric.capability_coverage"
+        ):
+            evidence["canonical_fragments"] = synthetic_canonical_catalog(root)
+
+    digest = synthetic_catalog_digest(root, unit, units)
+    if digest is not None:
+        evidence["canonical_fragment_catalog_sha256"] = digest
+
     return {
         "schema_version": 1,
         "evaluation": unit["evaluation"],
         "requirements": requirements,
-        "evidence": {"synthetic": "deterministic harness evidence"},
+        "evidence": evidence,
     }
 
 
@@ -258,14 +343,19 @@ def sandbox_turns(unit: dict[str, Any], payload: str) -> list[str]:
 
 
 def script_for_queue(
-    queue: list[dict[str, Any]], units: dict[str, Any], languages: list[str]
+    root: Path,
+    queue: list[dict[str, Any]],
+    units: dict[str, Any],
+    languages: list[str],
 ) -> dict[str, Any]:
     """Turn-by-turn fake completions for every unit about to be dispatched."""
     tasks: dict[str, list[str]] = {}
     for task in queue:
         unit = units[task["work_unit_id"]]
         agent_id = task["agent_id"]
-        payload = json.dumps(unit_payload(unit, languages), indent=2) + "\n"
+        payload = json.dumps(
+            unit_payload(root, unit, languages, units), indent=2
+        ) + "\n"
         if task["worker_mode"] == "packet-only":
             tasks[agent_id] = [json.dumps({
                 "schema_version": 1,
@@ -293,6 +383,7 @@ def emit_fake_script(root: Path, output: Path) -> dict[str, Any]:
     manifest = json.loads(
         (root / "work" / "root" / "manifest.json").read_text(encoding="utf-8")
     )
+    units = {str(unit["id"]): unit for unit in manifest.get("work_units", [])}
     tasks: dict[str, list[str]] = {}
     for unit in manifest.get("work_units", []):
         if unit.get("execution_kind", "agent") != "agent":
@@ -402,7 +493,9 @@ def main() -> int:
             )
             units = {unit["id"]: unit for unit in manifest["work_units"]}
             script_path.write_text(
-                json.dumps(script_for_queue(queue, units, languages), indent=2) + "\n",
+                json.dumps(
+                    script_for_queue(root, queue, units, languages), indent=2
+                ) + "\n",
                 encoding="utf-8",
             )
             for task in queue:

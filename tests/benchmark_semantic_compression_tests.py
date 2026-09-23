@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 import tempfile
 
@@ -340,9 +341,28 @@ def assert_synthetic_verification_cannot_masquerade_as_real() -> None:
                 }
             },
         }
-        report = benchmark.validate_canonical_fragment_verification(
-            root, "Python", catalog, evidence
-        )
+        try:
+            benchmark.validate_canonical_fragment_verification(
+                root, "Python", catalog, evidence
+            )
+        except benchmark.BenchmarkError as exc:
+            assert "explicit non-canonical CI workspace" in str(exc), exc
+        else:
+            raise AssertionError(
+                "model-authored synthetic evidence bypassed real verification"
+            )
+
+        previous = os.environ.get("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS")
+        os.environ["QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS"] = "1"
+        try:
+            report = benchmark.validate_canonical_fragment_verification(
+                root, "Python", catalog, evidence
+            )
+        finally:
+            if previous is None:
+                os.environ.pop("QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS", None)
+            else:
+                os.environ["QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS"] = previous
         assert report["synthetic_ci"] is True, report
         assert "probes" not in report, report
 

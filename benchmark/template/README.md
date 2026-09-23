@@ -111,39 +111,44 @@ The gateway declares the provider-side tools it may enable, and `preflight` reco
 
 ## Production benchmark trigger
 
-Paid inference is intentionally opt-in and develop-only. The
-`benchmark-production` workflow listens only for a push that changes
-`benchmark/.run-production`. Normal source pushes, pull requests, scheduled CI,
-runtime-image CI and benchmark-template CI never call the Anthropic API.
+Paid inference is intentionally opt-in and isolated from normal `develop`
+pushes. The operator creates the disposable `benchmark` branch from the exact
+green `develop` commit to evaluate and changes `benchmark/.run-production`
+there. `benchmark-production` listens only to that marker on `benchmark`.
+Normal source pushes, pull requests, scheduled CI, runtime-image CI and
+benchmark-template CI never call the Anthropic API.
 
-`benchmark-smoke` follows the same convention with its own marker,
-`benchmark/.run-smoke`. It runs only the paid-request check that
-`benchmark-production` performs before spending anything, so the provider path
-can be verified on its own after a provider, model or decoding change without
-committing to a run. It builds no image and dispatches no work units.
+`benchmark-smoke` follows the same explicit-request rule for provider
+diagnostics. A production request never adds its marker to `develop`, so the
+evaluated compiler/program snapshot remains the exact pre-request commit.
 
-When a production run is requested, update that marker on `develop` after the
-benchmark infrastructure itself is green. The marker lives under `benchmark/`,
-which is excluded from the evaluated source snapshot, so requesting a run does
-not alter the compiler/program sources being measured.
-
-The production workflow evaluates that frozen `develop` snapshot with
+The production workflow evaluates that frozen snapshot with
 `claude-sonnet-5`. The repository secret `ANTHROPIC_API_KEY` exists only in
-the trusted Actions step and is passed only to the gateway sidecar. The scored
-container remains credential-less and network-isolated.
+trusted Actions/gateway steps. The scored container remains credential-less and
+network-isolated.
 
-The run freezes Claude Sonnet 5 pricing in the template snapshot ($2/M input
-tokens, $10/M output tokens) and includes Anthropic web-search charges for only
-the work units whose trusted frozen policy permits live network evidence. The
-trusted-side soft budget is defined once by `BENCHMARK_BUDGET_USD` in the
-production workflow. Once reported spend has reached that configured limit, the
-gateway refuses to start another paid request. Token
-usage, web-search count and estimated cost are retained in a redacted audit log.
+Before paid dispatch, deterministic preparation hydrates exact certified-cache
+hits, restores exact-fingerprint paid-but-incomplete leaf state from the private
+Actions cache, writes `results/cache_impact.json`, and freezes
+`results/execution-plan-preflight.json`. The plan lists cache reuse,
+invalidation/re-evaluation, new paid work, dependency-deferred work, expected
+paid-call upper bounds and the conservative spend bound. Each Primary also keeps
+its own execution plan plus an actual-vs-plan record after dispatch.
 
-The workflow performs deterministic preparation with the offline fake provider
-before it starts any paid inference. If `develop` moves while the benchmark is
-running, the completed result is preserved as a workflow artifact rather than
-being silently committed onto a different evaluated snapshot.
+The run freezes provider pricing in the template snapshot and includes web-search
+charges only for work units whose trusted policy permits live retrieval. The
+request marker supplies the whole-run budget; the trusted gateway and budget
+ledger refuse dispatch beyond it. Token usage, web-search count and estimated
+cost are retained in a redacted audit log.
+
+COMPLETE+PASS leaves are checkpointed independently into the certified result
+cache. Paid responses/trials inside an incomplete leaf are checkpointed
+separately in the private Actions cache and can be restored in a later Actions
+run only when the complete dependency fingerprint and Task Packet hash match.
+A diagnostic finalize records exact missing required leaves, but only
+`formal_complete=true` can be imported as a formal result. If `develop` moves
+during the isolated run, reconciliation never silently changes the evaluated
+snapshot.
 
 ## Runtime image
 
@@ -161,7 +166,7 @@ These Linux toolchain versions are not expected to equal the fingerprints record
 
 On macOS, `init` by itself is not sufficient. If no container, VM, namespace-equivalent mechanism or other trusted isolation layer can present the staging directory as `/quidra-benchmark`, scored work must not start. Do not substitute a symlink or forged attestation.
 
-After `finalize` and sandbox exit, the trusted outer runner uses `benchmark.py post-run --source-repo <checkout>`. If a run is abandoned before successful `finalize`, use `benchmark.py discard-workspace --source-repo <checkout>` instead of manual `rm -rf`.
+After sandbox exit, the trusted outer runner uses `benchmark.py post-run --source-repo <checkout>` only when `finalization.json.formal_complete` is true. Diagnostic/partial finalization deliberately cannot be imported. If a run is abandoned, use `benchmark.py discard-workspace --source-repo <checkout>` instead of manual `rm -rf`; COMPLETE+PASS certified cache records and private paid-leaf checkpoints remain independently reusable.
 
 ## Files that key certified-cache records
 

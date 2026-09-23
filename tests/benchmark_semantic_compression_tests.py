@@ -108,28 +108,113 @@ def assert_conflicting_annotation_fields_are_rejected() -> None:
     else:
         raise AssertionError("probe collection silently stitched conflicting fields")
 
+    combined: dict[str, object] = {}
+    benchmark.sc_add_annotation_source(
+        combined,
+        "density-shard",
+        {"fragment": "same", "note": "density explanation"},
+    )
+    benchmark.sc_add_annotation_source(
+        combined,
+        "determinacy-shard",
+        {"fragment": "same", "note": "different but valid explanation"},
+    )
+    assert "fragment" not in combined and "note" not in combined, combined
+    assert set(combined["metric_annotations"]) == {
+        "density-shard", "determinacy-shard"
+    }, combined
+    assert (
+        combined["metric_annotations"]["density-shard"]["note"]
+        != combined["metric_annotations"]["determinacy-shard"]["note"]
+    ), combined
 
-def assert_f20_runtime_fixtures_match_frozen_recipes() -> None:
-    fixtures = json.loads(
-        (
-            ROOT
-            / "benchmark/template/runtime/f20_interop_fixtures.json"
-        ).read_text(encoding="utf-8")
+
+def assert_f20_runtime_facts_contract() -> None:
+    smoke = {
+        language: {
+            "probe_id": "F20.P1",
+            "mechanism": f"{language} built-in mechanism",
+            "frozen_recipe_extra_flags": [],
+            "build": (
+                None
+                if language == "Python"
+                else {"argv": ["compiler", "source"], "exit_code": 0}
+            ),
+            "run": {
+                "argv": ["runtime", "program"],
+                "exit_code": 0,
+                "stdout": "3\n",
+                "stderr": "",
+            },
+            "passed": True,
+        }
+        for language in benchmark.F20_RUNTIME_REQUIRED_LANGUAGES
+    }
+    stable = benchmark.normalize_f20_runtime_smoke(smoke)
+    assert stable["probe_id"] == "F20.P1", stable
+    assert set(stable["languages"]) == set(
+        benchmark.F20_RUNTIME_REQUIRED_LANGUAGES
+    ), stable
+    assert all(
+        row["observed_stdout"] == "3"
+        and row["frozen_recipe_extra_flags"] == []
+        for row in stable["languages"].values()
+    ), stable
+
+    bad = json.loads(json.dumps(smoke))
+    bad["Go"]["frozen_recipe_extra_flags"] = ["CGO_ENABLED=1"]
+    try:
+        benchmark.normalize_f20_runtime_smoke(bad)
+    except benchmark.BenchmarkError as exc:
+        assert "extra flags" in str(exc)
+    else:
+        raise AssertionError("an F20 baseline with an extra flag was accepted")
+
+    with tempfile.TemporaryDirectory() as td:
+        root = make_root(td)
+        benchmark.json_dump(root / benchmark.F20_RUNTIME_FACTS_RELATIVE, stable)
+        benchmark.validate_f20_record_against_runtime_baseline(
+            root, "Go", canonical("FULL", "ffi_fragment()")
+        )
+        try:
+            benchmark.validate_f20_record_against_runtime_baseline(
+                root, "Go", canonical("NONE", None, none="N-1")
+            )
+        except benchmark.BenchmarkError as exc:
+            assert "cannot be NONE" in str(exc)
+        else:
+            raise AssertionError("trusted F20 runtime evidence did not reject NONE")
+        try:
+            benchmark.validate_f20_record_against_runtime_baseline(
+                root,
+                "Go",
+                canonical("PARTIAL", "ffi_fragment()", partial=["P-b"]),
+            )
+        except benchmark.BenchmarkError as exc:
+            assert "cannot cite P-b" in str(exc)
+        else:
+            raise AssertionError("trusted F20 runtime evidence did not reject P-b")
+
+
+def assert_f20_work_plan_uses_stable_runtime_facts() -> None:
+    plan = json.loads(
+        (ROOT / "benchmark/template/config/work_plan_templates.json").read_text()
     )
-    environment = json.loads(
-        (
-            ROOT
-            / "benchmark/template/environment/environment.json"
-        ).read_text(encoding="utf-8")
-    )
-    cases = fixtures["languages"]
-    assert set(cases) == {"Python", "Go", "Java", "Kotlin"}, cases
-    frozen = environment["frozen_toolchain_recipes"]
-    for language, row in cases.items():
-        assert row["build"] == frozen[language]["build"], (language, row, frozen[language])
-        assert row["run"] == frozen[language]["run"], (language, row, frozen[language])
-        assert row.get("source"), language
-        assert row.get("mechanism"), language
+    units = {
+        unit["id"]: unit
+        for unit in plan["evaluations"]["semantic_compression"]["units"]
+    }
+    for unit_id in (
+        "sc-metrics-hidden-coverage--part-2",
+        "sc-support-adjudication--f20-p1",
+        "sc-comparability",
+    ):
+        reads = units[unit_id].get("read_paths", [])
+        assert "work/root/f20_runtime_facts.json" in reads, (unit_id, reads)
+        assert "results/toolchains.json" not in reads, (unit_id, reads)
+        assert "template/runtime/f20_interop_fixtures.json" not in reads, (
+            unit_id, reads
+        )
 
 
 def assert_adjudication_is_authoritative() -> None:
@@ -463,6 +548,24 @@ def assert_support_adjudication_receives_trusted_verification() -> None:
                 },
             },
         )
+        benchmark.json_dump(
+            root / benchmark.F20_RUNTIME_FACTS_RELATIVE,
+            {
+                "schema_version": 1,
+                "probe_id": "F20.P1",
+                "source": "/opt/quidra-benchmark/toolchains-observed.json",
+                "languages": {
+                    "Python": {
+                        "mechanism": "standard-library ctypes",
+                        "passed": True,
+                        "frozen_recipe_extra_flags": [],
+                        "build_argv": None,
+                        "run_argv": ["python3", "ffi.py"],
+                        "observed_stdout": "3",
+                    }
+                },
+            },
+        )
         source = {
             "id": "sc-source--python",
             "assigned_agent_id": "worker-python",
@@ -486,6 +589,9 @@ def assert_support_adjudication_receives_trusted_verification() -> None:
         assert verified["runs"][0]["exit_code"] == 0, verified
         assert verified["runs"][0]["stdout"] == "3\n", verified
         assert payload["frozen_toolchains"]["Python"]["canonical"] == "3.14.5", payload
+        assert payload["trusted_runtime_baselines"]["languages"]["Python"][
+            "observed_stdout"
+        ] == "3", payload
         assert "do not contradict those build/run facts" in payload["task"], payload["task"]
 
 
@@ -527,7 +633,8 @@ def main() -> None:
     assert_support_adjudication_receives_trusted_verification()
     assert_probe_alias_rows_are_recognized()
     assert_conflicting_annotation_fields_are_rejected()
-    assert_f20_runtime_fixtures_match_frozen_recipes()
+    assert_f20_runtime_facts_contract()
+    assert_f20_work_plan_uses_stable_runtime_facts()
     assert_adjudication_is_authoritative()
     assert_repair_loop_is_scoped_and_idempotent()
     assert_every_sampled_probe_has_a_cohort_adjudicator()

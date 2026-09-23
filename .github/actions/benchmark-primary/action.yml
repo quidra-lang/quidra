@@ -180,7 +180,7 @@ runs:
         PY
         )"
         echo "remaining=$remaining" >> "$GITHUB_OUTPUT"
-        echo "remaining whole-run budget: $$remaining"
+        echo "remaining whole-run budget: $remaining"
 
     - name: Run paid ${{ inputs.evaluation }} benchmark
       id: paid

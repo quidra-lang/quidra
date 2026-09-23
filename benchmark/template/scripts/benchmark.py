@@ -8235,9 +8235,36 @@ def archive_attempt(
     })
     if reset:
         task = json_load(agent_dir / "task.json")
+        # Scored trial calls are the expensive atomic measurements. A retry of the
+        # surrounding worker must not buy them again merely because result.json,
+        # an orchestration turn, or a validator failed. Preserve only runtime-owned
+        # trial records plus the audit trace that proves when/how those calls were
+        # made; ordinary worker-authored outputs are intentionally rebuilt.
+        trial_resume = False
+        trace_name: str | None = None
+        if is_trial_unit(unit):
+            for candidate in ("agent_trace.json", "agent_trace.partial.json"):
+                if (archive / candidate).is_file():
+                    trace_name = candidate
+                    trial_resume = True
+                    break
+
         shutil.rmtree(agent_dir)
         agent_dir.mkdir(parents=True, exist_ok=True)
         json_dump(agent_dir / "task.json", task)
+
+        if trial_resume and trace_name is not None:
+            archived_trials = archive / "trials"
+            if archived_trials.is_dir():
+                shutil.copytree(archived_trials, agent_dir / "trials")
+            # Learnability attestations are frozen-snapshot infrastructure evidence,
+            # not model scores. Keeping them lets a resumed trial remain auditable
+            # without pretending that a fresh preflight happened after paid calls.
+            for name in ("learnability_preflight.json", "learnability_leakage.json"):
+                src = archive / name
+                if src.is_file():
+                    shutil.copy2(src, agent_dir / name)
+            shutil.copy2(archive / trace_name, agent_dir / "resume_trace.json")
     return str(archive)
 
 

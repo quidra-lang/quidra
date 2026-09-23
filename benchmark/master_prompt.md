@@ -11,10 +11,10 @@ A new run may use only:
 - the evaluated Quidra snapshot;
 - `benchmark/master_prompt.md`;
 - the current `benchmark/template/`;
-- the explicit certified measurement cache under `benchmark/cache/`; and
-- the private CI paid-partial checkpoint store, accepted only after an exact dependency fingerprint and Task Packet hash match.
+- the certified result cache under `benchmark/cache/`; and
+- exact-fingerprint private CI checkpoints of already-paid, incomplete leaf state.
 
-Past run directories are output/audit artifacts only. They are never inputs to a new run. Reusable source, fixture, validator, workload and prompt inputs live in the template. Finalized measurements may enter only through the certified cache after an exact fingerprint match plus current-validator revalidation. The private paid-partial store contains no final scores: it restores only already-paid packet responses or sandbox trial/session bytes into unresolved leaves, after which the current runner and validator still decide whether the leaf becomes COMPLETE.
+Past run directories are outputs only. Final results are reusable only after fingerprint match and current-validator revalidation. Paid-partial checkpoints never certify a score.
 
 ## 2. Five independent Primary evaluations
 
@@ -44,7 +44,7 @@ The evaluated source is `/quidra-benchmark/repo`; the immutable current template
 
 ## 4. Starting a run, and the command-first lifecycle
 
-A real run starts only on the disposable `benchmark` branch made from the exact green `develop` snapshot; only a change to `benchmark/.run-production` there can start paid inference. Before scored calls, the workflow builds the pinned runtime, freezes the manifest, hydrates proven certified-cache hits, restores exact-fingerprint paid-partial checkpoints, and runs `production_run.py budget-plan` on unresolved work. The persisted plan classifies each leaf as reused+revalidated, new paid execution, paid re-evaluation after invalidation, dependency-deferred, machine-only, or blocked; it records paid-call and conservative cost upper bounds. Restored paid trial calls are subtracted before pricing. `max_tokens` is only a truncation guard. If the whole-run budget is insufficient, scored inference does not start. After each Primary, `execution-actual-<evaluation>.json` records actual calls/cost versus the frozen plan and the mechanical reason for any delta.
+A real run starts only on disposable `benchmark` from the exact green `develop` snapshot; only `benchmark/.run-production` starts paid inference. Before payment, freeze the manifest, hydrate/revalidate certified hits, restore exact paid-partial checkpoints, and persist `budget-plan`: reuse, invalidation/re-evaluation, new work, deferred work, blockers, paid-call bound and cost bound. Restored paid calls reduce that bound. Underfunded runs do not dispatch. Persist actual-vs-plan after each Primary.
 
 The workflow then runs one live provider smoke with a shared-prefix cache probe. Each Primary has one initial slice and two recovery slices. A checkpoint preserves the frozen workspace/ledger; the next slice skips COMPLETE work, revalidates cache hits, and runs only what remains. `benchmark-smoke` is still available for provider/model/gateway diagnostics.
 
@@ -163,9 +163,9 @@ Ledger state is authoritative. Work units use `PENDING`, `RUNNING`, `COMPLETE`, 
 
 A worker crash must not strand the run permanently. RUNNING work has a heartbeat lease. When stale, the runner returns it to PENDING and redispatches the same frozen Task Packet. After the frozen maximum attempts, it becomes an explicit infrastructure blocker instead of remaining silently stuck.
 
-Paid inference has an earlier commit point than leaf completion. Packet-only provider replies are content-addressed before parsing/import/validation. Sandbox trials persist every prompt, completion, session and paid-call journal entry before control returns to orchestration. Workflow handoffs carry those bytes between jobs; a private GitHub Actions cache also stores paid-but-incomplete state keyed by the full cache fingerprint so a later Actions run can restore matching trial calls without committing raw completions to Git. A mismatch, corrupt blob or conflicting workspace file rejects only that checkpoint and never certifies a result.
+Persist a paid response/trial before later parsing, validation or orchestration can fail. Handoffs and the private exact-fingerprint Actions checkpoint preserve incomplete paid state; mismatch/corruption rejects only that checkpoint.
 
-COMPLETE requires real evidence plus a passing current validator. A diagnostic finalize may record an incomplete run, but `results/completeness_audit.json` is authoritative about missing required leaves. `post-run` refuses publication unless `finalization.json.formal_complete == true`.
+COMPLETE requires evidence plus current-validator PASS. Diagnostic finalize records missing required leaves in `completeness_audit.json`; `post-run` requires `formal_complete=true`.
 
 ## 7. Deterministic score/ranking publication
 
@@ -179,14 +179,7 @@ If those conditions are not met, the evaluation is PARTIAL/WITHDRAWN/NOT_EXECUTE
 
 ## 8. Template, certified cache and run summaries
 
-The benchmark has four deliberately separate layers:
-
-1. **Template** — reusable prompts, prompt components, source, harnesses, fixtures, validators, workloads and methodology under `benchmark/template/`.
-2. **Certified result cache** — validated leaf measurements under `benchmark/cache/`, keyed by a complete benchmark-input fingerprint and revalidated by the current runner.
-3. **Private paid-partial checkpoint cache** — raw already-paid packet/trial state held by GitHub Actions cache, never treated as a score and never committed as a run result.
-4. **Run summary** — only for a formally COMPLETE run: compact identity,
-scores/rankings, cache provenance and overview under `benchmark/<run-id>/`.
-Incomplete attempts never occupy this namespace.
+Four layers are separate: reusable **template**, revalidated **certified result cache**, non-scoring private **paid-partial checkpoint cache**, and the compact **formal run summary** under `benchmark/<run-id>/`. Only formally COMPLETE runs get a run summary.
 
 A certified measurement may be reused only when its fingerprint matches exactly. The fingerprint includes the exact Task Packet SHA-256, assigned language set, provider/model, frozen sampling state, relevant toolchain versions, validator/workload inputs, worker/network policy, runtime-toolchain manifest and cache epoch. A cache HIT is revalidated by the current runner before it becomes COMPLETE. A MISS executes normally; an eligible non-Quidra unit may be checkpointed independently once that unit is COMPLETE, its current validator is PASS, and any evaluation-specific cache certification succeeds. Overall Primary finalization is not required for that checkpoint.
 
@@ -208,8 +201,7 @@ Template maintenance happens before freeze or after the scored sandbox has exite
 
 Machine-readable results are the single source of truth. Markdown/CSV/charts are generated from them.
 
-Git retains a compact summary only for five-COMPLETE runs. Incomplete blockers
-stay in workflow evidence rather than becoming dated published runs. Raw prompts, completions, worker directories, traces, plans, ledgers and command evidence remain in the workflow evidence artifact for the frozen retention window instead of being committed once per run. Paid-but-incomplete prompt/completion state may also live in the private Actions cache so an exact future fingerprint can resume it; those bytes are not a certified result and are ignored on any dependency mismatch. Reusable prompt bytes are deduplicated in the content-addressed template prompt store, and reusable validated measurements are deduplicated in the certified cache.
+Git retains a compact summary only for five-COMPLETE runs. Incomplete runs remain workflow evidence/cache recovery. Raw run evidence stays in workflow artifacts; paid-partial bytes may additionally live in the private Actions cache and are ignored on dependency mismatch. Reusable prompts and validated measurements are content-addressed/deduplicated.
 
 Build products, the evaluated repository snapshot, temporary home and temporary files are never committed as run output. The gateway request audit remains trusted-side evidence. Never retain credentials, personal email addresses, host home paths or source-checkout paths outside `/quidra-benchmark`.
 

@@ -764,9 +764,17 @@ def assert_cached_validator_rejection_becomes_miss() -> None:
         rel = benchmark.cache_record_relative(unit, fingerprint)
         path = root / "cache" / rel
         record = benchmark.json_load(path)
+        # Worker-provided arithmetic is deliberately non-authoritative:
+        # current validation recomputes it from evidence, so a stale/bogus
+        # requirements score alone must NOT force a paid rerun. Corrupt the
+        # underlying rubric evidence instead; that cannot be repaired
+        # mechanically and must become a leaf-local cache invalidation.
         record["result"]["requirements"] = {
             "metric.documentation_quality": {"Python": 999.0}
         }
+        evidence = record["result"]["evidence"]["metric.documentation_quality"]
+        first_component = next(iter(evidence["component_levels"]))
+        evidence["component_levels"][first_component] = 9
         raw = json.dumps(
             record["result"], sort_keys=True, separators=(",", ":")
         ).encode("utf-8")

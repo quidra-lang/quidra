@@ -818,10 +818,12 @@ def main() -> None:
         # The ecosystem epoch is declared by a person, not by the calendar: the
         # key carries the declared value, so records survive a month boundary
         # and miss only when the operator changes the value.
-        assert benchmark.cache_epoch(root, "ecosystem") == "2026-09"
-        assert benchmark.cache_epoch(root, "semantic_compression") == "2026-09-canonical-fragments-v6-fixed-stdout"
+        epoch_policy = benchmark.cache_policy(root)
+        for evaluation in ("ecosystem", "semantic_compression", "llm_proficiency"):
+            assert benchmark.cache_epoch(root, evaluation) == (
+                epoch_policy["declared_epochs"][evaluation]
+            )
         assert benchmark.cache_epoch(root, "llm_learnability") == "stable"
-        assert benchmark.cache_epoch(root, "llm_proficiency") == "2026-09-complete-primary-trials-v5-prompt-variants"
         policy_path = root / "template/config/cache_policy.json"
         policy_bytes = policy_path.read_bytes()
         policy = benchmark.json_load(policy_path)

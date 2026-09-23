@@ -1,88 +1,84 @@
 {
-  "schema_version": 1,
   "evaluations": {
-    "semantic_compression": {
-      "type": "semantic_harmonic",
-      "quality_weights": {
-        "metric.semantic_density": 0.2,
-        "metric.semantic_determinacy": 0.25,
-        "metric.semantic_locality": 0.2,
-        "metric.hidden_semantic_cost": 0.2,
-        "metric.capability_efficiency": 0.15
-      },
-      "coverage_metric": "metric.capability_coverage",
-      "recompute_from_evidence": {
-        "why": "Methodology 6.1.4 freezes each metric's raw value and its direction but not the map from that raw value to the 0-100 scale the metrics are reported on, and a language shard cannot see the other nine. Left to the workers, the first full run received min(100, raw*1000) from one language, min(100, raw/0.35*100) from another and raw*100 from five more, which the harmonic combination would have mixed into a ranking. The runner recomputes every quality metric from the per-probe evidence each shard recorded, on the basis the shards themselves said it must: the probes every language covered.",
-        "common_basis": "probes for which all ten languages recorded a per-probe row",
-        "normalization": "min_max_across_languages",
-        "metrics": {
-          "metric.semantic_density": {
-            "reduce": "ratio",
-            "direction": "higher_is_better",
-            "numerator": [
-              "explicit_local_facts",
-              "explicit_local_sites",
-              "explicit_local_count",
-              "explicit_local",
-              "explicit_local_semantic_sites"
-            ],
-            "denominator": [
-              "tokens",
-              "lexical_tokens",
-              "token_count",
-              "lexical_source_tokens",
-              "source_tokens"
-            ]
-          },
-          "metric.semantic_determinacy": {
-            "reduce": "mean_log2",
-            "direction": "lower_is_better",
-            "fields": [
-              "b",
-              "b_i",
-              "branching",
-              "branch_count",
-              "branching_factor",
-              "interpretations"
-            ]
-          },
-          "metric.semantic_locality": {
-            "reduce": "mean",
-            "direction": "lower_is_better",
-            "fields": [
-              "l",
-              "lookups",
-              "lookup_count",
-              "required_lookups",
-              "hops",
-              "nonlocal_lookups",
-              "lookup"
-            ]
-          },
-          "metric.hidden_semantic_cost": {
-            "reduce": "mean",
-            "direction": "lower_is_better",
-            "fields": [
-              "count",
-              "hidden_count",
-              "hidden",
-              "categories_triggered",
-              "hidden_categories"
-            ]
-          },
-          "metric.capability_efficiency": {
-            "reduce": "language_ratio",
-            "direction": "lower_is_better",
-            "raw_patterns": [
-              "raw.*(_e\\b|_e_|efficiency)",
-              "efficiency.*raw",
-              "units_per_point"
-            ],
-            "numerator_pattern": "(total_(semantic_)?complexity_units|sum_of_totals)",
-            "denominator_pattern": "supported_capability_points"
-          }
+    "ecosystem": {
+      "categories": {
+        "external": {
+          "metrics": [
+            "metric.third_party_library_availability_domain_coverage",
+            "metric.package_ecosystem_activity_maintenance",
+            "metric.third_party_tool_availability",
+            "metric.production_adoption_deployment_evidence",
+            "metric.community_public_knowledge_availability"
+          ],
+          "weight": 0.5
+        },
+        "tooling": {
+          "metrics": [
+            "metric.core_tooling_availability_quality",
+            "metric.package_dependency_management_quality",
+            "metric.ide_editor_support_quality",
+            "metric.debugger_profiler_support",
+            "metric.build_test_integration",
+            "metric.documentation_quality",
+            "metric.installation_distribution_experience",
+            "metric.toolchain_stability_release_maturity",
+            "metric.implemented_platform_coverage",
+            "metric.external_integration_coverage"
+          ],
+          "weight": 0.5
         }
-      }
+      },
+      "type": "category_mean"
+    },
+    "language_quality": {
+      "categories": {
+        "language_development": {
+          "metrics": [
+            "metric.code_efficiency_conciseness",
+            "metric.readability",
+            "metric.functionality_expressiveness",
+            "metric.diagnostics",
+            "metric.dependency_simplicity",
+            "metric.portability_design_platform_neutrality",
+            "metric.ffi_interoperability_design",
+            "metric.concurrency"
+          ],
+          "weight": 0.25
+        },
+        "performance": {
+          "metrics": [
+            "metric.native_execution_performance",
+            "metric.long_running_performance",
+            "metric.compile_build_performance",
+            "metric.startup_latency"
+          ],
+          "weight": 0.25
+        },
+        "resource": {
+          "metrics": [
+            "metric.memory_efficiency",
+            "metric.source_code_size",
+            "metric.binary_artifact_size",
+            "metric.runtime_overhead"
+          ],
+          "weight": 0.1875
+        },
+        "safety_robustness": {
+          "metrics": [
+            "metric.type_safety",
+            "metric.memory_safety",
+            "metric.runtime_safety",
+            "metric.boundary_value_safety",
+            "metric.adversarial_input_robustness",
+            "metric.early_error_detection",
+            "metric.debuggability",
+            "metric.silent_bug_resistance",
+            "metric.implementation_robustness"
+          ],
+          "weight": 0.3125
+        }
+      },
+      "type": "category_mean"
     },
     "llm_learnability": {
       "type": "weighted_mean",
@@ -95,108 +91,127 @@
         "condition.i6_prior_conflict_resistance": 0.1
       }
     },
-    "language_quality": {
-      "type": "category_mean",
-      "categories": {
-        "performance": {
-          "weight": 0.25,
-          "metrics": [
-            "metric.native_execution_performance",
-            "metric.long_running_performance",
-            "metric.compile_build_performance",
-            "metric.startup_latency"
-          ]
-        },
-        "resource": {
-          "weight": 0.1875,
-          "metrics": [
-            "metric.memory_efficiency",
-            "metric.source_code_size",
-            "metric.binary_artifact_size",
-            "metric.runtime_overhead"
-          ]
-        },
-        "language_development": {
-          "weight": 0.25,
-          "metrics": [
-            "metric.code_efficiency_conciseness",
-            "metric.readability",
-            "metric.functionality_expressiveness",
-            "metric.diagnostics",
-            "metric.dependency_simplicity",
-            "metric.portability_design_platform_neutrality",
-            "metric.ffi_interoperability_design",
-            "metric.concurrency"
-          ]
-        },
-        "safety_robustness": {
-          "weight": 0.3125,
-          "metrics": [
-            "metric.type_safety",
-            "metric.memory_safety",
-            "metric.runtime_safety",
-            "metric.boundary_value_safety",
-            "metric.adversarial_input_robustness",
-            "metric.early_error_detection",
-            "metric.debuggability",
-            "metric.silent_bug_resistance",
-            "metric.implementation_robustness"
-          ]
-        }
-      }
-    },
-    "ecosystem": {
-      "type": "category_mean",
-      "categories": {
-        "external": {
-          "weight": 0.5,
-          "metrics": [
-            "metric.third_party_library_availability_domain_coverage",
-            "metric.package_ecosystem_activity_maintenance",
-            "metric.third_party_tool_availability",
-            "metric.production_adoption_deployment_evidence",
-            "metric.community_public_knowledge_availability"
-          ]
-        },
-        "tooling": {
-          "weight": 0.5,
-          "metrics": [
-            "metric.core_tooling_availability_quality",
-            "metric.package_dependency_management_quality",
-            "metric.ide_editor_support_quality",
-            "metric.debugger_profiler_support",
-            "metric.build_test_integration",
-            "metric.documentation_quality",
-            "metric.installation_distribution_experience",
-            "metric.toolchain_stability_release_maturity",
-            "metric.implemented_platform_coverage",
-            "metric.external_integration_coverage"
-          ]
-        }
-      }
-    },
     "llm_proficiency": {
       "type": "weighted_mean",
       "weights": {
-        "metric.generation_success_rate": 0.04,
         "metric.compile_parse_success_rate": 0.04,
         "metric.correct_at_1": 0.12,
         "metric.correct_at_n": 0.05,
-        "metric.test_pass_rate": 0.1,
-        "metric.repair_success_rate": 0.07,
-        "metric.repair_efficiency": 0.05,
         "metric.diagnosis_efficiency": 0.05,
-        "metric.silent_bug_resistance": 0.12,
-        "metric.syntax_hallucination_resistance": 0.07,
-        "metric.specification_compliance": 0.07,
-        "metric.prompt_robustness": 0.05,
-        "metric.unseen_case_generalization": 0.06,
-        "metric.source_token_efficiency": 0.03,
-        "metric.total_token_efficiency": 0.03,
-        "metric.generated_code_performance": 0.03,
+        "metric.generated_code_compile_performance": 0.01,
         "metric.generated_code_memory_efficiency": 0.01,
-        "metric.generated_code_compile_performance": 0.01
+        "metric.generated_code_performance": 0.03,
+        "metric.generation_success_rate": 0.04,
+        "metric.prompt_robustness": 0.05,
+        "metric.repair_efficiency": 0.05,
+        "metric.repair_success_rate": 0.07,
+        "metric.silent_bug_resistance": 0.12,
+        "metric.source_token_efficiency": 0.03,
+        "metric.specification_compliance": 0.07,
+        "metric.syntax_hallucination_resistance": 0.07,
+        "metric.test_pass_rate": 0.1,
+        "metric.total_token_efficiency": 0.03,
+        "metric.unseen_case_generalization": 0.06
       }
+    },
+    "semantic_compression": {
+      "coverage_metric": "metric.capability_coverage",
+      "quality_weights": {
+        "metric.capability_efficiency": 0.15,
+        "metric.hidden_semantic_cost": 0.2,
+        "metric.semantic_density": 0.2,
+        "metric.semantic_determinacy": 0.25,
+        "metric.semantic_locality": 0.2
+      },
+      "recompute_from_evidence": {
+        "common_basis": "probes for which all ten languages recorded a per-probe row",
+        "metrics": {
+          "metric.capability_efficiency": {
+            "denominator_pattern": "supported_capability_points",
+            "direction": "lower_is_better",
+            "numerator_pattern": "(total_(semantic_)?complexity_units|sum_of_totals)",
+            "raw_patterns": [
+              "raw.*(_e\\b|_e_|efficiency)",
+              "efficiency.*raw",
+              "units_per_point"
+            ],
+            "reduce": "language_ratio"
+          },
+          "metric.hidden_semantic_cost": {
+            "direction": "lower_is_better",
+            "fields": [
+              "count",
+              "hidden_count",
+              "hidden",
+              "categories_triggered",
+              "hidden_categories"
+            ],
+            "reduce": "mean"
+          },
+          "metric.semantic_density": {
+            "denominator": [
+              "tokens",
+              "lexical_tokens",
+              "token_count",
+              "lexical_source_tokens",
+              "source_tokens"
+            ],
+            "direction": "higher_is_better",
+            "numerator": [
+              "explicit_local_facts",
+              "explicit_local_sites",
+              "explicit_local_count",
+              "explicit_local",
+              "explicit_local_semantic_sites"
+            ],
+            "reduce": "ratio"
+          },
+          "metric.semantic_determinacy": {
+            "direction": "lower_is_better",
+            "fields": [
+              "b",
+              "b_i",
+              "branching",
+              "branch_count",
+              "branching_factor",
+              "interpretations"
+            ],
+            "reduce": "mean_log2"
+          },
+          "metric.semantic_locality": {
+            "direction": "lower_is_better",
+            "fields": [
+              "l",
+              "lookups",
+              "lookup_count",
+              "required_lookups",
+              "hops",
+              "nonlocal_lookups",
+              "lookup"
+            ],
+            "reduce": "mean"
+          }
+        },
+        "normalization": "min_max_across_languages",
+        "why": "Methodology 6.1.4 freezes each metric's raw value and its direction but not the map from that raw value to the 0-100 scale the metrics are reported on, and a language shard cannot see the other nine. Left to the workers, the first full run received min(100, raw*1000) from one language, min(100, raw/0.35*100) from another and raw*100 from five more, which the harmonic combination would have mixed into a ranking. The runner recomputes every quality metric from the per-probe evidence each shard recorded, on the basis the shards themselves said it must: the probes every language covered."
+      },
+      "support_level_owner": {
+        "fields": [
+          "support",
+          "support_level",
+          "level"
+        ],
+        "fields_note": "The shards wrote the same statement under different names - a bare `support`, or a `level` inside a `per_probe_support` mapping - so the owner's level is read under any of these names, exactly as sc_row_number reads a metric's raw value under its own synonyms. A shard in a new shape needs this list extended.",
+        "levels": {
+          "FULL": 1.0,
+          "NONE": 0.0,
+          "PARTIAL": 0.5
+        },
+        "requirement_id": "metric.capability_coverage",
+        "why": "Every metric shard annotated the support level of every probe it touched, and nothing reconciled them, so one language could carry several levels for one probe under different field names. The first blinded comparability audit correctly refused such a sample: a record that states two levels has not stated one. Capability Coverage is the metric that is definitionally the support ledger, so it owns the level; the others cite it. The runner projects that one level, and the points the frozen award_formula derives from it, into the audit sample, and records every annotation it replaced."
+      },
+      "type": "semantic_harmonic"
     }
-  }
+  },
+  "schema_version": 1
 }

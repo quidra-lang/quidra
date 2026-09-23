@@ -10087,14 +10087,24 @@ def category_score(categories: dict[str, Any], req: dict[str, Any], language: st
 
 
 def deterministic_ranking(scores: dict[str, float], language_order: list[str]) -> list[dict[str, Any]]:
+    """Rank only at the precision the benchmark actually publishes.
+
+    Comparing hidden floating-point dust while displaying two decimals can print
+    identical scores with different ranks. Round once to the frozen publication
+    precision, sort those published values, and give identical published scores
+    the same competition rank.
+    """
     order_index = {name: i for i, name in enumerate(language_order)}
-    ordered = sorted(scores.items(), key=lambda kv: (-kv[1], order_index[kv[0]]))
+    published = {name: round(float(score), 2) for name, score in scores.items()}
+    ordered = sorted(
+        published.items(), key=lambda kv: (-kv[1], order_index[kv[0]])
+    )
     ranking = []
     previous_score = None
     previous_rank = 0
     for index, (language, score) in enumerate(ordered, start=1):
         rank = previous_rank if previous_score is not None and score == previous_score else index
-        ranking.append({"rank": rank, "language": language, "score": round(score, 2)})
+        ranking.append({"rank": rank, "language": language, "score": score})
         previous_score = score
         previous_rank = rank
     return ranking

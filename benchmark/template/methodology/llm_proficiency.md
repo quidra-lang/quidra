@@ -42,7 +42,7 @@ All LLM Proficiency replication counts are read **only** from `/quidra-benchmark
 Binding controls:
 
 - one exact model/version and provider/client interface for the whole Primary evaluation;
-- exactly `llm_proficiency.independent_trials_per_replicated_cell` fresh independent trials for every replicated Proficiency cell;
+- exactly `llm_proficiency.independent_trials_per_replicated_cell` fresh independent trials for every replicated Proficiency cell, with one trial assigned to each entry of the equally sized frozen `llm_proficiency.primary_prompt_variants` list;
 - at most `llm_proficiency.max_repair_turns` repair turns per trial;
 - identical decoding controls or the same recorded provider-controlled/unavailable state for all languages;
 - identical prompt structure/budget, oracle policy, success stopping rule and token-accounting rule across languages;
@@ -60,7 +60,7 @@ The Primary replicated-cell universe is exactly the Cartesian product of `llm_pr
 
 The concrete Primary tasks are frozen offline in `methodology-assets/llm_proficiency/workloads.json`. That asset records the exact upstream commit provenance and the predeclared common subset for SVM, GMM and LightGrad, plus the complete specification, validation contract and one frozen C++ reference implementation per workload. A scored run never fetches or reinterprets the live upstream repositories.
 
-The trusted sandbox runtime, not the orchestration worker, constructs every initial Proficiency trial prompt from that frozen asset. Replications of one workload/scenario cell receive byte-identical prompts in fresh sessions. The `specification_to_implementation` prompt contains no reference source; the `reference_to_porting` prompt contains the same frozen C++ reference for every target language. A worker-supplied replacement initial prompt is rejected before inference. Prompt hashes are rechecked by the integrity gate and certified into cache records.
+The trusted sandbox runtime, not the orchestration worker, constructs every initial Proficiency trial prompt from that frozen asset. The three Primary trials of one workload/scenario cell use the three predeclared equivalent prompt layouts in `primary_prompt_variants` (canonical, scenario-first, contract-first), one fresh session per layout; the semantic specification, validation contract, build/run recipe, reference source when applicable, and all restrictions are identical. The same variant set and ordering are used for every language. The `specification_to_implementation` prompt contains no reference source; the `reference_to_porting` prompt contains the same frozen C++ reference for every target language. A worker-supplied replacement initial prompt is rejected before inference. Prompt hashes are rechecked by the integrity gate and certified into cache records.
 
 Extended replication is diagnostic only and begins after all five Primary evaluations are complete or legitimately blocked.
 
@@ -231,21 +231,16 @@ Do not merge them into a single raw dataset.
 
 # 21. Unseen-case Generalization
 
-Provide the LLM with:
+Primary Unseen-case Generalization is runner-owned. Each workload prompt exposes
+the input/output protocol and one public example, while the trusted verifier runs
+additional predeclared hidden inputs from the frozen workload contract. Hidden
+inputs, expected values and hidden-run output are never placed in a scored prompt
+or worker-readable input.
 
-- part of the language specification
-- a limited number of examples
-
-Then test cases not directly demonstrated in those examples, including:
-
-- new rule combinations
-- boundary cases
-- nested expressions
-- type combinations
-- error cases
-- API combinations
-
-Measure how reliably the LLM derives correct behavior from the known rules.
+The Primary score uses the **first completion only**, before any repair feedback:
+it is the percentage of hidden oracle cases passed across all frozen
+workload/scenario/prompt-variant trials. This keeps generalization distinct from
+Repair Success and Correct@N. The same hidden case set is used for every language.
 
 Score this as:
 
@@ -255,20 +250,20 @@ Score this as:
 
 # 22. Prompt Robustness
 
-For the same semantic task, create equivalent prompt variations.
+Primary Prompt Robustness uses the three frozen equivalent layouts named by
+`llm_proficiency.primary_prompt_variants`. They change only presentation order
+and formatting of the same semantic task; no variant adds or removes a
+requirement, example, reference, validation rule or toolchain rule. Each
+workload/scenario cell receives one fresh trial for each variant, so this costs
+the same 18 initial Primary trials as the previous three-replication design.
 
-Vary aspects such as:
+For each prompt variant, compute the first-attempt full-oracle correctness rate
+over all Primary workload/scenario cells. **Prompt Robustness is the minimum of
+those per-variant correctness rates.** Using the worst variant rather than
+agreement alone prevents a consistently wrong model from receiving a high
+robustness score.
 
-- wording
-- sentence order
-- concise vs verbose phrasing
-- formatting
-
-Keep the requested behavior unchanged.
-
-Use the same variation set for every language.
-
-Measure whether output correctness remains stable.
+The same variant set and ordering are used for every language.
 
 Score this as:
 

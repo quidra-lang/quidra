@@ -23,6 +23,14 @@
     "runner_action_and_measurement_script_hashes_for_mechanical_units",
     "proficiency_workload_contract_sha256_for_llm_proficiency"
   ],
+  "non_dependencies": [
+    "run_id",
+    "GitHub Actions run/job/attempt id",
+    "benchmark branch name",
+    "host workspace path",
+    "orchestration-only leaf naming when the rendered semantic task contract is unchanged"
+  ],
+  "non_dependency_note": "These values must never invalidate paid scientific evidence by themselves. Exact rendered prompt/task content, assigned requirements, readable input hashes, model identity, toolchain identity, validators and declared epochs remain dependencies.",
   "reuse_conditions": {
     "scored_output_cap": "The output cap of a scored trial is not part of the key. A certified llm_learnability or llm_proficiency record carries what its trials did against the cap they ran under (scored_output_cap, trial_calls, cap_truncated_trial_calls, max_trial_output_tokens, written at promotion or by cache-annotate-caps from the run's retained agent traces). Under the same cap the record is reused. Under a different cap it is reused only when the cap demonstrably never mattered: no trial call was cut off and no completion was larger than the current cap. A record without this evidence is a MISS until it is annotated.",
     "quidra_execution_identity": "The historical fingerprint remains unchanged so already-paid cache stays addressable. Reuse of any record that measures Quidra additionally requires an exact compiler/runtime execution identity. New records carry it explicitly; legacy records are accepted only from verified migration commits while the target still equals the frozen migration baseline.",

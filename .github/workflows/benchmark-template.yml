@@ -528,6 +528,7 @@ jobs:
           QUIDRA_BENCHMARK_WORKER_GATEWAY_ATTESTED: packet-gateway-v1
           QUIDRA_BENCHMARK_PACKET_WORKER_LOCAL_TOOLS: disabled
           QUIDRA_BENCHMARK_SANDBOX_AGENT_LAUNCHER_ATTESTED: inside-sandbox-v1
+          QUIDRA_BENCHMARK_SYNTHETIC_COMMANDS: "1"
         run: |
           TMP="$PWD/.benchmark-template-test"
           rm -rf "$TMP"

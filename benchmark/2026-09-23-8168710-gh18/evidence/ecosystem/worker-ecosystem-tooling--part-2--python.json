@@ -1,0 +1,137 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-2--python",
+  "assigned_languages": [
+    "Python"
+  ],
+  "evidence": {
+    "assigned_languages": [
+      "Python"
+    ],
+    "frozen_rubric": {
+      "application_note": "Same evidence sources (official docs, vendor marketplace/feature pages, maintained package READMEs), same snapshot window (Sep 2026), and same 4x25 decomposition are to be applied unchanged to every language cell across all worker shards.",
+      "metric.debugger_profiler_support": {
+        "scale": "0-100, 100 best",
+        "sub_components_equal_weight_25_each": [
+          {
+            "definition": "Presence of a standard/first-party debugger and its integration into at least one major IDE/editor with breakpoints, step-through, and variable/stack inspection. Scored 0-25.",
+            "id": "builtin_debugger_ide_integration"
+          },
+          {
+            "definition": "Breadth and maturity of CPU/line/memory profiling tools, including any standard-library profiler plus a documented set of actively maintained third-party profilers. Scored 0-25.",
+            "id": "profiler_tooling_breadth"
+          },
+          {
+            "definition": "Availability of low-overhead sampling profilers usable against live/production processes without code modification, including flame-graph generation. Scored 0-25.",
+            "id": "production_remote_sampling_profiling"
+          },
+          {
+            "definition": "Support for remote/attach debugging, conditional breakpoints, logpoints/hit-counts, and multi-thread/async debugging in the primary IDE debugger stack. Scored 0-25.",
+            "id": "advanced_debugger_capabilities"
+          }
+        ]
+      },
+      "metric.ide_editor_support_quality": {
+        "scale": "0-100, 100 best",
+        "sub_components_equal_weight_25_each": [
+          {
+            "definition": "Presence of mature, actively-maintained, dedicated support (not merely generic syntax highlighting) in each of: (a) VS Code via an official/first-party extension, (b) a dedicated or first-class JetBrains IDE, (c) Neovim/Vim via LSP, (d) Emacs via LSP. Score = 25 * (count_of_editors_with_mature_dedicated_support / 4).",
+            "id": "major_editor_coverage"
+          },
+          {
+            "definition": "Existence and maturity of a robust, actively maintained language server (or equivalent) providing completions, hover, go-to-definition, diagnostics, and workspace symbol search. Scored 0-25 by evidence of active development, performance engineering, and breadth of IntelliSense features documented by the vendor/maintainer.",
+            "id": "language_server_intellisense_maturity"
+          },
+          {
+            "definition": "Depth of automated refactoring and navigation: rename symbol, extract, move-symbol-to-file, find-all-references, workspace symbol search. Scored 0-25 by count and documented reliability of these operations across the primary tool stack.",
+            "id": "refactoring_navigation_depth"
+          },
+          {
+            "definition": "Integration depth for environment/interpreter management, notebook support, linter/formatter integration, and AI-assisted completion availability inside the primary editor stack. Scored 0-25.",
+            "id": "ecosystem_tooling_integration"
+          }
+        ]
+      },
+      "note": "This rubric is frozen and intended to be applied identically to all 10 languages in the benchmark language set. This worker unit evaluates only the Python cell of each metric; other languages are scored by other shards using the same rubric."
+    },
+    "metric.debugger_profiler_support_python": {
+      "citations_used": [
+        "https://docs.python.org/3/library/debug.html",
+        "https://docs.python.org/3/library/profile.html",
+        "https://code.visualstudio.com/docs/python/debugging",
+        "https://www.componentsource.com/product/pycharm",
+        "https://github.com/benfred/py-spy",
+        "https://blog.jetbrains.com/pycharm/2015/05/pycharm-4-5-eap-build-141-988-introducing-python-profiler/",
+        "https://www.jetbrains.com/help/pycharm/profiler.html",
+        "https://debugpy.com/",
+        "https://daily.dev/blog/top-7-python-profiling-tools-for-performance/",
+        "https://lightrun.com/blog/how-to-perform-python-remote-debugging/"
+      ],
+      "reasoning": [
+        "Built-in debugger: Python ships pdb in the standard library, documented as enabling users to 'step through code, analyze stack frames and set breakpoints' as part of the stdlib debugging and profiling docs.",
+        "IDE integration: The VS Code Python Debugger extension 'is automatically installed along with the Python extension for VS Code' and 'offers debugging features with debugpy for several types of Python applications, including scripts, web apps, remote processes and more.'",
+        "PyCharm's debugger offers 'an inline debugger with live variable value display, multi-process debugging support, configurable breakpoints, and the ability to focus debugging within user code', and PyCharm 2026.1 adds DAP as a default option for more consistent debugging behavior.",
+        "Profiler breadth: Python's standard library includes cProfile and profile for deterministic profiling, described as providing 'deterministic profiling of Python programs' with pstats as a statistics browser.",
+        "Beyond stdlib, a mature third-party ecosystem exists: line_profiler for line-by-line CPU profiling, memory_profiler for memory-usage insight, and Scalene-class tools; a documented workflow is to 'use cProfile first to identify problematic functions' then 'switch to line_profiler for a deeper dive'.",
+        "Production/remote sampling: py-spy is a sampling profiler that works by 'directly reading the memory of the python program using the process_vm_readv system call on Linux' rather than modifying the profiled program, making it safe to use against live production processes and capable of generating flame graphs.",
+        "PyCharm additionally integrates profiling into the IDE itself: PyCharm's Python Profiler Integration is 'available right away from the toolbar or Run | Profile\u2026', defaulting to yappi if installed or cProfile otherwise, with call-graph visualization and navigation to function definitions from captured snapshots.",
+        "Advanced debugger capabilities: debugpy (the VS Code/DAP-based debugger) supports remote attach debugging \u2014 'Debugpy supports remote debugging, allowing you to attach to running processes on remote servers' \u2014 plus conditional breakpoints, hit counts, logpoints, and multi-threaded application debugging (with noted limitations for some features).",
+        "Minor deductions: production sampling and some advanced multi-thread/async debugging features carry documented caveats (e.g. debugpy 'can debug multi-threaded Python applications, but some features may have limitations'; remote debugging setup 'takes some effort, especially when applied to real-world production applications'), preventing a perfect 100."
+      ],
+      "score": 95,
+      "sub_scores": {
+        "advanced_debugger_capabilities": 23,
+        "builtin_debugger_ide_integration": 25,
+        "production_remote_sampling_profiling": 23,
+        "profiler_tooling_breadth": 24
+      }
+    },
+    "metric.ide_editor_support_quality_python": {
+      "citations_used": [
+        "https://github.com/microsoft/vscode-python",
+        "https://www.componentsource.com/product/pycharm",
+        "https://github.com/agrathwohl/nvim-lspconfig",
+        "https://emacs-lsp.github.io/lsp-pyright/",
+        "https://code.visualstudio.com/docs/python/editing",
+        "https://devblogs.microsoft.com/python/python-in-visual-studio-code-march-2026-release/",
+        "https://www.windowsmode.com/best-vs-code-extensions-for-python-developers/",
+        "https://jdhao.github.io/2023/07/22/neovim-pylsp-setup/"
+      ],
+      "reasoning": [
+        "VS Code: Python has official first-party Microsoft extensions; the Python extension provides IntelliSense (Pylance), debugging (Python Debugger), formatting, linting, code navigation, refactoring, variable explorer, test explorer, and environment management, per the vscode-python GitHub project description.",
+        "JetBrains: PyCharm is a comprehensive dedicated Python IDE combining intelligent code assistance with advanced debugging, testing, and profiling tools, with integrated version control and database tools per ComponentSource's PyCharm product listing.",
+        "Neovim/Vim: pyright is installable and configurable as an LSP server via nvim-lspconfig, with the config documented showing 'Install a language server, e.g. pyright' via npm and setup through lspconfig.pyright.setup{}.",
+        "Emacs: lsp-pyright is a maintained lsp-mode client leveraging the pyright and basedpyright language servers for Emacs, giving Emacs the same LSP-based IntelliSense as VS Code and Neovim.",
+        "Language server maturity: Pylance is described as the default language server for Python in VS Code, based on Microsoft's Pyright static type checking tool, leveraging type stubs and lazy type inferencing for a highly-performant development experience.",
+        "Refactoring/navigation: Pylance's Code Actions include 'Move symbol to...' and 'Move symbol to new file', accessible via a light bulb Code Action or right-click Refactor menu, and Workspace Symbol search now surfaces symbols from packages installed in the active virtual environment as of the March 2026 release.",
+        "Ecosystem tooling integration: modern setups combine Pylance for IntelliSense, Ruff (a Rust-based formatter/linter that replaces Black, Flake8, and Isort) for fast linting/formatting, Jupyter notebook support, and an environment manager extension that lets developers switch Conda/venv Python versions from the status bar.",
+        "Minor deduction from full marks: LSP-based setups in Neovim/Emacs require more manual configuration than the first-party, zero-config VS Code/PyCharm experiences (e.g., pylsp setup guides note there is 'not much mature solution' for some refactor operations like pylsp-rope), so refactoring depth and tooling integration are scored slightly below the maximum rather than at 25/25 uniformly."
+      ],
+      "score": 95,
+      "sub_scores": {
+        "ecosystem_tooling_integration": 23,
+        "language_server_intellisense_maturity": 25,
+        "major_editor_coverage": 25,
+        "refactoring_navigation_depth": 22
+      }
+    },
+    "sampling_and_methodology_notes": {
+      "limitations": "Raw popularity/star counts were not used as a standalone proxy; only feature presence and vendor/maintainer documentation were used for scoring, consistent with the ecosystem methodology's restriction on popularity-only proxies.",
+      "retrieval_route": "Web search via general search engine, snapshot date 2026-09-22, one query per sub-topic (VS Code Python tooling, PyCharm debugger/profiler, Python debugging/profiling stdlib+community tools, Neovim/Emacs LSP support, debugpy remote debugging).",
+      "selection_rule": "For each sub-component, evidence targets were fixed by external, language-neutral criteria: (1) the officially recommended/first-party editor extension for the language per its own documentation (e.g. VS Code's own docs recommend the Python + Pylance extensions), (2) the dominant dedicated commercial IDE for the language (JetBrains PyCharm for Python), (3) the standard-library debugger/profiler shipped with the language runtime, (4) the most widely documented community LSP/profiler tools cross-referenced across independent tutorials/wikis (pyright/pylsp for editor LSP; cProfile/py-spy/line_profiler/memory_profiler for profiling). This rule is intended to be applied with the same depth (one built-in/first-party check, one dedicated-IDE check, one community-LSP check, one third-party-tool-breadth check) for every language shard."
+    },
+    "snapshot_date": "2026-09-22"
+  },
+  "requirement_ids": [
+    "metric.debugger_profiler_support",
+    "metric.ide_editor_support_quality"
+  ],
+  "requirements": {
+    "metric.debugger_profiler_support": {
+      "Python": 95
+    },
+    "metric.ide_editor_support_quality": {
+      "Python": 95
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-2--python"
+}

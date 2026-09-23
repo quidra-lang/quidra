@@ -1,0 +1,86 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-1--zig",
+  "assigned_languages": [
+    "Zig"
+  ],
+  "evidence": {
+    "assigned_languages": [
+      "Zig"
+    ],
+    "retrieval_route": "web_search (provider-brokered), official ziglang.org docs/devlog, GitHub project pages (zigtools/zls, Zigistry), independent analysis blogs (nesbitt.io package-management coverage)",
+    "rubric": {
+      "metric.core_tooling_availability_quality": {
+        "bands_0_100": {
+          "0-20": "no usable compiler/build/test/format chain",
+          "21-40": "compiler exists but no integrated build/test/format, or highly unstable",
+          "41-60": "integrated compiler+build+test+format exist but frequent breaking changes across releases and/or immature secondary tools (debugger, LSP) with known compatibility gaps",
+          "61-80": "integrated, fast, reliable compiler+build+test+format+package-fetch, actively maintained but still-lagging or third-party-coupled LSP/debugger; pre-1.0 breaking changes persist",
+          "81-100": "fully mature, post-1.0 stability guarantees, first-party full tool suite (compiler, build, test, format, package manager, debugger, LSP) with long-term compatibility commitments"
+        },
+        "components_scored": [
+          "official compiler/toolchain availability and distribution",
+          "built-in build system (zig build)",
+          "built-in test runner (zig build test)",
+          "built-in formatter (zig fmt)",
+          "build caching / cross-compilation reliability",
+          "editor/LSP tooling maturity and its official/semi-official backing",
+          "toolchain stability across releases given pre-1.0 status"
+        ],
+        "same_rubric_applies_to_all_10_languages": true
+      },
+      "metric.package_dependency_management_quality": {
+        "bands_0_100": {
+          "0-20": "no package manager, manual vendoring only",
+          "21-40": "rudimentary/unofficial package manager, no resolution algorithm, no registry",
+          "41-60": "official package manager with manifest and hash pinning, has a resolution algorithm, but no central registry, no governance/security mechanism for name/ownership disputes, no override mechanism for transitive dependency patches",
+          "61-80": "official package manager with a registry (or strong decentralized discovery tooling) plus override/governance and security tooling",
+          "81-100": "mature package manager, central registry, strong governance, override/audit tooling, widely adopted across the ecosystem"
+        },
+        "components_scored": [
+          "existence of official package manager / manifest format",
+          "dependency resolution algorithm soundness",
+          "reproducibility (lockfile/hash pinning)",
+          "registry/discovery infrastructure and governance",
+          "security/trust mechanisms (name-squatting protection, vulnerability handling, override/patch capability for transitive deps)",
+          "ecosystem tooling maturity (fetch caching, sub-dependency handling)"
+        ],
+        "same_rubric_applies_to_all_10_languages": true
+      }
+    },
+    "score_rationale": {
+      "metric.core_tooling_availability_quality": "Zig places in the 61-80 band (scored 68): a genuinely integrated, first-party, fast and reliable compiler/build/test/format/fetch toolchain with an industry-praised caching and cross-compilation story, but held below the top band by (a) pre-1.0 status with recurring breaking changes to the build API, (b) an officially-adjacent-but-explicitly-'non-official' language server (ZLS) that frequently lags or breaks against the latest compiler, and (c) flagship features like incremental compilation still explicitly labeled 'functional but not yet stable.'",
+      "metric.package_dependency_management_quality": "Zig places in the 41-60 band (scored 47): the official zig fetch/build.zig.zon system provides a real manifest, exact-hash reproducibility and a principled MVS-like resolution algorithm with a stable/unstable dependency-graph safety rule, but it deliberately has no central registry, no override mechanism for patching transitive dependencies, and no enforced governance over package name/identity, pushing all availability, mirroring, takedown and abuse-handling responsibility onto whichever third-party source host (mainly GitHub) each dependency URL happens to point at."
+    },
+    "snapshot_date": "2026-09-22",
+    "zig_findings": {
+      "core_tooling": [
+        "Zig ships zig build, zig fetch, zig init and related package-management subcommands as first-party compiler features; as of mid-2026 these were moved into a separate 'maker' process compiled in ReleaseSafe mode so that package fetching, HTTP/TLS/Git-protocol handling and .zon parsing can be patched without rebuilding the compiler.",
+        "The build/cross-compilation caching system is a notable strength: the entire cross-compilation toolchain (libc headers, compiler-rt, libunwind) is cached globally after first use, letting Zig ship 40+ target platforms in a ~30MB download, and a no-change rebuild typically completes in milliseconds.",
+        "True incremental (declaration-level) compilation exists via `zig build --watch -fincremental` but is explicitly described by a core team member as functional but not yet stable, and requires manual opt-in rather than being zero-effort/automatic yet.",
+        "The official Zig Language Server (ZLS) is described on its own repo as 'a non-official implementation of the Language Server Protocol for Zig,' and multiple current mirrors of its README note it 'currently lacks critical build system integration with Zig nightly/master,' with an open tracking issue and a recommendation to pin Zig+ZLS together at a matching last-stable version.",
+        "The current stable/beta line is Zig 0.16 (Beta), released 14 April 2026 per Wikipedia's infobox, i.e. the language and its toolchain remain pre-1.0, which is consistent with the observed periodic breaking changes to build.zig/build.zig.zon semantics across releases noted in community migration threads."
+      ],
+      "package_dependency_management": [
+        "Zig's package manager is decentralized and content-addressed: there is no official central registry; the Zig Software Foundation governs the language and compiler but package hosting and name authority are explicitly outside its remit since there is no registry for it to operate.",
+        "The manifest (build.zig.zon) uses exact-hash pinning for reproducibility and a Go-style Minimal-Version-Selection-like resolution algorithm, with the added stability constraint that stable (>=1.0) packages may only depend on other stable packages.",
+        "A dedicated package-management analysis (Sept 2026) found no manifest field to override a transitive dependency, so if a low-level package needs a security fix before an intermediate maintainer re-releases, downstream users must fork the intermediate or pass an undocumented --fork flag on every build, unlike Cargo, Go modules, npm, pub, Mix and Bazel which all expose an override field.",
+        "Package name ownership rests on a self-generated 'fingerprint' recorded in the manifest, and while the manifest documentation calls a fork that keeps the upstream's identity value 'hostile,' nothing technically enforces this and there is no arbiter to appeal to; availability, account recovery, takedowns and abuse handling all fall to whichever source host (overwhelmingly GitHub) the dependency URL points at.",
+        "Because there is no canonical package index, the community has built unofficial, non-authoritative discovery layers such as Zigistry (which scrapes GitHub repositories tagged with a build.zig.zon/zig-package topic) and separate community tools like zpm, aquila and third-party CLI wrappers (e.g. Zigp) that layer semver-range syntax on top of the officially exact-pinned manifest format.",
+        "Practical package availability is still uneven downstream: as of September 2025 Arch Linux's own Zig package had been flagged out of date for roughly a month because updating the toolchain co-depends on newer LLVM features, illustrating friction in third-party distribution/packaging pipelines around the still-fast-moving core toolchain."
+      ]
+    }
+  },
+  "requirement_ids": [
+    "metric.core_tooling_availability_quality",
+    "metric.package_dependency_management_quality"
+  ],
+  "requirements": {
+    "metric.core_tooling_availability_quality": {
+      "Zig": 68
+    },
+    "metric.package_dependency_management_quality": {
+      "Zig": 47
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-1--zig"
+}

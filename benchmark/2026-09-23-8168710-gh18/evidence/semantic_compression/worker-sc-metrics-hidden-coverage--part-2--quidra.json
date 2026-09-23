@@ -1,0 +1,415 @@
+{
+  "agent_id": "worker-sc-metrics-hidden-coverage--part-2--quidra",
+  "assigned_languages": [
+    "Quidra"
+  ],
+  "evidence": {
+    "metric.capability_coverage": {
+      "aggregate_score": 81.82,
+      "aggregate_score_exact": "72/88 = 0.818181...",
+      "blockers_and_limitations": [
+        "This packet-only worker had no toolchain (quidra build/run) access and no sandbox execution; all support-level determinations are made purely from the embedded Quidra specification/documentation text (docs/spec/*.md, docs/packages.md, docs/development.md, docs/issue-ai-triage.md), not from compiling/running the 44 probe fragments as pre_measurement_validation V1 would require.",
+        "Actual probe fragment source text, build/run commands, and exit statuses (required by pre_measurement_validation V1 and by the support_rubric's 'evidence_required_per_pair') were not produced in this work unit; only the specification-derived support-level determination and citations were produced, because building/running the Quidra compiler is outside this worker's permitted tools.",
+        "Per safety.preserve_frozen_case_universe and scoreability.complete_requires_integrity_and_comparability_gates, this evidence should be treated as a documentation-based capability determination pending confirmation via compiled/executed fragments before the Semantic Compression evaluation is marked COMPLETE.",
+        "The semantic-site comparability gate and cross-language Overall Score / Ranking are explicitly out of scope for this single-language, single-metric work unit and are not computed here."
+      ],
+      "denominator": 88,
+      "fragment_count_n_L": {
+        "FULL": 34,
+        "NONE": 6,
+        "PARTIAL": 4,
+        "total_probes": 44
+      },
+      "language": "Quidra",
+      "methodology": "spec 6.1.5 / capability_universe.json support_rubric; C = 100 * sum(capability_points*support_factor)/88 (fixed denominator, 44 probes x 2 points). Support levels assigned per capability_universe.json deterministic tie-break question using only the embedded Quidra language/spec documents (docs/spec/*.md, docs/packages.md, docs/development.md, docs/issue-ai-triage.md) as evidence. No toolchain execution was available in this packet-only worker; support judgments are made from written specification text only, each with a citation.",
+      "numerator": 72,
+      "per_family_breakdown": {
+        "1. value and storage declaration": {
+          "pct": 100.0,
+          "points_awarded": 4,
+          "points_max": 4
+        },
+        "10. explicit and implicit type conversion": {
+          "pct": 100.0,
+          "points_awarded": 4,
+          "points_max": 4
+        },
+        "11. indexing and slicing": {
+          "pct": 50.0,
+          "points_awarded": 2,
+          "points_max": 4
+        },
+        "12. nullable / optional values": {
+          "pct": 75.0,
+          "points_awarded": 3,
+          "points_max": 4
+        },
+        "13. errors, failure values, exceptions, and propagation": {
+          "pct": 100.0,
+          "points_awarded": 4,
+          "points_max": 4
+        },
+        "14. alternatives / sum / variant types and dispatch over alternatives": {
+          "pct": 66.67,
+          "points_awarded": 4,
+          "points_max": 6
+        },
+        "15. generics / parametric polymorphism": {
+          "pct": 66.67,
+          "points_awarded": 4,
+          "points_max": 6
+        },
+        "16. collections and iteration": {
+          "pct": 100.0,
+          "points_awarded": 4,
+          "points_max": 4
+        },
+        "17. resource management, ownership, lifetime, destruction, or equivalent cleanup semantics": {
+          "pct": 50.0,
+          "points_awarded": 2,
+          "points_max": 4
+        },
+        "18. modules, imports, and dependency boundaries": {
+          "pct": 75.0,
+          "points_awarded": 3,
+          "points_max": 4
+        },
+        "19. concurrency / asynchronous execution where the language supports it": {
+          "pct": 100.0,
+          "points_awarded": 4,
+          "points_max": 4
+        },
+        "2. initialization and potentially uninitialized state": {
+          "pct": 100.0,
+          "points_awarded": 4,
+          "points_max": 4
+        },
+        "20. FFI / interoperability boundaries": {
+          "pct": 50.0,
+          "points_awarded": 2,
+          "points_max": 4
+        },
+        "3. mutation": {
+          "pct": 100.0,
+          "points_awarded": 4,
+          "points_max": 4
+        },
+        "4. aliasing, references, borrowing, addressing, and dereferencing where applicable": {
+          "pct": 100.0,
+          "points_awarded": 6,
+          "points_max": 6
+        },
+        "5. function calls and argument-passing semantics": {
+          "pct": 66.67,
+          "points_awarded": 4,
+          "points_max": 6
+        },
+        "6. return-value semantics": {
+          "pct": 75.0,
+          "points_awarded": 3,
+          "points_max": 4
+        },
+        "7. arithmetic operators": {
+          "pct": 100.0,
+          "points_awarded": 4,
+          "points_max": 4
+        },
+        "8. integer overflow, division-by-zero, and other numeric edge behavior": {
+          "pct": 100.0,
+          "points_awarded": 4,
+          "points_max": 4
+        },
+        "9. equality, ordering, and comparison": {
+          "pct": 75.0,
+          "points_awarded": 3,
+          "points_max": 4
+        }
+      },
+      "per_probe": {
+        "F01.P1": {
+          "citation": "language.md 'Bindings and definite initialization' / 'const T value = expression creates an immutable value binding' -> `const int n = 7`.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F01.P2": {
+          "citation": "language.md top-level statements / const value bindings; language.md numeric types (int/int64 is full signed 64-bit).",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F02.P1": {
+          "citation": "language.md 'Bindings and definite initialization' example is verbatim this probe: `int x; if true x=1 else x=2; print(x)`.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F02.P2": {
+          "citation": "language.md 'Arrays and shapes': fixed declaration `int[10] values` allocates storage immediately with all elements initially uninitialized; per-element initialization tracked at runtime; reading before write is a deterministic runtime safety error.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F03.P1": {
+          "citation": "grammar.ebnf assignment_operator includes '+='; llm-guide.md item 7 recommends compound assignment for read-modify-write.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F03.P2": {
+          "citation": "language.md 'Assignment to an element does not append or resize an array' -> `xs[1] = 42` is ordinary indexed assignment on a runtime-sized array.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F04.P1": {
+          "citation": "language.md 'Addresses, references, borrowing...': `int &alias = &storage` gives a writable alias to existing scalar storage; example given verbatim in spec.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F04.P2": {
+          "citation": "language.md: `const T &view = &storage` is a live, non-copying read-only view of existing storage (works for a whole array binding).",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F04.P3": {
+          "citation": "language.md 'Function values and union payload initialization' / ref.Cell<T>: 'Copying a Cell ... retains the same managed Cell allocation'; `.same(other) -> bool` is the explicit standard object-identity comparison distinct from value equality.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F05.P1": {
+          "citation": "language.md: 'Ordinary arguments have value semantics' -- the ordinary bare call-site form f(x) is unambiguous value-passing by the language's own contract; llm-guide.md item 17.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F05.P2": {
+          "citation": "language.md 'Reference parameters use the same model...': `void initialize(int &value) value = 7` called as `initialize(&data)` writes caller storage; verbatim example given.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F05.P3": {
+          "citation": "architecture.md / language.md 'Function values and union payload initialization': 'The value contains only the statically known code target: it captures no local, receiver, top-level, or hidden environment.' Quidra function values are explicitly capture-free, so a function value capturing an enclosing local (`k`) cannot be constructed; this is an N-4 probe (explicitly no-fragment when unsupported).",
+          "points_awarded": 0,
+          "points_max": 2,
+          "reason_code": "N-1",
+          "support": "NONE"
+        },
+        "F06.P1": {
+          "citation": "language.md value semantics: array element (scalar) return is a plain value copy; ordinary function/array semantics support this directly.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F06.P2": {
+          "citation": "Quidra has no tuple/multiple-return-value form; canonical_task's own named alternative 'a small record/struct/data class' must be used (a `class DivMod { int q; int h }`), which drops the 'bind two results to two separate local names in one binding construct' sub-requirement since Quidra has no destructuring assignment.",
+          "points_awarded": 1,
+          "points_max": 2,
+          "support": "PARTIAL",
+          "support_letter": "P-a"
+        },
+        "F07.P1": {
+          "citation": "grammar.ebnf term/factor precedence; ordinary arithmetic expression `a*b+c`.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F07.P2": {
+          "citation": "language.md numeric types: integer '/' and '%' operators plus explicit `float(a)/float(b)` division (already-typed values never convert implicitly, so explicit cast is required and idiomatic here).",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F08.P1": {
+          "citation": "diagnostics.md 'Runtime failures': integer overflow at every supported width is a deterministic checked runtime failure (status 101); toolchain_binding.safety_mode_clause treats Quidra's single optimized-and-checked mode as the frozen recipe, so the plain operator (rung iv) is the documented, deterministic behavior.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F08.P2": {
+          "citation": "diagnostics.md: 'Statically known integer division/remainder by zero is rejected before lowering. ... dynamically determined integer division by zero' is a checked runtime failure; rung (ii), an explicit `if b == 0` guard selecting fallback 0, is directly expressible.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F09.P1": {
+          "citation": "language.md: 'Strings compare contents' -- `==` on `string` is content equality, not identity, and is not user-overridable/dispatched.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F09.P2": {
+          "citation": "language.md 'Text and dynamic array operations': `sorted()` is documented only as an ascending, non-mutating sort with no comparator/key/reverse-descriptor argument and no reverse/`.reverse()` operation documented anywhere in the language spec; explicit descending order cannot be requested via any standard facility, so only the scalar `<` comparison sub-requirement is fully delivered.",
+          "points_awarded": 1,
+          "points_max": 2,
+          "support": "PARTIAL",
+          "support_letter": "P-a"
+        },
+        "F10.P1": {
+          "citation": "numeric-and-bin.md 'Conversion': `int32(big)` is the ordinary explicit narrowing cast; 'Integer narrowing never wraps or clamps' and is deterministically range-checked at runtime (rung ii, frozen checked-mode behavior).",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F10.P2": {
+          "citation": "language.md/numeric-and-bin.md: 'Already-typed numeric values never change representation implicitly' -- mixed int/float arithmetic requires an explicit `float(i) + d` conversion, which is exactly the probe's target behavior.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F11.P1": {
+          "citation": "diagnostics.md: array/bin index bounds violations are deterministic runtime safety failures (status 101, code INDEX_BOUNDS); ordinary indexed read `xs[i]` is the only and standard form.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F11.P2": {
+          "citation": "language.md documents slicing only for `tensor` (index_suffix with colon ranges), `string` (`.slice(start,end)`), and `bin` (bit-range indexing); no sub-range/slice operation is documented anywhere for ordinary `T[]` arrays, so no standard non-hand-rolled mechanism exists to produce a sub-range view or copy.",
+          "points_awarded": 0,
+          "points_max": 2,
+          "reason_code": "N-1",
+          "support": "NONE"
+        },
+        "F12.P1": {
+          "citation": "language.md: `string | none` / `T | none` is the standard optional type with explicit `none` absent value; exhaustive `match` is Quidra's idiomatic, standard mechanism for extracting the value with a fallback (no separate coalescing operator exists, and the canonical_task only requires a hand-written conditional 'if the language provides [a coalescing] form' -- otherwise permitting the idiomatic match).",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F12.P2": {
+          "citation": "Named R9 substitution probe. Quidra has no optional-aware chaining/mapping/safe-call operator; only exhaustive `match` over `T|none` is available, so per the canonical_task's own instruction the explicit conditional/match form is used and scored PARTIAL, never FULL.",
+          "points_awarded": 1,
+          "points_max": 2,
+          "support": "PARTIAL",
+          "support_letter": "P-a"
+        },
+        "F13.P1": {
+          "citation": "language.md 'Error propagation and match': `int | error` return type plus `try` propagation is exactly this pattern; llm-guide.md complete example mirrors it directly.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F13.P2": {
+          "citation": "language.md: `match` over a `T | error` value is the standard local-handling construct, binding the error case to a fallback value.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F14.P1": {
+          "citation": "language.md 'Named enums and variants': enums are a closed, exhaustively-matched set of variants each carrying at most one explicitly typed payload; a two-field Rect payload is expressed as a small payload class, which is a natural composition rather than a substitution of the closedness mechanism being tested.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F14.P2": {
+          "citation": "language.md: 'Enum matching is exhaustive' -- match cases must cover every alternative exactly once with no default/catch-all case, and this is a compile-time (MATCH_EXHAUSTIVE) check per diagnostics.md.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F14.P3": {
+          "citation": "language.md: 'Classes do not have a parent-class form... reuse is explicit composition' and 'no dynamic dispatch or hidden subtype relationships'; enums are a fixed closed variant set with no documented mechanism to add a new case for an existing abstraction from a separate compilation unit.",
+          "points_awarded": 0,
+          "points_max": 2,
+          "reason_code": "N-1 (N-4 listed probe)",
+          "support": "NONE"
+        },
+        "F15.P1": {
+          "citation": "language.md 'Generics': `T first<T>(T[] values) return values[0]` is the exact verbatim example of an unconstrained generic function reused at two element types.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F15.P2": {
+          "citation": "language.md 'Generics': `T maximum<T: ordered>(T a, T b)` with the built-in `ordered` constraint is the exact verbatim spec example for this probe; constraint failure is diagnosed at generic instantiation per GENERIC_CONSTRAINT (diagnostics.md), and Quidra requires constraints to be written at the declaration.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F15.P3": {
+          "citation": "language.md: 'Method selection is static rather than dynamically dispatched' and classes have 'no parent-class form'; Quidra has no interface/trait/abstract-class mechanism enabling a heterogeneous sequence of concrete types dispatched through a common abstract element type at runtime.",
+          "points_awarded": 0,
+          "points_max": 2,
+          "reason_code": "N-1 (N-4 listed probe)",
+          "support": "NONE"
+        },
+        "F16.P1": {
+          "citation": "language.md array literal `[1,2,3]` plus ordinary `for value in xs` iteration (no standard sum/reduce builtin for plain arrays is documented, so the explicit iteration construct is the standard, idiomatic form).",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F16.P2": {
+          "citation": "language.md 'map': `map.Map<K,V>` with `.values()` (stable insertion order) for iteration/summation and `.get(key) -> V|none` for lookup of a missing key, unwrapped via idiomatic `match` fallback exactly as in F12.P1.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F17.P1": {
+          "citation": "language.md 'file': 'If close() is not called, that owned handle closes its native file deterministically when the handle leaves its lifetime, including ordinary return and error propagation; no defer or manual cleanup is required' -- this is exactly the guaranteed deterministic release-on-every-exit-path behavior the probe requires.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F17.P2": {
+          "citation": "No destructor/deinit/end-of-lifetime hook is documented for user-defined `class` types anywhere in language.md or architecture.md (deterministic release is documented only for specific standard-library resource types such as file.Handle); Quidra also has no generic scoped 'with'/using construct applicable to arbitrary user types, so even the canonical_task's named fallback ('explicit close/dispose invoked by a scoped construct') is unavailable, requiring NONE per the probe's own final clause.",
+          "points_awarded": 0,
+          "points_max": 2,
+          "reason_code": "N-1 (named substitution exhausted)",
+          "support": "NONE"
+        },
+        "F18.P1": {
+          "citation": "language.md: 'print(value) writes a scalar followed by a newline' is a standard namespace-free built-in requiring no import at all, which trivially satisfies (and exceeds) the probe's requirement.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F18.P2": {
+          "citation": "grammar.ebnf class_member: 'private is a class-member-only prefix' -- Quidra has no module-level visibility keyword for standalone top-level functions, so a private, non-exported top-level function cannot be expressed; the nearest enforced-boundary substitute is a class with a `private` method, which drops the task's literal 'two top-level items: exported function + non-exported function' structure.",
+          "points_awarded": 1,
+          "points_max": 2,
+          "support": "PARTIAL",
+          "support_letter": "P-a"
+        },
+        "F19.P1": {
+          "citation": "language.md 'Structured concurrency': `int[] results = task.all([twenty, twenty_two]); print(results[0] + results[1])` is the verbatim spec example for exactly this probe.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F19.P2": {
+          "citation": "language.md 'Atomic shared state' / 'Structured concurrency': `.add(delta)` is documented as 'a sequentially-consistent checked atomic read-modify-write' (a normative guarantee), and the exact `task.all([increment, increment], counter); print(counter.load())` example with 1000 increments each is given verbatim in the spec, matching the probe's required 2000 result.",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F20.P1": {
+          "citation": "language.md 'C FFI' / architecture.md 'C FFI boundary': `extern int c_abs(int value) = \"llabs\"; print(c_abs(-42))` is the verbatim spec example, matching this probe (`abs(int)`, argument -3, expected 3).",
+          "points_awarded": 2,
+          "points_max": 2,
+          "support": "FULL"
+        },
+        "F20.P2": {
+          "citation": "architecture.md 'C FFI boundary' and language.md 'C FFI' document only the inbound direction (declaring/calling external C symbols via `extern`); no mechanism is documented for exporting a Quidra function under a stable unmangled C-ABI symbol name callable from C, so no fragment can be written.",
+          "points_awarded": 0,
+          "points_max": 2,
+          "reason_code": "N-1 (N-4 listed probe)",
+          "support": "NONE"
+        }
+      }
+    }
+  },
+  "requirement_ids": [
+    "metric.capability_coverage"
+  ],
+  "requirements": {
+    "metric.capability_coverage": {
+      "Quidra": 81.82
+    }
+  },
+  "work_unit_id": "sc-metrics-hidden-coverage--part-2--quidra"
+}

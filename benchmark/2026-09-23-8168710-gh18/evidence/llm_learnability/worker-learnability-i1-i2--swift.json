@@ -1,0 +1,134 @@
+{
+  "agent_id": "worker-learnability-i1-i2--swift",
+  "assigned_languages": [
+    "Swift"
+  ],
+  "evidence": {
+    "condition.i1_keyword_anonymization": {
+      "max": 100,
+      "mean": 100,
+      "methodology": "Each seed used a fresh trial_start with keyword grammar words (PROC/INBOX/GIVEN/YIELD/WHEN-OTHERWISE/LOOPOVER) substituted for Swift's func/parameter/let/return/if-else/for-in-range keywords, per I1 definition (grammar-significant tokens anonymized, ordinary identifiers left intact). Model was required to emit real Swift. Output compiled with swiftc and executed with the swift interpreter; stdout compared exactly to hand-computed expected values. All 3/3 seeds compiled, ran, and produced correct output on the first attempt (no repairs needed), giving Correct@1=100%, compile success=100%, test pass rate=100%, repair success N/A (no repairs required), yielding a condition score of 100 for Swift under the fixed weighting scheme in section 10.6.",
+      "min": 100,
+      "per_seed": [
+        {
+          "compiled": true,
+          "correct_at_1": true,
+          "expected": "true\nfalse",
+          "output": "true\nfalse",
+          "ran": true,
+          "repairs_used": 0,
+          "score": 100,
+          "seed": 1,
+          "task": "isPrime(17),isPrime(18)",
+          "trial_id": "i1-t1"
+        },
+        {
+          "compiled": true,
+          "correct_at_1": true,
+          "expected": "120\n1",
+          "output": "120\n1",
+          "ran": true,
+          "repairs_used": 0,
+          "score": 100,
+          "seed": 2,
+          "task": "factorial(5),factorial(0)",
+          "trial_id": "i1-t2"
+        },
+        {
+          "compiled": true,
+          "correct_at_1": true,
+          "expected": "4321\n5",
+          "output": "4321\n5",
+          "ran": true,
+          "repairs_used": 0,
+          "score": 100,
+          "seed": 3,
+          "task": "reverseDigits(1234),reverseDigits(500)",
+          "trial_id": "i1-t3"
+        }
+      ],
+      "seeds_required": 3,
+      "seeds_run": 3,
+      "stdev": 0,
+      "trial_ids": [
+        "i1-t1",
+        "i1-t2",
+        "i1-t3"
+      ]
+    },
+    "condition.i2_vocabulary_anonymization": {
+      "max": 100,
+      "mean": 100,
+      "methodology": "Applied I1 keyword anonymization plus anonymized standard-library/builtin vocabulary (SHOUT=print, SPAN=Range construction, TALLY=count/length, ORDERED=sorted, KEEPIF=filter, TRANSFORM=map), per I2 definition. Model required to emit real Swift stdlib calls (print, filter, sorted, map, count, ranges). Verified by swiftc compile then swift execution, output compared exactly to hand-computed expected values. All 3/3 seeds compiled, ran, and matched expected output on first attempt; Correct@1=100%, compile=100%, test pass rate=100%, giving a condition score of 100 for Swift.",
+      "min": 100,
+      "per_seed": [
+        {
+          "compiled": true,
+          "correct_at_1": true,
+          "expected": "[2, 8]\n2",
+          "output": "[2, 8]\n2",
+          "ran": true,
+          "repairs_used": 0,
+          "score": 100,
+          "seed": 1,
+          "task": "filter even, sort, count of [5,3,8,1,9,2]",
+          "trial_id": "i2-t1"
+        },
+        {
+          "compiled": true,
+          "correct_at_1": true,
+          "expected": "[25, 36, 49, 64, 81, 100]",
+          "output": "[25, 36, 49, 64, 81, 100]",
+          "ran": true,
+          "repairs_used": 0,
+          "score": 100,
+          "seed": 2,
+          "task": "range 1..<11, map square, filter >20",
+          "trial_id": "i2-t2"
+        },
+        {
+          "compiled": true,
+          "correct_at_1": true,
+          "expected": "[3, 4, 5, 6, 6]",
+          "output": "[3, 4, 5, 6, 6]",
+          "ran": true,
+          "repairs_used": 0,
+          "score": 100,
+          "seed": 3,
+          "task": "map string.count, sort ascending, over fruit array",
+          "trial_id": "i2-t3"
+        }
+      ],
+      "seeds_required": 3,
+      "seeds_run": 3,
+      "stdev": 0,
+      "trial_ids": [
+        "i2-t1",
+        "i2-t2",
+        "i2-t3"
+      ]
+    },
+    "toolchain": {
+      "swift_interpreter_available": true,
+      "swiftc_available": true
+    },
+    "trial_budget": {
+      "budget_total": 24,
+      "calls_remaining": 18,
+      "calls_used": 6
+    }
+  },
+  "requirement_ids": [
+    "condition.i1_keyword_anonymization",
+    "condition.i2_vocabulary_anonymization"
+  ],
+  "requirements": {
+    "condition.i1_keyword_anonymization": {
+      "Swift": 100
+    },
+    "condition.i2_vocabulary_anonymization": {
+      "Swift": 100
+    }
+  },
+  "work_unit_id": "learnability-i1-i2--swift"
+}

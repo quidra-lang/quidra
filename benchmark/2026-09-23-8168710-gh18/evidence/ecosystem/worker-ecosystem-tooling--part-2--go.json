@@ -1,0 +1,62 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-2--go",
+  "assigned_languages": [
+    "Go"
+  ],
+  "evidence": {
+    "go_findings": {
+      "debugger_profiler_support": [
+        "Delve is the purpose-built Go debugger; go.dev's diagnostics documentation states Delve has support for Go's runtime concepts and built-in types and is trying to be a fully featured reliable debugger for Go programs, while noting GDB support exists but 'is not ideal and may create confusion' for Go programs.",
+        "Delve is described in the JetBrains GoLand blog as a mature, community-standard project: 'Go has an open-source debugger called Delve built especially for the language' and it 'now powers most Go IDEs and editors'.",
+        "Delve ships its own DAP server, enabling standardized editor integration; VS Code Go, GoLand, Neovim (nvim-dap-go, go.nvim), Vim, Emacs, and Sublime plugins all integrate with it per Delve's EditorIntegration.md and multiple tutorials.",
+        "GoLand provides deep first-party debugger integration including local run/debug, remote attach-to-process debugging (documented in JetBrains's 'Attach to running Go processes with the debugger' guide), and even time-travel/record-replay debugging via Delve internals per third-party Undo.io documentation.",
+        "Go's standard library ships first-party, no-install-required profiling via runtime/pprof and net/http/pprof, exposing CPU, heap, allocs, goroutine, block, and mutex profiles, and an interactive analysis tool via 'go tool pprof' with top/list/web views for line-level and call-graph inspection.",
+        "Go's standard library also ships a first-party execution tracer (runtime/trace, 'go tool trace'), which go.dev's 2024 blog post describes as capturing 'a wide range of execution events such as goroutine creation/blocking/unblocking, syscall enter/exit/block, GC-related events' -- valuable for concurrency bottlenecks that CPU profiles alone cannot reveal.",
+        "GoLand 2026.2's Go Optimization tool window lets developers 'profile regular Go applications without additional setup, analyze production profiles, monitor CPU and memory usage in real time, and visualize performance data directly in your code', integrating the stdlib pprof toolchain into the IDE UI.",
+        "CPU sampling profiling overhead is documented as low (~1-2%) since it samples rather than instrumenting every line, supporting production-safe use of the built-in profiler."
+      ],
+      "ide_editor_support": [
+        "gopls is the official Go-team-maintained language server, described on go.dev as supporting a wide range of standard LSP features for navigation, completion, diagnostics, analysis, and refactoring plus extras not found in other language servers.",
+        "The official VS Code Go extension (golang/vscode-go), maintained by the Go team, ships gopls on by default and provides rich language support; gopls is described in the extension wiki as the default backend for most of the extension's IntelliSense, code navigation, code editing, and diagnostics features.",
+        "The extension actively manages the language-server lifecycle, including automatic restart of gopls after crashes (up to 5 times) per its architecture documentation.",
+        "gopls itself is released on an approximately monthly cadence, with the VS Code extension auto-detecting and prompting for updates, per the extension's gopls documentation.",
+        "JetBrains ships GoLand, a dedicated full-featured commercial Go IDE; GoLand 2026.2 (July 2026) added a new Go Optimization tool window unifying profiling, escape analysis, and struct optimization, plus automatic run/debug configuration detection for main packages.",
+        "Beyond VS Code and GoLand, gopls-based and Delve-based tooling extends to Vim, Neovim (via go.nvim, vim-go), Emacs, Sublime, and other editors, per Delve's own editor-integration documentation listing plugins for Atom, Emacs, GoLand, IntelliJ IDEA, LiteIDE, Vim/Neovim, and VS Code."
+      ]
+    },
+    "limitations": [
+      "Scoring for this shard covers only Go; comparability across the full 10-language set depends on the same rubric being applied by other language shards using the same evidence-collection methodology.",
+      "Some cited sources are third-party blogs/tutorials rather than official documentation for peripheral claims (e.g., Neovim plugin ecosystem details); official go.dev, pkg.go.dev, github.com/golang, and github.com/go-delve sources were prioritized for the core scoring claims.",
+      "No raw popularity metrics (stars, downloads) were used as a standalone score input; they were not used at all in this determination."
+    ],
+    "rubric": {
+      "metric.debugger_profiler_support": {
+        "description": "0-100 score built from four equally-weighted 25-point components, applied identically to all languages: (1) existence and maturity of a dedicated, actively maintained source-level debugger; (2) IDE/editor debugger integration via a standard protocol (e.g., DAP) across multiple editors with breakpoints, stepping, variable/goroutine inspection, remote/attach debugging; (3) first-party, stdlib/toolchain-integrated profiling support (CPU, memory, blocking, contention) requiring no third-party install; (4) advanced/production-grade profiling and tracing tooling (flame graphs, execution tracing, IDE-integrated profiler UI).",
+        "retrieval_route": "Web search against go.dev, pkg.go.dev, github.com/go-delve, and blog.jetbrains.com/go, same route class used for all languages in this shard.",
+        "snapshot_window": "Evidence collected September 2026 from go.dev/doc/diagnostics, pkg.go.dev/net/http/pprof, pkg.go.dev/runtime/trace, go-delve/delve repository, and JetBrains GoLand 2026.2 blog post."
+      },
+      "metric.ide_editor_support_quality": {
+        "description": "0-100 score built from four equally-weighted 25-point components, applied identically to all languages: (1) existence/maturity of an official or de-facto-standard language server with LSP feature coverage (completion, navigation, refactoring, diagnostics); (2) breadth of first-class multi-editor support (at least VS Code, a dedicated JetBrains/commercial IDE, and Vim/Neovim/Emacs) with consistent feature parity; (3) availability of a dedicated full-featured IDE product (not just a generic-editor plugin) with deep language-aware tooling; (4) ecosystem maintenance signals (official backing, release cadence, active issue triage/update mechanisms).",
+        "retrieval_route": "Web search against go.dev, github.com/golang, pkg.go.dev, and blog.jetbrains.com/go, same route class used for all languages in this shard.",
+        "snapshot_window": "Evidence collected September 2026 from official Go project docs, golang/vscode-go repository/wiki, go.dev, and JetBrains GoLand blog/docs."
+      }
+    },
+    "scoring_rationale": {
+      "metric.debugger_profiler_support": "Go scores near the top of the 0-100 band: it has a mature, Go-native, DAP-compliant dedicated debugger (Delve) integrated into every major editor and IDE, plus first-party stdlib profiling (pprof) and execution tracing (runtime/trace) that require no third-party installation and are exposed both via CLI (go tool pprof, go tool trace) and increasingly via IDE UI (GoLand's Go Optimization tool window). The combination of a mature dedicated debugger, low-overhead stdlib profiling covering CPU/heap/block/mutex/goroutine dimensions, and IDE-native profiling UI is comparatively comprehensive. Score: 94/100.",
+      "metric.ide_editor_support_quality": "Go scores near the top of the 0-100 band: it has an official, actively-maintained language server (gopls) built and owned by the Go team, first-class official VS Code integration, a dedicated commercial IDE (GoLand) with continuous feature investment (e.g., 2026.2 Go Optimization tool window, auto run-config detection), and broad third-party editor coverage (Neovim, Vim, Emacs, Sublime) all built on the same gopls/Delve foundation, minimizing feature fragmentation across editors. Score: 93/100."
+    }
+  },
+  "requirement_ids": [
+    "metric.debugger_profiler_support",
+    "metric.ide_editor_support_quality"
+  ],
+  "requirements": {
+    "metric.debugger_profiler_support": {
+      "Go": 94
+    },
+    "metric.ide_editor_support_quality": {
+      "Go": 93
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-2--go"
+}

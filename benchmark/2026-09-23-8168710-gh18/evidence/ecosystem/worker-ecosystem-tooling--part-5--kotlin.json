@@ -1,0 +1,145 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-5--kotlin",
+  "assigned_languages": [
+    "Kotlin"
+  ],
+  "evidence": {
+    "methodology_compliance_notes": [
+      "Rubrics were defined and frozen before scoring Kotlin, using named categories/domains rather than ad hoc impressions, consistent with the ecosystem spec's predeclared-sampling requirement.",
+      "No single raw popularity indicator (stars/downloads) was used as a standalone proxy; only qualitative official-support/beta-status evidence was used per category.",
+      "This shard evaluates Kotlin only; the same 10-category rubrics for both metrics must be applied unchanged to the other 9 languages by their respective shards for cross-language comparability.",
+      "Language-level portability design and FFI/interop design were intentionally excluded from these scores per the ecosystem spec's boundary rules; only implemented target breadth and working external integration breadth/reliability were measured."
+    ],
+    "metric.external_integration_coverage": {
+      "citations_support": [
+        "InfoQ: 'AWS Finally Gets Official SDKs for Rust, Kotlin, and Swift'",
+        "AWS SDK for Kotlin developer guide: build Kotlin applications that work with Amazon S3, EC2, DynamoDB, and more",
+        "devnewsletter.com State of Kotlin 2026: AWS reports its Kotlin SDK spans 300+ services across 8 platforms",
+        "Google Codelabs: 'Build a Kotlin Spring Application with Google Cloud Platform' integrating Cloud Pub/Sub and Cloud SQL",
+        "kotlinlang.org server-overview.html: Kotlin apps deployable to AWS, GCP and other cloud providers; AWS provides a dedicated SDK for Kotlin",
+        "Wikipedia List of Kotlin software and tools: Exposed ORM by JetBrains; Ktorm as an alternative ORM",
+        "ktorm.org: lightweight, efficient ORM framework for Kotlin directly based on pure JDBC",
+        "oneuptime.com 2026 Exposed tutorial: shows Exposed + JUnit Jupiter test integration pattern",
+        "dev.to Testcontainers + Kotlin Exposed ORM article demonstrating Docker-based DB integration testing",
+        "kotlinlang.org server-overview.html: Spring applications are compatible with most popular cloud providers, and Ktor is a JetBrains framework using coroutines"
+      ],
+      "kotlin_domain_scores": {
+        "AWS_SDK": {
+          "basis": "AWS ships an official, dedicated AWS SDK for Kotlin (announced as one of the first official SDKs for Rust, Kotlin, and Swift), spanning 300+ services per JetBrains-reported adoption data, with idiomatic Kotlin coroutine suspend APIs.",
+          "score": 1.0
+        },
+        "Azure_integration": {
+          "basis": "No dedicated first-party Kotlin SDK; relies on full interop with the Azure Java SDK, the same pattern as GCP, rather than a Kotlin-native binding.",
+          "score": 0.5
+        },
+        "Build_tool_integration": {
+          "basis": "Gradle Kotlin DSL is the officially promoted build configuration language and Maven has mature Kotlin plugin support.",
+          "score": 1.0
+        },
+        "CICD_integration": {
+          "basis": "Kotlin/Gradle projects integrate natively with GitHub Actions and other CI/CD platforms with no language-specific limitation, consistent with the standard JVM build/test/CI pipeline.",
+          "score": 1.0
+        },
+        "Containerization_Docker": {
+          "basis": "Standard JVM container tooling plus widespread Testcontainers usage in the Kotlin ecosystem (e.g., Exposed+Testcontainers integration guides) for Docker-based integration testing.",
+          "score": 1.0
+        },
+        "DB_drivers_ORM": {
+          "basis": "Full JDBC driver ecosystem plus Kotlin-native ORMs: JetBrains' own Exposed ORM and the community Ktorm SQL DSL/ORM, both widely documented with connection pooling and multi-DBMS support.",
+          "score": 1.0
+        },
+        "GCP_integration": {
+          "basis": "No dedicated first-party Kotlin SDK; integration works through full JVM interop with the Google Cloud Java SDK, demonstrated in official Google Codelabs building Kotlin+Spring apps against Cloud Pub/Sub and Cloud SQL.",
+          "score": 0.5
+        },
+        "Messaging_Kafka": {
+          "basis": "The official Apache Kafka Java client is fully usable from Kotlin via JVM interop and is a common pairing in production Kotlin backend examples.",
+          "score": 1.0
+        },
+        "Testing_framework_integration": {
+          "basis": "JUnit5/Jupiter is the documented default test integration for Kotlin (e.g., Exposed+JUnit examples), alongside Kotlin-specific test tooling such as Kotest.",
+          "score": 1.0
+        },
+        "Web_server_frameworks": {
+          "basis": "Spring Boot provides official first-class Kotlin support, and Ktor is a JetBrains first-party Kotlin web framework using coroutines for scalability.",
+          "score": 1.0
+        }
+      },
+      "normalized_score": 90,
+      "raw_max": 10,
+      "raw_sum": 9.0,
+      "rubric_definition": "Frozen, language-neutral rubric measuring the BREADTH AND RELIABILITY of actually-working external integrations (not FFI/interop language design, scored under Language Quality). Score 10 predefined integration domains: (1) AWS SDK, (2) GCP SDK/integration, (3) Azure SDK/integration, (4) relational DB drivers/ORM, (5) message queue/streaming (e.g., Kafka), (6) web/server application frameworks, (7) build-tool integration (Gradle/Maven), (8) containerization (Docker/OCI), (9) CI/CD platform integration (e.g., GitHub Actions/GitLab CI), (10) testing framework/test infrastructure integration. For each domain: 1.0 = mature, actively-maintained, production-grade integration exists (official first-party binding or de-facto-standard/complete interop path); 0.5 = integration exists but is less mature, community-only, or requires an indirection layer; 0 = no reliable integration. Normalized score = (sum / 10) * 100, same domain list and scale applied to every language."
+    },
+    "metric.implemented_platform_coverage": {
+      "citations_support": [
+        "Wikipedia Kotlin infobox: Platform listing Android; JVM; iOS/iPadOS tier1; tvOS/watchOS tier2; macOS Apple-silicon tier1; Linux; Windows; JS; WebAssembly (beta); LLVM (Kotlin/Native)",
+        "kotlinlang.org native-target-support.html documents Kotlin/Native supported targets/hosts and CI-tested compatibility guarantees",
+        "kotlinlang.org multiplatform/faq.html: Compose Multiplatform stable for Android, iOS, desktop; web (Wasm) in Beta",
+        "klibs.io kotlinx.coroutines project page: 'Supports iOS, Android Native, JVM, Wasm, JS, macOS, watchOS, tvOS, Linux, Windows' confirming the broad but tiered target matrix",
+        "dualmedia.com 2026 KMP overview: stable targets Android, iOS, desktop JVM, server JVM, Kotlin/JS web; Wasm web, watchOS, tvOS remain beta"
+      ],
+      "kotlin_category_scores": {
+        "Android": {
+          "basis": "Google-endorsed, first-class official Android language since 2019.",
+          "score": 1.0
+        },
+        "Embedded_bare_metal": {
+          "basis": "Kotlin/Native historically ships some embedded/bare-metal targets, but this is niche/limited relative to the mainstream desktop/mobile targets.",
+          "score": 0.5
+        },
+        "Linux": {
+          "basis": "Kotlin/Native linuxX64 is a supported native target and the JVM runs on Linux; both are production-grade.",
+          "score": 1.0
+        },
+        "Wasm_WASI": {
+          "basis": "Kotlin/Wasm (including WASI) is explicitly documented as beta, not yet stable.",
+          "score": 0.5
+        },
+        "Web_browser_JS": {
+          "basis": "Kotlin/JS is a long-stable, production compilation target for browser and Node.js.",
+          "score": 1.0
+        },
+        "Windows": {
+          "basis": "Kotlin/Native mingwX64 native target plus JVM support on Windows.",
+          "score": 1.0
+        },
+        "iOS": {
+          "basis": "Kotlin/Native iOS targets are tier 1 and Kotlin/Native was declared stable in Nov 2023 enabling production compilation to iOS.",
+          "score": 1.0
+        },
+        "macOS": {
+          "basis": "Kotlin/Native macOS targets have tier-1 support for Apple silicon per the language infobox, plus JVM.",
+          "score": 1.0
+        },
+        "tvOS": {
+          "basis": "Listed as tier-2 support in the language infobox alongside watchOS.",
+          "score": 0.5
+        },
+        "watchOS": {
+          "basis": "Listed as tier-2 support in the language infobox; Compose Multiplatform/KMP web-adjacent OS targets remain less mature than iOS/Android/desktop.",
+          "score": 0.5
+        }
+      },
+      "normalized_score": 85,
+      "raw_max": 10,
+      "raw_sum": 8.5,
+      "rubric_definition": "Frozen, language-neutral rubric measuring ACTUALLY-IMPLEMENTED, currently supported compiler/runtime target platforms (not language-level portability design, which is scored under Language Quality). Score 10 predefined platform categories: (1) Linux, (2) Windows, (3) macOS, (4) Android, (5) iOS, (6) watchOS, (7) tvOS, (8) Web browser (client-side compiled target), (9) standalone WebAssembly/WASI, (10) Embedded/bare-metal microcontroller targets. For each category: 1.0 point = official, stable/production-grade implementation exists; 0.5 point = only beta/tier-2/experimental/community-limited support exists; 0 point = no meaningful implemented support. Normalized score = (sum of points / 10) * 100. Same 10 categories, same point scale, and same evidentiary bar (official docs / vendor statements) must be applied unchanged to every language."
+    },
+    "retrieval_route": "web_search (provider-brokered search), 4 queries executed, examination depth = top organic results per query, same route/depth class intended for all languages across shards",
+    "scope_note": "Language-sharded worker: only Kotlin is scored in this shard. Other 9 languages are scored by sibling shards; runner merges disjoint language keys.",
+    "snapshot_date": "2026-09-22"
+  },
+  "requirement_ids": [
+    "metric.external_integration_coverage",
+    "metric.implemented_platform_coverage"
+  ],
+  "requirements": {
+    "metric.external_integration_coverage": {
+      "Kotlin": 90
+    },
+    "metric.implemented_platform_coverage": {
+      "Kotlin": 85
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-5--kotlin"
+}

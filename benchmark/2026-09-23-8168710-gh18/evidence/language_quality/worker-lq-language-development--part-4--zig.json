@@ -1,0 +1,50 @@
+{
+  "agent_id": "worker-lq-language-development--part-4--zig",
+  "assigned_languages": [
+    "Zig"
+  ],
+  "evidence": {
+    "metric.concurrency": {
+      "limitations": [
+        "The Io-based concurrency redesign was still in flux at the evaluated Zig version, so ergonomics and stability of structured async are lower than in languages with a settled concurrency story."
+      ],
+      "method": "Static language-design analysis based on Zig's std.Thread, std.Io (evolving async I/O abstraction visible in mb09.zig via std.Io.Threaded.init_single_threaded and threaded.io()), and absence of language-level async/await syntax as of the evaluated Zig version.",
+      "observations": [
+        "mb09.zig demonstrates the std.Io abstraction: an explicit Io interface object (threaded.io()) is passed to I/O calls, and std.Io.Threaded.init_single_threaded is used to select a concrete (currently single-threaded) execution strategy -- this shows Zig's concurrency model is being redesigned around an explicit, allocator-like Io capability rather than implicit async keywords.",
+        "Zig provides std.Thread for OS threads, std.Thread.Mutex, Condition, RwLock for synchronization primitives, and std.atomic for lock-free primitives, all as ordinary library code with no special compiler magic -- consistent with Zig's no-hidden-control-flow philosophy.",
+        "There is no built-in colorless async/await language keyword pipeline stabilized at the evaluated version (Zig's async/await was removed and is being replaced by the Io interface pattern seen above), so structured concurrency and cooperative scheduling are not yet a stable first-class language feature.",
+        "Data-race safety is not statically enforced by the type system (no borrow-checker or ownership equivalent to Rust's Send/Sync), so concurrent memory-safety bugs are caught only via runtime tooling (ThreadSanitizer, Zig's safety checks in Debug/ReleaseSafe) rather than compile-time guarantees.",
+        "The explicit Io-parameter design gives strong composability and testability (I/O can be swapped or mocked, matching the allocator-passing idiom) but places more manual ceremony on the programmer than languages with implicit runtimes (e.g. Go goroutines, mature Rust async ecosystems)."
+      ],
+      "score_rationale": "62/100: solid, no-hidden-control-flow low-level primitives (threads, atomics, mutexes) and a promising explicit-capability Io design, but no compile-time data-race prevention and no stabilized high-level async/await or structured-concurrency story at evaluation time, keeping it behind languages with mature safe concurrency models (e.g. Rust's Send/Sync, Go's goroutines and channels)."
+    },
+    "metric.ffi_interoperability_design": {
+      "limitations": [
+        "C++ name-mangled symbols and templates are not interoperable without an extern C shim, matching common practice in comparable systems languages; this is a design constraint, not unique to Zig."
+      ],
+      "method": "Static language-design analysis of Zig's C interoperability model, informed by reading assigned micro/adversarial program sources (e.g. mb09.zig using std.heap.c_allocator, std.process.Init.Minimal, std.Io.File for OS-level syscall interfacing) which demonstrate native, zero-wrapper access to C ABI facilities directly from idiomatic Zig code.",
+      "observations": [
+        "Zig can directly @cImport C headers with no binding-generation step and no separate IDL, translating C declarations into native Zig types at compile time.",
+        "Zig structs/enums/unions can be declared extern to guarantee C-compatible ABI layout, and functions can be declared export or callconv(.C) to be called from C or to call into C with zero overhead (no marshalling layer, no runtime boxing).",
+        "c_allocator (seen used directly in mb09.zig) demonstrates first-class direct use of libc malloc/free as an Allocator, evidencing that Zig treats C interop as a built-in language citizen rather than a bolted-on FFI library.",
+        "Zig has no hidden runtime (no GC, no exception unwinding ABI mismatch, no implicit stack frames) so crossing the C boundary requires no runtime shims -- calling convention and layout compatibility is sufficient.",
+        "Cross-language safety is partially eroded at the FFI boundary itself: extern functions and C pointers are usually optional or many-pointer typed, pushing null and bounds obligations onto the programmer, which is expected and idiomatic given C's own model.",
+        "Build system integration (build.zig) natively supports linking system or vendored C libraries, adding C source files to a Zig compilation unit, and per-target C flags, without a foreign build tool."
+      ],
+      "score_rationale": "92/100: FFI is treated as a first-class, zero-overhead, no-hidden-runtime part of the language and toolchain (native cImport, extern/callconv(.C), integrated C compiler in build.zig) -- exceeding typical bolted-on FFI designs, docked slightly for raw-pointer safety burden pushed onto the caller at the boundary."
+    }
+  },
+  "requirement_ids": [
+    "metric.concurrency",
+    "metric.ffi_interoperability_design"
+  ],
+  "requirements": {
+    "metric.concurrency": {
+      "Zig": 62
+    },
+    "metric.ffi_interoperability_design": {
+      "Zig": 92
+    }
+  },
+  "work_unit_id": "lq-language-development--part-4--zig"
+}

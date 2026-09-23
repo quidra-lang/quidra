@@ -1,0 +1,86 @@
+{
+  "agent_id": "worker-sc-metrics-local--part-2--zig",
+  "assigned_languages": [
+    "Zig"
+  ],
+  "evidence": {
+    "metric.semantic_locality": {
+      "aggregate_stats": {
+        "language_mean_lookups": 0.1758,
+        "max_lookup_categories": 7,
+        "n_supported_probes": 42,
+        "n_unsupported_probes_excluded": 2,
+        "score": 97.49,
+        "sum_of_probe_mean_lookups": 7.383
+      },
+      "basis": "single-language (Zig) shard; raw external-lookup counts recorded per frozen site_id using the matrix's site lists (identical site sets across languages). Cross-language common-basis reconciliation is performed by the aggregator once all language shards are merged, per interaction_with_quality_metrics.common_basis_rule.",
+      "illustrative_site_reasoning_examples": {
+        "F02.P2": "'var buf: [16]u8 = undefined;' is Zig's genuine uninitialized-storage mechanism (not a substitution): all sites resolve from the local 'undefined' marker and explicit array type with zero external lookups.",
+        "F03.P1": "'x += 1;' with x's declaration excluded as given context: mutability and value_vs_storage each require one hop back to x's declaration (NONLOCAL, lookup=1); overflow_exceptional_numeric and externally_visible_side_effects are resolved from the fixed checked-arithmetic language rule with no lookup (0). Probe mean = (1+1+0+0)/4 = 0.5.",
+        "F05.P1": "Bare call site 'f(x)' per spec 6.1.4.B: f's declaration is explicitly excluded from the fragment and counted as a non-local lookup (R5). aliasing_writable_aliasing, mutability, allocation_copy_move_borrow_destroy, control_flow_effect and externally_visible_side_effects all require consulting f's signature (lookup=1 each); value_vs_storage of x itself is local (0). Probe mean = 5/6 = 0.833, the highest-locality-cost probe in the Zig set, matching the spec's expectation that this probe measures call-site indeterminacy before consulting the callee.",
+        "F05.P2": "For this probe R5 places put's full declaration and body inside the measured fragment, so every site resolves locally with zero external lookups (mean=0), reflecting Zig's explicit '*i32' inout-style parameter form."
+      },
+      "methodology_ref": "semantic_compression.md section C (Semantic Locality) + semantic_site_matrix.json frozen site lists per probe",
+      "n_L_note": "Zig fragment count for this basis: n_L = 42 of 44 frozen probes (F05.P3 and F14.P3 are NONE). Per interaction_with_quality_metrics.basis_reporting_requirement, this n_L must accompany the published figure; cross-language common-basis recomputation (probes where ALL TEN languages have a fragment) is the aggregator's responsibility once all ten language shards are merged.",
+      "normalization_formula": "probe_mean_lookups = mean(lookups across that probe's frozen sites). language_mean_lookups = mean(probe_mean_lookups across all Zig-supported probes in the single-language basis, i.e. excluding probes scored NONE for Zig, per NA-4/exclusion-from-A-D rule). score = 100 * (1 - min(language_mean_lookups, 7) / 7), where 7 is the fixed maximum number of external-lookup categories enumerated in spec 6.1.3 Semantic Locality (callee signature, variable declaration, type declaration, overload set, trait/interface/protocol implementation, imported definition, global configuration/compiler mode). Higher score = lower lookup cost = better locality, consistent with 'lower lookup cost is better' and the 0-100/100-best convention.",
+      "per_probe_mean_lookups_zig": {
+        "F01.P1": 0.25,
+        "F01.P2": 0.0,
+        "F02.P1": 0.0,
+        "F02.P2": 0.0,
+        "F03.P1": 0.5,
+        "F03.P2": 0.6,
+        "F04.P1": 0.0,
+        "F04.P2": 0.2,
+        "F04.P3": 0.4,
+        "F05.P1": 0.833,
+        "F05.P2": 0.0,
+        "F06.P1": 0.0,
+        "F06.P2": 0.0,
+        "F07.P1": 0.5,
+        "F07.P2": 0.2,
+        "F08.P1": 0.0,
+        "F08.P2": 0.0,
+        "F09.P1": 0.2,
+        "F09.P2": 0.6,
+        "F10.P1": 0.0,
+        "F10.P2": 0.25,
+        "F11.P1": 0.2,
+        "F11.P2": 0.2,
+        "F12.P1": 0.0,
+        "F12.P2": 0.0,
+        "F13.P1": 0.2,
+        "F13.P2": 0.2,
+        "F14.P1": 0.0,
+        "F14.P2": 0.0,
+        "F15.P1": 0.0,
+        "F15.P2": 0.0,
+        "F15.P3": 0.6,
+        "F16.P1": 0.0,
+        "F16.P2": 0.2,
+        "F17.P1": 0.2,
+        "F17.P2": 0.0,
+        "F18.P1": 0.25,
+        "F18.P2": 0.2,
+        "F19.P1": 0.4,
+        "F19.P2": 0.2,
+        "F20.P1": 0.0,
+        "F20.P2": 0.0
+      },
+      "raw_measure_definition": "For each supported probe fragment, for each frozen site_id in that probe's site_order (from semantic_site_matrix.json), record the number of required external semantic lookups (declaration-graph hops) needed to resolve that site's semantic fact from the Zig fragment alone: 0 = EXPLICIT_LOCAL (resolved wholly within measured_fragment), 1 = one external hop (e.g. a callee signature, a variable/type declaration excluded as 'given context', an imported std-lib definition), 2+ = multiple chained hops. Only lookups required to resolve a frozen-inventory fact are counted (per spec 6.1.3 Semantic Locality: 'a lookup that is optional for extra detail must not be counted').",
+      "unsupported_probes_excluded_from_locality_basis": {
+        "F05.P3": "Zig has no closures/function values that capture an enclosing local by value; the language provides only plain function pointers with no captured-environment mechanism. Scored NONE (N-1) for Zig capability coverage; excluded from this metric's numerator/denominator per interaction_with_quality_metrics (metrics A-D computed only where a fragment exists).",
+        "F14.P3": "Zig has no interface/trait mechanism supporting addition of a new implementation of an existing open abstraction from a separate compilation unit without editing the original; only closed tagged unions or hand-rolled vtables exist, neither of which satisfies the probe's 'abstract operation, two units, no edits to original' requirement in the frozen recipe. Scored NONE (N-1); excluded from this metric's basis."
+      }
+    }
+  },
+  "requirement_ids": [
+    "metric.semantic_locality"
+  ],
+  "requirements": {
+    "metric.semantic_locality": {
+      "Zig": 97.49
+    }
+  },
+  "work_unit_id": "sc-metrics-local--part-2--zig"
+}

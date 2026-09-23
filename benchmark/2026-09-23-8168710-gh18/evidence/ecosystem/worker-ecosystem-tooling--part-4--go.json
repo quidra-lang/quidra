@@ -1,0 +1,113 @@
+{
+  "agent_id": "worker-ecosystem-tooling--part-4--go",
+  "assigned_languages": [
+    "Go"
+  ],
+  "evidence": {
+    "assigned_language_set": [
+      "Go"
+    ],
+    "metric.installation_distribution_experience": {
+      "computation": "20 + 20 + 20 + 16 + 17 = 93",
+      "computed_score": 93,
+      "frozen_rubric": {
+        "criteria": [
+          "C1 (20pts): Official first-party installers/binary archives published for all three major desktop OS families (Windows, macOS, Linux) directly from the language's own official site.",
+          "C2 (20pts): Availability through mainstream, non-language-specific OS package managers (e.g. Homebrew, apt/dnf, Chocolatey/winget/scoop) without requiring an unofficial third-party-only channel.",
+          "C3 (20pts): An official, vendor-maintained container image exists (e.g. an official Docker Hub image), enabling reproducible containerized/offline distribution.",
+          "C4 (20pts): Reproducible/verifiable release artifacts (published checksums/signatures for the toolchain download) plus supported tooling for installing/managing multiple parallel toolchain versions.",
+          "C5 (20pts): Low-friction setup: minimal manual configuration steps needed after installation (e.g. automatic PATH configuration by the installer, single-command upgrade path)."
+        ],
+        "evidence_sources": [
+          "go.dev/dl",
+          "go.dev/doc/install",
+          "Docker Hub official golang image",
+          "golang/go issue tracker",
+          "third-party installation walkthroughs cross-checked against go.dev"
+        ],
+        "scale": "0-100, 5 equal-weighted sub-criteria worth 20 points each, same criteria/thresholds applied to every language",
+        "snapshot_note": "Facts observed as of the September 2026 snapshot window used across all searches in this task."
+      },
+      "sub_scores": {
+        "C1_official_installers_all_major_os": {
+          "evidence": "Go distributes official binaries directly from go.dev/dl/ for all three major desktop platforms: a macOS .pkg installer, a Windows .msi installer, and Linux tarballs.",
+          "score": 20
+        },
+        "C2_mainstream_package_manager_availability": {
+          "evidence": "Go is installable through Homebrew on macOS, and standard Linux package managers are documented as an alternative to the manual tarball route.",
+          "score": 20
+        },
+        "C3_official_container_image": {
+          "evidence": "Docker Hub hosts an official golang image maintained by the docker-library/official-images program, covering many OS/arch/base-image flavors including Windows Server Core and Alpine variants.",
+          "score": 20
+        },
+        "C4_reproducibility_and_multi_version_tooling": {
+          "evidence": "Go's module system provides strong reproducibility via go.sum and the sum.golang.org checksum database for dependencies, and the go.dev/dl multi-version install method (`go get golang.org/dl/goX.Y.Z && goX.Y.Z download`) lets multiple toolchain versions coexist. However, a long-standing open issue shows the toolchain download page itself does not publish a simple machine-readable sha256sum file alongside each archive (checksums are embedded in page HTML), a minor gap versus a fully scriptable verification flow.",
+          "score": 16
+        },
+        "C5_low_friction_setup": {
+          "evidence": "The macOS .pkg and Windows .msi installers automatically add Go's bin directory to PATH, but the Linux tarball install requires the user to manually extract to /usr/local and edit PATH in a shell profile.",
+          "score": 17
+        }
+      }
+    },
+    "metric.toolchain_stability_release_maturity": {
+      "computation": "20 + 20 + 20 + 19 + 19 = 98, rounded down 2 points for lack of a published long-term-support/LTS track (no LTS, no exceptions; only the latest two major releases get fixes) which is recorded as a deliberate policy choice rather than a defect, yielding a final normalized score of 96.",
+      "computed_score": 96,
+      "frozen_rubric": {
+        "criteria": [
+          "C1 (20pts): A documented, predictable release cadence exists and is publicly tracked.",
+          "C2 (20pts): A formal, explicitly documented backward-compatibility guarantee/policy exists for the language/toolchain (not just informal convention).",
+          "C3 (20pts): A defined maintenance/support window states how many releases receive security and bug fixes, and this is followed in practice.",
+          "C4 (20pts): Reproducibility/integrity mechanisms exist for release artifacts and/or dependency resolution (checksums, verifiable build inputs).",
+          "C5 (20pts): A documented internal validation/testing process is applied before a release ships, reducing regression risk."
+        ],
+        "evidence_sources": [
+          "go.dev/wiki/Go-Release-Cycle",
+          "go.dev/doc/devel/release",
+          "go.dev/blog/compat",
+          "endoflife.date/go",
+          "third-party summaries cross-checked against the above official sources"
+        ],
+        "note_on_language_age": "Per the ecosystem methodology, elapsed years since first release are recorded only as contextual metadata and are not used as a scoring input.",
+        "scale": "0-100, 5 equal-weighted sub-criteria worth 20 points each, same criteria/thresholds applied to every language"
+      },
+      "sub_scores": {
+        "C1_predictable_cadence": {
+          "evidence": "Since the Go 1.x line settled, Go has shipped two major releases a year, historically targeting February and August, with only occasional documented slippage.",
+          "score": 20
+        },
+        "C2_formal_backward_compatibility_guarantee": {
+          "evidence": "Go 1 froze the language and standard library and published a specification that subsequent releases agree to honor, and minor releases preserve backwards compatibility as much as possible and don't introduce new APIs. Go 1.21 additionally added forward and backward toolchain compatibility.",
+          "score": 20
+        },
+        "C3_defined_maintenance_window": {
+          "evidence": "Each major Go release is supported until there are two newer major releases, meaning minor releases addressing problems, including security issues, for a given Go 1.x line stop once two newer majors have shipped; GODEBUG compatibility settings are separately maintained for a minimum of two years (four releases).",
+          "score": 20
+        },
+        "C4_reproducibility_integrity": {
+          "evidence": "Go modules include a go.sum file with cryptographic checksums verified against a public checksum database (sum.golang.org by default), and the go command tries to authenticate every downloaded module so that bits downloaded today match bits downloaded previously, ensuring repeatable builds. A minor deduction reflects that toolchain-level download checksums are less directly scriptable than the module-level guarantee.",
+          "score": 19
+        },
+        "C5_documented_prerelease_validation": {
+          "evidence": "The Go team tests the development version of Go against all of Google's internal Go code on a rolling basis, and only installs a commit as Google's production toolchain once those tests pass; if a change breaks internal tests it is normally rolled back or rewritten before release.",
+          "score": 19
+        }
+      }
+    },
+    "note_on_scope": "This worker was assigned only the Go column for these two metrics. Scores use a rubric intended to be applied identically to all 10 languages; other language columns are populated by sibling shards and merged by the runner."
+  },
+  "requirement_ids": [
+    "metric.installation_distribution_experience",
+    "metric.toolchain_stability_release_maturity"
+  ],
+  "requirements": {
+    "metric.installation_distribution_experience": {
+      "Go": 93
+    },
+    "metric.toolchain_stability_release_maturity": {
+      "Go": 96
+    }
+  },
+  "work_unit_id": "ecosystem-tooling--part-4--go"
+}

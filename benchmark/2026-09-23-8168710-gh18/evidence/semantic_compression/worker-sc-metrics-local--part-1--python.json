@@ -1,0 +1,576 @@
+{
+  "agent_id": "worker-sc-metrics-local--part-1--python",
+  "assigned_languages": [
+    "Python"
+  ],
+  "evidence": {
+    "metric.semantic_density": {
+      "assigned_languages_only": [
+        "Python"
+      ],
+      "blockers": [
+        "Cross-language common-basis reconciliation (spec interaction_with_quality_metrics.common_basis_rule) requires the other 9 languages' shard outputs; not available to this packet-only, single-language worker. The runner must recompute the common-basis A-D figures once all shards are merged.",
+        "Token counts for the longer multi-statement fragments (F14.P3, F17.P2, F19.P1, F19.P2) were produced with a simple manual whitespace/punctuation tokenizer rather than a validated language lexer; spec 02's frozen tokenizer/reconciliation rule should be applied by the aggregation step for exact reproducibility."
+      ],
+      "fragments_with_no_support_NONE": [
+        {
+          "probe_id": "F04.P1",
+          "reason": "Python has no mechanism for a second name in the same scope to hold a writable alias to an existing scalar int local; ints are immutable and Python provides no reference/pointer/inout construct for locals. N-1."
+        },
+        {
+          "probe_id": "F04.P2",
+          "reason": "Python list has no built-in non-copying read-only view; memoryview is restricted to buffer-protocol types (bytes/bytearray/array), not list. N-1."
+        },
+        {
+          "probe_id": "F05.P2",
+          "reason": "Python provides no documented way for a callee to write a caller's scalar int local (ints immutable, no ref/inout); wrapping in a mutable container is explicitly disallowed as a FULL substitute by the rubric. N-1."
+        },
+        {
+          "probe_id": "F20.P2",
+          "reason": "Under the frozen recipe (python3 FILE.py), Python produces no compiled artifact and has no built-in mechanism to export a stable unmangled C-ABI symbol without an external extension-build toolchain outside the frozen recipe. N-1/no compiled artifact under the frozen recipe."
+        }
+      ],
+      "methodology_note": "Raw value per spec 6.1.3.A = (explicit-local semantic sites) / (lexical source tokens), computed on the Python-fragment basis (40 of 44 probes; 4 probes recorded NONE for Python with no fragment authored, per R9/support rubric). Tokenizer: simple language-neutral lexer splitting on whitespace and punctuation/operators as atomic tokens; string literal contents counted as a single token; comments/whitespace excluded (per spec). Common-basis reconciliation across all 10 languages (spec 6.1.7 interaction_with_quality_metrics) must be performed by the runner once all language shards are merged; this shard reports the Python-only raw computation and per-probe evidence needed for that merge. Normalization to 0-100 applied here as raw_value*100 (density values are fractional, typically << 1), capped at 100; final cross-language normalization is runner-owned and may rescale this figure once the common basis is fixed.",
+      "normalized_0_100": 10.2,
+      "per_probe_evidence": [
+        {
+          "explicit_local_facts": 3,
+          "fragment": "n = 7\nreturn n",
+          "probe_id": "F01.P1",
+          "site_states": {
+            "initialization_state": "EXPLICIT_LOCAL",
+            "mutability": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 5
+        },
+        {
+          "explicit_local_facts": 4,
+          "fragment": "counter = 0\nLIMIT = 100",
+          "probe_id": "F01.P2",
+          "site_states": {
+            "initialization_state": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "EXPLICIT_LOCAL",
+            "mutability": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 6
+        },
+        {
+          "explicit_local_facts": 4,
+          "fragment": "if cond:\n    v = 5\nelse:\n    v = 9\nreturn v",
+          "probe_id": "F02.P1",
+          "site_states": {
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "initialization_state": "EXPLICIT_LOCAL",
+            "mutability": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 13
+        },
+        {
+          "explicit_local_facts": 3,
+          "fragment": "buf = bytearray(16)\nbuf[0] = 1\nx = buf[0]\nreturn x",
+          "note": "PARTIAL substitution per R9 (bytearray zero-fills, not genuinely uninitialized); scored NONE-vs-PARTIAL is a support-rubric matter, not density.",
+          "probe_id": "F02.P2",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "initialization_state": "NONLOCAL",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 20
+        },
+        {
+          "explicit_local_facts": 2,
+          "fragment": "x += 1",
+          "probe_id": "F03.P1",
+          "site_states": {
+            "externally_visible_side_effects": "EXPLICIT_LOCAL",
+            "mutability": "NONLOCAL",
+            "overflow_exceptional_numeric": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 3
+        },
+        {
+          "explicit_local_facts": 4,
+          "fragment": "xs[1] = 42",
+          "probe_id": "F03.P2",
+          "site_states": {
+            "aliasing_writable_aliasing": "EXPLICIT_LOCAL",
+            "externally_visible_side_effects": "EXPLICIT_LOCAL",
+            "mutability": "EXPLICIT_LOCAL",
+            "possible_failure": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 6
+        },
+        {
+          "explicit_local_facts": 3,
+          "fragment": "class H:\n    def __init__(self, id):\n        self.id = id\nfirst = H(5)\nbox = [first]\nsecond = box[0]\nsame = first is second\nreturn same",
+          "probe_id": "F04.P3",
+          "site_states": {
+            "aliasing_writable_aliasing": "EXPLICIT_LOCAL",
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "IMPLICIT",
+            "type_and_representation": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 40
+        },
+        {
+          "explicit_local_facts": 2,
+          "fragment": "x = [1, 2, 3]\nf(x)\ne = x[0]\nreturn e",
+          "probe_id": "F05.P1",
+          "site_states": {
+            "aliasing_writable_aliasing": "IMPLICIT",
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "control_flow_effect": "IMPLICIT",
+            "externally_visible_side_effects": "NONLOCAL",
+            "mutability": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 21
+        },
+        {
+          "explicit_local_facts": 3,
+          "fragment": "def neg(a):\n    return k - a\nys = list(map(neg, xs))\nreturn ys[0]",
+          "probe_id": "F05.P3",
+          "site_states": {
+            "aliasing_writable_aliasing": "NONLOCAL",
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "IMPLICIT",
+            "type_and_representation": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 26
+        },
+        {
+          "explicit_local_facts": 2,
+          "fragment": "def mid(s):\n    return s[1]\nxs = [1, 2, 3]\ny = mid(xs)\nreturn y",
+          "probe_id": "F06.P1",
+          "site_states": {
+            "aliasing_writable_aliasing": "IMPLICIT",
+            "allocation_copy_move_borrow_destroy": "IMPLICIT",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "type_and_representation": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 28
+        },
+        {
+          "explicit_local_facts": 4,
+          "fragment": "def divmod2(a, b):\n    return a // b, a % b\nq, r = divmod2(a, b)\nreturn q + r",
+          "probe_id": "F06.P2",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 30
+        },
+        {
+          "explicit_local_facts": 1,
+          "fragment": "r = a * b + c",
+          "probe_id": "F07.P1",
+          "site_states": {
+            "conversion_behavior": "ABSENT",
+            "overflow_exceptional_numeric": "IMPLICIT",
+            "type_and_representation": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 7
+        },
+        {
+          "explicit_local_facts": 2,
+          "fragment": "q = a // b\nm = a % b\nd = a / b",
+          "probe_id": "F07.P2",
+          "site_states": {
+            "conversion_behavior": "EXPLICIT_LOCAL",
+            "overflow_exceptional_numeric": "IMPLICIT",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 15
+        },
+        {
+          "explicit_local_facts": 1,
+          "fragment": "m = sys.maxsize\no = m + 1\nreturn o",
+          "probe_id": "F08.P1",
+          "site_states": {
+            "control_flow_effect": "ABSENT",
+            "conversion_behavior": "ABSENT",
+            "overflow_exceptional_numeric": "IMPLICIT",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 12
+        },
+        {
+          "explicit_local_facts": 4,
+          "fragment": "q = 0 if b == 0 else a // b",
+          "probe_id": "F08.P2",
+          "site_states": {
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "overflow_exceptional_numeric": "EXPLICIT_LOCAL",
+            "possible_failure": "EXPLICIT_LOCAL",
+            "type_and_representation": "IMPLICIT"
+          },
+          "tokens": 11
+        },
+        {
+          "explicit_local_facts": 1,
+          "fragment": "eq = s1 == s2",
+          "probe_id": "F09.P1",
+          "site_states": {
+            "alternative_value_cases": "ABSENT",
+            "conversion_behavior": "ABSENT",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 5
+        },
+        {
+          "explicit_local_facts": 3,
+          "fragment": "xs.sort(reverse=True)\nlt = a < b",
+          "probe_id": "F09.P2",
+          "site_states": {
+            "aliasing_writable_aliasing": "EXPLICIT_LOCAL",
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "mutability": "EXPLICIT_LOCAL",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "IMPLICIT"
+          },
+          "tokens": 13
+        },
+        {
+          "explicit_local_facts": 2,
+          "fragment": "import ctypes\nsmall = ctypes.c_int32(big).value\nreturn small",
+          "probe_id": "F10.P1",
+          "site_states": {
+            "control_flow_effect": "ABSENT",
+            "conversion_behavior": "EXPLICIT_LOCAL",
+            "overflow_exceptional_numeric": "NONLOCAL",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "EXPLICIT_LOCAL"
+          },
+          "tokens": 15
+        },
+        {
+          "explicit_local_facts": 1,
+          "fragment": "sum = i + d",
+          "probe_id": "F10.P2",
+          "site_states": {
+            "conversion_behavior": "IMPLICIT",
+            "overflow_exceptional_numeric": "ABSENT",
+            "type_and_representation": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 5
+        },
+        {
+          "explicit_local_facts": 0,
+          "fragment": "e = xs[i]\nreturn e",
+          "probe_id": "F11.P1",
+          "site_states": {
+            "alternative_value_cases": "ABSENT",
+            "control_flow_effect": "IMPLICIT",
+            "overflow_exceptional_numeric": "ABSENT",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "IMPLICIT"
+          },
+          "tokens": 8
+        },
+        {
+          "explicit_local_facts": 0,
+          "fragment": "part = xs[1:4]\nresult = part[0]",
+          "probe_id": "F11.P2",
+          "site_states": {
+            "aliasing_writable_aliasing": "IMPLICIT",
+            "allocation_copy_move_borrow_destroy": "IMPLICIT",
+            "lifetime_resource_effect": "ABSENT",
+            "mutability": "IMPLICIT",
+            "possible_failure": "IMPLICIT"
+          },
+          "tokens": 14
+        },
+        {
+          "explicit_local_facts": 3,
+          "fragment": "o = None\nn = 0 if o is None else o\nreturn n",
+          "probe_id": "F12.P1",
+          "site_states": {
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 14
+        },
+        {
+          "explicit_local_facts": 2,
+          "fragment": "def h(a):\n    return a + 1\np = h(o) if o is not None else None\nn = p if p is not None else 0\nreturn n",
+          "note": "PARTIAL substitution per R9: no standard optional-map/chain operator in Python; explicit conditional written.",
+          "probe_id": "F12.P2",
+          "site_states": {
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "IMPLICIT"
+          },
+          "tokens": 35
+        },
+        {
+          "explicit_local_facts": 2,
+          "fragment": "def parse_twice(s):\n    return int(s) * 2",
+          "probe_id": "F13.P1",
+          "site_states": {
+            "alternative_value_cases": "ABSENT",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "conversion_behavior": "EXPLICIT_LOCAL",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "IMPLICIT"
+          },
+          "tokens": 13
+        },
+        {
+          "explicit_local_facts": 3,
+          "fragment": "try:\n    n = int(s)\nexcept ValueError:\n    n = 0\nreturn n",
+          "probe_id": "F13.P2",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "ABSENT",
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "ABSENT",
+            "possible_failure": "EXPLICIT_LOCAL"
+          },
+          "tokens": 16
+        },
+        {
+          "explicit_local_facts": 4,
+          "fragment": "@dataclass\nclass Circle:\n    r: float\n@dataclass\nclass Rect:\n    w: float\n    h: float\nShape = Union[Circle, Rect]\ns: Shape = Circle(2.0)",
+          "note": "PARTIAL substitution per R9: Python classes are open, not closed; Union used as nearest standard form.",
+          "probe_id": "F14.P1",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 35
+        },
+        {
+          "explicit_local_facts": 3,
+          "fragment": "match s:\n    case Circle(r=r):\n        area = 3.141592653589793 * r * r\n    case Rect(w=w, h=h):\n        area = w * h\nreturn area",
+          "probe_id": "F14.P2",
+          "site_states": {
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 36
+        },
+        {
+          "explicit_local_facts": 5,
+          "fragment": "# shapes.py\nclass Shape(ABC):\n    @abstractmethod\n    def area(self): ...\nclass Circle(Shape):\n    def __init__(self, r): self.r = r\n    def area(self): return 3.141592653589793 * self.r * self.r\nclass Rect(Shape):\n    def __init__(self, w, h): self.w=w; self.h=h\n    def area(self): return self.w*self.h\n# other.py\nclass Tri(Shape):\n    def __init__(self, b, h): self.b=b; self.h=h\n    def area(self): return 0.5*self.b*self.h\nt = Tri(3,4)\nresult = t.area()",
+          "note": "Multi-unit recipe per toolchain_binding.multi_unit_recipes (unchanged for Python, module import).",
+          "probe_id": "F14.P3",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 95
+        },
+        {
+          "explicit_local_facts": 3,
+          "fragment": "def head(xs: list[T]) -> T:\n    return xs[0]\na = head([4, 5, 6])\nb = head([\"p\", \"q\"])\nreturn str(a) + b",
+          "probe_id": "F15.P1",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "alternative_value_cases": "ABSENT",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 47
+        },
+        {
+          "explicit_local_facts": 2,
+          "fragment": "from typing import TypeVar\nT = TypeVar(\"T\", bound=\"SupportsRichComparison\")\ndef max_of(a: T, b: T) -> T:\n    return a if a > b else b\nm = max_of(3, 5)\nreturn m",
+          "probe_id": "F15.P2",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "ABSENT",
+            "alternative_value_cases": "ABSENT",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "EXPLICIT_LOCAL"
+          },
+          "tokens": 48
+        },
+        {
+          "explicit_local_facts": 4,
+          "fragment": "class Named(Protocol):\n    def tag(self) -> str: ...\nclass A:\n    def tag(self): return \"a\"\nclass B:\n    def tag(self): return \"b\"\nitems: list[Named] = [A(), B()]\nresult = items[0].tag()",
+          "probe_id": "F15.P3",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 63
+        },
+        {
+          "explicit_local_facts": 2,
+          "fragment": "xs = [1, 2, 3]\ntotal = sum(xs)\nreturn total",
+          "probe_id": "F16.P1",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "control_flow_effect": "ABSENT",
+            "mutability": "IMPLICIT",
+            "overflow_exceptional_numeric": "ABSENT",
+            "type_and_representation": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 17
+        },
+        {
+          "explicit_local_facts": 3,
+          "fragment": "mp = {\"a\": 1}\ntotal = sum(mp.values())\nmiss = mp.get(\"b\", 0)\nreturn total + miss",
+          "probe_id": "F16.P2",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "alternative_value_cases": "EXPLICIT_LOCAL",
+            "control_flow_effect": "ABSENT",
+            "possible_failure": "EXPLICIT_LOCAL",
+            "type_and_representation": "IMPLICIT"
+          },
+          "tokens": 31
+        },
+        {
+          "explicit_local_facts": 3,
+          "fragment": "def read_all():\n    with open(\"data.txt\") as f:\n        text = f.read()\n    return len(text)",
+          "probe_id": "F17.P1",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "control_flow_effect": "IMPLICIT",
+            "externally_visible_side_effects": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "EXPLICIT_LOCAL",
+            "possible_failure": "IMPLICIT"
+          },
+          "tokens": 25
+        },
+        {
+          "explicit_local_facts": 5,
+          "fragment": "class Handle:\n    def __init__(self, id):\n        self.id = id\n    def __enter__(self):\n        return self\n    def __exit__(self, *a):\n        global released\n        released += 1\nwith Handle(1):\n    pass\nresult = released",
+          "note": "PARTIAL substitution per R9: __del__ is nondeterministic in CPython; a context manager (with/__exit__) is used for deterministic cleanup instead.",
+          "probe_id": "F17.P2",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "externally_visible_side_effects": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "EXPLICIT_LOCAL",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 49
+        },
+        {
+          "explicit_local_facts": 1,
+          "fragment": "print(\"x\")",
+          "probe_id": "F18.P1",
+          "site_states": {
+            "control_flow_effect": "ABSENT",
+            "externally_visible_side_effects": "EXPLICIT_LOCAL",
+            "possible_failure": "ABSENT",
+            "type_and_representation": "ABSENT"
+          },
+          "tokens": 4
+        },
+        {
+          "explicit_local_facts": 2,
+          "fragment": "# util.py\ndef pub_add(a, b):\n    return a + b + _secret()\ndef _secret():\n    return 1\n# main.py\nimport util\nresult = util.pub_add(2, 3)",
+          "note": "PARTIAL under P-a: Python privacy is a leading-underscore convention, not enforced by the language.",
+          "probe_id": "F18.P2",
+          "site_states": {
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "externally_visible_side_effects": "ABSENT",
+            "lifetime_resource_effect": "ABSENT",
+            "type_and_representation": "IMPLICIT",
+            "value_vs_storage": "EXPLICIT_LOCAL"
+          },
+          "tokens": 35
+        },
+        {
+          "explicit_local_facts": 1,
+          "fragment": "import asyncio\nasync def a(): return 20\nasync def b(): return 22\nasync def main():\n    r1, r2 = await asyncio.gather(a(), b())\n    return r1 + r2\nsum_ = asyncio.run(main())",
+          "probe_id": "F19.P1",
+          "site_states": {
+            "allocation_copy_move_borrow_destroy": "IMPLICIT",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "externally_visible_side_effects": "ABSENT",
+            "lifetime_resource_effect": "ABSENT",
+            "possible_failure": "IMPLICIT"
+          },
+          "tokens": 57
+        },
+        {
+          "explicit_local_facts": 5,
+          "fragment": "import threading\ncounter = 0\nlock = threading.Lock()\ndef worker():\n    global counter\n    for _ in range(1000):\n        with lock:\n            counter += 1\nt1 = threading.Thread(target=worker)\nt2 = threading.Thread(target=worker)\nt1.start(); t2.start()\nt1.join(); t2.join()\nresult = counter",
+          "note": "Verification (20 consecutive runs = 2000) is an evidence/runtime obligation not computable in this packet-only shard; recorded as a documented blocker for the capability-coverage/support-rubric worker, not for density.",
+          "probe_id": "F19.P2",
+          "site_states": {
+            "aliasing_writable_aliasing": "EXPLICIT_LOCAL",
+            "control_flow_effect": "EXPLICIT_LOCAL",
+            "externally_visible_side_effects": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "EXPLICIT_LOCAL",
+            "mutability": "EXPLICIT_LOCAL"
+          },
+          "tokens": 76
+        },
+        {
+          "explicit_local_facts": 2,
+          "fragment": "import ctypes\nlibc = ctypes.CDLL(None)\nresult = libc.abs(-3)",
+          "probe_id": "F20.P1",
+          "site_states": {
+            "conversion_behavior": "IMPLICIT",
+            "externally_visible_side_effects": "EXPLICIT_LOCAL",
+            "lifetime_resource_effect": "ABSENT",
+            "possible_failure": "IMPLICIT",
+            "type_and_representation": "EXPLICIT_LOCAL"
+          },
+          "tokens": 19
+        }
+      ],
+      "raw_value": 0.1022,
+      "total_explicit_local_facts_python_basis": 104,
+      "total_tokens_python_basis": 1018
+    }
+  },
+  "requirement_ids": [
+    "metric.semantic_density"
+  ],
+  "requirements": {
+    "metric.semantic_density": {
+      "Python": 10.2
+    }
+  },
+  "work_unit_id": "sc-metrics-local--part-1--python"
+}

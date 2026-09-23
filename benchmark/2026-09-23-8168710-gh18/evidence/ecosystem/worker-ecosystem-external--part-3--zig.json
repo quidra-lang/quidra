@@ -1,0 +1,83 @@
+{
+  "agent_id": "worker-ecosystem-external--part-3--zig",
+  "assigned_languages": [
+    "Zig"
+  ],
+  "evidence": {
+    "metric.community_public_knowledge_availability": {
+      "language": "Zig",
+      "limitations_of_proxies_used": "Discord member counts, subreddit history, and dev.to tag activity are used only as declared corroborating evidence points within this single metric, not as a standalone score for the whole evaluation, per the ecosystem methodology's restriction on raw popularity indicators. Member/subscriber counts do not measure answer quality, duplicate/stale content, or search-engine discoverability, and Discord message volume is not publicly countable via this retrieval route, so channel-size figures are reported as one input among several qualitative structural findings (forum continuity, book count, doc format) rather than as the sole basis for the score.",
+      "normalization_note": "Score reported on the required 0-100 scale where 100 = maximally rich, durable, and discoverable public community knowledge (mature Stack Overflow archive, multiple current books from major publishers, large stable forums/wikis, extensive third-party tutorials) and 0 = no meaningful public knowledge base. Zig's mix of a real but still-forming durable Q&A archive, a sizeable but chat-centric primary community channel, documented forum discontinuity, and only a handful of recent books places it in the moderate range rather than at either extreme.",
+      "raw_findings": [
+        {
+          "category": "official_docs_and_community_hub",
+          "citation_support": "Zig is under heavy development, but there's a single page https://ziglang.org/documentation/0.12.0/ that is a reasonably comprehensive source of truth about the current state of the language.",
+          "finding": "Zig's official documentation is a single, dense reference page per version rather than a sprawling multi-page manual; a Hacker News commenter characterized it as a reasonably comprehensive single-page source of truth about the language's current state.",
+          "source": "https://www.saashub.com/compare-stack-overflow-vs-zig (quoting a Hacker News comment)"
+        },
+        {
+          "category": "official_docs_and_community_hub",
+          "finding": "The official ziglang.org community page lists a wide but fragmented array of channels: regional mailing lists, a Chinese-language forum, a Russian-language community, a 'ZigQuestions' resource, a dedicated Discord for a community show, and the Ziggit forum -- showing breadth but also dispersion of public knowledge across many small channels rather than one authoritative hub.",
+          "source": "https://ziglang.org/community/"
+        },
+        {
+          "category": "forum_continuity",
+          "finding": "Zig's primary Reddit presence (r/zig) was deliberately closed by its creator/moderator Andrew Kelley in 2023 in protest of Reddit policy changes, handed to the Zig Software Foundation's VP of Community who set it read-only, and was then reopened via what is described as a hostile takeover by an unrelated user -- indicating real discontinuity risk in one of the language's public knowledge repositories.",
+          "source": "https://andrewkelley.me/post/goodbye-twitter-reddit.html"
+        },
+        {
+          "category": "forum_continuity",
+          "finding": "Community commentary on the Zig-run Discourse forum Ziggit explicitly frames it as the replacement for the closed subreddit and notes the earlier Zig community forum had already 'disappeared' once before, contributing to slow trust-building for the current forum.",
+          "source": "https://ziggit.dev/t/the-zig-subreddit-has-closed/679"
+        },
+        {
+          "category": "official_docs_and_community_hub",
+          "finding": "Ziggit self-describes as a community forum for anyone interested in the Zig Programming Language and is moderated by core community/toolchain contributors, functioning as the closest analogue to a durable searchable Q&A archive that Zig currently has.",
+          "source": "https://ziggit.dev/ and https://ziggit.dev/faq"
+        },
+        {
+          "category": "chat_community_size",
+          "finding": "The official Zig Discord invite link reports 21,081 members as of snapshot time, making it a sizeable but still second-tier community compared to major languages' Discords (the same directory lists the Rust community Discord at roughly 67,487 members).",
+          "source": "https://discord.com/invite/zig ; comparison figure from https://discordbotlist.com/servers/zig"
+        },
+        {
+          "category": "chat_vs_durable_knowledge_tradeoff",
+          "finding": "A Hacker News discussion thread specifically about the Zig Discord raises the concern that answering questions primarily in Discord is a structural step backward from Stack-Overflow-style durable, searchable, canonical answers, since chat platforms don't preserve a crowdsourced, findable answer for future askers the way Stack Overflow does.",
+          "source": "https://news.ycombinator.com/item?id=43867006"
+        },
+        {
+          "category": "published_books",
+          "citation_support": "Systems Programming with Zig shows you how to write quality, useful Zig applications without relying on libraries or frameworks",
+          "finding": "At least three distinct dedicated Zig books exist as of the snapshot: Packt/O'Reilly's 'Learning Zig' by Alex Rios (November 2025, 502 pages, intermediate-to-advanced), Manning's 'Systems Programming with Zig' by Garrison Hinson-Hasty, and the independently published open-access 'Introduction to Zig: a project-based book' by Pedro Duarte Faria (first released October 2024, updated through Zig 0.16.0), showing a real but still-small and recent publishing footprint.",
+          "source": "https://www.oreilly.com/library/view/learning-zig/9781835085127/ ; https://www.manning.com/books/systems-programming-with-zig ; https://pedropark99.github.io/zig-book/"
+        },
+        {
+          "category": "third_party_content_aggregation",
+          "citation_support": "Official tag for the Zig programming language and toolchains.",
+          "finding": "dev.to maintains an official 'Zig Language' tag with a steady stream of community-authored posts (e.g. comparative pieces like 'Rust vs. Zig', practical tutorials like 'Caching API responses with Redis in Zig', and beginner-journey posts), indicating ongoing but modest-volume third-party public writing about the language.",
+          "source": "https://dev.to/t/zig/page/3"
+        },
+        {
+          "category": "learning_tooling_signal",
+          "citation_support": "Instant Help Center: Integrated Stack Overflow search lets you find solutions to Zig-specific errors without leaving the app.",
+          "finding": "A dedicated third-party mobile learning app for Zig explicitly bundles an 'Instant Help Center' with integrated Stack Overflow search rather than relying on the app's own crowdsourced Q&A, which is circumstantial evidence that the existing public Stack Overflow-style archive for Zig, while present, is not large enough to be treated as self-sufficient without search aggregation tooling.",
+          "source": "https://apps.apple.com/us/app/zig-programming-learn-and-code/id6757462159?l=ru"
+        }
+      ],
+      "retrieval_route": "web_search tool (provider-brokered), single pass per source, no re-querying to cherry-pick favorable results",
+      "score_0_100": 58,
+      "score_rationale": "Zig has a genuinely active, multi-channel public-knowledge ecosystem (official docs, a dedicated Discourse Q&A forum, a large Discord, several 2024-2025 published books, and recurring third-party blog/dev.to coverage), which places it above a niche/abandoned-language floor. However, its durable, crawlable, search-indexed knowledge base (Stack Overflow-style canonical Q&A) is comparatively thin, its primary community forum has suffered documented discontinuity (Reddit closure/hostile-takeover), and the language's pre-1.0 status limits accumulated historical knowledge volume relative to mature ecosystems. This nets a middling-to-moderate normalized score rather than a high or low extreme.",
+      "selection_and_retrieval_rule": "Predeclared sampling cells for this metric: (1) official project-declared community index page (ziglang.org/community), (2) the largest real-time chat community linked from that page (official Discord invite), (3) the officially endorsed forum that explicitly replaced the language's Reddit presence (Ziggit, a Discourse instance), (4) dedicated Q&A tag on Stack Overflow / the language's own Wikipedia-adjacent third-party coverage, (5) commercially/openly published books indexed by major publishers (O'Reilly/Packt, Manning) and by community open-access channels (GitHub Pages books), (6) third-party tag-based content aggregator (dev.to Zig tag). All six are the same class of source type used for every other assigned language in this ecosystem metric family: official docs/community page, largest chat platform, dedicated Q&A/forum, published books, third-party content aggregator. Retrieval route: web_search snapshot on 2026-09-22 (today's date per task packet), single retrieval pass per source, no re-querying after initial capture to avoid retrieval-order bias.",
+      "snapshot_time": "2026-09-22"
+    }
+  },
+  "requirement_ids": [
+    "metric.community_public_knowledge_availability"
+  ],
+  "requirements": {
+    "metric.community_public_knowledge_availability": {
+      "Zig": 58
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-3--zig"
+}

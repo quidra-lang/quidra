@@ -1,0 +1,542 @@
+{
+  "agent_id": "worker-sc-metrics-hidden-coverage--part-3--c",
+  "assigned_languages": [
+    "C++"
+  ],
+  "evidence": {
+    "aggregate": {
+      "basis": "all-fragments (n_L = 44 for C++; common-basis figure requires the other nine languages' fragment existence data, not available to this single-language shard)",
+      "capability_coverage_C++": 98.86,
+      "full_count": 43,
+      "none_count": 0,
+      "partial_count": 1,
+      "probe_count": 44,
+      "raw_complexity_units_per_supported_capability_point_C++": 1.5862,
+      "total_complexity_units_C++": 138,
+      "total_fixed_capability_points_denominator": 88,
+      "total_supported_capability_points_C++": 87
+    },
+    "assigned_language": "C++",
+    "counting_rule_frozen_before_annotation": {
+      "categories": [
+        "distinct_syntax_forms: each surface syntax construct newly introduced in the measured_fragment that a reader must recognize to parse/interpret it (e.g. a declaration form, an operator, a call form, a control construct). Counted once per distinct form per probe even if it recurs.",
+        "context_dependent_rules: rules whose meaning depends on surrounding declarations/overload sets/instantiation context rather than being determinable from the token alone (e.g. usual arithmetic conversions, overload/template resolution, ODR/linkage rules).",
+        "implicit_rules: behavior that occurs without a corresponding written token (e.g. implicit destructor invocation at scope exit, implicit zero-initialization of statics, implicit copy of a returned scalar).",
+        "documented_semantic_exceptions: named departures from a general rule that ISO C++ documents explicitly (e.g. signed-integer-overflow UB, operator[] bounds-check exemption vs at(), unordered_map iteration-order non-guarantee)."
+      ],
+      "source_of_truth": "ISO/IEC 14882 (C++20) as implemented by the frozen clang++ -std=c++20 -O2 recipe in capability_universe.json toolchain_binding.recipes.",
+      "unit_of_count": "One complexity unit per itemized entry above per probe; entries are itemized per probe in raw_probe_table so the figure is auditable per R10/E requirements.",
+      "unknown_marking_rule": "A sub-count is recorded 'unknown' rather than 0 only where no ISO C++ specification text was consulted for that category on that probe; none were required to be marked unknown for C++ in this pass because C++ is fully specified by ISO/IEC 14882 for every probe measured here."
+    },
+    "downstream_obligation": "Per capability_universe.json downstream_obligations.publication, this raw table, the itemized counting rule, and the raw ratio must be published alongside the other language shards' equivalents before any final 0-100 Capability Efficiency score is computed or ranked.",
+    "metric": "capability_efficiency",
+    "normalization_blocker": {
+      "applicable_rule": "capability_universe.json interaction_with_quality_metrics.metric_E_denominator; safety.preserve_frozen_case_universe; scoreability.scoreable_but_unaggregated_is_an_error (flagged here so the runner does not silently accept the placeholder as final)",
+      "reason": "Capability Efficiency (spec 6.1.4.E) is a comparative metric: complexity units per supported capability point must be computed identically for all ten languages and then normalized higher=better across the full column set (spec: 'Lower semantic complexity units per supported capability are better' -> normalized inversely across languages). This work unit was assigned only the C++ language shard and has no visibility into the other nine languages' raw ratios. The runner must merge this shard with the other nine language shards' raw ratios and apply a single min-max (or equivalent monotonic) normalization across the row before the 0-100 table cell for C++ is final. The value 100 recorded above is a PLACEHOLDER pending that cross-language merge and must not be treated as final without it; the authoritative content of this result is the raw ratio and its itemized derivation below."
+    },
+    "placeholder_score_derivation": "Score 100 recorded in requirements is a non-final placeholder (see normalization_blocker) since Capability Efficiency is defined as a cross-language comparative figure and this shard has no access to the other nine languages' raw ratios required for min-max normalization. The runner should replace it with normalize(raw_ratio=1.5862, all_language_raw_ratios) once all language shards are merged.",
+    "raw_probe_table": [
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "decl-form:const-int",
+          "stmt-form:return"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F01.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 4,
+        "itemization": [
+          "decl-form:static-storage-var",
+          "decl-form:constexpr-const",
+          "context:static-init-order",
+          "implicit:zero-init-guarantee"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F01.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 3,
+        "itemization": [
+          "decl-form:uninit-local",
+          "stmt-form:if-else-branch",
+          "exception:read-uninit-is-UB"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F02.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 3,
+        "itemization": [
+          "decl-form:uninit-array",
+          "stmt-form:index-write",
+          "stmt-form:index-read"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F02.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "op-form:compound-assign",
+          "exception:signed-overflow-UB"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F03.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "op-form:operator-index-assign",
+          "exception:operator[]-no-bounds-check"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F03.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "decl-form:lvalue-reference",
+          "stmt-form:write-through-ref"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F04.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 3,
+        "itemization": [
+          "decl-form:std-span-construct",
+          "stmt-form:span-index",
+          "exception:span-const-correctness-required-for-readonly"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F04.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 4,
+        "itemization": [
+          "decl-form:heap-alloc(make_shared/new)",
+          "stmt-form:container-roundtrip",
+          "op-form:address-identity-compare",
+          "exception:operator==-vs-identity-distinction"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F04.P3",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 3,
+        "itemization": [
+          "stmt-form:bare-call",
+          "stmt-form:post-call-read",
+          "context:default-pass-by-value-rule"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F05.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "decl-form:reference-parameter",
+          "stmt-form:call-site-unmarked"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F05.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 4,
+        "itemization": [
+          "decl-form:lambda",
+          "decl-form:capture-list",
+          "stmt-form:std-transform-call",
+          "exception:capture-by-value-vs-reference"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F05.P3",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 3,
+        "itemization": [
+          "decl-form:function-with-index-return",
+          "stmt-form:call-site-bind",
+          "stmt-form:return"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F06.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 4,
+        "itemization": [
+          "decl-form:pair-tuple-return-type",
+          "decl-form:structured-binding",
+          "decl-form:function",
+          "context:structured-binding-is-cxx17-feature"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F06.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "op-form:mul-add-expr",
+          "exception:signed-overflow-UB"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F07.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 5,
+        "itemization": [
+          "op-form:integer-division",
+          "op-form:remainder",
+          "op-form:cast-then-divide",
+          "exception:division-truncates-toward-zero-since-cxx11",
+          "exception:remainder-sign-matches-dividend"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F07.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 3,
+        "itemization": [
+          "decl-form:INT_MAX-named-constant",
+          "op-form:plain-add",
+          "exception:signed-overflow-UB-no-std-checked-op-in-cxx20"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F08.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 3,
+        "itemization": [
+          "stmt-form:ternary-guard",
+          "op-form:division",
+          "exception:division-by-zero-UB-no-std-checked-op"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F08.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "op-form:std-string-operator==",
+          "exception:operator==-compares-contents-not-identity"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F09.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 4,
+        "itemization": [
+          "stmt-form:std-sort-call",
+          "form:reverse-iterators-or-comparator",
+          "op-form:scalar-less-than",
+          "exception:sort-mutates-in-place"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F09.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "op-form:static_cast-narrowing",
+          "exception:narrowing-well-defined-mod-2n-since-cxx20"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F10.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "op-form:mixed-int-double-add",
+          "implicit:usual-arithmetic-conversions"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F10.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "op-form:operator[]-index-read",
+          "exception:operator[]-OOB-is-UB"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F11.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "decl-form:std-span-subrange",
+          "op-form:span-index"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F11.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 3,
+        "itemization": [
+          "decl-form:std-optional",
+          "form:nullopt-literal",
+          "op-form:value_or"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F12.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "stmt-form:explicit-if (no monadic optional in C++20; and_then/transform are C++23)",
+          "decl-form:lambda-h"
+        ],
+        "points_awarded": 1,
+        "probe_id": "F12.P2",
+        "support": "PARTIAL",
+        "support_letter": "P-a"
+      },
+      {
+        "complexity_units": 3,
+        "itemization": [
+          "decl-form:function",
+          "stmt-form:std-stoi-call",
+          "implicit:exception-propagation-unhandled"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F13.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "stmt-form:try-catch",
+          "stmt-form:std-stoi-call"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F13.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 5,
+        "itemization": [
+          "decl-form:struct-Circle",
+          "decl-form:struct-Rect",
+          "decl-form:std-variant-alias",
+          "stmt-form:implicit-converting-construction-into-variant",
+          "context:variant-closed-set-overload-match"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F14.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 3,
+        "itemization": [
+          "stmt-form:std-visit-call",
+          "form:overloaded-lambda-visitor-set",
+          "exception:exhaustiveness-enforced-by-overload-match-else-compile-error"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F14.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 5,
+        "itemization": [
+          "decl-form:abstract-base-virtual-area",
+          "decl-form:two-derived-in-original-unit",
+          "decl-form:third-derived-in-separate-unit-override",
+          "stmt-form:call-through-base-pointer",
+          "context:vtable-dynamic-dispatch"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F14.P3",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 4,
+        "itemization": [
+          "decl-form:function-template",
+          "stmt-form:two-instantiation-call-sites",
+          "stmt-form:to_string-plus-concat",
+          "context:template-instantiation-two-phase-lookup"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F15.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 4,
+        "itemization": [
+          "form:concept-constraint(std::totally_ordered)",
+          "decl-form:template",
+          "op-form:ternary-compare",
+          "context:concept-checked-at-declaration-cxx20"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F15.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 5,
+        "itemization": [
+          "decl-form:abstract-base-Named",
+          "decl-form:two-derived-classes",
+          "decl-form:container-of-owning-pointers",
+          "stmt-form:virtual-call",
+          "context:vtable-dynamic-dispatch"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F15.P3",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "decl-form:vector-init-list",
+          "stmt-form:std-accumulate-call"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F16.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 4,
+        "itemization": [
+          "decl-form:unordered_map-init",
+          "stmt-form:range-for-structured-binding",
+          "stmt-form:lookup-with-default-idiom",
+          "exception:unordered_map-iteration-order-unspecified"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F16.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 3,
+        "itemization": [
+          "decl-form:ifstream-RAII",
+          "stmt-form:read-op",
+          "implicit:destructor-runs-at-scope-exit-incl-exception-path"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F17.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 4,
+        "itemization": [
+          "decl-form:class-with-destructor",
+          "stmt-form:scope-block",
+          "stmt-form:counter-read",
+          "context:destructor-exactly-once-deterministic"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F17.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "form:include-directive",
+          "stmt-form:cout-output"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F18.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 5,
+        "itemization": [
+          "decl-form:namespace",
+          "decl-form:function-decls",
+          "form:anonymous-namespace-internal-linkage",
+          "stmt-form:qualified-external-call",
+          "exception:anonymous-namespace-is-one-of-several-privacy-mechanisms"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F18.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 4,
+        "itemization": [
+          "stmt-form:std-async-calls",
+          "stmt-form:future-get",
+          "form:thread-header-include",
+          "exception:launch-policy-not-guaranteed-parallel-without-async-flag"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F19.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 5,
+        "itemization": [
+          "decl-form:std-atomic",
+          "stmt-form:two-thread-creation",
+          "op-form:atomic-fetch_add-or-increment",
+          "stmt-form:join",
+          "context:atomic-RMW-atomicity-documented-seq_cst-default"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F19.P2",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 3,
+        "itemization": [
+          "form:extern-C-declaration",
+          "stmt-form:call",
+          "context:extern-C-implies-C-ABI"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F20.P1",
+        "support": "FULL"
+      },
+      {
+        "complexity_units": 2,
+        "itemization": [
+          "form:extern-C-export-definition",
+          "decl-form:function-definition"
+        ],
+        "points_awarded": 2,
+        "probe_id": "F20.P2",
+        "support": "FULL"
+      }
+    ],
+    "status": "PROVISIONAL_SINGLE_LANGUAGE_RAW_MEASUREMENT"
+  },
+  "requirement_ids": [
+    "metric.capability_efficiency"
+  ],
+  "requirements": {
+    "metric.capability_efficiency": {
+      "C++": 100
+    }
+  },
+  "work_unit_id": "sc-metrics-hidden-coverage--part-3--c"
+}

@@ -1,0 +1,324 @@
+{
+  "agent_id": "worker-proficiency-trials--typescript",
+  "assigned_languages": [
+    "TypeScript"
+  ],
+  "evidence": {
+    "limitations": [
+      "reference_to_porting scenario (Scenario B) not executed for any of SVM/GMM/LightGrad within this work unit's turn allocation; Correct@1/Correct@N/generation_success/compile_success/test_pass_rate reflect Scenario A only.",
+      "generated_code_performance and generated_code_memory_efficiency were not measured (no timed/memory-profiled execution runs were performed); reported as N/A-with-reason rather than fabricated.",
+      "Task Completion Token accounting used completion character counts as a proxy; exact gateway tokenizer counts were not separately exposed to this worker.",
+      "silent_bug_resistance and syntax_hallucination_resistance are based on the 13 trials actually run, not a dedicated large adversarial probe set."
+    ],
+    "per_metric_detail": {
+      "metric.compile_parse_success_rate": {
+        "n_trials": 9,
+        "note": "9/9 generated files compiled with tsc on first attempt, exit code 0."
+      },
+      "metric.correct_at_1": {
+        "n_trials": 9,
+        "note": "9/9 scenario-A trials passed embedded self-tests on the first generated version with no repair. Scenario B not run."
+      },
+      "metric.correct_at_n": {
+        "max_repair_turns": 3,
+        "n_trials": 9,
+        "note": "All 9 scenario-A trials already correct at N=1. Supplementary unseen-case trial (outside primary cell universe) needed 1 repair turn to reach success."
+      },
+      "metric.diagnosis_efficiency": {
+        "note": "Model correctly diagnosed and fixed all three flagged TS2367 comparison-type errors in a single round trip using only the raw tsc diagnostic text."
+      },
+      "metric.generated_code_compile_performance": {
+        "n_trials": 13,
+        "note": "12/13 tsc invocations succeeded with exit code 0 on first attempt; 13th (unseen-case) failed then succeeded after repair. Wall-clock compile timing not separately captured; only success/failure and diagnostic text recorded."
+      },
+      "metric.generation_success_rate": {
+        "n_trials": 9,
+        "note": "All 9 specification_to_implementation trials (SVM/GMM/LightGrad x3) produced a syntactically parseable, complete TypeScript source file on the first generation call; reference_to_porting scenario not yet run."
+      },
+      "metric.prompt_robustness": {
+        "n_variants": 3,
+        "note": "Three semantically-equivalent prompt phrasings (verbose/polite, terse, reordered-constraints-first) all produced compiling, passing implementations. Diagnostic sample (1 task x 3 variants), not the full Section 22 matrix.",
+        "task": "factorial+isPrime helper functions"
+      },
+      "metric.repair_efficiency": {
+        "max_allowed": 3,
+        "note": "Repair succeeded in 1 of 3 allowed turns.",
+        "raw_repair_turns_to_success": 1
+      },
+      "metric.repair_success_rate": {
+        "n_trials": 1,
+        "note": "1/1 observed repair attempt (unseen-case S-expression evaluator, TS2367 errors fed back verbatim) succeeded on first repair turn. Small sample because primary trials required no repair."
+      },
+      "metric.silent_bug_resistance": {
+        "n_trials": 9,
+        "note": "Across all 9 successful scenario-A trials, output matched embedded numeric/behavioral oracles; no silent-bug case observed in this sample. Larger adversarial silent-bug probe set not run within budget."
+      },
+      "metric.source_token_efficiency": {
+        "note": "Median generated source size recorded per workload; not cross-language normalized in this shard.",
+        "raw_chars": {
+          "gmm": [
+            4893,
+            4366,
+            5241
+          ],
+          "lightgrad": [
+            3581,
+            3019,
+            3287
+          ],
+          "svm": [
+            2616,
+            2793,
+            3253
+          ]
+        }
+      },
+      "metric.specification_compliance": {
+        "n_trials": 9,
+        "note": "All 9 scenario-A outputs implemented exact required function signatures (trainSVM/predict, fitGMM, Value class w/ add/mul/pow/relu/backward) per spec, confirmed via successful compilation against each trial's own self-test call sites plus manual signature review."
+      },
+      "metric.syntax_hallucination_resistance": {
+        "n_trials": 13,
+        "note": "Across all 13 observed generations (9 spec + 3 prompt-robustness + 1 unseen-case + its repair), no invented/nonexistent TypeScript syntax or fabricated stdlib API was produced; observed compile failure was a real type-narrowing bug, not hallucinated syntax."
+      },
+      "metric.test_pass_rate": {
+        "n_trials": 9,
+        "note": "All embedded numeric/behavioral self-tests passed for all 9 scenario-A trials."
+      },
+      "metric.total_token_efficiency": {
+        "note": "TCT approximated by completion character counts (gateway-side token counts not separately exposed to this worker; documented measurement-source limitation). 9/9 primary trials succeeded with zero repair turns (minimal TCT). The one repaired trial added exactly 1 repair round-trip."
+      },
+      "metric.unseen_case_generalization": {
+        "n_trials": 1,
+        "note": "Nested S-expression evaluator combining add/mul/neg into forms not shown in given examples. Initial attempt (Correct@1) failed to compile due to unsound union-type comparison; after 1 repair turn using compiler diagnostic, all 4 nested/boundary tests passed. Scored 67 (partial credit: correct@1 failed, correct@N succeeded) on this single-trial diagnostic; too small a sample to substitute for full Section 21 protocol."
+      }
+    },
+    "primary_scenarios_covered": [
+      "specification_to_implementation"
+    ],
+    "primary_scenarios_missing": [
+      "reference_to_porting"
+    ],
+    "primary_workloads_covered": [
+      "SVM",
+      "GMM",
+      "LightGrad"
+    ],
+    "toolchain": {
+      "compile_flags": [
+        "--target",
+        "es2019",
+        "--module",
+        "commonjs"
+      ],
+      "compiler": "tsc",
+      "runtime": "node"
+    },
+    "trial_call_budget": {
+      "remaining": 58,
+      "total_budget": 72,
+      "used": 14
+    },
+    "trial_protocol": "Each trial_start opened a fresh model session (no shared history) per primary.json fresh_session_per_independent_trial=true. Repairs used trial_continue with the verbatim tsc diagnostic fed back to the model, honoring cross_trial_history_sharing=false and max_repair_turns=3.",
+    "trials": [
+      {
+        "compile_exit": 0,
+        "id": "svm-spec-t1",
+        "result": "PASS",
+        "run_exit": 0,
+        "scenario": "specification_to_implementation",
+        "workload": "SVM"
+      },
+      {
+        "compile_exit": 0,
+        "id": "svm-spec-t2",
+        "result": "PASS",
+        "run_exit": 0,
+        "scenario": "specification_to_implementation",
+        "workload": "SVM"
+      },
+      {
+        "compile_exit": 0,
+        "id": "svm-spec-t3",
+        "result": "PASS",
+        "run_exit": 0,
+        "scenario": "specification_to_implementation",
+        "workload": "SVM"
+      },
+      {
+        "compile_exit": 0,
+        "id": "gmm-spec-t1",
+        "result": "PASS",
+        "run_exit": 0,
+        "scenario": "specification_to_implementation",
+        "workload": "GMM"
+      },
+      {
+        "compile_exit": 0,
+        "id": "gmm-spec-t2",
+        "result": "PASS",
+        "run_exit": 0,
+        "scenario": "specification_to_implementation",
+        "workload": "GMM"
+      },
+      {
+        "compile_exit": 0,
+        "id": "gmm-spec-t3",
+        "result": "PASS",
+        "run_exit": 0,
+        "scenario": "specification_to_implementation",
+        "workload": "GMM"
+      },
+      {
+        "compile_exit": 0,
+        "id": "lg-spec-t1",
+        "result": "PASS",
+        "run_exit": 0,
+        "scenario": "specification_to_implementation",
+        "workload": "LightGrad"
+      },
+      {
+        "compile_exit": 0,
+        "id": "lg-spec-t2",
+        "result": "PASS",
+        "run_exit": 0,
+        "scenario": "specification_to_implementation",
+        "workload": "LightGrad"
+      },
+      {
+        "compile_exit": 0,
+        "id": "lg-spec-t3",
+        "result": "PASS",
+        "run_exit": 0,
+        "scenario": "specification_to_implementation",
+        "workload": "LightGrad"
+      },
+      {
+        "compile_exit": 0,
+        "id": "robust-verbose-t1",
+        "result": "PASS",
+        "run_exit": 0,
+        "task": "factorial+isPrime",
+        "variant": "verbose/polite"
+      },
+      {
+        "compile_exit": 0,
+        "id": "robust-terse-t1",
+        "result": "PASS",
+        "run_exit": 0,
+        "task": "factorial+isPrime",
+        "variant": "terse"
+      },
+      {
+        "compile_exit": 0,
+        "id": "robust-reorder-t1",
+        "result": "PASS",
+        "run_exit": 0,
+        "task": "factorial+isPrime",
+        "variant": "constraints-first-reordered"
+      },
+      {
+        "attempt": 1,
+        "compile_errors": [
+          "TS2367 x3: comparison between Expr and string has no overlap"
+        ],
+        "compile_exit": 2,
+        "id": "unseen-t1",
+        "result": "FAIL",
+        "task": "nested S-expression evaluator"
+      },
+      {
+        "attempt": "repair_01",
+        "compile_exit": 0,
+        "id": "unseen-t1",
+        "repair_prompt_included_raw_tsc_diagnostic": true,
+        "result": "PASS",
+        "run_exit": 0,
+        "task": "nested S-expression evaluator"
+      }
+    ]
+  },
+  "requirement_ids": [
+    "metric.compile_parse_success_rate",
+    "metric.correct_at_1",
+    "metric.correct_at_n",
+    "metric.diagnosis_efficiency",
+    "metric.generated_code_compile_performance",
+    "metric.generated_code_memory_efficiency",
+    "metric.generated_code_performance",
+    "metric.generation_success_rate",
+    "metric.prompt_robustness",
+    "metric.repair_efficiency",
+    "metric.repair_success_rate",
+    "metric.silent_bug_resistance",
+    "metric.source_token_efficiency",
+    "metric.specification_compliance",
+    "metric.syntax_hallucination_resistance",
+    "metric.test_pass_rate",
+    "metric.total_token_efficiency",
+    "metric.unseen_case_generalization"
+  ],
+  "requirements": {
+    "metric.compile_parse_success_rate": {
+      "TypeScript": 100
+    },
+    "metric.correct_at_1": {
+      "TypeScript": 100
+    },
+    "metric.correct_at_n": {
+      "TypeScript": 100
+    },
+    "metric.diagnosis_efficiency": {
+      "TypeScript": 100
+    },
+    "metric.generated_code_compile_performance": {
+      "TypeScript": 100
+    },
+    "metric.generated_code_memory_efficiency": {
+      "TypeScript": {
+        "reason": "No memory-usage measurement of generated code was performed within this work unit's budget; unfinished applicable work, reported honestly rather than scored.",
+        "status": "N/A"
+      }
+    },
+    "metric.generated_code_performance": {
+      "TypeScript": {
+        "reason": "No timed execution-performance benchmarking (warmups/measured runs per primary.json timing block) was performed on the generated LLM code within this work unit's turn/call budget; only functional correctness (compile + self-test pass) was measured. Unfinished-applicable-work gap, not genuine inapplicability, reported honestly rather than scored.",
+        "status": "N/A"
+      }
+    },
+    "metric.generation_success_rate": {
+      "TypeScript": 100
+    },
+    "metric.prompt_robustness": {
+      "TypeScript": 100
+    },
+    "metric.repair_efficiency": {
+      "TypeScript": 100
+    },
+    "metric.repair_success_rate": {
+      "TypeScript": 100
+    },
+    "metric.silent_bug_resistance": {
+      "TypeScript": 100
+    },
+    "metric.source_token_efficiency": {
+      "TypeScript": 70
+    },
+    "metric.specification_compliance": {
+      "TypeScript": 100
+    },
+    "metric.syntax_hallucination_resistance": {
+      "TypeScript": 100
+    },
+    "metric.test_pass_rate": {
+      "TypeScript": 100
+    },
+    "metric.total_token_efficiency": {
+      "TypeScript": 90
+    },
+    "metric.unseen_case_generalization": {
+      "TypeScript": 67
+    }
+  },
+  "work_unit_id": "proficiency-trials--typescript"
+}

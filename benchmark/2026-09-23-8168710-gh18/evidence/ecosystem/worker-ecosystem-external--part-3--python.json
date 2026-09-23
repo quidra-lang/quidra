@@ -1,0 +1,55 @@
+{
+  "agent_id": "worker-ecosystem-external--part-3--python",
+  "assigned_languages": [
+    "Python"
+  ],
+  "evidence": {
+    "metric.community_public_knowledge_availability": {
+      "candidate_universe_and_selection": "For Python the official python.org community page (python.org/community/) was used to enumerate the canonical candidate set of community channels (PySlackers Slack, Python Discord, LinkedIn group, Libera.Chat IRC, Python Weekly newsletter, discuss.python.org forum). From that enumerated set, the largest official real-time chat (Python Discord) and the official governance forum (discuss.python.org) were selected as the two channel-depth probes, matching the same selection rule that would be applied to every other assigned language (official project community page -> largest official chat -> official discussion/governance forum). Stack Overflow tag statistics were drawn from a public, dated aggregator report (Skillademia Stack Overflow Statistics 2026) using the 'python' tag, the same source class used for every language in this shard set.",
+      "citations": [
+        "Skillademia SO Statistics 2026: JavaScript most-tagged with 2.52M questions, Python 2.18M second; Python fastest-growing major tag for 7 years, 200K+ new questions annually",
+        "python.org/community/: enumerates PySlackers Slack, Python Discord, LinkedIn Developers Community, Libera.Chat IRC channels, Python Weekly newsletter",
+        "discord.com/invite/python: 431,529 members, large community focused around the Python programming language",
+        "pythondiscord.com: over 100 dedicated expert Helpers available around the clock in every timezone",
+        "pythonresources.com: discuss.python.org is where PEP discussions, Steering Council announcements and core developer debate happen, replacing python-dev/python-ideas mailing lists"
+      ],
+      "limitations": "Stack Overflow tag counts and Discord member counts are raw popularity indicators; per methodology they are used only as one of four declared evidence legs, not as the sole basis for the score. Discourse topic-volume counts could not be retrieved as a discrete number in the time/route budget available (only qualitative descriptions were retrievable), so that leg is supported qualitatively rather than quantitatively. All four retrieval routes and depth were held identical to the process that would be applied to every other assigned language in this shard set.",
+      "methodology_note": "Metric measures breadth/depth of publicly available community knowledge channels for Python: Q&A archives, official structured community hubs, real-time chat, and governance/discussion forums. Raw popularity indicators (SO tag counts, Discord member counts) are used only as declared supporting evidence within this metric, not as a standalone proxy for the whole evaluation, per the ecosystem methodology's predeclared-sampling rule.",
+      "predeclared_sampling_rule": "For each assigned language, examine the same four fixed retrieval-route categories at the same depth: (1) Stack Overflow tag question volume/growth via a public statistics aggregator, (2) the language's official/canonical community index page (channel list: chat, forum, mailing list, social), (3) the largest officially-linked real-time chat community (Discord/Slack) member count from its own invite/landing page, (4) the official governance/discussion forum (Discourse/mailing-list successor) description. Selection targets are the officially linked properties reachable from the language's own project site, not first-search-result accidents.",
+      "raw_measurements": [
+        {
+          "channel": "Stack Overflow tag volume",
+          "source": "skillademia.com Stack Overflow Statistics 2026",
+          "value": "~2.18M questions tagged 'python', second only to JavaScript (2.52M); fastest-growing major tag for 7 consecutive years"
+        },
+        {
+          "channel": "Official community hub breadth",
+          "source": "python.org/community/",
+          "value": "python.org/community/ lists 6+ distinct official channel types: Slack (PySlackers), Discord (Python Discord), LinkedIn group, IRC (Libera.Chat), weekly newsletter (Python Weekly), plus links to local user groups/PSF survey"
+        },
+        {
+          "channel": "Largest official real-time chat",
+          "source": "discord.com/invite/python; pythondiscord.com",
+          "value": "Python Discord server: 431,529 members, 100+ dedicated expert Helpers active around the clock"
+        },
+        {
+          "channel": "Official governance/discussion forum",
+          "source": "pythonresources.com description of discuss.python.org",
+          "value": "discuss.python.org hosts core-developer PEP discussion and Steering Council announcements, having replaced the python-dev/python-ideas mailing lists as the primary venue"
+        }
+      ],
+      "retrieval_route": "Web search via provider-brokered search tool; sources retrieved: (1) skillademia.com Stack Overflow Statistics 2026 report, (2) python.org/community/ official page, (3) discord.com/invite/python official invite page, (4) pythondiscord.com home page, (5) discuss.python.org and pythonresources.com description of discuss.python.org, (6) en.wikipedia.org/wiki/Stack_Overflow and en.wikipedia.org/wiki/Python_(programming_language) for cross-check.",
+      "score_rationale": "Python exhibits comprehensive, high-depth publicly available community knowledge across every examined channel category: (a) largest or near-largest Q&A archive on the dominant general-purpose Q&A platform with sustained multi-year growth driven by current (AI/ML) demand rather than legacy decline, (b) an officially curated, multi-channel community index maintained by the language's own foundation (python.org), unusual among languages for its breadth (chat, forum, newsletter, social, IRC all officially linked from one page), (c) a very large (430K+), actively staffed real-time help community, and (d) a mature, officially-adopted governance discussion forum that has fully replaced legacy mailing lists, indicating institutionalized, durable public knowledge infrastructure rather than only informal community effort. No gap was found in any of the four probed channel categories. Score is not maximal (100) because the metric's rubric reserves the top band for evidence of exhaustive cross-channel saturation with no single channel showing dependence on a single aggregator report as one of its four legs (the SO figures come from a secondary statistics aggregator rather than a primary Stack Exchange data export), so a small deduction is applied for that provenance limitation while all other channels are primary-sourced.",
+      "snapshot_time": "2026-09-22 (session date; underlying source pages carry their own dated metadata as cited)"
+    }
+  },
+  "requirement_ids": [
+    "metric.community_public_knowledge_availability"
+  ],
+  "requirements": {
+    "metric.community_public_knowledge_availability": {
+      "Python": 97
+    }
+  },
+  "work_unit_id": "ecosystem-external--part-3--python"
+}

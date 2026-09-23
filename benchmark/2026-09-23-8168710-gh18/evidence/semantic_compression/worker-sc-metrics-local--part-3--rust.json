@@ -1,0 +1,298 @@
+{
+  "agent_id": "worker-sc-metrics-local--part-3--rust",
+  "assigned_languages": [
+    "Rust"
+  ],
+  "evidence": {
+    "metric.semantic_determinacy": {
+      "basis": "per-probe B_i assigned by inspecting the frozen canonical_task's local surface form for Rust under the frozen toolchain recipe (rustc -O -C debug-assertions=on). A materially different interpretation changes mutation, aliasing, failure, conversion, dispatch, resource behavior, control flow, representation, or observable result, per spec 6.1.3.B. The glyph-neutrality rule (no bonus/penalty merely for '&') was applied.",
+      "caveats": [
+        "B values reflect the single-language Rust shard only, per the assigned-languages restriction of this task packet.",
+        "Overflow-sensitive plain-operator sites (F03.P1, F07.P1, F16.P1) are scored B=2 because Rust's arithmetic-overflow behavior for the bare operator is genuinely compilation-profile dependent (cfg(debug_assertions)); this is distinct from Semantic Locality, which separately charges a compiler-mode lookup for the same fact.",
+        "Cross-language aggregation, common-basis vs all-fragments reconciliation, and comparability-gate determination are runner-only per the frozen packet policy and are not performed by this single-language worker."
+      ],
+      "final_score_formula_applied": "100 * (1 - 0.06818181818181818/3) = 97.727272...",
+      "language": "Rust",
+      "mean_log2B": 0.06818181818181818,
+      "methodology_citation": "semantic_compression.md section B: raw value = mean(log2(B_i)) over the 44 fixed probes, where B_i is the count of materially different semantic interpretations compatible with the probe's local surface form alone, before consulting external declarations/signatures. Lower branching is better.",
+      "normalization": "score = 100 * (1 - mean_log2B / CAP), clamped to [0,100]; CAP = 3 (log2(8)), chosen before language-specific computation as a language-neutral ceiling representing a probe with 8 materially distinct locally-compatible interpretations (the maximum branching enumerated anywhere in the fixed probe set, per F05.P1's own scoring note listing up to 6-8 candidate outcomes). This CAP is applied identically to every language shard.",
+      "per_probe": [
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "let n = 7; immutable-by-default binding, type inferred i32; fully determinate from local syntax alone.",
+          "probe_id": "F01.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "static mut COUNTER vs const LIMIT: mutability explicit via keyword contrast.",
+          "probe_id": "F01.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "let v: i32; with compiler-enforced definite assignment on both branches; single interpretation.",
+          "probe_id": "F02.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "MaybeUninit<[u8;16]> explicitly signals genuinely uninitialized storage.",
+          "probe_id": "F02.P2"
+        },
+        {
+          "B": 2,
+          "log2B": 1.0,
+          "note": "x += 1 on i32: overflow behavior (panic vs wrap) depends on cfg(debug_assertions)/opt-level, not visible at the bare operator site alone.",
+          "probe_id": "F03.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "xs[1] = 42 on Vec<i32>: bounds-checked in-place write, deterministic panic-on-OOB semantics.",
+          "probe_id": "F03.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "let port: &mut i32 = &mut slot; explicit writable-alias syntax fully announces mutation and aliasing.",
+          "probe_id": "F04.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "let window: &[i32] = &xs[..]; explicit borrow, non-copying, read-only by type.",
+          "probe_id": "F04.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "Rc<RefCell<..>> plus Rc::ptr_eq: explicit reference-identity operation distinct from PartialEq.",
+          "probe_id": "F04.P3"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "f(x) with x: Vec<i32> (non-Copy): Rust's move semantics make the call-site outcome determinate without the callee signature -- x is moved and the original binding becomes unusable, eliminating alternative aliasing/mutation outcomes.",
+          "probe_id": "F05.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "put(cell: &mut i32) via put(&mut cell): explicit &mut fully announces writable aliasing.",
+          "probe_id": "F05.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "closure `let neg = |a: i32| k - a;` passed by name to .map(neg): explicit closure type and capture.",
+          "probe_id": "F05.P3"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "mid returns i32 (Copy type); returned element is an independent copy, deterministic.",
+          "probe_id": "F06.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "tuple return (i32, i32) with explicit destructuring let (q, r) = divmod2(a, b);",
+          "probe_id": "F06.P2"
+        },
+        {
+          "B": 2,
+          "log2B": 1.0,
+          "note": "let r = a * b + c; overflow outcome (panic vs wrap) is build-profile dependent, not locally visible.",
+          "probe_id": "F07.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "/ and % truncate toward zero and panic on zero-divisor deterministically; explicit `as f64` for real division.",
+          "probe_id": "F07.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "m.checked_add(1) (rung i) yields Option<i32>, fully determinate at the site.",
+          "probe_id": "F08.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "a.checked_div(b) (rung i) yields Option<i32>, fully determinate.",
+          "probe_id": "F08.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "s1 == s2 on String: PartialEq is content equality by specification, not identity.",
+          "probe_id": "F09.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "xs.sort_by(|a,b| b.cmp(a)): in-place mutation, explicit descending comparator.",
+          "probe_id": "F09.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "big.try_into() (rung i) yields Result<i32,_>, out-of-range outcome explicit.",
+          "probe_id": "F10.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "i as f64 + d: Rust has no implicit numeric conversions, explicit `as` required at the site.",
+          "probe_id": "F10.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "xs[i]: Index trait panics deterministically on out-of-range.",
+          "probe_id": "F11.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "&xs[1..4]: slice borrow, shares storage, non-copying by construction.",
+          "probe_id": "F11.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "let o: Option<i32> = None; o.unwrap_or(0): fully explicit optionality and fallback.",
+          "probe_id": "F12.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "o.map(h): standard optional-aware chaining, short-circuits on None deterministically.",
+          "probe_id": "F12.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "fn parse_twice(s:&str)->Result<i32,ParseIntError> using s.parse::<i32>()? : explicit Result type and ? propagation.",
+          "probe_id": "F13.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "match on Result explicitly handles Ok/Err locally.",
+          "probe_id": "F13.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "enum Shape { Circle{r:f64}, Rect{w:f64,h:f64} }: enums are closed sum types by language rule.",
+          "probe_id": "F14.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "match s { Shape::Circle{r}=>.., Shape::Rect{w,h}=>.. } with no wildcard: compiler-enforced exhaustiveness.",
+          "probe_id": "F14.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "trait Shape { fn area(&self)->f64; } plus separate-module impl Shape for Tri: explicit impl blocks, dynamic dispatch via Box<dyn Shape>.",
+          "probe_id": "F14.P3"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "fn head<T: Clone>(xs: &[T]) -> T: explicit generic bound and declared return type T.",
+          "probe_id": "F15.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "fn max_of<T: PartialOrd>(a:T,b:T)->T: constraint written at the declaration.",
+          "probe_id": "F15.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "Vec<Box<dyn Named>>: explicit trait-object type, runtime dispatch signaled by dyn.",
+          "probe_id": "F15.P3"
+        },
+        {
+          "B": 2,
+          "log2B": 1.0,
+          "note": "xs.iter().sum(): the summation's own overflow outcome is build-profile dependent, mirroring F03.P1/F07.P1.",
+          "probe_id": "F16.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "HashMap<String,i32>: unordered iteration is documented language fact, not an ambiguity; get(\"b\").copied().unwrap_or(0) is explicit.",
+          "probe_id": "F16.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "std::fs::File Drop-based RAII with ? propagation guarantees release exactly once on every exit path.",
+          "probe_id": "F17.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "struct Handle{id:i32} impl Drop for Handle: deterministic, exactly-once, scope-end cleanup.",
+          "probe_id": "F17.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "println!(\"x\"); via prelude macro, no import required, fully determinate.",
+          "probe_id": "F18.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "mod util { pub fn pub_add.. ; fn secret() .. }: pub/private explicit at declaration.",
+          "probe_id": "F18.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "std::thread::spawn + JoinHandle::join: explicit standard concurrency facility, deterministic join point.",
+          "probe_id": "F19.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "Arc<Mutex<i64>>: explicit, documented race-free discipline at the mutation site.",
+          "probe_id": "F19.P2"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "extern \"C\" { fn abs(a: i32) -> i32; } called inside unsafe {}: explicit foreign boundary and unsafe marker.",
+          "probe_id": "F20.P1"
+        },
+        {
+          "B": 1,
+          "log2B": 0.0,
+          "note": "#[no_mangle] pub extern \"C\" fn add2(a: i32, b: i32) -> i32: explicit ABI and export attributes.",
+          "probe_id": "F20.P2"
+        }
+      ],
+      "probe_count": 44,
+      "raw_sum_log2B": 3.0
+    }
+  },
+  "requirement_ids": [
+    "metric.semantic_determinacy"
+  ],
+  "requirements": {
+    "metric.semantic_determinacy": {
+      "Rust": 97.73
+    }
+  },
+  "work_unit_id": "sc-metrics-local--part-3--rust"
+}

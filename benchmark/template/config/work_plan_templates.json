@@ -1480,8 +1480,7 @@
           "read_paths": [
             "repo/docs",
             "template/workloads",
-            "template/fixtures",
-            "template/methodology-assets/llm_proficiency"
+            "template/fixtures"
           ],
           "network_allowed": false,
           "estimated_input_tokens_per_call": 7000,

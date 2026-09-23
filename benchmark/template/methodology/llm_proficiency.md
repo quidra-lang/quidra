@@ -54,6 +54,10 @@ If deterministic decoding produces duplicate outputs, preserve all configured in
 
 The Primary replicated-cell universe is exactly the Cartesian product of `llm_proficiency.primary_workloads` and `llm_proficiency.primary_scenarios` from `primary.json`. Do not add or drop a workload/scenario cell during a run.
 
+The concrete Primary tasks are frozen offline in `methodology-assets/llm_proficiency/workloads.json`. That asset records the exact upstream commit provenance and the predeclared common subset for SVM, GMM and LightGrad, plus the complete specification, validation contract and one frozen C++ reference implementation per workload. A scored run never fetches or reinterprets the live upstream repositories.
+
+The trusted sandbox runtime, not the orchestration worker, constructs every initial Proficiency trial prompt from that frozen asset. Replications of one workload/scenario cell receive byte-identical prompts in fresh sessions. The `specification_to_implementation` prompt contains no reference source; the `reference_to_porting` prompt contains the same frozen C++ reference for every target language. A worker-supplied replacement initial prompt is rejected before inference. Prompt hashes are rechecked by the integrity gate and certified into cache records.
+
 Extended replication is diagnostic only and begins after all five Primary evaluations are complete or legitimately blocked.
 
 # 9. LLM Proficiency Evaluation
@@ -194,7 +198,7 @@ Do not alter these weights after any scored LLM output has been observed.
 
 # 16. LLM Implementation Scenarios
 
-For the Primary score, evaluate exactly the workloads listed in `llm_proficiency.primary_workloads` under exactly the scenarios listed in `llm_proficiency.primary_scenarios`. Additional substantial tasks may be run only as extended diagnostics after Primary completion and do not change the Primary cell universe.
+For the Primary score, evaluate exactly the workloads listed in `llm_proficiency.primary_workloads` under exactly the scenarios listed in `llm_proficiency.primary_scenarios`. The workload text and reference source are not authored during a run: they come only from the frozen `methodology-assets/llm_proficiency/workloads.json` contract and are inserted by the trusted runtime. Additional substantial tasks may be run only as extended diagnostics after Primary completion and do not change the Primary cell universe.
 
 ## A. Specification → Implementation
 

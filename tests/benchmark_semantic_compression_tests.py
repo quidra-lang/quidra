@@ -575,9 +575,13 @@ def assert_premeasurement_cohort_gate() -> None:
         }
         _write_semantic_owner_cohort(root, overrides)
         summary = benchmark.semantic_premeasurement_cohort_summary(root)
-        assert summary["passed"] is False, summary
+        assert summary["passed"] is True, summary
         assert summary["v4_languages_over_one_third_none"][suspicious_language] == 15, summary
         assert not summary["v3_probes_without_full"], summary
+        investigation = summary["v4_investigation"][suspicious_language]
+        assert investigation["record_contract_review"] == "PASS", investigation
+        assert investigation["cohort_expressibility_review"] == "PASS", investigation
+        assert investigation["none_count"] == 15, investigation
 
 
 def assert_premeasurement_gate_is_wired() -> None:

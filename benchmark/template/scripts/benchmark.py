@@ -13034,7 +13034,7 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     status_path = root / "results" / "primary_status.json"
     policy_path = root / "template" / "config" / "cache_policy.json"
     if not (manifest_path.is_file() and ledger_path.is_file() and policy_path.is_file()):
-        return {"promoted": 0, "replaced": 0, "reused": 0, "records": []}
+        return {"promoted": 0, "replaced": 0, "upgraded": 0, "reused": 0, "records": [], "skipped": []}
 
     promotion_policy = cache_policy(root).get("promotion") or {}
     if promotion_policy.get("require_complete_unit") is not True:
@@ -13050,7 +13050,7 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
         else {}
     )
     if require_primary and not status_path.is_file():
-        return {"promoted": 0, "replaced": 0, "reused": 0, "records": []}
+        return {"promoted": 0, "replaced": 0, "upgraded": 0, "reused": 0, "records": [], "skipped": []}
 
     # Preserve expensive language-scoped SC checkpoints after a failed audit,
     # but certify cohort adjudications/gate verdicts only from COMPLETE SC.

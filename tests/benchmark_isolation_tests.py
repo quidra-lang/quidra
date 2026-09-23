@@ -1548,12 +1548,12 @@ def test_trials_are_runtime_owned_fresh_sessions() -> None:
             "schema_version": 1,
             "work_units": [{
                 "id": "trials-unit", "assigned_agent_id": agent_id,
-                "evaluation": "llm_proficiency", "max_llm_calls": 4,
+                "evaluation": "synthetic_trials", "max_llm_calls": 4,
             }],
         }), encoding="utf-8")
         task_path = agent_dir / "task.json"
         task = json.loads(task_path.read_text(encoding="utf-8"))
-        task["evaluation"] = "llm_proficiency"
+        task["evaluation"] = "synthetic_trials"
         task_path.write_text(json.dumps(task), encoding="utf-8")
 
         actions = [
@@ -2395,6 +2395,43 @@ def test_trial_units_need_real_trials_and_a_working_toolchain() -> None:
         check(
             not infrastructure and any("no successful Rust toolchain invocation" in p for p in problems),
             f"an unsupported attestation passed: infrastructure={infrastructure} problems={problems}",
+        )
+
+
+def test_proficiency_requires_the_complete_primary_trial_set() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td).resolve())
+        required = benchmark.proficiency_required_trial_ids(root)
+        check(len(required) == 18, f"unexpected Primary trial count: {required}")
+        check(len(set(required)) == 18, f"Primary trial IDs are not unique: {required}")
+        trace = {
+            "trials": {
+                "trials": {
+                    trial_id: {"calls": [{"prompt": "p", "completion": "c"}]}
+                    for trial_id in required
+                }
+            }
+        }
+        check(
+            benchmark.proficiency_trial_coverage_problems(root, trace) == [],
+            "the exact frozen Primary trial set was rejected",
+        )
+        missing = json.loads(json.dumps(trace))
+        missing["trials"]["trials"].pop(required[-1])
+        problems = benchmark.proficiency_trial_coverage_problems(root, missing)
+        check(
+            any("missing required Primary trials" in p for p in problems)
+            and any("expected exactly 18" in p for p in problems),
+            f"an incomplete Proficiency run was not rejected: {problems}",
+        )
+        extra = json.loads(json.dumps(trace))
+        extra["trials"]["trials"]["invented-cell-t1"] = {
+            "calls": [{"prompt": "p", "completion": "c"}]
+        }
+        problems = benchmark.proficiency_trial_coverage_problems(root, extra)
+        check(
+            any("unexpected Primary trial IDs" in p for p in problems),
+            f"an invented Proficiency trial ID was not rejected: {problems}",
         )
 
 

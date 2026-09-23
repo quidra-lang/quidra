@@ -475,6 +475,107 @@ def assert_synthetic_verification_cannot_masquerade_as_real() -> None:
         assert "probes" not in report, report
 
 
+def _write_semantic_owner_cohort(
+    root: Path, overrides: dict[tuple[str, str], dict] | None = None
+) -> tuple[list[str], list[str]]:
+    overrides = overrides or {}
+    languages = benchmark.metadata_languages(root)
+    matrix = json.loads(
+        (
+            ROOT
+            / "benchmark/template/methodology-assets/semantic_compression/semantic_site_matrix.json"
+        ).read_text()
+    )
+    probe_ids = [str(probe["probe_id"]) for probe in matrix["probes"]]
+    units = []
+    for language in languages:
+        agent_id = "owner-" + benchmark.slug_id(language)
+        agent_dir = root / "work/agents" / agent_id
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        catalog = {
+            probe_id: overrides.get(
+                (language, probe_id), canonical("FULL", "verified_fragment()")
+            )
+            for probe_id in probe_ids
+        }
+        (agent_dir / "result.json").write_text(
+            json.dumps({
+                "schema_version": 1,
+                "evaluation": "semantic_compression",
+                "requirements": {"metric.capability_coverage": {language: 100.0}},
+                "evidence": {"canonical_fragments": catalog},
+            }, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        units.append({
+            "id": "owner--" + benchmark.slug_id(language),
+            "evaluation": "semantic_compression",
+            "canonical_fragment_owner": True,
+            "assigned_languages": [language],
+            "assigned_agent_id": agent_id,
+        })
+    (root / "work/root/manifest.json").write_text(
+        json.dumps({"schema_version": 1, "work_units": units}, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return languages, probe_ids
+
+
+def assert_premeasurement_cohort_gate() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_root(td)
+        languages, probe_ids = _write_semantic_owner_cohort(root)
+        summary = benchmark.semantic_premeasurement_cohort_summary(root)
+        assert summary["passed"] is True, summary
+        assert not summary["v3_probes_without_full"], summary
+        assert not summary["v4_languages_over_one_third_none"], summary
+
+        target_probe = probe_ids[0]
+        overrides = {
+            (language, target_probe): canonical(
+                "PARTIAL", "verified_fragment()", partial=["P-a"]
+            )
+            for language in languages
+        }
+        _write_semantic_owner_cohort(root, overrides)
+        summary = benchmark.semantic_premeasurement_cohort_summary(root)
+        assert summary["passed"] is False, summary
+        assert target_probe in summary["v3_probes_without_full"], summary
+
+        suspicious_language = languages[0]
+        overrides = {
+            (suspicious_language, probe_id): canonical("NONE", None, none="N-1")
+            for probe_id in probe_ids[:15]
+        }
+        _write_semantic_owner_cohort(root, overrides)
+        summary = benchmark.semantic_premeasurement_cohort_summary(root)
+        assert summary["passed"] is False, summary
+        assert summary["v4_languages_over_one_third_none"][suspicious_language] == 15, summary
+        assert not summary["v3_probes_without_full"], summary
+
+
+def assert_premeasurement_gate_is_wired() -> None:
+    plan = json.loads(
+        (ROOT / "benchmark/template/config/work_plan_templates.json").read_text()
+    )
+    requirements = json.loads(
+        (ROOT / "benchmark/template/config/evaluation_requirements.json").read_text()
+    )
+    required = requirements["semantic_compression"]["required"]
+    assert "gate.semantic_premeasurement_validation" in required, required
+    units = plan["evaluations"]["semantic_compression"]["units"]
+    gate = next(unit for unit in units if unit["id"] == "sc-premeasurement-validation")
+    assert gate["runner_action"] == "semantic-premeasurement-validation", gate
+    assert gate["dependencies"] == ["sc-metrics-hidden-coverage--part-2"], gate
+    consumers = [
+        unit for unit in units
+        if unit.get("canonical_fragment_source_requirement") == "metric.capability_coverage"
+    ]
+    assert len(consumers) == 5, [unit["id"] for unit in consumers]
+    for unit in consumers:
+        assert "sc-premeasurement-validation" in unit["dependencies"], unit
+
+
 def assert_go_multi_unit_recipe_builds_one_main_package() -> None:
     build, run, artifact = benchmark._semantic_verification_recipe(
         "Go",
@@ -641,6 +742,8 @@ def main() -> None:
     assert_cohort_work_is_cacheable()
     assert_canonical_fragment_verification_runs_real_recipe()
     assert_synthetic_verification_cannot_masquerade_as_real()
+    assert_premeasurement_cohort_gate()
+    assert_premeasurement_gate_is_wired()
     assert_go_multi_unit_recipe_builds_one_main_package()
     print("semantic compression reconciliation contract: ok")
 

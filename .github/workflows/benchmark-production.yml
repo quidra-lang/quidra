@@ -133,9 +133,10 @@ jobs:
         run: |
           set +e
           python benchmark/template/scripts/benchmark.py cache-impact \
-            --source-repo "$GITHUB_WORKSPACE"
+            --source-repo "$GITHUB_WORKSPACE" > "$RUNNER_TEMP/cache-impact.json"
           rc=$?
           set -e
+          cat "$RUNNER_TEMP/cache-impact.json"
           if [ "$rc" -ne 0 ] && [ "$rc" -ne 3 ]; then exit "$rc"; fi
 
 
@@ -177,6 +178,10 @@ jobs:
             --image "$BENCHMARK_IMAGE" \
             --provider fake \
             -- python3 /quidra-benchmark/template/scripts/benchmark.py prepare "${args[@]}"
+          # Keep the pre-init audit next to the frozen run state. It explains
+          # exactly which historical cache records were invalidated and why.
+          cp "$RUNNER_TEMP/cache-impact.json" \
+            .quidra-benchmark/results/cache_impact.json
 
       - name: Report free cache hydration before paid inference
         env:
@@ -193,7 +198,7 @@ jobs:
           manifest = json.loads((root / "work/root/manifest.json").read_text())
           ledger = json.loads((root / "work/root/ledger.json").read_text())
           cache_path = root / "results/cache_status.json"
-          cache = json.loads(cache_path.read_text()) if cache_path.is_file() else {"hits": {}, "misses": {}}
+          cache = json.loads(cache_path.read_text()) if cache_path.is_file() else {"hits": {}, "misses": {}, "invalidated": {}}
           report = {}
           for unit in manifest.get("work_units", []):
               uid = str(unit["id"])
@@ -202,13 +207,14 @@ jobs:
                   continue
               if selected and uid not in selected:
                   continue
-              row = report.setdefault(ev, {"complete": 0, "pending": 0, "blocked": 0, "cache_hits": 0, "cache_misses": 0})
+              row = report.setdefault(ev, {"complete": 0, "pending": 0, "blocked": 0, "cache_hits": 0, "cache_misses": 0, "cache_invalidated": 0})
               status = str((ledger.get("units", {}).get(uid) or {}).get("status", "PENDING"))
               if status == "COMPLETE": row["complete"] += 1
               elif status in {"BLOCKED", "INVALID"}: row["blocked"] += 1
               else: row["pending"] += 1
               if uid in cache.get("hits", {}): row["cache_hits"] += 1
               if uid in cache.get("misses", {}): row["cache_misses"] += 1
+              if uid in cache.get("invalidated", {}): row["cache_invalidated"] += 1
           print(json.dumps(report, indent=2, sort_keys=True))
           PY
 
@@ -223,15 +229,17 @@ jobs:
           args=()
           if [ "$MODE" = "scoped" ]; then args+=(--evaluation "$EVALUATION"); fi
           for unit in $UNITS; do args+=(--unit "$unit"); done
+          plan="$GITHUB_WORKSPACE/.quidra-benchmark/results/execution-plan-preflight.json"
           python benchmark/template/scripts/production_run.py budget-plan \
             --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
             --model "$BENCHMARK_MODEL" \
             --available-usd "$BUDGET" \
             --safety-multiplier 1.25 \
             --smoke-reserve-usd 0.10 \
-            --output "$RUNNER_TEMP/budget-plan.json" \
+            --output "$plan" \
             "${args[@]}"
-          python - "$RUNNER_TEMP/budget-plan.json" <<'PY'
+          cp "$plan" "$RUNNER_TEMP/budget-plan.json"
+          python - "$plan" <<'PY'
           import json, sys
           from pathlib import Path
           plan = json.loads(Path(sys.argv[1]).read_text())

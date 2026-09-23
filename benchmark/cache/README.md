@@ -63,5 +63,5 @@ cache snapshot from run start, so it cannot observe records produced by itself.
 Production requests may also be evaluation-scoped. When `benchmark/.run-production`
 contains `evaluation: <primary_id>`, only that Primary is dispatched. Its validated
 non-Quidra units are checkpointed here without requiring a global finalize; a later
-full run can hydrate them and pay only for cache misses plus always-fresh Quidra work.
+full run can hydrate them and pay only for cache misses. Quidra work is reused too when its declared versions, exact Task Packet, and trusted compiler/runtime execution identity remain compatible.
 Use `evaluation: all` (or omit the field) for a normal full benchmark.

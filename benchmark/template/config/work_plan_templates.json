@@ -102,9 +102,9 @@
           ],
           "prompt_sections": [
             "### 6.1.3 Semantic facts inventory",
-            "#### A. Semantic Density — 20% of quality score",
-            "#### B. Semantic Determinacy — 25% of quality score",
-            "#### C. Semantic Locality — 20% of quality score"
+            "#### A. Semantic Density \u2014 20% of quality score",
+            "#### B. Semantic Determinacy \u2014 25% of quality score",
+            "#### C. Semantic Locality \u2014 20% of quality score"
           ],
           "read_paths": [
             "repo/docs",
@@ -130,9 +130,9 @@
           ],
           "prompt_sections": [
             "### 6.1.3 Semantic facts inventory",
-            "#### A. Semantic Density — 20% of quality score",
-            "#### B. Semantic Determinacy — 25% of quality score",
-            "#### C. Semantic Locality — 20% of quality score"
+            "#### A. Semantic Density \u2014 20% of quality score",
+            "#### B. Semantic Determinacy \u2014 25% of quality score",
+            "#### C. Semantic Locality \u2014 20% of quality score"
           ],
           "read_paths": [
             "repo/docs",
@@ -158,9 +158,9 @@
           ],
           "prompt_sections": [
             "### 6.1.3 Semantic facts inventory",
-            "#### A. Semantic Density — 20% of quality score",
-            "#### B. Semantic Determinacy — 25% of quality score",
-            "#### C. Semantic Locality — 20% of quality score"
+            "#### A. Semantic Density \u2014 20% of quality score",
+            "#### B. Semantic Determinacy \u2014 25% of quality score",
+            "#### C. Semantic Locality \u2014 20% of quality score"
           ],
           "read_paths": [
             "repo/docs",
@@ -185,8 +185,8 @@
             "sc-coverage"
           ],
           "prompt_sections": [
-            "#### D. Hidden Semantic Cost — 20% of quality score",
-            "#### E. Capability Efficiency — 15% of quality score",
+            "#### D. Hidden Semantic Cost \u2014 20% of quality score",
+            "#### E. Capability Efficiency \u2014 15% of quality score",
             "### 6.1.5 Capability Coverage",
             "# 20. Semantic Regularity Evidence for Semantic Compression"
           ],
@@ -213,8 +213,8 @@
             "sc-coverage"
           ],
           "prompt_sections": [
-            "#### D. Hidden Semantic Cost — 20% of quality score",
-            "#### E. Capability Efficiency — 15% of quality score",
+            "#### D. Hidden Semantic Cost \u2014 20% of quality score",
+            "#### E. Capability Efficiency \u2014 15% of quality score",
             "### 6.1.5 Capability Coverage",
             "# 20. Semantic Regularity Evidence for Semantic Compression"
           ],
@@ -241,8 +241,8 @@
             "sc-coverage"
           ],
           "prompt_sections": [
-            "#### D. Hidden Semantic Cost — 20% of quality score",
-            "#### E. Capability Efficiency — 15% of quality score",
+            "#### D. Hidden Semantic Cost \u2014 20% of quality score",
+            "#### E. Capability Efficiency \u2014 15% of quality score",
             "### 6.1.5 Capability Coverage",
             "# 20. Semantic Regularity Evidence for Semantic Compression"
           ],
@@ -257,6 +257,84 @@
           "packet_layout": "shared-inputs-first"
         },
         {
+          "id": "sc-support-adjudication--f04-p1",
+          "phase": "measurement",
+          "requirement_ids": [
+            "annotation.support_adjudication--f04-p1"
+          ],
+          "dependencies": [
+            "sc-metrics-local--part-1",
+            "sc-metrics-local--part-3",
+            "sc-metrics-local--part-2",
+            "sc-metrics-hidden-coverage--part-1",
+            "sc-metrics-hidden-coverage--part-3",
+            "sc-metrics-hidden-coverage--part-2"
+          ],
+          "prompt_sections": [
+            "### 6.1.5 Capability Coverage",
+            "#### D. Hidden Semantic Cost \u2014 20% of quality score"
+          ],
+          "read_paths": [
+            "template/methodology-assets/semantic_compression"
+          ],
+          "network_allowed": false,
+          "goal_hint": "Assign the support level for frozen probe F04.P1 in all ten languages at once, applying the frozen support rubric identically across them. The per-language metric shards each see one language, so nothing there can hold the rubric to the same standard across the cohort; this unit is what does.",
+          "worker_mode": "packet-only",
+          "packet_layout": "shared-inputs-first"
+        },
+        {
+          "id": "sc-support-adjudication--f08-p1",
+          "phase": "measurement",
+          "requirement_ids": [
+            "annotation.support_adjudication--f08-p1"
+          ],
+          "dependencies": [
+            "sc-metrics-local--part-1",
+            "sc-metrics-local--part-3",
+            "sc-metrics-local--part-2",
+            "sc-metrics-hidden-coverage--part-1",
+            "sc-metrics-hidden-coverage--part-3",
+            "sc-metrics-hidden-coverage--part-2"
+          ],
+          "prompt_sections": [
+            "### 6.1.5 Capability Coverage",
+            "#### D. Hidden Semantic Cost \u2014 20% of quality score"
+          ],
+          "read_paths": [
+            "template/methodology-assets/semantic_compression"
+          ],
+          "network_allowed": false,
+          "goal_hint": "Assign the support level for frozen probe F08.P1 in all ten languages at once, applying the frozen support rubric identically across them. The per-language metric shards each see one language, so nothing there can hold the rubric to the same standard across the cohort; this unit is what does.",
+          "worker_mode": "packet-only",
+          "packet_layout": "shared-inputs-first"
+        },
+        {
+          "id": "sc-support-adjudication--f20-p1",
+          "phase": "measurement",
+          "requirement_ids": [
+            "annotation.support_adjudication--f20-p1"
+          ],
+          "dependencies": [
+            "sc-metrics-local--part-1",
+            "sc-metrics-local--part-3",
+            "sc-metrics-local--part-2",
+            "sc-metrics-hidden-coverage--part-1",
+            "sc-metrics-hidden-coverage--part-3",
+            "sc-metrics-hidden-coverage--part-2"
+          ],
+          "prompt_sections": [
+            "### 6.1.5 Capability Coverage",
+            "#### D. Hidden Semantic Cost \u2014 20% of quality score"
+          ],
+          "read_paths": [
+            "template/methodology-assets/semantic_compression"
+          ],
+          "network_allowed": false,
+          "goal_hint": "Assign the support level for frozen probe F20.P1 in all ten languages at once, applying the frozen support rubric identically across them. The per-language metric shards each see one language, so nothing there can hold the rubric to the same standard across the cohort; this unit is what does.",
+          "worker_mode": "packet-only",
+          "packet_layout": "shared-inputs-first"
+        },
+        {
           "id": "sc-comparability",
           "phase": "measurement",
           "requirement_ids": [
@@ -268,7 +346,10 @@
             "sc-metrics-hidden-coverage--part-1",
             "sc-metrics-hidden-coverage--part-2",
             "sc-metrics-local--part-3",
-            "sc-metrics-hidden-coverage--part-3"
+            "sc-metrics-hidden-coverage--part-3",
+            "sc-support-adjudication--f04-p1",
+            "sc-support-adjudication--f08-p1",
+            "sc-support-adjudication--f20-p1"
           ],
           "prompt_sections": [
             "### 6.1.1A Mandatory semantic-site matrix",
@@ -314,8 +395,8 @@
             "learnability-coverage"
           ],
           "prompt_sections": [
-            "### I1. Keyword Anonymization — 20%",
-            "### I2. Vocabulary Anonymization — 20%",
+            "### I1. Keyword Anonymization \u2014 20%",
+            "### I2. Vocabulary Anonymization \u2014 20%",
             "## 10.6 Scoring"
           ],
           "read_paths": [
@@ -339,8 +420,8 @@
             "learnability-coverage"
           ],
           "prompt_sections": [
-            "### I3. Structural Surface Perturbation — 15%",
-            "### I4. Novel-rule Generalization — 20%",
+            "### I3. Structural Surface Perturbation \u2014 15%",
+            "### I4. Novel-rule Generalization \u2014 20%",
             "## 10.6 Scoring"
           ],
           "read_paths": [
@@ -364,8 +445,8 @@
             "learnability-coverage"
           ],
           "prompt_sections": [
-            "### I5. Held-out Rule Composition — 15%",
-            "### I6. Prior-conflict Resistance — 10%",
+            "### I5. Held-out Rule Composition \u2014 15%",
+            "### I6. Prior-conflict Resistance \u2014 10%",
             "## 10.6 Scoring"
           ],
           "read_paths": [

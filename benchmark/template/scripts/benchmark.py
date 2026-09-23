@@ -2914,6 +2914,7 @@ def sc_reconcile_support(
     by_language: dict[str, dict[str, dict[str, Any]]],
     owner_rows: dict[str, dict[str, dict[str, Any]]],
     owner: dict[str, Any],
+    adjudicated: dict[str, dict[str, str]] | None = None,
 ) -> list[dict[str, Any]]:
     """Give every (language, probe) one support level, taken from its owner.
 
@@ -2933,11 +2934,16 @@ def sc_reconcile_support(
         str(name).upper(): float(factor)
         for name, factor in (owner.get("levels") or {}).items()
     }
+    adjudicated = adjudicated or {}
     replaced: list[dict[str, Any]] = []
     for language in sorted(by_language):
         for probe_id, row in sorted(by_language[language].items()):
-            owner_row = (owner_rows.get(language) or {}).get(probe_id) or {}
-            candidates = sc_owner_support_levels(owner_row, fields)
+            settled = (adjudicated.get(probe_id) or {}).get(language)
+            if settled:
+                candidates = {settled}
+            else:
+                owner_row = (owner_rows.get(language) or {}).get(probe_id) or {}
+                candidates = sc_owner_support_levels(owner_row, fields)
             dropped = {
                 key: value
                 for key, value in row.items()
@@ -2968,6 +2974,129 @@ def sc_reconcile_support(
                     }
                 )
     return replaced
+
+
+SUPPORT_ADJUDICATION_PREFIX = "annotation.support_adjudication--"
+
+
+def support_adjudication_probe(requirement_ids: list[str]) -> str | None:
+    """The frozen probe a support-adjudication unit answers for, if it is one."""
+    for rid in requirement_ids:
+        if str(rid).startswith(SUPPORT_ADJUDICATION_PREFIX):
+            slug = str(rid)[len(SUPPORT_ADJUDICATION_PREFIX):]
+            head, _, tail = slug.partition("-")
+            return f"{head.upper()}.{tail.upper()}"
+    return None
+
+
+def build_support_adjudication_input(
+    root: Path, unit: dict[str, Any], manifest: dict[str, Any], probe_id: str
+) -> Path:
+    """Put one probe's ten annotations in front of a single adjudicator.
+
+    Ten single-language shards each assign a support level for the same probe
+    with no sight of the other nine, so nothing holds the frozen rubric to the
+    same standard across the cohort. The first blinded comparability audit to
+    read the annotations found exactly that: one language scored down for using
+    a heavier mechanism than its own documented idiom, another scored NONE for a
+    substitution it was given credit for on a neighbouring probe, two
+    same-runtime languages split over an identical toolchain facility. This is
+    the unit that can see all ten at once, so it is the one that can apply the
+    rubric evenly.
+
+    The adjudicator is deliberately NOT blinded: judging whether a fragment is
+    the form a competent author would write requires knowing the language. The
+    blinding belongs to the audit that reads the result afterwards.
+    """
+    units = {str(item.get("id")): item for item in manifest.get("work_units", [])}
+    by_language: dict[str, dict[str, Any]] = {}
+    for dependency in unit.get("dependencies", []):
+        source = units.get(str(dependency))
+        if source is None:
+            continue
+        languages = list(source.get("assigned_languages") or [])
+        if len(languages) != 1:
+            continue
+        result_path = (
+            root / "work" / "agents" / str(source.get("assigned_agent_id"))
+            / "result.json"
+        )
+        if not result_path.is_file():
+            continue
+        collected = probe_annotation_fields(json_load(result_path), {probe_id})
+        fields = collected.get(probe_id) or {}
+        if fields:
+            by_language.setdefault(str(languages[0]), {}).update(
+                clip_annotation_text(fields)
+            )
+    if not by_language:
+        raise BenchmarkError(
+            f"support adjudication for {probe_id} has no annotations to review"
+        )
+    probe = next(
+        (
+            entry
+            for entry in comparability_sample_probes(root)
+            if str(entry.get("probe_id")) == probe_id
+        ),
+        None,
+    )
+    payload = {
+        "schema_version": 1,
+        "probe_id": probe_id,
+        "task": (
+            "Assign the support level for this one probe in every language "
+            "below, applying the frozen support rubric identically across them. "
+            "Judge each fragment as the form a competent author of that language "
+            "would write for the frozen recipe: a language is not scored down "
+            "for using a heavier mechanism when its own documentation gives a "
+            "direct one, and it is not scored up for a substitution that a "
+            "neighbouring probe refuses. Award points by the frozen "
+            "award_formula from the level you assign."
+        ),
+        "frozen_probe": probe,
+        "annotations": {
+            language: by_language[language] for language in sorted(by_language)
+        },
+    }
+    destination = require_under(
+        root / "work" / "audit" / "semantic-compression"
+        / f"support_adjudication_{probe_id.lower().replace('.', '-')}.json",
+        root,
+    )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    json_dump(destination, payload)
+    return destination
+
+
+def sc_adjudicated_levels(root: Path) -> dict[str, dict[str, str]]:
+    """Every support level an adjudication unit has settled, by probe.
+
+    Read from the completed results rather than the manifest so a partial run -
+    one probe adjudicated, the rest not - still contributes what it has.
+    """
+    levels: dict[str, dict[str, str]] = {}
+    agents = root / "work" / "agents"
+    if not agents.is_dir():
+        return levels
+    for result_path in sorted(agents.glob("*/result.json")):
+        try:
+            result = json_load(result_path)
+        except (OSError, json.JSONDecodeError):
+            continue
+        for rid, value in (result.get("requirements") or {}).items():
+            if not str(rid).startswith(SUPPORT_ADJUDICATION_PREFIX):
+                continue
+            probe = support_adjudication_probe([rid])
+            if probe is None or not isinstance(value, dict):
+                continue
+            for language, level in value.items():
+                found = sc_support_is_level(level)
+                if found is None and isinstance(level, dict):
+                    found = sc_support_is_level(level.get("support"))
+                if found:
+                    levels.setdefault(probe, {})[str(language)] = found
+    return levels
 
 
 def build_comparability_sample(
@@ -3023,7 +3152,9 @@ def build_comparability_sample(
         )
 
     reconciled = (
-        sc_reconcile_support(by_language, owner_rows, support_owner)
+        sc_reconcile_support(
+            by_language, owner_rows, support_owner, sc_adjudicated_levels(root)
+        )
         if support_owner_id
         else []
     )
@@ -3069,6 +3200,13 @@ def build_comparability_sample(
             ),
             "replaced_field_names": sorted(
                 {name for row in reconciled for name in row["replaced_fields"]}
+            ),
+            "adjudicated_probes": sorted(sc_adjudicated_levels(root)),
+            "adjudication_note": (
+                "For the probes listed above, the level was assigned by a unit "
+                "that saw all ten languages at once and applied the frozen "
+                "rubric across them, because a single-language shard cannot. "
+                "Judge those levels as the cohort-wide application of the rubric."
             ),
             "full_record": (
                 "work/audit/semantic-compression/support_reconciliation.json, "
@@ -3228,6 +3366,11 @@ def cmd_tasks_create(args: argparse.Namespace) -> int:
         reads = list(unit.get("read_paths", []))
         if COMPARABILITY_GATE in requirement_ids:
             reads.append(str(build_comparability_sample(root, unit, manifest)))
+        adjudicated_probe = support_adjudication_probe(requirement_ids)
+        if adjudicated_probe is not None:
+            reads.append(str(build_support_adjudication_input(
+                root, unit, manifest, adjudicated_probe
+            )))
         ns = argparse.Namespace(
             workspace=str(root),
             id=agent_id,

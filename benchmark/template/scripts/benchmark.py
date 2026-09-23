@@ -13831,6 +13831,17 @@ def cache_impact(source: Path) -> dict[str, Any]:
     component alone is reported by the synthetic run, not by this command.
     """
     cache_root = source / "benchmark" / "cache" / "v1"
+    record_paths = sorted(cache_root.rglob("*.json")) if cache_root.is_dir() else []
+    if not record_paths:
+        return {
+            "schema_version": 1,
+            "valid": 0,
+            "invalid": [],
+            "note": (
+                "No certified cache records exist yet; this is a valid cold/first-run "
+                "state and requires no invalidation."
+            ),
+        }
     template = source / "benchmark" / "template"
     pins = (json_load(template / "runtime" / "toolchains.json").get("toolchains") or {})
     policy = json_load(template / "config" / "cache_policy.json")
@@ -13874,7 +13885,7 @@ def cache_impact(source: Path) -> dict[str, Any]:
     hash_cache: dict[str, str | None] = {}
     invalid: list[dict[str, Any]] = []
     valid = 0
-    for record_path in sorted(cache_root.rglob("*.json")):
+    for record_path in record_paths:
         try:
             record = json_load(record_path)
         except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:

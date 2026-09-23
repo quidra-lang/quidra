@@ -947,7 +947,10 @@ jobs:
           PY
 
           # Stale RUNNING work is automatically reclaimable instead of hanging forever.
-          # Use a real agent work unit; readiness gates are deterministic commands.
+          # Materialize Ecosystem's own dependency-ready Task Packets first; the
+          # Semantic Compression fixture above intentionally no longer advances
+          # unrelated Primaries.
+          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP" --evaluation ecosystem
           python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id ecosystem-external--part-1--quidra
           echo "stale-attempt-evidence" > "$TMP/work/agents/worker-ecosystem-external--part-1--quidra/stale.txt"
           python - <<'PY'

@@ -6677,6 +6677,7 @@ def _cache_record_self_integrity_problem(record: dict[str, Any]) -> str | None:
     return None
 
 
+
 def find_primary_projection_compatible_cache_record(
     root: Path,
     unit: dict[str, Any],
@@ -6693,8 +6694,16 @@ def find_primary_projection_compatible_cache_record(
     if not directory.is_dir():
         return None, None, None
     matches: list[tuple[Path, dict[str, Any]]] = []
+    invalid_candidates: list[str] = []
     for path in sorted(directory.glob("*.json")):
-        record = json_load(path)
+        try:
+            record = json_load(path)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            # A corrupt unrelated record in the same language/scope directory
+            # must not abort discovery for this unit. Exact-key corruption is
+            # handled by hydrate_certified_cache, where it can be attributed
+            # unambiguously to the current leaf.
+            continue
         payload = record.get("fingerprint_payload") or {}
         if str(payload.get("work_unit_id") or "") != str(unit.get("id") or ""):
             continue
@@ -6702,12 +6711,17 @@ def find_primary_projection_compatible_cache_record(
             continue
         problem = _cache_record_self_integrity_problem(record)
         if problem:
-            raise BenchmarkError(
-                f"{unit.get('id')}: compatible certified cache record failed "
-                f"self-integrity ({problem}): {path.name}"
-            )
+            invalid_candidates.append(f"{path.name}: {problem}")
+            continue
         matches.append((path, record))
     if not matches:
+        if invalid_candidates:
+            return (
+                None,
+                None,
+                "all primary-projection-compatible records failed self-integrity: "
+                + "; ".join(invalid_candidates[:8]),
+            )
         return None, None, None
     result_hashes = {str(record.get("result_sha256") or "") for _, record in matches}
     if len(result_hashes) != 1:
@@ -6738,28 +6752,45 @@ def cache_record_relative(unit: dict[str, Any], fingerprint: str) -> Path:
     )
 
 
+
 def _cache_status(root: Path) -> dict[str, Any]:
     path = root / "results" / "cache_status.json"
     if path.is_file():
-        return json_load(path)
+        status = json_load(path)
+        status.setdefault("hits", {})
+        status.setdefault("misses", {})
+        status.setdefault("invalidated", {})
+        return status
     return {
         "schema_version": 1,
         "enabled": bool((json_load(root / "run.json").get("inference_identity") or {}).get("model")),
         "hits": {},
         "misses": {},
+        "invalidated": {},
     }
 
 
+
 def _write_cache_status(root: Path, status: dict[str, Any]) -> None:
-    status["hit_count"] = len(status.get("hits", {}))
-    status["miss_count"] = len(status.get("misses", {}))
+    status.setdefault("hits", {})
+    status.setdefault("misses", {})
+    status.setdefault("invalidated", {})
+    status["hit_count"] = len(status["hits"])
+    status["miss_count"] = len(status["misses"])
+    status["invalidated_count"] = len(status["invalidated"])
     json_dump(root / "results" / "cache_status.json", status)
+
 
 
 def hydrate_certified_cache(
     root: Path, evaluation: str | None = None, *, mechanical_only: bool = False
 ) -> int:
     """Complete every PENDING cacheable unit that has a certified record.
+
+    A cache defect is always leaf-local. Missing, corrupt, stale or newly
+    validator-incompatible records are recorded as MISS/INVALIDATED decisions
+    and only that work unit is re-executed; no bad cache entry may abort the
+    rest of the benchmark.
 
     With `mechanical_only`, only the mechanical measurement units are
     considered; `cmd_advance` calls it that way before it runs any command
@@ -6771,6 +6802,30 @@ def hydrate_certified_cache(
     ledger = json_load(root / "work" / "root" / "ledger.json")
     status = _cache_status(root)
     hits = 0
+
+    def record_miss(
+        uid: str,
+        fingerprint: str,
+        unit: dict[str, Any],
+        reason: str,
+        *,
+        invalidated: bool,
+        record_path: str | None = None,
+    ) -> None:
+        status["hits"].pop(uid, None)
+        row = {
+            "fingerprint": fingerprint,
+            "scope": cache_scope(unit),
+            "reason": reason,
+        }
+        if record_path:
+            row["record"] = record_path
+        status["misses"][uid] = row
+        if invalidated:
+            status["invalidated"][uid] = dict(row)
+        else:
+            status["invalidated"].pop(uid, None)
+
     for unit in manifest.get("work_units", []):
         if evaluation is not None and unit.get("evaluation") != evaluation:
             continue
@@ -6807,13 +6862,49 @@ def hydrate_certified_cache(
         source_fingerprint = fingerprint
         source_rel = rel
         if cache_path.is_file():
-            record = json_load(cache_path)
-            if (
-                _cache_record_self_integrity_problem(record)
-                or record.get("fingerprint") != fingerprint
-                or record.get("fingerprint_payload") != payload
-            ):
-                raise BenchmarkError(f"{uid}: certified cache record failed integrity checks")
+            try:
+                record = json_load(cache_path)
+            except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+                record_miss(
+                    uid,
+                    fingerprint,
+                    unit,
+                    f"certified record is unreadable/corrupt: {type(exc).__name__}: {exc}",
+                    invalidated=True,
+                    record_path=rel.as_posix(),
+                )
+                continue
+            problem = _cache_record_self_integrity_problem(record)
+            if problem:
+                record_miss(
+                    uid,
+                    fingerprint,
+                    unit,
+                    f"certified record failed self-integrity: {problem}",
+                    invalidated=True,
+                    record_path=rel.as_posix(),
+                )
+                continue
+            if record.get("fingerprint") != fingerprint:
+                record_miss(
+                    uid,
+                    fingerprint,
+                    unit,
+                    "certified record fingerprint does not match its exact cache path",
+                    invalidated=True,
+                    record_path=rel.as_posix(),
+                )
+                continue
+            if record.get("fingerprint_payload") != payload:
+                record_miss(
+                    uid,
+                    fingerprint,
+                    unit,
+                    "certified record dependency fingerprint payload no longer matches",
+                    invalidated=True,
+                    record_path=rel.as_posix(),
+                )
+                continue
         else:
             compatible_path, record, compatibility_problem = (
                 find_primary_projection_compatible_cache_record(
@@ -6821,39 +6912,47 @@ def hydrate_certified_cache(
                 )
             )
             if compatibility_problem:
-                status["misses"][uid] = {
-                    "fingerprint": fingerprint,
-                    "scope": cache_scope(unit),
-                    "reason": compatibility_problem,
-                }
+                record_miss(
+                    uid,
+                    fingerprint,
+                    unit,
+                    compatibility_problem,
+                    invalidated=True,
+                )
                 continue
             if compatible_path is None or record is None:
-                status["misses"][uid] = {
-                    "fingerprint": fingerprint,
-                    "scope": cache_scope(unit),
-                    "reason": "no certified record",
-                }
+                record_miss(
+                    uid,
+                    fingerprint,
+                    unit,
+                    "no certified record",
+                    invalidated=False,
+                )
                 continue
             compatibility_mode = "scoped-input-projection"
             source_fingerprint = str(record.get("fingerprint") or "")
             source_rel = compatible_path.relative_to(root / "cache")
         cap_problem = cache_cap_reuse_problem(root, record, unit)
         if cap_problem:
-            status["hits"].pop(uid, None)
-            status["misses"][uid] = {
-                "fingerprint": fingerprint,
-                "scope": cache_scope(unit),
-                "reason": cap_problem,
-            }
+            record_miss(
+                uid,
+                fingerprint,
+                unit,
+                cap_problem,
+                invalidated=True,
+                record_path=source_rel.as_posix(),
+            )
             continue
         target_problem = cache_quidra_execution_reuse_problem(root, record)
         if target_problem:
-            status["hits"].pop(uid, None)
-            status["misses"][uid] = {
-                "fingerprint": fingerprint,
-                "scope": cache_scope(unit),
-                "reason": target_problem,
-            }
+            record_miss(
+                uid,
+                fingerprint,
+                unit,
+                target_problem,
+                invalidated=True,
+                record_path=source_rel.as_posix(),
+            )
             continue
         result_path = agent_dir / "result.json"
         agent_dir.mkdir(parents=True, exist_ok=True)
@@ -6891,7 +6990,8 @@ def hydrate_certified_cache(
             validation_problem = str(exc)
         if check_rc != 0:
             # Structurally intact cache may still be stale under a newer
-            # validator. Treat that as a MISS and execute only this unit again.
+            # validator. Treat that as a leaf-local invalidation and execute
+            # only this unit again.
             try:
                 result_path.unlink()
             except FileNotFoundError:
@@ -6901,15 +7001,17 @@ def hydrate_certified_cache(
                 receipt_path.unlink()
             except FileNotFoundError:
                 pass
-            status["hits"].pop(uid, None)
-            status["misses"][uid] = {
-                "fingerprint": fingerprint,
-                "scope": cache_scope(unit),
-                "reason": (
+            record_miss(
+                uid,
+                fingerprint,
+                unit,
+                (
                     "certified record rejected by current validator"
                     + (f": {validation_problem}" if validation_problem else "")
                 ),
-            }
+                invalidated=True,
+                record_path=source_rel.as_posix(),
+            )
             continue
         cmd_ledger_update(argparse.Namespace(
             workspace=str(root), id=uid, status="RUNNING", evidence=[],
@@ -6935,6 +7037,7 @@ def hydrate_certified_cache(
             ),
         }
         status["misses"].pop(uid, None)
+        status["invalidated"].pop(uid, None)
         hits += 1
     _write_cache_status(root, status)
     return hits
@@ -7116,7 +7219,16 @@ def apply_worker_response(
             )
         dest = require_under(agent_dir.joinpath(*rel.parts), agent_dir)
         if dest.exists():
-            raise BenchmarkError(f"packet-only output already exists: {dest}")
+            try:
+                existing = dest.read_bytes()
+            except OSError as exc:
+                raise BenchmarkError(
+                    f"packet-only output exists but cannot be verified: {dest}: {exc}"
+                ) from exc
+            if existing != data:
+                raise BenchmarkError(
+                    f"packet-only output already exists with different bytes: {dest}"
+                )
         seen.add(rel_text)
         staged.append((dest, data, rel_text))
     expected_relative = []
@@ -7134,7 +7246,8 @@ def apply_worker_response(
     receipt_files = []
     for dest, data, rel_text in staged:
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(data)
+        if not dest.exists():
+            dest.write_bytes(data)
         receipt_files.append({
             "path": rel_text,
             "sha256": sha256_bytes(data),
@@ -7153,15 +7266,113 @@ def apply_worker_response(
     return receipt
 
 
+
+def _packet_paid_response_records(agent_dir: Path) -> list[Path]:
+    directory = agent_dir / "paid_responses"
+    if not directory.is_dir():
+        return []
+    return sorted(
+        (path for path in directory.glob("*.json") if path.is_file()),
+        key=lambda path: (path.stat().st_mtime_ns, path.name),
+        reverse=True,
+    )
+
+
+def persist_packet_paid_response(
+    agent_dir: Path,
+    task: dict[str, Any],
+    response: dict[str, Any],
+) -> Path:
+    """Durably commit a paid packet-only response before parsing or validation.
+
+    This is the packet-only equivalent of the sandbox-agent trial call journal:
+    once the provider has charged for a successful reply, a later parser,
+    importer, validator or process failure must not erase the bytes that were
+    bought.
+    """
+    encoded = json.dumps(
+        response, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+    digest = sha256_bytes(encoded)
+    destination = agent_dir / "paid_responses" / f"{digest}.json"
+    if destination.is_file():
+        existing = json_load(destination)
+        if existing.get("response_sha256") != digest:
+            raise BenchmarkError(
+                "persisted packet-only paid response path has conflicting content"
+            )
+        return destination
+    json_dump(destination, {
+        "schema_version": 1,
+        "task_id": task.get("id"),
+        "prompt_sha256": task.get("prompt_sha256"),
+        "response_sha256": digest,
+        "response": response,
+        "persisted_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
+    })
+    return destination
+
+
+def replay_packet_paid_response(
+    root: Path,
+    agent_id: str,
+    meta: dict[str, Any],
+    *,
+    sampling: dict[str, Any],
+) -> dict[str, Any] | None:
+    """Re-apply a previously paid response before making another provider call.
+
+    Only an exact prompt match is considered. Incomplete/unparseable historical
+    replies remain evidence but are not treated as successful work. A response
+    that was charged, persisted, and then stranded by a crash between inference
+    and task-apply can therefore be recovered at zero additional API cost.
+    """
+    agent_dir = require_under(root / "work" / "agents" / agent_id, root)
+    client_module = gateway_client_module()
+    for path in _packet_paid_response_records(agent_dir):
+        try:
+            record = json_load(path)
+        except (OSError, json.JSONDecodeError, TypeError, ValueError):
+            continue
+        if record.get("prompt_sha256") != meta.get("prompt_sha256"):
+            continue
+        response = record.get("response")
+        if not isinstance(response, dict):
+            continue
+        completion = response.get("content")
+        if not isinstance(completion, str):
+            continue
+        if client_module.completion_problem(response):
+            continue
+        try:
+            worker_response = client_module.parse_model_json(completion)
+            raw = json.dumps(worker_response, sort_keys=True).encode("utf-8")
+            receipt = apply_worker_response(root, agent_id, raw, extra={
+                "inference": {
+                    "replayed_paid_response": True,
+                    "network_allowed": bool(meta.get("network_allowed")),
+                    "sampling": sampling,
+                    "effective_decoding": response.get("decoding"),
+                    "usage": response.get("usage", {}),
+                    "completion_sha256": sha256_bytes(completion.encode("utf-8")),
+                    "paid_response_record": path.relative_to(agent_dir).as_posix(),
+                },
+            })
+        except (BenchmarkError, client_module.GatewayClientError, OSError, ValueError):
+            continue
+        return receipt
+    return None
+
+
+
 def cmd_task_infer(args: argparse.Namespace) -> int:
     """Render, infer through the credential-less gateway, and apply - in one step.
 
-    This is the packet-only half of the same contract the sandbox-agent runtime
-    uses. The outer runner no longer needs provider credentials of its own: it
-    renders the frozen packet, asks the trusted gateway over the shared socket,
-    and hands the reply straight to the same importer `task-apply` uses. The
-    meaning of render -> model -> apply is unchanged; only the credential
-    location is.
+    Before spending money, replay any exact-prompt paid response that was
+    durably committed but never successfully applied. Every newly paid response
+    is itself persisted before completeness checks, JSON parsing or output
+    materialization, so downstream failures cannot turn a successful provider
+    call into an unrecoverable charge.
     """
     root = workspace(args)
     agent_dir = require_under(root / "work" / "agents" / args.id, root)
@@ -7177,6 +7388,18 @@ def cmd_task_infer(args: argparse.Namespace) -> int:
 
     config = gateway_config(root)
     sampling = sampling_config(root, str(meta.get("evaluation") or ""))
+
+    replayed = replay_packet_paid_response(
+        root, args.id, meta, sampling=sampling
+    )
+    if replayed is not None:
+        print(json.dumps({
+            "ok": True,
+            "reused_paid_response": True,
+            **replayed,
+        }, indent=2))
+        return 0
+
     client_module = gateway_client_module()
     socket_path = args.socket or str(gateway_socket_path(root, config))
     client = client_module.InferenceGatewayClient(socket_path, timeout=float(args.timeout))
@@ -7233,14 +7456,27 @@ def cmd_task_infer(args: argparse.Namespace) -> int:
     except client_module.GatewayClientError as exc:
         raise BenchmarkError(f"inference transport failure: {exc}") from exc
 
-    completion = response["content"]
+    if not isinstance(response, dict):
+        raise BenchmarkError("inference gateway returned a non-object response")
+    paid_record = persist_packet_paid_response(agent_dir, meta, response)
+    completion = response.get("content")
+    if not isinstance(completion, str):
+        raise BenchmarkError(
+            "packet-only paid response has no text content; preserved for audit/recovery"
+        )
     incomplete = client_module.completion_problem(response)
     if incomplete:
-        raise BenchmarkError(f"packet-only worker response is incomplete: {incomplete}")
+        raise BenchmarkError(
+            f"packet-only worker response is incomplete: {incomplete}; "
+            f"paid response preserved at {paid_record.relative_to(agent_dir)}"
+        )
     try:
         worker_response = client_module.parse_model_json(completion)
     except client_module.GatewayClientError as exc:
-        raise BenchmarkError(f"packet-only worker response is unusable: {exc}") from exc
+        raise BenchmarkError(
+            "packet-only worker response is unusable but its paid bytes were preserved: "
+            f"{exc}"
+        ) from exc
 
     raw = json.dumps(worker_response, sort_keys=True).encode("utf-8")
     receipt = apply_worker_response(root, args.id, raw, extra={
@@ -7252,6 +7488,7 @@ def cmd_task_infer(args: argparse.Namespace) -> int:
             "effective_decoding": response.get("decoding"),
             "usage": response.get("usage", {}),
             "completion_sha256": sha256_bytes(completion.encode("utf-8")),
+            "paid_response_record": paid_record.relative_to(agent_dir).as_posix(),
         },
     })
     print(json.dumps({"ok": True, **receipt}, indent=2))
@@ -13758,6 +13995,7 @@ def cache_record_legacy_identity_upgrade_required(
 
 
 
+
 def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
     manifest_path = root / "work" / "root" / "manifest.json"
     ledger_path = root / "work" / "root" / "ledger.json"
@@ -13866,8 +14104,7 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
             except BenchmarkError as exc:
                 # One unit that cannot be certified is one record fewer, not a
                 # reason to keep every other validated measurement out of the
-                # cache. The first paid run lost eighty-seven promotions to a
-                # single Rust unit whose compiler had never run.
+                # cache.
                 skipped.append({"work_unit_id": unit.get("id"), "reason": str(exc)})
                 continue
         compatibility: dict[str, Any] = {}
@@ -13875,10 +14112,11 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
         if target in (payload.get("assigned_languages") or []):
             execution_identity = current_quidra_execution_identity(root)
             if execution_identity is None:
-                raise BenchmarkError(
-                    f"{unit.get('id')}: cannot certify Quidra cache without "
-                    "the frozen execution identity"
-                )
+                skipped.append({
+                    "work_unit_id": unit.get("id"),
+                    "reason": "cannot certify Quidra cache without frozen execution identity",
+                })
+                continue
             compatibility["quidra_execution_identity"] = execution_identity
         record = {
             "schema_version": 1,
@@ -13905,44 +14143,65 @@ def promote_certified_cache(source: Path, root: Path) -> dict[str, Any]:
             destination.write_bytes(encoded)
             promoted += 1
         else:
-            existing_record = json.loads(destination.read_text(encoding="utf-8"))
-            same_result = (
-                existing_record.get("result_sha256") == record["result_sha256"]
-            )
-            if (
-                same_result
-                and not receipt_path.is_file()
-                and cache_record_metadata_refresh_required(existing_record, record)
-            ):
-                # A verified identity-less legacy record can be ratcheted to
-                # the current explicit identity without changing its result or
-                # historical fingerprint. Other metadata changes came from a
-                # fresh remeasurement and count as replacements.
-                destination.write_bytes(encoded)
-                if cache_record_legacy_identity_upgrade_required(
-                    existing_record, record
-                ):
-                    upgraded += 1
-                else:
-                    replaced += 1
-            elif same_result:
-                pass
-            elif receipt_path.is_file():
-                # A hydrated result cannot legitimately differ from the record
-                # that produced it. Keep the stored record and report this unit.
-                skipped.append({
-                    "work_unit_id": unit.get("id"),
-                    "reason": (
-                        "hydrated result differs from the certified record it came "
-                        f"from: {fingerprint}"
-                    ),
-                })
-                continue
-            else:
-                # A fresh measurement supersedes the old record at the same
-                # historical fingerprint. Reuse policy is what forced rerun.
+            corrupt_existing = False
+            try:
+                existing_record = json.loads(destination.read_text(encoding="utf-8"))
+                corrupt_existing = bool(_cache_record_self_integrity_problem(existing_record))
+            except (OSError, json.JSONDecodeError, TypeError, ValueError):
+                existing_record = {}
+                corrupt_existing = True
+
+            if corrupt_existing:
+                # A fresh COMPLETE+PASS measurement repairs only this exact
+                # corrupted record. Never let one broken cache file prevent
+                # checkpointing every other successful paid leaf.
+                if receipt_path.is_file():
+                    skipped.append({
+                        "work_unit_id": unit.get("id"),
+                        "reason": (
+                            "hydrated result points at a corrupt certified record; "
+                            "fresh execution is required before replacement"
+                        ),
+                    })
+                    continue
                 destination.write_bytes(encoded)
                 replaced += 1
+            else:
+                same_result = (
+                    existing_record.get("result_sha256") == record["result_sha256"]
+                )
+                if (
+                    same_result
+                    and not receipt_path.is_file()
+                    and cache_record_metadata_refresh_required(existing_record, record)
+                ):
+                    # A verified identity-less legacy record can be ratcheted to
+                    # the current explicit identity without changing its result.
+                    destination.write_bytes(encoded)
+                    if cache_record_legacy_identity_upgrade_required(
+                        existing_record, record
+                    ):
+                        upgraded += 1
+                    else:
+                        replaced += 1
+                elif same_result:
+                    pass
+                elif receipt_path.is_file():
+                    # A hydrated result cannot legitimately differ from the record
+                    # that produced it. Keep the stored record and report this unit.
+                    skipped.append({
+                        "work_unit_id": unit.get("id"),
+                        "reason": (
+                            "hydrated result differs from the certified record it came "
+                            f"from: {fingerprint}"
+                        ),
+                    })
+                    continue
+                else:
+                    # A fresh measurement supersedes the old record at the same
+                    # historical fingerprint. Reuse policy is what forced rerun.
+                    destination.write_bytes(encoded)
+                    replaced += 1
         records.append({
             "work_unit_id": unit.get("id"),
             "fingerprint": fingerprint,

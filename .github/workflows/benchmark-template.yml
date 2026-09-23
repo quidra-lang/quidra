@@ -641,7 +641,10 @@ jobs:
           assert ledger["units"]["ecosystem-gates--part-1"]["status"] == "PENDING"
           PY
 
-          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
+          # This fixture is exercising Semantic Compression only. Advancing the
+          # whole manifest here would execute unrelated Language Quality command
+          # units in the intentionally incomplete synthetic toolchain workspace.
+          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP" --evaluation semantic_compression
 
           # Capability Coverage now owns the one canonical fragment/support
           # record per probe. No A/B/C/D/E consumer may dispatch before its

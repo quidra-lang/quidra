@@ -17,7 +17,6 @@
             "template/environment"
           ],
           "network_allowed": false,
-          "goal_hint": "Validate only the frozen language-neutral capability universe gate. Keep the result compact; detailed frozen data already lives in methodology-assets.",
           "worker_mode": "runner-command",
           "execution_kind": "command",
           "result_kind": "requirements",
@@ -39,7 +38,6 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Validate only the semantic-site-matrix definition. Do not reproduce the full matrix in result.json; cite compact evidence and return the boolean gate.",
           "worker_mode": "runner-command",
           "execution_kind": "command",
           "result_kind": "requirements",
@@ -61,7 +59,6 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Validate only the matrix-validator contract and its negative-self-test requirement. Keep evidence compact.",
           "worker_mode": "runner-command",
           "execution_kind": "command",
           "result_kind": "requirements",
@@ -113,7 +110,6 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true,
           "packet_layout": "shared-inputs-first",
@@ -144,7 +140,6 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true,
           "packet_layout": "shared-inputs-first",
@@ -175,7 +170,6 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of sc-metrics-local; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true,
           "packet_layout": "shared-inputs-first",
@@ -206,7 +200,6 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true,
           "packet_layout": "shared-inputs-first",
@@ -237,7 +230,6 @@
             "template/methodology-assets/semantic_compression"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true,
           "packet_layout": "shared-inputs-first",
@@ -267,7 +259,6 @@
             "work/root/f20_runtime_facts.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of sc-metrics-hidden-coverage; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true,
           "packet_layout": "shared-inputs-first",
@@ -318,7 +309,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F04.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F04.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -346,7 +336,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F08.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F08.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -374,7 +363,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F10.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F10.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -403,7 +391,6 @@
             "work/root/f20_runtime_facts.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F20.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F20.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string.\n\nFor F20.P1, work/root/f20_runtime_facts.json is trusted positive evidence projected from the pinned Linux runtime image before paid work. A listed language has already built and run the numbered task under the exact frozen recipe with no extra flags and stdout 3, so it cannot be NONE and cannot cite P-b. Missing languages are not evidence of NONE."
@@ -431,7 +418,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F01.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F01.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -459,7 +445,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F02.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F02.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -487,7 +472,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F03.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F03.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -515,7 +499,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F05.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F05.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -543,7 +526,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F06.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F06.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -571,7 +553,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F07.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F07.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -599,7 +580,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F09.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F09.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -627,7 +607,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F11.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F11.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -655,7 +634,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F12.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F12.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -683,7 +661,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F13.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F13.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -711,7 +688,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F14.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F14.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -739,7 +715,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F15.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F15.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -767,7 +742,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F16.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F16.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -795,7 +769,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F17.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F17.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -823,7 +796,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F18.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F18.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -851,7 +823,6 @@
             "template/config/semantic_compression_comparability.json"
           ],
           "network_allowed": false,
-          "goal_hint": "Assign one authoritative support record for frozen probe F19.P1 in all ten languages at once, applying the frozen support rubric and semantic_compression_comparability.json symmetrically across the cohort. Output one canonical record per language with level, fragment, partial_reasons, none_reason, justification, and citation; do not return bare support strings.",
           "worker_mode": "packet-only",
           "packet_layout": "shared-inputs-first",
           "goal": "Assign one authoritative support record for frozen probe F19.P1 in all ten languages at once, applying the frozen support rubric and comparability policy symmetrically across the cohort. Use the supplied cross-probe support context to avoid classifying the same standard mechanism differently unless the numbered requirements materially distinguish the probes.\n\nOutput contract: result.json carries exactly one requirement whose value maps every evaluated language to an object with exactly the semantic fields level, fragment, partial_reasons, none_reason, justification, and citation. FULL/PARTIAL require the exact selected fragment. NONE requires fragment=null. PARTIAL requires one or more P-a..P-e reasons. NONE requires exactly one N-1..N-4 reason. Do not return a bare FULL/PARTIAL/NONE string."
@@ -1125,7 +1096,6 @@
             "template/workloads"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf.",
           "worker_mode": "sandbox-agent",
           "split_by_language": true
         },
@@ -1150,7 +1120,6 @@
             "template/workloads"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf.",
           "worker_mode": "sandbox-agent",
           "split_by_language": true
         },
@@ -1175,7 +1144,6 @@
             "template/workloads"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf.",
           "worker_mode": "sandbox-agent",
           "split_by_language": true
         },
@@ -1200,7 +1168,6 @@
             "template/workloads"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of lq-language-development; only these requirement IDs belong to this leaf.",
           "worker_mode": "sandbox-agent",
           "split_by_language": true
         },
@@ -1253,7 +1220,6 @@
             "template/config"
           ],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of ecosystem-gates; only these requirement IDs belong to this leaf.",
           "worker_mode": "runner-command",
           "execution_kind": "command",
           "result_kind": "requirements",
@@ -1271,7 +1237,6 @@
           "prompt_sections": [],
           "read_paths": [],
           "network_allowed": false,
-          "goal_hint": "Narrow shard of ecosystem-gates; only these requirement IDs belong to this leaf.",
           "worker_mode": "runner-command",
           "execution_kind": "command",
           "result_kind": "requirements",
@@ -1298,7 +1263,6 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-external; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true
         },
@@ -1321,7 +1285,6 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-external; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true
         },
@@ -1343,7 +1306,6 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-external; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true
         },
@@ -1366,7 +1328,6 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true
         },
@@ -1389,7 +1350,6 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true
         },
@@ -1412,7 +1372,6 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true
         },
@@ -1435,7 +1394,6 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true
         },
@@ -1458,7 +1416,6 @@
             "repo/docs"
           ],
           "network_allowed": true,
-          "goal_hint": "Narrow shard of ecosystem-tooling; only these requirement IDs belong to this leaf.",
           "worker_mode": "packet-only",
           "split_by_language": true
         }

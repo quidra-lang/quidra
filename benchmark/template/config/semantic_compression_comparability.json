@@ -33,6 +33,10 @@
       "rule": "A documented module or facility shipped in the frozen language distribution is not disqualified merely because it is a library wrapper rather than syntax. Whether it earns FULL, PARTIAL or NONE is decided only by the numbered canonical_task sub-requirements and the frozen support rubric."
     },
     {
+      "id": "canonical-fallback-is-not-probe-substitution",
+      "rule": "A fallback, preference rung, or replacement value explicitly required inside a probe's own canonical_task is part of that probe, not an R9 substitution and not P-a by itself. In particular, F08.P1's exceptional fallback value and the preference orders in F08.P1/F08.P2/F10.P1 are canonical-task mechanics. P-a is available only for the probe substitutions explicitly enumerated by R9."
+    },
+    {
       "id": "same-mechanism-same-threshold",
       "rule": "If the same documented standard mechanism is credited as delivering at least one numbered sub-requirement on one sampled probe, another sampled probe may classify it as NONE only when that probe's numbered requirements make the mechanism deliver none of them. The justification must name that observable distinction."
     },

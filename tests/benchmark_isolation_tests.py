@@ -2455,23 +2455,33 @@ def test_proficiency_requires_the_complete_primary_trial_set() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td).resolve())
         required = benchmark.proficiency_required_trial_ids(root)
+        unit = {"assigned_languages": ["Python"]}
         check(len(required) == 18, f"unexpected Primary trial count: {required}")
         check(len(set(required)) == 18, f"Primary trial IDs are not unique: {required}")
+
+        def session(trial_id: str) -> dict[str, Any]:
+            prompt = benchmark.proficiency_expected_prompt(root, "Python", trial_id)
+            return {"calls": [{
+                "prompt": prompt,
+                "prompt_sha256": benchmark.sha256_bytes(prompt.encode("utf-8")),
+                "completion": "c",
+            }]}
+
         trace = {
             "trials": {
                 "trials": {
-                    trial_id: {"calls": [{"prompt": "p", "completion": "c"}]}
+                    trial_id: session(trial_id)
                     for trial_id in required
                 }
             }
         }
         check(
-            benchmark.proficiency_trial_coverage_problems(root, trace) == [],
-            "the exact frozen Primary trial set was rejected",
+            benchmark.proficiency_trial_coverage_problems(root, unit, trace) == [],
+            "the exact frozen Primary trial/prompt set was rejected",
         )
         missing = json.loads(json.dumps(trace))
         missing["trials"]["trials"].pop(required[-1])
-        problems = benchmark.proficiency_trial_coverage_problems(root, missing)
+        problems = benchmark.proficiency_trial_coverage_problems(root, unit, missing)
         check(
             any("missing required Primary trials" in p for p in problems)
             and any("expected exactly 18" in p for p in problems),
@@ -2479,12 +2489,20 @@ def test_proficiency_requires_the_complete_primary_trial_set() -> None:
         )
         extra = json.loads(json.dumps(trace))
         extra["trials"]["trials"]["invented-cell-t1"] = {
-            "calls": [{"prompt": "p", "completion": "c"}]
+            "calls": [{"prompt": "p", "prompt_sha256": "0" * 64, "completion": "c"}]
         }
-        problems = benchmark.proficiency_trial_coverage_problems(root, extra)
+        problems = benchmark.proficiency_trial_coverage_problems(root, unit, extra)
         check(
             any("unexpected Primary trial IDs" in p for p in problems),
             f"an invented Proficiency trial ID was not rejected: {problems}",
+        )
+        tampered = json.loads(json.dumps(trace))
+        first = required[0]
+        tampered["trials"]["trials"][first]["calls"][0]["prompt"] += "\nchanged"
+        problems = benchmark.proficiency_trial_coverage_problems(root, unit, tampered)
+        check(
+            any("runtime-owned" in p or "prompt hash" in p for p in problems),
+            f"a replaced Proficiency task prompt was accepted: {problems}",
         )
 
 

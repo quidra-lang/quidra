@@ -3558,6 +3558,36 @@ def validate_comparability_repair_directives(
                     "boundary; a fresh measurement is required"
                 )
         normalized.append({"probe_id": probe_id, "label": label, "record": record})
+
+    # V3 remains an invariant after the pre-measurement gate. Comparability may
+    # refine FULL/PARTIAL on the existing measured fragment, but it may not
+    # remove the cohort's last FULL implementation for a frozen probe.
+    fixed_languages = metadata_languages(root)
+    if normalized and len(valid_labels) == len(fixed_languages):
+        proposed_levels = {
+            (item["probe_id"], item["label"]): item["record"]["level"]
+            for item in normalized
+        }
+        for probe_id in sorted({item["probe_id"] for item in normalized}):
+            levels: list[str] = []
+            complete = True
+            for label in sorted(valid_labels):
+                row = sample_rows.get((probe_id, label))
+                if row is None:
+                    complete = False
+                    break
+                level = proposed_levels.get(
+                    (probe_id, label), sc_support_is_level(row.get("support"))
+                )
+                if level is None:
+                    complete = False
+                    break
+                levels.append(level)
+            if complete and "FULL" not in levels:
+                raise BenchmarkError(
+                    f"{probe_id}: comparability repair would violate pre-measurement "
+                    "V3 by removing the cohort's last FULL implementation"
+                )
     return normalized
 
 
@@ -3952,6 +3982,17 @@ def validate_support_adjudication_against_canonical_fragments(
                 root, language, adjudicated
             )
 
+    adjudicated_records = [
+        sc_adjudicated_record(value.get(language))
+        for language in metadata_languages(root)
+    ]
+    if all(record is not None for record in adjudicated_records) and not any(
+        record["level"] == "FULL" for record in adjudicated_records if record is not None
+    ):
+        raise BenchmarkError(
+            f"{requirement_id}: cohort adjudication would violate pre-measurement V3; "
+            f"{probe_id} must retain at least one FULL implementation"
+        )
 
 
 SEMANTIC_VERIFICATION_ENTRY_FILES = {

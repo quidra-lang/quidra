@@ -8059,23 +8059,12 @@ def verify_proficiency_completion(
                 problem = _proficiency_oracle_output_problem(
                     case, str(run_record.get("stdout") or "")
                 )
-            stored_run = dict(run_record)
-            if bool(case["hidden"]):
-                # Hidden-input programs may deliberately echo stdin to their
-                # output streams. trials/ is worker-readable, so retaining those
-                # bytes would disclose the oracle before a repair turn. Keep
-                # process status and hashes, never the hidden-run bytes.
-                stdout = str(stored_run.pop("stdout", "") or "")
-                stderr = str(stored_run.pop("stderr", "") or "")
-                stored_run["stdout_sha256"] = sha256_bytes(stdout.encode("utf-8"))
-                stored_run["stderr_sha256"] = sha256_bytes(stderr.encode("utf-8"))
-                stored_run["output_redacted"] = True
             case_rows.append({
                 "id": case["id"],
                 "hidden": bool(case["hidden"]),
                 "input_sha256": case["input_sha256"],
                 "expected_sha256": case["expected_sha256"],
-                "run": stored_run,
+                "run": run_record,
                 "passed": problem is None,
                 "problem": problem,
             })

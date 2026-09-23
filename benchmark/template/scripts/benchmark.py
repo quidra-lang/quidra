@@ -3196,9 +3196,10 @@ def sc_adjudicated_records(root: Path) -> dict[str, dict[str, dict[str, Any]]]:
 
 
 def sc_adjudicated_levels(root: Path) -> dict[str, dict[str, str]]:
+    """Authoritative levels used by both comparability and published coverage."""
     return {
         probe: {language: record["level"] for language, record in rows.items()}
-        for probe, rows in sc_adjudicated_records(root).items()
+        for probe, rows in sc_adjudicated_annotations(root).items()
     }
 
 
@@ -3253,6 +3254,15 @@ def validate_comparability_repair_directives(
     valid_probes = {
         str(probe.get("probe_id")) for probe in comparability_sample_probes(root)
     }
+    sample_path = root / COMPARABILITY_SAMPLE_RELATIVE
+    sample_rows: dict[tuple[str, str], dict[str, Any]] = {}
+    if sample_path.is_file():
+        sample = json_load(sample_path)
+        for probe in sample.get("probes", []) or []:
+            probe_id = str(probe.get("probe_id") or "")
+            for entry in probe.get("annotations", []) or []:
+                if isinstance(entry, dict):
+                    sample_rows[(probe_id, str(entry.get("label") or ""))] = entry
     affected_pairs: set[tuple[str, str]] = set()
     evidence_gate = (evidence.get("gate_result") or {})
     affected_rows = evidence_gate.get("affected_pairs_requiring_revalidation")
@@ -3288,6 +3298,33 @@ def validate_comparability_repair_directives(
             raise BenchmarkError(
                 f"comparability repair for {probe_id}/{label} is not a complete support record"
             )
+        current = sample_rows.get((probe_id, label))
+        if current is None:
+            raise BenchmarkError(
+                f"comparability repair {probe_id}/{label} has no sampled annotation"
+            )
+        current_level = sc_support_is_level(current.get("support"))
+        current_fragment = current.get("fragment")
+        # A run-local repair may reconcile support classification and its
+        # reasons, but it may not silently replace what the metric shards
+        # actually measured. A new fragment requires new metric measurements.
+        if record["level"] != "NONE":
+            if not isinstance(current_fragment, str) or (
+                current_fragment.strip() != str(record["fragment"]).strip()
+            ):
+                raise BenchmarkError(
+                    f"comparability repair {probe_id}/{label} changes the measured "
+                    "fragment; a fresh measurement is required"
+                )
+        # Crossing NONE changes whether the probe is supported at all and can
+        # change the common quality basis. That is a new measurement, not an
+        # in-run annotation repair.
+        if current_level == "NONE" or record["level"] == "NONE":
+            if current_level != record["level"]:
+                raise BenchmarkError(
+                    f"comparability repair {probe_id}/{label} crosses the NONE "
+                    "boundary; a fresh measurement is required"
+                )
         normalized.append({"probe_id": probe_id, "label": label, "record": record})
     return normalized
 

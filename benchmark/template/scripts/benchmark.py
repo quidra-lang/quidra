@@ -8361,7 +8361,8 @@ def archive_attempt(
         # made; ordinary worker-authored outputs are intentionally rebuilt.
         trial_resume = False
         trace_name: str | None = None
-        if is_trial_unit(unit):
+        security_violation = "sandbox filesystem policy violation:" in str(detail or "")
+        if is_trial_unit(unit) and not security_violation:
             for candidate in ("agent_trace.json", "agent_trace.partial.json"):
                 if (archive / candidate).is_file():
                     trace_name = candidate

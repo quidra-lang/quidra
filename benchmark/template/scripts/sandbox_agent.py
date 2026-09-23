@@ -487,8 +487,90 @@ class Trials:
             "calls": calls,
         })
 
+    def _journal_rows(self) -> list[dict[str, Any]]:
+        if not self.call_journal_path.is_file():
+            return []
+        try:
+            payload = benchmark.json_load(self.call_journal_path)
+        except (OSError, json.JSONDecodeError) as exc:
+            raise AgentFailure(f"trial_call_journal.json is unreadable: {exc}") from exc
+        rows = payload.get("calls")
+        if payload.get("schema_version") != 1 or not isinstance(rows, list):
+            raise AgentFailure("trial_call_journal.json is malformed")
+        return rows
+
+    @staticmethod
+    def _trace_call_counts(trace: list[dict[str, Any]]) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for entry in trace:
+            if not isinstance(entry, dict) or entry.get("action") not in {
+                "trial_start", "trial_continue"
+            }:
+                continue
+            observation = entry.get("observation") or {}
+            rows = observation.get("trials")
+            if not isinstance(rows, list):
+                rows = [observation]
+            for row in rows:
+                if not isinstance(row, dict) or row.get("denied"):
+                    continue
+                trial_id = row.get("trial_id")
+                if isinstance(trial_id, str) and trial_id:
+                    counts[trial_id] = counts.get(trial_id, 0) + 1
+        return counts
+
+    def resume_trace_entries(
+        self, trace: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
+        """Audit records for journaled calls whose enclosing batch never returned.
+
+        A process can die after the provider reply and atomic call journal commit
+        but before the outer trial_start/trial_continue action is appended to the
+        orchestration trace. These runtime-authored recovery entries bridge only
+        that gap; ordinary completed actions already in the trace are untouched.
+        """
+        journal = self._journal_rows()
+        if not journal:
+            return []
+        represented = self._trace_call_counts(trace)
+        seen: dict[str, int] = {}
+        recovered: list[dict[str, Any]] = []
+        next_turn = max(
+            [int(row.get("turn", 0) or 0) for row in trace if isinstance(row, dict)]
+            or [0]
+        )
+        for row in journal:
+            if not isinstance(row, dict):
+                raise AgentFailure("trial call journal contains a non-object call")
+            trial_id = self._valid_id(row.get("trial_id"))
+            call = int(row.get("call", 0) or 0)
+            expected = seen.get(trial_id, 0) + 1
+            if call != expected:
+                raise AgentFailure(
+                    f"trial call journal is non-sequential for {trial_id!r}: "
+                    f"got {call}, expected {expected}"
+                )
+            seen[trial_id] = call
+            if call <= represented.get(trial_id, 0):
+                continue
+            next_turn += 1
+            recovered.append({
+                "turn": next_turn,
+                "action": str(row.get("action") or (
+                    "trial_start" if call == 1 else "trial_continue"
+                )),
+                "observation": {
+                    "ok": True,
+                    "trial_id": trial_id,
+                    "call": call,
+                    "resumed_from_runtime_call_journal": True,
+                },
+                "runtime_recovery": "paid-call-journal-v1",
+            })
+        return recovered
+
     def _restore_sessions(self) -> None:
-        """Restore paid calls only when runtime records and the prior trace agree."""
+        """Restore paid calls only when runtime records and trusted checkpoints agree."""
         if not self.records_dir.is_dir():
             return
         traced = self._resumed_call_counts()
@@ -518,6 +600,11 @@ class Trials:
             if not isinstance(original, list) or len(original) < allowed:
                 raise AgentFailure(f"resumed trial {trial_id!r} has fewer calls than its audit trace")
             records = list(original[:allowed])
+            journal_rows = {
+                (str(row.get("trial_id")), int(row.get("call", 0) or 0)): row
+                for row in self._journal_rows()
+                if isinstance(row, dict)
+            }
             messages: list[dict[str, str]] = []
             trusted: list[dict[str, Any]] = []
             for expected_call, record in enumerate(records, start=1):
@@ -531,6 +618,21 @@ class Trials:
                     raise AgentFailure(f"resumed trial {trial_id!r} prompt hash changed")
                 if benchmark.sha256_bytes(completion.encode("utf-8")) != record.get("completion_sha256"):
                     raise AgentFailure(f"resumed trial {trial_id!r} completion hash changed")
+                journal_row = journal_rows.get((trial_id, expected_call))
+                if self.call_journal_path.is_file():
+                    if journal_row is None:
+                        raise AgentFailure(
+                            f"resumed trial {trial_id!r} call {expected_call} is absent from the call journal"
+                        )
+                    if (
+                        journal_row.get("prompt_sha256") != record.get("prompt_sha256")
+                        or journal_row.get("completion_sha256") != record.get("completion_sha256")
+                        or journal_row.get("verification") != record.get("verification")
+                        or journal_row.get("verification_path") != record.get("verification_path")
+                    ):
+                        raise AgentFailure(
+                            f"resumed trial {trial_id!r} call {expected_call} disagrees with the call journal"
+                        )
                 for kind, value in (("prompt", prompt), ("completion", completion)):
                     rel = record.get(f"{kind}_path")
                     if not isinstance(rel, str):

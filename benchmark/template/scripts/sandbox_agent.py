@@ -543,7 +543,20 @@ class Trials:
             raise AgentDenied(
                 f"trial {trial_id!r} has used all {self.max_repairs} repair turns"
             )
-        if not isinstance(message, str) or not message.strip():
+        if self.evaluation == "llm_proficiency":
+            if message not in (None, ""):
+                raise AgentDenied(
+                    f"trial {trial_id!r} repair feedback is runtime-owned; "
+                    "omit message instead of supplying custom guidance"
+                )
+            previous = session["records"][-1] if session["records"] else {}
+            try:
+                message = benchmark.proficiency_repair_prompt(
+                    previous.get("verification")
+                )
+            except benchmark.BenchmarkError as exc:
+                raise AgentDenied(str(exc)) from exc
+        elif not isinstance(message, str) or not message.strip():
             raise AgentDenied(f"trial {trial_id!r} needs a non-empty message string")
         session["messages"].append({"role": "user", "content": message})
         return self._call(trial_id, session)

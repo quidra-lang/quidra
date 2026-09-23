@@ -607,6 +607,7 @@ def _write_semantic_owner_cohort(
             "canonical_fragment_owner": True,
             "assigned_languages": [language],
             "assigned_agent_id": agent_id,
+            "requirement_ids": ["metric.capability_coverage"],
         })
     (root / "work/root/manifest.json").write_text(
         json.dumps({"schema_version": 1, "work_units": units}, indent=2, sort_keys=True) + "\n",
@@ -769,6 +770,53 @@ def assert_v3_survives_comparability_repair() -> None:
             raise AssertionError(
                 "comparability repair removed the cohort's last FULL implementation"
             )
+
+
+def assert_capability_efficiency_uses_final_support_denominator() -> None:
+    aggregation = json.loads(
+        (ROOT / "benchmark/template/config/aggregation.json").read_text()
+    )["evaluations"]["semantic_compression"]
+    rule = aggregation["recompute_from_evidence"]["metrics"][
+        "metric.capability_efficiency"
+    ]
+    evidence = {
+        "raw_efficiency": 99.0,
+        "total_semantic_complexity_units": 44.0,
+        "supported_capability_points": 88.0,
+    }
+    assert benchmark.sc_language_ratio(evidence, rule) == 99.0
+    assert benchmark.sc_language_ratio(
+        evidence, rule, denominator_override=44.0
+    ) == 1.0
+
+    with tempfile.TemporaryDirectory() as td:
+        root = make_root(td)
+        languages = benchmark.metadata_languages(root)
+        matrix = json.loads(
+            (
+                ROOT
+                / "benchmark/template/methodology-assets/semantic_compression/semantic_site_matrix.json"
+            ).read_text()
+        )
+        probe_id = str(matrix["probes"][0]["probe_id"])
+        partial_language = languages[0]
+        _write_semantic_owner_cohort(
+            root,
+            {
+                (partial_language, probe_id): canonical(
+                    "PARTIAL", "verified_fragment()", partial=["P-a"]
+                )
+            },
+        )
+        settled = benchmark.sc_supported_capability_points(
+            root, aggregation, languages
+        )
+        assert settled is not None
+        points, total = settled
+        assert total == 88.0, settled
+        assert points[partial_language] == 87.0, settled
+        for language in languages[1:]:
+            assert points[language] == 88.0, (language, settled)
 
 
 def assert_premeasurement_gate_is_wired() -> None:
@@ -1023,6 +1071,7 @@ def main() -> None:
     assert_premeasurement_cohort_gate()
     assert_v3_survives_support_adjudication()
     assert_v3_survives_comparability_repair()
+    assert_capability_efficiency_uses_final_support_denominator()
     assert_premeasurement_gate_is_wired()
     assert_go_multi_unit_recipe_builds_one_main_package()
     print("semantic compression reconciliation contract: ok")

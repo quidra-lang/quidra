@@ -371,6 +371,12 @@ class Trials:
         self.max_turns = max(base_turns, self.budget * multiplier) if self.budget else base_turns
         self.used = 0
         self.sessions: dict[str, dict[str, Any]] = {}
+        self.required_trial_ids = (
+            benchmark.proficiency_required_trial_ids(root)
+            if self.evaluation == "llm_proficiency"
+            else []
+        )
+        self.required_trial_id_set = set(self.required_trial_ids)
         # Every prompt and completion is also written verbatim to disk, under a
         # directory the worker can read but not write. The agent processes trial
         # output in bulk with its own scripts instead of copying completions out
@@ -384,6 +390,12 @@ class Trials:
                 or not all(ch.isalnum() or ch in "-_." for ch in value):
             raise AgentDenied("trial_id must be a short identifier of letters, digits, '-', '_' or '.'")
         return value
+
+    def _require_allowed_trial_id(self, trial_id: str) -> None:
+        if self.required_trial_id_set and trial_id not in self.required_trial_id_set:
+            raise AgentDenied(
+                f"trial {trial_id!r} is not one of the frozen Primary trial IDs"
+            )
 
     def _call(self, trial_id: str, session: dict[str, Any]) -> dict[str, Any]:
         if self.used >= self.budget:
@@ -488,6 +500,7 @@ class Trials:
             if not isinstance(item, dict):
                 raise AgentDenied("each batch entry must be an object")
             trial_id = self._valid_id(item.get("trial_id"))
+            self._require_allowed_trial_id(trial_id)
             if trial_id in seen:
                 raise AgentDenied(f"trial {trial_id!r} appears twice in one batch")
             seen.add(trial_id)
@@ -525,6 +538,7 @@ class Trials:
                 "calls_remaining": self.budget - self.used,
             }
         trial_id = self._valid_id(action.get("trial_id"))
+        self._require_allowed_trial_id(trial_id)
         if trial_id in self.sessions:
             raise AgentDenied(f"trial {trial_id!r} already exists; a trial is fresh exactly once")
         if self.used >= self.budget:
@@ -560,6 +574,10 @@ class Trials:
             "max_repairs_per_trial": self.max_repairs,
             "max_batch": self.max_batch,
             "records_dir": "trials/",
+            "required_trial_ids": self.required_trial_ids,
+            "missing_required_trial_ids": sorted(
+                self.required_trial_id_set - set(self.sessions)
+            ),
             "trials": {
                 trial_id: {"calls": session["records"], "repairs": len(session["records"]) - 1}
                 for trial_id, session in self.sessions.items()
@@ -641,6 +659,15 @@ decide which trials to repair. Trial completions are capped at
 back empty is reported with `ok:false` and counts as a failed attempt for that
 trial. Budget for this unit: {trials.budget} trial calls in total ({trials.used}
 used); a batch larger than the remaining budget is denied before any call.
+"""
+        if str(task.get("evaluation") or "") == "llm_proficiency":
+            required = "\n".join(f"- {trial_id}" for trial_id in trials.required_trial_ids)
+            trial_block += f"""
+For LLM Proficiency, the Primary allocation is enforced by the runtime. Start
+every ID below exactly once before finalizing; any other trial ID is rejected
+before it can spend a scored call:
+
+{required}
 """
         languages = [str(x) for x in (task.get("assigned_languages") or [])]
         programs = sorted({

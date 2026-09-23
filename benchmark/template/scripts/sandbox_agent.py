@@ -663,11 +663,11 @@ class Trials:
             if not records:
                 unfinished.append(trial_id)
                 continue
-            last = records[-1] if isinstance(records[-1], dict) else {}
-            verification = last.get("verification")
+            trusted = session.get("trusted_verifications") or []
+            verification = trusted[-1] if trusted else None
             if (
                 isinstance(verification, dict)
-                and verification.get("test_passed") is True
+                and benchmark.proficiency_public_repair_gate_passed(verification)
             ):
                 continue
             repairs_used = max(0, len(records) - 1)

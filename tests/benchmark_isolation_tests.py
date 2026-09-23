@@ -1656,6 +1656,122 @@ def test_trials_are_runtime_owned_fresh_sessions() -> None:
         check(all("stop_reason" in r for r in audit), "the audit log does not record stop reasons")
 
 
+def test_paid_trial_calls_resume_from_the_atomic_runtime_journal() -> None:
+    """A lost enclosing batch must not make already-paid trial calls run again."""
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        agent_id = "worker-trial-resume"
+        agent_dir = create_task(root, agent_id, "sandbox-agent")
+        benchmark.json_dump(root / "work" / "root" / "manifest.json", {
+            "schema_version": 1,
+            "work_units": [{
+                "id": "trial-resume-unit",
+                "assigned_agent_id": agent_id,
+                "evaluation": "synthetic_trials",
+                "max_llm_calls": 2,
+            }],
+        })
+        task_path = agent_dir / "task.json"
+        task = json.loads(task_path.read_text(encoding="utf-8"))
+        task["evaluation"] = "synthetic_trials"
+        task_path.write_text(json.dumps(task), encoding="utf-8")
+
+        first_actions = [
+            {"action": "trial_start", "trials": [
+                {"trial_id": "r-t1", "prompt": "RESUME-TRIAL one"},
+                {"trial_id": "r-t2", "prompt": "RESUME-TRIAL two"},
+            ]},
+            {"action": "write_file", "path": "result.json",
+             "content": '{"schema_version":1}\n'},
+            {"action": "final", "summary": "first pass"},
+        ]
+        first_script = {
+            "schema_version": 1,
+            "rules": [{"contains": "RESUME-TRIAL", "content": "paid completion"}],
+            "sequence": [json.dumps(a) for a in first_actions],
+        }
+        with Gateway(root / "gateway", script=first_script) as gw:
+            first = subprocess.run(
+                [
+                    sys.executable, str(SCRIPTS / "sandbox_agent.py"),
+                    "--workspace", str(root), "--id", agent_id,
+                    "--socket", str(gw.socket_path), "--max-output-tokens", "4000",
+                ],
+                env=sandbox_side_env(), stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, text=True,
+            )
+        check(first.returncode == 0, f"journal setup run failed: {first.stderr or first.stdout}")
+        journal = json.loads(
+            (agent_dir / "trial_call_journal.json").read_text(encoding="utf-8")
+        )
+        check(
+            [(row["trial_id"], row["call"]) for row in journal.get("calls", [])]
+            == [("r-t1", 1), ("r-t2", 1)],
+            f"paid calls were not journaled individually: {journal}",
+        )
+
+        # Model the exact crash window this journal closes: both provider calls and
+        # session files reached disk, but the enclosing batch action never reached
+        # the orchestration trace/checkpoint. The old implementation would pay for
+        # both calls again on the retry.
+        previous = json.loads((agent_dir / "agent_trace.json").read_text(encoding="utf-8"))
+        previous["trace"] = []
+        previous["trials"] = {"trials": {}}
+        benchmark.json_dump(agent_dir / "resume_trace.json", previous)
+        (agent_dir / "agent_trace.json").unlink()
+        (agent_dir / "result.json").unlink()
+
+        second_actions = [
+            {"action": "write_file", "path": "result.json",
+             "content": '{"schema_version":1}\n'},
+            {"action": "final", "summary": "resumed without buying trials again"},
+        ]
+        with Gateway(
+            root / "gateway",
+            script={"schema_version": 1, "sequence": [json.dumps(a) for a in second_actions]},
+        ) as gw:
+            second = subprocess.run(
+                [
+                    sys.executable, str(SCRIPTS / "sandbox_agent.py"),
+                    "--workspace", str(root), "--id", agent_id,
+                    "--socket", str(gw.socket_path), "--max-output-tokens", "4000",
+                ],
+                env=sandbox_side_env(), stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE, text=True,
+            )
+            second_audit = [
+                json.loads(line)
+                for line in gw.log_path.read_text(encoding="utf-8").splitlines()
+                if line.strip() and json.loads(line).get("event") == "inference"
+            ]
+
+        check(
+            second.returncode == 0,
+            f"journal-backed retry failed: {second.stderr or second.stdout}",
+        )
+        final_trace = json.loads(
+            (agent_dir / "agent_trace.json").read_text(encoding="utf-8")
+        )
+        recovered = [
+            row for row in final_trace.get("trace", [])
+            if row.get("runtime_recovery") == "paid-call-journal-v1"
+        ]
+        check(
+            len(recovered) == 2
+            and {row.get("observation", {}).get("trial_id") for row in recovered}
+            == {"r-t1", "r-t2"},
+            f"journaled calls were not reconstructed into the audit trace: {recovered}",
+        )
+        check(
+            final_trace.get("trials", {}).get("used") == 2,
+            f"restored calls did not consume the frozen call budget: {final_trace.get('trials')}",
+        )
+        check(
+            not any(row.get("purpose") == "scored" for row in second_audit),
+            f"the retry repurchased a scored call: {second_audit}",
+        )
+
+
 def test_gateway_maps_purpose_to_a_frozen_depth_and_refuses_the_rest() -> None:
     with tempfile.TemporaryDirectory() as td:
         with Gateway(Path(td)) as gw:

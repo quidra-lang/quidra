@@ -32,6 +32,10 @@ inputs:
     description: Maximum in-flight workers inside this evaluation.
     required: false
     default: "6"
+  units:
+    description: Optional whitespace-separated work-unit ids for a paid rehearsal.
+    required: false
+    default: ""
 
 outputs:
   handoff-ready:
@@ -143,12 +147,15 @@ runs:
       env:
         EVALUATION: ${{ inputs.evaluation }}
         MODEL: ${{ inputs.model }}
+        UNITS: ${{ inputs.units }}
       run: |
+        unit_args=()
+        for unit in $UNITS; do unit_args+=(--unit "$unit"); done
         python benchmark/template/scripts/production_run.py policy \
           --workspace "$GITHUB_WORKSPACE/.quidra-benchmark" \
           --model "$MODEL" \
           --output "$RUNNER_TEMP/task-policy.json" \
-          --evaluation "$EVALUATION"
+          --evaluation "$EVALUATION" "${unit_args[@]}"
 
     - name: Compute remaining whole-run budget
       id: budget
@@ -187,7 +194,10 @@ runs:
         EVALUATION: ${{ inputs.evaluation }}
         REMAINING_BUDGET: ${{ steps.budget.outputs.remaining }}
         CONCURRENCY: ${{ inputs.concurrency }}
+        UNITS: ${{ inputs.units }}
       run: |
+        unit_args=()
+        for unit in $UNITS; do unit_args+=(--unit "$unit"); done
         : > "$RUNNER_TEMP/gateway-audit.jsonl"
         python benchmark/template/scripts/sandbox_launcher.py run \
           --source-repo "$GITHUB_WORKSPACE" \
@@ -202,7 +212,8 @@ runs:
              --workspace /quidra-benchmark \
              --max-wall-seconds 18900 \
              --concurrency "$CONCURRENCY" \
-             --evaluation "$EVALUATION"
+             --evaluation "$EVALUATION" \
+             "${unit_args[@]}"
 
     - name: Record this Primary's API usage
       if: ${{ always() }}

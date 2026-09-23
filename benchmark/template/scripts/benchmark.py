@@ -7023,17 +7023,17 @@ Goal: {args.goal}
         for name, packet_input in packet_input_sections
     ]
     if layout == "shared-inputs-first":
-        # Everything identical across the units that share these inputs comes
-        # first, so the trusted gateway can cache it once for all of them; the
-        # per-unit header and its requirement list follow. Section 8 of the
-        # master prompt records why: a semantic-compression packet carries
-        # about 180k tokens of the same methodology assets for every language,
-        # and with the language-specific header first none of it was ever read
-        # from the cache. The rendered bytes are a permutation of the
-        # task-first layout; nothing is added or removed.
+        # Only inputs guaranteed identical across sibling units may precede the
+        # cache breakpoint. input_components are derived from each unit's
+        # read_paths and can include generated canonical catalogs, adjudication
+        # packets, or other unit-specific evidence. Putting those before the
+        # Task Packet header made the provider cache key unique per unit and
+        # produced cache_read_input_tokens=0 even though the large frozen
+        # methodology prefix was identical. Keep only frozen embedded inputs
+        # before the header; all unit-specific task inputs follow it.
         shared = [c for name, c in embedded_components if name != "assigned_requirements.json"]
         tail = [c for name, c in embedded_components if name == "assigned_requirements.json"]
-        components = [*shared, *input_components, task_component, *tail]
+        components = [*shared, task_component, *input_components, *tail]
     else:
         components = [task_component, *(c for _, c in embedded_components), *input_components]
     rendered = b"".join(Path(c["path"]).read_bytes() for c in components)

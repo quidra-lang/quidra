@@ -59,7 +59,8 @@ jobs:
             raise "#{name}: needs=#{actual.inspect}, expected=#{expected.inspect}" unless actual == expected
           end
 
-          base = %q(benchmark-${{ needs.prepare.outputs.run_id }})
+          expression = "$" + "{{ needs.prepare.outputs.run_id }}"
+          base = "benchmark-" + expression
           chain = [
             ["semantic-compression", nil, "#{base}-semantic-compression"],
             ["llm-learnability", "#{base}-semantic-compression", "#{base}-llm-learnability"],

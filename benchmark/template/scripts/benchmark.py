@@ -7230,7 +7230,7 @@ def ecosystem_rubric_asset(root: Path) -> dict[str, Any]:
     if not isinstance(policy, dict):
         raise BenchmarkError("Ecosystem evidence_policy is missing")
     required_policy = {
-        "snapshot_basis", "activity_window_months",
+        "snapshot_basis", "snapshot_date", "activity_window_months",
         "provider_search_budget_per_worker", "source_priority",
         "symmetry_rule", "not_executed_rule", "popularity_rule",
     }
@@ -7239,6 +7239,11 @@ def ecosystem_rubric_asset(root: Path) -> dict[str, Any]:
         raise BenchmarkError(
             "Ecosystem evidence_policy is incomplete: " + ", ".join(missing)
         )
+    snapshot_date = policy.get("snapshot_date")
+    if not isinstance(snapshot_date, str) or not re.fullmatch(
+        r"\d{4}-\d{2}-\d{2}", snapshot_date
+    ):
+        raise BenchmarkError("Ecosystem snapshot_date must be YYYY-MM-DD")
     if int(policy.get("activity_window_months", 0) or 0) <= 0:
         raise BenchmarkError("Ecosystem activity window must be positive")
     frozen_search_budget = int(
@@ -7279,19 +7284,22 @@ def apply_ecosystem_runner_scores(
     language = str(assigned[0])
     asset = ecosystem_rubric_asset(root)
     points = asset["scoring"]["level_points"]
-    run = json_load(root / "run.json")
-    frozen_run_date = str(run.get("created_at_utc") or "")[:10]
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", frozen_run_date):
-        raise BenchmarkError("Ecosystem run.json must freeze created_at_utc with a valid date")
+    frozen_snapshot_date = str(
+        (asset.get("evidence_policy") or {}).get("snapshot_date") or ""
+    )
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", frozen_snapshot_date):
+        raise BenchmarkError(
+            "Ecosystem rubric asset must freeze evidence_policy.snapshot_date"
+        )
     ecosystem_epoch = cache_epoch(root, "ecosystem")
     epoch_month = ecosystem_epoch[:7]
     if (
         re.fullmatch(r"\d{4}-\d{2}", epoch_month)
-        and not frozen_run_date.startswith(epoch_month + "-")
+        and not frozen_snapshot_date.startswith(epoch_month + "-")
     ):
         raise BenchmarkError(
-            f"Ecosystem frozen run date {frozen_run_date} is outside the "
-            f"declared epoch month {epoch_month}; advance the Ecosystem epoch"
+            f"Ecosystem snapshot date {frozen_snapshot_date} is outside the "
+            f"declared epoch month {epoch_month}; advance both together"
         )
     evidence = result.get("evidence")
     if not isinstance(evidence, dict):
@@ -7351,10 +7359,10 @@ def apply_ecosystem_runner_scores(
             r"\d{4}-\d{2}-\d{2}", snapshot_date
         ):
             raise BenchmarkError(f"{rid}: snapshot_date must be YYYY-MM-DD")
-        if snapshot_date != frozen_run_date:
+        if snapshot_date != frozen_snapshot_date:
             raise BenchmarkError(
                 f"{rid}: snapshot_date {snapshot_date} must equal the frozen "
-                f"run date {frozen_run_date}"
+                f"Ecosystem snapshot date {frozen_snapshot_date}"
             )
         limitations = row.get("limitations")
         if not isinstance(limitations, str):

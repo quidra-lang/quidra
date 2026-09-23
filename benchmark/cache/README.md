@@ -8,20 +8,25 @@ input fingerprint and it matches exactly. The fingerprint includes the exact Tas
 Packet, model/provider, frozen sampling policy, relevant toolchain versions,
 validator/workload inputs and the cache epoch.
 
-Quidra-containing work is cached too, keyed by the versions the evaluated snapshot
-declares in project.toml (`version` and `language_version`) and by the exact Task
-Packet, which embeds the snapshot's docs: a Quidra record is reused only while
-neither has changed, so a run in which a comparison language failed no longer
-discards Quidra's own completed measurements.
+Quidra-containing work is cached too. Its historical fingerprint still carries
+the declared `version` / `language_version` and exact Task Packet so already-paid
+records remain addressable, but reuse has an additional trusted compatibility
+check: `init` records Git object IDs for the compiler/runtime execution inputs
+(`src`, `include`, CMake/project/manifest metadata, and the embedded grammar).
+A same-version compiler/runtime edit therefore makes the Quidra record a MISS,
+while a benchmark-only documentation/harness commit does not. New records carry
+this execution identity explicitly. Identity-less legacy records are accepted
+only from the migration commits frozen in `cache_policy.json` and only while the
+current target still matches that migration baseline.
 Ecosystem evidence uses a declared epoch (`declared_epochs.ecosystem` in the cache
 policy) because external ecosystem facts change without a language version change;
 the operator changes that value when they should be measured again. Semantic
-Compression uses one too (`declared_epochs.semantic_compression`). The current
-`2026-09-canonical-fragments-v2` epoch requires Capability Coverage to freeze one
-canonical fragment/support record for every probe and language before A/B/C/D/E are
-measured; each downstream shard is keyed by that exact catalog. Older Semantic
+Compression uses one too (`declared_epochs.semantic_compression`). The exact
+epoch string is authoritative; it currently covers the canonical-fragment,
+pre-measurement verification, and fixed-output-oracle contract. Earlier Semantic
 Compression records remain stored as historical certified artifacts but cannot
-hydrate the v2 evaluation. Other Primary-evaluation cache records are unaffected.
+hydrate a run whose declared epoch differs. Other Primary-evaluation cache records
+are unaffected.
 
 The three Language Quality mechanical units are certified as well: the micro
 suite (`lq-micro-mechanical`), the adversarial case set (`lq-adversarial-mechanical`)
@@ -43,7 +48,10 @@ taken again.
 
 Workers never receive this directory as a readable path. Cache hydration is a
 trusted runner operation, and every hydrated result is passed through the current
-validator before it can become COMPLETE.
+validator before it can become COMPLETE. A structurally intact record that a newer
+validator rejects is treated as a cache MISS: only that staged cached output is
+discarded and the unit executes normally. Integrity corruption of the cache record
+itself remains fatal.
 
 An eligible non-Quidra measurement record is certifiable as soon as that unit is
 COMPLETE with its frozen validator recorded as PASS; the surrounding Primary

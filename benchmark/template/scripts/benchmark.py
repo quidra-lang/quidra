@@ -14486,12 +14486,15 @@ def export_partial_paid_checkpoints(
     store: Path,
     evaluation: str | None = None,
 ) -> dict[str, Any]:
-    """Persist paid-but-not-yet-COMPLETE leaf state outside the public Git cache.
+    """Persist already-paid model-call state independently of leaf completion.
 
-    The store is intended for GitHub Actions cache. Each record is keyed by the
-    same full dependency fingerprint used by the certified result cache. Raw
-    prompts/completions remain private workflow/cache material rather than being
-    committed to benchmark/cache in Git.
+    Each record is keyed by the same full dependency fingerprint used by the
+    certified result cache. The store is content-addressed and may be mirrored
+    by GitHub Actions cache for speed, but production also checkpoints it under
+    benchmark/cache/partial-paid so paid prompts/completions survive artifact
+    expiry and later workflow runs. These bytes never certify a score by
+    themselves: import restores them only into a PENDING exact-fingerprint leaf,
+    after which current parsing, runtime verification and validators still apply.
     """
     manifest = json_load(root / "work" / "root" / "manifest.json")
     ledger = json_load(root / "work" / "root" / "ledger.json")
@@ -14506,9 +14509,10 @@ def export_partial_paid_checkpoints(
             continue
         uid = str(unit["id"])
         state = (ledger.get("units", {}).get(uid) or {})
-        if state.get("status") == "COMPLETE":
-            # COMPLETE work belongs in the certified result cache instead.
-            continue
+        # Preserve paid inference even after the leaf reaches COMPLETE. The
+        # certified result cache stores the validated score/result; this store
+        # keeps the paid raw calls needed to re-parse or re-validate that same
+        # semantic experiment later without purchasing identical calls again.
         agent_id = str(unit.get("assigned_agent_id") or "")
         agent_dir = root / "work" / "agents" / agent_id
         task_path = agent_dir / "task.json"
@@ -14703,7 +14707,12 @@ def import_partial_paid_checkpoints(
     store: Path,
     evaluation: str | None = None,
 ) -> dict[str, Any]:
-    """Restore only exact-fingerprint paid state into still-PENDING leaves."""
+    """Restore exact-fingerprint paid state only into still-PENDING leaves.
+
+    A checkpoint may originate from either an incomplete or previously COMPLETE
+    leaf. In both cases it is only paid-call recovery material: current task
+    execution and validation decide whether the new run becomes COMPLETE.
+    """
     manifest = json_load(root / "work" / "root" / "manifest.json")
     ledger = json_load(root / "work" / "root" / "ledger.json")
     imported: list[dict[str, Any]] = []

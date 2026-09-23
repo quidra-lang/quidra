@@ -14,8 +14,8 @@
 #
 # Re-request by editing any line below.
 
-requested_at_utc: 2026-09-23T09:34:00Z
-reason: full run of all five Primary evaluations on the develop snapshot, re-requesting what f64113f asked for and was cancelled inside its first paid minute, before it spent anything; 787f981 returned evaluation_requirements.json to the bytes 8168710 hashed, so the task packet hash matches again and cache-impact's 227 certified records hydrate rather than sending 212 units back to be re-measured; the run pays for the 21 records cache-impact reports invalid plus the three support adjudications 1635309 added and the comparability audit that depends on them; a470500 removed the previous result directory, so this run stands as the benchmark's first published result; smoke 0a83bdf passed
+requested_at_utc: 2026-09-23T10:02:00Z
+reason: re-request of the run cancelled on 98b25aa, which reached 245 of 247 units COMPLETE and was stopped 76 seconds into sc-comparability, with the semantic_compression aggregate still pending behind it; its checkpoint certified no new records, so the three support adjudications are measured again rather than hydrated; the 227 certified records still hydrate and the 21 records cache-impact reports invalid are still the rest of the paid scope
 model: claude-sonnet-5
 evaluation: all
 budget_usd: 8.0

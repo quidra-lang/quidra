@@ -888,7 +888,7 @@ def assert_premeasurement_gate_is_wired() -> None:
     requirements = json.loads(
         (ROOT / "benchmark/template/config/evaluation_requirements.json").read_text()
     )
-    required = requirements["semantic_compression"]["required"]
+    required = requirements["evaluations"]["semantic_compression"]["required"]
     assert "gate.semantic_premeasurement_validation" in required, required
     units = plan["evaluations"]["semantic_compression"]["units"]
     gate = next(unit for unit in units if unit["id"] == "sc-premeasurement-validation")

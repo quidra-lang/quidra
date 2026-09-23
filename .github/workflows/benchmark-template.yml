@@ -733,8 +733,18 @@ jobs:
           python benchmark/template/scripts/benchmark.py task-render \
             --workspace "$TMP" --id worker-sc-metrics-local--part-1--quidra \
             > "$TMP/rendered-task.md"
-          grep -q "Canonical fragment contract" "$TMP/rendered-task.md"
-          grep -q "canonical_fragments_quidra.json" "$TMP/rendered-task.md"
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          root = Path(".benchmark-template-test")
+          task = json.loads(
+              (root / "work/agents/worker-sc-metrics-local--part-1--quidra/task.json").read_text()
+          )
+          digest = task.get("canonical_fragment_catalog_sha256")
+          assert isinstance(digest, str) and len(digest) == 64, digest
+          paths = [str(row.get("path", "")) for row in task.get("packet_inputs", [])]
+          assert any(path.endswith("/canonical_fragments_quidra.json") for path in paths), paths
+          PY
           if grep -q "LLM Proficiency Evaluation" "$TMP/rendered-task.md"; then
             echo "unrelated evaluation content leaked into narrow Task Packet" >&2
             exit 1

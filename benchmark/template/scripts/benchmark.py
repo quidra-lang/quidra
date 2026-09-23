@@ -2785,15 +2785,34 @@ def redact_language_identity(value: Any, label: str) -> Any:
     return value
 
 
+def redact_language_identity_in_key(key: str, label: str) -> str:
+    """Redact a language name an evidence key spells as one of its segments.
+
+    The prose patterns are anchored on `\b`, and `_` is a word character, so
+    `per_probe_mean_lookups_zig` sails through a redaction that catches the same
+    name in a sentence. A key names the language in its own segment, so redact
+    segment by segment: over-redacting a key costs nothing, while one surviving
+    suffix identifies an entry in every probe it appears in.
+    """
+    segments = str(key).split("_")
+    return "_".join(
+        str(redact_language_identity(segment, label)) for segment in segments
+    )
+
+
 def blind_annotation(fields: dict[str, Any], label: str) -> dict[str, Any]:
     """Clip an annotation's prose and strip the language identity out of it."""
     blinded: dict[str, Any] = {}
     for key, value in fields.items():
         clipped = clip_annotation_text(value)
-        name = redact_language_identity(key, label)
+        name = redact_language_identity_in_key(key, label)
+        # Only the verbatim fragment is exempt: redacting inside code would
+        # corrupt the thing being judged. Its prose companions - a note, a
+        # summary - are sentences about the fragment, and exempting every key
+        # that merely contains "fragment" let them name the language outright.
+        verbatim = key == "fragment" or key.endswith("_fragment")
         blinded[name] = (
-            clipped if "fragment" in key
-            else redact_language_identity(clipped, label)
+            clipped if verbatim else redact_language_identity(clipped, label)
         )
     return blinded
 

@@ -89,6 +89,7 @@
         "gate.fixed_model_configuration",
         "gate.prompt_preservation",
         "coverage.all_10_languages",
+        "gate.proficiency_workload_contract",
         "metric.generation_success_rate",
         "metric.compile_parse_success_rate",
         "metric.correct_at_1",

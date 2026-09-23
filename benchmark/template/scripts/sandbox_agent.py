@@ -1266,6 +1266,9 @@ def run_agent(args: argparse.Namespace) -> int:
         except (OSError, json.JSONDecodeError) as exc:
             raise AgentFailure(f"resume_trace.json is unreadable: {exc}") from exc
     trace: list[dict[str, Any]] = list(resume_payload.get("trace", []) or [])
+    # Recover calls that reached the per-call commit point but whose enclosing
+    # batch never returned far enough to append its aggregate action trace.
+    trace.extend(trials.resume_trace_entries(trace))
     denials: list[dict[str, Any]] = list(resume_payload.get("denied_actions", []) or [])
     usage = {
         "input_tokens": 0,

@@ -8524,8 +8524,15 @@ def write_run_breakdown(staging: Path, root: Path) -> None:
     them and the workers' stated reasoning all lived in the workspace, which
     import discards, and in an artifact that expires.
     """
-    aggregation = json_load(root / "template" / "config" / "aggregation.json")
+    aggregation_path = root / "template" / "config" / "aggregation.json"
+    if not aggregation_path.is_file():
+        # Nothing frozen to decompose a published score against. A workspace
+        # without the template was never scored through it, so there is no
+        # breakdown to write and no reason to fail the import over one.
+        return
+    aggregation = json_load(aggregation_path)
     languages = metadata_languages(root)
+    skipped: list[dict[str, str]] = []
     for evaluation in PRIMARY_NAMES:
         published_path = root / "results" / "evaluations" / f"{evaluation}.json"
         published = json_load(published_path) if published_path.is_file() else {}
@@ -8549,18 +8556,29 @@ def write_run_breakdown(staging: Path, root: Path) -> None:
                         rid.startswith("metric.") or rid.startswith("condition.")
                     ):
                         req.setdefault(rid, {}).update(value)
-        breakdown, records = evaluation_breakdown(
-            root, evaluation, config, req, languages, published
-        )
-        json_dump(staging / "breakdown" / f"{evaluation}.json", breakdown)
-        (staging / "breakdown" / f"{evaluation}.md").write_text(
-            render_breakdown_markdown(breakdown), encoding="utf-8"
-        )
-        for record in records:
-            json_dump(
-                staging / "evidence" / evaluation / f"{record['agent_id']}.json",
-                record,
+        try:
+            breakdown, records = evaluation_breakdown(
+                root, evaluation, config, req, languages, published
             )
+            json_dump(staging / "breakdown" / f"{evaluation}.json", breakdown)
+            (staging / "breakdown" / f"{evaluation}.md").write_text(
+                render_breakdown_markdown(breakdown), encoding="utf-8"
+            )
+            for record in records:
+                json_dump(
+                    staging / "evidence" / evaluation / f"{record['agent_id']}.json",
+                    record,
+                )
+        except (BenchmarkError, OSError, KeyError, TypeError, ValueError) as exc:
+            # The breakdown explains a score; it never withholds one. Record why
+            # it could not be written rather than failing the import or leaving
+            # the reader to wonder where the file went.
+            skipped.append({"evaluation": evaluation, "reason": str(exc)})
+    if skipped:
+        json_dump(staging / "breakdown" / "skipped.json", {
+            "schema_version": 1,
+            "skipped": skipped,
+        })
 
 
 def compact_run_files(

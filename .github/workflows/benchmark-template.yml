@@ -764,6 +764,26 @@ jobs:
                       "justification": "Synthetic canonical fragment selected under R1-R10.",
                       "citation": "Synthetic frozen documentation citation.",
                   }
+              verification = {
+                  probe_id: {
+                      "entry_file": "main.txt",
+                      "fragment_files": ["main.txt"],
+                      "files": {
+                          "main.txt": (
+                              "synthetic fixture prefix\\n"
+                              + record["fragment"]
+                              + "\\nsynthetic fixture suffix\\n"
+                          )
+                      },
+                      "mode": "nm-add2" if probe_id == "F20.P2" else "run",
+                      "run_count": (
+                          0 if probe_id == "F20.P2"
+                          else 20 if probe_id == "F19.P2"
+                          else 1
+                      ),
+                  }
+                  for probe_id, record in catalog.items()
+              }
               agent = "worker-sc-metrics-hidden-coverage--part-2--" + slug[language]
               payload = {
                   "schema_version": 1,
@@ -772,8 +792,9 @@ jobs:
                       "metric.capability_coverage": {language: 100.0},
                   },
                   "evidence": {
-                      "ci": "synthetic canonical fragment owner",
+                      "synthetic": "deterministic runner canonical owner",
                       "canonical_fragments": catalog,
+                      "canonical_verification": verification,
                   },
               }
               response = {

@@ -27,7 +27,8 @@
     "scored_output_cap": "The output cap of a scored trial is not part of the key. A certified llm_learnability or llm_proficiency record carries what its trials did against the cap they ran under (scored_output_cap, trial_calls, cap_truncated_trial_calls, max_trial_output_tokens, written at promotion or by cache-annotate-caps from the run's retained agent traces). Under the same cap the record is reused. Under a different cap it is reused only when the cap demonstrably never mattered: no trial call was cut off and no completion was larger than the current cap. A record without this evidence is a MISS until it is annotated.",
     "quidra_execution_identity": "The historical fingerprint remains unchanged so already-paid cache stays addressable. Reuse of any record that measures Quidra additionally requires an exact compiler/runtime execution identity. New records carry it explicitly; legacy records are accepted only from verified migration commits while the target still equals the frozen migration baseline.",
     "same_result_metadata_refresh": "When reuse is rejected and a unit is freshly remeasured, identical result bytes do not preserve stale compatibility/certification metadata. The current trust metadata replaces the old record so changed Quidra execution identity or stronger certification cannot create a permanent MISS loop.",
-    "legacy_identity_ratchet": "A verified legacy Quidra record that predates explicit execution identity may be rewritten at checkpoint with the current proven-equivalent execution identity while preserving its historical fingerprint and result. This is counted as an upgrade, not a remeasurement or replacement."
+    "legacy_identity_ratchet": "A verified legacy Quidra record that predates explicit execution identity may be rewritten at checkpoint with the current proven-equivalent execution identity while preserving its historical fingerprint and result. This is counted as an upgrade, not a remeasurement or replacement.",
+    "ecosystem_runner_rubric": "Ecosystem cache reuse requires the same frozen rubric asset through the rendered Task Packet/readable-input hashes and the declared Ecosystem epoch. Pre-v2 language-local rubric results are preserved but are not reused as scored evidence."
   },
   "epochs": {
     "semantic_compression": "declared",
@@ -38,8 +39,8 @@
     "mechanical": "declared"
   },
   "declared_epochs": {
-    "ecosystem": "2026-09",
-    "note": "Set by a person, like a toolchain pin. Ecosystem measures external packages, tools and public knowledge, which change even when a language version does not; rather than expiring every ecosystem record at each calendar month, the operator changes this value when the outside world should be measured again. Records carry the value in their key, so changing it makes every ecosystem record a MISS. 2026-09 keeps the records certified in September 2026 valid.",
+    "ecosystem": "2026-09-runner-rubric-v2",
+    "note": "Set by a person, like a toolchain pin. Ecosystem measures external packages, tools and public knowledge, which change independently of language versions. The runner-rubric-v2 epoch deliberately invalidates older Ecosystem score records because they were produced by language-local rubrics; the old records remain preserved in Git but are not score-compatible with the frozen runner-owned rubric contract.",
     "mechanical": "2026-09",
     "mechanical_note": "Mechanical measurements are timed on the hosted runner class the workflow names. Change this value when that class changes or when the numbers should be taken again for another reason; nothing else about the runner enters the key.",
     "semantic_compression": "2026-09-canonical-fragments-v6-fixed-stdout",

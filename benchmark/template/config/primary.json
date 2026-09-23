@@ -46,7 +46,13 @@
     "primary_scenarios": [
       "specification_to_implementation",
       "reference_to_porting"
-    ]
+    ],
+    "primary_prompt_variants": [
+      "canonical",
+      "scenario-first",
+      "contract-first"
+    ],
+    "prompt_variant_policy": "The three frozen independent trials in each workload/scenario cell are one fresh session per predeclared equivalent prompt variant, in the listed order. This keeps the Primary call count unchanged while making Prompt Robustness directly measurable."
   },
   "semantic_compression": {
     "fixed_probe_count": 44,
@@ -141,8 +147,8 @@
     "trial_records": "runtime-owned files under work/agents/<agent-id>/trials/, written verbatim by scripts/sandbox_agent.py and not writable by the worker",
     "prompt_caching": "trusted-side, invisible to the sandbox, changes prefix cost only",
     "task_spend_guard": {
-      "floor_usd": 8.0,
-      "envelope_multiplier": 3.0,
+      "floor_usd": 8,
+      "envelope_multiplier": 3,
       "note": "Per-task soft ceiling enforced by the trusted gateway from the frozen task policy: max(floor, multiplier x the unit's planned token envelope). A unit that keeps spending past its plan is refused further inference and blocked, instead of consuming the run-wide budget on its own."
     }
   }

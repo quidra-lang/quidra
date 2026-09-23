@@ -1097,7 +1097,14 @@ def cmd_toolchain_scan(args: argparse.Namespace) -> int:
                 f"{exc}"
             ) from exc
     semantic_ffi_smoke = runtime_image_record.get("semantic_ffi_smoke", {})
-    if lexical_absolute(root) == lexical_absolute(CANONICAL_WORKSPACE):
+    if (
+        lexical_absolute(root) == lexical_absolute(CANONICAL_WORKSPACE)
+        and runtime_record_path.is_file()
+    ):
+        # The lightweight CI base image intentionally has no comparison
+        # toolchains and therefore no image observation record. Production
+        # uses the full toolchains image, whose build-time verifier must write
+        # this record and whose F20 smoke is mandatory.
         stable_f20 = normalize_f20_runtime_smoke(semantic_ffi_smoke)
         json_dump(root / F20_RUNTIME_FACTS_RELATIVE, stable_f20)
     payload = {

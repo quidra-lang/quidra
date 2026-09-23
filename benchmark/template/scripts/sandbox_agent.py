@@ -1167,6 +1167,7 @@ def run_agent(args: argparse.Namespace) -> int:
                 "stop_reason": response.get("stop_reason"),
                 "output_tokens": int(response.get("usage", {}).get("output_tokens", 0) or 0),
             })
+            checkpoint_trace()
             if protocol_errors >= max_protocol_errors:
                 stop_reason = "protocol_contract_violated"
                 break
@@ -1188,6 +1189,7 @@ def run_agent(args: argparse.Namespace) -> int:
                     "incomplete": incomplete,
                     "protocol_error": "truncated action turn",
                 })
+                checkpoint_trace()
                 if protocol_errors >= max_protocol_errors:
                     stop_reason = "protocol_contract_violated"
                     break
@@ -1205,6 +1207,7 @@ def run_agent(args: argparse.Namespace) -> int:
             # model's part, and not worth another identical turn.
             stop_reason = f"incomplete_completion:{incomplete.split(':', 1)[0]}"
             trace.append({"turn": turn, "action": None, "incomplete": incomplete})
+            checkpoint_trace()
             break
 
         try:
@@ -1217,6 +1220,7 @@ def run_agent(args: argparse.Namespace) -> int:
                 "protocol_error": str(exc),
                 "completion_sha256": benchmark.sha256_bytes(completion.encode("utf-8")),
             })
+            checkpoint_trace()
             if protocol_errors >= max_protocol_errors:
                 stop_reason = "protocol_contract_violated"
                 break
@@ -1270,11 +1274,13 @@ def run_agent(args: argparse.Namespace) -> int:
                         "turn": turn, "action": "final", "observation": observation,
                         "protocol_error": "final before required work completed", **batch,
                     })
+                    checkpoint_trace()
                     observations.append(observation)
                     break
                 final_summary = str(action.get("summary", ""))
                 stop_reason = "final"
                 trace.append({"turn": turn, "action": "final", **batch})
+                checkpoint_trace()
                 finished = True
                 break
 
@@ -1306,6 +1312,7 @@ def run_agent(args: argparse.Namespace) -> int:
             if isinstance(recorded.get("content"), str):
                 recorded["content"] = f"<{len(recorded['content'])} chars elided from trace>"
             trace.append({"turn": turn, "action": name, "observation": recorded, **batch})
+            checkpoint_trace()
             observations.append(observation)
 
         if finished:
@@ -1364,6 +1371,8 @@ def run_agent(args: argparse.Namespace) -> int:
         "finished_at_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
     }
     benchmark.json_dump(agent_dir / "agent_trace.json", result)
+    partial_path.unlink(missing_ok=True)
+    resume_path.unlink(missing_ok=True)
     print(json.dumps({k: v for k, v in result.items() if k != "trace"}, indent=2))
 
     if stop_reason != "final" or missing:

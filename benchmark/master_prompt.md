@@ -189,7 +189,7 @@ Quidra is the changing target, and a unit containing Quidra is keyed by the vers
 
 Stable comparison-language measurements use a stable epoch. Ecosystem measurements use a declared epoch (`declared_epochs.ecosystem` in `template/config/cache_policy.json`) because external packages, tools, adoption and public knowledge can change even when a language version does not: the operator changes that value when the outside world should be measured again, and every ecosystem record then misses.
 
-Exact scored prompts are content-addressed. New prompt components/manifests are promoted into `benchmark/template/prompts/` only after finalization; future identical prompts reuse those canonical bytes instead of storing another copy.
+Exact scored prompts are content-addressed. Cache checkpoints retain prompt components/manifests needed to revalidate certified leaves; finalization retains the full run prompt set. Identical prompts reuse canonical bytes.
 
 Frozen facts fully derivable from the current template/manifest are still revalidated mechanically and never consume an LLM call. Historical run directories are never benchmark inputs; only the explicit certified cache is reusable measurement input.
 

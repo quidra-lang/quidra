@@ -7698,13 +7698,27 @@ def proficiency_repair_prompt(verification: dict[str, Any]) -> str:
             "error": value.get("error"),
         }
 
+    failed_cases = []
+    for case in verification.get("cases") or []:
+        if isinstance(case, dict) and case.get("passed") is not True:
+            failed_cases.append({
+                "id": case.get("id"),
+                "hidden": case.get("hidden"),
+                "exit_code": case.get("exit_code"),
+                "stdout": str(case.get("stdout") or "")[:2000],
+                "stderr": str(case.get("stderr") or "")[:2000],
+                "mismatch": case.get("mismatch"),
+            })
     feedback = {
         "compile_parse_ok": verification.get("compile_parse_ok"),
         "test_passed": verification.get("test_passed"),
-        "expected_exit_code": verification.get("expected_exit_code"),
-        "expected_stdout": verification.get("expected_stdout"),
         "compile_or_parse": compact_process(verification.get("compile_or_parse")),
-        "run": compact_process(verification.get("run")),
+        "first_failed_run": compact_process(verification.get("run")),
+        "failed_cases": failed_cases,
+        "note": (
+            "Hidden case inputs and oracle outputs are intentionally withheld. "
+            "Repair the implementation against the original general contract."
+        ),
     }
     return (
         "# Frozen LLM Proficiency Repair\n"
@@ -7718,18 +7732,12 @@ def proficiency_repair_prompt(verification: dict[str, Any]) -> str:
 
 
 def proficiency_runtime_metrics(trace: dict[str, Any]) -> dict[str, float] | None:
-    """Metrics whose meaning is fully decidable from runtime-owned evidence.
-
-    Correctness is deliberately NOT derived from the workload program's own
-    PASS line. The current Primary workloads use fixed toy cases, so a malicious
-    completion could hard-code that line. The run result remains trusted audit
-    evidence, while semantic correctness/specification compliance stay separate
-    until the workload contract has an external hidden-input oracle.
-    """
+    """Metrics fully decidable from trusted compilation and hidden-input oracles."""
     trials = ((trace.get("trials") or {}).get("trials") or {})
     if not isinstance(trials, dict) or not trials:
         return None
-    generation = compiled = 0
+    generation = compiled = correct1 = correctn = 0
+    passed_cases = total_cases = 0
     for summary in trials.values():
         calls = (summary or {}).get("calls") or []
         if not calls:
@@ -7746,12 +7754,39 @@ def proficiency_runtime_metrics(trace: dict[str, Any]) -> dict[str, float] | Non
             return None
         if first_verification.get("compile_parse_ok") is True:
             compiled += 1
+        if first_verification.get("test_passed") is True:
+            correct1 += 1
+        if any(
+            isinstance(call.get("verification"), dict)
+            and call["verification"].get("test_passed") is True
+            for call in calls
+        ):
+            correctn += 1
+        cases = first_verification.get("cases") or []
+        if cases:
+            for case in cases:
+                if not isinstance(case, dict):
+                    return None
+                total_cases += 1
+                if case.get("passed") is True:
+                    passed_cases += 1
+        else:
+            # Synthetic CI intentionally performs no real hidden execution.
+            # Count its declared trusted suite as failed so the deterministic
+            # synthetic result remains aligned with runtime-owned metrics.
+            declared = int(first_verification.get("trusted_case_count", 0) or 0)
+            total_cases += max(1, declared)
+
     denominator = float(len(trials))
     return {
         "metric.generation_success_rate": 100.0 * generation / denominator,
         "metric.compile_parse_success_rate": 100.0 * compiled / denominator,
+        "metric.correct_at_1": 100.0 * correct1 / denominator,
+        "metric.correct_at_n": 100.0 * correctn / denominator,
+        "metric.test_pass_rate": (
+            100.0 * passed_cases / float(total_cases) if total_cases else 0.0
+        ),
     }
-
 
 def project_proficiency_runtime_metrics(
     root: Path,
@@ -7762,12 +7797,12 @@ def project_proficiency_runtime_metrics(
     """Make mechanically decidable Proficiency metrics runner-owned.
 
     The worker still authors the complete result document and every metric whose
-    meaning requires qualitative judgment. Generation and compile/parse success,
-    however, are facts already present in the trusted trial trace. Re-running all
-    paid trials because the worker made an arithmetic mistake while summarizing
-    those facts would change no experiment, so the runner projects only those
-    mechanically decidable cells and preserves the worker's original values in a
-    separate audit record.
+    meaning requires qualitative judgment. Generation, compile/parse success,
+    Correct@1, Correct@N and Test Pass Rate are facts from trusted compilation
+    plus the hidden-input external oracle. Re-running paid trials because the
+    worker summarized those facts incorrectly would change no experiment, so the
+    runner projects these mechanically decidable cells and preserves the worker's
+    original values in a separate audit record.
     """
     if str(unit.get("evaluation") or "") != "llm_proficiency":
         return None

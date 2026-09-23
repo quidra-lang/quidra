@@ -341,9 +341,10 @@ def unit_payload(
                 "selection_rule": rubric["selection_rule"],
                 "retrieval_route": "provider-brokered web search",
                 "snapshot_date": str(
-                    json.loads((root / "run.json").read_text(encoding="utf-8"))
-                    .get("created_at_utc", "2026-09-23")
-                )[:10],
+                    (rubric_asset.get("evidence_policy") or {}).get(
+                        "snapshot_date", ""
+                    )
+                ),
                 "limitations": "synthetic deterministic harness evidence",
             }
         elif (

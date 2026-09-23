@@ -187,7 +187,7 @@ scientific or validator blockers are never silently converted into scores.
   cumulative budget ledger and API-cost evidence for that slice. **finalize**
   consumes benchmark-<run-id>-recovery2-llm-proficiency, and only if all five
   evaluations are **COMPLETE** does it write benchmark-<run-id> with the combined
-  formal result. A scoped request writes benchmark-<run-id>-scoped.
+  formal result. A scoped request keeps benchmark-<run-id>-scoped plus two recovery handoffs, with the same COMPLETE fast-forward behavior.
 
 ## Reconciling after the workflow finishes
 

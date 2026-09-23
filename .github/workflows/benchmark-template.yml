@@ -59,6 +59,8 @@ jobs:
           YAML.load_file(".github/actions/benchmark-primary/action.yml", aliases: true)
           jobs = workflow.fetch("jobs")
           expected_needs = {
+            "scoped-recover1" => ["prepare", "scoped-run"],
+            "scoped-recover2" => ["prepare", "scoped-recover1"],
             "semantic-compression" => ["prepare"],
             "llm-learnability" => ["prepare", "semantic-compression"],
             "language-quality" => ["prepare", "llm-learnability"],
@@ -94,6 +96,8 @@ jobs:
           expression = "$" + "{{ needs.prepare.outputs.run_id }}"
           base = "benchmark-" + expression
           chain = [
+            ["scoped-recover1", "#{base}-scoped", "#{base}-scoped-recovery1"],
+            ["scoped-recover2", "#{base}-scoped-recovery1", "#{base}-scoped-recovery2"],
             ["semantic-compression", "#{base}-prepared", "#{base}-semantic-compression"],
             ["llm-learnability", "#{base}-semantic-compression", "#{base}-llm-learnability"],
             ["language-quality", "#{base}-llm-learnability", "#{base}-language-quality"],

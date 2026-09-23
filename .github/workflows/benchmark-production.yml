@@ -323,6 +323,61 @@ jobs:
           budget-usd: ${{ needs.prepare.outputs.budget_usd }}
           units: ${{ needs.prepare.outputs.units }}
 
+  scoped-recover1:
+    name: scoped-recover1
+    needs: [prepare, scoped-run]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'scoped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Continue scoped Primary if still needed
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: ${{ needs.prepare.outputs.evaluation }}
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-scoped
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-scoped-recovery1
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          units: ${{ needs.prepare.outputs.units }}
+          max-wall-seconds: "15000"
+  scoped-recover2:
+    name: scoped-recover2
+    needs: [prepare, scoped-recover1]
+    if: ${{ always() && !cancelled() && needs.prepare.result == 'success' && needs.prepare.outputs.mode == 'scoped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - run: git checkout -B benchmark "$GITHUB_SHA"
+      - name: Continue scoped Primary if still needed
+        continue-on-error: true
+        uses: ./.github/actions/benchmark-primary
+        with:
+          evaluation: ${{ needs.prepare.outputs.evaluation }}
+          previous-handoff: benchmark-${{ needs.prepare.outputs.run_id }}-scoped-recovery1
+          handoff-name: benchmark-${{ needs.prepare.outputs.run_id }}-scoped-recovery2
+          run-id: ${{ needs.prepare.outputs.run_id }}
+          evaluated-sha: ${{ needs.prepare.outputs.evaluated_sha }}
+          model: ${{ env.BENCHMARK_MODEL }}
+          budget-usd: ${{ needs.prepare.outputs.budget_usd }}
+          units: ${{ needs.prepare.outputs.units }}
+          max-wall-seconds: "15000"
+
   semantic-compression:
     name: semantic-compression
     needs: prepare

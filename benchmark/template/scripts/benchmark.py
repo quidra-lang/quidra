@@ -3181,6 +3181,40 @@ def validate_sc_record_for_probe(
     return record
 
 
+SC_NONAUTHORITATIVE_METRIC_SUPPORT_KEYS = {
+    "fragment", "selected_fragment", "source_fragment",
+    "support", "support_level", "support_factor",
+    "awarded", "awarded_points",
+    "level",
+    "p_letter", "p_letters", "partial_reasons", "applicable_letters", "letters",
+    "n_reason", "none_reason",
+}
+
+
+def sc_metric_only_annotation(fields: dict[str, Any]) -> dict[str, Any]:
+    """Remove duplicate support authority from a metric-shard annotation.
+
+    The blinded comparability sample carries one canonical support record at the
+    probe/language level. Metric shards remain useful for density/determinacy/
+    locality/hidden-cost evidence, but their copied support level, fragment or
+    P/N reason is stale by definition after cohort adjudication and must not
+    become a second vote visible to the auditor.
+    """
+    cleaned: dict[str, Any] = {}
+    for key, value in fields.items():
+        lowered = str(key).lower()
+        support_field = (
+            lowered in SC_NONAUTHORITATIVE_METRIC_SUPPORT_KEYS
+            or lowered.startswith("support_")
+            or lowered.endswith("_support")
+            or "p_letter" in lowered
+            or "n_reason" in lowered
+        )
+        if not support_field:
+            cleaned[key] = value
+    return cleaned
+
+
 def sc_reconcile_support(
     by_language: dict[str, dict[str, dict[str, Any]]],
     owner_rows: dict[str, dict[str, dict[str, Any]]],
@@ -3705,14 +3739,17 @@ def build_comparability_sample(
             continue
         collected = probe_annotation_fields(json_load(result_path), wanted)
         annotations = by_language.setdefault(str(languages[0]), {})
+        is_support_owner = support_owner_id in (source.get("requirement_ids") or [])
         for probe_id, fields in collected.items():
-            if fields:
-                sc_add_annotation_source(
-                    annotations.setdefault(probe_id, {}),
-                    str(source.get("id") or dependency),
-                    fields,
-                )
-        if support_owner_id in (source.get("requirement_ids") or []):
+            if fields and not is_support_owner:
+                metric_fields = sc_metric_only_annotation(fields)
+                if metric_fields:
+                    sc_add_annotation_source(
+                        annotations.setdefault(probe_id, {}),
+                        str(source.get("id") or dependency),
+                        metric_fields,
+                    )
+        if is_support_owner:
             owned = owner_rows.setdefault(str(languages[0]), {})
             for probe_id, fields in collected.items():
                 if fields:

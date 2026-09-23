@@ -129,6 +129,28 @@ def assert_conflicting_annotation_fields_are_rejected() -> None:
     ), combined
 
 
+def assert_metric_annotations_do_not_carry_support_authority() -> None:
+    fields = {
+        "fragment": "stale_fragment()",
+        "support": "NONE",
+        "support_factor": 0.0,
+        "p_letters": ["P-b"],
+        "none_reason": "N-3",
+        "note": "metric-specific explanation",
+        "citation": "metric-specific citation",
+        "semantic_fact_count": 4,
+    }
+    cleaned = benchmark.sc_metric_only_annotation(fields)
+    assert "fragment" not in cleaned, cleaned
+    assert "support" not in cleaned, cleaned
+    assert "support_factor" not in cleaned, cleaned
+    assert "p_letters" not in cleaned, cleaned
+    assert "none_reason" not in cleaned, cleaned
+    assert cleaned["note"] == "metric-specific explanation", cleaned
+    assert cleaned["citation"] == "metric-specific citation", cleaned
+    assert cleaned["semantic_fact_count"] == 4, cleaned
+
+
 def assert_f20_runtime_facts_contract() -> None:
     smoke = {
         language: {
@@ -1096,6 +1118,7 @@ def main() -> None:
     assert_support_adjudication_receives_trusted_verification()
     assert_probe_alias_rows_are_recognized()
     assert_conflicting_annotation_fields_are_rejected()
+    assert_metric_annotations_do_not_carry_support_authority()
     assert_f20_runtime_facts_contract()
     assert_f20_work_plan_uses_stable_runtime_facts()
     assert_adjudication_is_authoritative()

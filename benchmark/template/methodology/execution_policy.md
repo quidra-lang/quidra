@@ -18,9 +18,9 @@ The gateway declares the provider-side tools it may enable, and `preflight` reco
 
 ## 2. Current-template-only rule
 
-Every reusable source, prompt, fixture, validator, workload and methodology input required by a new run is tracked directly under `benchmark/template/`. Reusable measurements are separate and may enter only through the certified cache under `benchmark/cache/`.
+Every reusable source, prompt, fixture, validator, workload and methodology input required by a new run is tracked directly under `benchmark/template/`. Reusable finalized measurements are separate and may enter only through the certified result cache under `benchmark/cache/`.
 
-New runs must not read previous benchmark directories, old methodology snapshots, or ad-hoc prior scores/generations/repair histories. Historical run directories are output/audit material only. The sole exception for prior measurements is the explicit certified cache under `benchmark/cache/`, which the trusted runner may hydrate only after a complete input-fingerprint match and current-validator revalidation. Workers never receive the cache as a readable path.
+New runs must not read previous benchmark directories, old methodology snapshots, or ad-hoc prior scores/generations/repair histories. Historical run directories are output/audit material only. Prior finalized measurements may enter only through the explicit certified cache after a complete input-fingerprint match and current-validator revalidation. Paid-but-incomplete packet responses/trial sessions are a different class: the trusted runner may restore them from the private CI paid-checkpoint store only when the current work unit produces the identical full cache fingerprint and Task Packet hash. Restoring those bytes never marks the unit COMPLETE and never bypasses the current validator. Workers never receive either cache as an arbitrary readable path.
 
 Reusable source/harness/fixture assets may be copied from the current template into the sandbox. Source reuse alone does not imply measurement reuse: mechanical measurements are re-executed where required, while eligible comparison-language judgment measurements may be satisfied by a certified cache HIT.
 
@@ -69,6 +69,8 @@ After the maximum attempts, the unit becomes BLOCKED with an infrastructure bloc
 
 Validator failure follows the same bounded retry policy. A valid scientific negative result is written as evidence and should still pass the structural validator.
 
+A paid provider response is committed before later interpretation can fail. Packet-only responses are persisted before completeness checks, JSON parsing or `task-apply`; an exact-prompt stranded response is replayed before another provider request. Sandbox-agent trials commit prompt/completion/session bytes and the paid-call journal before orchestration resumes. Job handoffs preserve that state, and the private Actions paid-checkpoint cache preserves still-incomplete exact-fingerprint state across later workflow runs. Corrupt or incompatible checkpoint data invalidates only that leaf checkpoint.
+
 ## 6. Agent path and response ownership
 
 Each sandbox-agent writes only under `/quidra-benchmark/work/agents/<agent-id>/`. Shared state is written only by runner commands.
@@ -99,15 +101,17 @@ For every eligible measurement work unit, certification is unit-scoped rather th
 
 ## 9. Primary-first budget
 
-The frozen plan records maximum model calls and estimated token envelopes where relevant. If an exposed hard quota makes the Primary plan impossible, stop before measurement and change the language-neutral configuration for a future run. Never reduce only one language or change replication after seeing comparative results.
+The frozen plan records maximum model calls and estimated token envelopes where relevant. Before paid dispatch, `budget-plan` must persist the exact current decision set: certified reuse+revalidation, new paid execution, paid re-evaluation after an explicit invalidation reason, dependency-deferred cache decisions, machine-only work and blockers. It also records the paid-call/cost upper bounds. Restored paid trial calls reduce the remaining scored-call envelope. After dispatch, the trusted runner persists actual calls/cost versus that frozen plan and reasons for any difference. If an exposed hard quota makes the Primary plan impossible, stop before measurement and change the language-neutral configuration for a future run. Never reduce only one language or change replication after seeing comparative results.
 
 ## 10. Scoreability
 
 Only COMPLETE evaluations publish scores/rankings.
 
+Each frozen work unit has `required_for_complete` semantics; absent an explicit false value it is required. `completeness-audit` mechanically requires every required unit to be COMPLETE+PASS with all evidence present and all five Primary aggregates to be structurally valid COMPLETE rankings. Optional diagnostics may be absent without permanently forcing PARTIAL. The audit emits exact agent-leaf and machine-command resume sets.
+
 Requirement workers produce raw evidence and normalized requirement-level values. The runner applies `config/aggregation.json` and generates the final language ranking.
 
-A scoreable evaluation left without a ranking is an orchestration defect. A failed comparability/integrity gate instead yields WITHDRAWN/PARTIAL with no fabricated ranking.
+A scoreable evaluation left without a ranking is an orchestration defect. A failed comparability/integrity gate instead yields WITHDRAWN/PARTIAL with no fabricated ranking. Diagnostic `finalize` may preserve such a run, but `post-run` publication requires `formal_complete=true`.
 
 ## 11. Network and timing
 
@@ -132,11 +136,11 @@ ad-hoc prompt noise.
 
 ## 12. Privacy and retention
 
-Privacy scanning is required before dispatch, before finalization, and once more over the exact retained set before import. Keep machine-readable final results, exact prompts/hashes, run identity, required raw measurements/audits, leaf outputs, frozen manifest/ledger/plans and runner command results. Drop caches/intermediates, the evaluated source snapshot, template copy, temporary home/files, micro build products and personal/host-specific data.
+Privacy scanning is required before dispatch, before finalization, and once more over the exact retained set before import. Keep machine-readable final results, exact prompts/hashes, run identity, required raw measurements/audits, leaf outputs, frozen manifest/ledger/plans and runner command results. Paid-but-incomplete raw provider/trial state may live in the private Actions cache solely for exact-fingerprint recovery; it is not a Git result and cannot become score evidence until the current validator completes the leaf. Drop ordinary caches/intermediates, the evaluated source snapshot, template copy, temporary home/files, micro build products and personal/host-specific data.
 
 The gateway's per-request audit log records request identity, task identity, timing, usage and a response hash. It lives on the trusted side and is never written into the scored workspace or the retained set.
 
-After successful `finalize` and sandbox exit, only the trusted outer runner may expose the clean isolated `benchmark` checkout to `post-run`. The command reads the fixed physical `<source-repo>/.quidra-benchmark` staging directory, requires the checkout-local Git-private host sentinel outside that directory to match the finalized run identity, stages the retained set under `benchmark/<run-id>/`, verifies every retained file hash, atomically installs the run directory, revalidates the sentinel immediately before cleanup, and deletes the host staging directory followed by the sentinel only after verification succeeds. A failed import or sentinel mismatch never deletes the workspace. An abandoned run is removed with `discard-workspace --source-repo <checkout>`, which validates only the fixed workspace path and host-only sentinel contract and deliberately does not trust or require `run.json` or an absolute source path. Both operations remain valid if the checkout is moved or renamed.
+After a `formal_complete=true` finalize and sandbox exit, only the trusted outer runner may expose the clean isolated `benchmark` checkout to `post-run`. The command reads the fixed physical `<source-repo>/.quidra-benchmark` staging directory, requires the checkout-local Git-private host sentinel outside that directory to match the finalized run identity, stages the retained set under `benchmark/<run-id>/`, verifies every retained file hash, atomically installs the run directory, revalidates the sentinel immediately before cleanup, and deletes the host staging directory followed by the sentinel only after verification succeeds. A failed import or sentinel mismatch never deletes the workspace. An abandoned run is removed with `discard-workspace --source-repo <checkout>`, which validates only the fixed workspace path and host-only sentinel contract and deliberately does not trust or require `run.json` or an absolute source path. Both operations remain valid if the checkout is moved or renamed.
 
 ## 13. Git freeze
 

@@ -8207,8 +8207,37 @@ def proficiency_reference_self_test(root: Path) -> dict[str, Any]:
 
 
 
+def proficiency_public_repair_gate_passed(
+    verification: dict[str, Any]
+) -> bool:
+    """Whether compile + PUBLIC oracle cases permit the trial to stop repairing.
+
+    Hidden cases are score-only holdout evidence. They must never decide whether
+    another model turn is granted, otherwise the repair loop becomes a one-bit
+    black-box oracle over the hidden test set.
+    """
+    if not isinstance(verification, dict):
+        return False
+    if verification.get("compile_parse_ok") is not True:
+        return False
+    rows = verification.get("oracle_tests")
+    if verification.get("synthetic_ci") is True and not rows:
+        # Synthetic CI has no scored hidden/public execution; preserve its
+        # structural smoke behavior without creating a production exception.
+        return verification.get("test_passed") is True
+    if not isinstance(rows, list):
+        return False
+    public_rows = [
+        row for row in rows
+        if isinstance(row, dict) and row.get("hidden") is not True
+    ]
+    if not public_rows:
+        return False
+    return all(row.get("passed") is True for row in public_rows)
+
+
 def proficiency_verification_summary(verification: dict[str, Any]) -> dict[str, Any]:
-    """Worker-readable projection that contains no hidden case identity/output."""
+    """Worker-readable projection with no hidden-oracle verdict or cardinality."""
     if not isinstance(verification, dict):
         raise BenchmarkError("invalid Proficiency verification summary source")
     return {
@@ -8219,15 +8248,15 @@ def proficiency_verification_summary(verification: dict[str, Any]) -> dict[str, 
         "source_sha256": verification.get("source_sha256"),
         "workload_contract_sha256": verification.get("workload_contract_sha256"),
         "compile_parse_ok": verification.get("compile_parse_ok"),
-        "test_passed": verification.get("test_passed"),
-        "oracle_test_count": verification.get("oracle_test_count"),
-        "oracle_passed_count": verification.get("oracle_passed_count"),
+        "public_repair_gate_passed": proficiency_public_repair_gate_passed(
+            verification
+        ),
         "synthetic_ci": verification.get("synthetic_ci") is True,
     }
 
 
 def proficiency_model_visible_feedback(verification: dict[str, Any]) -> dict[str, Any]:
-    """Only diagnostics safe to send back to the scored model."""
+    """Only compile/public diagnostics safe to send back to the scored model."""
     if not isinstance(verification, dict):
         raise BenchmarkError("LLM Proficiency repair requires trusted verification")
 
@@ -8244,12 +8273,12 @@ def proficiency_model_visible_feedback(verification: dict[str, Any]) -> dict[str
         }
 
     public_failures: list[dict[str, Any]] = []
-    hidden_failures = 0
     for row in verification.get("oracle_tests") or []:
-        if not isinstance(row, dict) or row.get("passed") is True:
-            continue
-        if row.get("hidden") is True:
-            hidden_failures += 1
+        if (
+            not isinstance(row, dict)
+            or row.get("hidden") is True
+            or row.get("passed") is True
+        ):
             continue
         public_failures.append({
             "problem": row.get("problem"),
@@ -8257,28 +8286,30 @@ def proficiency_model_visible_feedback(verification: dict[str, Any]) -> dict[str
         })
     return {
         "compile_parse_ok": verification.get("compile_parse_ok"),
-        "test_passed": verification.get("test_passed"),
+        "public_repair_gate_passed": proficiency_public_repair_gate_passed(
+            verification
+        ),
         "compile_or_parse": compact_process(verification.get("compile_or_parse")),
-        "oracle_test_count": verification.get("oracle_test_count"),
-        "oracle_passed_count": verification.get("oracle_passed_count"),
         "public_failures": public_failures,
-        "hidden_failure_count": hidden_failures,
     }
 
+
 def proficiency_repair_prompt(verification: dict[str, Any]) -> str:
-    """Deterministic verifier-only feedback for a Proficiency repair turn."""
+    """Deterministic compile/public-only feedback for a Proficiency repair turn."""
     if not isinstance(verification, dict):
         raise BenchmarkError("LLM Proficiency repair requires trusted verification")
-    if verification.get("test_passed") is True:
+    if proficiency_public_repair_gate_passed(verification):
         raise BenchmarkError(
-            "LLM Proficiency success is terminal; a passing trial may not be repaired"
+            "LLM Proficiency compile/public repair gate is terminal; "
+            "hidden score-only cases never authorize a repair"
         )
     feedback = proficiency_model_visible_feedback(verification)
     return (
         "# Frozen LLM Proficiency Repair\n"
-        "Your previous program did not pass the trusted verifier.\n"
-        "The JSON below contains verifier facts only. Hidden inputs, expected "
-        "answers, hidden case identities, and hidden-run output are withheld. "
+        "Your previous program did not pass the compile/public repair gate.\n"
+        "The JSON below contains only compile diagnostics and public-case failures. "
+        "Hidden cases are score-only holdout evidence: their inputs, outputs, "
+        "identities, counts, pass counts, and verdicts are not repair feedback. "
         "Use the feedback and the original frozen task to repair the program.\n"
         + json.dumps(feedback, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
         + "\nReturn only one complete replacement source program, with no Markdown "

@@ -12,13 +12,18 @@ section. A Proficiency-only configuration change therefore cannot invalidate or 
 change the prompt of Learnability, Language Quality, Semantic Compression, or
 Ecosystem.
 
-Records created before this scoping rule are not discarded. On an exact-key miss the
-trusted runner may recover one historical record only when all non-Primary prompt
-components and every other fingerprint dependency still match exactly, and the old
-full Primary JSON projects to the same configuration for the current evaluation.
-That compatibility hit still passes the current validator and is checkpointed under
-the new scoped fingerprint. If multiple compatible historical records disagree on the
-result, none is reused.
+The same rule applies below Primary configuration: a unit hashes only the methodology
+sections actually embedded in its Task Packet and the exact assigned-requirement
+projection, not unrelated parts of those files.
+
+Records created before these scoping rules are not discarded. On an exact-key miss,
+the trusted runner may recover one historical record only when every unscoped prompt
+component and every other fingerprint dependency still match exactly, the old full
+Primary JSON projects to the same configuration for the current evaluation, and the
+historical selected methodology/assigned-requirement bodies are byte-identical to
+the current ones. That compatibility hit still passes the current validator and is
+checkpointed under the new scoped fingerprint. If multiple compatible historical
+records disagree on the result, none is reused.
 
 Quidra-containing work is cached too. Its historical fingerprint still carries
 the declared `version` / `language_version` and exact Task Packet so already-paid

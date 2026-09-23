@@ -29,7 +29,9 @@ import datetime as dt
 import json
 import os
 from pathlib import Path
+import re
 import shutil
+import time
 import subprocess
 import sys
 from typing import Any
@@ -296,14 +298,111 @@ def act_write_file(action: dict[str, Any], perms: Permissions) -> dict[str, Any]
     }
 
 
+_WORKSPACE_PATH_RE = re.compile(r"/quidra-benchmark(?:/[^\\\"'\\s,)]*)?")
+_RELATIVE_ESCAPE_RE = re.compile(r"(?<![A-Za-z0-9_.-])\\.\\.(?:/|$)")
+
+
+def _sandbox_subprocess_allowed_roots(perms: Permissions) -> list[Path]:
+    roots = [benchmark.lexical_absolute(path) for path in perms.read_roots]
+    target_build = perms.root / "work" / "root" / "target-build"
+    if target_build.exists():
+        roots.append(benchmark.lexical_absolute(target_build))
+    return roots
+
+
+def _sandbox_subprocess_access_problem(
+    trace_text: str, perms: Permissions
+) -> str | None:
+    """Reject a subprocess that crossed the Task Packet filesystem boundary.
+
+    argv/cwd validation alone is not a filesystem sandbox: an allowed
+    interpreter could otherwise read a sibling worker or the gateway socket.
+    Production therefore traces file syscalls and accepts the action only when
+    every benchmark-workspace path actually touched is inside the same declared
+    read roots enforced by read_file plus the worker's own directory.
+    """
+    allowed = _sandbox_subprocess_allowed_roots(perms)
+    for line in trace_text.splitlines():
+        # A procfs-root alias still contains the canonical workspace suffix,
+        # so the same matcher catches /proc/.../root/quidra-benchmark/... .
+        for raw in _WORKSPACE_PATH_RE.findall(line):
+            candidate = raw.rstrip(".,:;")
+            try:
+                path = benchmark.lexical_absolute(Path(candidate))
+            except Exception:
+                return f"unparseable workspace path in subprocess trace: {candidate}"
+            if any(_is_within(path, root) for root in allowed):
+                continue
+            return f"undeclared workspace access: {candidate}"
+        # Task Packets expose normalized absolute read paths, so relative
+        # traversal is unnecessary and would make path resolution ambiguous.
+        if _RELATIVE_ESCAPE_RE.search(line):
+            return "relative path traversal ('..') observed in subprocess filesystem trace"
+    return None
+
+
+def _runtime_state_hashes(perms: Permissions) -> dict[str, str | None]:
+    protected = (
+        "task.json",
+        "trial_call_journal.json",
+        "resume_trace.json",
+    )
+    out: dict[str, str | None] = {}
+    for name in protected:
+        path = perms.agent_dir / name
+        out[name] = benchmark.sha256_file(path) if path.is_file() else None
+    return out
+
+
 def act_run(action: dict[str, Any], perms: Permissions) -> dict[str, Any]:
     cwd = perms.resolve_cwd(action.get("cwd"))
     env = benchmark.sanitized_subprocess_env(perms.root, cwd)
+    # HOME/TMPDIR are private to this worker instead of shared by the whole
+    # scored sandbox, preventing accidental cross-unit state.
+    process_state = perms.agent_dir / ".subprocess"
+    process_home = process_state / "home"
+    process_tmp = process_state / "tmp"
+    process_home.mkdir(parents=True, exist_ok=True)
+    process_tmp.mkdir(parents=True, exist_ok=True)
+    env.update({
+        "HOME": str(process_home),
+        "TMPDIR": str(process_tmp),
+        "TMP": str(process_tmp),
+        "TEMP": str(process_tmp),
+    })
     argv = perms.resolve_argv(action.get("argv"), env["PATH"])
     timeout = int(perms.config["exec_timeout_seconds"])
+    protected_before = _runtime_state_hashes(perms)
+
+    command = argv
+    trace_path: Path | None = None
+    if benchmark.lexical_absolute(perms.root) == benchmark.lexical_absolute(CANONICAL_WORKSPACE):
+        strace = Path("/usr/bin/strace")
+        if not strace.is_file():
+            raise AgentFailure(
+                "sandbox filesystem audit is unavailable: /usr/bin/strace is missing"
+            )
+        audit_dir = (
+            perms.root / "work" / "root" / "subprocess-audit" / perms.agent_dir.name
+        )
+        audit_dir.mkdir(parents=True, exist_ok=True)
+        trace_path = audit_dir / f"trace-{os.getpid()}-{time.time_ns()}.log"
+        command = [
+            str(strace),
+            "-f",
+            "-qq",
+            "-s",
+            "4096",
+            "-e",
+            "trace=%file",
+            "-o",
+            str(trace_path),
+            "--",
+            *argv,
+        ]
     try:
         completed = subprocess.run(
-            argv,
+            command,
             shell=False,
             cwd=cwd,
             env=env,
@@ -321,6 +420,28 @@ def act_run(action: dict[str, Any], perms: Permissions) -> dict[str, Any]:
         }
     except OSError as exc:
         raise AgentDenied(f"subprocess could not start: {exc}") from exc
+
+    if trace_path is not None:
+        if not trace_path.is_file():
+            raise AgentFailure("sandbox filesystem audit produced no syscall trace")
+        trace_text = trace_path.read_text(encoding="utf-8", errors="replace")
+        problem = _sandbox_subprocess_access_problem(trace_text, perms)
+        trace_path.unlink(missing_ok=True)
+        if problem is not None:
+            raise AgentFailure(f"sandbox filesystem policy violation: {problem}")
+
+    protected_after = _runtime_state_hashes(perms)
+    if protected_after != protected_before:
+        changed = sorted(
+            name
+            for name in protected_before
+            if protected_before.get(name) != protected_after.get(name)
+        )
+        raise AgentFailure(
+            "sandbox filesystem policy violation: subprocess modified runner-owned "
+            + ", ".join(changed)
+        )
+
     cap = int(perms.config["exec_output_bytes"])
     stdout, stdout_truncated = truncate(completed.stdout, cap)
     stderr, stderr_truncated = truncate(completed.stderr, cap)

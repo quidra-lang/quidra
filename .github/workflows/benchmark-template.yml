@@ -636,16 +636,95 @@ jobs:
 
           python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
 
+          # Capability Coverage now owns the one canonical fragment/support
+          # record per probe. No A/B/C/D/E consumer may dispatch before its
+          # same-language owner is COMPLETE.
           test -f "$TMP/results/dispatch_queue.json"
-          grep -q '"agent_id": "worker-sc-metrics-local--part-1--quidra"' "$TMP/results/dispatch_queue.json"
-          python benchmark/template/scripts/benchmark.py task-render             --workspace "$TMP" --id worker-sc-metrics-local--part-1--quidra > "$TMP/rendered-task.md"
-          grep -q "Embedded input: worker_core.md" "$TMP/rendered-task.md"
-          grep -q "Semantic Density" "$TMP/rendered-task.md"
-          grep -q "/quidra-benchmark" "$TMP/rendered-task.md"
-          if grep -Fq "$TMP" "$TMP/rendered-task.md"; then
+          grep -q '"agent_id": "worker-sc-metrics-hidden-coverage--part-2--quidra"' "$TMP/results/dispatch_queue.json"
+          if grep -q '"agent_id": "worker-sc-metrics-local--part-1--quidra"' "$TMP/results/dispatch_queue.json"; then
+            echo "semantic metric consumer dispatched before canonical fragment owner" >&2
+            exit 1
+          fi
+          python benchmark/template/scripts/benchmark.py task-render \
+            --workspace "$TMP" --id worker-sc-metrics-hidden-coverage--part-2--quidra \
+            > "$TMP/rendered-owner-task.md"
+          grep -q "Embedded input: worker_core.md" "$TMP/rendered-owner-task.md"
+          grep -q "Capability Coverage" "$TMP/rendered-owner-task.md"
+          grep -q "/quidra-benchmark" "$TMP/rendered-owner-task.md"
+          if grep -Fq "$TMP" "$TMP/rendered-owner-task.md"; then
             echo "physical synthetic workspace leaked into rendered Task Packet" >&2
             exit 1
           fi
+
+          # Give each language a complete 44-probe canonical catalog. The
+          # synthetic owner reports 100 coverage because every probe is FULL.
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          root = Path(".benchmark-template-test")
+          langs = ["Quidra","Python","C++","Rust","Go","Java","TypeScript","Kotlin","Swift","Zig"]
+          matrix = json.loads(
+              (root / "template/methodology-assets/semantic_compression/semantic_site_matrix.json").read_text()
+          )
+          probe_ids = [str(p["probe_id"]) for p in matrix["probes"]]
+          slug = {
+              "Quidra":"quidra","Python":"python","C++":"c","Rust":"rust","Go":"go",
+              "Java":"java","TypeScript":"typescript","Kotlin":"kotlin","Swift":"swift","Zig":"zig",
+          }
+          for language in langs:
+              catalog = {}
+              for probe_id in probe_ids:
+                  fragment = (
+                      "synthetic_wrapper()"
+                      if language == "Python" and probe_id == "F10.P1"
+                      else "synthetic_fragment()"
+                  )
+                  catalog[probe_id] = {
+                      "level": "FULL",
+                      "fragment": fragment,
+                      "partial_reasons": [],
+                      "none_reason": None,
+                      "justification": "Synthetic canonical fragment selected under R1-R10.",
+                      "citation": "Synthetic frozen documentation citation.",
+                  }
+              agent = "worker-sc-metrics-hidden-coverage--part-2--" + slug[language]
+              payload = {
+                  "schema_version": 1,
+                  "evaluation": "semantic_compression",
+                  "requirements": {
+                      "metric.capability_coverage": {language: 100.0},
+                  },
+                  "evidence": {
+                      "ci": "synthetic canonical fragment owner",
+                      "canonical_fragments": catalog,
+                  },
+              }
+              response = {
+                  "schema_version": 1,
+                  "task_id": agent,
+                  "files": [{"path": "result.json", "content": json.dumps(payload, indent=2) + "\n"}],
+              }
+              (root / "raw" / f"{agent}.response.json").write_text(json.dumps(response) + "\n")
+          PY
+          for SUFFIX in quidra python c rust go java typescript kotlin swift zig; do
+            ID="sc-metrics-hidden-coverage--part-2--$SUFFIX"
+            AGENT="worker-$ID"
+            python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id "$ID"
+            python benchmark/template/scripts/benchmark.py task-apply --workspace "$TMP" --id "$AGENT" \
+              < "$TMP/raw/$AGENT.response.json"
+            python benchmark/template/scripts/benchmark.py task-finish --workspace "$TMP" --id "$ID"
+          done
+
+          # Owner completion releases the five metric consumers. Their task
+          # packets must contain and attest the exact canonical catalog SHA.
+          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
+          grep -q '"agent_id": "worker-sc-metrics-local--part-1--quidra"' "$TMP/results/dispatch_queue.json"
+          python benchmark/template/scripts/benchmark.py task-render \
+            --workspace "$TMP" --id worker-sc-metrics-local--part-1--quidra \
+            > "$TMP/rendered-task.md"
+          grep -q "Canonical fragment contract" "$TMP/rendered-task.md"
+          grep -q "canonical_fragments_quidra.json" "$TMP/rendered-task.md"
           if grep -q "LLM Proficiency Evaluation" "$TMP/rendered-task.md"; then
             echo "unrelated evaluation content leaked into narrow Task Packet" >&2
             exit 1
@@ -657,101 +736,47 @@ jobs:
 
           root = Path(".benchmark-template-test")
           langs = ["Quidra","Python","C++","Rust","Go","Java","TypeScript","Kotlin","Swift","Zig"]
-
-          def write(agent, evaluation, requirements):
-              payload = {
-                  "schema_version": 1,
-                  "evaluation": evaluation,
-                  "requirements": requirements,
-                  "evidence": {"ci": "synthetic normalized smoke evidence"},
-              }
-              response = {
-                  "schema_version": 1,
-                  "task_id": agent,
-                  "files": [{
-                      "path": "result.json",
-                      "content": json.dumps(payload, indent=2) + "\n",
-                  }],
-              }
-              (root / "raw" / f"{agent}.response.json").write_text(
-                  json.dumps(response) + "\n"
-              )
-
-          PY
-          # All Semantic Compression readiness gates are deterministic commands.
-          # One advance executes them before exposing the metric workers.
-          python benchmark/template/scripts/benchmark.py advance --workspace "$TMP"
-
-          python - <<'PY'
-          from pathlib import Path
-          import json
-
-          root = Path(".benchmark-template-test")
-          langs = ["Quidra","Python","C++","Rust","Go","Java","TypeScript","Kotlin","Swift","Zig"]
           scores = {name: 90 - i for i, name in enumerate(langs)}
-
-          def write(agent, requirements):
-              payload = {
-                  "schema_version": 1,
-                  "evaluation": "semantic_compression",
-                  "requirements": requirements,
-                  "evidence": {"ci": "synthetic normalized smoke evidence"},
-              }
-              response = {
-                  "schema_version": 1,
-                  "task_id": agent,
-                  "files": [{
-                      "path": "result.json",
-                      "content": json.dumps(payload, indent=2) + "\n",
-                  }],
-              }
-              (root / "raw" / f"{agent}.response.json").write_text(
-                  json.dumps(response) + "\n"
-              )
-
-          def split(requirements, languages):
-              return {
-                  rid: {language: values[language] for language in languages}
-                  for rid, values in requirements.items()
-              }
-
-          bases = {
-              "sc-metrics-local--part-1": {
-                  "metric.semantic_density": scores,
-              },
-              "sc-metrics-local--part-2": {
-                  "metric.semantic_locality": scores,
-              },
-              "sc-metrics-local--part-3": {
-                  "metric.semantic_determinacy": scores,
-              },
-              "sc-metrics-hidden-coverage--part-1": {
-                  "metric.hidden_semantic_cost": scores,
-              },
-              "sc-metrics-hidden-coverage--part-2": {
-                  "metric.capability_coverage": scores,
-              },
-              "sc-metrics-hidden-coverage--part-3": {
-                  "metric.capability_efficiency": scores,
-              },
-          }
           slug = {
               "Quidra":"quidra","Python":"python","C++":"c","Rust":"rust","Go":"go",
               "Java":"java","TypeScript":"typescript","Kotlin":"kotlin","Swift":"swift","Zig":"zig",
           }
-          for base, requirements in bases.items():
+          bases = {
+              "sc-metrics-local--part-1": "metric.semantic_density",
+              "sc-metrics-local--part-2": "metric.semantic_locality",
+              "sc-metrics-local--part-3": "metric.semantic_determinacy",
+              "sc-metrics-hidden-coverage--part-1": "metric.hidden_semantic_cost",
+              "sc-metrics-hidden-coverage--part-3": "metric.capability_efficiency",
+          }
+          for base, rid in bases.items():
               for language in langs:
-                  write(
-                      "worker-" + base + "--" + slug[language],
-                      split(requirements, [language]),
-                  )
+                  agent = "worker-" + base + "--" + slug[language]
+                  task = json.loads((root / "work/agents" / agent / "task.json").read_text())
+                  digest = task["canonical_fragment_catalog_sha256"]
+                  assert len(digest) == 64, (agent, digest)
+                  payload = {
+                      "schema_version": 1,
+                      "evaluation": "semantic_compression",
+                      "requirements": {rid: {language: scores[language]}},
+                      "evidence": {
+                          "ci": "synthetic normalized smoke evidence",
+                          "canonical_fragment_catalog_sha256": digest,
+                      },
+                  }
+                  response = {
+                      "schema_version": 1,
+                      "task_id": agent,
+                      "files": [{"path": "result.json", "content": json.dumps(payload, indent=2) + "\n"}],
+                  }
+                  (root / "raw" / f"{agent}.response.json").write_text(json.dumps(response) + "\n")
           PY
-          for BASE in sc-metrics-local--part-1 sc-metrics-local--part-2 sc-metrics-local--part-3 sc-metrics-hidden-coverage--part-1 sc-metrics-hidden-coverage--part-2 sc-metrics-hidden-coverage--part-3; do
+          for BASE in sc-metrics-local--part-1 sc-metrics-local--part-2 sc-metrics-local--part-3 sc-metrics-hidden-coverage--part-1 sc-metrics-hidden-coverage--part-3; do
             for SUFFIX in quidra python c rust go java typescript kotlin swift zig; do
               ID="$BASE--$SUFFIX"
               AGENT="worker-$ID"
               python benchmark/template/scripts/benchmark.py task-start --workspace "$TMP" --id "$ID"
-              python benchmark/template/scripts/benchmark.py task-apply --workspace "$TMP" --id "$AGENT"                 < "$TMP/raw/$AGENT.response.json"
+              python benchmark/template/scripts/benchmark.py task-apply --workspace "$TMP" --id "$AGENT" \
+                < "$TMP/raw/$AGENT.response.json"
               python benchmark/template/scripts/benchmark.py task-finish --workspace "$TMP" --id "$ID"
             done
           done

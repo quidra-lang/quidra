@@ -1008,8 +1008,7 @@ def assert_empty_cache_impact_is_a_valid_first_run() -> None:
     """A repository with no v1 records still produces a zero-impact plan."""
     with tempfile.TemporaryDirectory() as td:
         source = Path(td) / "source"
-        shutil.copytree(ROOT, source)
-        shutil.rmtree(source / "benchmark/cache/v1", ignore_errors=True)
+        source.mkdir()
         summary = benchmark.cache_impact(source)
         assert summary["valid"] == 0, summary
         assert summary["invalid"] == [], summary

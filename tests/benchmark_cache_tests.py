@@ -600,6 +600,28 @@ def assert_proficiency_cache_requires_exact_primary_trial_set() -> None:
         assert benchmark.cache_cap_reuse_problem(root, record, unit) is None
 
 
+def assert_execution_identity_paths_are_policy_authoritative() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td))
+        policy = benchmark.cache_policy(root)
+        paths = benchmark.quidra_execution_input_paths(policy)
+        baseline = policy["quidra_execution_identity"]["legacy_baseline"]
+        assert set(paths) == set(baseline["git_objects"]), (paths, baseline)
+
+        policy_path = root / "template/config/cache_policy.json"
+        bad = json.loads(json.dumps(policy))
+        bad["quidra_execution_identity"]["input_paths"].append(paths[0])
+        benchmark.json_dump(policy_path, bad)
+        try:
+            benchmark.cache_policy(root)
+        except benchmark.BenchmarkError as exc:
+            assert "duplicates" in str(exc), exc
+        else:
+            raise AssertionError(
+                "duplicate Quidra execution input path did not invalidate cache policy"
+            )
+
+
 def assert_quidra_execution_identity_reuse_guard() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td))
@@ -668,6 +690,7 @@ def assert_cached_validator_rejection_becomes_miss() -> None:
 
 def main() -> None:
     assert_accepted_trial_start_marks_the_scored_boundary()
+    assert_execution_identity_paths_are_policy_authoritative()
     assert_quidra_execution_identity_reuse_guard()
     assert_cached_validator_rejection_becomes_miss()
     assert_proficiency_cache_requires_exact_primary_trial_set()

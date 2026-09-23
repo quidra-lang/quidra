@@ -166,12 +166,13 @@ def unit_payload(unit: dict[str, Any], languages: list[str]) -> dict[str, Any]:
             requirements[requirement_id] = True
         elif requirement_id.startswith("annotation.support_adjudication--"):
             # A support adjudication answers for the whole cohort with the full
-            # normalized decision record the real validator requires.
+            # canonical record consumed by comparability.
             requirements[requirement_id] = {
                 language: {
-                    "support": "FULL",
-                    "p_letters": [],
-                    "n_reason": None,
+                    "level": "FULL",
+                    "fragment": "synthetic_fragment()",
+                    "partial_reasons": [],
+                    "none_reason": None,
                     "citation": "Synthetic frozen documentation citation.",
                     "justification": "Synthetic cohort-consistent justification.",
                 }

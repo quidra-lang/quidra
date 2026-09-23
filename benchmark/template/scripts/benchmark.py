@@ -7445,6 +7445,239 @@ def apply_ecosystem_runner_scores(
     }
 
 
+LANGUAGE_QUALITY_DESIGN_RUBRICS_RELATIVE = Path(
+    "template/methodology-assets/language_quality/design_rubrics.json"
+)
+
+
+def language_quality_design_rubric_asset(root: Path) -> dict[str, Any]:
+    """Load the frozen intrinsic Language Quality design rubric contract."""
+    path = root / LANGUAGE_QUALITY_DESIGN_RUBRICS_RELATIVE
+    if not path.is_file():
+        raise BenchmarkError("frozen Language Quality design rubric asset is missing")
+    data = json_load(path)
+    if data.get("schema_version") != 1 or data.get("frozen") is not True:
+        raise BenchmarkError(
+            "Language Quality design rubric asset must be frozen schema_version 1"
+        )
+
+    aggregation = json_load(root / "template" / "config" / "aggregation.json")
+    expected = set(
+        (
+            aggregation.get("evaluations", {})
+            .get("language_quality", {})
+            .get("categories", {})
+            .get("language_development", {})
+            .get("metrics", [])
+        )
+    )
+    metrics = data.get("metrics")
+    if not isinstance(metrics, dict) or set(metrics) != expected:
+        raise BenchmarkError(
+            "Language Quality design rubrics must exactly match the "
+            "language_development aggregation metric set"
+        )
+
+    scoring = data.get("scoring")
+    expected_points = {"0": 0, "1": 5, "2": 10, "3": 15, "4": 20}
+    if (
+        not isinstance(scoring, dict)
+        or scoring.get("runner_owned") is not True
+        or scoring.get("allowed_levels") != [0, 1, 2, 3, 4]
+        or scoring.get("level_points") != expected_points
+        or int(scoring.get("component_count_per_metric", 0) or 0) != 5
+        or int(scoring.get("component_weight_points", 0) or 0) != 20
+    ):
+        raise BenchmarkError(
+            "Language Quality design rubric scoring must freeze five 20-point "
+            "components with levels 0..4 and runner-owned arithmetic"
+        )
+
+    rubric_ids: set[str] = set()
+    for rid, row in metrics.items():
+        if not isinstance(row, dict):
+            raise BenchmarkError(f"{rid}: Language Quality rubric row must be an object")
+        rubric_id = row.get("rubric_id")
+        selection_rule = row.get("selection_rule")
+        components = row.get("components")
+        if not isinstance(rubric_id, str) or not rubric_id:
+            raise BenchmarkError(f"{rid}: Language Quality rubric_id is missing")
+        if rubric_id in rubric_ids:
+            raise BenchmarkError(f"{rid}: duplicate Language Quality rubric_id {rubric_id}")
+        rubric_ids.add(rubric_id)
+        if not isinstance(selection_rule, str) or not selection_rule.strip():
+            raise BenchmarkError(f"{rid}: Language Quality selection_rule is missing")
+        if not isinstance(components, list) or len(components) != 5:
+            raise BenchmarkError(f"{rid}: Language Quality rubric needs five components")
+        component_ids: list[str] = []
+        for component in components:
+            if not isinstance(component, dict):
+                raise BenchmarkError(f"{rid}: Language Quality component must be an object")
+            cid = component.get("id")
+            criterion = component.get("criterion")
+            if (
+                not isinstance(cid, str)
+                or not cid
+                or not isinstance(criterion, str)
+                or not criterion.strip()
+                or component.get("weight_points") != 20
+            ):
+                raise BenchmarkError(
+                    f"{rid}: each Language Quality component needs id, criterion "
+                    "and weight_points=20"
+                )
+            component_ids.append(cid)
+        if len(set(component_ids)) != 5:
+            raise BenchmarkError(f"{rid}: Language Quality component IDs must be unique")
+
+    policy = data.get("evidence_policy")
+    if not isinstance(policy, dict):
+        raise BenchmarkError("Language Quality design evidence_policy is missing")
+    required_policy = {
+        "network_allowed", "source_priority", "symmetry_rule",
+        "source_size_boundary", "diagnostics_boundary", "na_rule",
+    }
+    if not required_policy <= set(policy):
+        missing = sorted(required_policy - set(policy))
+        raise BenchmarkError(
+            "Language Quality design evidence_policy is incomplete: "
+            + ", ".join(missing)
+        )
+    if policy.get("network_allowed") is not False:
+        raise BenchmarkError("Language Quality design evidence must remain offline")
+    if not isinstance(policy.get("source_priority"), list) or not policy["source_priority"]:
+        raise BenchmarkError("Language Quality design source_priority must be non-empty")
+    return data
+
+
+def _language_quality_design_evidence_ref(root: Path, raw: Any) -> str:
+    """Validate one worker citation as an existing frozen workspace input."""
+    if not isinstance(raw, str) or not raw.strip():
+        raise BenchmarkError("Language Quality evidence_refs must be non-empty strings")
+    text = raw.strip()
+    path = PurePosixPath(text)
+    if (
+        path.is_absolute()
+        or any(part in {"", ".", ".."} for part in path.parts)
+        or not path.parts
+        or path.parts[0] not in {"repo", "template"}
+    ):
+        raise BenchmarkError(
+            f"Language Quality evidence ref must be a relative repo/... or "
+            f"template/... path: {text!r}"
+        )
+    candidate = require_under(root.joinpath(*path.parts), root)
+    if not candidate.exists():
+        raise BenchmarkError(f"Language Quality evidence ref does not exist: {text}")
+    return path.as_posix()
+
+
+def apply_language_quality_design_runner_scores(
+    root: Path, task: dict[str, Any], result: dict[str, Any]
+) -> None:
+    """Validate fixed design judgments and own their 0-100 arithmetic in runner."""
+    if task.get("evaluation") != "language_quality":
+        return
+    asset = language_quality_design_rubric_asset(root)
+    design_metrics = asset["metrics"]
+    requirement_ids = [
+        str(rid)
+        for rid in (task.get("requirement_ids") or [])
+        if str(rid) in design_metrics
+    ]
+    if not requirement_ids:
+        return
+    assigned = list(task.get("assigned_languages") or [])
+    if len(assigned) != 1:
+        raise BenchmarkError(
+            "Language Quality design workers must be one-language evidence shards"
+        )
+    language = str(assigned[0])
+    evidence = result.get("evidence")
+    if not isinstance(evidence, dict):
+        raise BenchmarkError("Language Quality design result requires evidence object")
+
+    points = asset["scoring"]["level_points"]
+    computed: dict[str, dict[str, float]] = {}
+    detail: dict[str, Any] = {}
+    for rid in requirement_ids:
+        row = evidence.get(rid)
+        if not isinstance(row, dict):
+            raise BenchmarkError(f"{rid}: Language Quality design evidence is missing")
+        rubric = design_metrics[rid]
+        if row.get("rubric_id") != rubric["rubric_id"]:
+            raise BenchmarkError(
+                f"{rid}: rubric_id must equal frozen {rubric['rubric_id']}"
+            )
+        if row.get("selection_rule") != rubric["selection_rule"]:
+            raise BenchmarkError(f"{rid}: selection_rule differs from frozen rubric")
+
+        component_ids = [str(item["id"]) for item in rubric["components"]]
+        levels = row.get("component_levels")
+        findings = row.get("component_findings")
+        if not isinstance(levels, dict) or set(levels) != set(component_ids):
+            raise BenchmarkError(
+                f"{rid}: component_levels must exactly match frozen component IDs"
+            )
+        if not isinstance(findings, dict) or set(findings) != set(component_ids):
+            raise BenchmarkError(
+                f"{rid}: component_findings must exactly match frozen component IDs"
+            )
+
+        score = 0
+        normalized_levels: dict[str, int] = {}
+        for cid in component_ids:
+            level = levels[cid]
+            if (
+                isinstance(level, bool)
+                or not isinstance(level, int)
+                or level not in {0, 1, 2, 3, 4}
+            ):
+                raise BenchmarkError(f"{rid}/{cid}: component level must be integer 0..4")
+            finding = findings[cid]
+            if not isinstance(finding, str) or not finding.strip():
+                raise BenchmarkError(f"{rid}/{cid}: component finding is empty")
+            normalized_levels[cid] = level
+            score += int(points[str(level)])
+
+        refs = row.get("evidence_refs")
+        if not isinstance(refs, list) or not refs:
+            raise BenchmarkError(f"{rid}: evidence_refs must be a non-empty array")
+        normalized_refs = [
+            _language_quality_design_evidence_ref(root, value) for value in refs
+        ]
+        if len(normalized_refs) != len(set(normalized_refs)):
+            raise BenchmarkError(f"{rid}: evidence_refs contains duplicates")
+        limitations = row.get("limitations")
+        if not isinstance(limitations, str):
+            raise BenchmarkError(f"{rid}: limitations must be a string")
+
+        row["component_levels"] = normalized_levels
+        row["evidence_refs"] = normalized_refs
+        row["runner_score_0_100"] = score
+        computed[rid] = {language: float(score)}
+        detail[rid] = {
+            "rubric_id": rubric["rubric_id"],
+            "component_levels": normalized_levels,
+            "evidence_refs": normalized_refs,
+            "score_0_100": score,
+        }
+
+    requirements = result.get("requirements")
+    if requirements is None:
+        requirements = {}
+    if not isinstance(requirements, dict):
+        raise BenchmarkError("Language Quality result requirements must be an object")
+    for rid, value in computed.items():
+        requirements[rid] = value
+    result["requirements"] = requirements
+    evidence["language_quality_design_runner_scoring"] = {
+        "rubric_set_id": asset.get("rubric_set_id"),
+        "language": language,
+        "metrics": detail,
+    }
+
+
 def cmd_result_check(args: argparse.Namespace) -> int:
     root = workspace(args)
     agent_dir = require_under(root / "work" / "agents" / args.id, root)
@@ -7465,8 +7698,9 @@ def cmd_result_check(args: argparse.Namespace) -> int:
         raise BenchmarkError("result.json evaluation mismatch")
 
     apply_ecosystem_runner_scores(root, task, result)
-    if task.get("evaluation") == "ecosystem":
-        # Persist only the trusted runner-computed score projection.
+    apply_language_quality_design_runner_scores(root, task, result)
+    if task.get("evaluation") in {"ecosystem", "language_quality"}:
+        # Persist only trusted runner-computed score projections.
         json_dump(result_path, result)
 
     requirement_ids = list(task.get("requirement_ids", []))

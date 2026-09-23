@@ -561,6 +561,9 @@ def _write_semantic_owner_cohort(
                 verified[probe_id] = {
                     "mode": "nm-add2",
                     "run_count": 0,
+                    "canonical_fragment_sha256": benchmark.sha256_bytes(
+                        str(record["fragment"]).encode("utf-8")
+                    ),
                     "build": (
                         None
                         if language == "Python"
@@ -574,6 +577,9 @@ def _write_semantic_owner_cohort(
                 verified[probe_id] = {
                     "mode": "run",
                     "run_count": run_count,
+                    "canonical_fragment_sha256": benchmark.sha256_bytes(
+                        str(record["fragment"]).encode("utf-8")
+                    ),
                     "build": (
                         None
                         if language == "Python"
@@ -635,6 +641,21 @@ def assert_premeasurement_cohort_gate() -> None:
             assert "mechanical verification report is missing" in str(exc), exc
         else:
             raise AssertionError("premeasurement gate accepted a missing V1 report")
+        _write_semantic_owner_cohort(root)
+
+        stale = json.loads(missing_report.read_text())
+        first_probe = next(iter(stale["probes"]))
+        stale["probes"][first_probe]["canonical_fragment_sha256"] = "0" * 64
+        missing_report.write_text(
+            json.dumps(stale, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        try:
+            benchmark.semantic_premeasurement_cohort_summary(root)
+        except benchmark.BenchmarkError as exc:
+            assert "canonical fragment hash mismatch" in str(exc), exc
+        else:
+            raise AssertionError("premeasurement gate accepted a stale V1 report")
         _write_semantic_owner_cohort(root)
 
         target_probe = probe_ids[0]

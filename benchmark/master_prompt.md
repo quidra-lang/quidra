@@ -140,8 +140,10 @@ benchmark.py post-run --source-repo /path/to/trusted/quidra-checkout
 `post-run` is a trusted outer-runner operation after the scored sandbox work is over.
 After sandbox exit, the trusted outer runner checkpoints every eligible
 COMPLETE+PASS unit. Only a five-COMPLETE run is imported to
-`benchmark/<run-id>/`; blocked/partial attempts live only in workflow evidence
-plus certified cache. A published import is SHA-256 verified. The checkout is
+`benchmark/<run-id>/`; blocked/partial attempts retain workflow evidence,
+certified COMPLETE+PASS result records, and exact-fingerprint paid inference
+checkpoints under `benchmark/cache/partial-paid/`. A published import is
+SHA-256 verified. The checkout is
 never exposed to leaves. Reconcile generated artifacts into current `develop`
 before deleting the disposable branch.
 

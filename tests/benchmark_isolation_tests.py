@@ -2774,6 +2774,88 @@ def test_proficiency_requires_the_complete_primary_trial_set() -> None:
         )
 
 
+def test_proficiency_prompt_variants_and_runtime_metrics() -> None:
+    with tempfile.TemporaryDirectory() as td:
+        root = make_workspace(Path(td).resolve())
+        manifest = benchmark.proficiency_trial_manifest(root)
+        cfg = json.loads(
+            (root / "template/config/primary.json").read_text(encoding="utf-8")
+        )["llm_proficiency"]
+        variants = list(cfg["primary_prompt_variants"])
+        first_cell = [
+            trial_id
+            for trial_id, cell in manifest.items()
+            if cell["workload"] == "SVM"
+            and cell["scenario"] == "specification_to_implementation"
+        ]
+        check(len(first_cell) == 3, f"unexpected prompt-variant cell: {first_cell}")
+        check(
+            [manifest[trial_id]["prompt_variant"] for trial_id in first_cell] == variants,
+            "Primary replications were not mapped to frozen prompt variants in order",
+        )
+        prompts = [
+            benchmark.proficiency_expected_prompt(root, "Python", trial_id)
+            for trial_id in first_cell
+        ]
+        check(
+            len(set(prompts)) == 3,
+            "the three frozen Proficiency prompt variants are byte-identical",
+        )
+        for prompt in prompts:
+            check(
+                "Frozen specification:" in prompt
+                and "trusted runtime supplies additional hidden stdin cases" in prompt
+                and "Target language: Python" in prompt,
+                "a prompt variant dropped frozen semantic content",
+            )
+
+        trials = {}
+        for trial_id, cell in manifest.items():
+            variant = cell["prompt_variant"]
+            passes = variant != "contract-first"
+            oracle_cases = benchmark.proficiency_trusted_oracle_cases(
+                root, cell["workload"]
+            )
+            rows = [
+                {
+                    "id": case["id"],
+                    "hidden": bool(case["hidden"]),
+                    "passed": passes,
+                }
+                for case in oracle_cases
+            ]
+            trials[trial_id] = {
+                "calls": [{
+                    "completion": "source",
+                    "incomplete": None,
+                    "verification": {
+                        "compile_parse_ok": True,
+                        "test_passed": passes,
+                        "oracle_test_count": len(rows),
+                        "oracle_passed_count": len(rows) if passes else 0,
+                        "oracle_tests": rows,
+                    },
+                }]
+            }
+        metrics = benchmark.proficiency_runtime_metrics(
+            root, {"trials": {"trials": trials}}
+        )
+        check(metrics is not None, "runtime-owned Proficiency metrics were not computed")
+        if metrics is not None:
+            check(
+                abs(metrics["metric.prompt_robustness"] - 0.0) < 1e-9,
+                f"worst-variant Prompt Robustness is wrong: {metrics}",
+            )
+            check(
+                abs(metrics["metric.unseen_case_generalization"] - (200.0 / 3.0)) < 1e-6,
+                f"hidden-only Unseen-case Generalization is wrong: {metrics}",
+            )
+            check(
+                abs(metrics["metric.correct_at_1"] - (200.0 / 3.0)) < 1e-6,
+                f"Correct@1 did not use the variant trial set: {metrics}",
+            )
+
+
 def test_rejected_attempts_feed_back_into_the_next_one() -> None:
     with tempfile.TemporaryDirectory() as td:
         root = make_workspace(Path(td).resolve())

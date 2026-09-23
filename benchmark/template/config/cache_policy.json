@@ -20,7 +20,8 @@
     "runtime_toolchain_pins_for_assigned_languages",
     "cache_epoch",
     "quidra_target_versions_when_assigned",
-    "runner_action_and_measurement_script_hashes_for_mechanical_units"
+    "runner_action_and_measurement_script_hashes_for_mechanical_units",
+    "proficiency_workload_contract_sha256_for_llm_proficiency"
   ],
   "reuse_conditions": {
     "scored_output_cap": "The output cap of a scored trial is not part of the key. A certified llm_learnability or llm_proficiency record carries what its trials did against the cap they ran under (scored_output_cap, trial_calls, cap_truncated_trial_calls, max_trial_output_tokens, written at promotion or by cache-annotate-caps from the run's retained agent traces). Under the same cap the record is reused. Under a different cap it is reused only when the cap demonstrably never mattered: no trial call was cut off and no completion was larger than the current cap. A record without this evidence is a MISS until it is annotated."
@@ -40,8 +41,8 @@
     "mechanical_note": "Mechanical measurements are timed on the hosted runner class the workflow names. Change this value when that class changes or when the numbers should be taken again for another reason; nothing else about the runner enters the key.",
     "semantic_compression": "2026-09-canonical-fragments-v6-fixed-stdout",
     "semantic_compression_note": "Semantic Compression v6 preserves the mechanically verified canonical-fragment, trusted-runtime, machine-enforced R9, and comparability-certified cache contracts, and additionally checks frozen exact stdout oracles for every probe whose canonical task fixes a language-neutral concrete result. The runner checks those outputs during the real frozen-recipe execution and rechecks the preserved evidence before downstream scoring. Earlier Semantic Compression records remain preserved but cannot hydrate a v6 run.",
-    "llm_proficiency": "2026-09-runtime-verified-trials-v3",
-    "llm_proficiency_note": "LLM Proficiency v3 requires the exact frozen workload/scenario/replication set, runtime-owned initial prompts, verifier-only repair feedback, a successful assigned-language toolchain invocation before the first scored trial, and trusted compile/parse plus run verification for every initial and repair completion. Generation Success and Compile/Parse Success are bound to runtime evidence; correctness remains separately judged because the current fixed toy workloads do not yet provide hidden-input external correctness oracles. Earlier Proficiency records remain preserved but cannot hydrate this epoch."
+    "llm_proficiency": "2026-09-complete-primary-trials-v4-hidden-oracle",
+    "llm_proficiency_note": "LLM Proficiency v4 freezes runtime-owned initial prompts and repair feedback, requires pre-trial toolchain evidence, and verifies every generated/repair program with trusted public plus hidden stdin cases. Correct@1, Correct@N and Test Pass Rate are projected from the external oracle rather than a program-authored PASS line. The complete hidden-oracle workload asset hash is part of each Proficiency cache fingerprint; earlier records remain preserved but cannot hydrate v4."
   },
   "promotion": {
     "require_complete_unit": true,

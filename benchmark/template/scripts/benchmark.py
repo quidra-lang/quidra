@@ -2039,6 +2039,46 @@ def load_evaluation_requirements(root: Path, evaluation: str) -> tuple[Path, lis
     return path, normalized
 
 
+def execution_ownership_for(
+    root: Path, evaluation: str, required_requirement_ids: Iterable[str]
+) -> dict[str, set[str] | tuple[str, ...]]:
+    """Freeze which requirement IDs belong to deterministic code vs LLM judgment."""
+    path = root / "template" / "config" / "execution_ownership.json"
+    if not path.is_file():
+        raise BenchmarkError("execution_ownership.json is required")
+    data = json_load(path)
+    if data.get("schema_version") != 1:
+        raise BenchmarkError("execution_ownership.json has unsupported schema_version")
+    row = (data.get("evaluations") or {}).get(evaluation)
+    if not isinstance(row, dict):
+        raise BenchmarkError(f"execution ownership is missing {evaluation}")
+    runner = {str(v) for v in (row.get("runner_command_requirements") or [])}
+    agent = {str(v) for v in (row.get("agent_requirements") or [])}
+    prefixes = tuple(str(v) for v in (row.get("agent_requirement_prefixes") or []))
+    overlap = sorted(runner & agent)
+    if overlap:
+        raise BenchmarkError(
+            f"{evaluation}: execution ownership overlaps: {', '.join(overlap)}"
+        )
+    required = {str(v) for v in required_requirement_ids}
+    unclassified = sorted(
+        rid for rid in required
+        if rid not in runner
+        and rid not in agent
+        and not any(rid.startswith(prefix) for prefix in prefixes)
+    )
+    if unclassified:
+        raise BenchmarkError(
+            f"{evaluation}: execution ownership leaves requirements unclassified: "
+            + ", ".join(unclassified)
+        )
+    return {
+        "runner": runner,
+        "agent": agent,
+        "agent_prefixes": prefixes,
+    }
+
+
 def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -> dict[str, Any]:
     if evaluation not in PRIMARY_NAMES:
         raise BenchmarkError(f"unknown Primary evaluation: {evaluation}")
@@ -2046,6 +2086,9 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
         raise BenchmarkError(f"work plan evaluation mismatch: {plan.get('evaluation')!r}")
     requirements_path, required_requirement_ids = load_evaluation_requirements(root, evaluation)
     allowed_requirement_ids = set(required_requirement_ids)
+    ownership = execution_ownership_for(
+        root, evaluation, required_requirement_ids
+    )
     covered_non_aggregation: set[str] = set()
     raw_units = plan.get("work_units")
     if not isinstance(raw_units, list) or not raw_units:
@@ -2121,6 +2164,24 @@ def validate_work_plan_data(root: Path, evaluation: str, plan: dict[str, Any]) -
         execution_kind = str(raw.get("execution_kind", "agent"))
         if execution_kind not in {"agent", "command"}:
             raise BenchmarkError(f"{uid}: execution_kind must be agent or command")
+        for rid in requirement_ids:
+            runner_owned = rid in ownership["runner"]
+            agent_owned = (
+                rid in ownership["agent"]
+                or any(
+                    rid.startswith(prefix)
+                    for prefix in ownership["agent_prefixes"]
+                )
+            )
+            if runner_owned and execution_kind != "command":
+                raise BenchmarkError(
+                    f"{uid}: {rid} is runner-owned and may not be delegated to an LLM"
+                )
+            if agent_owned and execution_kind != "agent":
+                raise BenchmarkError(
+                    f"{uid}: {rid} requires LLM judgment and may not be replaced "
+                    "by a deterministic command without revising the frozen contract"
+                )
         if execution_kind == "agent":
             worker_mode = str(raw.get("worker_mode") or "packet-only")
             if worker_mode not in {"packet-only", "sandbox-agent"}:

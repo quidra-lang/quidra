@@ -411,10 +411,12 @@ def assert_every_sampled_probe_has_a_cohort_adjudicator() -> None:
     assert set(supports) == sampled, (sorted(supports), sorted(sampled))
     for probe, unit in supports.items():
         assert probe in unit["goal"], (probe, unit["goal"])
-        assert (
-            "template/config/semantic_compression_comparability.json"
-            in unit.get("read_paths", [])
-        ), probe
+        # The runner builds one dependency-ready support-adjudication input that
+        # embeds the frozen comparability policy together with annotations,
+        # mechanical verification and toolchain/runtime facts. Requiring the
+        # same policy again as a static read path would duplicate Task Packet
+        # input and needlessly perturb paid prompt/cache fingerprints.
+        assert "comparability policy" in unit["goal"].lower(), probe
     comparability = next(unit for unit in units if unit["id"] == "sc-comparability")
     expected_dependencies = {
         "sc-support-adjudication--" + probe.lower().replace(".", "-")

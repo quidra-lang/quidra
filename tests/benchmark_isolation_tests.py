@@ -2459,11 +2459,10 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
                 and 0 < hardcoded["oracle_passed_count"] < hardcoded["oracle_test_count"],
                 f"a hard-coded public answer escaped hidden-input verification: {hardcoded}",
             )
-            repair = benchmark.proficiency_repair_prompt(hardcoded)
             feedback = benchmark.proficiency_model_visible_feedback(hardcoded)
             summary = benchmark.proficiency_verification_summary(hardcoded)
             serialized_visible = json.dumps(
-                {"repair": repair, "feedback": feedback, "summary": summary},
+                {"feedback": feedback, "summary": summary},
                 sort_keys=True,
             )
             check(
@@ -2471,14 +2470,34 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
                 and "hidden-negative" not in serialized_visible
                 and "hidden-fractional" not in serialized_visible
                 and "expected_sha256" not in serialized_visible
-                and "input_sha256" not in serialized_visible,
-                f"hidden-oracle details leaked into worker/model-visible data: {serialized_visible}",
+                and "input_sha256" not in serialized_visible
+                and "hidden_failure_count" not in serialized_visible
+                and "oracle_test_count" not in serialized_visible
+                and "oracle_passed_count" not in serialized_visible
+                and "test_passed" not in serialized_visible,
+                f"hidden-oracle verdict leaked into worker/model-visible data: {serialized_visible}",
             )
+
+            # The hard-coded public answer passes the public example but fails
+            # hidden cases. Hidden failure must not become a one-bit repair oracle.
+            check(
+                summary.get("public_repair_gate_passed") is True,
+                f"public repair gate did not recognize a public-pass fixture: {summary}",
+            )
+            try:
+                benchmark.proficiency_repair_prompt(hardcoded)
+            except benchmark.BenchmarkError as exc:
+                check(
+                    "hidden score-only cases never authorize a repair" in str(exc),
+                    f"hidden-only failure was rejected for the wrong reason: {exc}",
+                )
+            else:
+                check(False, "a hidden-only failure was allowed to trigger repair")
 
             # The complete trusted record may retain hidden diagnostics, but it
             # lives under work/root/proficiency-verification, outside worker read
-            # paths. The worker-readable projection must contain only aggregate
-            # counts/verdicts.
+            # paths. The worker-readable projection carries only compile/public
+            # repair state, never the full hidden verdict or its cardinality.
             hidden_rows = [
                 row for row in hardcoded["oracle_tests"] if row.get("hidden") is True
             ]
@@ -2489,8 +2508,7 @@ def test_proficiency_runtime_verifier_executes_generated_python() -> None:
                 and set(summary) <= {
                     "schema_version", "trial_id", "language", "workload",
                     "source_sha256", "workload_contract_sha256",
-                    "compile_parse_ok", "test_passed", "oracle_test_count",
-                    "oracle_passed_count", "synthetic_ci",
+                    "compile_parse_ok", "public_repair_gate_passed", "synthetic_ci",
                 },
                 f"worker-readable verification summary is too broad: {summary}",
             )
@@ -2619,9 +2637,12 @@ def test_proficiency_repair_feedback_is_runtime_owned() -> None:
     check(
         "PUBLIC-WRONG" in first
         and "PUBLIC-DIAGNOSTIC" in first
-        and "hidden_case_failures" in first
+        and "hidden_failure_count" not in first
+        and "oracle_passed_count" not in first
+        and "oracle_test_count" not in first
+        and "\"test_passed\"" not in first
         and "Return only one complete replacement source program" in first,
-        f"trusted repair prompt lost safe verifier facts: {first}",
+        f"trusted repair prompt leaked hidden aggregate feedback: {first}",
     )
     for secret in (
         "hidden-secret-id",
@@ -2632,16 +2653,22 @@ def test_proficiency_repair_feedback_is_runtime_owned() -> None:
     ):
         check(secret not in first, f"hidden oracle detail leaked into repair prompt: {secret}")
 
-    passed = dict(failed, test_passed=True)
+    public_passed = json.loads(json.dumps(failed))
+    public_passed["oracle_tests"][0]["passed"] = True
+    public_passed["test_passed"] = False  # hidden case still fails
+    check(
+        benchmark.proficiency_public_repair_gate_passed(public_passed) is True,
+        "hidden failure incorrectly kept the public repair gate open",
+    )
     try:
-        benchmark.proficiency_repair_prompt(passed)
+        benchmark.proficiency_repair_prompt(public_passed)
     except benchmark.BenchmarkError as exc:
         check(
-            "success is terminal" in str(exc),
-            f"a passing trial was rejected for the wrong reason: {exc}",
+            "hidden score-only cases never authorize a repair" in str(exc),
+            f"a public-pass/hidden-fail trial was rejected for the wrong reason: {exc}",
         )
     else:
-        check(False, "a passing Proficiency trial was allowed to request a repair")
+        check(False, "a hidden-only failure was allowed to request a repair")
 
     runtime = (SCRIPTS / "sandbox_agent.py").read_text(encoding="utf-8")
     check(
